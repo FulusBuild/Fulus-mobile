@@ -1,0 +1,90 @@
+name: bms_mobile
+description: BMS Mobile — offline-first business management for Android.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  # Android 8.0 (API 26) is the architecture document's stated floor.
+  # Flutter 3.19+ / Dart 3.3+ still supports minSdkVersion 26 in
+  # android/app/build.gradle (set explicitly there, not implied by this
+  # file) — the SDK constraint here is about the Dart language version
+  # used, not the Android API floor, which is a separate, explicit
+  # setting covered in Phase 1's Android project files.
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- State management (Architecture Section 2) ---
+  # Riverpod is the app-wide default. flutter_bloc is present ONLY for
+  # the cart Cubit — a deliberate, narrow, justified exception (Section 2),
+  # not the start of a second state-management pattern elsewhere.
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  flutter_bloc: ^8.1.5
+
+  # --- Routing ---
+  go_router: ^14.2.0
+
+  # --- Local database (Architecture Section 3) ---
+  drift: ^2.18.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+  # --- Networking (Architecture Section 5) ---
+  dio: ^5.5.0+1
+  connectivity_plus: ^6.0.4
+
+  # --- Secure storage (Architecture Section 11) ---
+  flutter_secure_storage: ^9.2.2
+
+  # --- Background sync (Architecture Section 8) ---
+  workmanager: ^0.5.2
+
+  # --- IDs, equality, immutability ---
+  # ULID for local_id generation — Architecture Section 3 is explicit this
+  # must fit in Sale.client_reference's 64-char backend column; ULID (26
+  # chars, Crockford Base32) does, comfortably, and sorts lexicographically
+  # by creation time, which UUID v4 does not — a real, deliberate reason
+  # to prefer it over uuid here, not an arbitrary pick.
+  ulid: ^2.0.1
+  equatable: ^2.0.5
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # --- Password/PIN hashing (Architecture Section 6 — the offline
+  # approval PIN, hashed on-device, never the raw value persisted) ---
+  crypto: ^3.0.5
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # --- Code generation ---
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.0
+  drift_dev: ^2.18.0
+  freezed: ^2.5.5
+  json_serializable: ^6.8.0
+
+  # --- Lint ---
+  flutter_lints: ^4.0.0
+
+  # --- Testing (Architecture Section 13) ---
+  mocktail: ^1.0.4
+  # No separate integration_test package added in this phase — Section
+  # 13's integration-test layer (real Drift-backed repository tests, no
+  # mocks) uses flutter_test's own test() against a real sqlite3 database
+  # opened in a temp directory, which needs no additional dependency
+  # beyond what's already listed above. Added explicitly if/when a
+  # genuine on-device integration_test need arises, not preemptively.
+
+flutter:
+  uses-material-design: true
+  # asset/font declarations added in the phase that actually introduces
+  # the first real asset — an empty assets: block here would be a
+  # structural lie about what exists.

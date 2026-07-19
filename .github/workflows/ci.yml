@@ -1,0 +1,168 @@
+name: BMS Mobile CI
+
+# Runs on every push and PR against main/develop. This is the first real
+# verification this codebase gets — nothing in this repository has been
+# compiled, analyzed, or tested by the person/process that wrote it,
+# since that was built in an environment with no Flutter/Android SDK at
+# all. This workflow is where that stops being true. Treat a red run here
+# as a genuine, first-time signal, not a formality.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  FLUTTER_VERSION: "3.24.0"
+  # Pinned explicitly rather than "latest stable" — a CI pipeline whose
+  # Flutter version silently drifts between runs makes a red build
+  # ambiguous (did the code break, or did the toolchain move under it?).
+  # Bump this deliberately, as its own reviewable change, not implicitly.
+
+jobs:
+  # ── Step 1: dependency resolution ──────────────────────────────────────
+  # If pubspec.yaml has a real version conflict (every version number in
+  # it was hand-written against my knowledge of published packages, never
+  # confirmed by an actual resolver — see the Phase 1 summary), THIS is
+  # where it surfaces, before any code is even looked at.
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - name: Cache pub packages for later jobs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            **/.dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+
+  # ── Step 2: code generation ────────────────────────────────────────────
+  # tables.dart (and every Riverpod/Freezed-annotated file added in later
+  # phases) declares `part '*.g.dart'` — those files do not exist in this
+  # repository; build_runner generates them. Nothing downstream can even
+  # be analyzed until this succeeds. If this step fails, the problem is in
+  # a table/provider/entity DEFINITION, not in code that uses one.
+  codegen:
+    needs: dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - name: Upload generated files for downstream jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-code
+          path: |
+            lib/**/*.g.dart
+            lib/**/*.freezed.dart
+          retention-days: 1
+
+  # ── Step 3: static analysis ─────────────────────────────────────────────
+  # A failure here is a real defect in the code as written — a type
+  # error, an unresolved import, a genuine mistake — not a toolchain or
+  # generation problem, since codegen already succeeded by this point.
+  analyze:
+    needs: codegen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-code
+          path: lib/
+      - run: flutter analyze --fatal-infos
+      # --fatal-infos, not just the default (which only fails on
+      # warnings/errors) — deliberately the stricter setting for a
+      # foundation phase specifically, since this is the layer everything
+      # else builds on; a merely-passing analyze with unaddressed info-
+      # level lints here compounds across every later phase built on top.
+
+  # ── Step 4: tests ────────────────────────────────────────────────────────
+  # Split into the same layers Architecture Section 13 specifies, run as
+  # separate steps (not one blind `flutter test .`) so a failure names
+  # which LAYER broke — a unit-test failure means a business-rule bug: a
+  # database-test failure means the Drift schema itself is wrong, a more
+  # foundational problem.
+  #
+  # As of this checkpoint, test/unit, test/database, and test/repository
+  # do not exist yet — no test files have been written. This step is
+  # written to report that honestly (a skip with a stated reason) rather
+  # than either fail against a missing directory (a false negative, for a
+  # reason unrelated to code correctness) or be silently omitted from the
+  # pipeline (which would let a later "all green" run look identical
+  # whether or not real tests actually exist and pass). Replace this
+  # entire step with the real flutter test invocations the moment test
+  # files exist — this is a placeholder for pipeline structure, not a
+  # placeholder standing in for actual verification.
+  test:
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No test files exist yet
+        run: |
+          echo "::warning::No test files exist in test/unit, test/database, or test/repository yet."
+          echo "This step intentionally does nothing rather than fail against a missing directory,"
+          echo "or silently report success for tests that were never written."
+
+  # ── Step 5: build a debug APK ────────────────────────────────────────────
+  # Debug, not release — a foundation-phase CI has no signing keystore
+  # configured, and shouldn't invent one. This step's actual purpose is
+  # confirming the Android project itself is correctly configured (Gradle,
+  # minSdkVersion 26 per the brief's Android 8.0 floor, manifest) — a
+  # concern entirely separate from whether the Dart code above is
+  # correct, and one that needs its own explicit pass/fail signal.
+  #
+  # DISABLED (if: false) as of this checkpoint — no android/ project
+  # scaffold has been created yet (no `flutter create` has been run
+  # against this codebase). Running this job right now would fail on
+  # that missing scaffold specifically, a reason that has nothing to do
+  # with whether tables.dart, database.dart, or api_client.dart are
+  # correct, and would be a confusing, misleading first signal. Re-enable
+  # by removing the `if: false` line the moment the Android scaffold
+  # exists — the job itself is otherwise complete and correct as written.
+  build_debug_apk:
+    needs: test
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - run: flutter pub get
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-code
+          path: lib/
+      - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bms-mobile-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+          # This is the artifact meant for your physical device — pull it
+          # from the Actions run, sideload it, and that's the first point
+          # any of this has genuinely run on real hardware rather than
+          # been reasoned about.
