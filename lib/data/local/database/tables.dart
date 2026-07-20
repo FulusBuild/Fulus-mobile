@@ -1,6 +1,16 @@
 import 'package:drift/drift.dart';
 
-part 'tables.g.dart';
+// No `part 'tables.g.dart';` here, deliberately: Drift's default
+// (monolithic) codegen generates table row/companion classes into the
+// part file of whatever Dart file holds the @DriftDatabase-annotated
+// class — that's database.dart -> database.g.dart, not this file.
+// A file that only defines plain Table subclasses gets no generated
+// part of its own unless Drift's separate "modular" build mode is
+// explicitly configured (a build.yaml opt-in, mainly meant for .drift
+// SQL files) — not set up in this project. A `part 'tables.g.dart'`
+// directive here would request a file build_runner never intends to
+// write, which is exactly what caused the CI failure this comment
+// replaces.
 
 /// Shared sync-tracking columns every syncable table carries — Architecture
 /// Section 3's exact list (local_id, server_id, created_at, updated_at,
