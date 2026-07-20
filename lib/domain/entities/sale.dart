@@ -98,7 +98,7 @@ class SaleItem {
 /// exactly the kind of "fake API" the brief's rules explicitly forbid,
 /// since it would silently fail against the real backend rather than
 /// fail loudly against a mock.
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class SaleCreateDto {
   const SaleCreateDto({
     required this.items,
@@ -135,7 +135,7 @@ class SaleCreateDto {
   Map<String, dynamic> toJson() => _$SaleCreateDtoToJson(this);
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class SaleItemCreateDto {
   const SaleItemCreateDto({
     required this.productId,
@@ -160,7 +160,7 @@ class SaleItemCreateDto {
 
 /// The wire-format DTO for what POST /api/sales and GET /api/sales/{id}
 /// return — verified directly against SaleOut and SaleItemOut.
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class SaleResponseDto {
   const SaleResponseDto({
     required this.id,
@@ -194,7 +194,7 @@ class SaleResponseDto {
       _$SaleResponseDtoFromJson(json);
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class SaleItemResponseDto {
   const SaleItemResponseDto({
     required this.id,

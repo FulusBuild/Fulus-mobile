@@ -59,14 +59,10 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: dart run build_runner build --delete-conflicting-outputs
-      - name: Upload generated files for downstream jobs
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-code
-          path: |
-            lib/**/*.g.dart
-            lib/**/*.freezed.dart
-          retention-days: 1
+      # No upload-artifact step: analyze and build_debug_apk each run
+      # codegen themselves now rather than depend on this job's output
+      # (see analyze job's comment). This job still runs first and still
+      # gives an isolated, fast signal if codegen itself is what's broken.
 
   # ── Step 3: static analysis ─────────────────────────────────────────────
   # A failure here is a real defect in the code as written — a type
@@ -82,10 +78,14 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
       - run: flutter pub get
-      - uses: actions/download-artifact@v4
-        with:
-          name: generated-code
-          path: lib/
+      # Generate code directly in this job rather than downloading the
+      # codegen job's artifact. upload-artifact@v4 computes its output
+      # structure from the least-common-ancestor of matched files across
+      # ALL glob patterns combined — not guaranteed to reproduce every
+      # file's original nested path, and not something this step should
+      # depend on for a compile-blocking input. A few redundant seconds
+      # of build_runner here removes that class of failure entirely.
+      - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter analyze --fatal-infos
       # --fatal-infos, not just the default (which only fails on
       # warnings/errors) — deliberately the stricter setting for a
@@ -152,10 +152,7 @@ jobs:
           distribution: "temurin"
           java-version: "17"
       - run: flutter pub get
-      - uses: actions/download-artifact@v4
-        with:
-          name: generated-code
-          path: lib/
+      - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:

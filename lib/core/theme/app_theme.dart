@@ -109,10 +109,15 @@ class AppTheme {
     );
   }
 
-  static CardThemeData _cardTheme() {
+  static CardTheme _cardTheme() {
     // "Cards — soft rounded corners, a light shadow for separation
     // rather than a hard border" — Volume 16, Components.
-    return CardThemeData(
+    // CardThemeData doesn't exist in Flutter 3.24.0 (this CI's pinned
+    // version, .github/workflows/ci.yml) — the CardTheme/CardThemeData
+    // split landed in the Flutter 3.27 component-theme-normalization
+    // migration. At 3.24.0, CardTheme is itself the plain data class
+    // ThemeData.cardTheme expects, constructed directly like this.
+    return CardTheme(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.md),

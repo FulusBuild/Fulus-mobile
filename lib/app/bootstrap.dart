@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/config/env_config.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
@@ -26,15 +27,10 @@ Future<ProviderContainer> bootstrap() async {
 
   final secureStorage = SecureStorage();
 
-  // baseUrl is read from environment configuration (Architecture Section
-  // 1 lists "Environment configuration" as its own concern under Project
-  // Setup) — env_config.dart, not yet written in this phase. Hardcoded
-  // here as a LOCAL PLACEHOLDER ONLY, flagged explicitly rather than
-  // silently treated as final, since the brief's own rules forbid
-  // hardcoded business data and this is exactly the category of thing
-  // that must not ship as a literal — the actual environment-config file
-  // is the very next piece of work, not deferred indefinitely.
-  const baseUrl = 'http://10.0.2.2:8000'; // Android emulator's alias for host localhost
+  // Read from EnvConfig (core/config/env_config.dart) — see that file
+  // for how to override at build/run time via --dart-define. No longer
+  // a hardcoded literal in this function.
+  const baseUrl = EnvConfig.apiBaseUrl;
 
   late final ApiClient apiClient;
   apiClient = ApiClient(
