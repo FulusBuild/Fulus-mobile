@@ -17,18 +17,18 @@ class ApiClient {
     required SecureStorage secureStorage,
     required Future<void> Function() onSessionExpired,
   })  : _secureStorage = secureStorage,
-        _onSessionExpired = onSessionExpired,
         dio = Dio(BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 15),
         )) {
+    _authInterceptor = _AuthInterceptor(
+      secureStorage: _secureStorage,
+      dio: dio,
+      onSessionExpired: onSessionExpired,
+    );
     dio.interceptors.addAll([
-      _AuthInterceptor(
-        secureStorage: _secureStorage,
-        dio: dio,
-        onSessionExpired: _onSessionExpired,
-      ),
+      _authInterceptor,
       _RetryInterceptor(dio: dio),
       // The error-mapping interceptor is last, deliberately — by the
       // time a response or error reaches it, auth refresh has already
@@ -40,7 +40,29 @@ class ApiClient {
 
   final Dio dio;
   final SecureStorage _secureStorage;
-  final Future<void> Function() _onSessionExpired;
+  late final _AuthInterceptor _authInterceptor;
+
+  /// Sets the in-memory access token directly — called by
+  /// AuthRepositoryImpl right after a successful login or a successful
+  /// restoreSession() (Architecture Section 6). This is genuinely
+  /// different from the auth interceptor's OWN internal refresh: that
+  /// one only ever fires reactively, in response to a 401 on some
+  /// OTHER request already in flight. There was previously no external
+  /// hook at all for setting the token the FIRST time, before any
+  /// request has 401'd yet — this method is that hook.
+  void setAccessToken(String? token) => _authInterceptor.setAccessToken(token);
+
+  /// Rewires what happens when a refresh genuinely fails mid-session —
+  /// a setter, not only a constructor parameter, for the same reason as
+  /// SyncQueue.setOnEnqueued (sync_queue.dart): the real callback
+  /// (clearing AuthRepositoryImpl's own session state) depends on
+  /// AuthRepository, which itself depends on this ApiClient already
+  /// existing — a genuine construction-order cycle a setter breaks.
+  /// bootstrap.dart passes a no-op placeholder at construction time and
+  /// wires the real callback in via this setter once the rest of the
+  /// graph exists.
+  void setOnSessionExpired(Future<void> Function() callback) =>
+      _authInterceptor.setOnSessionExpired(callback);
 
   /// Converts whatever Dio produced into a real Failure, following
   /// Architecture Section 5's table exhaustively. Called explicitly by
@@ -204,12 +226,18 @@ class _AuthInterceptor extends Interceptor {
 
   final SecureStorage _secureStorage;
   final Dio _dio;
-  final Future<void> Function() _onSessionExpired;
+
+  // Not final — see ApiClient.setOnSessionExpired's own comment on why
+  // this needs to be rewireable after construction.
+  Future<void> Function() _onSessionExpired;
 
   String? _accessToken;
   bool _isRefreshing = false;
 
   void setAccessToken(String? token) => _accessToken = token;
+
+  void setOnSessionExpired(Future<void> Function() callback) =>
+      _onSessionExpired = callback;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

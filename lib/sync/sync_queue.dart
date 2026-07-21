@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ulid/ulid.dart';
 
 import '../data/local/database/database.dart';
@@ -50,19 +52,31 @@ class SyncTask {
 /// repository calls `enqueue()` and returns immediately, per Section
 /// 4's rule that a write-repository method never awaits the network.
 ///
-/// Deliberately does NOT include any processing/draining logic in this
-/// checkpoint: no connectivity listener, no WorkManager registration, no
-/// retry/backoff, no syncAttempts-based "needs attention" demotion.
-/// Section 8 specifies all of that for a genuine background engine
-/// (`sync/sync_engine.dart`) that reads from the same SyncQueueItems
-/// table this class writes to — that engine doesn't exist yet. This
-/// class's scope stops at "the write is durably queued," which is
-/// exactly as far as the repository layer (Section 4) itself needs to
-/// reach.
+/// The actual draining/retry engine is sync_engine.dart (SyncEngine),
+/// which reads from the same SyncQueueItems table this class writes to.
+/// This class's own scope stays at "the write is durably queued" plus
+/// (via [setOnEnqueued]) nudging that engine to try immediately when a
+/// caller's told it to — it does not itself decide retry/backoff or
+/// priority processing order, that's entirely SyncEngine's job.
 class SyncQueue {
   SyncQueue(this._db);
 
   final AppDatabase _db;
+  Future<void> Function()? _onEnqueued;
+
+  /// Wires Architecture Section 8's fourth trigger ("new item enqueued
+  /// while already online") — deliberately a setter, called once from
+  /// bootstrap.dart AFTER the full object graph exists, rather than a
+  /// constructor parameter. The natural owner of "attempt a sync now"
+  /// is SyncTriggers, which wraps SyncEngine, which dispatches to
+  /// SaleSyncHandler, which depends on SaleRepository — and
+  /// SaleRepositoryImpl itself depends on THIS SyncQueue. Requiring the
+  /// callback at construction time would make that a genuine
+  /// construction-order cycle; a setter lets every object in the graph
+  /// exist first and gets wired together only afterward.
+  void setOnEnqueued(Future<void> Function() callback) {
+    _onEnqueued = callback;
+  }
 
   Future<void> enqueue(SyncTask task) async {
     await _db.into(_db.syncQueueItems).insert(
@@ -75,5 +89,18 @@ class SyncQueue {
             enqueuedAt: DateTime.now(),
           ),
         );
+
+    // Deliberately NOT awaited: enqueue() must still return immediately
+    // regardless of whether a sync attempt is already running or how
+    // long one takes (Architecture Section 4's rule against a write
+    // method ever awaiting the network applies transitively here too —
+    // the caller of enqueue() is a repository's write method). Whether
+    // this callback actually attempts anything right now, versus a
+    // no-op while offline, is entirely up to whatever bootstrap.dart
+    // wires in here — this class has no opinion on connectivity.
+    final callback = _onEnqueued;
+    if (callback != null) {
+      unawaited(callback());
+    }
   }
 }

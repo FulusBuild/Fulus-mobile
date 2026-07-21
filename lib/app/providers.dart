@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
+import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/sale_repository.dart';
+import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
+import '../sync/sync_triggers.dart';
 
 /// The app-wide DI graph's entry points. Each of these is declared with
 /// a body that throws UnimplementedError if it's ever actually invoked —
@@ -37,6 +41,18 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   );
 });
 
+final authApiProvider = Provider<AuthApi>((ref) {
+  throw UnimplementedError(
+    'authApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  throw UnimplementedError(
+    'authRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final salesApiProvider = Provider<SalesApi>((ref) {
   throw UnimplementedError(
     'salesApiProvider must be overridden in bootstrap.dart.',
@@ -52,5 +68,21 @@ final syncQueueProvider = Provider<SyncQueue>((ref) {
 final saleRepositoryProvider = Provider<SaleRepository>((ref) {
   throw UnimplementedError(
     'saleRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final syncEngineProvider = Provider<SyncEngine>((ref) {
+  throw UnimplementedError(
+    'syncEngineProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// Exposed specifically for the future "Sync Now" button (Volume 11)
+/// and a sync-status indicator to call `.syncNow()` — not for the
+/// automatic triggers themselves, which start once in bootstrap.dart
+/// regardless of whether any UI ever reads this provider.
+final syncTriggersProvider = Provider<SyncTriggers>((ref) {
+  throw UnimplementedError(
+    'syncTriggersProvider must be overridden in bootstrap.dart.',
   );
 });

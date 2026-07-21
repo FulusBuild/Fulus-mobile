@@ -4,9 +4,14 @@ import '../core/config/env_config.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
+import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
+import '../sync/handlers/sale_sync_handler.dart';
+import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
+import '../sync/sync_triggers.dart';
 import 'providers.dart';
 
 /// Wires the app's real dependencies together and returns a
@@ -39,17 +44,41 @@ Future<ProviderContainer> bootstrap() async {
     baseUrl: baseUrl,
     secureStorage: secureStorage,
     onSessionExpired: () async {
-      // Called by the auth interceptor when a refresh genuinely fails
-      // (Architecture Section 6). What this needs to DO — clear the
-      // in-memory session state, route to login — depends on the auth
-      // state provider, which is itself part of this same DI graph and
-      // hasn't been written yet in this phase. Left as a documented,
-      // explicit no-op rather than a silent one, so it's not mistaken
-      // for a finished implementation.
-      // TODO(auth-phase): clear session provider state and trigger
-      // navigation to login once the auth state provider exists.
+      // A placeholder ONLY for the brief window between this
+      // constructor call and authRepository existing a few lines below
+      // — apiClient.setOnSessionExpired(...) further down replaces this
+      // with the real callback before bootstrap() returns. Never
+      // actually reachable in practice: nothing here awaits a network
+      // call between this line and that reassignment.
     },
   );
+
+  final authApi = AuthApi(apiClient);
+  final authRepository = AuthRepositoryImpl(
+    authApi: authApi,
+    apiClient: apiClient,
+    secureStorage: secureStorage,
+  );
+
+  // Architecture Section 6: "attempt a silent refresh using the stored
+  // refresh token before showing any login screen at all" — awaited
+  // here, before bootstrap() returns, so main.dart's runApp never shows
+  // a blank/loading state for this. A missing or invalid stored refresh
+  // token resolves to null quickly (no network call at all in the
+  // former case) rather than hanging; see restoreSession's own comment
+  // on why a network failure specifically does NOT clear the stored
+  // token even though it also returns null.
+  await authRepository.restoreSession();
+
+  // Reusing logout() here (rather than a separate method) is
+  // deliberate, not a loose fit: by the time onSessionExpired fires,
+  // the interceptor has already tried and failed to refresh, so
+  // logout()'s own best-effort call to POST /api/auth/logout will fail
+  // too (no valid access token left to authenticate it) — which is
+  // fine, since that call is wrapped in its own try/catch specifically
+  // because a failed audit-log ping must never block clearing the
+  // local session.
+  apiClient.setOnSessionExpired(() => authRepository.logout());
 
   final salesApi = SalesApi(apiClient);
   final syncQueue = SyncQueue(database);
@@ -58,14 +87,38 @@ Future<ProviderContainer> bootstrap() async {
     syncQueue: syncQueue,
   );
 
+  // The rest of the sync engine graph builds on top of saleRepository,
+  // which itself depends on syncQueue above — constructing SyncTriggers
+  // (or SyncEngine) before saleRepository exists isn't possible, hence
+  // the setOnEnqueued call at the end rather than passing this into
+  // SyncQueue's constructor (see sync_queue.dart's own comment on
+  // exactly why this would otherwise be a construction-order cycle).
+  final saleSyncHandler = SaleSyncHandler(
+    db: database,
+    salesApi: salesApi,
+    saleRepository: saleRepository,
+  );
+  final syncEngine = SyncEngine(
+    db: database,
+    handlersByEntityType: {'sale': saleSyncHandler},
+  );
+  final syncTriggers = SyncTriggers(syncEngine: syncEngine);
+  await syncTriggers.start();
+
+  syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
+
   final container = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(database),
       secureStorageProvider.overrideWithValue(secureStorage),
       apiClientProvider.overrideWithValue(apiClient),
+      authApiProvider.overrideWithValue(authApi),
+      authRepositoryProvider.overrideWithValue(authRepository),
       salesApiProvider.overrideWithValue(salesApi),
       syncQueueProvider.overrideWithValue(syncQueue),
       saleRepositoryProvider.overrideWithValue(saleRepository),
+      syncEngineProvider.overrideWithValue(syncEngine),
+      syncTriggersProvider.overrideWithValue(syncTriggers),
     ],
   );
 
