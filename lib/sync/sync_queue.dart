@@ -1,7 +1,6 @@
 import 'package:ulid/ulid.dart';
 
 import '../data/local/database/database.dart';
-import '../data/local/database/tables.dart';
 
 /// Architecture Section 8's three priority lanes, named as constants
 /// rather than a raw int at each call site — 0 is highest priority

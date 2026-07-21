@@ -4,7 +4,7 @@ import 'package:bms_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:bms_mobile/domain/entities/sale.dart';
 import 'package:bms_mobile/domain/entities/sale_draft.dart';
 import 'package:bms_mobile/sync/sync_queue.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 

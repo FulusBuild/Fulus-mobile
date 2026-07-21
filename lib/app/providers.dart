@@ -4,7 +4,6 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/sales_api.dart';
-import '../data/repositories/sale_repository_impl.dart';
 import '../domain/repositories/sale_repository.dart';
 import '../sync/sync_queue.dart';
 
