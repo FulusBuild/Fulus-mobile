@@ -1,0 +1,175 @@
+import 'package:drift/drift.dart';
+
+import '../core/errors/failure.dart';
+import '../data/local/database/database.dart';
+import 'sync_handler.dart';
+
+/// Architecture Section 8's queue-draining engine. Deliberately pure
+/// Dart — Drift and this codebase's own Failure hierarchy are its only
+/// real dependencies, no Flutter/connectivity_plus/workmanager imports
+/// at all. The platform-specific triggers that decide WHEN to call
+/// [runOnce] (connectivity changes, app-foreground, WorkManager) live in
+/// sync_triggers.dart instead — the same layering split this codebase
+/// already applies elsewhere (domain has zero Flutter/Drift imports;
+/// here, the queue-draining ALGORITHM stays just as testable, with only
+/// the trigger wiring depending on Flutter/platform plugins).
+///
+/// A single instance is constructed once in bootstrap.dart and never
+/// re-instantiated per screen, per Section 8's explicit statement.
+class SyncEngine {
+  SyncEngine({
+    required AppDatabase db,
+    required Map<String, SyncHandler> handlersByEntityType,
+    this.maxAttemptsBeforeAttentionNeeded = 5,
+  })  : _db = db,
+        _handlersByEntityType = handlersByEntityType;
+
+  final AppDatabase _db;
+  final Map<String, SyncHandler> _handlersByEntityType;
+
+  /// Architecture Section 8 names this as "a bounded number" without
+  /// specifying the exact count — 5 chosen here as a reasonable default
+  /// for a foundation phase; Section 8 doesn't require a specific value,
+  /// so this is my own choice, not a figure verified against the brief.
+  final int maxAttemptsBeforeAttentionNeeded;
+
+  bool _isRunning = false;
+
+  /// Drains the queue once. Safe to call from multiple trigger sources
+  /// close together (connectivity-regained and app-foregrounded firing
+  /// within the same second, say) — a run already in progress makes a
+  /// concurrent call a no-op rather than two runs racing over the same
+  /// queue rows.
+  ///
+  /// [manual] corresponds to Volume 11's "Sync Now" (Architecture
+  /// Section 8's third trigger) — "bypassing any backoff state
+  /// currently in effect." When false (every automatic trigger), items
+  /// that have already crossed [maxAttemptsBeforeAttentionNeeded] are
+  /// excluded from this run; when true, every pending item is eligible
+  /// again, on the chance whatever made it fail has since changed.
+  Future<void> runOnce({bool manual = false}) async {
+    if (_isRunning) return;
+    _isRunning = true;
+    try {
+      await _drainQueue(manual: manual);
+    } finally {
+      _isRunning = false;
+    }
+  }
+
+  Future<void> _drainQueue({required bool manual}) async {
+    // Priority lanes first, oldest-first within each lane — Section 8
+    // states both rules ("oldest-first ordering by default" and three
+    // priority lanes) without saying explicitly which wins; ordering by
+    // (priority, enqueuedAt) together is the one reading that honors
+    // both simultaneously rather than picking one over the other.
+    final query = _db.select(_db.syncQueueItems)
+      ..orderBy([
+        (q) => OrderingTerm.asc(q.priority),
+        (q) => OrderingTerm.asc(q.enqueuedAt),
+      ]);
+
+    if (!manual) {
+      query.where(
+        (q) => q.syncAttempts.isSmallerThanValue(
+          maxAttemptsBeforeAttentionNeeded,
+        ),
+      );
+    }
+
+    final items = await query.get();
+
+    for (final item in items) {
+      final handler = _handlersByEntityType[item.entityType];
+      if (handler == null) {
+        // No handler registered for this entityType — a real
+        // programming error (something enqueued a task this engine was
+        // never told how to process), not a transient failure. Flagged
+        // immediately rather than retried, since retrying can never fix
+        // a missing handler, and the run continues — this says nothing
+        // about whether the server itself is reachable.
+        await _markAttentionNeeded(
+          item.id,
+          error: 'No sync handler registered for entityType '
+              '"${item.entityType}".',
+        );
+        continue;
+      }
+
+      try {
+        await handler.sync(item);
+        await _removeFromQueue(item.id);
+      } on BusinessRuleFailure catch (e) {
+        await _markAttentionNeeded(item.id, error: e.message);
+      } on ValidationFailure catch (e) {
+        await _markAttentionNeeded(item.id, error: e.message);
+      } on AuthFailure catch (e) {
+        await _markAttentionNeeded(item.id, error: e.message);
+      } catch (e) {
+        // Everything else — NetworkFailure, a StateError from a
+        // handler naming a real but temporary gap (see
+        // sale_sync_handler.dart's product/customer serverId checks),
+        // or any unexpected exception. Treated as transient: counts
+        // toward the attempts threshold, and per Section 8's own
+        // "don't hammer a dead server" reasoning, this run stops here
+        // rather than attempting the remaining items — a fresh failure
+        // that hasn't yet crossed the threshold is read as "the server
+        // (or connection) is genuinely down right now," which applies
+        // to every remaining item in this run, not just this one.
+        final attempts = item.syncAttempts + 1;
+        if (attempts >= maxAttemptsBeforeAttentionNeeded) {
+          await _markAttentionNeeded(item.id, error: e.toString());
+        } else {
+          await _recordAttempt(item.id, attempts: attempts, error: e.toString());
+        }
+        break;
+      }
+    }
+  }
+
+  Future<void> _removeFromQueue(String id) async {
+    await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
+  }
+
+  Future<void> _recordAttempt(
+    String id, {
+    required int attempts,
+    required String error,
+  }) async {
+    await (_db.update(_db.syncQueueItems)..where((q) => q.id.equals(id)))
+        .write(
+      SyncQueueItemsCompanion(
+        syncAttempts: Value(attempts),
+        lastError: Value(error),
+        lastAttemptedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// This same outcome — syncAttempts pinned at
+  /// [maxAttemptsBeforeAttentionNeeded] — is reached two different ways:
+  /// a business-rule-level rejection jumps straight here on its first
+  /// occurrence (Architecture Section 5's point that retrying a 4xx can
+  /// never fix it applies just as much at the queue level), while a
+  /// transient failure only reaches it after repeatedly crossing the
+  /// threshold across separate runs via [_recordAttempt]. Both are
+  /// represented the same way in the schema — no separate status
+  /// column, matching this codebase's own established preference for
+  /// computed-over-stored state (e.g. Sale.balanceDue) — rather than a
+  /// second field to track which path an item took to get here; the
+  /// [error] text itself is what actually distinguishes them for anyone
+  /// reading it later.
+  Future<void> _markAttentionNeeded(
+    String id, {
+    required String error,
+  }) async {
+    await (_db.update(_db.syncQueueItems)..where((q) => q.id.equals(id)))
+        .write(
+      SyncQueueItemsCompanion(
+        syncAttempts: Value(maxAttemptsBeforeAttentionNeeded),
+        lastError: Value(error),
+        lastAttemptedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+}

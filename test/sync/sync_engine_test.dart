@@ -1,0 +1,231 @@
+import 'package:bms_mobile/core/errors/failure.dart';
+import 'package:bms_mobile/data/local/database/database.dart';
+import 'package:bms_mobile/sync/sync_engine.dart';
+import 'package:bms_mobile/sync/sync_handler.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// Records every entityLocalId it was asked to sync, and does whatever
+/// [onSync] scripts for that call — letting each test control success
+/// vs. a specific thrown failure per item, per call, directly.
+class _ScriptedHandler implements SyncHandler {
+  _ScriptedHandler(this.onSync);
+
+  final Future<void> Function(SyncQueueItem item) onSync;
+  final List<String> attemptedIds = [];
+
+  @override
+  Future<void> sync(SyncQueueItem item) async {
+    attemptedIds.add(item.entityLocalId);
+    await onSync(item);
+  }
+}
+
+void main() {
+  late AppDatabase db;
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  Future<void> seedItem({
+    required String id,
+    String entityType = 'widget',
+    required String entityLocalId,
+    String operation = 'create',
+    int priority = 0,
+    required DateTime enqueuedAt,
+    int syncAttempts = 0,
+  }) async {
+    await db.into(db.syncQueueItems).insert(
+          SyncQueueItemsCompanion.insert(
+            id: id,
+            entityType: entityType,
+            entityLocalId: entityLocalId,
+            operation: operation,
+            priority: priority,
+            enqueuedAt: enqueuedAt,
+            syncAttempts: Value(syncAttempts),
+          ),
+        );
+  }
+
+  Future<List<SyncQueueItem>> allQueueItems() => db.select(db.syncQueueItems).get();
+
+  test('processes items in priority order, then oldest-first within a priority',
+      () async {
+    final base = DateTime(2026, 1, 1);
+    // Deliberately seeded out of both orders, so passing this test
+    // means the query's ORDER BY is doing the work, not insertion order.
+    await seedItem(
+      id: 'q1',
+      entityLocalId: 'low-priority-newer',
+      priority: 1,
+      enqueuedAt: base.add(const Duration(minutes: 5)),
+    );
+    await seedItem(
+      id: 'q2',
+      entityLocalId: 'high-priority-newer',
+      priority: 0,
+      enqueuedAt: base.add(const Duration(minutes: 10)),
+    );
+    await seedItem(
+      id: 'q3',
+      entityLocalId: 'high-priority-older',
+      priority: 0,
+      enqueuedAt: base,
+    );
+
+    final handler = _ScriptedHandler((_) async {});
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    await engine.runOnce();
+
+    expect(handler.attemptedIds, [
+      'high-priority-older',
+      'high-priority-newer',
+      'low-priority-newer',
+    ]);
+  });
+
+  test('removes an item from the queue on success', () async {
+    await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
+    final handler = _ScriptedHandler((_) async {});
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    await engine.runOnce();
+
+    expect(await allQueueItems(), isEmpty);
+  });
+
+  test(
+      'a BusinessRuleFailure marks the item attentionNeeded immediately '
+      'and the run continues to the next item', () async {
+    final now = DateTime.now();
+    await seedItem(id: 'q1', entityLocalId: 'rejected', enqueuedAt: now);
+    await seedItem(
+      id: 'q2',
+      entityLocalId: 'fine',
+      enqueuedAt: now.add(const Duration(seconds: 1)),
+    );
+
+    final handler = _ScriptedHandler((item) async {
+      if (item.entityLocalId == 'rejected') {
+        throw const BusinessRuleFailure('Insufficient stock.');
+      }
+    });
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      maxAttemptsBeforeAttentionNeeded: 5,
+    );
+
+    await engine.runOnce();
+
+    // Both were attempted — the run did NOT stop after the rejection.
+    expect(handler.attemptedIds, ['rejected', 'fine']);
+
+    final remaining = await allQueueItems();
+    // 'fine' succeeded and was removed; only the rejected one is left.
+    expect(remaining, hasLength(1));
+    expect(remaining.single.entityLocalId, 'rejected');
+    expect(remaining.single.syncAttempts, 5); // jumped straight to the threshold
+    expect(remaining.single.lastError, 'Insufficient stock.');
+  });
+
+  test(
+      'a transient failure increments attempts by one and stops the run '
+      'before attempting further items', () async {
+    final now = DateTime.now();
+    await seedItem(id: 'q1', entityLocalId: 'flaky', enqueuedAt: now);
+    await seedItem(
+      id: 'q2',
+      entityLocalId: 'never-reached',
+      enqueuedAt: now.add(const Duration(seconds: 1)),
+    );
+
+    final handler = _ScriptedHandler((item) async {
+      if (item.entityLocalId == 'flaky') {
+        throw Exception('Connection reset');
+      }
+    });
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      maxAttemptsBeforeAttentionNeeded: 5,
+    );
+
+    await engine.runOnce();
+
+    expect(handler.attemptedIds, ['flaky']); // never reached the second item
+
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(2)); // nothing succeeded, nothing removed
+    final flakyRow = remaining.firstWhere((r) => r.entityLocalId == 'flaky');
+    expect(flakyRow.syncAttempts, 1);
+  });
+
+  test(
+      'after crossing the attempts threshold, automatic runs skip the item '
+      'but a manual run still attempts it', () async {
+    await seedItem(id: 'q1', entityLocalId: 'always-fails', enqueuedAt: DateTime.now());
+
+    final handler = _ScriptedHandler((_) async => throw Exception('down'));
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      maxAttemptsBeforeAttentionNeeded: 2,
+    );
+
+    await engine.runOnce(); // attempt 1 -> syncAttempts = 1
+    await engine.runOnce(); // attempt 2 -> syncAttempts = 2, crosses threshold
+
+    expect(handler.attemptedIds, hasLength(2));
+    var row = (await allQueueItems()).single;
+    expect(row.syncAttempts, 2);
+
+    // A further automatic run must not attempt an item that's already
+    // at/above the threshold.
+    await engine.runOnce();
+    expect(handler.attemptedIds, hasLength(2)); // unchanged
+
+    // Manual bypasses that gate entirely.
+    await engine.runOnce(manual: true);
+    expect(handler.attemptedIds, hasLength(3));
+  });
+
+  test(
+      'an entityType with no registered handler is marked attentionNeeded '
+      'immediately and the run continues', () async {
+    final now = DateTime.now();
+    await seedItem(
+      id: 'q1',
+      entityType: 'unregistered-type',
+      entityLocalId: 'orphan',
+      enqueuedAt: now,
+    );
+    await seedItem(
+      id: 'q2',
+      entityLocalId: 'fine',
+      enqueuedAt: now.add(const Duration(seconds: 1)),
+    );
+
+    final handler = _ScriptedHandler((_) async {});
+    // Only 'widget' is registered — nothing handles 'unregistered-type'.
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    await engine.runOnce();
+
+    expect(handler.attemptedIds, ['fine']); // the orphan never reaches a handler
+
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(1));
+    expect(remaining.single.entityLocalId, 'orphan');
+    expect(remaining.single.lastError, contains('No sync handler registered'));
+  });
+}
