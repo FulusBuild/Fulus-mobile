@@ -167,6 +167,14 @@ class Customers extends Table with SyncableColumns {
 /// locationId is required, per Section 7a's table — even a single-
 /// location business's sales carry the (silently-resolved, never
 /// user-facing) one location that exists.
+///
+/// @DataClassName('SaleRow'): Drift's default naming would generate a
+/// row class literally called `Sale` (singular of the table class name)
+/// — which collides with domain/entities/sale.dart's own `Sale`, the
+/// actual domain entity every repository/UI layer works with. Renaming
+/// only the generated class avoids that collision at the one place
+/// (data/repositories/) that needs to import both.
+@DataClassName('SaleRow')
 class Sales extends Table with SyncableColumns {
   TextColumn get clientReference => text()();
   TextColumn get invoiceNumber => text().nullable()();
@@ -200,6 +208,10 @@ class Sales extends Table with SyncableColumns {
 /// finance_service.py comment on this exact point). Mobile mirrors that
 /// same snapshot discipline rather than reading the product's CURRENT
 /// cost at report time, which would silently misreport historical profit.
+///
+/// @DataClassName('SaleItemRow') — same reasoning as Sales above:
+/// avoids colliding with domain/entities/sale.dart's own `SaleItem`.
+@DataClassName('SaleItemRow')
 class SaleItems extends Table {
   TextColumn get localId => text()();
   TextColumn get saleLocalId => text().references(Sales, #localId)();

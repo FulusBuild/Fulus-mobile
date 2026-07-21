@@ -100,26 +100,24 @@ jobs:
   # database-test failure means the Drift schema itself is wrong, a more
   # foundational problem.
   #
-  # As of this checkpoint, test/unit, test/database, and test/repository
-  # do not exist yet — no test files have been written. This step is
-  # written to report that honestly (a skip with a stated reason) rather
-  # than either fail against a missing directory (a false negative, for a
-  # reason unrelated to code correctness) or be silently omitted from the
-  # pipeline (which would let a later "all green" run look identical
-  # whether or not real tests actually exist and pass). Replace this
-  # entire step with the real flutter test invocations the moment test
-  # files exist — this is a placeholder for pipeline structure, not a
-  # placeholder standing in for actual verification.
+  # test/repository now has a real file (sale_repository_test.dart, added
+  # alongside the SaleRepository implementation) — run it explicitly.
+  # test/unit and test/database still don't exist yet; scoped to the one
+  # directory that's real rather than `flutter test .` reporting "0
+  # tests" for the others in a way that looks identical to "not written
+  # yet" and "written but broken."
   test:
     needs: analyze
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: No test files exist yet
-        run: |
-          echo "::warning::No test files exist in test/unit, test/database, or test/repository yet."
-          echo "This step intentionally does nothing rather than fail against a missing directory,"
-          echo "or silently report success for tests that were never written."
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter test test/repository
 
   # ── Step 5: build a debug APK ────────────────────────────────────────────
   # Debug, not release — a foundation-phase CI has no signing keystore

@@ -5,6 +5,8 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../data/repositories/sale_repository_impl.dart';
+import '../sync/sync_queue.dart';
 import 'providers.dart';
 
 /// Wires the app's real dependencies together and returns a
@@ -50,6 +52,11 @@ Future<ProviderContainer> bootstrap() async {
   );
 
   final salesApi = SalesApi(apiClient);
+  final syncQueue = SyncQueue(database);
+  final saleRepository = SaleRepositoryImpl(
+    db: database,
+    syncQueue: syncQueue,
+  );
 
   final container = ProviderContainer(
     overrides: [
@@ -57,6 +64,8 @@ Future<ProviderContainer> bootstrap() async {
       secureStorageProvider.overrideWithValue(secureStorage),
       apiClientProvider.overrideWithValue(apiClient),
       salesApiProvider.overrideWithValue(salesApi),
+      syncQueueProvider.overrideWithValue(syncQueue),
+      saleRepositoryProvider.overrideWithValue(saleRepository),
     ],
   );
 

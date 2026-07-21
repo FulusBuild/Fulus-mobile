@@ -4,6 +4,9 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../data/repositories/sale_repository_impl.dart';
+import '../domain/repositories/sale_repository.dart';
+import '../sync/sync_queue.dart';
 
 /// The app-wide DI graph's entry points. Each of these is declared with
 /// a body that throws UnimplementedError if it's ever actually invoked —
@@ -38,5 +41,17 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 final salesApiProvider = Provider<SalesApi>((ref) {
   throw UnimplementedError(
     'salesApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final syncQueueProvider = Provider<SyncQueue>((ref) {
+  throw UnimplementedError(
+    'syncQueueProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final saleRepositoryProvider = Provider<SaleRepository>((ref) {
+  throw UnimplementedError(
+    'saleRepositoryProvider must be overridden in bootstrap.dart.',
   );
 });
