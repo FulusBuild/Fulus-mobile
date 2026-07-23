@@ -1,13 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env_config.dart';
+import '../core/security/pin_hasher.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/auth_api.dart';
+import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../data/repositories/approval_pin_repository_impl.dart';
 import '../data/repositories/auth_repository_impl.dart';
+import '../data/repositories/customer_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
+import '../sync/handlers/customer_sync_handler.dart';
 import '../sync/handlers/sale_sync_handler.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
@@ -80,9 +85,20 @@ Future<ProviderContainer> bootstrap() async {
   // local session.
   apiClient.setOnSessionExpired(() => authRepository.logout());
 
+  final approvalPinRepository = ApprovalPinRepositoryImpl(
+    authApi: authApi,
+    secureStorage: secureStorage,
+    pinHasher: const Argon2PinHasher(),
+  );
+
   final salesApi = SalesApi(apiClient);
+  final customersApi = CustomersApi(apiClient);
   final syncQueue = SyncQueue(database);
   final saleRepository = SaleRepositoryImpl(
+    db: database,
+    syncQueue: syncQueue,
+  );
+  final customerRepository = CustomerRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
   );
@@ -98,9 +114,16 @@ Future<ProviderContainer> bootstrap() async {
     salesApi: salesApi,
     saleRepository: saleRepository,
   );
+  final customerSyncHandler = CustomerSyncHandler(
+    customersApi: customersApi,
+    customerRepository: customerRepository,
+  );
   final syncEngine = SyncEngine(
     db: database,
-    handlersByEntityType: {'sale': saleSyncHandler},
+    handlersByEntityType: {
+      'sale': saleSyncHandler,
+      'customer': customerSyncHandler,
+    },
   );
   final syncTriggers = SyncTriggers(syncEngine: syncEngine);
   await syncTriggers.start();
@@ -114,9 +137,12 @@ Future<ProviderContainer> bootstrap() async {
       apiClientProvider.overrideWithValue(apiClient),
       authApiProvider.overrideWithValue(authApi),
       authRepositoryProvider.overrideWithValue(authRepository),
+      approvalPinRepositoryProvider.overrideWithValue(approvalPinRepository),
       salesApiProvider.overrideWithValue(salesApi),
+      customersApiProvider.overrideWithValue(customersApi),
       syncQueueProvider.overrideWithValue(syncQueue),
       saleRepositoryProvider.overrideWithValue(saleRepository),
+      customerRepositoryProvider.overrideWithValue(customerRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],

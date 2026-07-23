@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../domain/entities/approval_hash.dart';
 import '../../domain/entities/auth_user.dart';
 import '../api_client.dart';
 
@@ -83,6 +84,40 @@ class AuthApi {
   Future<void> logout() async {
     try {
       await _client.dio.post('/api/auth/logout');
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
+  /// POST /api/auth/approval-pin — the owner's own device pushes its
+  /// locally-computed Argon2id hash+salt up, never the raw PIN. Unlike
+  /// login/refresh above, this genuinely should go through the shared,
+  /// interceptor-attached client — it needs the caller's own current
+  /// access token attached (the backend gates this to the ADMIN role).
+  Future<void> setApprovalPin({
+    required String pinHash,
+    required String pinSalt,
+  }) async {
+    try {
+      await _client.dio.post(
+        '/api/auth/approval-pin',
+        data: SetApprovalPinRequestDto(pinHash: pinHash, pinSalt: pinSalt).toJson(),
+      );
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
+  /// GET /api/auth/approval-hashes — the "which owners exist and can
+  /// approve" dataset every employee device syncs down (Architecture
+  /// Section 6). Available to any authenticated user server-side, so
+  /// nothing special-cased here beyond the general error mapper.
+  Future<List<ApprovalHashEntryDto>> getApprovalHashes() async {
+    try {
+      final response = await _client.dio.get('/api/auth/approval-hashes');
+      return ApprovalHashesResponseDto.fromJson(
+        response.data as Map<String, dynamic>,
+      ).hashes;
     } on DioException catch (e) {
       throw _client.mapError(e);
     }

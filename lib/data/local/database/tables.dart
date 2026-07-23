@@ -52,6 +52,14 @@ enum SyncStatus {
 /// onboarding with no location UI ever surfacing (Decision 21's
 /// precedent) — this table existing is not the same as the location
 /// switcher being visible.
+/// @DataClassName('LocationRow') — Drift's default naming would
+/// generate a row class literally called `Location` (singular of the
+/// table class name), colliding with domain/entities/location.dart's
+/// own `Location` domain entity the moment a repository file needs to
+/// import both — the exact same collision already fixed for
+/// Sales/SaleItems above, applied here proactively before any concrete
+/// LocationRepositoryImpl exists to actually hit it.
+@DataClassName('LocationRow')
 class Locations extends Table with SyncableColumns {
   TextColumn get name => text().withLength(min: 1, max: 150)();
 
@@ -107,6 +115,9 @@ class Sessions extends Table {
 /// is the direct implementation of Section 7a's own reasoning: "only the
 /// stock count differs per location, joined in at query time rather than
 /// duplicating the whole product row per location."
+/// @DataClassName('ProductRow') — same collision-avoidance reasoning as
+/// Locations above, against domain/entities/product.dart's own Product.
+@DataClassName('ProductRow')
 class Products extends Table with SyncableColumns {
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get sku => text().withLength(min: 1, max: 64)();
@@ -148,6 +159,10 @@ class ProductStockLevels extends Table {
 /// history belong to the whole business, not to whichever shop happened
 /// to serve them first"). No locationId column on this table at all —
 /// its absence here is as deliberate as its presence on Sales below.
+/// @DataClassName('CustomerRow') — same collision-avoidance reasoning
+/// as Locations above, against domain/entities/customer.dart's own
+/// Customer.
+@DataClassName('CustomerRow')
 class Customers extends Table with SyncableColumns {
   TextColumn get name => text().withLength(min: 1, max: 150)();
   TextColumn get phone => text().nullable()();
@@ -233,6 +248,10 @@ class SaleItems extends Table {
 /// toLocationId is nullable and populated only for transfer movements
 /// (Architecture Section 7a: "Transfer specifically needs two location
 /// references... on the one movement record").
+/// @DataClassName('StockMovementRow') — same collision-avoidance
+/// reasoning as Locations above, against
+/// domain/entities/stock_movement.dart's own StockMovement.
+@DataClassName('StockMovementRow')
 class StockMovements extends Table with SyncableColumns {
   TextColumn get productLocalId => text().references(Products, #localId)();
   TextColumn get locationId => text().references(Locations, #localId)();
@@ -248,6 +267,9 @@ class StockMovements extends Table with SyncableColumns {
 
 /// Expenses and income — per Architecture Section 7a's confirmed answer,
 /// locationId is required here too, the same as Sales, not nullable.
+/// @DataClassName('ExpenseRow') — same collision-avoidance reasoning as
+/// Locations above, against domain/entities/expense.dart's own Expense.
+@DataClassName('ExpenseRow')
 class Expenses extends Table with SyncableColumns {
   TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get categoryId => text().nullable()();
@@ -260,6 +282,10 @@ class Expenses extends Table with SyncableColumns {
   Set<Column> get primaryKey => {localId};
 }
 
+/// @DataClassName('IncomeRecordRow') — same collision-avoidance
+/// reasoning as Locations above, against
+/// domain/entities/income_record.dart's own IncomeRecord.
+@DataClassName('IncomeRecordRow')
 class IncomeRecords extends Table with SyncableColumns {
   TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get source => text()();

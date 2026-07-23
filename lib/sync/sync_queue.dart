@@ -42,6 +42,13 @@ class SyncTask {
         priority: SyncPriority.salesAndPayments,
       );
 
+  factory SyncTask.createCustomer(String localId) => SyncTask(
+        entityType: 'customer',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   final String entityType;
   final String entityLocalId;
   final String operation; // 'create' | 'update' | 'delete'

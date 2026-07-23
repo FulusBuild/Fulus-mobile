@@ -36,6 +36,7 @@ dependencies:
   # --- Networking (Architecture Section 5) ---
   dio: ^5.5.0+1
   connectivity_plus: ^6.0.4
+  dargon2_flutter: ^3.3.0
 
   # --- Secure storage (Architecture Section 11) ---
   flutter_secure_storage: ^9.2.2

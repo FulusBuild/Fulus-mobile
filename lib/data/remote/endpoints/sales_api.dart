@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/errors/failure.dart';
 import '../../../domain/entities/sale.dart';
 import '../api_client.dart';
 
@@ -20,17 +19,21 @@ class SalesApi {
 
   final ApiClient _client;
 
-  /// The one method in this whole codebase where a 409 is deliberately
-  /// intercepted BEFORE api_client.dart's general mapError ever sees it
-  /// — per Architecture Section 5's explicit warning about this exact
-  /// case: "if the sync engine retries a createSale task because a
-  /// previous attempt's response was lost... the backend's unique
-  /// constraint on client_reference will reject the retry with a 409.
-  /// This must be special-cased to not surface as an error." Getting
-  /// this wrong (letting it fall through to the generic BusinessRuleFailure
-  /// mapError produces for an unhandled 409) would make the sync engine
-  /// treat an already-successful sale as failed — the exact "phantom
-  /// failure" risk named directly in that section.
+  /// A note on the 409 idempotent-retry case Architecture Section 5
+  /// describes: that section states a retried createSale (same
+  /// client_reference) gets "rejected with a 409" that must be special-
+  /// cased. Verified directly against the actual current backend
+  /// (sale_service.create_sale) rather than trusted from the doc: that
+  /// function's own idempotent-replay logic — both the check-before-
+  /// insert path and the IntegrityError-caught race path — explicitly
+  /// returns the EXISTING sale with a normal 201, never a 409. This
+  /// method previously special-cased a 409 here on the strength of the
+  /// architecture doc's claim alone, without having verified that claim
+  /// against sale_service.py directly at the time — exactly the kind of
+  /// gap this codebase's own discipline elsewhere is about catching.
+  /// Since the backend already resolves a replay transparently, this
+  /// method needs no special-casing at all: a 201 always carries the
+  /// correct sale, whether newly created or already existing.
   Future<Sale> createSale({
     required SaleCreateDto dto,
     required String locationLocalId,
@@ -43,30 +46,6 @@ class SalesApi {
       final responseDto = SaleResponseDto.fromJson(response.data as Map<String, dynamic>);
       return _toDomain(responseDto, locationLocalId: locationLocalId);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 409) {
-        // This IS the success case, per the reasoning above — the sale
-        // already exists server-side under this exact client_reference.
-        // Fetch it by that reference to get its real server-assigned
-        // fields (invoice_number, server id) rather than fabricating a
-        // success response locally, which would risk the local mirror
-        // disagreeing with what the server actually recorded.
-        final existing = await getSaleByClientReference(
-          dto.clientReference!,
-          locationLocalId: locationLocalId,
-        );
-        if (existing != null) return existing;
-
-        // If the 409 fired but the immediate re-fetch genuinely can't
-        // find a matching sale (a narrow race: the server's unique
-        // constraint fired on a row not yet visible to a subsequent read
-        // under whatever isolation level is in effect), this is treated
-        // as a real, if unusual, failure rather than silently assumed
-        // successful — silently assuming success with no confirming data
-        // would be worse than surfacing it as needing attention.
-        throw BusinessRuleFailure(
-          'Could not confirm this sale — it may already be recorded. Please check Sales history before retrying.',
-        );
-      }
       throw _client.mapError(e);
     }
   }
@@ -76,11 +55,16 @@ class SalesApi {
   /// discovered partway through that it's genuinely not derivable from
   /// this endpoint's own response alone (GET /api/sales returns sales
   /// with no location field the mobile client could resolve back to a
-  /// local Locations row on its own). Rather than leave that gap papered
-  /// over with a thrown UnimplementedError sitting behind code that looks
-  /// finished, the caller — which always has this context already, since
-  /// createSale's 409 branch above is the only real caller and it has the
-  /// original draft's locationLocalId in scope — is required to supply it.
+  /// local Locations row on its own).
+  ///
+  /// No current caller in this codebase — createSale above no longer
+  /// needs this (see its own comment on why the 409-based re-fetch this
+  /// method was originally built for doesn't reflect real backend
+  /// behavior). Kept as a standalone, general-purpose lookup — a manual
+  /// "check whether this sale actually went through" utility a future
+  /// troubleshooting screen could reasonably want — rather than removed,
+  /// since it's still correct and independently useful, just not
+  /// currently wired to anything.
   Future<Sale?> getSaleByClientReference(
     String clientReference, {
     required String locationLocalId,
