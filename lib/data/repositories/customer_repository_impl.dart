@@ -5,6 +5,7 @@ import '../../domain/entities/customer.dart';
 import '../../domain/repositories/customer_repository.dart';
 import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import 'customer_mapper.dart';
 
 class CustomerRepositoryImpl implements CustomerRepository {

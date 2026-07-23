@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../domain/entities/approval_hash.dart';
-import '../../domain/entities/auth_user.dart';
+import '../../../domain/entities/approval_hash.dart';
+import '../../../domain/entities/auth_user.dart';
 import '../api_client.dart';
 
 /// POST /api/auth/login, POST /api/auth/refresh, POST /api/auth/logout —

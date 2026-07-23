@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../../domain/entities/customer.dart';
+import '../../../domain/entities/customer.dart';
 import '../api_client.dart';
 
 /// Mirrors backend/app/routers/customers.py directly, per Architecture

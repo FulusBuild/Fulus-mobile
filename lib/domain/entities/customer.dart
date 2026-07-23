@@ -32,6 +32,28 @@ class Customer {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+
+  /// The wire-format request, using [clientReference] (in practice
+  /// always this same Customer's own localId — see
+  /// CustomerSyncHandler's call site) for the same idempotency reasoning
+  /// as Sale (Architecture Section 3): a retried sync submission is safe
+  /// to resend rather than a risk of creating a duplicate customer
+  /// (backend/app/models/customer.py's client_reference column,
+  /// migration 0012_customer_client_reference, added specifically to
+  /// close this gap — customer creation had no idempotency protection
+  /// at all before that). Lives here, not on CustomerDraft, because it
+  /// needs to be callable at SYNC time, once only a persisted Customer
+  /// exists — the original draft is long gone by then.
+  CustomerCreateDto toCreateDto({required String clientReference}) {
+    return CustomerCreateDto(
+      name: name,
+      phone: phone,
+      email: email,
+      address: address,
+      notes: notes,
+      clientReference: clientReference,
+    );
+  }
 }
 
 /// The not-yet-persisted input to CustomerRepository.createCustomer —
@@ -66,24 +88,6 @@ class CustomerDraft {
       outstandingBalance: 0,
       createdAt: now,
       updatedAt: now,
-    );
-  }
-
-  /// The wire-format request, using [localId] as the client_reference —
-  /// same idempotency reasoning as Sale (Architecture Section 3): a
-  /// retried sync submission is safe to resend rather than a risk of
-  /// creating a duplicate customer (backend/app/models/customer.py's
-  /// client_reference column, migration 0012_customer_client_reference,
-  /// added specifically to close this gap — customer creation had no
-  /// idempotency protection at all before that).
-  CustomerCreateDto toCreateDto({required String clientReference}) {
-    return CustomerCreateDto(
-      name: name,
-      phone: phone,
-      email: email,
-      address: address,
-      notes: notes,
-      clientReference: clientReference,
     );
   }
 }
