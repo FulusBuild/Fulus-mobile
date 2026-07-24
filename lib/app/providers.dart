@@ -5,10 +5,12 @@ import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
+import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../domain/repositories/approval_pin_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/customer_repository.dart';
+import '../domain/repositories/expense_repository.dart';
 import '../domain/repositories/sale_repository.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
@@ -77,6 +79,18 @@ final customersApiProvider = Provider<CustomersApi>((ref) {
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   throw UnimplementedError(
     'customerRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final expensesApiProvider = Provider<ExpensesApi>((ref) {
+  throw UnimplementedError(
+    'expensesApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
+  throw UnimplementedError(
+    'expenseRepositoryProvider must be overridden in bootstrap.dart.',
   );
 });
 

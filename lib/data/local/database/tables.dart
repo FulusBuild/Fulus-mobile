@@ -271,7 +271,17 @@ class StockMovements extends Table with SyncableColumns {
 /// Locations above, against domain/entities/expense.dart's own Expense.
 @DataClassName('ExpenseRow')
 class Expenses extends Table with SyncableColumns {
-  TextColumn get locationId => text().references(Locations, #localId)();
+  /// Nullable — a real discrepancy discovered while designing the sync
+  /// handler: backend/app/models/finance.py's Expense has NO location_id
+  /// column at all, verified directly. This table originally had it as
+  /// required, under the same (incorrect, for this entity) assumption
+  /// Section 7a's location-scoping rule applies uniformly to every
+  /// business-write entity. Kept as an optional, LOCAL-ONLY organizational
+  /// tag — still useful for on-device filtering ("expenses at this
+  /// location") — rather than removed outright, but it is never sent to
+  /// or received from the backend (ExpenseCreate/ExpenseOut have no such
+  /// field either).
+  TextColumn get locationId => text().nullable().references(Locations, #localId)();
   TextColumn get categoryId => text().nullable()();
   TextColumn get description => text()();
   RealColumn get amount => real()();
@@ -287,7 +297,10 @@ class Expenses extends Table with SyncableColumns {
 /// domain/entities/income_record.dart's own IncomeRecord.
 @DataClassName('IncomeRecordRow')
 class IncomeRecords extends Table with SyncableColumns {
-  TextColumn get locationId => text().references(Locations, #localId)();
+  /// Nullable — same discrepancy as Expenses.locationId above:
+  /// backend/app/models/finance.py's Income has no location_id column
+  /// either, verified directly. Same local-only-tag treatment.
+  TextColumn get locationId => text().nullable().references(Locations, #localId)();
   TextColumn get source => text()();
   RealColumn get amount => real()();
   DateTimeColumn get incomeDate => dateTime()();
