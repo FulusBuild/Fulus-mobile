@@ -6,12 +6,16 @@ import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
+import '../data/remote/endpoints/income_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../data/remote/endpoints/stock_movements_api.dart';
 import '../domain/repositories/approval_pin_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/customer_repository.dart';
 import '../domain/repositories/expense_repository.dart';
+import '../domain/repositories/income_record_repository.dart';
 import '../domain/repositories/sale_repository.dart';
+import '../domain/repositories/stock_movement_repository.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_triggers.dart';
@@ -91,6 +95,30 @@ final expensesApiProvider = Provider<ExpensesApi>((ref) {
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   throw UnimplementedError(
     'expenseRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final incomeApiProvider = Provider<IncomeApi>((ref) {
+  throw UnimplementedError(
+    'incomeApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final incomeRecordRepositoryProvider = Provider<IncomeRecordRepository>((ref) {
+  throw UnimplementedError(
+    'incomeRecordRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final stockMovementsApiProvider = Provider<StockMovementsApi>((ref) {
+  throw UnimplementedError(
+    'stockMovementsApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final stockMovementRepositoryProvider = Provider<StockMovementRepository>((ref) {
+  throw UnimplementedError(
+    'stockMovementRepositoryProvider must be overridden in bootstrap.dart.',
   );
 });
 

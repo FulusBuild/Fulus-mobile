@@ -8,15 +8,21 @@ import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
+import '../data/remote/endpoints/income_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
+import '../data/remote/endpoints/stock_movements_api.dart';
 import '../data/repositories/approval_pin_repository_impl.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/customer_repository_impl.dart';
 import '../data/repositories/expense_repository_impl.dart';
+import '../data/repositories/income_record_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
+import '../data/repositories/stock_movement_repository_impl.dart';
 import '../sync/handlers/customer_sync_handler.dart';
 import '../sync/handlers/expense_sync_handler.dart';
+import '../sync/handlers/income_sync_handler.dart';
 import '../sync/handlers/sale_sync_handler.dart';
+import '../sync/handlers/stock_movement_sync_handler.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_triggers.dart';
@@ -97,6 +103,8 @@ Future<ProviderContainer> bootstrap() async {
   final salesApi = SalesApi(apiClient);
   final customersApi = CustomersApi(apiClient);
   final expensesApi = ExpensesApi(apiClient);
+  final incomeApi = IncomeApi(apiClient);
+  final stockMovementsApi = StockMovementsApi(apiClient);
   final syncQueue = SyncQueue(database);
   final saleRepository = SaleRepositoryImpl(
     db: database,
@@ -107,6 +115,14 @@ Future<ProviderContainer> bootstrap() async {
     syncQueue: syncQueue,
   );
   final expenseRepository = ExpenseRepositoryImpl(
+    db: database,
+    syncQueue: syncQueue,
+  );
+  final incomeRecordRepository = IncomeRecordRepositoryImpl(
+    db: database,
+    syncQueue: syncQueue,
+  );
+  final stockMovementRepository = StockMovementRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
   );
@@ -130,12 +146,23 @@ Future<ProviderContainer> bootstrap() async {
     expensesApi: expensesApi,
     expenseRepository: expenseRepository,
   );
+  final incomeSyncHandler = IncomeSyncHandler(
+    incomeApi: incomeApi,
+    incomeRecordRepository: incomeRecordRepository,
+  );
+  final stockMovementSyncHandler = StockMovementSyncHandler(
+    db: database,
+    stockMovementsApi: stockMovementsApi,
+    stockMovementRepository: stockMovementRepository,
+  );
   final syncEngine = SyncEngine(
     db: database,
     handlersByEntityType: {
       'sale': saleSyncHandler,
       'customer': customerSyncHandler,
       'expense': expenseSyncHandler,
+      'income_record': incomeSyncHandler,
+      'stock_movement': stockMovementSyncHandler,
     },
   );
   final syncTriggers = SyncTriggers(syncEngine: syncEngine);
@@ -158,6 +185,10 @@ Future<ProviderContainer> bootstrap() async {
       saleRepositoryProvider.overrideWithValue(saleRepository),
       customerRepositoryProvider.overrideWithValue(customerRepository),
       expenseRepositoryProvider.overrideWithValue(expenseRepository),
+      incomeApiProvider.overrideWithValue(incomeApi),
+      incomeRecordRepositoryProvider.overrideWithValue(incomeRecordRepository),
+      stockMovementsApiProvider.overrideWithValue(stockMovementsApi),
+      stockMovementRepositoryProvider.overrideWithValue(stockMovementRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],

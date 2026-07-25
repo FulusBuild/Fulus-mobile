@@ -1,0 +1,65 @@
+import 'package:drift/drift.dart';
+import 'package:ulid/ulid.dart';
+
+import '../../domain/entities/income_record.dart';
+import '../../domain/repositories/income_record_repository.dart';
+import '../../sync/sync_queue.dart';
+import '../local/database/database.dart';
+import '../local/database/tables.dart';
+import 'income_mapper.dart';
+
+class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
+  IncomeRecordRepositoryImpl({
+    required AppDatabase db,
+    required SyncQueue syncQueue,
+  })  : _db = db,
+        _syncQueue = syncQueue;
+
+  final AppDatabase _db;
+  final SyncQueue _syncQueue;
+
+  @override
+  Future<IncomeRecord> recordIncome(IncomeRecordDraft draft) async {
+    final localId = Ulid().toString();
+    final record = draft.toIncomeRecordEntity(localId: localId);
+
+    await _db.into(_db.incomeRecords).insert(record.toDriftCompanion());
+
+    await _syncQueue.enqueue(SyncTask.createIncomeRecord(localId));
+
+    return record;
+  }
+
+  @override
+  Stream<List<IncomeRecord>> watchIncomeRecords({String? locationId}) {
+    final query = _db.select(_db.incomeRecords)..where((i) => i.deletedAt.isNull());
+    if (locationId != null) {
+      query.where((i) => i.locationId.equals(locationId));
+    }
+    query.orderBy([(i) => OrderingTerm.desc(i.incomeDate)]);
+    return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
+  }
+
+  @override
+  Future<IncomeRecord?> getIncomeRecordById(String localId) async {
+    final row = await (_db.select(_db.incomeRecords)
+          ..where((i) => i.localId.equals(localId)))
+        .getSingleOrNull();
+    return row?.toDomain();
+  }
+
+  @override
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+  }) async {
+    await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId)))
+        .write(
+      IncomeRecordsCompanion(
+        serverId: Value(serverId),
+        syncStatus: const Value(SyncStatus.settled),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+}

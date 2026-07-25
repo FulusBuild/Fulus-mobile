@@ -1,12 +1,18 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'stock_movement.g.dart';
+
 /// Mirrors backend/app/models/inventory.py's StockMovement.movement_type
-/// values exactly: in / out / adjustment / sale — verified directly, not
-/// assumed. This deliberately does NOT include "transfer": tables.dart's
-/// own comment on the StockMovements table (and its toLocationId column)
-/// describes a transfer movement type, but grepping the entire backend
-/// inventory model/schema/service/router turns up zero mentions of
-/// transfer anywhere — it does not exist server-side today, despite
-/// Architecture Section 7a naming "the Transfer feature" as something
-/// ProductStockLevels supports. This is a real discrepancy between the
+/// values exactly: in / out / adjustment / sale — verified directly
+/// against two separate backend snapshots during this redesign, not
+/// assumed. This deliberately does NOT include "transfer": an earlier
+/// version of this file (and tables.dart's own comment on the
+/// StockMovements table, and its toLocationId column, since removed —
+/// see tables.dart) described a transfer movement type, but grepping the
+/// entire backend inventory model/schema/service/router turns up zero
+/// mentions of transfer anywhere — it does not exist server-side today,
+/// despite an architecture reference naming "the Transfer feature" as
+/// something ProductStockLevels supports. A real discrepancy between the
 /// mobile schema (built in an earlier session) and the actual backend,
 /// surfaced here rather than silently modeled around, the same way
 /// SaleSyncHandler names the product/customer serverId gap.
@@ -17,7 +23,9 @@ enum StockMovementType {
 
   /// An automatic byproduct of a sale being created server-side — never
   /// something a mobile write should submit itself (see
-  /// StockMovementRepository.recordMovement's own doc comment).
+  /// StockMovementRepository.recordStockIn/.recordStockOut/
+  /// .recordAdjustment's own doc comments, and
+  /// StockMovementSyncHandler.sync's explicit rejection of this case).
   sale;
 
   String get wireValue => switch (this) {
@@ -36,15 +44,31 @@ enum StockMovementType {
       };
 }
 
+/// A single ledger entry. Deliberately NOT one generic "create a stock
+/// movement" shape with a uniform quantity field — that was this file's
+/// own earlier, wrong assumption, built before the real backend API was
+/// checked. Verified directly against app/schemas/inventory.py and
+/// app/routers/inventory.py: there is no single create endpoint. Three
+/// separate ones exist --
+///   POST /products/{id}/stock-in    (StockInRequest: quantity, reason?)
+///   POST /products/{id}/stock-out   (StockOutRequest: quantity, reason?)
+///   POST /products/{id}/adjust-stock (StockAdjustmentRequest: new_quantity,
+///                                     reason — required, not optional)
+/// -- and adjust-stock's new_quantity is an ABSOLUTE target, not a delta
+/// like the other two; the backend computes its own delta server-side
+/// (inventory_service.adjust_stock). [quantity] and [newQuantity] below
+/// exist for exactly that split — see tables.dart's own comment on the
+/// StockMovements table for the full reasoning on why they're separate,
+/// both-nullable fields rather than one column.
 class StockMovement {
   const StockMovement({
     required this.localId,
     this.serverId,
     required this.productLocalId,
     required this.locationId,
-    this.toLocationId,
     required this.movementType,
-    required this.quantity,
+    this.quantity,
+    this.newQuantity,
     this.reason,
     required this.createdAt,
     required this.updatedAt,
@@ -55,35 +79,137 @@ class StockMovement {
   final String? serverId;
   final String productLocalId;
   final String locationId;
-
-  /// Present in the schema (tables.dart) but not currently meaningful —
-  /// see [StockMovementType]'s own doc comment on why "transfer" (the
-  /// only movement type that would ever populate this) doesn't exist
-  /// backend-side yet. Kept here because the column exists; not
-  /// expected to be set by any current write path.
-  final String? toLocationId;
-
   final StockMovementType movementType;
-  final int quantity;
+
+  /// The delta. Set for [StockMovementType.stockIn]/[.stockOut] (always
+  /// positive, matching StockInRequest/StockOutRequest.quantity's own
+  /// `gt=0` constraint — direction comes from movementType, not sign).
+  /// Always null for [.adjustment] — see [newQuantity]'s own doc comment
+  /// on why this device cannot know that row's true delta.
+  final int? quantity;
+
+  /// The absolute target. Set only for [StockMovementType.adjustment],
+  /// matching StockAdjustmentRequest.new_quantity exactly. Always null
+  /// otherwise. This device deliberately does NOT compute and store a
+  /// delta for an adjustment row, even after a successful sync: the
+  /// backend computes `new_quantity - product.current_stock` against
+  /// its OWN authoritative current_stock at the moment it processes the
+  /// request (inventory_service.adjust_stock), which this device cannot
+  /// reliably reproduce locally, especially after being offline for a
+  /// while during which other movements it doesn't know about may have
+  /// happened. The true delta lives server-side, in that request's own
+  /// resulting StockMovement row (visible via GET .../history) — this
+  /// local row's job is to be an honest record of what was submitted,
+  /// not a mirror of a number this device was never in a position to
+  /// compute correctly.
+  final int? newQuantity;
+
   final String? reason;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+
+  /// Mirrors StockInRequest exactly. Only ever valid to call when
+  /// [movementType] is [StockMovementType.stockIn] — StockMovementSyncHandler
+  /// is the only caller, and it always checks movementType first.
+  StockInCreateDto toStockInDto({required String clientReference}) {
+    assert(movementType == StockMovementType.stockIn);
+    return StockInCreateDto(
+      quantity: quantity!,
+      reason: reason,
+      clientReference: clientReference,
+    );
+  }
+
+  /// Mirrors StockOutRequest exactly. Same calling convention as
+  /// [toStockInDto].
+  StockOutCreateDto toStockOutDto({required String clientReference}) {
+    assert(movementType == StockMovementType.stockOut);
+    return StockOutCreateDto(
+      quantity: quantity!,
+      reason: reason,
+      clientReference: clientReference,
+    );
+  }
+
+  /// Mirrors StockAdjustmentRequest exactly, including reason being
+  /// REQUIRED there (unlike stock-in/out) — StockAdjustmentDraft already
+  /// enforces this at construction time, so the `!` here reflects that
+  /// guarantee, not an unchecked assumption. Same calling convention as
+  /// [toStockInDto].
+  StockAdjustmentCreateDto toStockAdjustmentDto({required String clientReference}) {
+    assert(movementType == StockMovementType.adjustment);
+    return StockAdjustmentCreateDto(
+      newQuantity: newQuantity!,
+      reason: reason!,
+      clientReference: clientReference,
+    );
+  }
 }
 
-/// The not-yet-persisted input to StockMovementRepository.recordMovement.
-class StockMovementDraft {
-  const StockMovementDraft({
+/// POST /products/{id}/stock-in's body — mirrors StockInRequest exactly.
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
+class StockInCreateDto {
+  const StockInCreateDto({required this.quantity, this.reason, this.clientReference});
+
+  final int quantity;
+  final String? reason;
+  final String? clientReference;
+
+  Map<String, dynamic> toJson() => _$StockInCreateDtoToJson(this);
+}
+
+/// POST /products/{id}/stock-out's body — mirrors StockOutRequest
+/// exactly.
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
+class StockOutCreateDto {
+  const StockOutCreateDto({required this.quantity, this.reason, this.clientReference});
+
+  final int quantity;
+  final String? reason;
+  final String? clientReference;
+
+  Map<String, dynamic> toJson() => _$StockOutCreateDtoToJson(this);
+}
+
+/// POST /products/{id}/adjust-stock's body — mirrors
+/// StockAdjustmentRequest exactly, including reason being required
+/// (`str = Field(min_length=1, ...)`, no default), not optional like the
+/// other two requests.
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
+class StockAdjustmentCreateDto {
+  const StockAdjustmentCreateDto({
+    required this.newQuantity,
+    required this.reason,
+    this.clientReference,
+  });
+
+  final int newQuantity;
+  final String reason;
+  final String? clientReference;
+
+  Map<String, dynamic> toJson() => _$StockAdjustmentCreateDtoToJson(this);
+}
+
+/// The not-yet-persisted input to StockMovementRepository.recordStockIn.
+/// A distinct draft type per write kind (this, StockOutDraft,
+/// StockAdjustmentDraft below) rather than one generic
+/// StockMovementDraft with a movementType selector — the old, single-
+/// shape design this replaces — because the three real backend requests
+/// genuinely have different required fields (StockAdjustmentDraft.reason
+/// is required, these two are not) that a single shared draft could only
+/// represent by making everything optional and hoping the caller passes
+/// the right combination.
+class StockInDraft {
+  const StockInDraft({
     required this.productLocalId,
     required this.locationId,
-    required this.movementType,
     required this.quantity,
     this.reason,
   });
 
   final String productLocalId;
   final String locationId;
-  final StockMovementType movementType;
   final int quantity;
   final String? reason;
 
@@ -93,8 +219,70 @@ class StockMovementDraft {
       localId: localId,
       productLocalId: productLocalId,
       locationId: locationId,
-      movementType: movementType,
+      movementType: StockMovementType.stockIn,
       quantity: quantity,
+      reason: reason,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+}
+
+/// The not-yet-persisted input to StockMovementRepository.recordStockOut.
+class StockOutDraft {
+  const StockOutDraft({
+    required this.productLocalId,
+    required this.locationId,
+    required this.quantity,
+    this.reason,
+  });
+
+  final String productLocalId;
+  final String locationId;
+  final int quantity;
+  final String? reason;
+
+  StockMovement toStockMovementEntity({required String localId}) {
+    final now = DateTime.now();
+    return StockMovement(
+      localId: localId,
+      productLocalId: productLocalId,
+      locationId: locationId,
+      movementType: StockMovementType.stockOut,
+      quantity: quantity,
+      reason: reason,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+}
+
+/// The not-yet-persisted input to
+/// StockMovementRepository.recordAdjustment. [reason] is required here,
+/// not optional — matching StockAdjustmentRequest.reason's own
+/// `min_length=1` constraint (no default) exactly, unlike
+/// StockInDraft/StockOutDraft's optional reason.
+class StockAdjustmentDraft {
+  const StockAdjustmentDraft({
+    required this.productLocalId,
+    required this.locationId,
+    required this.newQuantity,
+    required this.reason,
+  });
+
+  final String productLocalId;
+  final String locationId;
+  final int newQuantity;
+  final String reason;
+
+  StockMovement toStockMovementEntity({required String localId}) {
+    final now = DateTime.now();
+    return StockMovement(
+      localId: localId,
+      productLocalId: productLocalId,
+      locationId: locationId,
+      movementType: StockMovementType.adjustment,
+      newQuantity: newQuantity,
       reason: reason,
       createdAt: now,
       updatedAt: now,

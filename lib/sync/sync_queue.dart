@@ -56,6 +56,35 @@ class SyncTask {
         priority: SyncPriority.stockAndCustomerWrites,
       );
 
+  factory SyncTask.createIncomeRecord(String localId) => SyncTask(
+        entityType: 'income_record',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  /// One factory for all three stock-movement write kinds (stock-in,
+  /// stock-out, adjustment) — deliberately NOT three separate factories
+  /// (createStockIn/createStockOut/createAdjustment) the way it might
+  /// first look like it should mirror createCustomer/createExpense.
+  /// From the queue's own point of view every one of these is just "a
+  /// new stock_movement row that needs to reach the server" — the SAME
+  /// single fact SyncQueueItems.operation already models as 'create'.
+  /// Which of the three backend endpoints that actually means is
+  /// entirely determined by the persisted row's own movementType column
+  /// (see tables.dart's StockMovements), which StockMovementSyncHandler
+  /// reads directly — exactly the same "fetch the persisted entity and
+  /// act on its own fields" shape CustomerSyncHandler/ExpenseSyncHandler
+  /// already use, just with a three-way branch instead of a single call.
+  /// Inventing three sync-queue-level operation strings for this would
+  /// duplicate a distinction the entity itself already carries.
+  factory SyncTask.recordStockMovement(String localId) => SyncTask(
+        entityType: 'stock_movement',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   final String entityType;
   final String entityLocalId;
   final String operation; // 'create' | 'update' | 'delete'

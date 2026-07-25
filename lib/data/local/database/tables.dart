@@ -240,14 +240,43 @@ class SaleItems extends Table {
 }
 
 /// Stock movements — the append-only ledger, mirroring the backend's own
-/// StockMovement model directly (in/out/adjustment/transfer). Never
-/// updated once written, only inserted — matching the backend's own
-/// append-only design, which I verified directly during the desktop
-/// audit and confirmed is deliberate (a compensating "in" movement is
-/// added to reverse something, the original row is never mutated).
-/// toLocationId is nullable and populated only for transfer movements
-/// (Architecture Section 7a: "Transfer specifically needs two location
-/// references... on the one movement record").
+/// StockMovement model directly. Never updated once written, only
+/// inserted — matching the backend's own append-only design, which I
+/// verified directly during the desktop audit and confirmed is
+/// deliberate (a compensating "in" movement is added to reverse
+/// something, the original row is never mutated).
+///
+/// quantity and newQuantity are BOTH nullable, and mutually exclusive
+/// depending on movementType — this mirrors a genuine backend API split,
+/// not an arbitrary local choice: verified directly (twice, against two
+/// separate backend snapshots during this same redesign), /stock-in and
+/// /stock-out both take a `quantity` delta (StockInRequest/
+/// StockOutRequest), while /adjust-stock takes a `new_quantity` absolute
+/// target instead (StockAdjustmentRequest) and computes its own delta
+/// server-side (inventory_service.adjust_stock: `delta = new_quantity -
+/// product.current_stock`). quantity is set for stockIn/stockOut,
+/// newQuantity is set for adjustment; the other is always null for that
+/// row. Deliberately NOT collapsed into one column: doing so would mean
+/// either fabricating a delta this device doesn't actually know (for an
+/// adjustment, before syncing, it cannot reliably know the server's
+/// current authoritative stock, especially after being offline for a
+/// while) or overloading one column with two different meanings that
+/// can't be told apart without also checking movementType.
+///
+/// toLocationId, previously present here, has been removed entirely: it
+/// modeled a "transfer" movement type that this table's own prior
+/// comment claimed existed, but grepping the entire backend (models,
+/// schemas, services, routers) turns up zero mentions of a transfer
+/// movement type anywhere — verified directly against two separate
+/// backend snapshots during this redesign, not assumed from the earlier
+/// claim. There is no write path that could ever populate this column
+/// with anything meaningful; a schema column with no possible real data
+/// is worse than removing it now and re-adding it properly (with its
+/// own real migration) if/when a genuine transfer feature is ever built
+/// server-side. Safe to do as a direct edit rather than a migration
+/// step: database.dart's schemaVersion is still 1, with onCreate as the
+/// only strategy that's ever actually run — there is no released
+/// version-1 data anywhere yet for a column removal to silently corrupt.
 /// @DataClassName('StockMovementRow') — same collision-avoidance
 /// reasoning as Locations above, against
 /// domain/entities/stock_movement.dart's own StockMovement.
@@ -255,10 +284,9 @@ class SaleItems extends Table {
 class StockMovements extends Table with SyncableColumns {
   TextColumn get productLocalId => text().references(Products, #localId)();
   TextColumn get locationId => text().references(Locations, #localId)();
-  TextColumn get toLocationId =>
-      text().nullable().references(Locations, #localId)();
-  TextColumn get movementType => text()(); // in | out | adjustment | transfer
-  IntColumn get quantity => integer()();
+  TextColumn get movementType => text()(); // in | out | adjustment | sale
+  IntColumn get quantity => integer().nullable()();
+  IntColumn get newQuantity => integer().nullable()();
   TextColumn get reason => text().nullable()();
 
   @override
