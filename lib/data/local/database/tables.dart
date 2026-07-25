@@ -263,20 +263,28 @@ class SaleItems extends Table {
 /// while) or overloading one column with two different meanings that
 /// can't be told apart without also checking movementType.
 ///
-/// toLocationId, previously present here, has been removed entirely: it
-/// modeled a "transfer" movement type that this table's own prior
-/// comment claimed existed, but grepping the entire backend (models,
-/// schemas, services, routers) turns up zero mentions of a transfer
-/// movement type anywhere — verified directly against two separate
-/// backend snapshots during this redesign, not assumed from the earlier
-/// claim. There is no write path that could ever populate this column
-/// with anything meaningful; a schema column with no possible real data
-/// is worse than removing it now and re-adding it properly (with its
-/// own real migration) if/when a genuine transfer feature is ever built
-/// server-side. Safe to do as a direct edit rather than a migration
-/// step: database.dart's schemaVersion is still 1, with onCreate as the
-/// only strategy that's ever actually run — there is no released
-/// version-1 data anywhere yet for a column removal to silently corrupt.
+/// toLocationId: CORRECTED — an earlier pass through this file removed
+/// this column entirely, on the reasoning that no "transfer" movement
+/// type exists in the current backend (true) and therefore the concept
+/// itself must have been a documentation error (false, and the actual
+/// mistake). Reading the primary sources directly settles it:
+/// Architecture Section 7a's own table states plainly that StockMovement
+/// "Transfer specifically needs two location references (from/to) on
+/// the one movement record," and the Product Design Bible's Volume 6,
+/// Decision 21 designs Transfer as a real, intended product feature
+/// (shown once a second location exists, per the same progressive-
+/// disclosure precedent as the location switcher itself) — explicitly
+/// sequenced into Phase 2 of the roadmap (Section 14), not Phase 0/1.
+/// The correct reading of "no transfer endpoint exists in the backend
+/// today" is "not built yet," matching every other Phase-0-ahead-of-
+/// Phase-2 schema decision this same architecture makes deliberately
+/// (Sale/Expense/Income's locationId columns exist from the first
+/// migration for the identical reason) — not "this was a mistake to be
+/// scrubbed out." Restored as nullable, populated by nothing today
+/// (no write path constructs a transfer movement yet — see
+/// StockMovementType.transfer's own doc comment), structurally ready
+/// for when Phase 2 actually adds the endpoint and the mobile write
+/// path both.
 /// @DataClassName('StockMovementRow') — same collision-avoidance
 /// reasoning as Locations above, against
 /// domain/entities/stock_movement.dart's own StockMovement.
@@ -284,7 +292,9 @@ class SaleItems extends Table {
 class StockMovements extends Table with SyncableColumns {
   TextColumn get productLocalId => text().references(Products, #localId)();
   TextColumn get locationId => text().references(Locations, #localId)();
-  TextColumn get movementType => text()(); // in | out | adjustment | sale
+  TextColumn get toLocationId =>
+      text().nullable().references(Locations, #localId)();
+  TextColumn get movementType => text()(); // in | out | adjustment | transfer | sale
   IntColumn get quantity => integer().nullable()();
   IntColumn get newQuantity => integer().nullable()();
   TextColumn get reason => text().nullable()();
@@ -299,17 +309,20 @@ class StockMovements extends Table with SyncableColumns {
 /// Locations above, against domain/entities/expense.dart's own Expense.
 @DataClassName('ExpenseRow')
 class Expenses extends Table with SyncableColumns {
-  /// Nullable — a real discrepancy discovered while designing the sync
-  /// handler: backend/app/models/finance.py's Expense has NO location_id
-  /// column at all, verified directly. This table originally had it as
-  /// required, under the same (incorrect, for this entity) assumption
-  /// Section 7a's location-scoping rule applies uniformly to every
-  /// business-write entity. Kept as an optional, LOCAL-ONLY organizational
-  /// tag — still useful for on-device filtering ("expenses at this
-  /// location") — rather than removed outright, but it is never sent to
-  /// or received from the backend (ExpenseCreate/ExpenseOut have no such
-  /// field either).
-  TextColumn get locationId => text().nullable().references(Locations, #localId)();
+  /// Required — CORRECTED. This column, and the corresponding
+  /// domain-entity field in expense.dart, were made nullable during an
+  /// earlier pass, reasoning that since backend/app/models/finance.py's
+  /// Expense has no location_id column, the local field should be
+  /// optional too. That reasoning doesn't hold up against Architecture
+  /// Section 7a's own table, read directly rather than inferred: "Yes —
+  /// confirmed, not inferred... location_id is required, not nullable
+  /// ... No hedge toward a nullable 'business-wide expense' case was
+  /// built in here." The backend gap changes what's SENT (nothing —
+  /// ExpenseCreateDto has no locationId field either, before or after
+  /// this fix), not what's required locally — exactly the same split
+  /// Sales.locationId already has. Matches that column's non-nullable
+  /// convention now.
+  TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get categoryId => text().nullable()();
   TextColumn get description => text()();
   RealColumn get amount => real()();
@@ -325,10 +338,12 @@ class Expenses extends Table with SyncableColumns {
 /// domain/entities/income_record.dart's own IncomeRecord.
 @DataClassName('IncomeRecordRow')
 class IncomeRecords extends Table with SyncableColumns {
-  /// Nullable — same discrepancy as Expenses.locationId above:
-  /// backend/app/models/finance.py's Income has no location_id column
-  /// either, verified directly. Same local-only-tag treatment.
-  TextColumn get locationId => text().nullable().references(Locations, #localId)();
+  /// Required — CORRECTED (again): this column was nullable, on the
+  /// same wrong reasoning as Expenses.locationId below ("backend has no
+  /// location_id column, so make the local one optional too"). See
+  /// income_record.dart's own doc comment for why that's backwards.
+  /// Matches Sales.locationId's own non-nullable convention exactly.
+  TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get source => text()();
   RealColumn get amount => real()();
   DateTimeColumn get incomeDate => dateTime()();

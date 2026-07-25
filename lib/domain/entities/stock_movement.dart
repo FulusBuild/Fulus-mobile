@@ -3,19 +3,11 @@ import 'package:json_annotation/json_annotation.dart';
 part 'stock_movement.g.dart';
 
 /// Mirrors backend/app/models/inventory.py's StockMovement.movement_type
-/// values exactly: in / out / adjustment / sale — verified directly
-/// against two separate backend snapshots during this redesign, not
-/// assumed. This deliberately does NOT include "transfer": an earlier
-/// version of this file (and tables.dart's own comment on the
-/// StockMovements table, and its toLocationId column, since removed —
-/// see tables.dart) described a transfer movement type, but grepping the
-/// entire backend inventory model/schema/service/router turns up zero
-/// mentions of transfer anywhere — it does not exist server-side today,
-/// despite an architecture reference naming "the Transfer feature" as
-/// something ProductStockLevels supports. A real discrepancy between the
-/// mobile schema (built in an earlier session) and the actual backend,
-/// surfaced here rather than silently modeled around, the same way
-/// SaleSyncHandler names the product/customer serverId gap.
+/// values as they exist TODAY: in / out / adjustment / sale — verified
+/// directly against two separate backend snapshots during this
+/// redesign. [transfer] is the one value with no backend endpoint yet,
+/// and deliberately included anyway — see its own doc comment for why
+/// this isn't the same situation as a wrong assumption.
 enum StockMovementType {
   stockIn,
   stockOut,
@@ -26,13 +18,39 @@ enum StockMovementType {
   /// StockMovementRepository.recordStockIn/.recordStockOut/
   /// .recordAdjustment's own doc comments, and
   /// StockMovementSyncHandler.sync's explicit rejection of this case).
-  sale;
+  sale,
+
+  /// CORRECTED — an earlier pass through this file removed this value
+  /// entirely, reasoning that since no backend endpoint for it exists
+  /// today (still true — grepped twice, against two separate backend
+  /// snapshots, zero mentions anywhere in models/schemas/services/
+  /// routers), the whole concept must have been invented in error. That
+  /// conclusion was wrong, reached without ever actually reading the two
+  /// primary source documents this codebase's comments constantly
+  /// reference. They're unambiguous: the Product Design Bible's Volume
+  /// 6, Decision 21 designs Transfer as a real, deliberate product
+  /// feature (moves stock from one location's count to another's,
+  /// shown only once a second location exists), and Architecture
+  /// Section 7a's own table states "Transfer specifically needs two
+  /// location references (from/to) on the one movement record" as a
+  /// schema requirement, sequenced into Phase 2 by the roadmap (Section
+  /// 14) — deliberately not built server-side yet, in exactly the same
+  /// "schema ready ahead of the feature" way Sale/Expense/Income's
+  /// locationId columns exist from Phase 0 despite their own user-facing
+  /// features landing later too. "No backend endpoint exists today" and
+  /// "this doesn't exist" are different claims; only the first one was
+  /// ever actually verified. No write method on StockMovementRepository
+  /// constructs this value yet (there is still, genuinely, no endpoint
+  /// to call) — this is schema/type groundwork for Phase 2, not a
+  /// claim that Transfer is buildable today.
+  transfer;
 
   String get wireValue => switch (this) {
         StockMovementType.stockIn => 'in',
         StockMovementType.stockOut => 'out',
         StockMovementType.adjustment => 'adjustment',
         StockMovementType.sale => 'sale',
+        StockMovementType.transfer => 'transfer',
       };
 
   static StockMovementType fromWireValue(String value) => switch (value) {
@@ -40,6 +58,7 @@ enum StockMovementType {
         'out' => StockMovementType.stockOut,
         'adjustment' => StockMovementType.adjustment,
         'sale' => StockMovementType.sale,
+        'transfer' => StockMovementType.transfer,
         _ => throw ArgumentError('Unknown movement type: $value'),
       };
 }
@@ -66,6 +85,7 @@ class StockMovement {
     this.serverId,
     required this.productLocalId,
     required this.locationId,
+    this.toLocationId,
     required this.movementType,
     this.quantity,
     this.newQuantity,
@@ -79,6 +99,12 @@ class StockMovement {
   final String? serverId;
   final String productLocalId;
   final String locationId;
+
+  /// Set only for [StockMovementType.transfer] — see that value's own
+  /// doc comment on why this field exists in the schema despite no
+  /// write path constructing one yet (Phase 2, not built server-side).
+  final String? toLocationId;
+
   final StockMovementType movementType;
 
   /// The delta. Set for [StockMovementType.stockIn]/[.stockOut] (always

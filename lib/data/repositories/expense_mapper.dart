@@ -8,6 +8,7 @@ extension ExpenseToCompanion on Expense {
   ExpensesCompanion toDriftCompanion() {
     return ExpensesCompanion.insert(
       localId: localId,
+      locationId: locationId,
       description: description,
       amount: amount,
       expenseDate: expenseDate,
@@ -15,7 +16,6 @@ extension ExpenseToCompanion on Expense {
       updatedAt: updatedAt,
       syncStatus: SyncStatus.pending,
       serverId: Value(serverId),
-      locationId: Value(locationId),
       categoryId: Value(categoryId),
       paymentMethod: Value(paymentMethod),
       deletedAt: const Value(null),

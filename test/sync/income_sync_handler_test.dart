@@ -1,4 +1,5 @@
 import 'package:bms_mobile/data/local/database/database.dart';
+import 'package:bms_mobile/data/local/database/tables.dart';
 import 'package:bms_mobile/data/remote/endpoints/income_api.dart';
 import 'package:bms_mobile/data/repositories/income_record_repository_impl.dart';
 import 'package:bms_mobile/domain/entities/income_record.dart';
@@ -16,6 +17,11 @@ void main() {
   late IncomeRecordRepositoryImpl incomeRecordRepository;
   late IncomeSyncHandler handler;
 
+  // Required — Architecture Section 7a, see income_record.dart's own
+  // doc comment. A real Locations row must exist before any
+  // IncomeRecord can be inserted at all (FK enforced in tests too).
+  const locationId = 'loc-1';
+
   setUpAll(() {
     registerFallbackValue(
       IncomeCreateDto(
@@ -26,7 +32,7 @@ void main() {
     );
   });
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     incomeApi = MockIncomeApi();
     incomeRecordRepository = IncomeRecordRepositoryImpl(db: db, syncQueue: SyncQueue(db));
@@ -34,6 +40,14 @@ void main() {
       incomeApi: incomeApi,
       incomeRecordRepository: incomeRecordRepository,
     );
+
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+          localId: locationId,
+          name: 'Main Store',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ));
   });
 
   tearDown(() async {
@@ -53,16 +67,26 @@ void main() {
   }
 
   test(
-      'sends the client_reference equal to the local id and marks the '
-      'local income record synced from the response', () async {
+      'sends the client_reference equal to the local id, sends the '
+      'locationLocalId separately from the DTO, and marks the local '
+      'income record synced from the response', () async {
     final record = await incomeRecordRepository.recordIncome(
-      IncomeRecordDraft(source: 'Equipment rental', amount: 15000, incomeDate: DateTime(2026, 7, 1)),
+      IncomeRecordDraft(
+        locationId: locationId,
+        source: 'Equipment rental',
+        amount: 15000,
+        incomeDate: DateTime(2026, 7, 1),
+      ),
     );
 
-    when(() => incomeApi.createIncome(any())).thenAnswer(
+    when(() => incomeApi.createIncome(
+          any(),
+          locationLocalId: any(named: 'locationLocalId'),
+        )).thenAnswer(
       (_) async => IncomeRecord(
         localId: record.localId,
         serverId: 'server-income-1',
+        locationId: record.locationId,
         source: record.source,
         amount: record.amount,
         incomeDate: record.incomeDate,
@@ -73,10 +97,14 @@ void main() {
 
     await handler.sync(queueItemFor(record));
 
-    final captured = verify(() => incomeApi.createIncome(captureAny())).captured;
-    final dto = captured.single as IncomeCreateDto;
+    final captured = verify(() => incomeApi.createIncome(
+          captureAny(),
+          locationLocalId: captureAny(named: 'locationLocalId'),
+        )).captured;
+    final dto = captured[0] as IncomeCreateDto;
     expect(dto.clientReference, record.localId);
     expect(dto.source, 'Equipment rental');
+    expect(captured[1], locationId);
 
     final updated = await incomeRecordRepository.getIncomeRecordById(record.localId);
     expect(updated!.serverId, 'server-income-1');
@@ -84,7 +112,7 @@ void main() {
 
   test('throws for an operation other than create', () async {
     final record = await incomeRecordRepository.recordIncome(
-      IncomeRecordDraft(source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+      IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
     );
 
     await expectLater(

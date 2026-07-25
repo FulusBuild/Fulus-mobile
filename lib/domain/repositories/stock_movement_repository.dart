@@ -7,11 +7,16 @@ import '../entities/stock_movement.dart';
 /// old shape this replaces — because the real backend has three
 /// genuinely different request shapes (see stock_movement.dart's own
 /// doc comment on StockMovement for the full verification), not one
-/// generic endpoint with a movementType selector. [.sale] is
-/// deliberately unreachable through any method here: the backend
-/// creates it automatically as a side effect of a sale itself (verified
-/// directly — see StockMovementType's own doc comment), never something
-/// a mobile stock-adjustment form would submit.
+/// generic endpoint with a movementType selector. Deliberately only
+/// three, covering [StockMovementType.stockIn]/[.stockOut]/
+/// [.adjustment] — the other two enum values are unreachable through
+/// any method here, for two different reasons: [.sale] because it's
+/// created automatically server-side as a byproduct of a sale, never
+/// something a mobile form submits; [.transfer] because it's a real,
+/// intended Phase 2 feature (Product Design Bible Volume 6, Decision
+/// 21; Architecture Section 7a) with no backend endpoint built yet —
+/// see StockMovementType.transfer's own doc comment before assuming
+/// that's the same kind of "doesn't exist" as .sale.
 abstract class StockMovementRepository {
   Future<StockMovement> recordStockIn(StockInDraft draft);
 

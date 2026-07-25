@@ -32,6 +32,7 @@ class ExpenseSyncHandler implements SyncHandler {
 
     final response = await _expensesApi.createExpense(
       expense.toCreateDto(clientReference: expense.localId),
+      locationLocalId: expense.locationId,
     );
 
     await _expenseRepository.markSynced(

@@ -15,7 +15,7 @@ extension IncomeRecordToCompanion on IncomeRecord {
       updatedAt: updatedAt,
       syncStatus: SyncStatus.pending,
       serverId: Value(serverId),
-      locationId: Value(locationId),
+      locationId: locationId,
       notes: Value(notes),
       deletedAt: const Value(null),
     );

@@ -31,12 +31,11 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   }
 
   @override
-  Stream<List<Expense>> watchExpenses({String? locationId}) {
-    final query = _db.select(_db.expenses)..where((e) => e.deletedAt.isNull());
-    if (locationId != null) {
-      query.where((e) => e.locationId.equals(locationId));
-    }
-    query.orderBy([(e) => OrderingTerm.desc(e.expenseDate)]);
+  Stream<List<Expense>> watchExpenses(String locationId) {
+    final query = _db.select(_db.expenses)
+      ..where((e) => e.deletedAt.isNull())
+      ..where((e) => e.locationId.equals(locationId))
+      ..orderBy([(e) => OrderingTerm.desc(e.expenseDate)]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
 

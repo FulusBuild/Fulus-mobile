@@ -96,6 +96,28 @@ class StockMovementSyncHandler implements SyncHandler {
           'automatically server-side as a byproduct of a sale and must '
           'never be submitted by mobile directly.',
         );
+      case StockMovementType.transfer:
+        // Also genuinely unreachable today, but for a different reason
+        // than .sale above: StockMovementType.transfer is a real,
+        // intended Phase 2 feature (Product Design Bible Volume 6,
+        // Decision 21; Architecture Section 7a), not a mistake — see its
+        // own doc comment. It's unreachable here specifically because no
+        // backend endpoint exists yet to call (verified directly,
+        // grepped the whole backend, nothing) and
+        // StockMovementRepository has no recordTransfer method for the
+        // same reason — building one now would mean calling an endpoint
+        // that doesn't exist. This case exists so the switch stays
+        // exhaustive as the enum grows, and so that whoever adds the
+        // real transfer endpoint + recordTransfer method later gets a
+        // clear compile-time reminder to replace this throw with the
+        // real two-location submission, rather than silently falling
+        // through do-nothing.
+        throw StateError(
+          'StockMovementSyncHandler received a "transfer" movement type '
+          'for ${movement.localId} — Transfer has no backend endpoint '
+          'yet (Phase 2, not built server-side today); this case exists '
+          'as groundwork, not a working path.',
+        );
     }
 
     await _stockMovementRepository.markSettled(localId: movement.localId);

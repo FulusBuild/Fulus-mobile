@@ -39,6 +39,7 @@ class IncomeSyncHandler implements SyncHandler {
     // into anything else that would need its own prior sync.
     final response = await _incomeApi.createIncome(
       record.toCreateDto(clientReference: record.localId),
+      locationLocalId: record.locationId,
     );
 
     await _incomeRecordRepository.markSynced(

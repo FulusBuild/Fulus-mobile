@@ -11,10 +11,25 @@ void main() {
   late SyncQueue syncQueue;
   late ExpenseRepositoryImpl repository;
 
-  setUp(() {
+  // Expenses.locationId is a required, real FK reference to Locations
+  // (Architecture Section 7a — confirmed, not inferred, see
+  // expense.dart's own doc comment) — PRAGMA foreign_keys = ON applies
+  // to test databases the same as the real one, so a row must actually
+  // exist here before any Expense can be inserted at all.
+  const locationId = 'loc-1';
+
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
     repository = ExpenseRepositoryImpl(db: db, syncQueue: syncQueue);
+
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+          localId: locationId,
+          name: 'Main Store',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ));
   });
 
   tearDown(() async {
@@ -22,9 +37,10 @@ void main() {
   });
 
   group('recordExpense', () {
-    test('writes the expense locally with no location required', () async {
+    test('writes the expense locally with its location', () async {
       final result = await repository.recordExpense(
         ExpenseDraft(
+          locationId: locationId,
           description: 'Fuel',
           amount: 3000,
           expenseDate: DateTime(2026, 7, 1),
@@ -32,16 +48,18 @@ void main() {
       );
 
       expect(result.description, 'Fuel');
-      expect(result.locationId, isNull);
+      expect(result.locationId, locationId);
 
       final rows = await db.select(db.expenses).get();
       expect(rows, hasLength(1));
+      expect(rows.single.locationId, locationId);
       expect(rows.single.syncStatus, SyncStatus.pending);
     });
 
     test('enqueues a stock-and-customer-priority sync task', () async {
       final result = await repository.recordExpense(
         ExpenseDraft(
+          locationId: locationId,
           description: 'Fuel',
           amount: 3000,
           expenseDate: DateTime(2026, 7, 1),
@@ -57,24 +75,33 @@ void main() {
   });
 
   group('watchExpenses', () {
-    test('emits every expense when no location filter is given', () async {
+    test('emits only expenses for the given location', () async {
       await repository.recordExpense(
-        ExpenseDraft(description: 'A', amount: 100, expenseDate: DateTime(2026, 7, 1)),
-      );
-      await repository.recordExpense(
-        ExpenseDraft(description: 'B', amount: 200, expenseDate: DateTime(2026, 7, 2)),
+        ExpenseDraft(locationId: locationId, description: 'A', amount: 100, expenseDate: DateTime(2026, 7, 1)),
       );
 
-      final emitted = await repository.watchExpenses().first;
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: 'loc-2',
+            name: 'Other Store',
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+      await repository.recordExpense(
+        ExpenseDraft(locationId: 'loc-2', description: 'B', amount: 200, expenseDate: DateTime(2026, 7, 2)),
+      );
 
-      expect(emitted, hasLength(2));
+      final emitted = await repository.watchExpenses(locationId).first;
+
+      expect(emitted, hasLength(1));
+      expect(emitted.single.description, 'A');
     });
   });
 
   group('getExpenseById', () {
     test('returns the matching expense', () async {
       final created = await repository.recordExpense(
-        ExpenseDraft(description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
+        ExpenseDraft(locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
       );
 
       final fetched = await repository.getExpenseById(created.localId);
@@ -91,7 +118,7 @@ void main() {
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.recordExpense(
-        ExpenseDraft(description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
+        ExpenseDraft(locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
       );
 
       await repository.markSynced(localId: created.localId, serverId: 'server-1');

@@ -11,10 +11,25 @@ void main() {
   late SyncQueue syncQueue;
   late IncomeRecordRepositoryImpl repository;
 
-  setUp(() {
+  // IncomeRecords.locationId is a required, real FK reference to
+  // Locations (Architecture Section 7a — confirmed, not inferred, see
+  // income_record.dart's own doc comment) — PRAGMA foreign_keys = ON
+  // applies to test databases the same as the real one, so a row must
+  // actually exist here before any IncomeRecord can be inserted at all.
+  const locationId = 'loc-1';
+
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
     repository = IncomeRecordRepositoryImpl(db: db, syncQueue: syncQueue);
+
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+          localId: locationId,
+          name: 'Main Store',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ));
   });
 
   tearDown(() async {
@@ -22,9 +37,10 @@ void main() {
   });
 
   group('recordIncome', () {
-    test('writes the income record locally with no location required', () async {
+    test('writes the income record locally with its location', () async {
       final result = await repository.recordIncome(
         IncomeRecordDraft(
+          locationId: locationId,
           source: 'Equipment rental',
           amount: 15000,
           incomeDate: DateTime(2026, 7, 1),
@@ -32,17 +48,19 @@ void main() {
       );
 
       expect(result.source, 'Equipment rental');
-      expect(result.locationId, isNull);
+      expect(result.locationId, locationId);
 
       final rows = await db.select(db.incomeRecords).get();
       expect(rows, hasLength(1));
       expect(rows.single.source, 'Equipment rental');
+      expect(rows.single.locationId, locationId);
       expect(rows.single.syncStatus, SyncStatus.pending);
     });
 
     test('enqueues a stock-and-customer-priority sync task', () async {
       final result = await repository.recordIncome(
         IncomeRecordDraft(
+          locationId: locationId,
           source: 'Equipment rental',
           amount: 15000,
           incomeDate: DateTime(2026, 7, 1),
@@ -59,57 +77,33 @@ void main() {
   });
 
   group('watchIncomeRecords', () {
-    test('emits every income record when no location filter is given', () async {
+    test('emits only income records for the given location', () async {
       await repository.recordIncome(
-        IncomeRecordDraft(source: 'A', amount: 100, incomeDate: DateTime(2026, 7, 1)),
-      );
-      await repository.recordIncome(
-        IncomeRecordDraft(source: 'B', amount: 200, incomeDate: DateTime(2026, 7, 2)),
+        IncomeRecordDraft(locationId: locationId, source: 'A', amount: 100, incomeDate: DateTime(2026, 7, 1)),
       );
 
-      final emitted = await repository.watchIncomeRecords().first;
-
-      expect(emitted, hasLength(2));
-    });
-
-    test('filters by location when one is given', () async {
-      // IncomeRecords.locationId carries a real FK reference to
-      // Locations (nullable, but still enforced when non-null, since
-      // PRAGMA foreign_keys = ON applies to test databases the same as
-      // the real one — database.dart's beforeOpen isn't conditional on
-      // which executor was passed in) — a row must actually exist here
-      // before a non-null locationId can be inserted against it.
       await db.into(db.locations).insert(LocationsCompanion.insert(
-            localId: 'loc-1',
-            name: 'Main Store',
+            localId: 'loc-2',
+            name: 'Other Store',
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
-
       await repository.recordIncome(
-        IncomeRecordDraft(
-          locationId: 'loc-1',
-          source: 'At location 1',
-          amount: 100,
-          incomeDate: DateTime(2026, 7, 1),
-        ),
-      );
-      await repository.recordIncome(
-        IncomeRecordDraft(source: 'No location', amount: 200, incomeDate: DateTime(2026, 7, 2)),
+        IncomeRecordDraft(locationId: 'loc-2', source: 'B', amount: 200, incomeDate: DateTime(2026, 7, 2)),
       );
 
-      final emitted = await repository.watchIncomeRecords(locationId: 'loc-1').first;
+      final emitted = await repository.watchIncomeRecords(locationId).first;
 
       expect(emitted, hasLength(1));
-      expect(emitted.single.source, 'At location 1');
+      expect(emitted.single.source, 'A');
     });
   });
 
   group('getIncomeRecordById', () {
     test('returns the matching income record', () async {
       final created = await repository.recordIncome(
-        IncomeRecordDraft(source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+        IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
       );
 
       final fetched = await repository.getIncomeRecordById(created.localId);
@@ -126,7 +120,7 @@ void main() {
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.recordIncome(
-        IncomeRecordDraft(source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+        IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
       );
 
       await repository.markSynced(localId: created.localId, serverId: 'server-1');

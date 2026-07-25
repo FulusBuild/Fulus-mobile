@@ -18,6 +18,7 @@ extension StockMovementToCompanion on StockMovement {
       quantity: Value(quantity),
       newQuantity: Value(newQuantity),
       reason: Value(reason),
+      toLocationId: Value(toLocationId),
       deletedAt: const Value(null),
     );
   }
@@ -30,6 +31,7 @@ extension StockMovementRowToDomain on StockMovementRow {
       serverId: serverId,
       productLocalId: productLocalId,
       locationId: locationId,
+      toLocationId: toLocationId,
       movementType: StockMovementType.fromWireValue(movementType),
       quantity: quantity,
       newQuantity: newQuantity,

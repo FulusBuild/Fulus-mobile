@@ -16,20 +16,30 @@ class IncomeApi {
 
   final ApiClient _client;
 
-  Future<IncomeRecord> createIncome(IncomeCreateDto dto) async {
+  /// [locationLocalId] required — `IncomeRecord.locationId` is required
+  /// (see that entity's own doc comment), but `IncomeResponseDto` has no
+  /// locationId field to parse it from (IncomeCreate/IncomeOut have no
+  /// such field server-side). Same resolution as
+  /// ExpensesApi.createExpense/SalesApi.createSale's identical
+  /// `locationLocalId` parameter: the caller (IncomeSyncHandler) already
+  /// has it, read off the persisted local IncomeRecord row being synced.
+  Future<IncomeRecord> createIncome(
+    IncomeCreateDto dto, {
+    required String locationLocalId,
+  }) async {
     try {
       final response = await _client.dio.post(
         '/api/finance/income',
         data: dto.toJson(),
       );
       final responseDto = IncomeResponseDto.fromJson(response.data as Map<String, dynamic>);
-      return _toDomain(responseDto);
+      return _toDomain(responseDto, locationLocalId: locationLocalId);
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
   }
 
-  IncomeRecord _toDomain(IncomeResponseDto dto) {
+  IncomeRecord _toDomain(IncomeResponseDto dto, {required String locationLocalId}) {
     final now = DateTime.now();
     return IncomeRecord(
       localId: dto.id,
@@ -37,9 +47,7 @@ class IncomeApi {
       // only ever called with a response that came FROM the server, so
       // localId and serverId are deliberately the same value here.
       serverId: dto.id,
-      // No locationId at all — the server has no such concept for
-      // income records (see IncomeRecord's own doc comment); a synced-
-      // down/server-confirmed IncomeRecord simply has none.
+      locationId: locationLocalId,
       source: dto.source,
       amount: dto.amount,
       incomeDate: dto.incomeDate,

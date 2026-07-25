@@ -7,11 +7,11 @@ import '../entities/expense.dart';
 abstract class ExpenseRepository {
   Future<Expense> recordExpense(ExpenseDraft draft);
 
-  /// [locationId] is an optional filter, not a required scope — unlike
-  /// Sale, Expense has no server-side location concept at all (see
-  /// Expense's own doc comment), so most expenses may have no location
-  /// tag whatsoever. Omit it to watch every expense.
-  Stream<List<Expense>> watchExpenses({String? locationId});
+  /// [locationId] required, not optional — CORRECTED (see expense.dart's
+  /// own doc comment for the full story of getting this backwards).
+  /// Matches SaleRepository.watchSalesForToday's identical treatment
+  /// exactly. Previously `watchExpenses({String? locationId})`.
+  Stream<List<Expense>> watchExpenses(String locationId);
 
   Future<Expense?> getExpenseById(String localId);
 

@@ -14,20 +14,31 @@ class ExpensesApi {
 
   final ApiClient _client;
 
-  Future<Expense> createExpense(ExpenseCreateDto dto) async {
+  /// [locationLocalId] required — CORRECTED: `Expense.locationId` is
+  /// required (see that entity's own doc comment), but
+  /// `ExpenseResponseDto` has no locationId field to parse it from
+  /// (ExpenseCreate/ExpenseOut have no such field server-side). Same
+  /// resolution as SalesApi.createSale's identical `locationLocalId`
+  /// parameter: the caller (ExpenseSyncHandler) already has it, read off
+  /// the persisted local Expense row that's being synced — it's threaded
+  /// through explicitly rather than invented here from nothing.
+  Future<Expense> createExpense(
+    ExpenseCreateDto dto, {
+    required String locationLocalId,
+  }) async {
     try {
       final response = await _client.dio.post(
         '/api/finance/expenses',
         data: dto.toJson(),
       );
       final responseDto = ExpenseResponseDto.fromJson(response.data as Map<String, dynamic>);
-      return _toDomain(responseDto);
+      return _toDomain(responseDto, locationLocalId: locationLocalId);
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
   }
 
-  Expense _toDomain(ExpenseResponseDto dto) {
+  Expense _toDomain(ExpenseResponseDto dto, {required String locationLocalId}) {
     final now = DateTime.now();
     return Expense(
       localId: dto.id,
@@ -35,9 +46,7 @@ class ExpensesApi {
       // called with a response that came FROM the server, so localId
       // and serverId are deliberately the same value here.
       serverId: dto.id,
-      // No locationId at all — the server has no such concept for
-      // expenses (see Expense's own doc comment); a synced-down/
-      // server-confirmed Expense simply has none.
+      locationId: locationLocalId,
       categoryId: dto.categoryId,
       description: dto.description,
       amount: dto.amount,

@@ -31,12 +31,11 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
   }
 
   @override
-  Stream<List<IncomeRecord>> watchIncomeRecords({String? locationId}) {
-    final query = _db.select(_db.incomeRecords)..where((i) => i.deletedAt.isNull());
-    if (locationId != null) {
-      query.where((i) => i.locationId.equals(locationId));
-    }
-    query.orderBy([(i) => OrderingTerm.desc(i.incomeDate)]);
+  Stream<List<IncomeRecord>> watchIncomeRecords(String locationId) {
+    final query = _db.select(_db.incomeRecords)
+      ..where((i) => i.deletedAt.isNull())
+      ..where((i) => i.locationId.equals(locationId))
+      ..orderBy([(i) => OrderingTerm.desc(i.incomeDate)]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
 
