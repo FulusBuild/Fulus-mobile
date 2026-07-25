@@ -18,7 +18,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(
-      const ExpenseCreateDto(
+      ExpenseCreateDto(
         description: 'fallback',
         amount: 0,
         expenseDate: DateTime(2020),
