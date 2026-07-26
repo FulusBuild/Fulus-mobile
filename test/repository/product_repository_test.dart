@@ -3,7 +3,7 @@ import 'package:bms_mobile/data/local/database/tables.dart';
 import 'package:bms_mobile/data/remote/endpoints/products_api.dart';
 import 'package:bms_mobile/data/repositories/product_repository_impl.dart';
 import 'package:bms_mobile/domain/entities/product.dart';
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
