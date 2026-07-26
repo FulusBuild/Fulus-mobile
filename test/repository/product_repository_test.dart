@@ -152,6 +152,20 @@ void main() {
 
   group('reconcileStockLevel', () {
     test('writes ProductStockLevels for a product that already exists locally', () async {
+      // ProductStockLevels.locationLocalId is a real FK reference to
+      // Locations — must exist before this insert, same requirement as
+      // every other write into this table throughout this file. Missed
+      // here originally because this group has no shared setUp seeding
+      // one the way the 'reads' group below does; caught by a real CI
+      // run (FOREIGN KEY constraint failed, code 787), not by any of
+      // the manual checks this whole batch was built under.
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: locationId,
+            name: 'Main Store',
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
             serverId: const Value('p1'),
