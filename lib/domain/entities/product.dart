@@ -102,13 +102,17 @@ class ProductResponseDto {
   factory ProductResponseDto.fromJson(Map<String, dynamic> json) =>
       _$ProductResponseDtoFromJson(json);
 
-  /// Deliberately lossy: currentStock/isLowStock/stockValue have nowhere
-  /// to go on [Product] (see its own doc comment — stock is per-location
-  /// by design, not a Product field at all) and are dropped here. This
-  /// is a real, currently-unused gap, not an oversight — see
-  /// StockMovementsApi's own doc comment on why nothing in this
-  /// checkpoint reconciles them anywhere yet, and StockMovementSyncHandler's
-  /// comment at its actual call site.
+  /// Was lossy with nowhere to reconcile currentStock/isLowStock/
+  /// stockValue TO (see StockMovementsApi's own doc comment on the
+  /// gap that created) until ProductRepositoryImpl existed — it still
+  /// drops them here, but callers now have somewhere real to send them:
+  /// ProductRepository.reconcileStockLevel (a single product) or
+  /// .syncFromServer (the whole catalog) both write to
+  /// ProductStockLevels directly from the raw ProductResponseDto,
+  /// bypassing this lossy conversion entirely for that data. This
+  /// method itself stays lossy on purpose — [Product] structurally has
+  /// no field for stock, by design (see its own doc comment) — but the
+  /// gap of "nowhere for the caller to put it" is closed.
   Product toDomain() {
     final now = DateTime.now();
     return Product(
@@ -132,4 +136,35 @@ class ProductResponseDto {
       updatedAt: now,
     );
   }
+}
+
+/// GET /api/inventory/products's response — mirrors backend's generic
+/// PaginatedResponse[ProductOut] (app/schemas/common.py), verified
+/// directly. No existing mobile precedent for a *paginated* list
+/// response (AuthApi.getApprovalHashes's ApprovalHashesResponseDto is
+/// the closest prior art for "a response wrapping a list," but that one
+/// isn't paginated) — kept as a plain, non-generic DTO specific to
+/// products rather than a generic PaginatedResponseDto<T>, since
+/// json_serializable's code generation for generic wrapper types adds
+/// real complexity for a pattern only one entity needs so far. If a
+/// second paginated-list entity shows up, that's the point to
+/// generalize this, not before.
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
+class ProductListResponseDto {
+  const ProductListResponseDto({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+  });
+
+  final List<ProductResponseDto> items;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+
+  factory ProductListResponseDto.fromJson(Map<String, dynamic> json) =>
+      _$ProductListResponseDtoFromJson(json);
 }

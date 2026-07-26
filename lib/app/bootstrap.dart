@@ -9,6 +9,7 @@ import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/income_api.dart';
+import '../data/remote/endpoints/products_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
 import '../data/repositories/approval_pin_repository_impl.dart';
@@ -16,6 +17,7 @@ import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/customer_repository_impl.dart';
 import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_record_repository_impl.dart';
+import '../data/repositories/product_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
 import '../data/repositories/stock_movement_repository_impl.dart';
 import '../sync/handlers/customer_sync_handler.dart';
@@ -105,6 +107,7 @@ Future<ProviderContainer> bootstrap() async {
   final expensesApi = ExpensesApi(apiClient);
   final incomeApi = IncomeApi(apiClient);
   final stockMovementsApi = StockMovementsApi(apiClient);
+  final productsApi = ProductsApi(apiClient);
   final syncQueue = SyncQueue(database);
   final saleRepository = SaleRepositoryImpl(
     db: database,
@@ -125,6 +128,14 @@ Future<ProviderContainer> bootstrap() async {
   final stockMovementRepository = StockMovementRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
+  );
+  // No syncQueue dependency — Product is read + pull-sync only (see its
+  // repository interface's own doc comment), nothing about it goes
+  // through the push-oriented SyncQueue/SyncEngine machinery the other
+  // five repositories above all do.
+  final productRepository = ProductRepositoryImpl(
+    db: database,
+    productsApi: productsApi,
   );
 
   // The rest of the sync engine graph builds on top of saleRepository,
@@ -154,6 +165,7 @@ Future<ProviderContainer> bootstrap() async {
     db: database,
     stockMovementsApi: stockMovementsApi,
     stockMovementRepository: stockMovementRepository,
+    productRepository: productRepository,
   );
   final syncEngine = SyncEngine(
     db: database,
@@ -189,6 +201,8 @@ Future<ProviderContainer> bootstrap() async {
       incomeRecordRepositoryProvider.overrideWithValue(incomeRecordRepository),
       stockMovementsApiProvider.overrideWithValue(stockMovementsApi),
       stockMovementRepositoryProvider.overrideWithValue(stockMovementRepository),
+      productsApiProvider.overrideWithValue(productsApi),
+      productRepositoryProvider.overrideWithValue(productRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],

@@ -1,6 +1,8 @@
 import 'package:bms_mobile/data/local/database/database.dart';
 import 'package:bms_mobile/data/local/database/tables.dart';
+import 'package:bms_mobile/data/remote/endpoints/products_api.dart';
 import 'package:bms_mobile/data/remote/endpoints/stock_movements_api.dart';
+import 'package:bms_mobile/data/repositories/product_repository_impl.dart';
 import 'package:bms_mobile/data/repositories/stock_movement_repository_impl.dart';
 import 'package:bms_mobile/domain/entities/product.dart';
 import 'package:bms_mobile/domain/entities/stock_movement.dart';
@@ -13,27 +15,38 @@ import 'package:mocktail/mocktail.dart';
 
 class MockStockMovementsApi extends Mock implements StockMovementsApi {}
 
+// Never stubbed/verified in any test below — ProductRepositoryImpl's
+// constructor requires a ProductsApi, but reconcileStockLevel (the only
+// method these tests exercise) never calls it. A real ProductRepositoryImpl
+// is used instead of a mocked ProductRepository specifically so these
+// tests exercise the actual reconciliation write, not just verify it was
+// "called" — the same "real in-memory Drift, no mocks where the network
+// isn't involved" preference every other repository test in this suite
+// already follows.
+class MockProductsApi extends Mock implements ProductsApi {}
+
 void main() {
   late AppDatabase db;
   late MockStockMovementsApi stockMovementsApi;
   late StockMovementRepositoryImpl stockMovementRepository;
+  late ProductRepositoryImpl productRepository;
   late StockMovementSyncHandler handler;
 
   const locationId = 'loc-1';
   const productLocalId = 'prod-1';
   const productServerId = 'server-prod-1';
 
-  Product fakeProductResponse() => Product(
-        localId: productServerId,
-        serverId: productServerId,
+  ProductResponseDto fakeProductResponse({required int currentStock}) => ProductResponseDto(
+        id: productServerId,
         name: 'USB-C Cable',
         sku: 'CAB-USBC',
         costPrice: 500.0,
         sellingPrice: 1200.0,
         lowStockThreshold: 10,
+        currentStock: currentStock,
         isActive: true,
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
+        isLowStock: false,
+        stockValue: 500.0 * currentStock,
       );
 
   setUpAll(() {
@@ -46,10 +59,12 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     stockMovementsApi = MockStockMovementsApi();
     stockMovementRepository = StockMovementRepositoryImpl(db: db, syncQueue: SyncQueue(db));
+    productRepository = ProductRepositoryImpl(db: db, productsApi: MockProductsApi());
     handler = StockMovementSyncHandler(
       db: db,
       stockMovementsApi: stockMovementsApi,
       stockMovementRepository: stockMovementRepository,
+      productRepository: productRepository,
     );
 
     await db.into(db.locations).insert(LocationsCompanion.insert(
@@ -105,7 +120,7 @@ void main() {
       when(() => stockMovementsApi.stockIn(
             productId: any(named: 'productId'),
             dto: any(named: 'dto'),
-          )).thenAnswer((_) async => fakeProductResponse());
+          )).thenAnswer((_) async => fakeProductResponse(currentStock: 45));
 
       await handler.sync(queueItemFor(movement.localId));
 
@@ -131,7 +146,7 @@ void main() {
       when(() => stockMovementsApi.stockOut(
             productId: any(named: 'productId'),
             dto: any(named: 'dto'),
-          )).thenAnswer((_) async => fakeProductResponse());
+          )).thenAnswer((_) async => fakeProductResponse(currentStock: 15));
 
       await handler.sync(queueItemFor(movement.localId));
 
@@ -158,7 +173,7 @@ void main() {
       when(() => stockMovementsApi.adjustStock(
             productId: any(named: 'productId'),
             dto: any(named: 'dto'),
-          )).thenAnswer((_) async => fakeProductResponse());
+          )).thenAnswer((_) async => fakeProductResponse(currentStock: 42));
 
       await handler.sync(queueItemFor(movement.localId));
 
@@ -181,7 +196,7 @@ void main() {
       when(() => stockMovementsApi.stockIn(
             productId: any(named: 'productId'),
             dto: any(named: 'dto'),
-          )).thenAnswer((_) async => fakeProductResponse());
+          )).thenAnswer((_) async => fakeProductResponse(currentStock: 45));
 
       await handler.sync(queueItemFor(movement.localId));
 
@@ -190,13 +205,33 @@ void main() {
           .getSingle();
       expect(row.syncStatus, SyncStatus.settled);
     });
+
+    test('reconciles ProductStockLevels with the response currentStock — the whole point of item 2', () async {
+      final movement = await stockMovementRepository.recordStockIn(
+        const StockInDraft(productLocalId: productLocalId, locationId: locationId, quantity: 20),
+      );
+
+      when(() => stockMovementsApi.stockIn(
+            productId: any(named: 'productId'),
+            dto: any(named: 'dto'),
+          )).thenAnswer((_) async => fakeProductResponse(currentStock: 45));
+
+      await handler.sync(queueItemFor(movement.localId));
+
+      final stockLevel = await (db.select(db.productStockLevels)
+            ..where((s) =>
+                s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId)))
+          .getSingle();
+      expect(stockLevel.currentStock, 45);
+      expect(stockLevel.syncStatus, SyncStatus.settled);
+    });
   });
 
   test('throws when the product has no serverId yet', () async {
-    // Deliberately no serverId set here — product/customer sync isn't
-    // built in this phase, and a movement against a never-synced
-    // product must fail loudly (see StockMovementSyncHandler's own
-    // comment) rather than submit a bogus product id.
+    // Deliberately no serverId set here. Should be unreachable in
+    // practice now that Products only ever gets rows from a real synced
+    // product (see StockMovementSyncHandler's own comment) — this test
+    // exercises the defensive check directly, not a realistic scenario.
     await db.into(db.products).insert(ProductsCompanion.insert(
           localId: productLocalId,
           name: 'USB-C Cable',

@@ -29,4 +29,24 @@ abstract class ProductRepository {
   /// reconciles them locally — see LocationRepository.syncFromServer's
   /// own comment on this being a pull, not a push.
   Future<void> syncFromServer();
+
+  /// Reconciles ONE product's stock level from a current_stock value the
+  /// caller already has fresh, without re-pulling the entire catalog to
+  /// get it — closes the gap Section 4 (item 1 of the handoff doc)
+  /// anticipated: every one of the three stock-movement write endpoints
+  /// (stock-in/stock-out/adjust-stock) returns the product's own
+  /// up-to-date current_stock in its response (ProductOut, not the
+  /// movement record — see StockMovementsApi's own doc comment), and
+  /// until this method existed there was nowhere on-device to send it.
+  /// StockMovementSyncHandler is the only caller today. [productLocalId]
+  /// must already exist in the local Products table — if it doesn't
+  /// (meaning this device never actually pulled that product down via
+  /// [syncFromServer]), this throws rather than silently inserting a
+  /// stock-level row for a product this device doesn't otherwise know
+  /// anything about.
+  Future<void> reconcileStockLevel({
+    required String productLocalId,
+    required String locationId,
+    required int currentStock,
+  });
 }
