@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env_config.dart';
@@ -6,6 +8,7 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/auth_api.dart';
+import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/income_api.dart';
@@ -15,6 +18,7 @@ import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
 import '../data/repositories/approval_pin_repository_impl.dart';
 import '../data/repositories/auth_repository_impl.dart';
+import '../data/repositories/business_settings_repository_impl.dart';
 import '../data/repositories/customer_repository_impl.dart';
 import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_record_repository_impl.dart';
@@ -111,6 +115,7 @@ Future<ProviderContainer> bootstrap() async {
   final stockMovementsApi = StockMovementsApi(apiClient);
   final productsApi = ProductsApi(apiClient);
   final locationsApi = LocationsApi(apiClient);
+  final businessSettingsApi = BusinessSettingsApi(apiClient);
   final syncQueue = SyncQueue(database);
   final saleRepository = SaleRepositoryImpl(
     db: database,
@@ -147,6 +152,45 @@ Future<ProviderContainer> bootstrap() async {
     db: database,
     locationsApi: locationsApi,
   );
+  // Same shape again — BusinessSettingsRepository's own doc comment:
+  // read + pull-sync only, matching the backend's BusinessProfile
+  // having no create/update path from mobile either.
+  final businessSettingsRepository = BusinessSettingsRepositoryImpl(
+    db: database,
+    businessSettingsApi: businessSettingsApi,
+  );
+
+  // Phase 0's own long-open question, decided here once for all three
+  // read + pull-sync entities together (per the checkpoint notes: "worth
+  // deciding that trigger mechanism ONCE, for all three together, rather
+  // than three separate times") — on launch, fire-and-forget. Not
+  // awaited before bootstrap() returns, unlike authRepository
+  // .restoreSession() above: a slow or failed initial catalog sync must
+  // never delay or block app startup, since that's exactly the "must
+  // work offline" requirement this whole project exists to satisfy — a
+  // fresh launch with no signal should still open straight to whatever
+  // was already cached locally, not hang waiting on these. ApiClient's
+  // own bounded Dio timeouts (connectTimeout 10s, receiveTimeout 15s —
+  // api_client.dart) mean a no-connectivity launch fails each of these
+  // within a bounded window rather than hanging forever in the
+  // background either, so no separate connectivity pre-check is needed
+  // here the way SyncTriggers._runIfOnline has one — that check exists
+  // to avoid repeated doomed attempts on frequent triggers (every
+  // connectivity change, every app resume); this runs exactly once, at
+  // launch, and each of the three is independent of the other two
+  // (a slow Product catalog pull must not delay Location or
+  // BusinessSettings from completing, hence three separate calls here
+  // rather than one that awaits all three in sequence).
+  //
+  // What this deliberately does NOT solve: a fresh install's very first
+  // launch with zero connectivity has no cached Location/Product data to
+  // fall back to regardless of what runs here — that's a real,
+  // separate onboarding-UX gap (the Product Design Bible's eventual
+  // "waiting for setup" treatment), not something built as part of
+  // choosing this trigger.
+  unawaited(locationRepository.syncFromServer().catchError((_) {}));
+  unawaited(businessSettingsRepository.syncFromServer().catchError((_) {}));
+  unawaited(productRepository.syncFromServer().catchError((_) {}));
 
   // The rest of the sync engine graph builds on top of saleRepository,
   // which itself depends on syncQueue above — constructing SyncTriggers
@@ -215,6 +259,8 @@ Future<ProviderContainer> bootstrap() async {
       productRepositoryProvider.overrideWithValue(productRepository),
       locationsApiProvider.overrideWithValue(locationsApi),
       locationRepositoryProvider.overrideWithValue(locationRepository),
+      businessSettingsApiProvider.overrideWithValue(businessSettingsApi),
+      businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],

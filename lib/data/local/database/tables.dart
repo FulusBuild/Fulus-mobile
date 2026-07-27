@@ -397,13 +397,29 @@ class SyncQueueItems extends Table {
 /// (verified directly: the backend enforces exactly one row via a unique
 /// constraint on a fixed constant). Drift has no direct equivalent of a
 /// CHECK/UNIQUE-on-constant at the table level in the same way, so this
-/// is enforced at the repository layer instead (Architecture Section 4:
-/// SettingsRepository never exposes an insert path, only
-/// getOrCreate()/update(), mirroring the backend's own get_or_create
-/// discipline in settings_service.py).
+/// is enforced at the repository layer instead — CORRECTED: not via a
+/// getOrCreate()/update() pair as this comment previously said, since
+/// BusinessSettingsRepository (domain/repositories/
+/// business_settings_repository.dart) only ever declared
+/// watchSettings()/syncFromServer(), the same read + pull-sync shape as
+/// Location/Product (Architecture Section 5: "the backend's own
+/// BusinessProfile... has no create/update API of its own either" from
+/// that same interface's own comment). This table comment describing
+/// getOrCreate()/update() predates that interface being settled to its
+/// simpler final shape and was never updated to match.
+///
+/// address/phone/email/tin added here to close a real, previously-
+/// documented gap: the backend's BusinessProfile (app/models/settings.py)
+/// has all four (used on printed receipts/invoices per that model's own
+/// docstring), and this table didn't, until now.
+@DataClassName('BusinessSettingRow')
 class BusinessSettings extends Table {
   TextColumn get id => text()(); // always the fixed value 'singleton'
   TextColumn get businessName => text()();
+  TextColumn get address => text().nullable()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get email => text().nullable()();
+  TextColumn get tin => text().nullable()();
   TextColumn get currencySymbol => text().withDefault(const Constant('₦'))();
   BoolColumn get vatEnabled => boolean().withDefault(const Constant(false))();
   RealColumn get vatRate => real().withDefault(const Constant(7.5))();
