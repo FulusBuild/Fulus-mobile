@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-
 import '../../domain/entities/location.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../local/database/database.dart';

@@ -50,9 +50,9 @@ void main() {
       );
 
   setUpAll(() {
-    registerFallbackValue(const StockInCreateDto(quantity: 1));
-    registerFallbackValue(const StockOutCreateDto(quantity: 1));
-    registerFallbackValue(const StockAdjustmentCreateDto(newQuantity: 1, reason: 'fallback'));
+    registerFallbackValue(const StockInCreateDto(quantity: 1, locationId: locationId));
+    registerFallbackValue(const StockOutCreateDto(quantity: 1, locationId: locationId));
+    registerFallbackValue(const StockAdjustmentCreateDto(newQuantity: 1, reason: 'fallback', locationId: locationId));
   });
 
   setUp(() async {
