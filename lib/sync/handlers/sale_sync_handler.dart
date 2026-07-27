@@ -123,6 +123,7 @@ class SaleSyncHandler implements SyncHandler {
     return SaleCreateDto(
       items: items,
       customerId: customerServerId,
+      locationId: sale.locationId,
       discount: sale.discount,
       tax: sale.tax,
       amountPaid: sale.amountPaid,

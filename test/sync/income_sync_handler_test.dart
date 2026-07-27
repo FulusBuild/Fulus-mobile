@@ -28,6 +28,7 @@ void main() {
         source: 'fallback',
         amount: 0,
         incomeDate: DateTime(2020),
+        locationId: locationId,
       ),
     );
   });
@@ -104,6 +105,7 @@ void main() {
     final dto = captured[0] as IncomeCreateDto;
     expect(dto.clientReference, record.localId);
     expect(dto.source, 'Equipment rental');
+    expect(dto.locationId, locationId);
     expect(captured[1], locationId);
 
     final updated = await incomeRecordRepository.getIncomeRecordById(record.localId);

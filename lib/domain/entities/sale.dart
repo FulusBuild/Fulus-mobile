@@ -103,6 +103,7 @@ class SaleCreateDto {
   const SaleCreateDto({
     required this.items,
     this.customerId,
+    required this.locationId,
     this.discount,
     this.tax,
     required this.amountPaid,
@@ -114,6 +115,17 @@ class SaleCreateDto {
 
   final List<SaleItemCreateDto> items;
   final String? customerId;
+  // Architecture Section 7a / migration 0017_sale_location: required on
+  // the backend now (SaleCreate.location_id). This was the real,
+  // critical gap this whole file's own doc comments got wrong: they
+  // claimed (accurately, at the time they were written) that
+  // SaleCreateDto deliberately never sends locationId because
+  // SaleCreate had no such field server-side. That stopped being true
+  // the moment the backend migration landed, and nothing here was
+  // updated to match — every sale sync from mobile would have gotten a
+  // 422 from the backend the moment that migration shipped, including
+  // through the most mature vertical in the app.
+  final String locationId;
   final double? discount;
   final double? tax;
   final double amountPaid;

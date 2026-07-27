@@ -28,6 +28,7 @@ void main() {
         description: 'fallback',
         amount: 0,
         expenseDate: DateTime(2020),
+        locationId: locationId,
       ),
     );
   });
@@ -99,6 +100,7 @@ void main() {
     final dto = captured[0] as ExpenseCreateDto;
     expect(dto.clientReference, expense.localId);
     expect(dto.description, 'Fuel');
+    expect(dto.locationId, locationId);
     expect(captured[1], locationId);
 
     final updated = await expenseRepository.getExpenseById(expense.localId);

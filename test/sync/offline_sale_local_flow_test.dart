@@ -74,7 +74,7 @@ void main() {
     // used as real data, just as a type witness. Same requirement as
     // sale_sync_handler_test.dart, whose SaleCreateDto usage this
     // mirrors.
-    registerFallbackValue(const SaleCreateDto(items: [], amountPaid: 0));
+    registerFallbackValue(const SaleCreateDto(items: [], amountPaid: 0, locationId: locationId));
   });
 
   setUp(() async {
@@ -225,6 +225,7 @@ void main() {
     final dto = captured.single as SaleCreateDto;
     expect(dto.clientReference, createdSale.clientReference);
     expect(dto.items.single.productId, 'server-product-1');
+    expect(dto.locationId, createdSale.locationId);
 
     final finalSaleRow = (await db.select(db.sales).get()).single;
     expect(finalSaleRow.syncStatus, SyncStatus.settled);

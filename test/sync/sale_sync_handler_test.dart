@@ -27,7 +27,7 @@ void main() {
     // mocktail requires a registered fallback for any custom type used
     // with any()/captureAny() — this minimal instance is never actually
     // used as real data, just as a type witness.
-    registerFallbackValue(const SaleCreateDto(items: [], amountPaid: 0));
+    registerFallbackValue(const SaleCreateDto(items: [], amountPaid: 0, locationId: locationId));
   });
 
   setUp(() async {
@@ -147,6 +147,7 @@ void main() {
     final dto = captured.single as SaleCreateDto;
     expect(dto.items.single.productId, 'server-product-1');
     expect(dto.clientReference, sale.localId);
+    expect(dto.locationId, sale.locationId);
 
     final updated = await saleRepository.getSaleByLocalId(sale.localId);
     expect(updated!.serverId, 'server-sale-1');

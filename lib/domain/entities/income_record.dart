@@ -5,7 +5,7 @@ part 'income_record.g.dart';
 /// Mirrors the IncomeRecords table exactly — miscellaneous income
 /// outside of sales. locationId is REQUIRED — CORRECTED, again: this
 /// file previously (this same engagement) made it optional, reasoning
-/// that since backend/app/schemas/finance.py's IncomeCreate has no
+/// that since backend/app/schemas/finance.py's IncomeCreate had no
 /// location_id field, the local field should be optional too, "the same
 /// gap Expense has." That reasoning is wrong, and it was wrong for
 /// Expense first — this file just copied an existing mistake rather
@@ -13,13 +13,9 @@ part 'income_record.g.dart';
 /// unambiguous: "`ExpenseCategory`, `Expense`, `Income` — Yes —
 /// confirmed, not inferred... `location_id` is required, not nullable
 /// ... No hedge toward a nullable 'business-wide expense' case was
-/// built in here." The backend having no location_id column doesn't
-/// change what's required on the MOBILE side — it changes what's SENT
-/// to the backend (nothing — see toCreateDto below), exactly the same
-/// split Sale already has (`Sale.locationId` is required, but
-/// `SaleCreateDto` has no such field either). "Backend doesn't have this
-/// column" and "mobile field should be optional" are different claims;
-/// treating the first as if it implied the second, without checking
+/// built in here." "Backend doesn't have this column" and "mobile field
+/// should be optional" are different claims; treating the first as if
+/// it implied the second, without checking
 /// what the architecture doc actually says, is the actual mistake here.
 class IncomeRecord {
   const IncomeRecord({
@@ -51,18 +47,20 @@ class IncomeRecord {
   /// IncomeSyncHandler's call site), for the same idempotency reasoning
   /// as Sale/Customer/Expense (backend/app/models/finance.py's Income
   /// has a client_reference column as of migration
-  /// 0014_income_client_reference, verified directly). Deliberately does
-  /// NOT send locationId — same split as SaleCreateDto: required
-  /// locally (Architecture Section 7a), never transmitted, because
-  /// IncomeCreate has no such field server-side. Lives here, not on
-  /// IncomeRecordDraft, for the same reason as Customer/Expense's
-  /// identical placement — it needs to be callable at SYNC time, once
-  /// only a persisted IncomeRecord exists.
+  /// 0014_income_client_reference, verified directly). Sends locationId
+  /// as of migration 0019_income_location — same real bug and same fix
+  /// as Expense.toCreateDto: this method previously omitted it on a
+  /// claim ("IncomeCreate has no such field server-side") that was true
+  /// when written and stale the moment that migration landed. Lives
+  /// here, not on IncomeRecordDraft, for the same reason as
+  /// Customer/Expense's identical placement — it needs to be callable
+  /// at SYNC time, once only a persisted IncomeRecord exists.
   IncomeCreateDto toCreateDto({required String clientReference}) {
     return IncomeCreateDto(
       source: source,
       amount: amount,
       incomeDate: incomeDate,
+      locationId: locationId,
       notes: notes,
       clientReference: clientReference,
     );
@@ -70,15 +68,15 @@ class IncomeRecord {
 }
 
 /// POST /api/finance/income's body — request-only, mirrors IncomeCreate
-/// exactly (backend/app/schemas/finance.py, verified directly). No
-/// location_id — see IncomeRecord's own doc comment: required locally,
-/// never sent.
+/// exactly (backend/app/schemas/finance.py, verified directly,
+/// including location_id from migration 0019_income_location).
 @JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class IncomeCreateDto {
   const IncomeCreateDto({
     required this.source,
     required this.amount,
     required this.incomeDate,
+    required this.locationId,
     this.notes,
     this.clientReference,
   });
@@ -86,6 +84,7 @@ class IncomeCreateDto {
   final String source;
   final double amount;
   final DateTime incomeDate;
+  final String locationId;
   final String? notes;
   final String? clientReference;
 
