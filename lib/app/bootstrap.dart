@@ -9,6 +9,7 @@ import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/income_api.dart';
+import '../data/remote/endpoints/locations_api.dart';
 import '../data/remote/endpoints/products_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
@@ -17,6 +18,7 @@ import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/customer_repository_impl.dart';
 import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_record_repository_impl.dart';
+import '../data/repositories/location_repository_impl.dart';
 import '../data/repositories/product_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
 import '../data/repositories/stock_movement_repository_impl.dart';
@@ -108,6 +110,7 @@ Future<ProviderContainer> bootstrap() async {
   final incomeApi = IncomeApi(apiClient);
   final stockMovementsApi = StockMovementsApi(apiClient);
   final productsApi = ProductsApi(apiClient);
+  final locationsApi = LocationsApi(apiClient);
   final syncQueue = SyncQueue(database);
   final saleRepository = SaleRepositoryImpl(
     db: database,
@@ -136,6 +139,13 @@ Future<ProviderContainer> bootstrap() async {
   final productRepository = ProductRepositoryImpl(
     db: database,
     productsApi: productsApi,
+  );
+  // Same shape as productRepository above, for the same reason —
+  // LocationRepository's own doc comment: read + pull-sync only,
+  // deliberately no create/update method.
+  final locationRepository = LocationRepositoryImpl(
+    db: database,
+    locationsApi: locationsApi,
   );
 
   // The rest of the sync engine graph builds on top of saleRepository,
@@ -203,6 +213,8 @@ Future<ProviderContainer> bootstrap() async {
       stockMovementRepositoryProvider.overrideWithValue(stockMovementRepository),
       productsApiProvider.overrideWithValue(productsApi),
       productRepositoryProvider.overrideWithValue(productRepository),
+      locationsApiProvider.overrideWithValue(locationsApi),
+      locationRepositoryProvider.overrideWithValue(locationRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],

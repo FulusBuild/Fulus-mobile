@@ -143,6 +143,7 @@ class StockMovement {
     return StockInCreateDto(
       quantity: quantity!,
       reason: reason,
+      locationId: locationId,
       clientReference: clientReference,
     );
   }
@@ -154,6 +155,7 @@ class StockMovement {
     return StockOutCreateDto(
       quantity: quantity!,
       reason: reason,
+      locationId: locationId,
       clientReference: clientReference,
     );
   }
@@ -168,6 +170,7 @@ class StockMovement {
     return StockAdjustmentCreateDto(
       newQuantity: newQuantity!,
       reason: reason!,
+      locationId: locationId,
       clientReference: clientReference,
     );
   }
@@ -176,10 +179,22 @@ class StockMovement {
 /// POST /products/{id}/stock-in's body — mirrors StockInRequest exactly.
 @JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class StockInCreateDto {
-  const StockInCreateDto({required this.quantity, this.reason, this.clientReference});
+  const StockInCreateDto({
+    required this.quantity,
+    this.reason,
+    required this.locationId,
+    this.clientReference,
+  });
 
   final int quantity;
   final String? reason;
+  // Architecture Section 7a / migration 0020_stock_movement_location:
+  // required on the backend now (StockInRequest.location_id). Was
+  // silently dropped here before that migration existed — locationId
+  // has been on the StockMovement domain entity and every Draft below
+  // since this file was first built, it just had nowhere real to go on
+  // the wire until the backend actually gained the column.
+  final String locationId;
   final String? clientReference;
 
   Map<String, dynamic> toJson() => _$StockInCreateDtoToJson(this);
@@ -189,10 +204,16 @@ class StockInCreateDto {
 /// exactly.
 @JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class StockOutCreateDto {
-  const StockOutCreateDto({required this.quantity, this.reason, this.clientReference});
+  const StockOutCreateDto({
+    required this.quantity,
+    this.reason,
+    required this.locationId,
+    this.clientReference,
+  });
 
   final int quantity;
   final String? reason;
+  final String locationId;
   final String? clientReference;
 
   Map<String, dynamic> toJson() => _$StockOutCreateDtoToJson(this);
@@ -207,11 +228,13 @@ class StockAdjustmentCreateDto {
   const StockAdjustmentCreateDto({
     required this.newQuantity,
     required this.reason,
+    required this.locationId,
     this.clientReference,
   });
 
   final int newQuantity;
   final String reason;
+  final String locationId;
   final String? clientReference;
 
   Map<String, dynamic> toJson() => _$StockAdjustmentCreateDtoToJson(this);

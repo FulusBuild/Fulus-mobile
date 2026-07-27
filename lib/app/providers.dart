@@ -7,6 +7,7 @@ import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/income_api.dart';
+import '../data/remote/endpoints/locations_api.dart';
 import '../data/remote/endpoints/products_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
@@ -15,6 +16,7 @@ import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/customer_repository.dart';
 import '../domain/repositories/expense_repository.dart';
 import '../domain/repositories/income_record_repository.dart';
+import '../domain/repositories/location_repository.dart';
 import '../domain/repositories/product_repository.dart';
 import '../domain/repositories/sale_repository.dart';
 import '../domain/repositories/stock_movement_repository.dart';
@@ -133,6 +135,18 @@ final productsApiProvider = Provider<ProductsApi>((ref) {
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   throw UnimplementedError(
     'productRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final locationsApiProvider = Provider<LocationsApi>((ref) {
+  throw UnimplementedError(
+    'locationsApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final locationRepositoryProvider = Provider<LocationRepository>((ref) {
+  throw UnimplementedError(
+    'locationRepositoryProvider must be overridden in bootstrap.dart.',
   );
 });
 
