@@ -3,13 +3,20 @@ import '../entities/auth_user.dart';
 /// Architecture Section 6's login flow.
 ///
 /// The owner-approval PIN system Section 6 ALSO specifies is
-/// deliberately NOT part of this — it depends on a backend endpoint
-/// that doesn't exist yet (GET /api/auth/business/{id}/approval-hashes
-/// — Section 6's own named gap, confirmed still absent from
-/// backend/app/routers/auth.py as of this checkpoint) and Phase 0's
-/// exit criterion doesn't need it. Building a partial version now, with
-/// no real endpoint to sync against, would be hollow rather than
-/// honest — left for its own pass once that backend work exists.
+/// deliberately NOT part of this interface — CORRECTED: this comment
+/// previously said that was because the backend endpoint didn't exist
+/// yet, citing GET /api/auth/business/{id}/approval-hashes as "Section
+/// 6's own named gap." That URL was never real to begin with — it was
+/// the architecture doc's own business-scoped claim, which doesn't match
+/// how this (single-business) backend actually routes it; the real
+/// endpoint, GET /api/auth/approval-hashes, has existed and been wired
+/// (ApprovalPinRepositoryImpl, bootstrap.dart) since before this
+/// specific gap was even identified. The actual reason approval-PIN
+/// isn't part of AuthRepository is simpler and was true the whole
+/// time: it's a separate concern with its own repository
+/// (ApprovalPinRepository) and its own sync path
+/// (syncApprovalHashes()), not something AuthRepository's login/
+/// session lifecycle needs to own.
 abstract class AuthRepository {
   /// The currently authenticated user, or null if no session is active.
   /// A plain getter rather than a reactive stream/StateNotifier in this

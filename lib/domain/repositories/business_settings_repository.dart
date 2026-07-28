@@ -15,7 +15,7 @@ abstract class BusinessSettingsRepository {
   /// fresh install, before the first successful syncFromServer() call,
   /// where no local row exists yet at all — unlike the backend's own
   /// get_or_create, which always has something to return.
-  Stream<BusinessSettings?> watchSettings();
+  Stream<BusinessProfile?> watchSettings();
 
   Future<void> syncFromServer();
 }

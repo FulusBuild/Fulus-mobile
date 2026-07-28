@@ -80,6 +80,7 @@ Future<ProviderContainer> bootstrap() async {
     authApi: authApi,
     apiClient: apiClient,
     secureStorage: secureStorage,
+    db: database,
   );
 
   // Architecture Section 6: "attempt a silent refresh using the stored

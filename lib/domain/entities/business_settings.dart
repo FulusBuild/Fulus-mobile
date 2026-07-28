@@ -7,16 +7,28 @@ part 'business_settings.g.dart';
 /// backend/app/models/settings.py), read-only from mobile's side, the
 /// same desktop-managed reasoning as Location/Product.
 ///
-/// address/phone/email/tin are no longer a gap — CORRECTED: this class
-/// (and the Drift table it mirrors) previously only had
-/// businessName/currencySymbol/vatEnabled/vatRate/receiptFooter, missing
-/// all four of these, which BusinessProfile has always had server-side
-/// (address, phone, email, and tin — Tax Identification Number, used on
-/// printed receipts/invoices per that model's own docstring). Added here
-/// alongside the concrete sync-down implementation this interface was
-/// always going to need them for.
-class BusinessSettings {
-  const BusinessSettings({
+/// Named BusinessProfile, not BusinessSettings — CORRECTED: this class
+/// was originally named BusinessSettings, identically to the Drift TABLE
+/// class in tables.dart (`class BusinessSettings extends Table`, written
+/// before this session and left untouched here). @DataClassName only
+/// renames the generated ROW class (BusinessSettingRow), not the table
+/// class itself — those are two different symbols, and the table class
+/// was never the one causing a problem for Locations/Products, since
+/// THOSE table classes are plural (Locations, Products) while their
+/// domain entities are singular (Location, Product). BusinessSettings
+/// never had a clean plural/singular pair the same way — "Settings" is
+/// used identically in both forms — so both ended up named identically,
+/// which only surfaces as flutter analyze's ambiguous_import the moment
+/// one file imports both tables.dart and this file together, exactly
+/// what business_settings_mapper.dart does. Renamed the domain side to
+/// BusinessProfile instead of the table class, matching the backend's
+/// own name for this concept (BusinessProfile/BusinessProfileOut) rather
+/// than inventing a third name — and to avoid touching anything in
+/// tables.dart that Drift's codegen derives a runtime accessor name from
+/// (_db.businessSettings), which isn't verifiable without a working
+/// Dart toolchain.
+class BusinessProfile {
+  const BusinessProfile({
     required this.businessName,
     this.address,
     this.phone,

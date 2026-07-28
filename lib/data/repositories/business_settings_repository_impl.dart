@@ -15,7 +15,7 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
   final BusinessSettingsApi _businessSettingsApi;
 
   @override
-  Stream<BusinessSettings?> watchSettings() {
+  Stream<BusinessProfile?> watchSettings() {
     final query = _db.select(_db.businessSettings)
       ..where((s) => s.id.equals('singleton'));
     return query.watchSingleOrNull().map((row) => row?.toDomain());

@@ -4,19 +4,26 @@ import '../../domain/entities/business_settings.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 
-/// BusinessSettingRow, singular — NOT inferred from Drift's default
-/// singularization (BusinessSettings -> BusinessSetting would probably
-/// have been right, but "Settings" is enough of an irregular word that
-/// leaving it to inference felt like an avoidable risk with no working
-/// Dart toolchain in this environment to actually confirm it against).
-/// Made explicit instead via @DataClassName('BusinessSettingRow') on the
-/// table definition itself (tables.dart) — the same fix Section 6 item 5
-/// describes, applied before writing this repository rather than after
-/// hitting a collision error, even though this case was never a same-
-/// name collision the way Products/Locations were.
+/// BusinessSettingRow, singular — made explicit via
+/// @DataClassName('BusinessSettingRow') on the table definition itself
+/// (tables.dart), rather than left to Drift's default singularization of
+/// the irregular word "Settings" (BusinessSettings -> BusinessSetting
+/// would probably have been right, but there was no working Dart
+/// toolchain here to actually confirm it against, so this removed the
+/// guesswork instead of documenting one). That was never the collision
+/// that actually broke flutter analyze, though: the real one was the
+/// TABLE class itself (`class BusinessSettings extends Table`, this
+/// file's own tables.dart import) sharing an identical name with the
+/// domain entity this file also imports — @DataClassName only renames
+/// the generated ROW class, not the table class, so it didn't touch
+/// that collision at all. Fixed by renaming the domain entity to
+/// BusinessProfile instead (business_settings.dart has the full
+/// reasoning) — this table class, and its generated
+/// BusinessSettingsCompanion/_db.businessSettings accessor below, are
+/// untouched.
 extension BusinessSettingRowToDomain on BusinessSettingRow {
-  BusinessSettings toDomain() {
-    return BusinessSettings(
+  BusinessProfile toDomain() {
+    return BusinessProfile(
       businessName: businessName,
       address: address,
       phone: phone,
