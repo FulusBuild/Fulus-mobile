@@ -169,6 +169,13 @@ jobs:
         run: |
           mkdir -p /tmp/gradle-wrapper-bootstrap
           cd /tmp/gradle-wrapper-bootstrap
+          # Gradle refuses to run ANY task, including the built-in
+          # `wrapper` task, unless the directory it's invoked in is a
+          # recognizable Gradle build — it errors with "does not contain
+          # a Gradle build" otherwise. An empty settings.gradle is enough
+          # to satisfy that (a valid, empty, single-project build) without
+          # pulling in android/settings.gradle's local.properties read.
+          touch settings.gradle
           gradle wrapper --gradle-version 8.6 --distribution-type all
           cp -v gradlew gradlew.bat "$GITHUB_WORKSPACE/android/"
           cp -v gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties \
