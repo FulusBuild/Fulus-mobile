@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../domain/entities/business_settings.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 
 /// BusinessSettingRow, singular — made explicit via
 /// @DataClassName('BusinessSettingRow') on the table definition itself
