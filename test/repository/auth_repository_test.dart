@@ -1,10 +1,10 @@
-import 'package:bms_mobile/core/errors/failure.dart';
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/local/secure_storage/secure_storage.dart';
-import 'package:bms_mobile/data/remote/api_client.dart';
-import 'package:bms_mobile/data/remote/endpoints/auth_api.dart';
-import 'package:bms_mobile/data/repositories/auth_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/core/errors/failure.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/secure_storage/secure_storage.dart';
+import 'package:fulus_mobile/data/remote/api_client.dart';
+import 'package:fulus_mobile/data/remote/endpoints/auth_api.dart';
+import 'package:fulus_mobile/data/repositories/auth_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

@@ -95,7 +95,24 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'bms_mobile.sqlite'));
+    final file = File(p.join(dbFolder.path, 'fulus_mobile.sqlite'));
+
+    // One-time migration for installs upgrading across the BMS -> Fulus
+    // rename. This file is the on-device source of truth for sales,
+    // stock, customers, and the offline sync queue — not cosmetic
+    // branding. If nothing exists yet under the new filename but the old
+    // 'bms_mobile.sqlite' does, move it over so an upgrading till keeps
+    // its local data instead of silently starting from an empty database
+    // (which, on a device that's ever gone offline, could mean losing
+    // sales that haven't synced to the backend yet). A genuinely fresh
+    // install has neither file, so this is a no-op for new installs.
+    if (!await file.exists()) {
+      final legacyFile = File(p.join(dbFolder.path, 'bms_mobile.sqlite'));
+      if (await legacyFile.exists()) {
+        await legacyFile.rename(file.path);
+      }
+    }
+
     return NativeDatabase.createInBackground(file);
   });
 }

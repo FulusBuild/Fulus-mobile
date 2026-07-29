@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Every value below is copied directly from Volume 16 (Mobile Design
-/// System) of the BMS Mobile Product Design Bible's own "Design Tokens:
+/// System) of the Fulus Mobile Product Design Bible's own "Design Tokens:
 /// The Reference Table" — re-read from the source document immediately
 /// before writing this file, not recalled from an earlier pass through
 /// it weeks prior. Per Architecture Section 1: "Volume 16 tokens: color,

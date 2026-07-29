@@ -1,8 +1,8 @@
-import 'package:bms_mobile/core/security/pin_hasher.dart';
-import 'package:bms_mobile/data/remote/endpoints/auth_api.dart';
-import 'package:bms_mobile/data/repositories/approval_pin_repository_impl.dart';
-import 'package:bms_mobile/data/local/secure_storage/secure_storage.dart';
-import 'package:bms_mobile/domain/entities/approval_hash.dart';
+import 'package:fulus_mobile/core/security/pin_hasher.dart';
+import 'package:fulus_mobile/data/remote/endpoints/auth_api.dart';
+import 'package:fulus_mobile/data/repositories/approval_pin_repository_impl.dart';
+import 'package:fulus_mobile/data/local/secure_storage/secure_storage.dart';
+import 'package:fulus_mobile/domain/entities/approval_hash.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 

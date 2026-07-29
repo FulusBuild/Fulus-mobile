@@ -14,11 +14,11 @@ android {
     // — the same "com.example" `flutter create` uses when no --org is
     // given — combined with the pubspec package name. Rename this (and
     // the matching applicationId below, and the Kotlin package
-    // declaration/directory at app/src/main/kotlin/com/example/bms_mobile/)
+    // declaration/directory at app/src/main/kotlin/com/example/fulus_mobile/)
     // to your real domain before any Play Store submission — Google
     // rejects com.example.* applicationIds at publish time, though it
     // builds and installs fine for this checkpoint's debug APK.
-    namespace = "com.example.bms_mobile"
+    namespace = "com.example.fulus_mobile"
     // compileSdk/targetSdk/ndkVersion are deliberately deferred to the
     // Flutter Gradle plugin's own recommended values for whichever
     // Flutter SDK actually runs this build (currently pinned to 3.24.0 —
@@ -42,7 +42,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.bms_mobile"
+        applicationId = "com.example.fulus_mobile"
         // Android 8.0 (API 26) is the architecture document's stated
         // floor (see pubspec.yaml's own environment comment) — an
         // explicit override of Flutter's own lower default

@@ -29,8 +29,8 @@ class SecureStorage {
 
   final FlutterSecureStorage _storage;
 
-  static const _refreshTokenKey = 'bms_refresh_token';
-  static const _approvalPinVerifiersKey = 'bms_approval_pin_verifiers';
+  static const _refreshTokenKey = 'fulus_refresh_token';
+  static const _approvalPinVerifiersKey = 'fulus_approval_pin_verifiers';
 
   // --- Refresh token (Architecture Section 6) ---
   //

@@ -1,9 +1,9 @@
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/local/database/tables.dart';
-import 'package:bms_mobile/data/repositories/sale_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/sale.dart';
-import 'package:bms_mobile/domain/entities/sale_draft.dart';
-import 'package:bms_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/sale.dart';
+import 'package:fulus_mobile/domain/entities/sale_draft.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';

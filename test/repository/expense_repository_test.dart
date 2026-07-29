@@ -1,8 +1,8 @@
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/local/database/tables.dart';
-import 'package:bms_mobile/data/repositories/expense_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/expense.dart';
-import 'package:bms_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/repositories/expense_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/expense.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 

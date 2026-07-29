@@ -1,4 +1,4 @@
-package com.example.bms_mobile
+package com.example.fulus_mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

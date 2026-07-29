@@ -1,9 +1,9 @@
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/remote/endpoints/customers_api.dart';
-import 'package:bms_mobile/data/repositories/customer_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/customer.dart';
-import 'package:bms_mobile/sync/handlers/customer_sync_handler.dart';
-import 'package:bms_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/remote/endpoints/customers_api.dart';
+import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/sync/handlers/customer_sync_handler.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

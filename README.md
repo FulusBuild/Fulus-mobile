@@ -1,7 +1,7 @@
-# BMS Mobile — Foundation Checkpoint
+# Fulus Mobile — Foundation Checkpoint
 
 This is for anyone — human developer or another Claude instance — picking up
-work on BMS Mobile. It covers what the project is, what's built and passing
+work on Fulus Mobile. It covers what the project is, what's built and passing
 right now, the conventions worth keeping, and the mistakes worth not
 repeating. **Read this before touching code.** Nearly every mistake in
 Section 4 happened because a description like this one existed somewhere but
@@ -20,9 +20,9 @@ before treating Phase 0 as fully closed, not just code-complete.
 
 ## 1. What this project is
 
-BMS (Business Management System) is a full-stack business management
+Fulus is a full-stack business management
 system — POS, inventory, customers, expenses/income, employees — built as a
-web app (Next.js + FastAPI) with a Tauri desktop wrapper. BMS Mobile is a
+web app (Next.js + FastAPI) with a Tauri desktop wrapper. Fulus Mobile is a
 Flutter app letting staff use the same system from a phone, with one
 non-negotiable requirement: **it must work fully offline and sync
 automatically once connectivity returns.** A cashier ringing up a sale in a
@@ -31,9 +31,9 @@ shop with bad signal must never see that sale fail or hang.
 Two documents describe the intended design (ask if you weren't handed
 these):
 
-- **`BMS-Mobile-Product-Design-Bible-COMPLETE.md`** — the UX/product spec.
+- **`Fulus-Mobile-Product-Design-Bible-COMPLETE.md`** — the UX/product spec.
   16 volumes: screens, flows, user-facing behavior.
-- **`BMS-Mobile-Flutter-Architecture-2.md`** — the technical architecture.
+- **`Fulus-Mobile-Flutter-Architecture-2.md`** — the technical architecture.
   Folder structure, state management, database design, sync engine, security.
   Numbered sections this repo's own comments constantly cite ("Section 3",
   "Section 7a", etc.).
@@ -48,7 +48,7 @@ code before trusting either doc's description of what exists.
 Two codebases, usually handed over separately:
 
 ```
-bms/backend/              — FastAPI + SQLAlchemy + Alembic (Python)
+fulus/backend/            — FastAPI + SQLAlchemy + Alembic (Python)
   app/
     models/                — SQLAlchemy ORM models
     routers/                — one file per resource
@@ -57,7 +57,7 @@ bms/backend/              — FastAPI + SQLAlchemy + Alembic (Python)
   alembic/versions/         — migrations, numbered 0001, 0002, ...
   tests/                    — pytest, one file per resource
 
-bms-mobile-foundation-checkpoint/   — this repo (Flutter)
+fulus-mobile-foundation-checkpoint/ — this repo (Flutter)
   lib/
     app/                    — bootstrap.dart (DI wiring), providers.dart,
                               router.dart, app.dart
@@ -138,7 +138,7 @@ repeated failures, connectivity/foreground/manual triggers. Adding a new
 push-sync entity means writing a `SyncHandler` and registering it in
 `bootstrap.dart`'s handler map, not touching the engine itself.
 
-**App shell**: `main.dart` → `bootstrap()` → `BmsApp` (theme, light/dark via
+**App shell**: `main.dart` → `bootstrap()` → `FulusApp` (theme, light/dark via
 `AppTheme`/design tokens) → `go_router`-based `router.dart` with five named
 routes (`home`/`sell`/`stock`/`money`/`more`, matching the Product Design
 Bible's five destinations) — each currently rendering a real, honest
@@ -414,7 +414,7 @@ It isn't one — see mistake #8 above.
 Backend:
 
 ```bash
-cd bms/backend
+cd fulus/backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp ../.env.example .env   # fill in SECRET_KEY at minimum: openssl rand -hex 32
@@ -422,7 +422,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Backend tests: `cd bms/backend && pytest`
+Backend tests: `cd fulus/backend && pytest`
 
 Mobile:
 

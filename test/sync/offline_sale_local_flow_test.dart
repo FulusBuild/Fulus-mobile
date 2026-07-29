@@ -1,14 +1,14 @@
 import 'dart:io';
 
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/local/database/tables.dart';
-import 'package:bms_mobile/data/remote/endpoints/sales_api.dart';
-import 'package:bms_mobile/data/repositories/sale_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/sale.dart';
-import 'package:bms_mobile/domain/entities/sale_draft.dart';
-import 'package:bms_mobile/sync/handlers/sale_sync_handler.dart';
-import 'package:bms_mobile/sync/sync_engine.dart';
-import 'package:bms_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
+import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/sale.dart';
+import 'package:fulus_mobile/domain/entities/sale_draft.dart';
+import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
+import 'package:fulus_mobile/sync/sync_engine.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +45,7 @@ import 'package:mocktail/mocktail.dart';
 /// **What still needs to happen for Phase 0 to actually be validated,
 /// per Section 13's own bar:**
 ///   1. A real backend instance running (docker-compose.yml, this
-///      repo's sibling `bms/` checkout) with a seeded location, product,
+///      repo's sibling `fulus/` checkout) with a seeded location, product,
 ///      and customer that have BOTH a local ULID and a matching real
 ///      serverId already recorded in mobile's local database — since
 ///      SaleSyncHandler (see its own doc comment) has no way to
@@ -78,7 +78,7 @@ void main() {
   });
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('bms_offline_sync_test_');
+    tempDir = await Directory.systemTemp.createTemp('fulus_offline_sync_test_');
     dbFile = File('${tempDir.path}/test.sqlite');
   });
 

@@ -1,7 +1,7 @@
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/remote/endpoints/business_settings_api.dart';
-import 'package:bms_mobile/data/repositories/business_settings_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/business_settings.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/remote/endpoints/business_settings_api.dart';
+import 'package:fulus_mobile/data/repositories/business_settings_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/business_settings.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

@@ -1,8 +1,8 @@
-import 'package:bms_mobile/data/local/database/database.dart';
-import 'package:bms_mobile/data/local/database/tables.dart';
-import 'package:bms_mobile/data/remote/endpoints/locations_api.dart';
-import 'package:bms_mobile/data/repositories/location_repository_impl.dart';
-import 'package:bms_mobile/domain/entities/location.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/remote/endpoints/locations_api.dart';
+import 'package:fulus_mobile/data/repositories/location_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/location.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';

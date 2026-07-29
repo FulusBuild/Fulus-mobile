@@ -15,13 +15,13 @@ import 'router.dart';
 /// as the honest default for now: follow the device's own setting,
 /// which is a real, correct behavior on its own, not a placeholder
 /// standing in for something broken.
-class BmsApp extends ConsumerWidget {
-  const BmsApp({super.key});
+class FulusApp extends ConsumerWidget {
+  const FulusApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'BMS',
+      title: 'Fulus',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
