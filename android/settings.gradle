@@ -18,15 +18,29 @@ pluginManagement {
 
 plugins {
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    // AGP 8.9.1 / Kotlin 1.9.22 — bumped from AGP 8.3.0 because
+    // AGP 8.9.1 / Kotlin 2.1.0 — bumped from AGP 8.3.0 because
     // androidx.camera 1.5.0 (pulled in by the camera/mobile_scanner
     // plugins) requires AGP >=8.6.0 and compiling against API 35+,
     // and mobile_scanner itself asks for API 36 — AGP 8.9.1 has
     // headroom for both (compileSdk bumped to 36 in app/build.gradle
     // accordingly). Needs Gradle >=8.11.1 to match — see
     // android/gradle/wrapper/gradle-wrapper.properties.
+    //
+    // Kotlin was originally pinned at 1.9.22 (still the lowest version
+    // that satisfies AGP 8's own floor of >=1.5.20, see the
+    // kotlin-gradle-plugin resolutionStrategy.force comment in
+    // build.gradle for why that floor matters here), but
+    // mobile_scanner 6.0.11 transitively pulls in
+    // kotlinx-coroutines-core-jvm 1.10.2, which is itself compiled
+    // with Kotlin 2.1.0 — a 1.9.22 compiler can't read that class
+    // metadata format at all ("Module was compiled with an
+    // incompatible version of Kotlin"), not something a JVM-target or
+    // language-level setting can paper over. 2.1.0 is the lowest
+    // version that can read it. Bumped here rather than left as a
+    // per-module override because it's the *classpath's* Kotlin
+    // requirement, not any one source file's.
     id "com.android.application" version "8.9.1" apply false
-    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
+    id "org.jetbrains.kotlin.android" version "2.1.0" apply false
 }
 
 include ":app"

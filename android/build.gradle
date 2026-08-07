@@ -7,14 +7,17 @@ allprojects {
 
 // Forces every subproject's *buildscript* classpath resolution of the
 // Kotlin Gradle Plugin to match this project's own Kotlin version
-// (1.9.22, declared in settings.gradle), regardless of what version
-// that subproject's own build.gradle asks for. Needed for old,
-// unmaintained plugins (flutter_usb_printer in particular) that pin
-// an ancient Kotlin Gradle Plugin (1.4.32) in their own top-level
-// `buildscript { dependencies { classpath ... } }` block — AGP 8+
-// refuses to build against anything below 1.5.20. Those plugins live
-// in the pub cache, not this repo, so their build.gradle can't be
-// edited directly.
+// (2.1.0, declared in settings.gradle — bumped from 1.9.22 because
+// mobile_scanner's own kotlinx-coroutines-core-jvm dependency is
+// compiled with Kotlin 2.1.0 metadata that a 1.9.22 compiler can't
+// read; see the settings.gradle comment for the full story),
+// regardless of what version that subproject's own build.gradle asks
+// for. Needed for old, unmaintained plugins (flutter_usb_printer in
+// particular) that pin an ancient Kotlin Gradle Plugin (1.4.32) in
+// their own top-level `buildscript { dependencies { classpath ... } }`
+// block — AGP 8+ refuses to build against anything below 1.5.20.
+// Those plugins live in the pub cache, not this repo, so their
+// build.gradle can't be edited directly.
 //
 // This has to be a `resolutionStrategy.force` on each subproject's
 // `buildscript.configurations.classpath`, not a regular dependency
@@ -30,7 +33,7 @@ subprojects {
     buildscript {
         configurations.classpath {
             resolutionStrategy {
-                force "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+                force "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"
             }
         }
     }
