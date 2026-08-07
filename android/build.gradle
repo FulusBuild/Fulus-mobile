@@ -5,6 +5,37 @@ allprojects {
     }
 }
 
+// Forces every subproject's *buildscript* classpath resolution of the
+// Kotlin Gradle Plugin to match this project's own Kotlin version
+// (1.9.22, declared in settings.gradle), regardless of what version
+// that subproject's own build.gradle asks for. Needed for old,
+// unmaintained plugins (flutter_usb_printer in particular) that pin
+// an ancient Kotlin Gradle Plugin (1.4.32) in their own top-level
+// `buildscript { dependencies { classpath ... } }` block — AGP 8+
+// refuses to build against anything below 1.5.20. Those plugins live
+// in the pub cache, not this repo, so their build.gradle can't be
+// edited directly.
+//
+// This has to be a `resolutionStrategy.force` on each subproject's
+// `buildscript.configurations.classpath`, not a regular dependency
+// override: a subproject's own `buildscript {}` block is a separate
+// classpath from its regular dependencies, and root-level
+// `subprojects {}` configuration closures run against each subproject
+// before that subproject's own build.gradle script (including its own
+// `buildscript {}` block) is evaluated — so this registers the force
+// early enough to still apply once that script's own classpath
+// dependency is added, since `force` operates at resolution time, not
+// declaration time.
+subprojects {
+    buildscript {
+        configurations.classpath {
+            resolutionStrategy {
+                force "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+            }
+        }
+    }
+}
+
 rootProject.buildDir = "../build"
 
 subprojects {
