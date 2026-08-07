@@ -47,6 +47,17 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
         .getSingleOrNull();
     if (existing != null) return existing.toDomain();
 
+    final location = await (_db.select(_db.locations)
+          ..where((l) => l.localId.equals(locationId)))
+        .getSingleOrNull();
+    if (location == null) {
+      throw ArgumentError.value(
+        locationId,
+        'locationId',
+        'no such location — seed a locations row before creating a draft cart for it',
+      );
+    }
+
     final now = DateTime.now();
     final draft = DraftCart(
       localId: Ulid().toString(),

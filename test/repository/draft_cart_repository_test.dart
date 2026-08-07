@@ -10,6 +10,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../helpers/db_seed_helpers.dart';
+
 class MockProductsApi extends Mock implements ProductsApi {}
 
 /// Hand-rolled rather than a Mock — the only member SaleRepositoryImpl
@@ -58,8 +60,13 @@ void main() {
   late AppDatabase db;
   late DraftCartRepositoryImpl draftCartRepository;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    // draft_carts.location_id carries a foreign key to locations, so
+    // every draft cart created in these tests needs a matching
+    // locations row seeded first — loc-1 covers all tests except the
+    // multi-location one below, which seeds loc-2 itself.
+    await seedLocation(db, localId: 'loc-1');
     final syncQueue = SyncQueue(db);
     final productRepository = ProductRepositoryImpl(
       db: db,
@@ -208,6 +215,7 @@ void main() {
     });
 
     test('different locations get different carts', () async {
+      await seedLocation(db, localId: 'loc-2', name: 'Second Store');
       final a = await draftCartRepository.getOrCreateDraftCart(
         locationId: 'loc-1',
       );
