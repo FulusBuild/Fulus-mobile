@@ -23,18 +23,25 @@ subprojects {
 // edited directly — this reads that manifest attribute and back-fills
 // `namespace` for any library module that doesn't already have one,
 // leaving already-namespaced modules untouched.
+//
+// Uses pluginManager.withPlugin rather than afterEvaluate: the
+// `evaluationDependsOn(":app")` above forces some plugin subprojects
+// to evaluate eagerly during this file's own configuration, so by the
+// time a later `subprojects { afterEvaluate { ... } }` block runs,
+// those subprojects may already be evaluated — Gradle refuses to
+// register a new afterEvaluate on an already-evaluated project.
+// withPlugin fires the instant the plugin is applied, independent of
+// each subproject's evaluation order, so it can't lose that race.
 subprojects {
-    afterEvaluate { project ->
-        if (project.plugins.hasPlugin("com.android.library")) {
-            def androidExt = project.extensions.findByName("android")
-            if (androidExt != null && androidExt.namespace == null) {
-                def manifestFile = file("${project.projectDir}/src/main/AndroidManifest.xml")
-                if (manifestFile.exists()) {
-                    def manifestXml = new XmlSlurper().parse(manifestFile)
-                    def packageName = manifestXml.@package.text()
-                    if (packageName) {
-                        androidExt.namespace = packageName
-                    }
+    pluginManager.withPlugin("com.android.library") {
+        def androidExt = project.extensions.findByName("android")
+        if (androidExt != null && androidExt.namespace == null) {
+            def manifestFile = file("${project.projectDir}/src/main/AndroidManifest.xml")
+            if (manifestFile.exists()) {
+                def manifestXml = new XmlSlurper().parse(manifestFile)
+                def packageName = manifestXml.@package.text()
+                if (packageName) {
+                    androidExt.namespace = packageName
                 }
             }
         }
