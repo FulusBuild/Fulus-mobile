@@ -61,6 +61,53 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  # --- Stage 10 (Backup): direct sqlite3 access for VACUUM INTO, per
+  # backup_repository_impl.dart's own header comment on why that's
+  # preferred over Drift's own backup API for this specific operation ---
+  sqlite3: ^2.4.6
+
+  # --- Stage 9 (Receipts) / Stage 10 (Backup): PDF receipts and sharing
+  # either a receipt or a backup file via the Android Share Sheet ---
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+  # MERGE NOTE: two independent sessions (Stages 9-12, Stages 13-17) each
+  # added share_plus without visibility into the other — 9-12 pinned
+  # ^7.2.2 specifically for Share.shareXFiles(List<XFile>, {text}), which
+  # its own comment already flagged as "stable across several major
+  # versions" and worth confirming against whatever ends up merged;
+  # 13-17 added ^10.1.2 for CSV export sharing. Resolved here in favor of
+  # the newer constraint (10.1.2) rather than splitting the difference,
+  # since 9-12's own note already anticipated this exact case and named
+  # Share.shareXFiles as the specific method to re-check — that's a
+  # concrete, cheap verification (one method call, in
+  # backup_repository_impl.dart's share step) rather than a genuine
+  # unknown. Flagging clearly rather than silently picking one: verify
+  # Share.shareXFiles(List<XFile>, {text}) still exists on 10.1.2 before
+  # shipping — if it was removed in favor of
+  # SharePlus.instance.share(ShareParams(...)) as 9-12's own comment
+  # speculated it might be, that one call site needs updating.
+  share_plus: ^10.1.2
+
+  # --- Stage 13 (Notifications) ---
+  flutter_local_notifications: ^18.0.1
+
+  # --- Stage 14 (Search/Export): CSV export; PDF export reuses `pdf`/
+  # `printing` above rather than a separate package ---
+  # (no additional package beyond pdf/printing/share_plus above)
+
+  # --- Stage 15 (Device Services) ---
+  mobile_scanner: ^6.0.2
+  camera: ^0.11.0+2
+  permission_handler: ^11.3.1
+  print_bluetooth_thermal: ^1.1.1
+  flutter_usb_printer: ^0.3.4
+
+  # --- Stage 16 (Sync Layer Repositioning): SyncConfig's on-device
+  # enabled/disabled flag persists here, not Drift — a device-local
+  # setting with no business-data shape of its own ---
+  shared_preferences: ^2.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/entities/sale.dart';
+import '../../domain/entities/sale_payment.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 
@@ -26,7 +27,9 @@ extension SaleToCompanion on Sale {
       serverId: Value(serverId),
       invoiceNumber: Value(invoiceNumber),
       customerId: Value(customerId),
+      cashierUserId: Value(cashierUserId),
       discount: Value(discount),
+      wholeCartDiscount: Value(wholeCartDiscount),
       tax: Value(tax),
       amountPaid: Value(amountPaid),
       paymentMethod: Value(paymentMethod),
@@ -50,10 +53,12 @@ extension SaleItemToCompanion on SaleItem {
     return SaleItemsCompanion.insert(
       localId: localId,
       saleLocalId: saleLocalId,
-      productLocalId: productLocalId,
       quantity: quantity,
       unitPrice: unitPrice,
       costPriceAtSale: costPriceAtSale,
+      productLocalId: Value(productLocalId),
+      description: Value(description),
+      lineDiscount: Value(lineDiscount),
     );
   }
 }
@@ -72,8 +77,10 @@ extension SaleRowToDomain on SaleRow {
       invoiceNumber: invoiceNumber,
       customerId: customerId,
       locationId: locationId,
+      cashierUserId: cashierUserId,
       saleDate: saleDate,
       subtotal: subtotal,
+      wholeCartDiscount: wholeCartDiscount,
       discount: discount,
       tax: tax,
       total: total,
@@ -93,9 +100,35 @@ extension SaleItemRowToDomain on SaleItemRow {
     return SaleItem(
       localId: localId,
       productLocalId: productLocalId,
+      description: description,
       quantity: quantity,
       unitPrice: unitPrice,
       costPriceAtSale: costPriceAtSale,
+      lineDiscount: lineDiscount,
+    );
+  }
+}
+
+extension SalePaymentToCompanion on SalePayment {
+  SalePaymentsCompanion toDriftCompanion({required String saleLocalId}) {
+    return SalePaymentsCompanion.insert(
+      localId: localId,
+      saleLocalId: saleLocalId,
+      method: method,
+      amount: amount,
+      recordedAt: recordedAt,
+    );
+  }
+}
+
+extension SalePaymentRowToDomain on SalePaymentRow {
+  SalePayment toDomain() {
+    return SalePayment(
+      localId: localId,
+      saleLocalId: saleLocalId,
+      method: method,
+      amount: amount,
+      recordedAt: recordedAt,
     );
   }
 }

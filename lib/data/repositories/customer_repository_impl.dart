@@ -50,6 +50,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
   Future<void> markSynced({
     required String localId,
     required String serverId,
+    String? duplicateWarning,
   }) async {
     await (_db.update(_db.customers)..where((c) => c.localId.equals(localId)))
         .write(
@@ -57,6 +58,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
         serverId: Value(serverId),
         syncStatus: const Value(SyncStatus.settled),
         updatedAt: Value(DateTime.now()),
+        lastSyncWarning: Value(duplicateWarning),
       ),
     );
   }

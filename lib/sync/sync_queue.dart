@@ -63,6 +63,56 @@ class SyncTask {
         priority: SyncPriority.stockAndCustomerWrites,
       );
 
+  /// Same priority tier as createCustomer/createExpense — a category or
+  /// supplier isn't money, but it's routine day-to-day catalog upkeep, not
+  /// the photos-and-bulk-import lane either.
+  factory SyncTask.createCategory(String localId) => SyncTask(
+        entityType: 'category',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  factory SyncTask.createSupplier(String localId) => SyncTask(
+        entityType: 'supplier',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  /// Same priority tier as `createSale` — a return is directly
+  /// financial (a refund), not routine catalog upkeep.
+  factory SyncTask.createReturn(String localId) => SyncTask(
+        entityType: 'return',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.salesAndPayments,
+      );
+
+  factory SyncTask.createExpenseCategory(String localId) => SyncTask(
+        entityType: 'expense_category',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  /// Opening a shift is routine, but closing one carries the day's cash
+  /// reconciliation — same financial-priority tier as `createSale`/
+  /// `createReturn`, not catalog upkeep.
+  factory SyncTask.createCashDrawerShift(String localId) => SyncTask(
+        entityType: 'cash_drawer_shift',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.salesAndPayments,
+      );
+
+  factory SyncTask.closeCashDrawerShift(String localId) => SyncTask(
+        entityType: 'cash_drawer_shift',
+        entityLocalId: localId,
+        operation: 'close',
+        priority: SyncPriority.salesAndPayments,
+      );
+
   /// One factory for all three stock-movement write kinds (stock-in,
   /// stock-out, adjustment) — deliberately NOT three separate factories
   /// (createStockIn/createStockOut/createAdjustment) the way it might
@@ -82,6 +132,36 @@ class SyncTask {
         entityType: 'stock_movement',
         entityLocalId: localId,
         operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  /// **Phase 0 completion pass.** Same priority tier as
+  /// createCustomer/createCategory/createSupplier — catalog upkeep, not
+  /// money that's already changed hands. ProductSyncHandler reads the
+  /// Products row (and, for `create`, the ProductStockLevels row this
+  /// same product/location pair was seeded with —
+  /// ProductRepositoryImpl.createProduct always writes one, even at
+  /// zero) directly at drain time, the same "fetch the persisted entity
+  /// and act on its own fields" shape every handler above already uses
+  /// — no extra data needs to travel with the task itself.
+  factory SyncTask.createProduct(String localId) => SyncTask(
+        entityType: 'product',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  /// Same reasoning as [SyncTask.createProduct] — ProductSyncHandler
+  /// reads the Products row's current field values directly rather than
+  /// this task carrying which specific fields changed. Safe because
+  /// ProductRepositoryImpl.updateProduct's own `null` = "don't touch"
+  /// convention means every field already on the row is exactly the
+  /// value that should sync, whether this is the first local edit or
+  /// the fifth one queued before connectivity returns.
+  factory SyncTask.updateProduct(String localId) => SyncTask(
+        entityType: 'product',
+        entityLocalId: localId,
+        operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
 

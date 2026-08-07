@@ -2,8 +2,10 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -12,6 +14,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSalesApi extends Mock implements SalesApi {}
+
+/// Hand-rolled rather than a mocktail Mock — same reasoning as the
+/// other sync tests in this directory.
+class _FakeAuthRepository implements AuthRepository {
+  @override
+  AuthUser? get currentUser => null;
+  @override
+  Future<bool> hasAnyOwnerAccount() async => throw UnimplementedError();
+  @override
+  Future<AuthUser?> restoreSession() async => throw UnimplementedError();
+  @override
+  Future<AuthUser> createFirstOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> login({required String username, required String password}) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createAdditionalOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String username,
+    required String email,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<void> logout() async => throw UnimplementedError();
+}
 
 void main() {
   late AppDatabase db;
@@ -33,7 +75,11 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     salesApi = MockSalesApi();
-    saleRepository = SaleRepositoryImpl(db: db, syncQueue: SyncQueue(db));
+    saleRepository = SaleRepositoryImpl(
+      db: db,
+      syncQueue: SyncQueue(db),
+      authRepository: _FakeAuthRepository(),
+    );
     handler = SaleSyncHandler(
       db: db,
       salesApi: salesApi,

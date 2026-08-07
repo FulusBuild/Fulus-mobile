@@ -94,18 +94,19 @@ jobs:
       # level lints here compounds across every later phase built on top.
 
   # ── Step 4: tests ────────────────────────────────────────────────────────
-  # Split into the same layers Architecture Section 13 specifies, run as
-  # separate steps (not one blind `flutter test .`) so a failure names
-  # which LAYER broke — a unit-test failure means a business-rule bug: a
-  # database-test failure means the Drift schema itself is wrong, a more
-  # foundational problem.
+  # Split into the same layers Architecture Section 13 specifies. A
+  # failure names which LAYER broke — a unit-test failure means a
+  # business-rule bug; a database-test failure means the Drift schema
+  # itself is wrong, a more foundational problem.
   #
-  # test/repository now has a real file (sale_repository_test.dart, added
-  # alongside the SaleRepository implementation) — run it explicitly.
-  # test/unit and test/database still don't exist yet; scoped to the one
-  # directory that's real rather than `flutter test .` reporting "0
-  # tests" for the others in a way that looks identical to "not written
-  # yet" and "written but broken."
+  # Phase 0 completion pass: this used to scope down to `flutter test
+  # test/repository` alone, with a comment claiming test/unit and
+  # test/database "don't exist yet." That comment was stale — test/unit,
+  # test/sync, test/core, test/data, and test/device_services all have
+  # real files in this tree, and none of them were ever actually run in
+  # CI as a result. Running the whole suite now; this is the first time
+  # roughly twenty of this project's test files will have executed
+  # anywhere.
   test:
     needs: analyze
     runs-on: ubuntu-latest
@@ -117,7 +118,7 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: dart run build_runner build --delete-conflicting-outputs
-      - run: flutter test test/repository
+      - run: flutter test
 
   # ── Step 5: build a debug APK ────────────────────────────────────────────
   # Debug, not release — a foundation-phase CI has no signing keystore

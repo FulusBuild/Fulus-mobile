@@ -1,5 +1,9 @@
 import 'package:drift/drift.dart';
 
+import '../../../domain/entities/app_notification.dart';
+import '../../../domain/entities/auth_user.dart';
+import '../../../domain/entities/printer_device.dart';
+
 // No `part 'tables.g.dart';` here, deliberately: Drift's default
 // (monolithic) codegen generates table row/companion classes into the
 // part file of whatever Dart file holds the @DriftDatabase-annotated
@@ -67,42 +71,104 @@ class Locations extends Table with SyncableColumns {
   Set<Column> get primaryKey => {localId};
 }
 
-/// User session — the currently signed-in user's own record, mirroring
-/// the backend's UserOut shape (verified directly against
-/// backend/app/schemas/auth.py: id, username, email, full_name, role,
-/// is_active) plus the fields needed to know who's currently active
-/// on-device, which the backend has no reason to track since it's a
-/// purely local concept (one phone, one signed-in user at a time).
+/// Local user accounts on this device — the Business Engine's own
+/// source of truth for "who can sign in here," per the Architecture
+/// Redesign (local Business Engine, no server-issued credentials).
+/// Replaces what used to be a thin cache of the backend's users table;
+/// this table IS the users table now. Fields mirror backend/app/models/
+/// user.py's User columns directly (verified against the actual model:
+/// username, email, full_name, hashed_password, role, is_active,
+/// failed_login_attempts, locked_until, approval_pin_hash,
+/// approval_pin_salt) with two deliberate departures:
 ///
-/// The refresh token itself is NOT a column here — Architecture Section
-/// 11 is explicit that it lives in flutter_secure_storage, never the
-/// general Drift database, which is not separately encrypted by design.
-/// This table only ever holds what's safe to sit in an unencrypted
-/// SQLite file: identity and role, not credentials.
+/// 1. role is a genuine two-value enum (AuthRole.owner/employee — the
+///    Bible's actual product vocabulary, Volume 9), not a raw string
+///    mirroring the backend's four-value admin/manager/staff/cashier
+///    enum. The old Sessions table below stored the raw backend string
+///    specifically because the backend was the source of truth for
+///    that vocabulary and mobile was just relaying it; now that the
+///    Business Engine IS the source of truth, there's no external
+///    vocabulary left to honestly mirror, so using the real product
+///    model directly is more correct, not a simplification of
+///    convenience. Defined in domain/entities/auth_user.dart (a
+///    genuine product concept, not a storage detail) and imported here
+///    for the column definition — unlike SyncStatus above, which stays
+///    data-layer-only because it has no domain-facing meaning of its
+///    own beyond sync bookkeeping.
+///
+/// 2. Deliberately NOT given SyncableColumns, unlike every other table
+///    in this file. That mixin exists so a table's rows can be pushed
+///    through the generic sync queue like a Product or Sale row —
+///    appropriate for business data, actively wrong here:
+///    hashedPassword/passwordSalt/approvalPinHash/approvalPinSalt are
+///    exactly the values that must never leave this device wholesale
+///    through a generic "sync this row" path. A second device gaining
+///    a local account for the same business is its own explicit,
+///    validated flow (invite/claim, Volume 9) — not "this table's rows
+///    get replicated," which SyncableColumns would otherwise imply.
+@DataClassName('UserRow')
+class Users extends Table {
+  TextColumn get localId => text()();
+  TextColumn get username => text().withLength(min: 1, max: 150)();
+  TextColumn get email => text().withLength(min: 1, max: 255)();
+  TextColumn get fullName => text().withLength(min: 1, max: 150)();
+  TextColumn get hashedPassword => text()();
+  TextColumn get passwordSalt => text()();
+  TextColumn get role => textEnum<AuthRole>()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  // Mirrors auth_service.py's MAX_FAILED_LOGIN_ATTEMPTS/
+  // LOGIN_LOCKOUT_DURATION mechanism exactly — verified directly, not
+  // assumed — now enforced by the local Business Engine's own login
+  // check instead of the backend's.
+  IntColumn get failedLoginAttempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lockedUntil => dateTime().nullable()();
+  // Nullable: an owner sets this during their own account setup (Volume
+  // 9), not necessarily at the moment the account is first created —
+  // matches the backend column's own nullability.
+  TextColumn get approvalPinHash => text().nullable()();
+  TextColumn get approvalPinSalt => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// Which local user is currently signed in on this device, and which
+/// location they're viewing. Genuinely local concepts even under the
+/// old backend-mirroring design (the backend had no reason to track
+/// either), and even more clearly so now that Users above is this
+/// device's own source of truth rather than a cache of what a server
+/// last reported — everything this table used to cache redundantly
+/// (username, email, fullName, backendRole, isActive) now lives
+/// authoritatively on the Users row itself; this table only needs to
+/// say WHICH Users row that is, not repeat its contents.
+///
+/// id is a fixed 'current' value, mirroring BusinessSettings' own
+/// single-row pattern below, rather than keying on userId as the
+/// previous version of this table did — CORRECTED: keying on userId
+/// only enforces uniqueness per distinct user, not the actual invariant
+/// (Volume 9: a shared device requires a full login each time it
+/// changes hands, i.e. genuinely at most one active session, full stop)
+/// — it would have silently allowed two different users' "sessions" to
+/// coexist as separate rows, which the singular "the currently signed-
+/// in user" framing never intended.
+///
+/// lastSyncedAt is gone entirely, not just renamed: it meant "when did
+/// the backend last confirm this session," which has no local-only
+/// equivalent — there is nothing external confirming a local session,
+/// by design.
 class Sessions extends Table {
-  TextColumn get userId => text()();
-  TextColumn get username => text()();
-  TextColumn get email => text()();
-  TextColumn get fullName => text()();
-  // Stored as text, not textEnum<UserRole>, deliberately: the backend's
-  // UserRole enum (admin/manager/staff/cashier — four roles) is a
-  // different vocabulary from the Bible's two-role mobile model
-  // (Owner/Employee, Architecture Section 6's explicit note on this
-  // mapping). Storing the raw backend string here and mapping it to
-  // Owner/Employee at the point Section 6 already specifies, rather than
-  // baking the mapping into the schema itself, keeps this table an
-  // honest mirror of what the backend actually sent.
-  TextColumn get backendRole => text()();
-  BoolColumn get isActive => boolean()();
+  TextColumn get id => text()(); // always the fixed value 'current'
+  TextColumn get userId => text().references(Users, #localId)();
   // Which location this session is currently viewing (Architecture
   // Section 7a) — an owner can change this at will via the location
   // switcher; an employee's is fixed at their invite (Volume 3, line 646)
   // and this column is simply never offered as editable UI for them.
   TextColumn get activeLocationId => text().nullable()();
-  DateTimeColumn get lastSyncedAt => dateTime().nullable()();
 
   @override
-  Set<Column> get primaryKey => {userId};
+  Set<Column> get primaryKey => {id};
 }
 
 /// Products — mirrors ProductBase + ProductOut, verified directly against
@@ -128,6 +194,30 @@ class Products extends Table with SyncableColumns {
   RealColumn get sellingPrice => real()();
   IntColumn get lowStockThreshold => integer().withDefault(const Constant(10))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  /// **Bible-only** (Product Design Bible Volume 6, Decision 18:
+  /// "Stock tracking is opt-out per product, not mandatory"). No
+  /// backend column exists for this today — verified directly against
+  /// backend/app/models/inventory.py, same audit pass as everything
+  /// else in this file. Added schema-ready ahead of backend support,
+  /// the identical precedent StockMovements.toLocationId/
+  /// StockMovementType.transfer already set in this same file: a real,
+  /// cited product decision the backend hasn't caught up to persisting
+  /// yet is not the same claim as a field that shouldn't exist. Defaults
+  /// `true`, matching the Bible's own "one product model... as a simple
+  /// toggle, defaulting on."
+  BoolColumn get tracksStock => boolean().withDefault(const Constant(true))();
+
+  /// **Bible-only** (Volume 6 product table: "Unit... Defaults to
+  /// 'piece'"). Display-only, no backend column.
+  TextColumn get unit => text().withDefault(const Constant('piece'))();
+
+  /// **Bible-only** (Volume 6: "Photo — Strongly encouraged"). A local
+  /// file path, not a URL — no photo-upload endpoint exists in the
+  /// backend for products today, so there is nowhere to sync this field
+  /// TO yet; it stays device-local until that changes, same status as
+  /// every other genuinely-local-only field in this schema.
+  TextColumn get photoPath => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -171,6 +261,43 @@ class Customers extends Table with SyncableColumns {
   TextColumn get notes => text().nullable()();
   RealColumn get outstandingBalance => real().withDefault(const Constant(0))();
 
+  /// **Bible-only** (Product Design Bible Volume 7: "Credit limit — No
+  /// [required] — A guide, not an automatic block — see Decision 23").
+  /// No backend column — verified directly against
+  /// backend/app/models/customer.py, same audit pass as Products'
+  /// tracksStock above. Never enforced as a hard block anywhere this
+  /// field is read; see CustomerEngine.checkCreditLimitWarning.
+  RealColumn get creditLimit => real().nullable()();
+
+  /// **Bible-only** (Volume 7 Loyalty section: "a purchase count per
+  /// customer"). No backend column. Incremented locally when a sale
+  /// completes for this customer — see CustomerLedgerEntries' own doc
+  /// comment for the parallel, and equally real, gap on the sync side of
+  /// that same event.
+  IntColumn get purchaseCount => integer().withDefault(const Constant(0))();
+
+  /// **Bible-only** (Volume 7: "an optional owner-set threshold, e.g.
+  /// every 10th purchase"). Null means loyalty is off for this customer.
+  IntColumn get loyaltyThreshold => integer().nullable()();
+
+  /// **Bible-only** (Volume 7: "Photo — No [required] — Helps a cashier
+  /// recognize regulars visually"). Same local-file-path, no-upload-
+  /// endpoint-yet status as Products.photoPath above.
+  TextColumn get photoPath => text().nullable()();
+
+  /// **Not from the Bible or a synced field at all** — this device's
+  /// own record of `duplicate_warning` (backend/app/schemas/
+  /// customer.py's `CustomerOut.duplicate_warning`), written once by
+  /// CustomerRepositoryImpl.markSynced if the create response carried
+  /// one, otherwise left null. See CustomerResponseDto's own doc
+  /// comment for the full trail: this column is as far as the data
+  /// layer takes it — persisted and queryable, but nothing in this pass
+  /// builds a UI that actually shows it to anyone. Deliberately not
+  /// cleared automatically once "seen" — there's no UI yet to mark it
+  /// seen — so a future screen reading this should treat a non-null
+  /// value as "flagged at some point," not "flagged just now."
+  TextColumn get lastSyncWarning => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {localId};
 }
@@ -195,8 +322,32 @@ class Sales extends Table with SyncableColumns {
   TextColumn get invoiceNumber => text().nullable()();
   TextColumn get customerId => text().nullable()();
   TextColumn get locationId => text().references(Locations, #localId)();
+
+  /// **New in schema v4.** Nullable — a sale made while signed in
+  /// records who made it; a sale imported from elsewhere, or one made
+  /// before this column existed, simply has none, which is a legitimate
+  /// state rather than an error (see SaleRepositoryImpl.createSale's own
+  /// reasoning for why it's populated best-effort, not required). This
+  /// is what lets a receipt show a real cashier name (ReceiptRepositoryImpl)
+  /// and CashDrawerShiftRepositoryImpl.computeExpectedCash attribute sales
+  /// to the specific shift that rang them up, rather than inferring it
+  /// from locationId + a time window alone, which breaks the moment two
+  /// shifts at the same location legitimately overlap.
+  TextColumn get cashierUserId => text().nullable().references(Users, #localId)();
   DateTimeColumn get saleDate => dateTime()();
   RealColumn get subtotal => real()();
+
+  /// **New in this pass** — the whole-cart discount specifically
+  /// (Volume 5: "A single 'Add discount' action... for a whole-cart
+  /// discount"), kept separate from `discount` below so either it or a
+  /// line's own `lineDiscount` (SaleItems) can change independently
+  /// while a cart is being edited without losing track of which is
+  /// which. `discount` stays the single number that actually syncs
+  /// (`wholeCartDiscount` + every line's `lineDiscount`, combined) —
+  /// this column exists purely so that combination can be recomputed
+  /// correctly after any one edit, not so two numbers get sent to the
+  /// backend where one is expected.
+  RealColumn get wholeCartDiscount => real().withDefault(const Constant(0))();
   RealColumn get discount => real().withDefault(const Constant(0))();
   RealColumn get tax => real().withDefault(const Constant(0))();
   RealColumn get total => real()();
@@ -216,13 +367,35 @@ class Sales extends Table with SyncableColumns {
   Set<Column> get primaryKey => {localId};
 }
 
-/// Sale line items — mirrors SaleItemOut exactly, including
-/// costPriceAtSale, which the backend snapshots at sale time specifically
-/// so historical profit reporting stays accurate even if a product's
-/// cost_price changes later (verified directly in the backend's own
+/// Sale line items — mirrors SaleItemOut, including costPriceAtSale,
+/// which the backend snapshots at sale time specifically so historical
+/// profit reporting stays accurate even if a product's cost_price
+/// changes later (verified directly in the backend's own
 /// finance_service.py comment on this exact point). Mobile mirrors that
 /// same snapshot discipline rather than reading the product's CURRENT
 /// cost at report time, which would silently misreport historical profit.
+///
+/// `productLocalId` made nullable in this pass for Quick Sale (Volume 5:
+/// "for anything not in the catalog at all... available from Sell at
+/// any time"). Real, structural divergence from the backend here, not
+/// just a mobile-side addition — checked directly against
+/// `backend/app/schemas/sale.py`'s `SaleItemCreate`: `product_id: str`,
+/// required, no default. A sale containing a Quick Sale line genuinely
+/// cannot sync to this backend as it exists today — see
+/// `SaleRepositoryImpl.createSale`'s own doc comment for exactly how
+/// that gets handled (marked `attentionNeeded` at creation, not
+/// enqueued into a sync attempt that would only ever fail).
+///
+/// `description` is likewise new — no backend equivalent (`SaleItemOut`
+/// has no name/description field; a reader is expected to join through
+/// `product_id`). Needed for two reasons: it's the only way a Quick Sale
+/// line (no product to join through) can have a name at all, and it
+/// keeps a receipt's wording stable even if a real product gets renamed
+/// later.
+///
+/// `lineDiscount` is new too — Volume 5: "Tapping an individual line
+/// item reveals a per-item discount." No backend column; folds into
+/// `Sales.discount` the same way `Sales.wholeCartDiscount` does.
 ///
 /// @DataClassName('SaleItemRow') — same reasoning as Sales above:
 /// avoids colliding with domain/entities/sale.dart's own `SaleItem`.
@@ -230,10 +403,12 @@ class Sales extends Table with SyncableColumns {
 class SaleItems extends Table {
   TextColumn get localId => text()();
   TextColumn get saleLocalId => text().references(Sales, #localId)();
-  TextColumn get productLocalId => text().references(Products, #localId)();
+  TextColumn get productLocalId => text().nullable().references(Products, #localId)();
+  TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get quantity => integer()();
   RealColumn get unitPrice => real()();
   RealColumn get costPriceAtSale => real()();
+  RealColumn get lineDiscount => real().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -397,16 +572,20 @@ class SyncQueueItems extends Table {
 /// (verified directly: the backend enforces exactly one row via a unique
 /// constraint on a fixed constant). Drift has no direct equivalent of a
 /// CHECK/UNIQUE-on-constant at the table level in the same way, so this
-/// is enforced at the repository layer instead — CORRECTED: not via a
-/// getOrCreate()/update() pair as this comment previously said, since
-/// BusinessSettingsRepository (domain/repositories/
-/// business_settings_repository.dart) only ever declared
-/// watchSettings()/syncFromServer(), the same read + pull-sync shape as
-/// Location/Product (Architecture Section 5: "the backend's own
-/// BusinessProfile... has no create/update API of its own either" from
-/// that same interface's own comment). This table comment describing
-/// getOrCreate()/update() predates that interface being settled to its
-/// simpler final shape and was never updated to match.
+/// is enforced at the repository layer instead —
+/// BusinessSettingsRepositoryImpl.createBusiness explicitly checks
+/// hasBeenConfigured() first and throws rather than allowing a second
+/// row (domain/repositories/business_settings_repository.dart).
+///
+/// STALE COMMENT CORRECTED (Architecture Redesign, Stage 4): this used
+/// to say BusinessSettingsRepository "only ever declared
+/// watchSettings()/syncFromServer()" — true when written, but the
+/// interface has since grown createBusiness/updateSettings/
+/// hasBeenConfigured to close a real offline gap (a fresh install
+/// couldn't complete "create your business" without a server). Left
+/// this note rather than silently deleting the old claim, matching this
+/// file's own established practice of marking corrections instead of
+/// erasing the reasoning trail.
 ///
 /// address/phone/email/tin added here to close a real, previously-
 /// documented gap: the backend's BusinessProfile (app/models/settings.py)
@@ -428,4 +607,491 @@ class BusinessSettings extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// Local audit trail — mirrors backend/app/models/audit.py's AuditLog
+/// table directly (verified against the actual model: user_id, action,
+/// module, record_id, details), with one deliberate omission:
+/// ip_address/user_agent are dropped entirely, not ported. Both existed
+/// to distinguish which of potentially many remote clients made a given
+/// HTTP request against a shared server — a genuine backend concept
+/// that disappears completely on a single device with no client/server
+/// boundary at all (every action already, unambiguously, originates
+/// from this same device's own app process, per the Architecture
+/// Redesign's own finding on which backend concepts don't survive the
+/// move to a standalone app). Porting them anyway as permanently-null
+/// columns would be dead weight with no real concept left behind them.
+///
+/// Given SyncableColumns, unlike Users — this table holds no secrets
+/// (unlike a password/PIN hash), and a Host aggregating every till's
+/// audit trail into one view is a legitimate, desirable future
+/// capability, not a security anti-pattern the way syncing Users' raw
+/// credential hashes would be. Append-only by convention (mirroring the
+/// backend model's own docstring: "Never updated or deleted") — nothing
+/// in this codebase should ever UPDATE or DELETE a row here, only
+/// INSERT; updatedAt/deletedAt exist only because SyncableColumns
+/// bundles them for every table, and are expected to stay at their
+/// initial values for this one specifically.
+@DataClassName('AuditLogRow')
+class AuditLogs extends Table with SyncableColumns {
+  // Nullable: an event can happen with no signed-in user at all (e.g.
+  // LOGIN_FAILED for a username that doesn't exist) — matches the
+  // backend column's own nullability exactly (verified directly:
+  // "nullable for anonymous/system events").
+  TextColumn get userId => text().nullable()();
+  // e.g. LOGIN | LOGIN_FAILED | LOGIN_BLOCKED_LOCKOUT | LOGOUT |
+  // BOOTSTRAP_ADMIN | CREATE | UPDATE | DELETE | STOCK_IN | STOCK_OUT |
+  // STOCK_ADJUST | IMPORT | BACKUP_CREATE | BACKUP_RESTORE |
+  // PASSWORD_CHANGE | SET_APPROVAL_PIN — the exact vocabulary verified
+  // directly against every audit_service.log(...) call site across the
+  // whole backend, not a guessed or partial list.
+  TextColumn get action => text()();
+  // e.g. AUTH | INVENTORY | CUSTOMERS | EMPLOYEES | SALES | FINANCE |
+  // BACKUP | IMPORT | POS_SHIFT | POS_RETURN — same source as action.
+  TextColumn get module => text()();
+  TextColumn get recordId => text().nullable()();
+  // JSON-encoded, mirroring the backend's own Text column exactly —
+  // verified directly, not assumed to be a structured column type.
+  TextColumn get details => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// Stage 13 — in-app notification history. A local log of every OS
+/// notification NotificationService (core/notifications/) has shown,
+/// kept specifically because Volume 12 Decision 43's two notification
+/// triggers are interruptive by design (an OS notification the user
+/// might dismiss without reading closely) — this table is what a future
+/// "Notifications" surface (a bell icon / inbox screen) reads to show
+/// the same information again on demand. Not a general-purpose event
+/// log for anything else the app does — see AppNotificationType's own
+/// doc comment on why this stays deliberately narrow.
+///
+/// Deliberately NOT a SyncableColumns table: a notification is a
+/// purely local, device-specific record of "this device showed this
+/// alert once." Nothing about it has a server counterpart to sync
+/// toward — a second device the same owner is signed into would
+/// generate and show its own stuck-sync notification independently,
+/// never receive this device's.
+/// @DataClassName('AppNotificationRow') — same collision-avoidance
+/// reasoning as Locations above, against
+/// domain/entities/app_notification.dart's own AppNotification.
+@DataClassName('AppNotificationRow')
+class AppNotifications extends Table {
+  TextColumn get id => text()(); // ULID
+  TextColumn get type => textEnum<AppNotificationType>()();
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  BoolColumn get isRead => boolean().withDefault(const Constant(false))();
+  // Loose, deliberately untyped reference (a Sale's localId today, for
+  // blockedPaymentCompleted) — NOT a Drift foreign key. The entity a
+  // notification can point at differs per `type` (stuckSync has none at
+  // all), and a single nullable FK column can't reference two different
+  // tables conditionally. A tap-through UI resolving this into a real
+  // navigation target is a future features/ concern, not this table's.
+  TextColumn get relatedEntityId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Stage 15 — paired receipt printers. Volume 11 (Settings, Printers):
+/// "Pairing, testing, and unpairing a receipt printer, plus setting the
+/// default that persists across restarts." A small table rather than a
+/// single shared_preferences entry specifically because "the default"
+/// implies more than one CAN be paired at once (a business with more
+/// than one till, say) even though only one is active by default at a
+/// time — a table with an isDefault column models that directly; a
+/// single stored value would have to be silently overwritten the moment
+/// a second printer was ever paired.
+///
+/// Deliberately NOT a SyncableColumns table, for the same reason as
+/// AppNotifications above: which printer THIS phone is paired with is a
+/// hardware fact about this specific device, not business data with a
+/// server counterpart. A second phone has its own Bluetooth radio and
+/// its own printer pairings entirely.
+/// @DataClassName('PairedPrinterRow') — same collision-avoidance
+/// reasoning as Locations above, against
+/// domain/entities/printer_device.dart's own PairedPrinter.
+@DataClassName('PairedPrinterRow')
+class PairedPrinters extends Table {
+  TextColumn get id => text()(); // ULID, local-only
+  TextColumn get name => text()(); // the device's own advertised name
+  // Bluetooth MAC address, or the USB device's identifying
+  // vendor/product/serial string, depending on `transport` — see
+  // domain/entities/printer_device.dart's PrinterDevice.address doc
+  // comment for why this isn't split into transport-specific columns.
+  TextColumn get address => text()();
+  TextColumn get transport => textEnum<PrinterTransport>()();
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get pairedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A product category — **new in this pass**, filling a real, confirmed
+/// gap: the backend has had `/api/inventory/categories` (full CRUD,
+/// `inventory_service.list_categories`/`create_category`/
+/// `update_category`/`delete_category`, verified directly) all along;
+/// nothing on mobile has synced against it until now. Follows Customers'
+/// exact push-sync shape below (SyncableColumns, no locationId — a
+/// category, like a customer, is business-wide, not per-location) rather
+/// than Products' pull-only shape, because unlike Product this genuinely
+/// is meant to be creatable from mobile (Volume 6: category management
+/// happens whenever a product needs one, is not desktop-exclusive) and
+/// the backend endpoint accepts a plain create call with no special
+/// idempotency field beyond what CustomerCreateDto already established
+/// the pattern for.
+/// @DataClassName('CategoryRow') — same collision-avoidance reasoning as
+/// every other table in this file, against domain/entities/category.dart.
+@DataClassName('CategoryRow')
+class Categories extends Table with SyncableColumns {
+  TextColumn get name => text().withLength(min: 1, max: 100)();
+  TextColumn get description => text().nullable().withLength(max: 255)();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// A supplier — same "new in this pass, real confirmed backend gap"
+/// status as Categories above (`/api/inventory/suppliers`, verified
+/// directly against inventory_service.py). Referenced from both Stock In
+/// (this table) and, later, Pay Supplier (Finance) — one record, not
+/// duplicated per domain.
+/// @DataClassName('SupplierRow') — same collision-avoidance reasoning.
+@DataClassName('SupplierRow')
+class Suppliers extends Table with SyncableColumns {
+  TextColumn get name => text().withLength(min: 1, max: 150)();
+  TextColumn get phone => text().nullable()();
+  TextColumn get email => text().nullable()();
+  TextColumn get address => text().nullable()();
+
+  /// **Bible-only** (Volume 8, Decision 26 — see `SupplierLedgerEntries`'
+  /// own doc comment for the full "no backend column at all" gap this
+  /// reflects). What the business currently owes this supplier.
+  RealColumn get outstandingBalance =>
+      real().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// The Credit Book ledger — **Bible-only** (Volume 7: "a full ledger
+/// underneath: every credit sale... that added to it, and every
+/// repayment that reduced it"). The backend has no ledger table at all,
+/// only the single running `Customer.outstanding_balance` column,
+/// adjusted in place server-side by `sale_service._update_customer_balance`
+/// — verified directly, same audit as everything above.
+///
+/// **This table is local-only in a way none of the other additions in
+/// this file are — worth being precise about, not glossing over.** A
+/// `creditSale`-typed row is written locally purely to give the owner an
+/// immediate, honest ledger view the moment a credit sale completes,
+/// mirroring what the backend will authoritatively do server-side once
+/// that sale syncs — it carries no sync task of its own; it's a local
+/// echo of a balance change the Sale row's own sync already accounts
+/// for. A `repayment`-typed row tied to a specific sale (`saleLocalId`
+/// set) DOES have a real path to the server: PATCH /api/sales/{id}
+/// (`sale_service.update_sale`, "only payment fields... can be updated
+/// post-creation") — see SaleRepository.recordAdditionalPayment for
+/// where that push actually happens; this row is this device's local
+/// record of having made that call, not something synced independently.
+/// A `repayment` NOT tied to any sale (Volume 7's simpler "amount,
+/// method, done" walk-in repayment, freestanding against the customer's
+/// whole balance) has **no backend endpoint to reach at all** — grepped
+/// the whole backend, confirmed absent — and stays local-only until one
+/// exists. `syncStatus` is included on this table for schema consistency
+/// with everything else here, but is meaningful (ever leaves `settled`)
+/// only for the sale-linked repayment case; a freestanding repayment
+/// simply has nowhere to go and is written already-`settled` by
+/// convention, not because it actually reached the server.
+@DataClassName('CustomerLedgerEntryRow')
+class CustomerLedgerEntries extends Table with SyncableColumns {
+  TextColumn get customerLocalId => text().references(Customers, #localId)();
+  TextColumn get entryType => text()(); // creditSale | repayment | refundAdjustment
+  RealColumn get amount => real()();
+  TextColumn get paymentMethod => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get saleLocalId =>
+      text().nullable().references(Sales, #localId)();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// **New in this pass** — Volume 5's split-payment support ("A sale can
+/// split across more than one method — each amount entered reduces a
+/// visible 'remaining' figure"). No backend equivalent at all: `Sale.
+/// payment_method` is a single nullable string, `Sale.amount_paid` a
+/// single aggregate float — checked directly, same audit as everything
+/// else in this file. This table is the local breakdown; `Sales.
+/// paymentMethod`/`amountPaid` stay the two fields that actually sync,
+/// kept as the aggregate of these rows by
+/// SaleRepositoryImpl.completeSale — see that method's own doc comment
+/// for exactly how a mixed-method sale collapses into one
+/// `paymentMethod` string for the backend's benefit. No SyncableColumns
+/// — rides with its parent Sale exactly the way SaleItems does, not
+/// tracked for sync independently.
+class SalePayments extends Table {
+  TextColumn get localId => text()();
+  TextColumn get saleLocalId => text().references(Sales, #localId)();
+  TextColumn get method => text()();
+  RealColumn get amount => real()();
+  DateTimeColumn get recordedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// The real refund/return mechanism — Volume 5's "Refunds & Returns":
+/// "full or partial (specific line items)... a distinct workflow against
+/// a past sale." Lives in `POST /api/pos/returns` +
+/// `/approve`/`/complete` (`pos_service.py`'s `create_return`/
+/// `approve_return`/`complete_return`), a genuinely sophisticated,
+/// tested piece of server-side logic — weighted-average pricing per
+/// product (a product can appear more than once in a sale at different
+/// effective prices), and eligibility tracked across every
+/// non-rejected prior return against the same sale, not just the most
+/// recent one. New in this pass; nothing on mobile called any of this
+/// before.
+///
+/// Backend stores `items` as a JSON blob directly on the `Return` row —
+/// its own comment calls this "a deliberate tradeoff... worth a real
+/// decision now that the schema has stabilized rather than assumed
+/// permanent either way." This schema uses a real child table
+/// (`ReturnItems` below) instead, matching every other line-item table
+/// here (`SaleItems`) rather than introducing the one JSON-blob column
+/// in an otherwise fully-relational local schema.
+///
+/// `requestedBy`/`approvedBy` (backend: FKs into `users`) are
+/// deliberately absent — same "not this module's job" status every
+/// other Auth-coupled field in this schema has; the employee/approval
+/// system is expected to track who requested/approved on its own side,
+/// keyed by this table's `localId`.
+///
+/// @DataClassName('ReturnRequestRow') — `Return` collides too closely
+/// with Dart's own control-flow vocabulary to read well everywhere it'd
+/// otherwise appear (`Future<Return> createReturn(...)`); no such
+/// collision exists in Python, so the backend's own `Return` name never
+/// had a reason to avoid it. `ReturnRequest` is this schema's name for
+/// the same thing throughout.
+/// **No `clientReference`** — checked directly against
+/// `backend/app/schemas/pos.py`'s `ReturnCreate`, which has no such
+/// field, unlike Customer/Sale/StockMovement. Same confirmed gap as
+/// Categories/Suppliers: a sync retry after a dropped response can
+/// create a genuine duplicate return request server-side. Learned to
+/// check this per-schema rather than assume it from Customer/Sale's
+/// pattern after getting exactly this wrong once already for Categories
+/// (see that table's own doc comment).
+@DataClassName('ReturnRequestRow')
+class ReturnRequests extends Table with SyncableColumns {
+  TextColumn get originalSaleLocalId => text().references(Sales, #localId)();
+  TextColumn get status => text()(); // pending | approved | rejected | completed
+  TextColumn get returnReason => text().withLength(min: 1, max: 500)();
+  RealColumn get refundAmount => real()();
+  TextColumn get refundMethod => text().withLength(min: 1, max: 30)();
+  BoolColumn get inventoryRestored =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// One returned product+quantity within a [ReturnRequests] row — rides
+/// with its parent exactly the way `SaleItems` does, no independent sync
+/// tracking.
+@DataClassName('ReturnItemRow')
+class ReturnItems extends Table {
+  TextColumn get localId => text()();
+  TextColumn get returnLocalId =>
+      text().references(ReturnRequests, #localId)();
+  TextColumn get productLocalId => text().references(Products, #localId)();
+  IntColumn get quantity => integer()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// The resumable cart — Volume 5, Decision 14: "the cart persists
+/// locally between app sessions, not just between screens." No backend
+/// equivalent at all (a `Sale` row only ever represents a *finished*
+/// transaction) and, before this pass, no local persistence either —
+/// `domain/entities/sale_draft.dart`'s own `SaleDraft` is a plain,
+/// non-persisted in-memory value object, explicitly built for "Section
+/// 2's cart Cubit — not yet built in this phase." That comment is why
+/// these three tables exist: something has to actually survive an app
+/// restart for Decision 14 to be true, and nothing did.
+///
+/// Deliberately entirely separate from `Sales`/`SaleItems`/
+/// `SalePayments` rather than a `status` column added to those — this
+/// keeps the "Sales = finished, synced transactions" invariant those
+/// tables and their sync handler already have completely intact.
+/// `SaleRepositoryImpl.completeSale` reads a `DraftCarts` row + its
+/// items/payments, builds the existing `SaleDraft` value object from
+/// them, and calls the existing `SaleRepository.createSale` — nothing
+/// about how a finished sale gets created or synced changes.
+///
+/// No `SyncableColumns` on any of these three — an in-progress cart
+/// never needs to sync; only the finished sale it eventually becomes
+/// does. At most one row per `locationId` (enforced by
+/// `DraftCartRepositoryImpl.getOrCreateDraftCart` always looking for an
+/// existing one first, the same way `ProductStockLevels`'
+/// (product, location) uniqueness is enforced by convention rather than
+/// a database constraint elsewhere in this schema).
+@DataClassName('DraftCartRow')
+class DraftCarts extends Table {
+  TextColumn get localId => text()();
+  TextColumn get locationId => text().references(Locations, #localId)();
+  TextColumn get customerLocalId => text().nullable()();
+  RealColumn get wholeCartDiscount => real().withDefault(const Constant(0))();
+  RealColumn get tax => real().withDefault(const Constant(0))();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+@DataClassName('DraftCartItemRow')
+class DraftCartItems extends Table {
+  TextColumn get localId => text()();
+  TextColumn get draftCartLocalId => text().references(DraftCarts, #localId)();
+  TextColumn get productLocalId => text().nullable().references(Products, #localId)();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  IntColumn get quantity => integer()();
+  RealColumn get unitPrice => real()();
+  RealColumn get costPriceAtSale => real().withDefault(const Constant(0))();
+  RealColumn get lineDiscount => real().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+@DataClassName('DraftCartPaymentRow')
+class DraftCartPayments extends Table {
+  TextColumn get localId => text()();
+  TextColumn get draftCartLocalId => text().references(DraftCarts, #localId)();
+  TextColumn get method => text()();
+  RealColumn get amount => real()();
+  DateTimeColumn get recordedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// **No `clientReference`** — checked directly against
+/// `backend/app/schemas/finance.py`'s `ExpenseCategoryCreate`, a bare
+/// `name` field with no idempotency key, same confirmed gap as
+/// Categories/Suppliers/Returns.
+@DataClassName('ExpenseCategoryRow')
+class ExpenseCategories extends Table with SyncableColumns {
+  TextColumn get name => text().withLength(min: 1, max: 100)();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// A supplier's payables balance — Volume 8, Decision 26: "A supplier's
+/// balance works exactly like the customer credit book (Volume 7),
+/// mirrored... accumulated whenever Stock In records a cost price that
+/// wasn't paid on the spot." **100% local-only, more so than the
+/// customer credit book was** — checked directly against
+/// `backend/app/models/inventory.py`'s `Supplier`: no balance column at
+/// all, unlike `Customer.outstanding_balance` which at least exists
+/// server-side. There is nothing server-side to reconcile this against
+/// today; this table is this device's own record of what the business
+/// owes, full stop.
+///
+/// Same two-entry-type shape `CustomerLedgerEntries` uses
+/// (`stockPurchaseOnCredit` mirrors `creditSale`; `paymentMade` mirrors
+/// `repayment`), same reasoning: one ledger, one running balance,
+/// combined into `Suppliers.outstandingBalance` (a column added
+/// alongside this table — see that column's own doc comment in the
+/// `Suppliers` class above).
+@DataClassName('SupplierLedgerEntryRow')
+class SupplierLedgerEntries extends Table {
+  TextColumn get localId => text()();
+  TextColumn get supplierLocalId => text().references(Suppliers, #localId)();
+  TextColumn get entryType => text()(); // stockPurchaseOnCredit | paymentMade
+  RealColumn get amount => real()();
+  TextColumn get paymentMethod => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get stockMovementLocalId => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// Volume 8, Taxes: "tax collected, by period... An owner can mark a
+/// period as remitted." **100% Bible-only** — grepped the whole backend
+/// for any tax-tracking model or service function; none exists beyond
+/// the flat `Sale.tax`/`BusinessSettings.vatRate` columns already in
+/// this schema. This table is purely local record-keeping of which
+/// periods an owner has already dealt with — "the app tracks what's
+/// owed; it does not file anything" (Decision 28) applies just as much
+/// to this table's own scope as to the product's.
+@DataClassName('TaxRemittanceRow')
+class TaxRemittances extends Table {
+  TextColumn get localId => text()();
+  TextColumn get locationId => text().references(Locations, #localId)();
+  DateTimeColumn get periodStart => dateTime()();
+  DateTimeColumn get periodEnd => dateTime()();
+  RealColumn get amountRemitted => real()();
+  TextColumn get referenceNumber => text().nullable()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get remittedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
+/// The Cash Drawer & Daily Closing — Volume 8: "Open Shop... asks...
+/// how much cash is in the drawer to start the day," and Daily Closing's
+/// four-step reconciliation flow. Mirrors the backend's own `Shift`
+/// model closely (`backend/app/models/pos.py`, verified directly) —
+/// this is genuinely synced, not local-only, since the backend already
+/// has `POST /api/pos/shifts` / `.../close` and a real `cashier_id` FK
+/// into `users` that this schema can now actually reference (Users
+/// exists in this merged base; it didn't when this stage's own earlier
+/// pass first considered and deferred Shift, for exactly that reason).
+///
+/// `closingSummaryLocked` is this table's one addition beyond what the
+/// backend tracks directly — Decision 29: "sales for that day lock from
+/// further editing" once Daily Closing completes. The backend doesn't
+/// need its own column for this (it can derive "is today locked" from
+/// "does a completed Shift exist covering this date" at query time);
+/// mobile keeps it as an explicit flag purely so a screen can check it
+/// with a plain read instead of a computed join every time it renders.
+/// **No `clientReference`** — checked directly against
+/// `backend/app/schemas/pos.py`'s `ShiftOpen`, which has no such field.
+/// Same confirmed gap as Categories/Suppliers/Returns/ExpenseCategories
+/// — a sync retry after a dropped response could open a genuine
+/// duplicate shift server-side. In practice this risk is smaller here
+/// than for the others: `pos_service.open_shift` almost certainly
+/// rejects opening a second shift while one is already active for the
+/// same cashier (not verified line-by-line — a reasonable inference
+/// from `get_active_shift` existing as a dedicated "is there one
+/// already" endpoint — but not a substitute for the backend actually
+/// having an idempotency key).
+@DataClassName('CashDrawerShiftRow')
+class CashDrawerShifts extends Table with SyncableColumns {
+  TextColumn get cashierUserId => text()();
+  TextColumn get locationId => text().references(Locations, #localId)();
+  DateTimeColumn get openedAt => dateTime()();
+  DateTimeColumn get closedAt => dateTime().nullable()();
+  RealColumn get openingCash => real().withDefault(const Constant(0))();
+  RealColumn get closingCash => real().nullable()();
+  RealColumn get cashDifference => real().nullable()();
+  TextColumn get closingNote => text().nullable()();
+  BoolColumn get closingSummaryLocked =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {localId};
 }

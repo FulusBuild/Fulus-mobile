@@ -15,8 +15,10 @@ class Sale {
     this.invoiceNumber,
     this.customerId,
     required this.locationId,
+    this.cashierUserId,
     required this.saleDate,
     required this.subtotal,
+    this.wholeCartDiscount = 0.0,
     required this.discount,
     required this.tax,
     required this.total,
@@ -35,8 +37,22 @@ class Sale {
   final String? invoiceNumber;
   final String? customerId;
   final String locationId;
+
+  /// **New in schema v4.** Nullable — see `Sales.cashierUserId`'s own
+  /// doc comment in tables.dart for why. Populated by
+  /// SaleRepositoryImpl.createSale from whichever local Users account
+  /// is signed in at the moment of sale creation; never overwritten
+  /// after that.
+  final String? cashierUserId;
   final DateTime saleDate;
   final double subtotal;
+
+  /// The whole-cart-discount component specifically, kept alongside
+  /// `discount` (the combined total that actually syncs) — see
+  /// tables.dart's `Sales.wholeCartDiscount` doc comment for why the
+  /// breakdown is worth keeping even once a sale is finished, not just
+  /// during cart-editing.
+  final double wholeCartDiscount;
   final double discount;
   final double tax;
   final double total;
@@ -76,18 +92,49 @@ class Sale {
 class SaleItem {
   const SaleItem({
     required this.localId,
-    required this.productLocalId,
+    this.productLocalId,
+    this.description = '',
     required this.quantity,
     required this.unitPrice,
     required this.costPriceAtSale,
+    this.lineDiscount = 0.0,
   });
 
   final String localId;
-  final String productLocalId;
+
+  /// `null` for a Quick Sale line (Volume 5: "for anything not in the
+  /// catalog at all"). Real, structural divergence from the backend —
+  /// see tables.dart's `SaleItems.productLocalId` doc comment for the
+  /// confirmed backend gap this reflects (`SaleItemCreate.product_id`
+  /// is required, no default).
+  final String? productLocalId;
+
+  /// New — no backend equivalent (`SaleItemOut` has no name field at
+  /// all). The only way a Quick Sale line can have a name; also keeps a
+  /// receipt's wording stable if a real product gets renamed later.
+  final String description;
+
   final int quantity;
   final double unitPrice;
   final double costPriceAtSale;
 
+  /// New — Volume 5's per-line discount. No backend column; folds into
+  /// `Sale.discount` alongside the whole-cart discount — see that
+  /// field's own doc comment. NOT netted into [lineTotal] below —
+  /// `SaleDraft.subtotal` sums every item's `lineTotal` directly to
+  /// produce `Sale.subtotal`, which the backend defines as the raw,
+  /// pre-discount total (`sale_service.create_sale`: `subtotal =
+  /// round(sum(qty * unit_price), 2)`, discount subtracted separately
+  /// afterward) — netting it in here would have silently corrupted that
+  /// existing, correct aggregation.
+  final double lineDiscount;
+
+  /// Raw, pre-discount — `quantity * unitPrice`, matching
+  /// `SaleItemOut.line_total` exactly. A line's actual net contribution
+  /// after its own discount is `lineTotal - lineDiscount`, computed
+  /// where needed (a receipt, a per-line display) rather than baked in
+  /// here, so this keeps meaning the one thing `SaleDraft.subtotal`
+  /// needs it to mean.
   double get lineTotal => quantity * unitPrice;
 }
 

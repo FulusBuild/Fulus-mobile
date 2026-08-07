@@ -49,6 +49,11 @@ class CustomersApi {
       address: dto.address,
       notes: dto.notes,
       outstandingBalance: dto.outstandingBalance,
+      // A customer whose response just came from a create call has no
+      // purchase history yet — same "0" toCustomerEntity() itself uses,
+      // not a stand-in the way createdAt/updatedAt below are.
+      purchaseCount: 0,
+      duplicateWarning: dto.duplicateWarning,
       // Not present in CustomerResponseDto at all (the backend doesn't
       // return timestamps for this endpoint) — using "now" as a
       // reasonable stand-in is only ever correct here for a customer

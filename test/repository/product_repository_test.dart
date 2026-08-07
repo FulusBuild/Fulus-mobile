@@ -3,6 +3,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,9 +14,20 @@ class MockProductsApi extends Mock implements ProductsApi {}
 void main() {
   late AppDatabase db;
   late MockProductsApi productsApi;
+  late SyncQueue syncQueue;
   late ProductRepositoryImpl repository;
 
   const locationId = 'loc-1';
+
+  Future<void> seedLocation() {
+    return db.into(db.locations).insert(LocationsCompanion.insert(
+          localId: locationId,
+          name: 'Main Store',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ));
+  }
 
   ProductResponseDto product(String id, {int currentStock = 0, int lowStockThreshold = 10}) {
     return ProductResponseDto(
@@ -35,7 +47,8 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     productsApi = MockProductsApi();
-    repository = ProductRepositoryImpl(db: db, productsApi: productsApi);
+    syncQueue = SyncQueue(db);
+    repository = ProductRepositoryImpl(db: db, productsApi: productsApi, syncQueue: syncQueue);
   });
 
   tearDown(() async {
@@ -324,6 +337,191 @@ void main() {
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;
 
       expect(emitted, isEmpty);
+    });
+
+    test('getProductByBarcode finds a match by barcode alone', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            name: 'Coca-Cola 50cl',
+            sku: 'SKU-p1',
+            barcode: const Value('6001234567890'),
+            costPrice: 5.0,
+            sellingPrice: 10.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+
+      final result = await repository.getProductByBarcode('6001234567890', locationId: locationId);
+
+      expect(result, isNotNull);
+      expect(result!.product.localId, 'p1');
+    });
+
+    test('getProductByBarcode returns null for an unknown barcode', () async {
+      final result = await repository.getProductByBarcode('does-not-exist', locationId: locationId);
+      expect(result, isNull);
+    });
+
+    test('getProductBySku finds a match by SKU alone', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            name: 'Coca-Cola 50cl',
+            sku: 'COKE-50CL',
+            costPrice: 5.0,
+            sellingPrice: 10.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+
+      final result = await repository.getProductBySku('COKE-50CL', locationId: locationId);
+
+      expect(result, isNotNull);
+      expect(result!.product.localId, 'p1');
+    });
+  });
+
+  group('createProduct', () {
+    test('writes the product locally and returns immediately, without awaiting the network', () async {
+      await seedLocation();
+
+      final result = await repository.createProduct(const ProductDraft(
+        name: 'New Product',
+        sku: 'NEW-1',
+        costPrice: 3.0,
+        sellingPrice: 6.0,
+        locationId: locationId,
+      ));
+
+      expect(result.name, 'New Product');
+      verifyNever(() => productsApi.createProduct(any()));
+
+      final rows = await db.select(db.products).get();
+      expect(rows.single.name, 'New Product');
+      expect(rows.single.syncStatus, SyncStatus.pending);
+    });
+
+    test('seeds a ProductStockLevels row even when initialStock is 0', () async {
+      await seedLocation();
+
+      final result = await repository.createProduct(const ProductDraft(
+        name: 'New Product',
+        sku: 'NEW-1',
+        costPrice: 3.0,
+        sellingPrice: 6.0,
+        locationId: locationId,
+      ));
+
+      final stockLevel = await (db.select(db.productStockLevels)
+            ..where((s) => s.productLocalId.equals(result.localId) & s.locationLocalId.equals(locationId)))
+          .getSingle();
+      expect(stockLevel.currentStock, 0);
+    });
+
+    test('seeds ProductStockLevels with a nonzero initialStock', () async {
+      await seedLocation();
+
+      final result = await repository.createProduct(const ProductDraft(
+        name: 'New Product',
+        sku: 'NEW-1',
+        costPrice: 3.0,
+        sellingPrice: 6.0,
+        locationId: locationId,
+        initialStock: 15,
+      ));
+
+      final stockLevel = await (db.select(db.productStockLevels)
+            ..where((s) => s.productLocalId.equals(result.localId) & s.locationLocalId.equals(locationId)))
+          .getSingle();
+      expect(stockLevel.currentStock, 15);
+    });
+
+    test('enqueues exactly one high-priority-tier sync task', () async {
+      await seedLocation();
+
+      await repository.createProduct(const ProductDraft(
+        name: 'New Product',
+        sku: 'NEW-1',
+        costPrice: 3.0,
+        sellingPrice: 6.0,
+        locationId: locationId,
+      ));
+
+      final queued = await db.select(db.syncQueueItems).get();
+      expect(queued, hasLength(1));
+      expect(queued.single.entityType, 'product');
+      expect(queued.single.operation, 'create');
+      expect(queued.single.priority, SyncPriority.stockAndCustomerWrites);
+    });
+  });
+
+  group('updateProduct', () {
+    test('changes only the fields passed, leaving the rest untouched', () async {
+      await seedLocation();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            serverId: const Value('p1'),
+            name: 'Original Name',
+            sku: 'SKU-p1',
+            costPrice: 5.0,
+            sellingPrice: 10.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+
+      await repository.updateProduct(localId: 'p1', sellingPrice: 12.0);
+
+      final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+      expect(row.sellingPrice, 12.0);
+      expect(row.name, 'Original Name'); // untouched
+      expect(row.sku, 'SKU-p1'); // untouched
+    });
+
+    test('marks the row pending and enqueues an update sync task', () async {
+      await seedLocation();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            serverId: const Value('p1'),
+            name: 'Original Name',
+            sku: 'SKU-p1',
+            costPrice: 5.0,
+            sellingPrice: 10.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+
+      await repository.updateProduct(localId: 'p1', sellingPrice: 12.0);
+
+      final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
+
+      final queued = await db.select(db.syncQueueItems).get();
+      expect(queued.single.entityType, 'product');
+      expect(queued.single.operation, 'update');
+    });
+  });
+
+  group('markSynced', () {
+    test('sets serverId and syncStatus on the local row', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            name: 'New Product',
+            sku: 'NEW-1',
+            costPrice: 3.0,
+            sellingPrice: 6.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.pending,
+          ));
+
+      await repository.markSynced(localId: 'p1', serverId: 'server-p1');
+
+      final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+      expect(row.serverId, 'server-p1');
+      expect(row.syncStatus, SyncStatus.settled);
     });
   });
 }

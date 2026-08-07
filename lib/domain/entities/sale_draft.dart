@@ -1,4 +1,5 @@
 import 'sale.dart';
+import 'sale_payment.dart';
 
 /// The not-yet-persisted input to `SaleRepository.createSale` —
 /// Architecture Section 4's exact example signature
@@ -27,6 +28,7 @@ class SaleDraft {
     this.tax = 0,
     this.paymentMethod,
     this.notes,
+    this.payments = const [],
   });
 
   final List<SaleItem> items;
@@ -45,6 +47,15 @@ class SaleDraft {
   final String? paymentMethod;
   final String? notes;
 
+  /// **New in this pass** — Volume 5's split-payment legs, written
+  /// alongside the Sale in the same transaction
+  /// (`SaleRepositoryImpl.createSale`) rather than as a separate later
+  /// step, so the two can't end up out of sync if something fails
+  /// partway. Empty by default — a single-method sale (still the common
+  /// case) doesn't need this populated; `paymentMethod`/`amountPaid`
+  /// above are enough on their own, exactly as before this pass.
+  final List<SalePayment> payments;
+
   double get subtotal =>
       items.fold(0.0, (sum, item) => sum + item.lineTotal);
 
@@ -60,6 +71,7 @@ class SaleDraft {
   Sale toSaleEntity({
     required String localId,
     required String clientReference,
+    String? cashierUserId,
   }) {
     final now = DateTime.now();
     return Sale(
@@ -67,6 +79,7 @@ class SaleDraft {
       clientReference: clientReference,
       customerId: customerId,
       locationId: locationId,
+      cashierUserId: cashierUserId,
       saleDate: now,
       subtotal: subtotal,
       discount: discount,

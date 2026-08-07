@@ -4,8 +4,10 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
@@ -13,6 +15,48 @@ import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+
+/// Hand-rolled rather than a mocktail Mock — the only member
+/// SaleRepositoryImpl reads is [currentUser], and this avoids any
+/// dependence on unstubbed-mock behavior this codebase has never had a
+/// working toolchain to verify.
+class _FakeAuthRepository implements AuthRepository {
+  @override
+  AuthUser? get currentUser => null;
+  @override
+  Future<bool> hasAnyOwnerAccount() async => throw UnimplementedError();
+  @override
+  Future<AuthUser?> restoreSession() async => throw UnimplementedError();
+  @override
+  Future<AuthUser> createFirstOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> login({required String username, required String password}) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createAdditionalOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String username,
+    required String email,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<void> logout() async => throw UnimplementedError();
+}
 
 /// ═══════════════════════════════════════════════════════════════════
 /// WHAT THIS TEST IS, AND — MORE IMPORTANTLY — WHAT IT IS NOT
@@ -132,7 +176,11 @@ void main() {
     // in this phase of the test, so there is no possible way a sync
     // attempt could happen before the restart below.
     final syncQueue1 = SyncQueue(db);
-    final saleRepository1 = SaleRepositoryImpl(db: db, syncQueue: syncQueue1);
+    final saleRepository1 = SaleRepositoryImpl(
+      db: db,
+      syncQueue: syncQueue1,
+      authRepository: _FakeAuthRepository(),
+    );
 
     final item = SaleItem(
       localId: 'item-1',
@@ -198,7 +246,11 @@ void main() {
     );
 
     final syncQueue2 = SyncQueue(db);
-    final saleRepository2 = SaleRepositoryImpl(db: db, syncQueue: syncQueue2);
+    final saleRepository2 = SaleRepositoryImpl(
+      db: db,
+      syncQueue: syncQueue2,
+      authRepository: _FakeAuthRepository(),
+    );
     final handler = SaleSyncHandler(
       db: db,
       salesApi: mockSalesApi,

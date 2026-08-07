@@ -5,12 +5,36 @@ import '../local/secure_storage/secure_storage.dart';
 
 /// The single Dio instance the whole app shares, wrapping Architecture
 /// Section 5's interceptor stack in the exact order specified there:
-/// auth first (attaches the token, handles 401-triggered refresh), then
-/// retry (backs off on network/5xx, never on 4xx), then error mapping
+/// auth (attaches the token, handles 401-triggered refresh), then retry
+/// (backs off on network/5xx, never on 4xx), then error mapping
 /// (converts whatever comes out the other end into a Failure). Logging
 /// is added only in debug builds, per Section 5's explicit note that
 /// production builds must not log request/response bodies given this
 /// handles real financial data.
+///
+/// IMPORTANT — found during a self-audit pass, after Stage 4: the auth
+/// interceptor described above is currently DORMANT, not merely unused.
+/// It was written for the old JWT model, where AuthRepositoryImpl called
+/// setAccessToken() after a real login/refresh against this same
+/// backend. Since Stage 2 (Architecture Redesign), login is entirely
+/// local — nothing anywhere calls setAccessToken() or
+/// secureStorage.setRefreshToken() anymore, ever. Concretely, right now:
+/// _accessToken stays null forever, so onRequest never attaches an
+/// Authorization header; every request a networked backend requires
+/// auth for gets a 401; _AuthInterceptor.onError's refresh attempt then
+/// finds getRefreshToken() also always null (nothing ever wrote one) and
+/// falls straight to the already-dormant onSessionExpired no-op
+/// (bootstrap.dart). The net effect: every optional Sync-layer call this
+/// app currently makes (business-settings/location/product
+/// syncFromServer, approval-hash sync/push) will 401 against any real
+/// backend that enforces authentication, silently, since bootstrap.dart
+/// wraps each in catchError((_) {}). This is not a regression to patch
+/// here — it's the real, open question a networked device now has no
+/// server-recognized identity to present at all, which needs Sync's own
+/// design (Stage 16), not a quick fix bolted onto the old JWT
+/// interceptor shape. Left the interceptor's structure in place (rather
+/// than deleting it) since its retry/error-mapping responsibilities are
+/// still genuinely needed — only the auth-attachment part is inert.
 class ApiClient {
   ApiClient({
     required String baseUrl,
@@ -42,14 +66,15 @@ class ApiClient {
   final SecureStorage _secureStorage;
   late final _AuthInterceptor _authInterceptor;
 
-  /// Sets the in-memory access token directly — called by
-  /// AuthRepositoryImpl right after a successful login or a successful
-  /// restoreSession() (Architecture Section 6). This is genuinely
-  /// different from the auth interceptor's OWN internal refresh: that
-  /// one only ever fires reactively, in response to a 401 on some
-  /// OTHER request already in flight. There was previously no external
-  /// hook at all for setting the token the FIRST time, before any
-  /// request has 401'd yet — this method is that hook.
+  /// STALE COMMENT CORRECTED (self-audit pass, after Stage 4): this used
+  /// to say AuthRepositoryImpl calls this right after a successful login
+  /// or restoreSession() — true before Stage 2's redesign, false since:
+  /// AuthRepositoryImpl doesn't hold a reference to ApiClient at all
+  /// anymore, and nothing else calls this method either (confirmed
+  /// directly — grepped for callers repo-wide). This method still does
+  /// exactly what it says; there's just currently nothing left in the
+  /// app that calls it. See this class's own doc comment for the full
+  /// picture of what that means for the interceptor as a whole.
   void setAccessToken(String? token) => _authInterceptor.setAccessToken(token);
 
   /// Rewires what happens when a refresh genuinely fails mid-session —

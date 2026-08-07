@@ -4,20 +4,31 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../domain/entities/approval_hash.dart';
 
-/// Wraps flutter_secure_storage (Android Keystore-backed) for the two
-/// categories of data Architecture Sections 6 and 11 specifically require
-/// this treatment for — the refresh token and the offline approval-PIN
-/// verifiers — and nothing else. This mirrors the exact same scoping
-/// discipline I verified directly in the desktop app's own secrets.rs
-/// during the prior audit: that file exposes secure_token_set/get/delete
-/// for precisely the JWT refresh token, not a general-purpose key-value
-/// store other parts of the app reach for by default. The general Drift
-/// database (Architecture Section 3) is the default for everything else,
-/// deliberately, per Section 11's own stated reasoning — Android's
-/// app-sandboxing is the primary protection for most local data, and
-/// reaching for Keystore-backed storage everywhere would both be
-/// unnecessary overhead and obscure which two things in this app
-/// genuinely need the stronger guarantee.
+/// Wraps flutter_secure_storage (Android Keystore-backed) for two
+/// categories of data: the refresh token (Architecture Section 6) and
+/// the offline approval-PIN verifiers (Architecture Section 11). This
+/// mirrors the exact same scoping discipline verified directly in the
+/// desktop app's own secrets.rs during the prior audit: that file
+/// exposes secure_token_set/get/delete for precisely the JWT refresh
+/// token, not a general-purpose key-value store other parts of the app
+/// reach for by default. The general Drift database (Architecture
+/// Section 3) is the default for everything else, deliberately, per
+/// Section 11's own stated reasoning — Android's app-sandboxing is the
+/// primary protection for most local data, and reaching for
+/// Keystore-backed storage everywhere would both be unnecessary
+/// overhead and obscure which things in this app genuinely need the
+/// stronger guarantee.
+///
+/// IMPORTANT — found during a self-audit pass, after Stage 4: the
+/// refresh-token methods below are no longer called by
+/// AuthRepositoryImpl at all (Stage 2 moved login entirely local — see
+/// that class's own doc comment). They're still called, though, by
+/// ApiClient's own auth interceptor, which independently reads/writes/
+/// deletes a refresh token for its (currently dormant) 401-refresh
+/// flow — see api_client.dart's class doc comment for the full picture.
+/// In practice, getRefreshToken() will always return null now, since
+/// nothing in the app writes one anymore. Not removed here: doing so
+/// would break ApiClient's compilation, since it still calls all three.
 class SecureStorage {
   SecureStorage({FlutterSecureStorage? storage})
       : _storage = storage ??
@@ -34,12 +45,9 @@ class SecureStorage {
 
   // --- Refresh token (Architecture Section 6) ---
   //
-  // The access token is deliberately NOT stored here or anywhere on
-  // disk — Architecture Section 6 is explicit it's held in memory only
-  // (a Riverpod provider), gone the moment the app process ends, and
-  // reconstructed via a silent refresh on next launch. Only the
-  // longer-lived refresh token needs to survive a process restart, and
-  // only it gets Keystore-backed storage.
+  // Currently only ever read/written by ApiClient's own dormant auth
+  // interceptor (see this class's own doc comment) — AuthRepositoryImpl
+  // doesn't reference SecureStorage at all since Stage 2's redesign.
 
   Future<void> setRefreshToken(String token) =>
       _storage.write(key: _refreshTokenKey, value: token);
@@ -94,18 +102,32 @@ class SecureStorage {
         .toList();
   }
 
-  /// Called on logout and before writing a freshly-synced set — always
-  /// the full list is replaced via setApprovalPinVerifiers, never
-  /// merged, so a synced-down entry that no longer exists server-side
-  /// (an admin's PIN was reset, say) can't linger indefinitely as a
-  /// stale, still-matchable verifier.
+  /// STALE COMMENT CORRECTED (self-audit pass, after Stage 4): this used
+  /// to say "called on logout" — confirmed by grepping the whole repo,
+  /// nothing calls this at all right now, on logout or otherwise. It
+  /// also shouldn't be wired to a normal per-user logout under the local
+  /// multi-account model Stage 2 introduced: these verifiers are
+  /// business-level reference data ("which owners exist on this
+  /// device"), not per-session credentials — one employee logging out
+  /// on a shared till (Volume 9) must not wipe the data the NEXT
+  /// signed-in user on the same device still needs for offline approval
+  /// checks. Kept as an available method for a real future use (e.g. an
+  /// owner forcing a fresh re-sync, or an eventual "reset this device"
+  /// flow), just not currently called from anywhere.
   Future<void> deleteApprovalPinVerifiers() async {
     await _storage.delete(key: _approvalPinVerifiersKey);
   }
 
-  /// Full wipe — used on logout. Deliberately does not selectively clear
-  /// only some keys, since a partially-cleared secure store after logout
-  /// (e.g. a stale refresh token surviving) would be a real security
-  /// regression, not just an inconsistency.
+  /// STALE COMMENT CORRECTED (self-audit pass, after Stage 4): this used
+  /// to say "used on logout" — confirmed by grepping the whole repo,
+  /// nothing calls this at all. It also shouldn't be wired to
+  /// AuthRepositoryImpl.logout() the way it might sound like it should:
+  /// wiping approvalPinVerifiers on every logout would incorrectly erase
+  /// business-level data the NEXT signed-in user on the same shared till
+  /// still needs (see deleteApprovalPinVerifiers' own doc comment right
+  /// above). Kept available for a genuinely different, more drastic
+  /// operation than a normal logout — e.g. a future "remove this
+  /// business from this device entirely" flow — which doesn't exist as
+  /// a feature yet either.
   Future<void> clearAll() => _storage.deleteAll();
 }

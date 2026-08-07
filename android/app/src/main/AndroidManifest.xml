@@ -1,9 +1,62 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required in every build type (not just debug/profile): the app
-         talks to a real backend via dio (lib/data/remote) and checks
-         connectivity via connectivity_plus (Architecture Section 5/8). -->
+         talks to a real backend via dio (lib/data/remote) for the
+         optional Sync layer (Architecture Section 5/8). Stage 16 makes
+         actually USING this optional at runtime (sync/sync_config.dart).
+         MERGE NOTE: the original comment here said this permission was
+         also needed unconditionally because login required a live
+         backend — that was accurate against the pre-Stage-2 checkpoint
+         this was written against, not against the merged app: Stage 2
+         made login and session restore entirely local (AuthRepositoryImpl
+         no longer calls AuthApi at all — see that file's own doc
+         comment). The permission is still declared, now solely because
+         the optional Sync layer and the approval-PIN hash push/pull
+         (ApprovalPinRepositoryImpl) are still real, still-networked
+         features when enabled — not because the app can't start without
+         it. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Stage 15: Device Services — Bluetooth receipt printers.
+         Android 12 (API 31) replaced the old BLUETOOTH/BLUETOOTH_ADMIN
+         pair with BLUETOOTH_SCAN/BLUETOOTH_CONNECT; both generations are
+         declared here (maxSdkVersion caps the legacy pair so they're
+         inert, not merely unused, on API 31+) since minSdk is 26
+         (build.gradle) and real devices in this market span both eras.
+         neverForLocation on BLUETOOTH_SCAN is deliberate: this app scans
+         to find a printer to pair with, never to derive the device's
+         physical location from nearby Bluetooth beacons — declaring it
+         avoids a location-permission dependency this feature has no
+         real use for. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Stage 15: Device Services — camera (barcode scan + product/shop
+         photos, Volume 5 "Finding Products" / Volume 6). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Stage 15: Device Services — USB receipt printers (host mode).
+         android.hardware.usb.host is declared but NOT required: a
+         device with no USB-host-capable port can still install and use
+         every other feature, per this whole stage's "Bluetooth printers,
+         USB printers, Camera, Barcode scanner" being independent,
+         individually-optional capabilities, not a bundle. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
+    <!-- Volume 5: barcode-scan confirmation feedback ("a short vibration
+         and sound so a fast-moving cashier doesn't have to watch the
+         screen"). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Stage 13: Notifications. Android 13 (API 33) made showing a
+         notification require this runtime-granted permission; below
+         API 33 it's a no-op normal permission, so declaring it
+         unconditionally (no maxSdkVersion split, unlike Bluetooth above)
+         is correct on every supported OS version rather than needing a
+         version-gated pair. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="Fulus Mobile"

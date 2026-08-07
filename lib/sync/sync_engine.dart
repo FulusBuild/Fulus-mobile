@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 
 import '../core/errors/failure.dart';
 import '../data/local/database/database.dart';
+import 'conflict_resolver.dart';
+import 'retry_policy.dart';
 import 'sync_handler.dart';
 
 /// Architecture Section 8's queue-draining engine. Deliberately pure
@@ -21,11 +23,17 @@ class SyncEngine {
     required AppDatabase db,
     required Map<String, SyncHandler> handlersByEntityType,
     this.maxAttemptsBeforeAttentionNeeded = 5,
+    RetryPolicy retryPolicy = const RetryPolicy(),
+    ConflictResolver conflictResolver = const ConflictResolver(),
   })  : _db = db,
-        _handlersByEntityType = handlersByEntityType;
+        _handlersByEntityType = handlersByEntityType,
+        _retryPolicy = retryPolicy,
+        _conflictResolver = conflictResolver;
 
   final AppDatabase _db;
   final Map<String, SyncHandler> _handlersByEntityType;
+  final RetryPolicy _retryPolicy;
+  final ConflictResolver _conflictResolver;
 
   /// Architecture Section 8 names this as "a bounded number" without
   /// specifying the exact count — 5 chosen here as a reasonable default
@@ -78,8 +86,27 @@ class SyncEngine {
     }
 
     final items = await query.get();
+    final now = DateTime.now();
 
     for (final item in items) {
+      // RetryPolicy's own eligibility check, not the SQL query above —
+      // "has this item failed recently enough that it's not worth
+      // trying again yet" depends on syncAttempts AND lastAttemptedAt
+      // together (an exponential function of the first, applied to the
+      // second), which isn't expressible as a static column comparison
+      // the way the syncAttempts-below-threshold filter above is.
+      // [manual] bypasses this entirely — same "Sync Now" contract this
+      // method's own doc comment already states for the threshold
+      // filter above, extended to backoff for the same reason.
+      if (!manual &&
+          !_retryPolicy.isEligibleForRetry(
+            syncAttempts: item.syncAttempts,
+            lastAttemptedAt: item.lastAttemptedAt,
+            now: now,
+          )) {
+        continue;
+      }
+
       final handler = _handlersByEntityType[item.entityType];
       if (handler == null) {
         // No handler registered for this entityType — a real
@@ -100,7 +127,16 @@ class SyncEngine {
         await handler.sync(item);
         await _removeFromQueue(item.id);
       } on BusinessRuleFailure catch (e) {
-        await _markAttentionNeeded(item.id, error: e.message);
+        // A 409 that reaches this far (ApiClient.mapError's own doc
+        // comment: only when the endpoint method itself didn't already
+        // intercept it as an idempotent-success case) is a genuine
+        // conflict — ConflictResolver's job is only to notice that from
+        // the message text and make it findable, not to decide a
+        // winner; see that class's own header comment for why.
+        final message = _conflictResolver.looksLikeConflict(e.message)
+            ? _conflictResolver.annotate(e.message)
+            : e.message;
+        await _markAttentionNeeded(item.id, error: message);
       } on ValidationFailure catch (e) {
         await _markAttentionNeeded(item.id, error: e.message);
       } on AuthFailure catch (e) {

@@ -2,98 +2,41 @@ import 'package:dio/dio.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../domain/entities/approval_hash.dart';
-import '../../../domain/entities/auth_user.dart';
 import '../api_client.dart';
 
-/// POST /api/auth/login, POST /api/auth/refresh, POST /api/auth/logout —
-/// verified directly against backend/app/routers/auth.py.
+/// Was: POST /api/auth/login, /refresh, /logout too — verified directly
+/// against backend/app/routers/auth.py. Architecture Redesign: login is
+/// now checked entirely locally (AuthRepositoryImpl, against the Users
+/// table, no server involved at all), so those three methods and the
+/// LoginRequestDto/RefreshRequestDto/TokenResponseDto shapes they used
+/// are gone, not just unused — they were JWT-shaped specifically, and
+/// this app no longer has a JWT to issue, refresh, or invalidate
+/// anywhere in it. A future networked "join an existing business over
+/// LAN/cloud" flow (Sync layer, deferred) will need its OWN
+/// authentication design for that specific hop — reviving these three
+/// methods as-is would mean reviving the JWT model the redesign
+/// specifically dropped, not reusing something still correct.
+///
+/// setApprovalPin/getApprovalHashes below are unaffected by any of this:
+/// they were never part of the login/session mechanism — they're the
+/// separate (and still genuinely networked, still genuinely Sync-layer)
+/// mechanism for one device to learn which OTHER devices' owners can
+/// approve a PIN check offline (Architecture Section 6). That's an
+/// inherently multi-device concern no local-only redesign can eliminate
+/// — see this project's notes on which concepts are structurally
+/// multi-device versus which merely used to require a server by
+/// implementation accident.
 class AuthApi {
-  AuthApi(this._client)
-      : _bareDio = Dio(BaseOptions(baseUrl: _client.dio.options.baseUrl));
+  AuthApi(this._client);
 
   final ApiClient _client;
 
-  /// login() and refresh() deliberately do NOT use _client.dio — that
-  /// instance has the auth interceptor attached, and the auth
-  /// interceptor's own onError already reacts to any 401 by attempting
-  /// its own refresh-and-retry. If THIS call (a login attempt, or a
-  /// proactive refresh at app launch) itself 401'd through the shared
-  /// client, the interceptor would kick in on top of it — confusing,
-  /// unintended double-handling. This mirrors the exact reasoning
-  /// already documented on the interceptor's own internal refresh call
-  /// in api_client.dart: "a bare, uninterceptored Dio call for the
-  /// refresh itself... to avoid a refresh call that itself 401s
-  /// recursively triggering another refresh attempt."
-  final Dio _bareDio;
-
-  /// Distinguishes a login-specific 401 (wrong username/password —
-  /// AuthFailure.invalidCredentials()) from ApiClient.mapError's own
-  /// general 401 case (AuthFailure.sessionExpired(), meant for an
-  /// ALREADY-authenticated request whose refresh also failed) — the
-  /// same "the calling endpoint special-cases before falling back to
-  /// the general mapper" pattern SalesApi.createSale already
-  /// established for its own 409 case, applied here for the same
-  /// underlying reason: a single status code means genuinely different
-  /// things depending on which endpoint produced it.
-  Future<TokenResponseDto> login({
-    required String username,
-    required String password,
-  }) async {
-    try {
-      final response = await _bareDio.post(
-        '/api/auth/login',
-        data: LoginRequestDto(username: username, password: password).toJson(),
-      );
-      return TokenResponseDto.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw const AuthFailure.invalidCredentials();
-      }
-      throw _client.mapError(e);
-    }
-  }
-
-  /// A 401 here means the stored refresh token itself is no longer
-  /// valid (expired, or the user was deactivated server-side per
-  /// auth_service.refresh_access_token) — genuinely session-expired,
-  /// not an invalid-credentials case (no credentials are submitted to
-  /// this endpoint at all) — so the general mapper's existing 401
-  /// handling is exactly right here, deliberately NOT special-cased the
-  /// way login() is above.
-  Future<TokenResponseDto> refresh({required String refreshToken}) async {
-    try {
-      final response = await _bareDio.post(
-        '/api/auth/refresh',
-        data: RefreshRequestDto(refreshToken: refreshToken).toJson(),
-      );
-      return TokenResponseDto.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
-  }
-
-  /// Unlike login/refresh, this genuinely should go through the shared,
-  /// interceptor-attached client — it needs the current access token
-  /// attached automatically (Authorization header), which only
-  /// _client.dio's auth interceptor does. Per its own docstring in
-  /// routers/auth.py, this call exists purely to record an audit-log
-  /// entry — JWTs are stateless, so the backend has nothing to
-  /// invalidate — which is why AuthRepositoryImpl treats this call as
-  /// best-effort and clears the local session regardless of whether it
-  /// succeeds.
-  Future<void> logout() async {
-    try {
-      await _client.dio.post('/api/auth/logout');
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
-  }
-
   /// POST /api/auth/approval-pin — the owner's own device pushes its
-  /// locally-computed Argon2id hash+salt up, never the raw PIN. Unlike
-  /// login/refresh above, this genuinely should go through the shared,
-  /// interceptor-attached client — it needs the caller's own current
-  /// access token attached (the backend gates this to the ADMIN role).
+  /// locally-computed Argon2id hash+salt up, never the raw PIN. Needs
+  /// the caller's own current session attached; exactly how that's
+  /// authenticated for this one, still-networked hop is a Sync-layer
+  /// design question of its own (no JWT left to attach here either),
+  /// tracked separately rather than answered by this stage.
   Future<void> setApprovalPin({
     required String pinHash,
     required String pinSalt,
@@ -110,8 +53,7 @@ class AuthApi {
 
   /// GET /api/auth/approval-hashes — the "which owners exist and can
   /// approve" dataset every employee device syncs down (Architecture
-  /// Section 6). Available to any authenticated user server-side, so
-  /// nothing special-cased here beyond the general error mapper.
+  /// Section 6).
   Future<List<ApprovalHashEntryDto>> getApprovalHashes() async {
     try {
       final response = await _client.dio.get('/api/auth/approval-hashes');

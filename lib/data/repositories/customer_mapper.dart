@@ -18,6 +18,11 @@ extension CustomerToCompanion on Customer {
       address: Value(address),
       notes: Value(notes),
       outstandingBalance: Value(outstandingBalance),
+      creditLimit: Value(creditLimit),
+      purchaseCount: Value(purchaseCount),
+      loyaltyThreshold: Value(loyaltyThreshold),
+      photoPath: Value(photoPath),
+      lastSyncWarning: Value(duplicateWarning),
       deletedAt: const Value(null),
     );
   }
@@ -34,6 +39,11 @@ extension CustomerRowToDomain on CustomerRow {
       address: address,
       notes: notes,
       outstandingBalance: outstandingBalance,
+      creditLimit: creditLimit,
+      purchaseCount: purchaseCount,
+      loyaltyThreshold: loyaltyThreshold,
+      photoPath: photoPath,
+      duplicateWarning: lastSyncWarning,
       createdAt: createdAt,
       updatedAt: updatedAt,
       deletedAt: deletedAt,

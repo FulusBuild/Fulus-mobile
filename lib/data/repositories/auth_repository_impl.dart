@@ -1,28 +1,39 @@
 import 'package:drift/drift.dart';
+import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
+import '../../core/security/password_hasher.dart';
+import '../../core/security/password_policy.dart';
 import '../../domain/entities/auth_user.dart';
+import '../../domain/repositories/audit_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
-import '../local/secure_storage/secure_storage.dart';
-import '../remote/api_client.dart';
-import '../remote/endpoints/auth_api.dart';
 
+/// Architecture Section 6's login flow, entirely local now — Architecture
+/// Redesign: no ApiClient, no AuthApi, no SecureStorage-held refresh
+/// token. The Users table (tables.dart) is this device's own source of
+/// truth; Sessions (also tables.dart) just says which Users row is
+/// currently active.
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
-    required AuthApi authApi,
-    required ApiClient apiClient,
-    required SecureStorage secureStorage,
     required AppDatabase db,
-  })  : _authApi = authApi,
-        _apiClient = apiClient,
-        _secureStorage = secureStorage,
-        _db = db;
+    required PasswordHasher passwordHasher,
+    required AuditRepository auditRepository,
+  })  : _db = db,
+        _passwordHasher = passwordHasher,
+        _auditRepository = auditRepository;
 
-  final AuthApi _authApi;
-  final ApiClient _apiClient;
-  final SecureStorage _secureStorage;
   final AppDatabase _db;
+  final PasswordHasher _passwordHasher;
+  final AuditRepository _auditRepository;
+
+  // Mirrors auth_service.py's own module-level constants exactly
+  // (verified directly) — see failure.dart's _AccountLocked doc comment
+  // for why this throttle still matters with no network involved at
+  // all: it defends against someone with physical access to the device
+  // guessing a credential, which has nothing to do with networking.
+  static const _maxFailedLoginAttempts = 5;
+  static const _lockoutDuration = Duration(minutes: 15);
 
   AuthUser? _currentUser;
 
@@ -30,51 +41,95 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthUser? get currentUser => _currentUser;
 
   @override
-  Future<AuthUser?> restoreSession() async {
-    final refreshToken = await _secureStorage.getRefreshToken();
-    if (refreshToken == null) return null;
+  Future<bool> hasAnyOwnerAccount() async {
+    // Specifically an Owner-role row, not just any row — CORRECTED:
+    // currently equivalent to "any row at all" only by accident, since
+    // nothing yet writes an Employee-role row to this same Users table
+    // (that path doesn't exist until a future Sync/Employees stage adds
+    // accepting an invite). The method's own name is a promise about
+    // Owner specifically; checking role explicitly keeps that promise
+    // true regardless of what gets built into this table later, rather
+    // than relying on today's coincidence.
+    //
+    // Filters in Dart after fetching, rather than a WHERE clause on the
+    // enum column itself — this codebase has no existing precedent
+    // anywhere for comparing a textEnum column either in a query
+    // builder or against a returned row, so there's nothing to verify
+    // the exact API against without a working Dart toolchain. The
+    // table will realistically hold a handful of rows at most (local
+    // accounts on one device), so fetching all of them costs nothing
+    // meaningful — favoring the lower-risk, easily-verified approach
+    // over a shorter but unverifiable one.
+    final allUsers = await _db.select(_db.users).get();
+    return allUsers.any((u) => u.role == AuthRole.owner);
+  }
 
-    try {
-      final response = await _authApi.refresh(refreshToken: refreshToken);
-      await _applySuccessfulAuth(response);
-      return _currentUser;
-    } on AuthFailure {
-      // The stored refresh token is genuinely no longer valid (expired,
-      // or the user was deactivated server-side per
-      // auth_service.refresh_access_token) — cleared so a later launch
-      // doesn't keep retrying a token that will never work. The cached
-      // Sessions row is cleared for the same reason: presenting
-      // "logged in as X" from local cache when the account is actually
-      // deactivated/expired would be actively misleading, not just
-      // stale.
-      await _secureStorage.deleteRefreshToken();
+  @override
+  Future<AuthUser?> restoreSession() async {
+    final session =
+        await (_db.select(_db.sessions)..where((s) => s.id.equals('current')))
+            .getSingleOrNull();
+    if (session == null) return null;
+
+    final userRow = await (_db.select(_db.users)
+          ..where((u) => u.localId.equals(session.userId)))
+        .getSingleOrNull();
+
+    // The session points at a user row that's gone or been deactivated
+    // (Volume 9's access-revocation case) — the local equivalent of the
+    // old "the stored refresh token is genuinely no longer valid"
+    // branch. Presenting "signed in as X" from a stale session pointer
+    // when that account can no longer sign in would be actively
+    // misleading, not just stale, so this clears the session rather
+    // than returning it.
+    if (userRow == null || !userRow.isActive) {
       await _clearSession();
       return null;
-    } on Failure {
-      // Anything else (NetworkFailure: no connectivity, or the server
-      // genuinely unreachable right now) says nothing about whether the
-      // refresh token itself is valid — deliberately NOT deleted. No
-      // NEW session is established this launch (no access token exists
-      // to attach to a request right now), but the stored refresh token
-      // survives so ApiClient's own reactive 401-refresh (already built
-      // into the auth interceptor) can succeed with it later, the
-      // moment connectivity actually returns and the sync engine's own
-      // triggers attempt a real request — exactly Phase 0's own exit
-      // criterion (offline create -> restart -> reconnect).
-      //
-      // This is the actual fix for the gap this whole method used to
-      // have: "who's logged in" used to just be null for the entire
-      // launch whenever this branch was hit, even though a perfectly
-      // valid (if not freshly re-confirmed) identity was sitting right
-      // there in the local Sessions table the whole time. Falls back to
-      // it now instead of returning null outright — offline-available
-      // session info, which is the entire reason this table exists
-      // (Section 4 item 4's own framing: "'who's logged in' only lives
-      // in an in-memory field, lost on restart until restoreSession()'s
-      // network call resolves" — it no longer has to wait for that).
-      _currentUser = await _readCachedSession();
-      return _currentUser;
     }
+
+    _currentUser = _toAuthUser(userRow);
+    return _currentUser;
+  }
+
+  @override
+  Future<AuthUser> createFirstOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async {
+    if (await hasAnyOwnerAccount()) {
+      // Mirrors the shape of a genuine business-rule rejection
+      // (BusinessRuleFailure, per failure.dart) rather than a generic
+      // exception — this is a deliberate rule, not a defect: this
+      // method exists specifically for the zero-account case.
+      throw const BusinessRuleFailure(
+        'An owner account already exists on this device.',
+      );
+    }
+
+    final user = await _createLocalUser(
+      username: username,
+      email: email,
+      fullName: fullName,
+      password: password,
+      role: AuthRole.owner,
+    );
+
+    // Collapsed into one step rather than create-then-separately-log-in
+    // — see AuthRepository.createFirstOwner's own doc comment for why.
+    _currentUser = user;
+    await _persistSession(user);
+    // Mirrors the backend's own BOOTSTRAP_ADMIN action name and details
+    // shape exactly (verified directly against routers/auth.py).
+    await _auditRepository.log(
+      action: 'BOOTSTRAP_ADMIN',
+      module: 'AUTH',
+      userId: user.id,
+      recordId: user.id,
+      details: {'created_username': user.username},
+    );
+    return user;
   }
 
   @override
@@ -82,110 +137,304 @@ class AuthRepositoryImpl implements AuthRepository {
     required String username,
     required String password,
   }) async {
-    final response = await _authApi.login(username: username, password: password);
-    await _applySuccessfulAuth(response);
-    return _currentUser!;
+    final userRow = await (_db.select(_db.users)
+          ..where((u) => u.username.equals(username)))
+        .getSingleOrNull();
+
+    // Deliberately the same generic message whether the username
+    // doesn't exist at all or the password is wrong for one that does —
+    // mirrors auth_service.py's authenticate_user exactly (verified
+    // directly: it raises the identical AuthenticationError either way),
+    // so a local account-enumeration attempt learns nothing from the
+    // difference.
+    if (userRow == null) {
+      await _auditRepository.log(
+        action: 'LOGIN_FAILED',
+        module: 'AUTH',
+        details: {'username': username},
+      );
+      throw const AuthFailure.invalidCredentials();
+    }
+
+    if (userRow.lockedUntil != null && userRow.lockedUntil!.isAfter(DateTime.now())) {
+      await _auditRepository.log(
+        action: 'LOGIN_BLOCKED_LOCKOUT',
+        module: 'AUTH',
+        details: {'username': username},
+      );
+      throw AuthFailure.accountLocked(lockedUntil: userRow.lockedUntil!);
+    }
+
+    final passwordMatches = await _passwordHasher.verify(
+      password,
+      expectedHash: userRow.hashedPassword,
+      salt: userRow.passwordSalt,
+    );
+
+    if (!passwordMatches) {
+      final failedAttempts = userRow.failedLoginAttempts + 1;
+      final lockingNow = failedAttempts >= _maxFailedLoginAttempts;
+      await (_db.update(_db.users)..where((u) => u.localId.equals(userRow.localId)))
+          .write(
+        UsersCompanion(
+          failedLoginAttempts: Value(failedAttempts),
+          lockedUntil: lockingNow
+              ? Value(DateTime.now().add(_lockoutDuration))
+              : const Value.absent(),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      await _auditRepository.log(
+        action: 'LOGIN_FAILED',
+        module: 'AUTH',
+        details: {'username': username},
+      );
+      throw const AuthFailure.invalidCredentials();
+    }
+
+    // BUG FIX (self-audit pass, after Stage 4): this check was missing
+    // entirely — auth_service.py's authenticate_user checks is_active
+    // here, in this exact position (after the password matches, before
+    // resetting the failure counter), verified by re-reading the source
+    // a second time specifically to check this. Without it, a
+    // deactivated account (Volume 9's access-revocation flow) could
+    // still log in successfully as long as the password was still
+    // correct.
+    if (!userRow.isActive) {
+      await _auditRepository.log(
+        action: 'LOGIN_FAILED',
+        module: 'AUTH',
+        details: {'username': username},
+      );
+      throw const AuthFailure.accountDeactivated();
+    }
+
+    // Successful login resets the failed-attempt counter — mirrors
+    // auth_service.py's authenticate_user exactly (verified directly:
+    // it zeroes failed_login_attempts on success, not just on an
+    // explicit unlock).
+    if (userRow.failedLoginAttempts != 0) {
+      await (_db.update(_db.users)..where((u) => u.localId.equals(userRow.localId)))
+          .write(
+        UsersCompanion(
+          failedLoginAttempts: const Value(0),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    }
+
+    final user = _toAuthUser(userRow);
+    _currentUser = user;
+    await _persistSession(user);
+    await _auditRepository.log(action: 'LOGIN', module: 'AUTH', userId: user.id);
+    return user;
+  }
+
+  @override
+  Future<AuthUser> createAdditionalOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async {
+    // The local check IS the real enforcement now — see
+    // AuthFailure.forbidden's doc comment in failure.dart.
+    if (_currentUser?.role != AuthRole.owner) {
+      throw const AuthFailure.forbidden();
+    }
+
+    // Deliberately does NOT touch _currentUser or the Sessions table —
+    // unlike createFirstOwner, there is already a signed-in owner, and
+    // creating a co-owner's account (Volume 9, Decision 33) doesn't sign
+    // the acting owner out or sign the new account in. The new owner
+    // logs in separately, the normal way, whenever they actually pick up
+    // the device.
+    final newOwner = await _createLocalUser(
+      username: username,
+      email: email,
+      fullName: fullName,
+      password: password,
+      role: AuthRole.owner,
+    );
+    // Mirrors the backend's own admin-creates-user CREATE action and
+    // details shape exactly (verified directly) — userId is the ACTING
+    // owner (matches the backend's user_id=admin.id), recordId is the
+    // newly created account.
+    await _auditRepository.log(
+      action: 'CREATE',
+      module: 'AUTH',
+      userId: _currentUser!.id,
+      recordId: newOwner.id,
+      details: {'created_username': newOwner.username},
+    );
+    return newOwner;
+  }
+
+  @override
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String username,
+    required String email,
+    required String password,
+  }) async {
+    // Same enforcement as createAdditionalOwner — only an Owner can
+    // provision a login for someone else.
+    if (_currentUser?.role != AuthRole.owner) {
+      throw const AuthFailure.forbidden();
+    }
+
+    final employeeRow = await (_db.select(_db.employees)
+          ..where((e) => e.id.equals(employeeId) & e.deletedAt.isNull()))
+        .getSingleOrNull();
+    if (employeeRow == null) {
+      throw const BusinessRuleFailure(
+        'No such employee on this device\'s roster.',
+      );
+    }
+    if (employeeRow.authUserId != null) {
+      throw const BusinessRuleFailure(
+        'This employee already has a login account.',
+      );
+    }
+
+    // Reuses the exact same creation path createFirstOwner/
+    // createAdditionalOwner use — same password-policy check, same
+    // username/email uniqueness check, same hashing — just with
+    // AuthRole.employee instead of AuthRole.owner, and the new
+    // account's display name taken from the roster entry already on
+    // file rather than re-collected here.
+    final newAccount = await _createLocalUser(
+      username: username,
+      email: email,
+      fullName: employeeRow.fullName,
+      password: password,
+      role: AuthRole.employee,
+    );
+
+    await (_db.update(_db.employees)..where((e) => e.id.equals(employeeId)))
+        .write(
+      EmployeesCompanion(
+        authUserId: Value(newAccount.id),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+
+    // Same CREATE/AUTH shape as createAdditionalOwner's own audit entry,
+    // plus which roster row this account now maps to.
+    await _auditRepository.log(
+      action: 'CREATE',
+      module: 'AUTH',
+      userId: _currentUser!.id,
+      recordId: newAccount.id,
+      details: {
+        'created_username': newAccount.username,
+        'linked_employee_id': employeeId,
+      },
+    );
+    return newAccount;
   }
 
   @override
   Future<void> logout() async {
-    try {
-      await _authApi.logout();
-    } catch (_) {
-      // Best-effort only — see AuthRepository.logout's own doc comment
-      // on why a failed audit-log call must never block the local
-      // logout from completing.
-    }
-    _apiClient.setAccessToken(null);
-    await _secureStorage.deleteRefreshToken();
+    final signedOutUserId = _currentUser?.id;
     await _clearSession();
     _currentUser = null;
+    // Was also a best-effort call to the backend's own audit-log
+    // endpoint (POST /api/auth/logout existed purely to record this);
+    // now a direct local write, no network round-trip needed for it to
+    // still happen reliably.
+    await _auditRepository.log(action: 'LOGOUT', module: 'AUTH', userId: signedOutUserId);
   }
 
-  Future<void> _applySuccessfulAuth(TokenResponseDto response) async {
-    _apiClient.setAccessToken(response.accessToken);
-    // Refresh token ROTATION (verified directly: auth_service.py's
-    // refresh_access_token issues a brand-new one on every call, not a
-    // reused one) — always re-stored here, on both login and refresh,
-    // never assumed unchanged.
-    await _secureStorage.setRefreshToken(response.refreshToken);
-    _currentUser = response.user.toDomain();
-    await _persistSession(_currentUser!);
+  /// Shared by createFirstOwner and createAdditionalOwner — mirrors
+  /// auth_service.py's create_user exactly (verified directly):
+  /// password-strength check, then username/email uniqueness, in that
+  /// order, both as the same DuplicateError-equivalent
+  /// (BusinessRuleFailure here, matching how ApiClient.mapError bucketed
+  /// a 409 — verified directly, not assumed).
+  Future<AuthUser> _createLocalUser({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+    required AuthRole role,
+  }) async {
+    // Throws ValidationFailure itself if this doesn't pass.
+    PasswordPolicy.validate(password);
+
+    final usernameTaken = await (_db.select(_db.users)
+          ..where((u) => u.username.equals(username)))
+        .getSingleOrNull();
+    if (usernameTaken != null) {
+      throw const BusinessRuleFailure('Username already taken.');
+    }
+
+    final emailTaken =
+        await (_db.select(_db.users)..where((u) => u.email.equals(email)))
+            .getSingleOrNull();
+    if (emailTaken != null) {
+      throw const BusinessRuleFailure('Email already registered.');
+    }
+
+    final passwordHash = await _passwordHasher.hash(password);
+    final localId = Ulid().toString();
+    final now = DateTime.now();
+
+    await _db.into(_db.users).insert(
+          UsersCompanion.insert(
+            localId: localId,
+            username: username,
+            email: email,
+            fullName: fullName,
+            hashedPassword: passwordHash.hash,
+            passwordSalt: passwordHash.salt,
+            role: role,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    return AuthUser(
+      id: localId,
+      username: username,
+      email: email,
+      fullName: fullName,
+      role: role,
+      isActive: true,
+    );
   }
 
-  /// Writes the signed-in user to the local Sessions table — called on
-  /// every successful login and every successful silent refresh, so the
-  /// cached copy restoreSession() falls back to on a later offline
-  /// launch is never staler than the last time this device actually
-  /// talked to the server.
+  /// Writes the signed-in user as this device's active session — called
+  /// on every successful createFirstOwner and login. A fixed 'current'
+  /// id (matching Sessions' own singleton design, tables.dart), deleted
+  /// and re-inserted unconditionally rather than upserted — enforcing
+  /// "at most one active session" for the same edge case as before this
+  /// redesign: a different user signing in without an intervening clean
+  /// logout (app force-closed, etc).
   ///
-  /// Deletes every existing row first, unconditionally, then inserts the
-  /// fresh one — enforcing "one phone, one signed-in user at a time"
-  /// (this table's own doc comment) even for the edge case that actually
-  /// matters: a different user signing in without an intervening clean
-  /// logout (app force-closed, secure storage cleared by the OS, etc.).
-  /// A more surgical "delete every OTHER user's row, upsert this one"
-  /// would also preserve activeLocationId across a routine same-user
-  /// token refresh — a real advantage, but one bought by relying on a
-  /// negated-equality query (`.not()` on an Expression<bool>) with no
-  /// precedent anywhere else in this codebase to check the exact API
-  /// against, and no working Dart toolchain here to confirm it compiles.
-  /// Not worth that risk for a column nothing reads or writes yet
-  /// anyway — no location-switcher UI exists (Phase 2). Worth
-  /// revisiting when that UI actually gets built, since at that point
-  /// resetting activeLocationId on every silent refresh would start
-  /// being a real, user-visible cost rather than a theoretical one.
+  /// activeLocationId is deliberately left unset (defaults to null) on
+  /// every call, same as the previous implementation chose to accept for
+  /// the equivalent case — no location-switcher UI exists yet to make
+  /// preserving it across a re-login actually matter (Phase 2).
   Future<void> _persistSession(AuthUser user) async {
     await _db.transaction(() async {
-      await _db.delete(_db.sessions).go();
+      await (_db.delete(_db.sessions)..where((s) => s.id.equals('current'))).go();
       await _db.into(_db.sessions).insert(
-            SessionsCompanion.insert(
-              userId: user.id,
-              username: user.username,
-              email: user.email,
-              fullName: user.fullName,
-              backendRole: user.role,
-              isActive: user.isActive,
-              lastSyncedAt: Value(DateTime.now()),
-            ),
+            SessionsCompanion.insert(id: 'current', userId: user.id),
           );
     });
   }
 
-  /// Full clear — called on logout and on a genuinely-invalid refresh
-  /// token (AuthFailure in restoreSession above). Functionally the same
-  /// unconditional delete _persistSession also does before writing a
-  /// fresh row — kept as its own named method rather than reused
-  /// directly, since the two call sites mean different things
-  /// ("no one should appear signed in on this device at all" here,
-  /// vs. "about to write the one row that should exist" there), even
-  /// though the SQL is identical today.
   Future<void> _clearSession() async {
-    await _db.delete(_db.sessions).go();
+    await (_db.delete(_db.sessions)..where((s) => s.id.equals('current'))).go();
   }
 
-  /// Reconstructs the signed-in user from the local Sessions table with
-  /// no network involved at all — restoreSession's fallback when the
-  /// server is unreachable but a previously-confirmed session is cached.
-  /// getSingleOrNull() (not getSingle(), not just taking the first row of
-  /// a list) is deliberate: this table is supposed to hold at most one
-  /// row (its own "one phone, one signed-in user at a time" doc
-  /// comment), which _persistSession's unconditional delete-then-insert
-  /// enforces on every write — if this ever throws instead, that
-  /// invariant was violated by something bypassing _persistSession
-  /// entirely (a raw write elsewhere, a concurrent write racing outside
-  /// its transaction), and throwing loudly here is more honest than
-  /// silently picking one of several rows and hiding that.
-  Future<AuthUser?> _readCachedSession() async {
-    final row = await _db.select(_db.sessions).getSingleOrNull();
-    if (row == null) return null;
-    return AuthUser(
-      id: row.userId,
-      username: row.username,
-      email: row.email,
-      fullName: row.fullName,
-      role: row.backendRole,
-      isActive: row.isActive,
-    );
-  }
+  AuthUser _toAuthUser(UserRow row) => AuthUser(
+        id: row.localId,
+        username: row.username,
+        email: row.email,
+        fullName: row.fullName,
+        role: row.role,
+        isActive: row.isActive,
+      );
 }

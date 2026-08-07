@@ -62,6 +62,7 @@ void main() {
         name: customer.name,
         phone: customer.phone,
         outstandingBalance: 0,
+        purchaseCount: 0,
         createdAt: customer.createdAt,
         updatedAt: customer.updatedAt,
       ),

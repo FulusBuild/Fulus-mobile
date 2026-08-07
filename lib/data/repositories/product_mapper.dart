@@ -4,6 +4,63 @@ import '../../domain/entities/product.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 
+/// Domain -> Drift, for the local-write-first create in
+/// ProductRepositoryImpl.createProduct — same shape as
+/// CategoryToCompanion/SupplierToCompanion (syncStatus always `pending`
+/// here; only ever used at creation time).
+extension ProductToCompanion on Product {
+  ProductsCompanion toDriftCompanion() {
+    return ProductsCompanion.insert(
+      localId: localId,
+      name: name,
+      sku: sku,
+      costPrice: costPrice,
+      sellingPrice: sellingPrice,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      syncStatus: SyncStatus.pending,
+      serverId: Value(serverId),
+      barcode: Value(barcode),
+      categoryId: Value(categoryId),
+      supplierId: Value(supplierId),
+      lowStockThreshold: Value(lowStockThreshold),
+      isActive: Value(isActive),
+      deletedAt: const Value(null),
+    );
+  }
+
+  ProductCreateDto toCreateDto({required int initialStock}) {
+    return ProductCreateDto(
+      name: name,
+      sku: sku,
+      barcode: barcode,
+      categoryId: categoryId,
+      supplierId: supplierId,
+      costPrice: costPrice,
+      sellingPrice: sellingPrice,
+      lowStockThreshold: lowStockThreshold,
+      initialStock: initialStock,
+    );
+  }
+
+  /// Every field, not just whatever changed in the most recent local
+  /// edit — see SyncTask.updateProduct's own doc comment for why that's
+  /// the correct thing to send, not a simplification of it.
+  ProductUpdateDto toUpdateDto() {
+    return ProductUpdateDto(
+      name: name,
+      sku: sku,
+      barcode: barcode,
+      categoryId: categoryId,
+      supplierId: supplierId,
+      costPrice: costPrice,
+      sellingPrice: sellingPrice,
+      lowStockThreshold: lowStockThreshold,
+      isActive: isActive,
+    );
+  }
+}
+
 extension ProductRowToDomain on ProductRow {
   Product toDomain() {
     return Product(
@@ -18,6 +75,9 @@ extension ProductRowToDomain on ProductRow {
       sellingPrice: sellingPrice,
       lowStockThreshold: lowStockThreshold,
       isActive: isActive,
+      tracksStock: tracksStock,
+      unit: unit,
+      photoPath: photoPath,
       createdAt: createdAt,
       updatedAt: updatedAt,
       deletedAt: deletedAt,

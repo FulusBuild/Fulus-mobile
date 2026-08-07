@@ -41,6 +41,7 @@ void main() {
     int priority = 0,
     required DateTime enqueuedAt,
     int syncAttempts = 0,
+    DateTime? lastAttemptedAt,
   }) async {
     await db.into(db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
@@ -51,6 +52,7 @@ void main() {
             priority: priority,
             enqueuedAt: enqueuedAt,
             syncAttempts: Value(syncAttempts),
+            lastAttemptedAt: Value(lastAttemptedAt),
           ),
         );
   }
@@ -227,5 +229,108 @@ void main() {
     expect(remaining, hasLength(1));
     expect(remaining.single.entityLocalId, 'orphan');
     expect(remaining.single.lastError, contains('No sync handler registered'));
+  });
+
+  group('retry backoff', () {
+    test('an item that failed moments ago is skipped on an automatic run', () async {
+      final now = DateTime.now();
+      await seedItem(
+        id: 'q1',
+        entityLocalId: 'still-backing-off',
+        enqueuedAt: now,
+        syncAttempts: 1,
+        lastAttemptedAt: now.subtract(const Duration(seconds: 5)),
+      );
+
+      final handler = _ScriptedHandler((_) async {});
+      final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+      await engine.runOnce();
+
+      expect(handler.attemptedIds, isEmpty);
+    });
+
+    test('the same item is attempted anyway on a manual run', () async {
+      final now = DateTime.now();
+      await seedItem(
+        id: 'q1',
+        entityLocalId: 'still-backing-off',
+        enqueuedAt: now,
+        syncAttempts: 1,
+        lastAttemptedAt: now.subtract(const Duration(seconds: 5)),
+      );
+
+      final handler = _ScriptedHandler((_) async {});
+      final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+      await engine.runOnce(manual: true);
+
+      expect(handler.attemptedIds, ['still-backing-off']);
+    });
+
+    test('an item whose backoff window has fully elapsed is retried automatically', () async {
+      final now = DateTime.now();
+      await seedItem(
+        id: 'q1',
+        entityLocalId: 'ready-again',
+        enqueuedAt: now,
+        syncAttempts: 1,
+        // Default RetryPolicy's backoff after 1 attempt is 60s (30s
+        // base, doubled once) — an hour is comfortably past it.
+        lastAttemptedAt: now.subtract(const Duration(hours: 1)),
+      );
+
+      final handler = _ScriptedHandler((_) async {});
+      final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+      await engine.runOnce();
+
+      expect(handler.attemptedIds, ['ready-again']);
+    });
+
+    test('an item that has never been attempted is never held back by backoff', () async {
+      await seedItem(
+        id: 'q1',
+        entityLocalId: 'brand-new',
+        enqueuedAt: DateTime.now(),
+        // syncAttempts: 0, lastAttemptedAt: null — the defaults.
+      );
+
+      final handler = _ScriptedHandler((_) async {});
+      final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+      await engine.runOnce();
+
+      expect(handler.attemptedIds, ['brand-new']);
+    });
+  });
+
+  group('conflict detection', () {
+    test('a BusinessRuleFailure that reads like a conflict is annotated', () async {
+      await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
+      final handler = _ScriptedHandler((_) async {
+        throw const BusinessRuleFailure("SKU 'RICE-5KG' already exists.");
+      });
+      final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+      await engine.runOnce();
+
+      final remaining = await allQueueItems();
+      expect(remaining.single.lastError, startsWith('[CONFLICT]'));
+      expect(remaining.single.lastError, contains('already exists'));
+    });
+
+    test('an ordinary BusinessRuleFailure is left exactly as the handler reported it', () async {
+      await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
+      final handler = _ScriptedHandler((_) async {
+        throw const BusinessRuleFailure('Insufficient stock.');
+      });
+      final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+      await engine.runOnce();
+
+      final remaining = await allQueueItems();
+      expect(remaining.single.lastError, 'Insufficient stock.');
+    });
   });
 }

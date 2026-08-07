@@ -3,12 +3,15 @@ import 'package:fulus_mobile/data/remote/endpoints/auth_api.dart';
 import 'package:fulus_mobile/data/repositories/approval_pin_repository_impl.dart';
 import 'package:fulus_mobile/data/local/secure_storage/secure_storage.dart';
 import 'package:fulus_mobile/domain/entities/approval_hash.dart';
+import 'package:fulus_mobile/domain/repositories/audit_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
 
 class MockSecureStorage extends Mock implements SecureStorage {}
+
+class MockAuditRepository extends Mock implements AuditRepository {}
 
 /// Deterministic, pure-Dart fake — never used for anything resembling
 /// real security. Lets these tests verify the repository's own
@@ -35,6 +38,7 @@ class _FakePinHasher implements PinHasher {
 void main() {
   late MockAuthApi authApi;
   late MockSecureStorage secureStorage;
+  late MockAuditRepository auditRepository;
   late ApprovalPinRepositoryImpl repository;
 
   setUpAll(() {
@@ -44,10 +48,12 @@ void main() {
   setUp(() {
     authApi = MockAuthApi();
     secureStorage = MockSecureStorage();
+    auditRepository = MockAuditRepository();
     repository = ApprovalPinRepositoryImpl(
       authApi: authApi,
       secureStorage: secureStorage,
       pinHasher: _FakePinHasher(),
+      auditRepository: auditRepository,
     );
 
     when(() => authApi.setApprovalPin(
@@ -56,19 +62,20 @@ void main() {
         )).thenAnswer((_) async {});
     when(() => secureStorage.setApprovalPinVerifiers(any()))
         .thenAnswer((_) async {});
+    when(() => auditRepository.log(
+          userId: any(named: 'userId'),
+          action: any(named: 'action'),
+          module: any(named: 'module'),
+        )).thenAnswer((_) async {});
   });
 
   group('setOwnApprovalPin', () {
-    test('pushes the hash to the backend and stores it locally', () async {
+    test('stores the hash locally, records SET_APPROVAL_PIN, and pushes to the backend',
+        () async {
       when(() => secureStorage.getApprovalPinVerifiers())
           .thenAnswer((_) async => []);
 
       await repository.setOwnApprovalPin(userId: 'user-1', pin: '1234');
-
-      verify(() => authApi.setApprovalPin(
-            pinHash: 'fake-hash:1234',
-            pinSalt: 'fake-salt:1234',
-          )).called(1);
 
       final captured = verify(
         () => secureStorage.setApprovalPinVerifiers(captureAny()),
@@ -77,6 +84,49 @@ void main() {
       expect(stored, hasLength(1));
       expect(stored.single.userId, 'user-1');
       expect(stored.single.hash, 'fake-hash:1234');
+
+      verify(() => auditRepository.log(
+            action: 'SET_APPROVAL_PIN',
+            module: 'AUTH',
+            userId: 'user-1',
+          )).called(1);
+
+      // The backend push is fire-and-forget (unawaited) — untilCalled
+      // waits for it to actually happen rather than asserting
+      // immediately, which would be racing an intentionally
+      // non-blocking call.
+      await untilCalled(() => authApi.setApprovalPin(
+            pinHash: any(named: 'pinHash'),
+            pinSalt: any(named: 'pinSalt'),
+          ));
+      verify(() => authApi.setApprovalPin(
+            pinHash: 'fake-hash:1234',
+            pinSalt: 'fake-salt:1234',
+          )).called(1);
+    });
+
+    test(
+        'CORRECTED regression test: completes and stores locally even when the '
+        'backend push fails — this is the exact offline bug the Architecture '
+        'Redesign audit pass found and fixed. Setting your own approval PIN is '
+        'entirely this device\'s own business and must not require connectivity.',
+        () async {
+      when(() => authApi.setApprovalPin(
+            pinHash: any(named: 'pinHash'),
+            pinSalt: any(named: 'pinSalt'),
+          )).thenThrow(Exception('no connection'));
+      when(() => secureStorage.getApprovalPinVerifiers())
+          .thenAnswer((_) async => []);
+
+      // Must complete normally — NOT throw — even though the backend
+      // call above is stubbed to fail.
+      await repository.setOwnApprovalPin(userId: 'user-1', pin: '1234');
+
+      final captured = verify(
+        () => secureStorage.setApprovalPinVerifiers(captureAny()),
+      ).captured;
+      final stored = captured.single as List<ApprovalPinVerifier>;
+      expect(stored.single.userId, 'user-1');
     });
 
     test('replaces an existing entry for the same user rather than duplicating',

@@ -11,10 +11,18 @@ import '../api_client.dart';
 /// GET /api/auth/approval-hashes' same "reference data every device
 /// needs" reasoning.
 ///
-/// No corresponding write method here: PUT /api/settings/business-profile
-/// exists on the backend (admin-only) but BusinessSettingsRepository has
-/// no create/update method to call it from — desktop-managed, per that
-/// interface's own doc comment, the same as Location.
+/// STALE COMMENT CORRECTED (Architecture Redesign, Stage 4): this used to
+/// say there's no write method here because "BusinessSettingsRepository
+/// has no create/update method to call it from" — true when written,
+/// false since Stage 4 added createBusiness/updateSettings to close a
+/// real offline-onboarding gap. Still no write method here, though, and
+/// deliberately so now rather than by omission: those two methods are
+/// local-only (no push to a remote Host at all yet) — there's no
+/// PUT-equivalent call in this class to push to even if they wanted to.
+/// Pushing local settings changes to a Host (mirroring the best-effort
+/// pattern ApprovalPinRepositoryImpl.setOwnApprovalPin uses) is a real,
+/// still-open Sync-layer capability, not something this self-audit pass
+/// is claiming to have finished.
 class BusinessSettingsApi {
   BusinessSettingsApi(this._client);
 

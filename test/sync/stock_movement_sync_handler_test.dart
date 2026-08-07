@@ -59,7 +59,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     stockMovementsApi = MockStockMovementsApi();
     stockMovementRepository = StockMovementRepositoryImpl(db: db, syncQueue: SyncQueue(db));
-    productRepository = ProductRepositoryImpl(db: db, productsApi: MockProductsApi());
+    productRepository = ProductRepositoryImpl(db: db, productsApi: MockProductsApi(), syncQueue: SyncQueue(db));
     handler = StockMovementSyncHandler(
       db: db,
       stockMovementsApi: stockMovementsApi,

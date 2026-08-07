@@ -16,6 +16,11 @@ class Customer {
     this.address,
     this.notes,
     required this.outstandingBalance,
+    this.creditLimit,
+    required this.purchaseCount,
+    this.loyaltyThreshold,
+    this.photoPath,
+    this.duplicateWarning,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -29,6 +34,38 @@ class Customer {
   final String? address;
   final String? notes;
   final double outstandingBalance;
+
+  /// **Bible-only** (Product Design Bible Volume 7: "Credit limit —
+  /// No [required] — A guide, not an automatic block — see Decision
+  /// 23"). No backend column — confirmed directly against
+  /// backend/app/models/customer.py, same audit as Product's
+  /// tracksStock. Never enforced as a hard block anywhere this is read.
+  final double? creditLimit;
+
+  /// **Bible-only** (Volume 7 Loyalty section: "a purchase count per
+  /// customer"). No backend column. Incremented locally when a sale
+  /// completes for this customer — genuinely local-only, same status as
+  /// [CustomerLedgerEntry]'s `creditSale` rows: an honest local echo of
+  /// something the backend doesn't track server-side at all today, not
+  /// a value with anywhere to sync.
+  final int purchaseCount;
+
+  /// **Bible-only** (Volume 7: "an optional owner-set threshold, e.g.
+  /// every 10th purchase"). `null` means loyalty is off, not zero.
+  final int? loyaltyThreshold;
+
+  /// **Bible-only** (Volume 7: "Photo — No [required] — Helps a cashier
+  /// recognize regulars visually"). Same local-file-path, no-backend-
+  /// column status as Product.photoPath.
+  final String? photoPath;
+
+  /// Backed by the `lastSyncWarning` column (tables.dart) — set once by
+  /// markSynced if a create response carried `duplicate_warning`, read
+  /// back here on every later load of this row. See that column's own
+  /// doc comment for the full trail: persisted and queryable, but
+  /// nothing in this pass builds a UI that actually surfaces it.
+  final String? duplicateWarning;
+
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -68,6 +105,9 @@ class CustomerDraft {
     this.email,
     this.address,
     this.notes,
+    this.creditLimit,
+    this.loyaltyThreshold,
+    this.photoPath,
   });
 
   final String name;
@@ -75,6 +115,9 @@ class CustomerDraft {
   final String? email;
   final String? address;
   final String? notes;
+  final double? creditLimit;
+  final int? loyaltyThreshold;
+  final String? photoPath;
 
   Customer toCustomerEntity({required String localId}) {
     final now = DateTime.now();
@@ -86,6 +129,10 @@ class CustomerDraft {
       address: address,
       notes: notes,
       outstandingBalance: 0,
+      creditLimit: creditLimit,
+      purchaseCount: 0,
+      loyaltyThreshold: loyaltyThreshold,
+      photoPath: photoPath,
       createdAt: now,
       updatedAt: now,
     );
@@ -117,13 +164,16 @@ class CustomerCreateDto {
   Map<String, dynamic> toJson() => _$CustomerCreateDtoToJson(this);
 }
 
-/// POST /api/customers's response — mirrors CustomerOut exactly.
-/// duplicate_warning is deliberately NOT modeled here: it's a one-time,
-/// creation-response-only signal with no local storage or reconciliation
-/// role (verified directly: CustomerOut's own docstring confirms it's
-/// never populated on any other response), and this checkpoint has no
-/// UI yet to surface it to a cashier — a real, honest gap for whoever
-/// builds that screen, not something to silently drop without noting.
+/// POST /api/customers's response — mirrors CustomerOut exactly,
+/// including `duplicate_warning` (verified directly against
+/// backend/app/schemas/customer.py: `duplicate_warning: str | None =
+/// None`, populated by customer_service.create_customer when the new
+/// customer's phone or email matched an existing active customer —
+/// creates it anyway, just flags it). Wired through to
+/// CustomerSyncHandler → CustomerRepositoryImpl.markSynced below, which
+/// is as far as the data layer can take it — nothing in this pass
+/// builds a UI to actually show a cashier this warning; that's a real,
+/// separate, still-open task, not something this fix silently finishes.
 @JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class CustomerResponseDto {
   const CustomerResponseDto({
@@ -134,6 +184,7 @@ class CustomerResponseDto {
     this.address,
     this.notes,
     required this.outstandingBalance,
+    this.duplicateWarning,
   });
 
   final String id;
@@ -143,6 +194,7 @@ class CustomerResponseDto {
   final String? address;
   final String? notes;
   final double outstandingBalance;
+  final String? duplicateWarning;
 
   factory CustomerResponseDto.fromJson(Map<String, dynamic> json) =>
       _$CustomerResponseDtoFromJson(json);

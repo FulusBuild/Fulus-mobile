@@ -3,6 +3,7 @@ import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/sale.dart';
 import '../../domain/entities/sale_draft.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
@@ -13,16 +14,35 @@ class SaleRepositoryImpl implements SaleRepository {
   SaleRepositoryImpl({
     required AppDatabase db,
     required SyncQueue syncQueue,
+    required AuthRepository authRepository,
   })  : _db = db,
-        _syncQueue = syncQueue;
+        _syncQueue = syncQueue,
+        _authRepository = authRepository;
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
+  final AuthRepository _authRepository;
 
   @override
   Future<Sale> createSale(SaleDraft draft) async {
     final localId = Ulid().toString();
-    final sale = draft.toSaleEntity(localId: localId, clientReference: localId);
+    // Best-effort, not required — a sale created with nobody signed in
+    // (shouldn't normally happen once a real login screen gates the
+    // app, but nothing today enforces that) simply has no cashier
+    // attributed, same as a sale made before this column existed. See
+    // Sale.cashierUserId's own doc comment.
+    final sale = draft.toSaleEntity(
+      localId: localId,
+      clientReference: localId,
+      cashierUserId: _authRepository.currentUser?.id,
+    );
+
+    // Volume 5's Quick Sale — checked directly against
+    // backend/app/schemas/sale.py's SaleItemCreate: product_id is
+    // required, no default. A sale containing one of these lines
+    // genuinely cannot sync as currently designed — see
+    // tables.dart's SaleItems.productLocalId doc comment.
+    final hasQuickSaleItem = sale.items.any((item) => item.productLocalId == null);
 
     // 1. Write locally FIRST, synchronously, inside one transaction —
     //    this is what makes the sale exist and be usable (cart cleared,
@@ -36,13 +56,32 @@ class SaleRepositoryImpl implements SaleRepository {
             .into(_db.saleItems)
             .insert(item.toDriftCompanion(saleLocalId: localId));
       }
+      for (final payment in draft.payments) {
+        await _db
+            .into(_db.salePayments)
+            .insert(payment.toDriftCompanion(saleLocalId: localId));
+      }
       await _decrementLocalStock(sale.items, locationId: draft.locationId);
+
+      if (hasQuickSaleItem) {
+        // Marked attentionNeeded directly, at creation — not enqueued.
+        // Enqueueing a sync task for a sale that can never succeed
+        // against this backend would just retry forever; attentionNeeded
+        // is this schema's existing convention for "needs a human/
+        // future fix," not something invented for this case.
+        await (_db.update(_db.sales)..where((s) => s.localId.equals(localId)))
+            .write(const SalesCompanion(syncStatus: Value(SyncStatus.attentionNeeded)));
+      }
     });
 
-    // 2. Enqueue for sync. Does NOT await a network call — hands off to
-    //    the sync queue and returns immediately (Architecture Section 4's
-    //    single most important structural rule for this layer).
-    await _syncQueue.enqueue(SyncTask.createSale(localId));
+    // 2. Enqueue for sync — skipped entirely for a sale that can never
+    //    sync (see above). Does NOT await a network call otherwise —
+    //    hands off to the sync queue and returns immediately
+    //    (Architecture Section 4's single most important structural
+    //    rule for this layer).
+    if (!hasQuickSaleItem) {
+      await _syncQueue.enqueue(SyncTask.createSale(localId));
+    }
 
     return sale;
   }
@@ -141,10 +180,16 @@ class SaleRepositoryImpl implements SaleRepository {
     required String locationId,
   }) async {
     for (final item in items) {
+      // Quick Sale line (Volume 5) — no product to decrement stock for
+      // at all. New in this pass; this loop predates Quick Sale and
+      // wasn't written to expect a null productLocalId.
+      final productLocalId = item.productLocalId;
+      if (productLocalId == null) continue;
+
       final stockRow = await (_db.select(_db.productStockLevels)
             ..where(
               (s) =>
-                  s.productLocalId.equals(item.productLocalId) &
+                  s.productLocalId.equals(productLocalId) &
                   s.locationLocalId.equals(locationId),
             ))
           .getSingleOrNull();
@@ -161,7 +206,7 @@ class SaleRepositoryImpl implements SaleRepository {
       await (_db.update(_db.productStockLevels)
             ..where(
               (s) =>
-                  s.productLocalId.equals(item.productLocalId) &
+                  s.productLocalId.equals(productLocalId) &
                   s.locationLocalId.equals(locationId),
             ))
           .write(

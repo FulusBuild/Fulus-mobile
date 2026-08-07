@@ -2,10 +2,12 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'business_settings.g.dart';
 
-/// Mirrors the BusinessSettings table exactly — a local mirror of the
-/// backend's singleton BusinessProfile (verified directly against
-/// backend/app/models/settings.py), read-only from mobile's side, the
-/// same desktop-managed reasoning as Location/Product.
+/// Mirrors the BusinessSettings table exactly — this device's own
+/// source of truth since Stage 4 (Architecture Redesign), not merely a
+/// read-only mirror of the backend's singleton BusinessProfile anymore
+/// (STALE COMMENT CORRECTED: previously said "read-only from mobile's
+/// side, the same desktop-managed reasoning as Location/Product" — true
+/// before Stage 4 added createBusiness/updateSettings, not after).
 ///
 /// Named BusinessProfile, not BusinessSettings — CORRECTED: this class
 /// was originally named BusinessSettings, identically to the Drift TABLE
@@ -55,10 +57,15 @@ class BusinessProfile {
 
 /// Mirrors backend/app/schemas/settings.py's BusinessProfileOut exactly,
 /// verified directly — the response body for
-/// GET /api/settings/business-profile. Deliberately no createToJson,
-/// same one-directional reasoning as LocationResponseDto: this only ever
-/// flows server -> mobile, since BusinessSettingsRepository has no
-/// create/update method for mobile to push anything back through.
+/// GET /api/settings/business-profile. Still no createToJson (this
+/// specific DTO only ever flows server -> mobile, via syncFromServer) —
+/// STALE COMMENT CORRECTED: previously justified that by "
+/// BusinessSettingsRepository has no create/update method for mobile to
+/// push anything back through," which Stage 4 made untrue. The real,
+/// still-accurate reason this DTO specifically has no createToJson is
+/// narrower: createBusiness/updateSettings write locally only — there's
+/// no PUT-equivalent call in BusinessSettingsApi yet for this DTO to
+/// serialize a request body for (see that class's own doc comment).
 @JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class BusinessSettingsResponseDto {
   const BusinessSettingsResponseDto({

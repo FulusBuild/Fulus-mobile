@@ -1,12 +1,57 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// Hand-rolled, not a mocking-library Mock — matches this file's own
+/// "no mocks" approach above; the only member SaleRepositoryImpl
+/// actually reads is [currentUser].
+class _FakeAuthRepository implements AuthRepository {
+  _FakeAuthRepository([this.currentUser]);
+
+  @override
+  final AuthUser? currentUser;
+  @override
+  Future<bool> hasAnyOwnerAccount() async => throw UnimplementedError();
+  @override
+  Future<AuthUser?> restoreSession() async => throw UnimplementedError();
+  @override
+  Future<AuthUser> createFirstOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> login({required String username, required String password}) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createAdditionalOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String username,
+    required String email,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<void> logout() async => throw UnimplementedError();
+}
 
 /// Real, no-mocks tests against an in-memory Drift database
 /// (AppDatabase.forTesting — see database.dart's own comment on why
@@ -27,7 +72,20 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
-    repository = SaleRepositoryImpl(db: db, syncQueue: syncQueue);
+    repository = SaleRepositoryImpl(
+      db: db,
+      syncQueue: syncQueue,
+      authRepository: _FakeAuthRepository(
+        const AuthUser(
+          id: 'user-cashier-1',
+          username: 'cashier1',
+          email: 'cashier1@test.local',
+          fullName: 'Test Cashier',
+          role: AuthRole.employee,
+          isActive: true,
+        ),
+      ),
+    );
 
     final now = DateTime.now();
 
@@ -100,6 +158,15 @@ void main() {
       expect(itemRows, hasLength(1));
       expect(itemRows.single.saleLocalId, result.localId);
       expect(itemRows.single.productLocalId, productId);
+    });
+
+    test('attributes the sale to whoever is signed in', () async {
+      final result = await repository.createSale(draftWithOneItem());
+
+      expect(result.cashierUserId, 'user-cashier-1');
+
+      final salesRows = await db.select(db.sales).get();
+      expect(salesRows.single.cashierUserId, 'user-cashier-1');
     });
 
     test('decrements local stock for the sold product at that location',

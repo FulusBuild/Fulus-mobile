@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
+import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
+import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 import '../remote/endpoints/products_api.dart';
@@ -11,11 +13,14 @@ class ProductRepositoryImpl implements ProductRepository {
   ProductRepositoryImpl({
     required AppDatabase db,
     required ProductsApi productsApi,
+    required SyncQueue syncQueue,
   })  : _db = db,
-        _productsApi = productsApi;
+        _productsApi = productsApi,
+        _syncQueue = syncQueue;
 
   final AppDatabase _db;
   final ProductsApi _productsApi;
+  final SyncQueue _syncQueue;
 
   ProductWithStock _mapRow(TypedResult row) {
     final product = row.readTable(_db.products);
@@ -85,8 +90,65 @@ class ProductRepositoryImpl implements ProductRepository {
     ])
       ..where(_db.products.deletedAt.isNull())
       ..where(_db.products.isActive.equals(true))
+      // Decision 18: "A product with tracking off never appears in Low
+      // Stock or stock reports" — added alongside the column itself
+      // (tables.dart's Products.tracksStock doc comment); this predicate
+      // didn't exist before that column did.
+      ..where(_db.products.tracksStock.equals(true))
       ..where(_db.productStockLevels.currentStock.isSmallerOrEqual(_db.products.lowStockThreshold));
     return query.watch().map((rows) => rows.map(_mapRow).toList());
+  }
+
+  @override
+  Future<ProductWithStock?> getProductByBarcode(
+    String barcode, {
+    required String locationId,
+  }) async {
+    final query = _db.select(_db.products).join([
+      leftOuterJoin(
+        _db.productStockLevels,
+        _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) &
+            _db.productStockLevels.locationLocalId.equals(locationId),
+      ),
+    ])
+      ..where(_db.products.barcode.equals(barcode) & _db.products.deletedAt.isNull());
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _mapRow(row);
+  }
+
+  @override
+  Future<ProductWithStock?> getProductBySku(
+    String sku, {
+    required String locationId,
+  }) async {
+    final query = _db.select(_db.products).join([
+      leftOuterJoin(
+        _db.productStockLevels,
+        _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) &
+            _db.productStockLevels.locationLocalId.equals(locationId),
+      ),
+    ])
+      ..where(_db.products.sku.equals(sku) & _db.products.deletedAt.isNull());
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _mapRow(row);
+  }
+
+  @override
+  Future<Set<String>> getAllSkus() async {
+    final rows = await (_db.selectOnly(_db.products)
+          ..addColumns([_db.products.sku])
+          ..where(_db.products.deletedAt.isNull()))
+        .get();
+    return rows.map((r) => r.read(_db.products.sku)!).toSet();
+  }
+
+  @override
+  Future<Set<String>> getAllBarcodes() async {
+    final rows = await (_db.selectOnly(_db.products)
+          ..addColumns([_db.products.barcode])
+          ..where(_db.products.deletedAt.isNull() & _db.products.barcode.isNotNull()))
+        .get();
+    return rows.map((r) => r.read(_db.products.barcode)!).toSet();
   }
 
   @override
@@ -166,5 +228,102 @@ class ProductRepositoryImpl implements ProductRepository {
             syncStatus: SyncStatus.settled,
           ),
         );
+  }
+
+  @override
+  Future<Product> createProduct(ProductDraft draft) async {
+    final localId = Ulid().toString();
+    final product = draft.toProductEntity(localId: localId);
+
+    await _db.into(_db.products).insert(product.toDriftCompanion());
+
+    // Always seeded, even when initialStock is 0 — a deliberate zero
+    // (this product has none yet) is a different, more useful fact than
+    // no row at all (nobody has ever recorded a count), and this is
+    // exactly the seam SaleRepositoryImpl._decrementLocalStock's own
+    // comment named as undone work. Reuses reconcileStockLevel rather
+    // than duplicating its insertOnConflictUpdate — the product row
+    // above already exists by the time this runs, so its not-found
+    // guard can't fire here.
+    await reconcileStockLevel(
+      productLocalId: localId,
+      locationId: draft.locationId,
+      currentStock: draft.initialStock,
+    );
+
+    await _syncQueue.enqueue(SyncTask.createProduct(localId));
+
+    return product;
+  }
+
+  @override
+  Future<void> updateProduct({
+    required String localId,
+    String? name,
+    String? sku,
+    String? barcode,
+    String? categoryId,
+    String? supplierId,
+    double? costPrice,
+    double? sellingPrice,
+    int? lowStockThreshold,
+    bool? isActive,
+  }) async {
+    // Value.absent() for anything not passed — a genuine partial
+    // update, not a reset, same convention as setLocalOverrides below
+    // and as the backend's own PATCH (exclude_unset=True, verified
+    // directly against inventory_service.update_product).
+    await (_db.update(_db.products)..where((p) => p.localId.equals(localId)))
+        .write(
+      ProductsCompanion(
+        name: name == null ? const Value.absent() : Value(name),
+        sku: sku == null ? const Value.absent() : Value(sku),
+        barcode: barcode == null ? const Value.absent() : Value(barcode),
+        categoryId: categoryId == null ? const Value.absent() : Value(categoryId),
+        supplierId: supplierId == null ? const Value.absent() : Value(supplierId),
+        costPrice: costPrice == null ? const Value.absent() : Value(costPrice),
+        sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice),
+        lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold),
+        isActive: isActive == null ? const Value.absent() : Value(isActive),
+        syncStatus: Value(SyncStatus.pending),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+
+    await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+  }
+
+  @override
+  Future<void> markSynced({required String localId, required String serverId}) async {
+    await (_db.update(_db.products)..where((p) => p.localId.equals(localId)))
+        .write(
+      ProductsCompanion(
+        serverId: Value(serverId),
+        syncStatus: Value(SyncStatus.settled),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setLocalOverrides({
+    required String productLocalId,
+    bool? tracksStock,
+    String? unit,
+    String? photoPath,
+  }) async {
+    // Every field Value.absent() unless explicitly passed — a partial
+    // update, not a reset. updatedAt IS always touched, same "this row
+    // changed" signal every other write method in this codebase gives,
+    // even though this particular change has nothing to sync.
+    await (_db.update(_db.products)
+          ..where((p) => p.localId.equals(productLocalId)))
+        .write(
+      ProductsCompanion(
+        tracksStock: tracksStock == null ? const Value.absent() : Value(tracksStock),
+        unit: unit == null ? const Value.absent() : Value(unit),
+        photoPath: photoPath == null ? const Value.absent() : Value(photoPath),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 }

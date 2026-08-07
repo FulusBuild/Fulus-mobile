@@ -18,8 +18,15 @@ abstract class CustomerRepository {
   Future<Customer?> getCustomerById(String localId);
 
   /// Reconciles a locally-created customer with the server's own
-  /// identity once the (not yet built) sync engine handler for this
-  /// entity type successfully pushes it — same role as
-  /// SaleRepository.markSynced.
-  Future<void> markSynced({required String localId, required String serverId});
+  /// identity once the sync engine's handler for this entity type
+  /// successfully pushes it — same role as SaleRepository.markSynced.
+  /// [duplicateWarning] is CustomerResponseDto's own field, passed
+  /// through verbatim when the create response carried one — see that
+  /// DTO's doc comment for exactly how far this gets taken (stored,
+  /// not yet surfaced to any UI).
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? duplicateWarning,
+  });
 }

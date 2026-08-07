@@ -1,0 +1,220 @@
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
+import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockProductsApi extends Mock implements ProductsApi {}
+
+/// Hand-rolled rather than a Mock — the only member SaleRepositoryImpl
+/// actually reads is [currentUser], and this avoids any dependence on
+/// exactly how an unstubbed mocktail getter behaves, which nothing in
+/// this codebase has had a working toolchain to verify.
+class _FakeAuthRepository implements AuthRepository {
+  @override
+  AuthUser? get currentUser => null;
+  @override
+  Future<bool> hasAnyOwnerAccount() async => throw UnimplementedError();
+  @override
+  Future<AuthUser?> restoreSession() async => throw UnimplementedError();
+  @override
+  Future<AuthUser> createFirstOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> login({required String username, required String password}) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createAdditionalOwner({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String username,
+    required String email,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<void> logout() async => throw UnimplementedError();
+}
+
+void main() {
+  late AppDatabase db;
+  late DraftCartRepositoryImpl draftCartRepository;
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    final syncQueue = SyncQueue(db);
+    final productRepository = ProductRepositoryImpl(
+      db: db,
+      productsApi: MockProductsApi(),
+      syncQueue: syncQueue,
+    );
+    final saleRepository = SaleRepositoryImpl(
+      db: db,
+      syncQueue: syncQueue,
+      authRepository: _FakeAuthRepository(),
+    );
+    draftCartRepository = DraftCartRepositoryImpl(
+      db: db,
+      productRepository: productRepository,
+      saleRepository: saleRepository,
+    );
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  group('completeSale', () {
+    test('a Quick-Sale-only cart still completes locally', () async {
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await draftCartRepository.addItem(
+        draftCartLocalId: draft.localId,
+        description: 'Hand-cut firewood bundle',
+        quantity: 2,
+        unitPrice: 500,
+      );
+
+      final sale = await draftCartRepository.completeSale(draft.localId);
+
+      expect(sale.items, hasLength(1));
+      expect(sale.items.first.productLocalId, isNull);
+      expect(sale.items.first.description, 'Hand-cut firewood bundle');
+      expect(sale.subtotal, 1000);
+    });
+
+    test('combines whole-cart and line discounts into one aggregate', () async {
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await draftCartRepository.addItem(
+        draftCartLocalId: draft.localId,
+        description: 'Item A',
+        quantity: 1,
+        unitPrice: 1000,
+        lineDiscount: 50,
+      );
+      await draftCartRepository.setWholeCartDiscount(
+        draftCartLocalId: draft.localId,
+        discount: 100,
+      );
+
+      final sale = await draftCartRepository.completeSale(draft.localId);
+
+      expect(sale.discount, 150);
+      expect(sale.wholeCartDiscount, 100);
+    });
+
+    test('aggregates multiple payment legs into paymentMethod=split', () async {
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await draftCartRepository.addItem(
+        draftCartLocalId: draft.localId,
+        description: 'Item A',
+        quantity: 1,
+        unitPrice: 5000,
+      );
+      await draftCartRepository.addPayment(
+        draftCartLocalId: draft.localId,
+        method: 'cash',
+        amount: 2000,
+      );
+      await draftCartRepository.addPayment(
+        draftCartLocalId: draft.localId,
+        method: 'transfer',
+        amount: 3000,
+      );
+
+      final sale = await draftCartRepository.completeSale(draft.localId);
+
+      expect(sale.paymentMethod, 'split');
+      expect(sale.amountPaid, 5000);
+    });
+
+    test(
+        'clears the draft cart on success — getOrCreateDraftCart starts '
+        'fresh next time', () async {
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await draftCartRepository.addItem(
+        draftCartLocalId: draft.localId,
+        description: 'Item A',
+        quantity: 1,
+        unitPrice: 1000,
+      );
+
+      await draftCartRepository.completeSale(draft.localId);
+
+      final items = await draftCartRepository.watchItems(draft.localId).first;
+      expect(items, isEmpty);
+    });
+
+    test('rejects completing an empty cart', () async {
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await expectLater(
+        draftCartRepository.completeSale(draft.localId),
+        throwsStateError,
+      );
+    });
+
+    test('rejects a Quick Sale item with no description', () async {
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await expectLater(
+        draftCartRepository.addItem(
+          draftCartLocalId: draft.localId,
+          quantity: 1,
+          unitPrice: 500,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('getOrCreateDraftCart', () {
+    test('returns the same cart for the same location on a second call',
+        () async {
+      final first = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      final second = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      expect(second.localId, first.localId);
+    });
+
+    test('different locations get different carts', () async {
+      final a = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      final b = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-2',
+      );
+      expect(a.localId, isNot(b.localId));
+    });
+  });
+}

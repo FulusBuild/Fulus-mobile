@@ -1,29 +1,63 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/export/export_service.dart';
+import '../core/notifications/notification_service.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
+import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
+import '../data/remote/endpoints/categories_api.dart';
 import '../data/remote/endpoints/customers_api.dart';
+import '../data/remote/endpoints/expense_categories_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/income_api.dart';
 import '../data/remote/endpoints/locations_api.dart';
 import '../data/remote/endpoints/products_api.dart';
+import '../data/remote/endpoints/returns_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
+import '../data/remote/endpoints/suppliers_api.dart';
+import '../device_services/camera/camera_service.dart';
+import '../device_services/printing/printer_discovery_service.dart';
+import '../device_services/printing/receipt_printer_service.dart';
+import '../device_services/scanning/barcode_scanner_service.dart';
 import '../domain/repositories/approval_pin_repository.dart';
+import '../domain/repositories/audit_repository.dart';
 import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/backup_repository.dart';
 import '../domain/repositories/business_settings_repository.dart';
+import '../domain/repositories/cash_drawer_shift_repository.dart';
+import '../domain/repositories/customer_credit_repository.dart';
 import '../domain/repositories/customer_repository.dart';
+import '../domain/repositories/dashboard_repository.dart';
+import '../domain/repositories/draft_cart_repository.dart';
+import '../domain/repositories/category_repository.dart';
+import '../domain/repositories/employee_repository.dart';
+import '../domain/repositories/expense_category_repository.dart';
 import '../domain/repositories/expense_repository.dart';
+import '../domain/repositories/finance_stats_repository.dart';
 import '../domain/repositories/income_record_repository.dart';
 import '../domain/repositories/location_repository.dart';
+import '../domain/repositories/notification_repository.dart';
+import '../domain/repositories/printer_repository.dart';
 import '../domain/repositories/product_repository.dart';
+import '../domain/repositories/receipt_repository.dart';
+import '../domain/repositories/reports_repository.dart';
+import '../domain/repositories/return_repository.dart';
 import '../domain/repositories/sale_repository.dart';
+import '../domain/repositories/search_repository.dart';
 import '../domain/repositories/stock_movement_repository.dart';
+import '../domain/repositories/supplier_credit_repository.dart';
+import '../domain/repositories/supplier_repository.dart';
+import '../domain/repositories/tax_remittance_repository.dart';
+import '../domain/usecases/global_search.dart';
+import '../domain/usecases/import_products_from_csv.dart';
+import '../sync/sync_config.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_queue.dart';
+import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
 
 /// The app-wide DI graph's entry points. Each of these is declared with
@@ -68,6 +102,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
+final auditRepositoryProvider = Provider<AuditRepository>((ref) {
+  throw UnimplementedError(
+    'auditRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final approvalPinRepositoryProvider = Provider<ApprovalPinRepository>((ref) {
   throw UnimplementedError(
     'approvalPinRepositoryProvider must be overridden in bootstrap.dart.',
@@ -92,6 +132,12 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   );
 });
 
+final customerCreditRepositoryProvider = Provider<CustomerCreditRepository>((ref) {
+  throw UnimplementedError(
+    'customerCreditRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final expensesApiProvider = Provider<ExpensesApi>((ref) {
   throw UnimplementedError(
     'expensesApiProvider must be overridden in bootstrap.dart.',
@@ -101,6 +147,19 @@ final expensesApiProvider = Provider<ExpensesApi>((ref) {
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   throw UnimplementedError(
     'expenseRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final expenseCategoriesApiProvider = Provider<ExpenseCategoriesApi>((ref) {
+  throw UnimplementedError(
+    'expenseCategoriesApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final expenseCategoryRepositoryProvider =
+    Provider<ExpenseCategoryRepository>((ref) {
+  throw UnimplementedError(
+    'expenseCategoryRepositoryProvider must be overridden in bootstrap.dart.',
   );
 });
 
@@ -140,6 +199,48 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
   );
 });
 
+final categoriesApiProvider = Provider<CategoriesApi>((ref) {
+  throw UnimplementedError(
+    'categoriesApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
+  throw UnimplementedError(
+    'categoryRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final suppliersApiProvider = Provider<SuppliersApi>((ref) {
+  throw UnimplementedError(
+    'suppliersApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final supplierRepositoryProvider = Provider<SupplierRepository>((ref) {
+  throw UnimplementedError(
+    'supplierRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final supplierCreditRepositoryProvider = Provider<SupplierCreditRepository>((ref) {
+  throw UnimplementedError(
+    'supplierCreditRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final taxRemittanceRepositoryProvider = Provider<TaxRemittanceRepository>((ref) {
+  throw UnimplementedError(
+    'taxRemittanceRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final financeStatsRepositoryProvider = Provider<FinanceStatsRepository>((ref) {
+  throw UnimplementedError(
+    'financeStatsRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final locationsApiProvider = Provider<LocationsApi>((ref) {
   throw UnimplementedError(
     'locationsApiProvider must be overridden in bootstrap.dart.',
@@ -176,6 +277,37 @@ final saleRepositoryProvider = Provider<SaleRepository>((ref) {
   );
 });
 
+final draftCartRepositoryProvider = Provider<DraftCartRepository>((ref) {
+  throw UnimplementedError(
+    'draftCartRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final returnsApiProvider = Provider<ReturnsApi>((ref) {
+  throw UnimplementedError(
+    'returnsApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final returnRepositoryProvider = Provider<ReturnRepository>((ref) {
+  throw UnimplementedError(
+    'returnRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final cashDrawerShiftsApiProvider = Provider<CashDrawerShiftsApi>((ref) {
+  throw UnimplementedError(
+    'cashDrawerShiftsApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final cashDrawerShiftRepositoryProvider =
+    Provider<CashDrawerShiftRepository>((ref) {
+  throw UnimplementedError(
+    'cashDrawerShiftRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   throw UnimplementedError(
     'syncEngineProvider must be overridden in bootstrap.dart.',
@@ -189,5 +321,140 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
 final syncTriggersProvider = Provider<SyncTriggers>((ref) {
   throw UnimplementedError(
     'syncTriggersProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+// ---------------------------------------------------------------------
+// Stage 16 — Sync Layer Repositioning
+// ---------------------------------------------------------------------
+
+/// A future Settings "Offline, Sync & Backup" screen (Volume 11) reads
+/// this to show the toggle's current state and calls
+/// SyncConfig.setEnabled to flip it — see that class's own doc comment
+/// on why flipping it doesn't itself restart SyncTriggers.
+final syncConfigProvider = Provider<SyncConfig>((ref) {
+  throw UnimplementedError(
+    'syncConfigProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// The reactive sync-indicator data source (Volume 2, Volume 12) and the
+/// stuck-sync notification check — see sync_status_notifier.dart.
+final syncStatusNotifierProvider = Provider<SyncStatusNotifier>((ref) {
+  throw UnimplementedError(
+    'syncStatusNotifierProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+// ---------------------------------------------------------------------
+// Stage 13 — Notifications
+// ---------------------------------------------------------------------
+
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  throw UnimplementedError(
+    'notificationRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  throw UnimplementedError(
+    'notificationServiceProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+// ---------------------------------------------------------------------
+// Stage 14 — Search / Export
+// ---------------------------------------------------------------------
+
+final searchRepositoryProvider = Provider<SearchRepository>((ref) {
+  throw UnimplementedError(
+    'searchRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final globalSearchProvider = Provider<GlobalSearch>((ref) {
+  throw UnimplementedError(
+    'globalSearchProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// Phase 0 completion pass.
+final importProductsFromCsvProvider = Provider<ImportProductsFromCsv>((ref) {
+  throw UnimplementedError(
+    'importProductsFromCsvProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final exportServiceProvider = Provider<ExportService>((ref) {
+  throw UnimplementedError(
+    'exportServiceProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+// ---------------------------------------------------------------------
+// Stage 15 — Device Services
+// ---------------------------------------------------------------------
+
+final printerRepositoryProvider = Provider<PrinterRepository>((ref) {
+  throw UnimplementedError(
+    'printerRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final receiptPrinterServiceProvider = Provider<ReceiptPrinterService>((ref) {
+  throw UnimplementedError(
+    'receiptPrinterServiceProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final printerDiscoveryServiceProvider = Provider<PrinterDiscoveryService>((ref) {
+  throw UnimplementedError(
+    'printerDiscoveryServiceProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final barcodeScannerServiceProvider = Provider<BarcodeScannerService>((ref) {
+  throw UnimplementedError(
+    'barcodeScannerServiceProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final cameraServiceProvider = Provider<CameraService>((ref) {
+  throw UnimplementedError(
+    'cameraServiceProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+// ---------------------------------------------------------------------
+// Stages 9-12 — Receipts, Backup, Employees, Dashboard/Reports
+// ---------------------------------------------------------------------
+
+final employeeRepositoryProvider = Provider<EmployeeRepository>((ref) {
+  throw UnimplementedError(
+    'employeeRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final receiptRepositoryProvider = Provider<ReceiptRepository>((ref) {
+  throw UnimplementedError(
+    'receiptRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final backupRepositoryProvider = Provider<BackupRepository>((ref) {
+  throw UnimplementedError(
+    'backupRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
+  throw UnimplementedError(
+    'dashboardRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
+  throw UnimplementedError(
+    'reportsRepositoryProvider must be overridden in bootstrap.dart.',
   );
 });

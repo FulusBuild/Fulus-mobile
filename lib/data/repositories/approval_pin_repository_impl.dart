@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import '../../core/security/pin_hasher.dart';
 import '../../domain/entities/approval_hash.dart';
 import '../../domain/repositories/approval_pin_repository.dart';
+import '../../domain/repositories/audit_repository.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../remote/endpoints/auth_api.dart';
 
@@ -9,13 +12,16 @@ class ApprovalPinRepositoryImpl implements ApprovalPinRepository {
     required AuthApi authApi,
     required SecureStorage secureStorage,
     required PinHasher pinHasher,
+    required AuditRepository auditRepository,
   })  : _authApi = authApi,
         _secureStorage = secureStorage,
-        _pinHasher = pinHasher;
+        _pinHasher = pinHasher,
+        _auditRepository = auditRepository;
 
   final AuthApi _authApi;
   final SecureStorage _secureStorage;
   final PinHasher _pinHasher;
+  final AuditRepository _auditRepository;
 
   @override
   Future<void> setOwnApprovalPin({
@@ -23,21 +29,40 @@ class ApprovalPinRepositoryImpl implements ApprovalPinRepository {
     required String pin,
   }) async {
     final pinHash = await _pinHasher.hash(pin);
-    await _authApi.setApprovalPin(pinHash: pinHash.hash, pinSalt: pinHash.salt);
 
-    // Also stored locally immediately, rather than waiting for a
-    // separate syncApprovalHashes() call — the owner's OWN device
-    // should already be able to verify their own just-set PIN offline,
-    // not only every OTHER employee's device once THEY separately
-    // sync. Replaces any existing entry for this same userId rather
-    // than appending, since setting a new PIN must supersede the old
-    // one, never leave both matchable.
+    // CORRECTED (Architecture Redesign audit pass): this used to await
+    // _authApi.setApprovalPin BEFORE the local write below, which meant
+    // setting your own approval PIN — entirely this device's own local
+    // business, per Volume 9 — silently required network connectivity
+    // to complete at all, a direct violation of "must work 100%
+    // offline. Everything." The local write is now unconditional and
+    // first; pushing the hash to the backend (so OTHER employees'
+    // devices can eventually verify it too) is best-effort and
+    // non-blocking, matching the exact pattern bootstrap.dart already
+    // uses for every other pull-sync call (locationRepository,
+    // businessSettingsRepository, productRepository).
     final existing = await _secureStorage.getApprovalPinVerifiers();
     final updated = [
       ...existing.where((v) => v.userId != userId),
       ApprovalPinVerifier(userId: userId, hash: pinHash.hash, salt: pinHash.salt),
     ];
     await _secureStorage.setApprovalPinVerifiers(updated);
+
+    // Mirrors the backend's own SET_APPROVAL_PIN action exactly
+    // (verified directly against routers/auth.py) — recorded once the
+    // local write actually succeeds, regardless of whether the
+    // best-effort push below ever reaches a server.
+    await _auditRepository.log(
+      action: 'SET_APPROVAL_PIN',
+      module: 'AUTH',
+      userId: userId,
+    );
+
+    unawaited(
+      _authApi
+          .setApprovalPin(pinHash: pinHash.hash, pinSalt: pinHash.salt)
+          .catchError((_) {}),
+    );
   }
 
   @override

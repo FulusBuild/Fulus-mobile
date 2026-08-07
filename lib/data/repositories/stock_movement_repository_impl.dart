@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
+import '../../core/business_engine/stock_movement_validation.dart'
+    as validation;
 import '../../domain/entities/stock_movement.dart';
 import '../../domain/repositories/stock_movement_repository.dart';
 import '../../sync/sync_queue.dart';
@@ -31,18 +33,22 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
 
   @override
   Future<StockMovement> recordStockIn(StockInDraft draft) {
+    validation.validateMovementQuantity(draft.quantity);
     final localId = Ulid().toString();
     return _record(draft.toStockMovementEntity(localId: localId));
   }
 
   @override
   Future<StockMovement> recordStockOut(StockOutDraft draft) {
+    validation.validateMovementQuantity(draft.quantity);
     final localId = Ulid().toString();
     return _record(draft.toStockMovementEntity(localId: localId));
   }
 
   @override
   Future<StockMovement> recordAdjustment(StockAdjustmentDraft draft) {
+    validation.validateAdjustmentTarget(draft.newQuantity);
+    validation.validateAdjustmentReason(draft.reason);
     final localId = Ulid().toString();
     return _record(draft.toStockMovementEntity(localId: localId));
   }

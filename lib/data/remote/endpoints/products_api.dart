@@ -35,4 +35,39 @@ class ProductsApi {
       throw _client.mapError(e);
     }
   }
+
+  /// **Phase 0 completion pass.** POST /api/inventory/products, verified
+  /// directly against routers/inventory.py + schemas/inventory.py's
+  /// ProductCreate. Same response shape as every other product-touching
+  /// endpoint (StockMovementsApi's own doc comment) — ProductOut, back
+  /// as a ProductResponseDto.
+  Future<ProductResponseDto> createProduct(ProductCreateDto dto) async {
+    try {
+      final response = await _client.dio.post(
+        '/api/inventory/products',
+        data: dto.toJson(),
+      );
+      return ProductResponseDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
+  /// PATCH /api/inventory/products/{id} — ProductUpdate, same
+  /// exclude-unset partial-update contract [ProductUpdateDto]'s own doc
+  /// comment describes.
+  Future<ProductResponseDto> updateProduct({
+    required String productId,
+    required ProductUpdateDto dto,
+  }) async {
+    try {
+      final response = await _client.dio.patch(
+        '/api/inventory/products/$productId',
+        data: dto.toJson(),
+      );
+      return ProductResponseDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
 }
