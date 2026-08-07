@@ -177,7 +177,15 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   Stream<List<CustomerLedgerEntry>> watchLedger(String customerLocalId) {
     final query = _db.select(_db.customerLedgerEntries)
       ..where((e) => e.customerLocalId.equals(customerLocalId))
-      ..orderBy([(e) => OrderingTerm.desc(e.createdAt)]);
+      // createdAt alone ties for entries written in the same second
+      // (Drift's default DateTime storage is one-second precision) —
+      // localId (a ULID, sortable to millisecond precision) breaks
+      // those ties in the right direction. Same fix as
+      // AuditRepositoryImpl.getAuditLogs.
+      ..orderBy([
+        (e) => OrderingTerm.desc(e.createdAt),
+        (e) => OrderingTerm.desc(e.localId),
+      ]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
 }
