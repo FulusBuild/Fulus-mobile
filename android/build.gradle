@@ -14,6 +14,33 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Workaround for old, unmaintained plugins (flutter_usb_printer in
+// particular) that predate AGP's namespace requirement: AGP 8+ needs
+// every Android library module to declare `namespace` in its own
+// build.gradle, but plugins built before that requirement only ever
+// set the legacy `package` attribute in AndroidManifest.xml. Since
+// those plugins live in the pub cache, not this repo, they can't be
+// edited directly — this reads that manifest attribute and back-fills
+// `namespace` for any library module that doesn't already have one,
+// leaving already-namespaced modules untouched.
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.library")) {
+            def androidExt = project.extensions.findByName("android")
+            if (androidExt != null && androidExt.namespace == null) {
+                def manifestFile = file("${project.projectDir}/src/main/AndroidManifest.xml")
+                if (manifestFile.exists()) {
+                    def manifestXml = new XmlSlurper().parse(manifestFile)
+                    def packageName = manifestXml.@package.text()
+                    if (packageName) {
+                        androidExt.namespace = packageName
+                    }
+                }
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
