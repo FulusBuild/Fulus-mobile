@@ -20,6 +20,22 @@ class ProductImportEngine {
 
   static const _requiredHeaders = ['name', 'sku', 'selling_price'];
 
+  /// Header-only check, deliberately split out from [validate] so a
+  /// caller (ImportProductsFromCsv) can reject a bad file before doing
+  /// anything that needs a database round-trip (existingSkus/
+  /// existingBarcodes) — a file missing a required column should never
+  /// touch a repository at all. Returns null when every required
+  /// header is present.
+  ProductImportRowError? validateHeaders(List<String> headers) {
+    final lowerHeaders = headers.map((h) => h.toLowerCase()).toSet();
+    final missing = _requiredHeaders.where((h) => !lowerHeaders.contains(h)).toList();
+    if (missing.isEmpty) return null;
+    return ProductImportRowError(
+      row: 0,
+      message: 'Missing required column(s): ${missing.join(', ')}.',
+    );
+  }
+
   /// [existingSkus] must be exact-match, case-sensitive — matches the
   /// backend's own bare `sku in existing_skus` (no `.lower()` there,
   /// unlike the category/supplier name matching ImportProductsFromCsv
@@ -31,18 +47,12 @@ class ProductImportEngine {
     required Set<String> existingSkus,
     required Set<String> existingBarcodes,
   }) {
-    final lowerHeaders = headers.map((h) => h.toLowerCase()).toSet();
-    final missing = _requiredHeaders.where((h) => !lowerHeaders.contains(h)).toList();
-    if (missing.isNotEmpty) {
+    final headerError = validateHeaders(headers);
+    if (headerError != null) {
       return ProductImportPlan(
         rowsToCreate: const [],
         rowErrors: const [],
-        headerErrors: [
-          ProductImportRowError(
-            row: 0,
-            message: 'Missing required column(s): ${missing.join(', ')}.',
-          ),
-        ],
+        headerErrors: [headerError],
         totalRows: 0,
       );
     }

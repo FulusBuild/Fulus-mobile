@@ -10,6 +10,8 @@ import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/db_seed_helpers.dart';
+
 /// Hand-rolled, not a mocking-library Mock — matches this file's own
 /// "no mocks" approach above; the only member SaleRepositoryImpl
 /// actually reads is [currentUser].
@@ -98,6 +100,11 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
+
+    // Sales.cashierUserId is a real FK against users(local_id) — the
+    // _FakeAuthRepository above attributes every sale to 'user-cashier-1',
+    // so that row has to exist first.
+    await seedUser(db, localId: 'user-cashier-1');
 
     await db.into(db.products).insert(
           ProductsCompanion.insert(

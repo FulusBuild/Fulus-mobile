@@ -19,6 +19,19 @@ void main() {
 
   const locationId = 'loc-1';
 
+  setUpAll(() {
+    // Needed wherever a test uses `any()`/`captureAny()` for a
+    // ProductCreateDto argument (e.g. verifyNever(() =>
+    // productsApi.createProduct(any()))) — mocktail needs a real
+    // instance to stand in for the matcher, never actually used.
+    registerFallbackValue(const ProductCreateDto(
+      name: 'fallback',
+      sku: 'fallback-sku',
+      costPrice: 0,
+      sellingPrice: 0,
+    ));
+  });
+
   Future<void> seedLocation() {
     return db.into(db.locations).insert(LocationsCompanion.insert(
           localId: locationId,

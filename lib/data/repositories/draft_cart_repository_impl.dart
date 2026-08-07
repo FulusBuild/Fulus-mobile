@@ -377,6 +377,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
       amountPaid: amountPaid,
       customerId: draft.customerLocalId,
       discount: discount,
+      wholeCartDiscount: draft.wholeCartDiscount,
       tax: draft.tax,
       paymentMethod: paymentMethod,
       notes: draft.notes,

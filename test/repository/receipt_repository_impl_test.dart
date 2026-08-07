@@ -7,6 +7,8 @@ import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/db_seed_helpers.dart';
+
 /// **Phase 0 completion pass.** No test existed for this repository
 /// before this pass — included specifically because this pass replaced
 /// a hardcoded `cashierName: null` with a real Users lookup, and
@@ -103,7 +105,11 @@ void main() {
     });
 
     test('is null when cashierUserId points at a user that no longer exists', () async {
-      await seedSale(cashierUserId: 'does-not-exist');
+      // A dangling cashierUserId can't be produced through a normal
+      // FK-enforced insert — this simulates the real-world case (a
+      // user row deleted after the sale was made) by relaxing FK
+      // enforcement for just this one seed.
+      await withoutForeignKeyChecks(db, () => seedSale(cashierUserId: 'does-not-exist'));
 
       final receipt = await repository.buildReceiptData('sale-1');
 

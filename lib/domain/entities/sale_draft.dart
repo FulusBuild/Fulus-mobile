@@ -25,6 +25,7 @@ class SaleDraft {
     required this.amountPaid,
     this.customerId,
     this.discount = 0,
+    this.wholeCartDiscount = 0,
     this.tax = 0,
     this.paymentMethod,
     this.notes,
@@ -42,6 +43,15 @@ class SaleDraft {
 
   final String? customerId;
   final double discount;
+
+  /// The whole-cart-discount component specifically — see
+  /// `Sale.wholeCartDiscount`'s own doc comment for why this is kept
+  /// alongside the combined [discount] rather than folded away once
+  /// checkout completes. `DraftCartRepositoryImpl.completeSale` is the
+  /// only real caller that ever sets this to something nonzero today;
+  /// everything else constructing a `SaleDraft` directly has no
+  /// whole-cart/line split to report and leaves it at the default.
+  final double wholeCartDiscount;
   final double tax;
   final double amountPaid;
   final String? paymentMethod;
@@ -83,6 +93,7 @@ class SaleDraft {
       saleDate: now,
       subtotal: subtotal,
       discount: discount,
+      wholeCartDiscount: wholeCartDiscount,
       tax: tax,
       total: total,
       amountPaid: amountPaid,

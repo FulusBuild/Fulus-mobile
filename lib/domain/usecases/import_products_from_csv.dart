@@ -54,6 +54,20 @@ class ImportProductsFromCsv {
   }) async {
     final parsed = _csvParser.parseWithHeaders(csvContent);
 
+    // Checked before anything touches a repository — a file missing a
+    // required column is rejected outright, so there's no reason to
+    // pay for a getAllSkus/getAllBarcodes round-trip first.
+    final headerError = _engine.validateHeaders(parsed.headers);
+    if (headerError != null) {
+      return ProductImportResult(
+        successCount: 0,
+        errorCount: 1,
+        totalRows: 0,
+        errors: [headerError],
+        createdProductLocalIds: const [],
+      );
+    }
+
     final existingSkus = await _productRepository.getAllSkus();
     final existingBarcodes = await _productRepository.getAllBarcodes();
 
@@ -63,16 +77,6 @@ class ImportProductsFromCsv {
       existingSkus: existingSkus,
       existingBarcodes: existingBarcodes,
     );
-
-    if (plan.isRejected) {
-      return ProductImportResult(
-        successCount: 0,
-        errorCount: plan.headerErrors.length,
-        totalRows: 0,
-        errors: plan.headerErrors,
-        createdProductLocalIds: const [],
-      );
-    }
 
     // Pre-loaded once, mutated in place as new names get created during
     // the loop below — matches import_service.py's own cat_map/sup_map

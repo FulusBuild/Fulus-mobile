@@ -98,7 +98,20 @@ class SyncEngine {
       // [manual] bypasses this entirely — same "Sync Now" contract this
       // method's own doc comment already states for the threshold
       // filter above, extended to backoff for the same reason.
+      // Whether the attempt about to be made would itself cross
+      // maxAttemptsBeforeAttentionNeeded — this item's last real
+      // chance before it's flagged and stops being retried
+      // automatically at all. Backoff is skipped for that one attempt:
+      // otherwise an item could sit fully backed off (up to
+      // [RetryPolicy.maxDelay]) without ever reaching the threshold,
+      // silently retried forever instead of promptly surfacing as
+      // attentionNeeded with a current error. Below the threshold,
+      // normal backoff still applies exactly as before.
+      final wouldCrossThreshold =
+          item.syncAttempts + 1 >= maxAttemptsBeforeAttentionNeeded;
+
       if (!manual &&
+          !wouldCrossThreshold &&
           !_retryPolicy.isEligibleForRetry(
             syncAttempts: item.syncAttempts,
             lastAttemptedAt: item.lastAttemptedAt,

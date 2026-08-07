@@ -83,7 +83,19 @@ class AuditRepositoryImpl implements AuditRepository {
       query.where((t) => t.userId.equals(userId));
     }
     query
-      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+      // createdAt alone isn't a reliable tie-breaker: the column is
+      // stored with one-second precision (Drift's default DateTime
+      // storage), so two logs written within the same second sort as
+      // equal and fall back to insertion order, which is ascending —
+      // the opposite of "newest first" for that pair. localId (a ULID)
+      // encodes its own creation timestamp at millisecond precision
+      // and is itself monotonically sortable, so using it as the
+      // secondary key breaks same-second ties in the right direction
+      // without needing a schema change.
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.createdAt),
+        (t) => OrderingTerm.desc(t.localId),
+      ])
       ..limit(pageSize, offset: (page - 1) * pageSize);
 
     final rows = await query.get();

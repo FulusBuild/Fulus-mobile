@@ -7,16 +7,25 @@ import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/db_seed_helpers.dart';
+
 void main() {
   late AppDatabase db;
   late CustomerRepositoryImpl customerRepository;
   late CustomerCreditRepositoryImpl creditRepository;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     final syncQueue = SyncQueue(db);
     customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
     creditRepository = CustomerCreditRepositoryImpl(db: db);
+
+    // CustomerLedgerEntries.saleLocalId is a real FK against
+    // sales(local_id) — every test in this file links its ledger
+    // entries to 'sale-1' and/or 'sale-2', so those rows have to exist
+    // first.
+    await seedSale(db, localId: 'sale-1');
+    await seedSale(db, localId: 'sale-2');
   });
 
   tearDown(() async {

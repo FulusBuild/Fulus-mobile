@@ -58,10 +58,22 @@ class ApprovalPinRepositoryImpl implements ApprovalPinRepository {
       userId: userId,
     );
 
+    // Wrapped in `Future(() => ...)` rather than calling _authApi
+    // directly — a plain `_authApi.setApprovalPin(...).catchError(...)`
+    // only catches a Future that fails asynchronously; if the call
+    // itself throws synchronously (a real possibility for some HTTP
+    // client failures, and exactly what a `.thenThrow`-stubbed mock
+    // does in tests), that throw happens before `.catchError` is even
+    // attached and propagates straight out of setOwnApprovalPin,
+    // defeating the entire point of this being best-effort. Deferring
+    // the call itself into the Future guarantees any failure — sync or
+    // async — surfaces through the same error channel `.catchError`
+    // below actually catches.
     unawaited(
-      _authApi
-          .setApprovalPin(pinHash: pinHash.hash, pinSalt: pinHash.salt)
-          .catchError((_) {}),
+      Future(() => _authApi.setApprovalPin(
+            pinHash: pinHash.hash,
+            pinSalt: pinHash.salt,
+          )).catchError((_) {}),
     );
   }
 
