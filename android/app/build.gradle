@@ -19,22 +19,26 @@ android {
     // rejects com.example.* applicationIds at publish time, though it
     // builds and installs fine for this checkpoint's debug APK.
     namespace = "com.example.fulus_mobile"
-    // compileSdk/targetSdk/ndkVersion are deliberately deferred to the
-    // Flutter Gradle plugin's own recommended values for whichever
-    // Flutter SDK actually runs this build (currently pinned to 3.24.0 —
-    // see ../../.github/workflows/ci.yml), rather than hardcoded here.
-    // That keeps this file correct automatically if FLUTTER_VERSION is
-    // ever bumped, instead of silently building against a stale API
-    // level. dargon2_flutter's native library is the one plugin in this
-    // project with real NDK-compiled code, so deferring ndkVersion here
-    // specifically avoids an NDK mismatch between what Flutter installed
-    // and what this file assumes is present.
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // compileSdk/ndkVersion are pinned explicitly rather than deferred
+    // to Flutter's own recommended defaults (flutter.compileSdkVersion/
+    // flutter.ndkVersion): several plugins now require higher versions
+    // than Flutter 3.24.0's own defaults resolve to —
+    // androidx.camera:*:1.5.0 (via the camera/mobile_scanner plugins)
+    // needs compileSdk >=35, and mobile_scanner itself asks for 36;
+    // camera_android_camerax, connectivity_plus, sqlite3_flutter_libs,
+    // flutter_secure_storage, and several others all ask for NDK
+    // 25.1.8937393 versus Flutter's older default. Both are backward
+    // compatible bumps per Android's own guidance, so this is safe even
+    // for plugins that don't strictly need the newer versions.
+    compileSdk = 36
+    ndkVersion = "25.1.8937393"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications requires core library
+        // desugaring — see the coreLibraryDesugaring dependency below.
+        coreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -69,4 +73,9 @@ flutter {
     source = "../.."
 }
 
-dependencies {}
+dependencies {
+    // Required by compileOptions.coreLibraryDesugaringEnabled above —
+    // flutter_local_notifications needs this to build against AGP 8's
+    // AAR-metadata check.
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
+}
