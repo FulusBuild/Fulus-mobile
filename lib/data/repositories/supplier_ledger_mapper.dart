@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../domain/entities/supplier_ledger_entry.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 
 SupplierLedgerEntryType _entryTypeFromColumn(String value) {
   return switch (value) {

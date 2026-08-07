@@ -1,5 +1,6 @@
 import '../../data/local/database/database.dart';
 import '../../data/remote/endpoints/categories_api.dart';
+import '../../domain/entities/category.dart';
 import '../../domain/repositories/category_repository.dart';
 import '../sync_handler.dart';
 
@@ -30,7 +31,9 @@ class CategorySyncHandler implements SyncHandler {
       );
     }
 
-    final response = await _categoriesApi.createCategory(category.toCreateDto());
+    final response = await _categoriesApi.createCategory(
+      CategoryCreateDto(name: category.name, description: category.description),
+    );
 
     await _categoryRepository.markSynced(
       localId: category.localId,

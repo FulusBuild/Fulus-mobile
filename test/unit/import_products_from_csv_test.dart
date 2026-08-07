@@ -31,10 +31,6 @@ void main() {
     return Category(localId: localId, name: name, createdAt: now, updatedAt: now);
   }
 
-  Supplier fakeSupplier(String name, {String localId = 's-new'}) {
-    return Supplier(localId: localId, name: name, createdAt: now, updatedAt: now);
-  }
-
   setUpAll(() {
     registerFallbackValue(const ProductDraft(
       name: 'fallback',

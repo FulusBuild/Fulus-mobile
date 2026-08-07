@@ -1,9 +1,9 @@
+import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/tax_remittance.dart';
 import '../../domain/repositories/tax_remittance_repository.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 import 'tax_remittance_mapper.dart';
 
 class TaxRemittanceRepositoryImpl implements TaxRemittanceRepository {

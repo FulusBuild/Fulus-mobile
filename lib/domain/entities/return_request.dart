@@ -154,7 +154,7 @@ class ReturnItemDto {
 /// **No `client_reference`** — checked directly against `ReturnCreate`,
 /// which has no such field. See tables.dart's `ReturnRequests` doc
 /// comment for the confirmed gap this reflects.
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class ReturnCreateDto {
   const ReturnCreateDto({
     required this.originalSaleId,
@@ -197,7 +197,7 @@ class ReturnResponseDto {
       _$ReturnResponseDtoFromJson(json);
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class ReturnApproveDto {
   const ReturnApproveDto({required this.approve});
 

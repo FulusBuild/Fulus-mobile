@@ -59,7 +59,7 @@ class CategoryDraft {
   }
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class CategoryCreateDto {
   const CategoryCreateDto({required this.name, this.description});
 

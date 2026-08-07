@@ -1,7 +1,8 @@
+import 'package:drift/drift.dart';
+
 import '../../data/local/database/database.dart';
 import '../../data/remote/endpoints/products_api.dart';
 import '../../data/repositories/product_mapper.dart';
-import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../sync_handler.dart';
 

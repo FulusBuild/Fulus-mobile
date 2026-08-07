@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../domain/entities/draft_cart.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 
 extension DraftCartToCompanion on DraftCart {
   DraftCartsCompanion toDriftCompanion() {

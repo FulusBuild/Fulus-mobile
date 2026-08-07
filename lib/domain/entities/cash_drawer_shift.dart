@@ -10,7 +10,6 @@ class CashDrawerShift {
   const CashDrawerShift({
     required this.localId,
     this.serverId,
-    required this.clientReference,
     required this.cashierUserId,
     required this.locationId,
     required this.openedAt,
@@ -24,7 +23,6 @@ class CashDrawerShift {
 
   final String localId;
   final String? serverId;
-  final String clientReference;
   final String cashierUserId;
   final String locationId;
   final DateTime openedAt;
@@ -47,7 +45,6 @@ class CashDrawerShift {
     return CashDrawerShift(
       localId: localId,
       serverId: serverId,
-      clientReference: clientReference,
       cashierUserId: cashierUserId,
       locationId: locationId,
       openedAt: openedAt,
@@ -79,7 +76,7 @@ class CashDrawerShiftDraft {
   final String locationId;
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class ShiftOpenDto {
   const ShiftOpenDto({required this.openingCash, required this.locationId});
 
@@ -89,7 +86,7 @@ class ShiftOpenDto {
   Map<String, dynamic> toJson() => _$ShiftOpenDtoToJson(this);
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class ShiftCloseDto {
   const ShiftCloseDto({required this.closingCash, this.notes});
 

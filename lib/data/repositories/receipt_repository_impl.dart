@@ -46,10 +46,13 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
     final itemRows = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.equals(saleId))).get();
     final items = <ReceiptLineItem>[];
     for (final item in itemRows) {
-      final product = await (_db.select(_db.products)..where((pr) => pr.localId.equals(item.productLocalId)))
-          .getSingleOrNull();
+      final productLocalId = item.productLocalId;
+      final product = productLocalId == null
+          ? null
+          : await (_db.select(_db.products)..where((pr) => pr.localId.equals(productLocalId)))
+              .getSingleOrNull();
       items.add(ReceiptLineItem(
-        productName: product?.name ?? item.productLocalId,
+        productName: product?.name ?? item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineTotal: item.unitPrice * item.quantity,

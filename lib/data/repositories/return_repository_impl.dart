@@ -3,7 +3,6 @@ import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/return_request.dart';
 import '../../domain/repositories/customer_credit_repository.dart';
-import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/return_repository.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
@@ -14,16 +13,13 @@ class ReturnRepositoryImpl implements ReturnRepository {
   ReturnRepositoryImpl({
     required AppDatabase db,
     required SyncQueue syncQueue,
-    required ProductRepository productRepository,
     required CustomerCreditRepository customerCreditRepository,
   })  : _db = db,
         _syncQueue = syncQueue,
-        _productRepository = productRepository,
         _customerCreditRepository = customerCreditRepository;
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
-  final ProductRepository _productRepository;
   final CustomerCreditRepository _customerCreditRepository;
 
   /// Mirrors `pos_service._purchased_and_claimed` exactly — shared by

@@ -78,7 +78,7 @@ class CustomerLedgerEntry {
 /// alongside the entity, so that follow-up is a matter of writing the
 /// API call, not designing the wire shape from scratch under time
 /// pressure later.
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class RepaymentRequestDto {
   const RepaymentRequestDto({required this.amountPaid});
 

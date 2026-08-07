@@ -9,6 +9,7 @@ import '../../domain/entities/audit_log.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/audit_repository.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 
 class AuditRepositoryImpl implements AuditRepository {
   AuditRepositoryImpl({required AppDatabase db}) : _db = db;

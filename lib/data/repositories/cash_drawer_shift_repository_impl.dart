@@ -66,7 +66,6 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     final localId = Ulid().toString();
     final shift = CashDrawerShift(
       localId: localId,
-      clientReference: localId,
       cashierUserId: currentUser.id,
       locationId: draft.locationId,
       openedAt: DateTime.now(),

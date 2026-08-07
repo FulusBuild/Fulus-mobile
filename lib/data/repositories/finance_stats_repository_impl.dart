@@ -1,7 +1,8 @@
+import 'package:drift/drift.dart';
+
 import '../../domain/entities/finance_stats.dart';
 import '../../domain/repositories/finance_stats_repository.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 
 class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
   FinanceStatsRepositoryImpl({required AppDatabase db}) : _db = db;

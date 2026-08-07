@@ -1,5 +1,6 @@
 import '../../data/local/database/database.dart';
 import '../../data/remote/endpoints/suppliers_api.dart';
+import '../../domain/entities/supplier.dart';
 import '../../domain/repositories/supplier_repository.dart';
 import '../sync_handler.dart';
 
@@ -30,7 +31,14 @@ class SupplierSyncHandler implements SyncHandler {
       );
     }
 
-    final response = await _suppliersApi.createSupplier(supplier.toCreateDto());
+    final response = await _suppliersApi.createSupplier(
+      SupplierCreateDto(
+        name: supplier.name,
+        phone: supplier.phone,
+        email: supplier.email,
+        address: supplier.address,
+      ),
+    );
 
     await _supplierRepository.markSynced(
       localId: supplier.localId,

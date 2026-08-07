@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-
 import '../core/notifications/notification_service.dart';
 import '../data/local/database/database.dart';
 import 'sync_config.dart';

@@ -1,5 +1,6 @@
 import '../../data/local/database/database.dart';
 import '../../data/remote/endpoints/expense_categories_api.dart';
+import '../../domain/entities/expense_category.dart';
 import '../../domain/repositories/expense_category_repository.dart';
 import '../sync_handler.dart';
 
@@ -31,8 +32,9 @@ class ExpenseCategorySyncHandler implements SyncHandler {
       );
     }
 
-    final response =
-        await _expenseCategoriesApi.createExpenseCategory(category.toCreateDto());
+    final response = await _expenseCategoriesApi.createExpenseCategory(
+      ExpenseCategoryCreateDto(name: category.name),
+    );
 
     await _expenseCategoryRepository.markSynced(
       localId: category.localId,

@@ -1,4 +1,5 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/search_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/search_result.dart';
 import 'package:drift/drift.dart';

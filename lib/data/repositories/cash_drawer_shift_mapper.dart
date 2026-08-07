@@ -8,7 +8,6 @@ extension CashDrawerShiftToCompanion on CashDrawerShift {
   CashDrawerShiftsCompanion toDriftCompanion() {
     return CashDrawerShiftsCompanion.insert(
       localId: localId,
-      clientReference: clientReference,
       cashierUserId: cashierUserId,
       locationId: locationId,
       openedAt: openedAt,
@@ -37,7 +36,6 @@ extension CashDrawerShiftRowToDomain on CashDrawerShiftRow {
     return CashDrawerShift(
       localId: localId,
       serverId: serverId,
-      clientReference: clientReference,
       cashierUserId: cashierUserId,
       locationId: locationId,
       openedAt: openedAt,

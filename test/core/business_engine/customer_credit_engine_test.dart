@@ -1,4 +1,4 @@
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fulus_mobile/core/business_engine/customer_credit_engine.dart';
 

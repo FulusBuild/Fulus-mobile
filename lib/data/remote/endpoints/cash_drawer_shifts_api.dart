@@ -50,7 +50,6 @@ class CashDrawerShiftsApi {
     return CashDrawerShift(
       localId: dto.id,
       serverId: dto.id,
-      clientReference: dto.id,
       cashierUserId: dto.cashierId,
       locationId: dto.locationId,
       openedAt: dto.openedAt,

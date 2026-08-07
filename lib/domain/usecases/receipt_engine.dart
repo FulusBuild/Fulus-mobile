@@ -148,8 +148,8 @@ class ReceiptEngine {
 
               // ── Customer info ───────────────────────────────────────
               if (data.customerName != null) ...[
-                pw.Text('Bill To:', style: const pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                pw.Text(data.customerName!, style: const pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Bill To:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                pw.Text(data.customerName!, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                 if (data.customerPhone != null) pw.Text('Phone: ${data.customerPhone}', style: const pw.TextStyle(fontSize: 10)),
                 if (data.customerEmail != null) pw.Text('Email: ${data.customerEmail}', style: const pw.TextStyle(fontSize: 10)),
                 if (data.customerAddress != null) pw.Text(data.customerAddress!, style: const pw.TextStyle(fontSize: 10)),

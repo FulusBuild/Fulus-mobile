@@ -142,7 +142,7 @@ class _EmployeeTile extends ConsumerWidget {
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            backgroundColor: AppColors.primary.withOpacity(0.1),
             child: Text(
               employee.fullName.isNotEmpty ? employee.fullName[0].toUpperCase() : '?',
               style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),

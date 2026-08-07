@@ -5,7 +5,6 @@ import '../../core/business_engine/customer_credit_engine.dart' as engine;
 import '../../domain/entities/supplier_ledger_entry.dart';
 import '../../domain/repositories/supplier_credit_repository.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 import 'supplier_ledger_mapper.dart';
 
 class SupplierCreditRepositoryImpl implements SupplierCreditRepository {

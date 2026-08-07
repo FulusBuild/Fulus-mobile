@@ -5,7 +5,6 @@ import '../../domain/entities/employee.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../../domain/usecases/employee_engine.dart';
 import '../local/database/database.dart';
-import '../local/database/tables/employee_tables.dart';
 import 'employee_mapper.dart';
 
 /// Every write here runs [EmployeeEngine]'s validation FIRST — see that

@@ -271,7 +271,6 @@ Future<ProviderContainer> bootstrap() async {
   final returnRepository = ReturnRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
-    productRepository: productRepository,
     customerCreditRepository: customerCreditRepository,
   );
   // Finance (Stage 8) additions — same grouping-not-interleaving

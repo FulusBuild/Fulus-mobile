@@ -102,13 +102,21 @@ class SaleSyncHandler implements SyncHandler {
 
     final items = <SaleItemCreateDto>[];
     for (final item in sale.items) {
+      final productLocalId = item.productLocalId;
+      if (productLocalId == null) {
+        throw StateError(
+          'Sale item has no productLocalId (a Quick Sale line) — this '
+          'sale should have been marked attentionNeeded at creation '
+          'instead of reaching sync.',
+        );
+      }
       final product = await (_db.select(_db.products)
-            ..where((p) => p.localId.equals(item.productLocalId)))
+            ..where((p) => p.localId.equals(productLocalId)))
           .getSingleOrNull();
       final productServerId = product?.serverId;
       if (productServerId == null) {
         throw StateError(
-          'Product ${item.productLocalId} has no serverId yet — product '
+          'Product $productLocalId has no serverId yet — product '
           'sync is not built in this phase, so this sale cannot be '
           'created server-side until that exists.',
         );

@@ -70,7 +70,7 @@ class SupplierDraft {
   }
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createFromJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
 class SupplierCreateDto {
   const SupplierCreateDto({
     required this.name,

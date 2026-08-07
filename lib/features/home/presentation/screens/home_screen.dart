@@ -177,7 +177,7 @@ class _SecondaryNotices extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
               ),
               child: Row(
                 children: [

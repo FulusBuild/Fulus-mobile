@@ -53,9 +53,11 @@ class ReportsRepositoryImpl implements ReportsRepository {
     if (saleIds.isNotEmpty) {
       final items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
       for (final item in items) {
-        productTotals.putIfAbsent(item.productLocalId, () => [0, 0]);
-        productTotals[item.productLocalId]![0] += item.quantity;
-        productTotals[item.productLocalId]![1] += item.unitPrice * item.quantity;
+        final productId = item.productLocalId;
+        if (productId == null) continue;
+        productTotals.putIfAbsent(productId, () => [0, 0]);
+        productTotals[productId]![0] += item.quantity;
+        productTotals[productId]![1] += item.unitPrice * item.quantity;
       }
     }
     final topProducts = <TopProduct>[];

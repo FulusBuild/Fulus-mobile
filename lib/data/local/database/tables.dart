@@ -835,6 +835,7 @@ class CustomerLedgerEntries extends Table with SyncableColumns {
 /// `paymentMethod` string for the backend's benefit. No SyncableColumns
 /// — rides with its parent Sale exactly the way SaleItems does, not
 /// tracked for sync independently.
+@DataClassName('SalePaymentRow')
 class SalePayments extends Table {
   TextColumn get localId => text()();
   TextColumn get saleLocalId => text().references(Sales, #localId)();

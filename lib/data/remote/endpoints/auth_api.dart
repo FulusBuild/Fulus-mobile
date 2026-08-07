@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/errors/failure.dart';
 import '../../../domain/entities/approval_hash.dart';
 import '../api_client.dart';
 

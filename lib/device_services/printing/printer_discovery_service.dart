@@ -69,15 +69,15 @@ class PrinterDiscoveryService {
   /// app happened to check for. An owner picking the wrong device from
   /// this list fails harmlessly at the connect/test-print step instead.
   Future<List<PrinterDevice>> scanUsb() async {
-    final devices = await FlutterUsbPrinter().getUSBDeviceList();
+    final devices = await FlutterUsbPrinter.getUSBDeviceList();
     return devices.map((device) {
       return PrinterDevice(
-        name: device.productName ?? 'USB printer',
+        name: device['productName'] as String? ?? 'USB printer',
         // See usb_receipt_printer.dart's own comment on why address is
         // "vendorId:productId" — the two arguments FlutterUsbPrinter's
         // own connect() call actually needs, and nothing else about a
         // USB device is stable/meaningful to persist here.
-        address: '${device.vendorId}:${device.productId}',
+        address: '${device['vendorId']}:${device['productId']}',
         transport: PrinterTransport.usb,
       );
     }).toList();

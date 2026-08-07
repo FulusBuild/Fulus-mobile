@@ -9,7 +9,6 @@ import '../../domain/repositories/draft_cart_repository.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 import 'draft_cart_mapper.dart';
 
 class DraftCartRepositoryImpl implements DraftCartRepository {
@@ -77,10 +76,15 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     String resolvedDescription;
 
     if (productLocalId != null) {
-      final product = await _productRepository.getProductById(productLocalId);
-      if (product == null) {
+      final cartRow = await _requireDraftCart(draftCartLocalId);
+      final productWithStock = await _productRepository.getProductById(
+        productLocalId,
+        locationId: cartRow.locationId,
+      );
+      if (productWithStock == null) {
         throw ArgumentError.value(productLocalId, 'productLocalId', 'no such product');
       }
+      final product = productWithStock.product;
       resolvedUnitPrice = unitPrice ?? product.sellingPrice;
       costPriceAtSale = product.costPrice;
       resolvedDescription = description ?? product.name;

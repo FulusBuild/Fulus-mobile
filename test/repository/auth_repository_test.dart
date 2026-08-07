@@ -4,7 +4,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/repositories/auth_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/repositories/audit_repository.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

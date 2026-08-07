@@ -51,13 +51,12 @@ class ExportService {
       ExportFormat.pdf => await _writePdf(fileName, title, subtitle, headers, rows),
     };
 
-    // share_plus's unified SharePlus.instance.share(ShareParams(...))
-    // API — like every other third-party call in this stage, see
-    // bluetooth_receipt_printer.dart's opening note on verifying this
-    // against whatever version `flutter pub get` actually resolves.
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(file.path)], subject: title),
-    );
+    // share_plus is pinned to ^10.1.2 (see pubspec.yaml's merge note),
+    // so this uses the same long-stable Share.shareXFiles API as
+    // backup_screen.dart and receipt_preview_sheet.dart, deliberately —
+    // SharePlus.instance.share(ShareParams(...)) doesn't exist before
+    // share_plus 11.0.0.
+    await Share.shareXFiles([XFile(file.path)], subject: title);
   }
 
   Future<File> _writeCsv(

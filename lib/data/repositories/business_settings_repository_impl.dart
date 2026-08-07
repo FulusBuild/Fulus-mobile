@@ -64,7 +64,7 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
           BusinessSettingsCompanion.insert(
             id: 'singleton',
             businessName: businessName,
-            currencySymbol: currencySymbol,
+            currencySymbol: Value(currencySymbol),
             vatEnabled: Value(defaults.vatEnabled),
             vatRate: Value(defaults.vatRate),
             updatedAt: DateTime.now(),

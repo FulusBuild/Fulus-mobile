@@ -2,7 +2,6 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/dashboard_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/dashboard_summary.dart';
-import 'package:fulus_mobile/domain/usecases/dashboard_engine.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
