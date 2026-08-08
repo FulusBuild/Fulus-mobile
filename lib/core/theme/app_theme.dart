@@ -33,22 +33,22 @@ class AppTheme {
   }
 
   // Volume 16: "Dark mode isn't light mode inverted... Primary, Warning,
-  // and Error all desaturate a touch in dark mode." design_tokens.dart's
-  // AppColors deliberately does NOT define desaturated dark-mode variants
-  // of those three colors, since the Bible states the DIRECTION (desaturate)
-  // without giving exact hex values, and inventing specific ones would
-  // read as if they came from the spec when they didn't. This theme
-  // therefore uses the LIGHT-mode Primary/Warning/Error values against
-  // the correct dark-mode Background/Surface tokens (#121212 / #1E1E1E,
-  // which ARE exact Volume 16 values) — a real, named gap against the
-  // full spec, not a silent one. Revisit the moment exact desaturated
-  // values are specified, rather than guess at them now.
+  // and Error all desaturate a touch in dark mode." Previously this file
+  // fell back to the LIGHT-mode Primary/Error values here, flagged as a
+  // real, named gap: Volume 16 states the desaturate DIRECTION without
+  // exact hex values, and design_tokens.dart didn't have them either at
+  // the time. The Visual Design Bible's own Design Tokens volume has
+  // since worked out real desaturated values (AppColors.darkPrimary /
+  // darkOnPrimary / darkError / darkErrorOn) — this now wires them in
+  // directly, closing that gap rather than continuing to flag it.
   static ThemeData get dark {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: AppColors.darkPrimary,
       brightness: Brightness.dark,
-      primary: AppColors.primary, // not yet desaturated — see comment above
-      error: AppColors.error, // not yet desaturated — see comment above
+      primary: AppColors.darkPrimary,
+      onPrimary: AppColors.darkOnPrimary,
+      error: AppColors.darkError,
+      onError: AppColors.darkErrorOn,
       surface: AppColors.surfaceDark,
     );
 
@@ -57,14 +57,10 @@ class AppTheme {
       brightness: Brightness.dark,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.backgroundDark,
-      // Text colors are NOT the light-theme tokens inverted blindly —
-      // Volume 16 doesn't specify exact dark-mode text hex values
-      // either, so Colors.white/white70 (Flutter's own standard dark-
-      // theme text opacities) are used here as the most conservative,
-      // widely-understood default rather than inventing specific hex
-      // values Volume 16 never stated, matching the same honesty
-      // principle as the Primary/Warning/Error gap above.
-      textTheme: _textTheme(Colors.white, Colors.white70),
+      // Same closed gap as above — AppColors.darkTextPrimary/
+      // darkTextSecondary are real Bible values now, not Flutter's
+      // generic white/white70 dark-theme defaults.
+      textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(colorScheme),
       cardTheme: _cardTheme(),
@@ -73,13 +69,31 @@ class AppTheme {
     );
   }
 
+  // Previously only 5 of Material 3's 15 TextTheme slots were mapped
+  // (displayLarge, headlineMedium, bodyLarge, bodySmall, labelLarge) —
+  // fine for the four screens that reference AppTypography.* directly
+  // and never touch Theme.of(context).textTheme, but anything relying
+  // on Flutter's own widget defaults (AppBar's title, for instance,
+  // reads titleLarge in Material 3) fell back to Flutter's stock type
+  // scale instead of this app's. Now maps every slot this Bible has a
+  // named style for. Also fixes a real mismatch: bodyLarge previously
+  // pointed at AppTypography.body (16sp, the Bible's *standard* body)
+  // rather than AppTypography.bodyLarge (18sp, the Bible's actual
+  // "large body" style) — router.dart's placeholder screens already
+  // read textTheme.bodyLarge for their "not yet built" note, so this
+  // corrects that copy to the Bible's own lead-paragraph/empty-state
+  // size rather than leaving it silently one step smaller than named.
   static TextTheme _textTheme(Color primaryText, Color secondaryText) {
     return TextTheme(
       displayLarge: AppTypography.display.copyWith(color: primaryText),
+      titleLarge: AppTypography.title.copyWith(color: primaryText),
       headlineMedium: AppTypography.heading.copyWith(color: primaryText),
-      bodyLarge: AppTypography.body.copyWith(color: primaryText),
+      titleMedium: AppTypography.subheading.copyWith(color: primaryText),
+      bodyLarge: AppTypography.bodyLarge.copyWith(color: primaryText),
+      bodyMedium: AppTypography.body.copyWith(color: primaryText),
       bodySmall: AppTypography.caption.copyWith(color: secondaryText),
       labelLarge: AppTypography.buttonLabel,
+      labelMedium: AppTypography.label.copyWith(color: secondaryText),
     );
   }
 

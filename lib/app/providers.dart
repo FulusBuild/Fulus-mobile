@@ -23,6 +23,7 @@ import '../device_services/camera/camera_service.dart';
 import '../device_services/printing/printer_discovery_service.dart';
 import '../device_services/printing/receipt_printer_service.dart';
 import '../device_services/scanning/barcode_scanner_service.dart';
+import '../domain/entities/auth_user.dart';
 import '../domain/repositories/approval_pin_repository.dart';
 import '../domain/repositories/audit_repository.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -100,6 +101,31 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   throw UnimplementedError(
     'authRepositoryProvider must be overridden in bootstrap.dart.',
   );
+});
+
+/// Foundation phase 3 (Owner setup / sign-in). `AuthRepository.
+/// currentUser` is a plain getter, not reactive — its own doc comment
+/// says why: "no login/session-aware screen built yet to consume one;
+/// revisit once Volume 3's actual onboarding/login UI gets built." This
+/// is that revisit. Riverpod's `ref.watch` only rebuilds when a
+/// *provider* changes, not when a plain field inside the object a
+/// provider returns mutates internally — so router.dart watching
+/// `ref.watch(authRepositoryProvider).currentUser` directly would never
+/// rebuild after a real sign-in, since AuthRepositoryImpl's
+/// `_currentUser` field changes with no provider-level signal attached
+/// to it.
+///
+/// This provider is a thin, purely additive state holder — it does not
+/// call AuthRepository itself, and AuthRepositoryImpl is untouched by
+/// this phase. It's seeded once from whatever bootstrap.dart's
+/// `restoreSession()` already resolved before the widget tree first
+/// builds (a real restored session, or null), and from then on it's
+/// each mutating call site's own job to write the new value here right
+/// after its underlying AuthRepository call actually succeeds —
+/// `sign_in_screen.dart` and `owner_setup_screen.dart` do this now;
+/// logout, whenever a Settings screen adds one, will need to as well.
+final sessionProvider = StateProvider<AuthUser?>((ref) {
+  return ref.watch(authRepositoryProvider).currentUser;
 });
 
 final auditRepositoryProvider = Provider<AuditRepository>((ref) {

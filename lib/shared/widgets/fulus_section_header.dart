@@ -1,0 +1,47 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/design_tokens.dart';
+
+/// A label introducing a group of content on a screen — e.g. "Recent
+/// Sales" above a list, "This Week" above a stat-card row. Not one of
+/// the Bible's own numbered 5.x components (no single volume defines
+/// it), but implied throughout the Screen Gallery wherever a screen
+/// groups more than one kind of content — included here so every
+/// screen building such a grouping reaches for one widget rather than
+/// a bespoke Text+Row per screen.
+class FulusSectionHeader extends StatelessWidget {
+  const FulusSectionHeader({super.key, required this.title, this.action, this.onActionTap});
+
+  final String title;
+
+  /// e.g. "See all".
+  final String? action;
+  final VoidCallback? onActionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+          ),
+          if (action != null)
+            TextButton(
+              onPressed: onActionTap,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryOf(context),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(action!, style: AppTypography.buttonLabel),
+            ),
+        ],
+      ),
+    );
+  }
+}
