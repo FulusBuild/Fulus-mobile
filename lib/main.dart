@@ -1,3 +1,4 @@
+import 'package:dargon2_flutter/dargon2_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +12,13 @@ import 'app/bootstrap.dart';
 /// more init steps are added over time.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Required by dargon2_flutter itself (see its README/API docs): the
+  // Argon2 hashing calls used by PasswordHasher and PinHasher hang
+  // indefinitely — no error, no completion — if this isn't called
+  // before they're first used. Must run before bootstrap(), since
+  // bootstrap() constructs AuthRepositoryImpl with an Argon2PasswordHasher.
+  DArgon2Flutter.init();
 
   // bootstrap() opens the Drift database and initializes secure storage
   // and the API client — all BEFORE the widget tree is built, per
