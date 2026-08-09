@@ -7,10 +7,10 @@ part 'approval_hash.g.dart';
 /// exist and can approve," not a single PIN, since a business can have
 /// more than one admin. Deliberately lives here, in domain/entities/,
 /// rather than alongside PinHasher in core/security/ — that file
-/// depends on the dargon2_flutter Flutter plugin (needed for the actual
+/// depends on the cryptography package (needed for the actual
 /// hashing), and this type needs to stay importable from domain-layer
-/// files that must have zero Flutter/Drift dependencies (this file's
-/// own DTOs below, in particular).
+/// files that must have zero Flutter/Drift/third-party-crypto
+/// dependencies (this file's own DTOs below, in particular).
 class ApprovalPinVerifier {
   const ApprovalPinVerifier({
     required this.userId,

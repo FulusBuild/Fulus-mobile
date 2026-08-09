@@ -14,11 +14,12 @@ class MockSecureStorage extends Mock implements SecureStorage {}
 class MockAuditRepository extends Mock implements AuditRepository {}
 
 /// Deterministic, pure-Dart fake — never used for anything resembling
-/// real security. Lets these tests verify the repository's own
-/// matching/replacement LOGIC without depending on dargon2_flutter's
-/// native library loading correctly inside `flutter test`'s plain Dart
-/// VM, which is a real, separate, unverified-from-this-environment risk
-/// (see Argon2PinHasher's own doc comment in pin_hasher.dart).
+/// real security. Keeps these tests fast and independent of
+/// Argon2PinHasher's correctness, which pin_hasher_test.dart covers
+/// directly. (Real Argon2id is deliberately slow — that's the point of
+/// it — so using the real hasher here would needlessly cost every test
+/// in this file that memory-hard computation just to exercise
+/// unrelated matching/replacement logic.)
 class _FakePinHasher implements PinHasher {
   @override
   Future<PinHash> hash(String pin) async {

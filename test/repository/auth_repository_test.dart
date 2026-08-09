@@ -10,11 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 /// Deterministic, pure-Dart fake — same reasoning as
-/// approval_pin_repository_test.dart's own _FakePinHasher: verifies this
-/// repository's own logic without depending on dargon2_flutter's native
-/// library loading inside `flutter test`'s plain Dart VM, which is a
-/// real, separate, unverified-from-this-environment risk (see
-/// Argon2PasswordHasher's own doc comment in password_hasher.dart).
+/// approval_pin_repository_test.dart's own _FakePinHasher: keeps this
+/// repository's own tests fast and independent of Argon2PasswordHasher's
+/// correctness, which password_hasher_test.dart covers directly. (Real
+/// Argon2id is deliberately slow — that's the point of it — so using
+/// the real hasher here would needlessly cost every test in this file
+/// that memory-hard computation just to exercise unrelated repository
+/// logic.)
 class _FakePasswordHasher implements PasswordHasher {
   @override
   Future<PasswordHash> hash(String password) async {
