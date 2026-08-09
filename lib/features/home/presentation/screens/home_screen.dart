@@ -16,6 +16,14 @@ import '../../../../domain/entities/dashboard_summary.dart';
 /// read from a session provider this module can't see, so this screen
 /// compiles and is testable in isolation; the merge step is one line at
 /// the call site once Stage 2's session provider exists.
+///
+/// Foundation follow-up: every color here now goes through the
+/// brightness-aware `AppColors.*Of(context)` accessors (design_tokens
+/// .dart) instead of the flat Light-suffixed constants this screen used
+/// before — it previously ignored `ThemeMode.system` entirely despite
+/// that being wired in app.dart, a real, visible bug on a device set to
+/// dark mode. No layout or structure changed, only which token each
+/// color reads from.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.currentAuthUserId, required this.isOwner});
 
@@ -50,7 +58,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.backgroundOf(context),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -114,20 +122,23 @@ class _HeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppColors.primaryOf(context),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: Colors.white70)),
+          Text(label, style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7))),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '₦${amount.toStringAsFixed(2)}',
-            style: AppTypography.display.copyWith(color: Colors.white),
+            style: AppTypography.display.copyWith(color: AppColors.onPrimaryOf(context)),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text('$count sale${count == 1 ? '' : 's'}', style: AppTypography.body.copyWith(color: Colors.white70)),
+          Text(
+            '$count sale${count == 1 ? '' : 's'}',
+            style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7)),
+          ),
           if (state is NotYetOpenedHero) ...[
             const SizedBox(height: AppSpacing.lg),
             _HeroButton(label: 'Open Shop', onTap: () {}),
@@ -152,7 +163,10 @@ class _HeroButton extends StatelessWidget {
       width: double.infinity,
       height: AppTouchTarget.minimum,
       child: FilledButton(
-        style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.primary),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.onPrimaryOf(context),
+          foregroundColor: AppColors.primaryOf(context),
+        ),
         onPressed: onTap,
         child: Text(label, style: AppTypography.buttonLabel),
       ),
@@ -175,21 +189,29 @@ class _SecondaryNotices extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppColors.surfaceOf(context),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                border: Border.all(color: AppColors.warningOf(context).withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: AppColors.warning, size: 20),
+                  Icon(Icons.info_outline, color: AppColors.warningOf(context), size: 20),
                   const SizedBox(width: AppSpacing.sm),
-                  Expanded(child: Text('${notice.label}: ${notice.value}', style: AppTypography.body)),
+                  Expanded(
+                    child: Text(
+                      '${notice.label}: ${notice.value}',
+                      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         if (selection.overflowCount > 0)
-          Text('and ${selection.overflowCount} more', style: AppTypography.caption),
+          Text(
+            'and ${selection.overflowCount} more',
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
       ],
     );
   }

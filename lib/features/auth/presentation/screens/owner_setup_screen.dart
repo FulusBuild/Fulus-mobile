@@ -45,16 +45,34 @@ import '../widgets/auth_error_banner.dart';
 /// least faithful to the "one tap" part of the spec even though the
 /// "defaulted from SIM" part is a reasonable substitute, not the real
 /// mechanism.
+///
+/// [startAtBusinessStep] / [resumingOwner]: the interrupted-setup
+/// recovery path — router.dart's `_ShellGate` resumes here directly at
+/// Step 2 for a signed-in owner whose business was never configured
+/// (app killed between the two steps in an earlier session; the
+/// account is real and already signed in, only the business step never
+/// ran). [resumingOwner] must be supplied whenever [startAtBusinessStep]
+/// is true, since there's no Step 1 in this run to have produced it.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
-  const OwnerSetupScreen({super.key});
+  const OwnerSetupScreen({
+    super.key,
+    this.startAtBusinessStep = false,
+    this.resumingOwner,
+  }) : assert(
+          !startAtBusinessStep || resumingOwner != null,
+          'resumingOwner is required when starting at the business step.',
+        );
+
+  final bool startAtBusinessStep;
+  final AuthUser? resumingOwner;
 
   @override
   ConsumerState<OwnerSetupScreen> createState() => _OwnerSetupScreenState();
 }
 
 class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
-  int _step = 0;
-  AuthUser? _createdOwner;
+  late int _step = widget.startAtBusinessStep ? 1 : 0;
+  late AuthUser? _createdOwner = widget.resumingOwner;
 
   final _fullNameController = TextEditingController();
   final _usernameController = TextEditingController();

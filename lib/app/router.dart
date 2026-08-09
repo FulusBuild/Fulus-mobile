@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme/design_tokens.dart';
 import '../domain/entities/auth_user.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
+import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/reports/presentation/screens/reports_screen.dart';
@@ -37,6 +38,24 @@ import 'providers.dart';
 /// out is now [AuthGateScreen], a real, working owner-setup/sign-in
 /// flow.
 ///
+/// **Foundation follow-up (gap closure)**: two things phase 3 originally
+/// flagged as open are closed now, both in [_ShellGate] below and this
+/// `redirect`:
+/// - An owner signed in with no business configured (app killed between
+///   [OwnerSetupScreen]'s two steps in an earlier session) used to land
+///   straight in the shell with nothing configured. [_ShellGate] now
+///   checks [BusinessSettingsRepository.hasBeenConfigured] for a
+///   signed-in owner and resumes [OwnerSetupScreen] at its business
+///   step instead, before ever building [FulusAppShell].
+/// - Employee sessions previously reached `/money` and everything under
+///   `/more` exactly like an owner would (Volume 9: "never sees Money,
+///   Reports, Employees, or Settings"). [FulusAppShell] hides those nav
+///   buttons for an Employee session, but a hidden button alone isn't
+///   real enforcement (failure.dart's own `_Forbidden` doc comment makes
+///   this same point about permission checks generally) — the
+///   `redirect` below is what actually blocks reaching those routes,
+///   the same way a direct call bypassing the UI has to be rejected too.
+///
 /// Named routes (via `name:`) rather than only paths, throughout — so
 /// every navigation call site in the app reads as
 /// `context.goNamed('home')` rather than a raw path string repeated at
@@ -44,17 +63,20 @@ import 'providers.dart';
 /// that drifts silently once a path changes in only one place.
 final appRouter = GoRouter(
   initialLocation: '/',
+  redirect: (context, state) {
+    final user = ProviderScope.containerOf(context, listen: false).read(sessionProvider);
+    if (user == null || user.role == AuthRole.owner) return null;
+    // Employee session — Stock stays reachable (see app_shell.dart's
+    // own doc comment on why that one is a deliberately conservative
+    // reading, not a confirmed spec decision); Money and everything
+    // under More do not.
+    final blockedForEmployee =
+        state.matchedLocation.startsWith('/money') || state.matchedLocation.startsWith('/more');
+    return blockedForEmployee ? '/' : null;
+  },
   routes: [
     StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) => Consumer(
-        builder: (context, ref, _) {
-          final signedIn = ref.watch(sessionProvider) != null;
-          if (!signedIn) {
-            return const AuthGateScreen();
-          }
-          return FulusAppShell(navigationShell: navigationShell);
-        },
-      ),
+      builder: (context, state, navigationShell) => _ShellGate(navigationShell: navigationShell),
       branches: [
         StatefulShellBranch(
           routes: [
@@ -150,6 +172,66 @@ final appRouter = GoRouter(
     ),
   ],
 );
+
+/// Resolves to exactly one of three things, in order:
+/// [AuthGateScreen] (signed out), [OwnerSetupScreen] resumed at its
+/// business step (signed in as an owner with no business configured —
+/// the interrupted-setup recovery case), or [FulusAppShell] (the normal
+/// case). See the `redirect` above and this router's own header comment
+/// for the employee-enforcement half of this same gap-closure pass.
+///
+/// The business-configured check only runs for an owner session —
+/// there's no path to an Employee account existing before a business
+/// does (`createEmployeeAccount` is owner-initiated, and an owner
+/// wouldn't reach Employees to provision one before their own business
+/// setup finished), so checking for Employee sessions would just be an
+/// unnecessary database read on every rebuild.
+class _ShellGate extends ConsumerStatefulWidget {
+  const _ShellGate({required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  ConsumerState<_ShellGate> createState() => _ShellGateState();
+}
+
+class _ShellGateState extends ConsumerState<_ShellGate> {
+  // Cached per-user rather than recreated on every rebuild (same reason
+  // as AuthGateScreen's own _hasOwnerFuture) — but still recomputed if
+  // the signed-in user actually changes, since a fresh sign-in is a
+  // genuinely new question, not a stale one.
+  AuthUser? _futureBuiltForUser;
+  Future<bool>? _businessConfiguredFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(sessionProvider);
+    if (user == null) {
+      return const AuthGateScreen();
+    }
+    if (user.role != AuthRole.owner) {
+      return FulusAppShell(navigationShell: widget.navigationShell, isOwner: false);
+    }
+
+    if (!identical(_futureBuiltForUser, user)) {
+      _futureBuiltForUser = user;
+      _businessConfiguredFuture = ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    }
+
+    return FutureBuilder<bool>(
+      future: _businessConfiguredFuture,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const FulusScreen(body: FulusLoadingIndicator());
+        }
+        if (!snapshot.data!) {
+          return OwnerSetupScreen(startAtBusinessStep: true, resumingOwner: user);
+        }
+        return FulusAppShell(navigationShell: widget.navigationShell, isOwner: true);
+      },
+    );
+  }
+}
 
 /// **Foundation phase 2**: rebuilt on [FulusScreen]/[FulusListRow] —
 /// same three real sub-screens as before, now using the shared
