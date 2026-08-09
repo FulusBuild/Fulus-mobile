@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+<!-- Native splash screen — was the stock unmodified Flutter default (plain
+     white, no image) until this pass; previously called out as an explicit
+     known gap in the logo integration handoff.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+     Background reuses @color/ic_launcher_background (the app's primary
+     teal, see values/colors.xml) rather than introducing a second color
+     resource for the same brand value. Foreground is launch_image.png —
+     the same transparent F mark used for the adaptive icon foreground and
+     the in-app FulusLogoMark widget, exported once per density bucket
+     (drawable-mdpi through drawable-xxxhdpi) from the untouched
+     assets/branding/fulus_mark_transparent.png source. Same file covers
+     both light and dark theme, since values/styles.xml and
+     values-night/styles.xml both point LaunchTheme at this one drawable
+     and the brand teal isn't meant to switch with the in-app theme. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/ic_launcher_background" />
+
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@drawable/launch_image" />
+    </item>
 </layer-list>
