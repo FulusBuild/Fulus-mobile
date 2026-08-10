@@ -4,12 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
 import '../domain/entities/auth_user.dart';
+import '../domain/entities/product.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
 import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/reports/presentation/screens/reports_screen.dart';
 import '../features/more/settings/presentation/screens/backup_screen.dart';
+import '../features/sell/presentation/screens/sell_screen.dart';
+import '../features/stock/presentation/screens/add_edit_product_screen.dart';
+import '../features/stock/presentation/screens/product_detail_screen.dart';
+import '../features/stock/presentation/screens/record_stock_movement_screen.dart';
+import '../features/stock/presentation/screens/stock_movement_history_screen.dart';
+import '../features/stock/presentation/screens/stock_screen.dart';
 import '../shared/widgets/widgets.dart';
 import 'app_shell.dart';
 import 'providers.dart';
@@ -111,10 +118,36 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/stock',
               name: 'stock',
-              builder: (context, state) => const _PlaceholderScreen(
-                title: 'Stock',
-                note: 'Volume 6 — inventory. Not yet built.',
-              ),
+              builder: (context, state) => const StockScreen(),
+              routes: [
+                GoRoute(
+                  path: 'product/:productId',
+                  name: 'stockProductDetail',
+                  builder: (context, state) =>
+                      ProductDetailScreen(productId: state.pathParameters['productId']!),
+                ),
+                GoRoute(
+                  path: 'add',
+                  name: 'stockAddProduct',
+                  builder: (context, state) => const AddEditProductScreen(),
+                ),
+                GoRoute(
+                  path: 'edit',
+                  name: 'stockEditProduct',
+                  builder: (context, state) => AddEditProductScreen(existingProduct: state.extra as Product?),
+                ),
+                GoRoute(
+                  path: 'record',
+                  name: 'stockRecordMovement',
+                  builder: (context, state) =>
+                      RecordStockMovementScreen(preselectedProduct: state.extra as Product?),
+                ),
+                GoRoute(
+                  path: 'history',
+                  name: 'stockHistory',
+                  builder: (context, state) => StockMovementHistoryScreen(productId: state.extra as String?),
+                ),
+              ],
             ),
           ],
         ),
@@ -123,10 +156,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/sell',
               name: 'sell',
-              builder: (context, state) => const _PlaceholderScreen(
-                title: 'Sell',
-                note: 'Volume 5 — cart, checkout. Not yet built.',
-              ),
+              builder: (context, state) => const SellScreen(),
             ),
           ],
         ),

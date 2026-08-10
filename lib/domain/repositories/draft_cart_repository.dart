@@ -23,7 +23,7 @@ abstract class DraftCartRepository {
     String? description,
     required int quantity,
     double? unitPrice,
-    double lineDiscount,
+    double lineDiscount = 0.0,
   });
 
   Future<DraftCartItem> updateItemQuantity({
