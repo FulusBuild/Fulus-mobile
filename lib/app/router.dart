@@ -4,10 +4,27 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
 import '../domain/entities/auth_user.dart';
+import '../domain/entities/customer.dart';
 import '../domain/entities/product.dart';
+import '../domain/entities/supplier.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
 import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
+import '../features/money/domain/cash_drawer_state.dart';
+import '../features/money/domain/money_transaction.dart';
+import '../features/money/presentation/screens/add_expense_screen.dart';
+import '../features/money/presentation/screens/add_income_screen.dart';
+import '../features/money/presentation/screens/customer_profile_screen.dart';
+import '../features/money/presentation/screens/customers_list_screen.dart';
+import '../features/money/presentation/screens/daily_closing_count_screen.dart';
+import '../features/money/presentation/screens/daily_closing_summary_screen.dart';
+import '../features/money/presentation/screens/money_history_screen.dart';
+import '../features/money/presentation/screens/money_screen.dart';
+import '../features/money/presentation/screens/pay_supplier_screen.dart';
+import '../features/money/presentation/screens/record_repayment_screen.dart';
+import '../features/money/presentation/screens/supplier_profile_screen.dart';
+import '../features/money/presentation/screens/suppliers_list_screen.dart';
+import '../features/money/presentation/screens/transaction_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/reports/presentation/screens/reports_screen.dart';
 import '../features/more/settings/presentation/screens/backup_screen.dart';
@@ -62,6 +79,13 @@ import 'providers.dart';
 ///   this same point about permission checks generally) — the
 ///   `redirect` below is what actually blocks reaching those routes,
 ///   the same way a direct call bypassing the UI has to be rejected too.
+///
+/// **Foundation follow-up (Money)**: `/money` and everything under it
+/// (History, Transaction Detail, Add Income/Expense, Customers/
+/// Suppliers credit books, Daily Closing) are real screens now, not
+/// [_PlaceholderScreen] — see `features/money/` for the feature itself,
+/// and its own doc comments for exactly which parts read real data
+/// versus this feature's own mock repository.
 ///
 /// Named routes (via `name:`) rather than only paths, throughout — so
 /// every navigation call site in the app reads as
@@ -165,10 +189,116 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/money',
               name: 'money',
-              builder: (context, state) => const _PlaceholderScreen(
-                title: 'Money',
-                note: 'Volumes 7–8 — customers, finance. Not yet built.',
-              ),
+              builder: (context, state) => const MoneyScreen(),
+              routes: [
+                GoRoute(
+                  path: 'history',
+                  name: 'moneyHistory',
+                  builder: (context, state) => const MoneyHistoryScreen(),
+                ),
+                GoRoute(
+                  path: 'transaction/:id',
+                  name: 'moneyTransactionDetail',
+                  builder: (context, state) => TransactionDetailScreen(
+                    transactionId: state.pathParameters['id']!,
+                    preloaded: state.extra is MoneyTransaction ? state.extra as MoneyTransaction : null,
+                  ),
+                ),
+                GoRoute(
+                  path: 'add-income',
+                  name: 'moneyAddIncome',
+                  builder: (context, state) => const AddIncomeScreen(),
+                ),
+                GoRoute(
+                  path: 'add-expense',
+                  name: 'moneyAddExpense',
+                  builder: (context, state) => const AddExpenseScreen(),
+                ),
+                GoRoute(
+                  path: 'customers',
+                  name: 'moneyCustomers',
+                  builder: (context, state) => const CustomersListScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':id',
+                      name: 'moneyCustomerProfile',
+                      builder: (context, state) => CustomerProfileScreen(
+                        customerId: state.pathParameters['id']!,
+                        preloaded: state.extra is Customer ? state.extra as Customer : null,
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: 'repay',
+                          name: 'moneyRecordRepayment',
+                          builder: (context, state) {
+                            final extra = state.extra;
+                            if (extra is Customer) return RecordRepaymentScreen(customer: extra);
+                            // Defensive fallback — this route is only ever
+                            // reached from a profile screen that already
+                            // holds the Customer object; a bare id with no
+                            // `extra` (a malformed deep link) has nothing
+                            // to build a payment form against.
+                            return const _MissingContextScreen(
+                              title: 'Record repayment',
+                              message: "Open the customer's profile first.",
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                GoRoute(
+                  path: 'suppliers',
+                  name: 'moneySuppliers',
+                  builder: (context, state) => const SuppliersListScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':id',
+                      name: 'moneySupplierProfile',
+                      builder: (context, state) => SupplierProfileScreen(
+                        supplierId: state.pathParameters['id']!,
+                        preloaded: state.extra is Supplier ? state.extra as Supplier : null,
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: 'pay',
+                          name: 'moneyPaySupplier',
+                          builder: (context, state) {
+                            final extra = state.extra;
+                            if (extra is Supplier) return PaySupplierScreen(supplier: extra);
+                            return const _MissingContextScreen(
+                              title: 'Pay supplier',
+                              message: "Open the supplier's profile first.",
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                GoRoute(
+                  path: 'daily-closing',
+                  name: 'moneyDailyClosingCount',
+                  builder: (context, state) => const DailyClosingCountScreen(),
+                ),
+                GoRoute(
+                  path: 'daily-closing/summary',
+                  name: 'moneyDailyClosingSummary',
+                  builder: (context, state) {
+                    final extra = state.extra;
+                    if (extra is DailyClosingSummary) return DailyClosingSummaryScreen(summary: extra);
+                    // Only reachable with a summary in hand — closing the
+                    // drawer produces the summary and pushes here in the
+                    // same step, there's no separate persisted store of
+                    // past closings to fetch one by id from.
+                    return const _MissingContextScreen(
+                      title: 'Day closed',
+                      message: 'Close the day from the Money tab first.',
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -308,6 +438,26 @@ class _MoreScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A defensive fallback for the handful of Money routes that need an
+/// object passed via `extra` (a `Customer`, `Supplier`, or
+/// `DailyClosingSummary`) and were reached without one — normal
+/// navigation from within the app always provides it; this only
+/// matters for a malformed or stale deep link.
+class _MissingContextScreen extends StatelessWidget {
+  const _MissingContextScreen({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return FulusScreen(
+      title: title,
+      body: FulusEmptyState(icon: Icons.error_outline, headline: "Couldn't open this.", body: message),
     );
   }
 }

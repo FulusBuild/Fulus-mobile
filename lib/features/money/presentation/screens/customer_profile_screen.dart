@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../app/providers.dart';
+import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/customer.dart';
+import '../../../../domain/entities/customer_ledger_entry.dart';
+import '../../../../shared/widgets/widgets.dart';
+import '../providers/money_providers.dart';
+import '../utils/money_format.dart';
+
+/// Volume 7: "a running balance... and a full ledger underneath — the
+/// credit book made visible." Real data — `Customer`/
+/// `CustomerLedgerEntry` via the already-implemented `CustomerRepository`
+/// / `CustomerCreditRepository`.
+class CustomerProfileScreen extends ConsumerStatefulWidget {
+  const CustomerProfileScreen({super.key, required this.customerId, this.preloaded});
+
+  final String customerId;
+  final Customer? preloaded;
+
+  @override
+  ConsumerState<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
+}
+
+class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
+  late Future<Customer?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.preloaded != null
+        ? Future.value(widget.preloaded)
+        : ref.read(customerRepositoryProvider).getCustomerById(widget.customerId);
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _future = ref.read(customerRepositoryProvider).getCustomerById(widget.customerId);
+    });
+    await _future;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+
+    return FulusScreen(
+      title: 'Customer',
+      body: FutureBuilder<Customer?>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return FulusErrorState(message: "Couldn't load this customer.", onRetry: _reload);
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: FulusLoadingIndicator());
+          }
+          final customer = snapshot.data;
+          if (customer == null) {
+            return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
+          }
+          return _ProfileBody(customer: customer, currencySymbol: currencySymbol, onChanged: _reload);
+        },
+      ),
+    );
+  }
+}
+
+class _ProfileBody extends ConsumerWidget {
+  const _ProfileBody({required this.customer, required this.currencySymbol, required this.onChanged});
+
+  final Customer customer;
+  final String currencySymbol;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListView(
+      children: [
+        FulusCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.selectedTintOf(context),
+                    foregroundColor: AppColors.primaryOf(context),
+                    child: Text(customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?'),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          customer.name,
+                          style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                        ),
+                        if (customer.phone != null)
+                          Text(customer.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Outstanding balance', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+                  Text(
+                    formatMoney(customer.outstandingBalance, symbol: currencySymbol),
+                    style: AppTypography.heading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+              if (customer.creditLimit != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Credit limit: ${formatMoney(customer.creditLimit!, symbol: currencySymbol)} — a guide, not a hard block',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FulusButton(
+                  label: 'Record repayment',
+                  onPressed: () async {
+                    final result = await context.pushNamed<bool>(
+                      'moneyRecordRepayment',
+                      pathParameters: {'id': customer.localId},
+                      extra: customer,
+                    );
+                    if (result == true) onChanged();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        FulusSectionHeader(title: 'Credit history'),
+        _buildLedgerSection(ref),
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+  }
+
+  Widget _buildLedgerSection(WidgetRef ref) {
+    final ledgerAsync = ref.watch(moneyCustomerLedgerProvider(customer.localId));
+    return ledgerAsync.when(
+      loading: () => Column(children: List.generate(3, (_) => const FulusListRowSkeleton(hasLeading: false))),
+      error: (error, stack) => FulusErrorState(
+        message: "Couldn't load this customer's history.",
+        onRetry: () => ref.invalidate(moneyCustomerLedgerProvider(customer.localId)),
+      ),
+      data: (entries) {
+        if (entries.isEmpty) {
+          return const FulusEmptyState(
+            icon: Icons.receipt_long_outlined,
+            headline: 'No credit history yet.',
+            body: 'Credit sales and repayments for this customer will show up here.',
+          );
+        }
+        return FulusCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < entries.length; i++) ...[
+                if (i > 0) const FulusListDivider(indented: false),
+                _LedgerRow(entry: entries[i], currencySymbol: currencySymbol),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow({required this.entry, required this.currencySymbol});
+  final CustomerLedgerEntry entry;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final isRepayment = entry.entryType == CustomerLedgerEntryType.repayment;
+    final label = switch (entry.entryType) {
+      CustomerLedgerEntryType.creditSale => 'Credit sale',
+      CustomerLedgerEntryType.repayment => 'Repayment${entry.paymentMethod != null ? ' — ${entry.paymentMethod}' : ''}',
+      CustomerLedgerEntryType.refundAdjustment => 'Refund adjustment',
+    };
+    final increasesBalance = entry.entryType == CustomerLedgerEntryType.creditSale;
+    final signed = increasesBalance ? entry.amount : -entry.amount;
+
+    return FulusListRow(
+      title: Text(label),
+      subtitle: Text('${formatRelativeDay(entry.createdAt)} · ${formatTime(entry.createdAt)}'),
+      trailing: Text(
+        formatMoney(signed, symbol: currencySymbol, showSign: true),
+        style: AppTypography.body.copyWith(
+          fontFeatures: const [FontFeature.tabularFigures()],
+          fontWeight: FontWeight.w600,
+          color: isRepayment ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+        ),
+      ),
+    );
+  }
+}

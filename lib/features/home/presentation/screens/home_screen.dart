@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/dashboard_summary.dart';
+import '../../../../shared/widgets/widgets.dart';
+import '../../../money/presentation/widgets/opening_float_sheet.dart';
 
 /// Volume 4: "one evolving hero element... not five widgets shown at
 /// once." This screen is deliberately thin — everything that decides
@@ -24,6 +27,18 @@ import '../../../../domain/entities/dashboard_summary.dart';
 /// that being wired in app.dart, a real, visible bug on a device set to
 /// dark mode. No layout or structure changed, only which token each
 /// color reads from.
+///
+/// Foundation follow-up (Money): Open Shop / Close Shop were wired to
+/// nothing (`onTap: () {}`) — they now open the Money feature's
+/// opening-float sheet and Daily Closing flow respectively, the two
+/// places Volume 8 names these buttons as the trigger for. This is
+/// deliberately the only change in this file: [HomeHeroState] and
+/// which hero variant is shown still come entirely from
+/// [DashboardRepository], untouched — the two systems aren't merged,
+/// so closing a mock day here doesn't flip this screen's own hero
+/// state. That merge is a real gap, not solved by this pass; see
+/// `features/money/domain/money_transaction.dart` for why the Money
+/// feature is mock-backed at all.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.currentAuthUserId, required this.isOwner});
 
@@ -141,10 +156,21 @@ class _HeroCard extends StatelessWidget {
           ),
           if (state is NotYetOpenedHero) ...[
             const SizedBox(height: AppSpacing.lg),
-            _HeroButton(label: 'Open Shop', onTap: () {}),
+            _HeroButton(
+              label: 'Open Shop',
+              onTap: () async {
+                final opened = await showOpeningFloatSheet(context);
+                if (opened && context.mounted) {
+                  showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
+                }
+              },
+            ),
           ] else if (emphasizeAction) ...[
             const SizedBox(height: AppSpacing.lg),
-            _HeroButton(label: 'Close Shop', onTap: () {}),
+            _HeroButton(
+              label: 'Close Shop',
+              onTap: () => context.goNamed('moneyDailyClosingCount'),
+            ),
           ],
         ],
       ),
