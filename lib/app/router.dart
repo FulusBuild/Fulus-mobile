@@ -82,10 +82,14 @@ import 'providers.dart';
 ///
 /// **Foundation follow-up (Money)**: `/money` and everything under it
 /// (History, Transaction Detail, Add Income/Expense, Customers/
-/// Suppliers credit books, Daily Closing) are real screens now, not
-/// [_PlaceholderScreen] — see `features/money/` for the feature itself,
-/// and its own doc comments for exactly which parts read real data
-/// versus this feature's own mock repository.
+/// Suppliers credit books, Daily Closing) are real screens now, not a
+/// placeholder — see `features/money/` for the feature itself, and its
+/// own doc comments for exactly which parts read real data versus this
+/// feature's own mock repository. The placeholder screen that used to
+/// stand in for these (and for every other not-yet-built route) is
+/// gone now that nothing references it — `flutter analyze`'s own
+/// `unused_element` check confirmed zero remaining call sites once
+/// Money, Stock, and Sell all got real screens.
 ///
 /// Named routes (via `name:`) rather than only paths, throughout — so
 /// every navigation call site in the app reads as
@@ -462,32 +466,4 @@ class _MissingContextScreen extends StatelessWidget {
   }
 }
 
-/// A real, minimal screen — not a "TODO screen" with no purpose. Exists
-/// specifically so this router is genuinely navigable and verifiable
-/// (a widget test can assert each named route renders SOMETHING
-/// correctly) while being completely honest on-screen that the real
-/// feature isn't built yet, rather than showing a blank screen that
-/// could be mistaken for a bug once real navigation exists between
-/// tabs. Rebuilt on [FulusScreen] in foundation phase 2 — previously a
-/// bare [Scaffold], now the same shared container every real screen
-/// should use.
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({required this.title, required this.note});
 
-  final String title;
-  final String note;
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusScreen(
-      title: title,
-      body: Center(
-        child: Text(
-          note,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-      ),
-    );
-  }
-}

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../domain/entities/customer.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
