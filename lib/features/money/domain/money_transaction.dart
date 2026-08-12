@@ -1,31 +1,37 @@
 /// Volume 8 (Finance)'s Cash Flow feed, modeled as one unified ledger.
 ///
-/// **Integration status**: [MoneyTransaction] and everything under
-/// `features/money/data/` back the Cash Flow screen, transaction
-/// history, transaction detail, Add Income, Add Expense, and Daily
-/// Closing — every one of those is location-scoped in the real domain
-/// (`SaleRepository`, `ExpenseRepository`, `IncomeRecordRepository`,
-/// `FinanceStatsRepository`, `CashDrawerShiftRepository` all require a
-/// `locationId`), and nothing anywhere in this app yet resolves which
-/// location a device is at (`LocationRepository.watchLocations()` has
-/// no call site — confirmed by grep — because Locations are
-/// desktop-managed, Architecture Section 7a, and no location-switcher
-/// UI exists). So this feature builds against its own small
-/// `MoneyRepository` seam instead of those real repositories, backed by
-/// realistic mock data, exactly per this task's own "use mock data
-/// where backend data isn't yet available" instruction. Once a location
-/// is resolvable, a real `MoneyRepository` implementation should read
-/// from the five repositories named above and this mock one retires —
-/// the screens themselves don't need to change, only which
-/// implementation `moneyRepositoryProvider` returns.
+/// **Integration status, CORRECTED**: [MoneyTransaction] and everything
+/// under `features/money/data/` now back the Cash Flow screen,
+/// transaction history, transaction detail, Add Income, Add Expense,
+/// and Daily Closing with real data. This used to read: every one of
+/// those is location-scoped in the real domain (`SaleRepository`,
+/// `ExpenseRepository`, `IncomeRecordRepository`,
+/// `CashDrawerShiftRepository` all require a `locationId`), and nothing
+/// anywhere in this app yet resolves which location a device is at —
+/// so this feature built against its own small `MoneyRepository` seam
+/// instead of those real repositories, backed by mock data. That gap is
+/// closed now: `domain/usecases/active_location_resolver.dart`'s
+/// `ResolveActiveLocation` is the resolution mechanism that was
+/// missing, and `RealMoneyRepositoryImpl`
+/// (`features/money/data/real_money_repository.dart`) is the real
+/// `MoneyRepository` implementation this comment used to say should
+/// exist "once a location is resolvable" — exactly as predicted, the
+/// screens themselves needed no changes, only which implementation
+/// `moneyRepositoryProvider` returns (`money_providers.dart`).
+/// `MockMoneyRepository` still exists but nothing constructs it
+/// anymore.
 ///
-/// Customers (Credit Book) and Suppliers (Pay Supplier) are the
-/// opposite case — `CustomerRepository`/`CustomerCreditRepository`/
-/// `SupplierRepository`/`SupplierCreditRepository` are business-wide,
-/// need no locationId, and are fully implemented already — so those
-/// parts of Money are wired directly to the real repositories, not
-/// mocked. See `customers_list_screen.dart` and `suppliers_list_screen
-/// .dart`.
+/// `RealMoneyRepositoryImpl` deliberately does not read from
+/// `FinanceStatsRepository` — see that class's own doc comment for the
+/// specific under-reporting gap in `FinanceStatsRepositoryImpl.
+/// getCashFlow` that made delegating to it the wrong choice here.
+///
+/// Customers (Credit Book) and Suppliers (Pay Supplier) were always the
+/// business-wide, no-locationId-needed case — `CustomerRepository`/
+/// `CustomerCreditRepository`/`SupplierRepository`/
+/// `SupplierCreditRepository` were already fully implemented and wired
+/// directly to the real repositories before this pass, not mocked. See
+/// `customers_list_screen.dart` and `suppliers_list_screen.dart`.
 library;
 
 enum MoneyTransactionType {

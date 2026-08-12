@@ -127,4 +127,27 @@ class SupplierCreditRepositoryImpl implements SupplierCreditRepository {
       ..orderBy([(e) => OrderingTerm.desc(e.createdAt)]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
+
+  @override
+  Future<List<SupplierLedgerEntry>> getPaymentsForPeriod({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+
+    // 'paymentMade' — the same textEnum WHERE-clause comparison
+    // FinanceStatsRepositoryImpl.getCashFlow already verified working
+    // against this exact column (`e.entryType.equals('paymentMade')`).
+    final rows = await (_db.select(_db.supplierLedgerEntries)
+          ..where(
+            (e) =>
+                e.entryType.equals('paymentMade') &
+                e.createdAt.isBiggerOrEqualValue(startOfDay) &
+                e.createdAt.isSmallerThanValue(endExclusive),
+          )
+          ..orderBy([(e) => OrderingTerm.desc(e.createdAt)]))
+        .get();
+    return rows.map((r) => r.toDomain()).toList();
+  }
 }

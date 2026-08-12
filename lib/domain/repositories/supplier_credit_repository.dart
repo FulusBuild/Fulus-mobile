@@ -37,4 +37,18 @@ abstract class SupplierCreditRepository {
   });
 
   Stream<List<SupplierLedgerEntry>> watchLedger(String supplierLocalId);
+
+  /// Every [SupplierLedgerEntryType.paymentMade] entry across every
+  /// supplier, with `createdAt` inside [start, end] (inclusive of both
+  /// ends' full calendar days) — Volume 8's Cash Flow feed needs "every
+  /// supplier payment this period," which [watchLedger] alone can't
+  /// answer without an N-supplier fan-out. Deliberately business-wide,
+  /// no locationId parameter — same reasoning as
+  /// CustomerCreditRepository.getRepaymentsForPeriod: SupplierLedgerEntries
+  /// has no locationId column (tables.dart), and Suppliers aren't
+  /// location-scoped either.
+  Future<List<SupplierLedgerEntry>> getPaymentsForPeriod({
+    required DateTime start,
+    required DateTime end,
+  });
 }

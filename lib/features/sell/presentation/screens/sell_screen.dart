@@ -17,14 +17,15 @@ import 'cart_screen.dart';
 /// find/select a product, add to cart, adjust quantity, review cart,
 /// optionally pick a customer, pay, complete the sale.
 ///
-/// Resolves [locationId] once (this app's single-location assumption —
-/// same one `ProductRepositoryImpl`/`DraftCartRepositoryImpl` already
-/// make internally; no location switcher exists yet for a real device
-/// to pick among several), then hands it to a single [CartCubit] kept
-/// alive for the lifetime of this branch's own navigation stack
-/// (`StatefulShellRoute.indexedStack` keeps Sell's stack independent of
-/// Home/Stock/Money/More — Decision 14's "never silently lost" applies
-/// even just switching tabs, not only an app restart).
+/// Resolves [locationId] once via the shared `ResolveActiveLocation`
+/// mechanism (`activeLocationIdProvider` — every feature that needs
+/// "the active location" goes through this same resolver now, rather
+/// than each maintaining its own fallback), then hands it to a single
+/// [CartCubit] kept alive for the lifetime of this branch's own
+/// navigation stack (`StatefulShellRoute.indexedStack` keeps Sell's
+/// stack independent of Home/Stock/Money/More — Decision 14's "never
+/// silently lost" applies even just switching tabs, not only an app
+/// restart).
 class SellScreen extends ConsumerStatefulWidget {
   const SellScreen({super.key});
 
@@ -35,12 +36,14 @@ class SellScreen extends ConsumerStatefulWidget {
 class _SellScreenState extends ConsumerState<SellScreen> {
   late Future<String> _locationIdFuture = _resolveLocationId();
 
-  Future<String> _resolveLocationId() async {
-    final locations = await ref.read(locationRepositoryProvider).watchLocations().first;
-    if (locations.isEmpty) {
-      throw StateError('No location is set up for this business yet.');
-    }
-    return locations.first.localId;
+  // CORRECTED: this used to read `watchLocations().first` directly and
+  // throw if the business had zero locations — true of every mobile-
+  // only business before ResolveActiveLocation existed, since nothing
+  // ever created one. Now delegates to the same resolver every other
+  // feature uses, which get-or-creates a location rather than leaving
+  // this screen permanently unusable for a mobile-only business.
+  Future<String> _resolveLocationId() {
+    return ref.read(resolveActiveLocationProvider).call();
   }
 
   @override

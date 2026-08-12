@@ -20,5 +20,16 @@ abstract class IncomeRecordRepository {
   /// to need it.
   Future<IncomeRecord?> getIncomeRecordById(String localId);
 
+  /// All income records for [locationId] with `incomeDate` inside
+  /// [start, end] (inclusive of both ends' full calendar days) — the
+  /// period-scoped sibling of [watchIncomeRecords], added for Volume
+  /// 8's Money/Cash Flow feature. One-shot Future, matching
+  /// `features/money/data/money_repository.dart`'s own interface shape.
+  Future<List<IncomeRecord>> getIncomeRecordsForPeriod({
+    required String locationId,
+    required DateTime start,
+    required DateTime end,
+  });
+
   Future<void> markSynced({required String localId, required String serverId});
 }

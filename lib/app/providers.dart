@@ -53,6 +53,7 @@ import '../domain/repositories/stock_movement_repository.dart';
 import '../domain/repositories/supplier_credit_repository.dart';
 import '../domain/repositories/supplier_repository.dart';
 import '../domain/repositories/tax_remittance_repository.dart';
+import '../domain/usecases/active_location_resolver.dart';
 import '../domain/usecases/global_search.dart';
 import '../domain/usecases/import_products_from_csv.dart';
 import '../sync/sync_config.dart';
@@ -277,6 +278,32 @@ final locationRepositoryProvider = Provider<LocationRepository>((ref) {
   throw UnimplementedError(
     'locationRepositoryProvider must be overridden in bootstrap.dart.',
   );
+});
+
+final resolveActiveLocationProvider = Provider<ResolveActiveLocation>((ref) {
+  throw UnimplementedError(
+    'resolveActiveLocationProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// The single source of truth for "which location is active right
+/// now" — every Sell/Stock/Money call site should watch this instead
+/// of inventing its own resolution or fallback. A real, self-contained
+/// implementation (not a throw-stub): unlike the repository providers
+/// above, this doesn't wrap a concrete Drift/Dio dependency that only
+/// bootstrap.dart can construct — it's a thin FutureProvider wrapper
+/// around [resolveActiveLocationProvider] (itself already overridden in
+/// bootstrap.dart), the same "derived, not overridden" shape
+/// [sessionProvider] above uses for the equivalent reason.
+///
+/// autoDispose deliberately omitted: this is app-wide session state
+/// (which physical location this device is looking at), not screen-
+/// scoped derived state — re-running the resolution (and its DB round
+/// trip) every time a user switches tabs away from Sell/Stock/Money and
+/// back would be wasted work for a value that essentially never changes
+/// mid-session.
+final activeLocationIdProvider = FutureProvider<String>((ref) {
+  return ref.watch(resolveActiveLocationProvider).call();
 });
 
 final businessSettingsApiProvider = Provider<BusinessSettingsApi>((ref) {

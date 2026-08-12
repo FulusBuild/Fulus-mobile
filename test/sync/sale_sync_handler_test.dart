@@ -53,6 +53,10 @@ class _FakeAuthRepository implements AuthRepository {
       throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
+  @override
+  Future<String?> getActiveLocationId() async => throw UnimplementedError();
+  @override
+  Future<void> setActiveLocationId(String locationId) async => throw UnimplementedError();
 }
 
 void main() {

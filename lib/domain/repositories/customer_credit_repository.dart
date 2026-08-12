@@ -52,4 +52,20 @@ abstract class CustomerCreditRepository {
   /// Reverse-chronological — same convention every other history/ledger
   /// view in this codebase uses.
   Stream<List<CustomerLedgerEntry>> watchLedger(String customerLocalId);
+
+  /// Every [CustomerLedgerEntryType.repayment] entry across every
+  /// customer, with `createdAt` inside [start, end] (inclusive of both
+  /// ends' full calendar days) — Volume 8's Cash Flow feed needs "every
+  /// repayment this period," which [watchLedger] alone can't answer
+  /// without an N-customer fan-out (it's scoped to one customer at a
+  /// time). Deliberately business-wide, no locationId parameter —
+  /// matches this repository's own established status (this class's
+  /// own doc comment: "business-wide, need no locationId, already fully
+  /// implemented"), since CustomerLedgerEntries has no locationId column
+  /// to filter by (tables.dart) and Customers themselves aren't
+  /// location-scoped either.
+  Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({
+    required DateTime start,
+    required DateTime end,
+  });
 }

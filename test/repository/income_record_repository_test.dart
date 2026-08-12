@@ -117,6 +117,61 @@ void main() {
     });
   });
 
+  group('getIncomeRecordsForPeriod', () {
+    test('includes records on both ends of the range, inclusive', () async {
+      await repository.recordIncome(IncomeRecordDraft(
+        locationId: locationId,
+        source: 'Start-of-range',
+        amount: 100,
+        incomeDate: DateTime(2026, 7, 1),
+      ));
+      await repository.recordIncome(IncomeRecordDraft(
+        locationId: locationId,
+        source: 'End-of-range',
+        amount: 200,
+        incomeDate: DateTime(2026, 7, 31, 23, 59),
+      ));
+
+      final results = await repository.getIncomeRecordsForPeriod(
+        locationId: locationId,
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 31),
+      );
+
+      expect(results.map((i) => i.source), containsAll(['Start-of-range', 'End-of-range']));
+    });
+
+    test('excludes records outside the range or from a different location', () async {
+      await repository.recordIncome(IncomeRecordDraft(
+        locationId: locationId,
+        source: 'Too late',
+        amount: 100,
+        incomeDate: DateTime(2026, 8, 1),
+      ));
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: 'loc-2',
+            name: 'Other Store',
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+      await repository.recordIncome(IncomeRecordDraft(
+        locationId: 'loc-2',
+        source: 'Elsewhere',
+        amount: 100,
+        incomeDate: DateTime(2026, 7, 15),
+      ));
+
+      final results = await repository.getIncomeRecordsForPeriod(
+        locationId: locationId,
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 31),
+      );
+
+      expect(results, isEmpty);
+    });
+  });
+
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.recordIncome(

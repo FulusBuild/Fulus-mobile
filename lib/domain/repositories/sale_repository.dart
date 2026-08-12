@@ -29,6 +29,20 @@ abstract class SaleRepository {
   /// needed, not a live subscription.
   Future<Sale?> getSaleByLocalId(String localId);
 
+  /// All sales for [locationId] with `saleDate` inside [start, end]
+  /// (inclusive of both ends' full calendar days) — the period-scoped
+  /// sibling of [watchSalesForToday], added for Volume 8's Money/Cash
+  /// Flow feature, which needs an arbitrary period rather than always
+  /// "today." One-shot Future, not a Stream, matching
+  /// `features/money/data/money_repository.dart`'s own interface shape
+  /// (Future-based throughout) rather than introducing a reactive query
+  /// that feature doesn't ask for.
+  Future<List<Sale>> getSalesForPeriod({
+    required String locationId,
+    required DateTime start,
+    required DateTime end,
+  });
+
   /// Reconciles a locally-created sale with the server's own identity
   /// once the (not-yet-built) sync engine successfully pushes it —
   /// named here, not left implicit, because sales_api.dart's own

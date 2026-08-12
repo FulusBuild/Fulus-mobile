@@ -6,36 +6,32 @@ import '../../../domain/entities/product.dart';
 import '../../../domain/entities/stock_movement.dart';
 import '../../../domain/entities/supplier.dart';
 
-/// Stand-in for a real Location row, used only as the scoping key
-/// [watchProducts]/[watchMovementsForLocation] need — NOT written to the
-/// local Locations table. A real, confirmed gap this screen ran into
-/// while building: `Location` is explicitly "business-wide, desktop-
-/// managed... not something a mobile device creates" (location.dart's
-/// own doc comment), and nothing anywhere in this codebase — not
-/// bootstrap, not owner setup — ever seeds one. A genuinely
-/// mobile-only business (no desktop companion ever run) has zero rows
-/// in Locations, with no UI anywhere to create one. That's a real gap
-/// in location provisioning generally, out of scope for a Stock-only
-/// task to fix — building mobile-side location management is its own
-/// feature. This constant exists so Stock is still fully usable (every
-/// read/write below still goes through the real repositories) while
-/// that gap stands, rather than the whole feature being unusable on a
-/// fresh mobile-only install. See [currentLocationIdProvider] for where
-/// this is actually used.
-const kStockFallbackLocationId = 'local-default';
-
-/// The location Stock's data is scoped to. Real locations if any exist
-/// (first one — no location-switcher UI exists anywhere in this app yet
-/// for a user to have picked a different one, matching the
-/// single-location assumption Product Design Bible Decision 21 makes
-/// everywhere else: "Transfer only appears once a business has more
-/// than one location configured"), [kStockFallbackLocationId] if none
-/// do.
-final currentLocationIdProvider = StreamProvider.autoDispose<String>((ref) {
-  return ref.watch(locationRepositoryProvider).watchLocations().map(
-        (locations) => locations.isEmpty ? kStockFallbackLocationId : locations.first.localId,
-      );
-});
+/// The location Stock's data is scoped to — the same app-wide
+/// resolution every feature uses now (`app/providers.dart`'s
+/// `activeLocationIdProvider`, backed by `ResolveActiveLocation`),
+/// replacing what used to be this file's own hardcoded fallback.
+///
+/// CORRECTED: this provider used to fall back to a constant
+/// (`kStockFallbackLocationId = 'local-default'`) that was never
+/// actually written to the Locations table — a real, confirmed gap
+/// this screen ran into while being built: `Location` was, at the
+/// time, explicitly "business-wide, desktop-managed... not something a
+/// mobile device creates," and nothing anywhere in the app — not
+/// bootstrap, not owner setup — ever seeded one. A genuinely
+/// mobile-only business had zero rows in Locations, and this Stock
+/// screen's own StockMovements/DraftCarts records would have carried a
+/// locationId (`'local-default'`) that pointed at nothing in the
+/// database. That gap is closed now (`LocationRepository.
+/// getOrCreateDefaultLocation`, `ResolveActiveLocation`,
+/// `owner_setup_screen.dart` seeding one at onboarding) — this provider
+/// just delegates to the same resolver every other feature does.
+///
+/// Kept under this name (rather than renaming every call site in this
+/// feature to `activeLocationIdProvider` directly) purely so
+/// stock_screen.dart / product_detail_screen.dart /
+/// stock_movement_history_screen.dart / record_stock_movement_screen.dart
+/// / add_edit_product_screen.dart need no changes of their own.
+final currentLocationIdProvider = activeLocationIdProvider;
 
 /// All products at the current location, stock-joined — the shape
 /// every Stock screen actually needs (see [ProductWithStock]'s own doc

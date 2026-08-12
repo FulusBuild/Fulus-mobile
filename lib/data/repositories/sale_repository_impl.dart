@@ -138,6 +138,41 @@ class SaleRepositoryImpl implements SaleRepository {
   }
 
   @override
+  Future<List<Sale>> getSalesForPeriod({
+    required String locationId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    // Both ends treated as full calendar days, matching
+    // ReportsRepositoryImpl.getSalesReport's own end-of-day handling for
+    // the same "a ReportPeriod's `end` is a date, not a timestamp"
+    // reason — a caller passing today's date as `end` should get
+    // today's sales included, not excluded by a bare midnight cutoff.
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+
+    final rows = await (_db.select(_db.sales)
+          ..where(
+            (s) =>
+                s.locationId.equals(locationId) &
+                s.deletedAt.isNull() &
+                s.saleDate.isBiggerOrEqualValue(startOfDay) &
+                s.saleDate.isSmallerThanValue(endExclusive),
+          )
+          ..orderBy([(s) => OrderingTerm.desc(s.saleDate)]))
+        .get();
+
+    final sales = <Sale>[];
+    for (final row in rows) {
+      final items = await (_db.select(_db.saleItems)
+            ..where((i) => i.saleLocalId.equals(row.localId)))
+          .get();
+      sales.add(row.toDomain(items));
+    }
+    return sales;
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,

@@ -5,13 +5,19 @@ import '../domain/money_transaction.dart';
 import 'mock_money_data.dart';
 import 'money_repository.dart';
 
-/// See `money_repository.dart` / `money_transaction.dart` for why this
-/// is the only [MoneyRepository] implementation today. A short,
-/// simulated latency on every read is deliberate — it's what lets the
-/// Cash Flow screen's skeleton/loading states actually be exercised by
-/// a reviewer rather than only existing in code that never visibly
-/// runs, the same reasoning `FulusDelayedSkeleton` itself is built
-/// around.
+/// CORRECTED: no longer the only [MoneyRepository] implementation, and
+/// nothing constructs this class anymore — `money_providers.dart`'s
+/// `moneyRepositoryProvider` now returns `RealMoneyRepositoryImpl`
+/// (`real_money_repository.dart`). Left in place rather than deleted:
+/// still a useful reference for the exact aggregation behavior a real
+/// implementation needed to match (breakdown bucketing, period
+/// filtering, expected-cash math), and still exercisable directly in a
+/// test or a future debug/demo mode without a real business's data
+/// behind it. A short, simulated latency on every read is deliberate —
+/// it's what lets the Cash Flow screen's skeleton/loading states
+/// actually be exercised by a reviewer rather than only existing in
+/// code that never visibly runs, the same reasoning
+/// `FulusDelayedSkeleton` itself is built around.
 class MockMoneyRepository implements MoneyRepository {
   MockMoneyRepository() : _transactions = generateMockMoneyTransactions();
 

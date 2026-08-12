@@ -3,6 +3,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/locations_api.dart';
 import 'package:fulus_mobile/data/repositories/location_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/location.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,12 +14,14 @@ class MockLocationsApi extends Mock implements LocationsApi {}
 void main() {
   late AppDatabase db;
   late MockLocationsApi locationsApi;
+  late SyncQueue syncQueue;
   late LocationRepositoryImpl repository;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     locationsApi = MockLocationsApi();
-    repository = LocationRepositoryImpl(db: db, locationsApi: locationsApi);
+    syncQueue = SyncQueue(db);
+    repository = LocationRepositoryImpl(db: db, locationsApi: locationsApi, syncQueue: syncQueue);
   });
 
   tearDown(() async {
@@ -141,6 +144,98 @@ void main() {
     test('returns null for an id with no local row', () async {
       final location = await repository.getLocationById('does-not-exist');
       expect(location, isNull);
+    });
+  });
+
+  group('createLocation', () {
+    test('writes the location locally as pending', () async {
+      final created = await repository.createLocation(const LocationDraft(name: 'Downtown'));
+
+      final rows = await db.select(db.locations).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.localId, created.localId);
+      expect(rows.single.name, 'Downtown');
+      expect(rows.single.syncStatus, SyncStatus.pending);
+      expect(rows.single.serverId, isNull);
+    });
+
+    test('enqueues a stock-and-customer-priority sync task', () async {
+      final created = await repository.createLocation(const LocationDraft(name: 'Downtown'));
+
+      final queued = await db.select(db.syncQueueItems).get();
+      expect(queued, hasLength(1));
+      expect(queued.single.entityType, 'location');
+      expect(queued.single.entityLocalId, created.localId);
+      expect(queued.single.operation, 'create');
+      expect(queued.single.priority, SyncPriority.stockAndCustomerWrites);
+    });
+  });
+
+  group('getOrCreateDefaultLocation', () {
+    test('creates one when none exist yet', () async {
+      final location = await repository.getOrCreateDefaultLocation(name: "Ngozi's Store");
+
+      final rows = await db.select(db.locations).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.localId, location.localId);
+      expect(rows.single.name, "Ngozi's Store");
+      expect(rows.single.syncStatus, SyncStatus.pending);
+    });
+
+    test('returns the existing location instead of creating a second one', () async {
+      when(() => locationsApi.getLocations()).thenAnswer(
+        (_) async => const [LocationResponseDto(id: 'loc-1', name: 'Synced From Desktop')],
+      );
+      await repository.syncFromServer();
+
+      final location = await repository.getOrCreateDefaultLocation(name: 'Should Not Be Used');
+
+      expect(location.localId, 'loc-1');
+      expect(location.name, 'Synced From Desktop');
+      final rows = await db.select(db.locations).get();
+      expect(rows, hasLength(1));
+    });
+
+    test('is idempotent across repeated calls', () async {
+      final first = await repository.getOrCreateDefaultLocation(name: 'Main Location');
+      final second = await repository.getOrCreateDefaultLocation(name: 'Main Location');
+
+      expect(second.localId, first.localId);
+      final rows = await db.select(db.locations).get();
+      expect(rows, hasLength(1));
+    });
+
+    test('picks the earliest-created location when several already exist', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: 'loc-older',
+            name: 'Older',
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: 'loc-newer',
+            name: 'Newer',
+            createdAt: DateTime(2026, 6, 1),
+            updatedAt: DateTime(2026, 6, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+
+      final location = await repository.getOrCreateDefaultLocation(name: 'Unused');
+      expect(location.localId, 'loc-older');
+    });
+  });
+
+  group('markSynced', () {
+    test('sets serverId and settles the row', () async {
+      final created = await repository.createLocation(const LocationDraft(name: 'Downtown'));
+
+      await repository.markSynced(localId: created.localId, serverId: 'server-loc-1');
+
+      final row = await (db.select(db.locations)..where((l) => l.localId.equals(created.localId)))
+          .getSingle();
+      expect(row.serverId, 'server-loc-1');
+      expect(row.syncStatus, SyncStatus.settled);
     });
   });
 }

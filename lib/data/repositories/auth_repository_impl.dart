@@ -421,6 +421,21 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
+  @override
+  Future<String?> getActiveLocationId() async {
+    final session = await (_db.select(_db.sessions)
+          ..where((s) => s.id.equals('current')))
+        .getSingleOrNull();
+    return session?.activeLocationId;
+  }
+
+  @override
+  Future<void> setActiveLocationId(String locationId) async {
+    await (_db.update(_db.sessions)..where((s) => s.id.equals('current'))).write(
+      SessionsCompanion(activeLocationId: Value(locationId)),
+    );
+  }
+
   /// Writes the signed-in user as this device's active session — called
   /// on every successful createFirstOwner and login. A fixed 'current'
   /// id (matching Sessions' own singleton design, tables.dart), deleted
@@ -429,15 +444,38 @@ class AuthRepositoryImpl implements AuthRepository {
   /// redesign: a different user signing in without an intervening clean
   /// logout (app force-closed, etc).
   ///
-  /// activeLocationId is deliberately left unset (defaults to null) on
-  /// every call, same as the previous implementation chose to accept for
-  /// the equivalent case — no location-switcher UI exists yet to make
-  /// preserving it across a re-login actually matter (Phase 2).
+  /// CORRECTED: activeLocationId used to be dropped unconditionally on
+  /// every call ("no location-switcher UI exists yet to make preserving
+  /// it across a re-login actually matter (Phase 2)"). Phase 2 is now:
+  /// [setActiveLocationId] is a real, called write path
+  /// (`ResolveActiveLocation`), so silently wiping it here would be a
+  /// real regression, not a harmless simplification anymore. This now
+  /// reads whatever the outgoing session had and carries it forward —
+  /// the location is a property of the device/counter, not the
+  /// signed-in user, so there's no reason a different user signing in
+  /// on the same till should reset it.
+  ///
+  /// Only reaches an existing row to preserve when this method runs
+  /// without an intervening [_clearSession] — [login] goes straight to
+  /// this method with no clear step first, so signing in again while a
+  /// session row already exists (this method's own original scenario:
+  /// "a different user signing in without an intervening clean logout,
+  /// app force-closed, etc") does carry it forward. An explicit
+  /// [logout] deletes the row outright first, so that specific path —
+  /// sign out, then sign back in — starts genuinely fresh; there's
+  /// nothing left at that point for this method to read.
   Future<void> _persistSession(AuthUser user) async {
     await _db.transaction(() async {
+      final outgoing = await (_db.select(_db.sessions)
+            ..where((s) => s.id.equals('current')))
+          .getSingleOrNull();
       await (_db.delete(_db.sessions)..where((s) => s.id.equals('current'))).go();
       await _db.into(_db.sessions).insert(
-            SessionsCompanion.insert(id: 'current', userId: user.id),
+            SessionsCompanion.insert(
+              id: 'current',
+              userId: user.id,
+              activeLocationId: Value(outgoing?.activeLocationId),
+            ),
           );
     });
   }

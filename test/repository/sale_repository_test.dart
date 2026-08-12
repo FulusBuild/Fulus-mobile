@@ -53,6 +53,10 @@ class _FakeAuthRepository implements AuthRepository {
       throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
+  @override
+  Future<String?> getActiveLocationId() async => throw UnimplementedError();
+  @override
+  Future<void> setActiveLocationId(String locationId) async => throw UnimplementedError();
 }
 
 /// Real, no-mocks tests against an in-memory Drift database
@@ -249,6 +253,51 @@ void main() {
           await repository.watchSalesForToday('some-other-location').first;
 
       expect(emitted, isEmpty);
+    });
+  });
+
+  group('getSalesForPeriod', () {
+    test('includes a sale dated today when the period covers today', () async {
+      final created = await repository.createSale(draftWithOneItem());
+
+      final today = DateTime.now();
+      final results = await repository.getSalesForPeriod(
+        locationId: locationId,
+        start: today,
+        end: today,
+      );
+
+      expect(results.map((s) => s.localId), contains(created.localId));
+      // getSalesForPeriod also returns each sale's items, same as
+      // getSaleByLocalId — not just the bare Sale row.
+      final match = results.firstWhere((s) => s.localId == created.localId);
+      expect(match.items, hasLength(1));
+    });
+
+    test('excludes a sale outside the requested range', () async {
+      await repository.createSale(draftWithOneItem());
+
+      final farFuture = DateTime.now().add(const Duration(days: 365));
+      final results = await repository.getSalesForPeriod(
+        locationId: locationId,
+        start: farFuture,
+        end: farFuture,
+      );
+
+      expect(results, isEmpty);
+    });
+
+    test('excludes a sale from a different location', () async {
+      await repository.createSale(draftWithOneItem());
+
+      final today = DateTime.now();
+      final results = await repository.getSalesForPeriod(
+        locationId: 'some-other-location',
+        start: today,
+        end: today,
+      );
+
+      expect(results, isEmpty);
     });
   });
 

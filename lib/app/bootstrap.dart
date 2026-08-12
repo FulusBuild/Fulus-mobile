@@ -58,6 +58,7 @@ import '../device_services/camera/camera_service.dart';
 import '../device_services/printing/printer_discovery_service.dart';
 import '../device_services/printing/receipt_printer_service.dart';
 import '../device_services/scanning/barcode_scanner_service.dart';
+import '../domain/usecases/active_location_resolver.dart';
 import '../domain/usecases/global_search.dart';
 import '../domain/usecases/import_products_from_csv.dart';
 import '../sync/handlers/category_sync_handler.dart';
@@ -66,6 +67,7 @@ import '../sync/handlers/customer_sync_handler.dart';
 import '../sync/handlers/expense_category_sync_handler.dart';
 import '../sync/handlers/expense_sync_handler.dart';
 import '../sync/handlers/income_sync_handler.dart';
+import '../sync/handlers/location_sync_handler.dart';
 import '../sync/handlers/product_sync_handler.dart';
 import '../sync/handlers/return_sync_handler.dart';
 import '../sync/handlers/sale_sync_handler.dart';
@@ -290,12 +292,15 @@ Future<ProviderContainer> bootstrap() async {
     syncQueue: syncQueue,
     authRepository: authRepository,
   );
-  // Same shape as productRepository above, for the same reason —
-  // LocationRepository's own doc comment: read + pull-sync only,
-  // deliberately no create/update method.
+  // CORRECTED: this used to say "read + pull-sync only, deliberately no
+  // create/update method" — LocationRepository now also creates
+  // locations locally (mobile-side location management), so it needs
+  // the same syncQueue dependency supplierRepository/categoryRepository
+  // already take for their own create-locally-then-push path.
   final locationRepository = LocationRepositoryImpl(
     db: database,
     locationsApi: locationsApi,
+    syncQueue: syncQueue,
   );
   // STALE COMMENT CORRECTED (Stage 4): this used to say "read +
   // pull-sync only, matching the backend's BusinessProfile having no
@@ -308,6 +313,19 @@ Future<ProviderContainer> bootstrap() async {
     db: database,
     businessSettingsApi: businessSettingsApi,
     authRepository: authRepository,
+  );
+
+  // Closes the "no location-resolution mechanism exists anywhere in the
+  // app yet" gap — see this class's own doc comment
+  // (domain/usecases/active_location_resolver.dart) for exactly what it
+  // does. Constructed once here, shared by every consumer through
+  // resolveActiveLocationProvider — Sell/Stock/Money/owner_setup_screen
+  // all resolve through this same instance rather than each getting its
+  // own.
+  final resolveActiveLocation = ResolveActiveLocation(
+    locationRepository: locationRepository,
+    authRepository: authRepository,
+    businessSettingsRepository: businessSettingsRepository,
   );
 
   // Phase 0's own long-open question, decided here once for all three
@@ -376,6 +394,10 @@ Future<ProviderContainer> bootstrap() async {
     suppliersApi: suppliersApi,
     supplierRepository: supplierRepository,
   );
+  final locationSyncHandler = LocationSyncHandler(
+    locationsApi: locationsApi,
+    locationRepository: locationRepository,
+  );
   final returnSyncHandler = ReturnSyncHandler(
     returnsApi: returnsApi,
     returnRepository: returnRepository,
@@ -415,6 +437,7 @@ Future<ProviderContainer> bootstrap() async {
       'customer': customerSyncHandler,
       'category': categorySyncHandler,
       'supplier': supplierSyncHandler,
+      'location': locationSyncHandler,
       'return': returnSyncHandler,
       'expense_category': expenseCategorySyncHandler,
       'cash_drawer_shift': cashDrawerShiftSyncHandler,
@@ -533,6 +556,7 @@ Future<ProviderContainer> bootstrap() async {
       financeStatsRepositoryProvider.overrideWithValue(financeStatsRepository),
       locationsApiProvider.overrideWithValue(locationsApi),
       locationRepositoryProvider.overrideWithValue(locationRepository),
+      resolveActiveLocationProvider.overrideWithValue(resolveActiveLocation),
       businessSettingsApiProvider.overrideWithValue(businessSettingsApi),
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
       syncEngineProvider.overrideWithValue(syncEngine),

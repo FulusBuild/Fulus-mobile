@@ -15,5 +15,16 @@ abstract class ExpenseRepository {
 
   Future<Expense?> getExpenseById(String localId);
 
+  /// All expenses for [locationId] with `expenseDate` inside
+  /// [start, end] (inclusive of both ends' full calendar days) —
+  /// the period-scoped sibling of [watchExpenses], added for Volume 8's
+  /// Money/Cash Flow feature. One-shot Future, matching
+  /// `features/money/data/money_repository.dart`'s own interface shape.
+  Future<List<Expense>> getExpensesForPeriod({
+    required String locationId,
+    required DateTime start,
+    required DateTime end,
+  });
+
   Future<void> markSynced({required String localId, required String serverId});
 }

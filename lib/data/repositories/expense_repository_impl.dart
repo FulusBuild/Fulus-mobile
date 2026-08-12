@@ -48,6 +48,28 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   }
 
   @override
+  Future<List<Expense>> getExpensesForPeriod({
+    required String locationId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+
+    final rows = await (_db.select(_db.expenses)
+          ..where(
+            (e) =>
+                e.locationId.equals(locationId) &
+                e.deletedAt.isNull() &
+                e.expenseDate.isBiggerOrEqualValue(startOfDay) &
+                e.expenseDate.isSmallerThanValue(endExclusive),
+          )
+          ..orderBy([(e) => OrderingTerm.desc(e.expenseDate)]))
+        .get();
+    return rows.map((r) => r.toDomain()).toList();
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,

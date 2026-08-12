@@ -107,4 +107,25 @@ abstract class AuthRepository {
     required String email,
     required String password,
   });
+
+  /// The location this device's current session is viewing —
+  /// Architecture Section 7a's location switcher backing store. Reads
+  /// `Sessions.activeLocationId` for the singleton 'current' session
+  /// row; null if no session is active, or the session has never had a
+  /// location resolved for it yet. Deliberately dumb: this method does
+  /// NOT decide what a null result should fall back to (a single-
+  /// location business's one-and-only location, say) — that resolution
+  /// logic lives in `ResolveActiveLocation`
+  /// (domain/usecases/active_location_resolver.dart), which is the only
+  /// intended caller of this getter. Everything else in the app should
+  /// go through that resolver, not this method directly.
+  Future<String?> getActiveLocationId();
+
+  /// Persists [locationId] as this device's active session location —
+  /// the write side of the location switcher. Silently a no-op if no
+  /// session is currently active (there is nothing to attach a location
+  /// to). Called by `ResolveActiveLocation` once it settles on a
+  /// location, and will also be the mechanism a future location-
+  /// switcher UI writes through once an owner can change this at will.
+  Future<void> setActiveLocationId(String locationId);
 }

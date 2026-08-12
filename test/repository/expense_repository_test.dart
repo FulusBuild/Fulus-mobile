@@ -115,6 +115,78 @@ void main() {
     });
   });
 
+  group('getExpensesForPeriod', () {
+    test('includes expenses on both ends of the range, inclusive', () async {
+      await repository.recordExpense(ExpenseDraft(
+        locationId: locationId,
+        description: 'Start-of-range',
+        amount: 100,
+        expenseDate: DateTime(2026, 7, 1),
+      ));
+      await repository.recordExpense(ExpenseDraft(
+        locationId: locationId,
+        description: 'End-of-range',
+        amount: 200,
+        expenseDate: DateTime(2026, 7, 31, 23, 59),
+      ));
+
+      final results = await repository.getExpensesForPeriod(
+        locationId: locationId,
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 31),
+      );
+
+      expect(results.map((e) => e.description), containsAll(['Start-of-range', 'End-of-range']));
+    });
+
+    test('excludes expenses outside the range', () async {
+      await repository.recordExpense(ExpenseDraft(
+        locationId: locationId,
+        description: 'Too early',
+        amount: 100,
+        expenseDate: DateTime(2026, 6, 30, 23, 59),
+      ));
+      await repository.recordExpense(ExpenseDraft(
+        locationId: locationId,
+        description: 'Too late',
+        amount: 100,
+        expenseDate: DateTime(2026, 8, 1),
+      ));
+
+      final results = await repository.getExpensesForPeriod(
+        locationId: locationId,
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 31),
+      );
+
+      expect(results, isEmpty);
+    });
+
+    test('excludes expenses from a different location', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: 'loc-2',
+            name: 'Other Store',
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+      await repository.recordExpense(ExpenseDraft(
+        locationId: 'loc-2',
+        description: 'Elsewhere',
+        amount: 100,
+        expenseDate: DateTime(2026, 7, 15),
+      ));
+
+      final results = await repository.getExpensesForPeriod(
+        locationId: locationId,
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 31),
+      );
+
+      expect(results, isEmpty);
+    });
+  });
+
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.recordExpense(

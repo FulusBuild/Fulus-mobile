@@ -28,6 +28,7 @@ import '../features/money/presentation/screens/transaction_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/reports/presentation/screens/reports_screen.dart';
 import '../features/more/settings/presentation/screens/backup_screen.dart';
+import '../features/more/settings/presentation/screens/manage_locations_screen.dart';
 import '../features/sell/presentation/screens/sell_screen.dart';
 import '../features/stock/presentation/screens/add_edit_product_screen.dart';
 import '../features/stock/presentation/screens/product_detail_screen.dart';
@@ -328,6 +329,11 @@ final appRouter = GoRouter(
                   name: 'moreSettingsBackup',
                   builder: (context, state) => const BackupScreen(),
                 ),
+                GoRoute(
+                  path: 'settings/locations',
+                  name: 'moreSettingsLocations',
+                  builder: (context, state) => const ManageLocationsScreen(),
+                ),
               ],
             ),
           ],
@@ -430,6 +436,12 @@ class _MoreScreen extends StatelessWidget {
             title: const Text('Backup'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.goNamed('moreSettingsBackup'),
+          ),
+          const FulusListDivider(indented: false),
+          FulusListRow(
+            title: const Text('Locations'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.goNamed('moreSettingsLocations'),
           ),
           const FulusListDivider(indented: false),
           Padding(

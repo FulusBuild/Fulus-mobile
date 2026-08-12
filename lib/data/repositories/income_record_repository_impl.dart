@@ -48,6 +48,28 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
   }
 
   @override
+  Future<List<IncomeRecord>> getIncomeRecordsForPeriod({
+    required String locationId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+
+    final rows = await (_db.select(_db.incomeRecords)
+          ..where(
+            (i) =>
+                i.locationId.equals(locationId) &
+                i.deletedAt.isNull() &
+                i.incomeDate.isBiggerOrEqualValue(startOfDay) &
+                i.incomeDate.isSmallerThanValue(endExclusive),
+          )
+          ..orderBy([(i) => OrderingTerm.desc(i.incomeDate)]))
+        .get();
+    return rows.map((r) => r.toDomain()).toList();
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,

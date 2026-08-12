@@ -333,4 +333,60 @@ void main() {
       expect(restarted.currentUser?.id, created.id);
     });
   });
+
+  group('getActiveLocationId / setActiveLocationId', () {
+    test('is null before anything sets it', () async {
+      await repository.createFirstOwner(
+        username: 'chidinma',
+        email: 'chidinma@example.com',
+        fullName: 'Chidinma Okafor',
+        password: 'correcthorse1',
+      );
+
+      expect(await repository.getActiveLocationId(), isNull);
+    });
+
+    test('returns whatever was set', () async {
+      await repository.createFirstOwner(
+        username: 'chidinma',
+        email: 'chidinma@example.com',
+        fullName: 'Chidinma Okafor',
+        password: 'correcthorse1',
+      );
+
+      await repository.setActiveLocationId('loc-1');
+
+      expect(await repository.getActiveLocationId(), 'loc-1');
+    });
+
+    test('is a no-op with no active session', () async {
+      // No createFirstOwner/login call in this test — nothing to
+      // attach a location to, and this should not throw.
+      await repository.setActiveLocationId('loc-1');
+      expect(await repository.getActiveLocationId(), isNull);
+    });
+
+    test('survives a second sign-in over an existing session', () async {
+      // NOT a logout()-then-login() cycle — logout() deletes the
+      // Sessions row outright (_clearSession), so there is nothing left
+      // to preserve across that specific path; this is the scenario
+      // _persistSession's own doc comment actually describes: "a
+      // different user signing in without an intervening clean logout
+      // (app force-closed, etc)" — login() goes straight to
+      // _persistSession with no _clearSession first, so the prior
+      // session row (and its activeLocationId) is still there for the
+      // new one to read and carry forward.
+      await repository.createFirstOwner(
+        username: 'chidinma',
+        email: 'chidinma@example.com',
+        fullName: 'Chidinma Okafor',
+        password: 'correcthorse1',
+      );
+      await repository.setActiveLocationId('loc-1');
+
+      await repository.login(username: 'chidinma', password: 'correcthorse1');
+
+      expect(await repository.getActiveLocationId(), 'loc-1');
+    });
+  });
 }

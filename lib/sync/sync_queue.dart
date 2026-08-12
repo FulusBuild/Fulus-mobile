@@ -80,6 +80,16 @@ class SyncTask {
         priority: SyncPriority.stockAndCustomerWrites,
       );
 
+  /// Same priority tier as createCategory/createSupplier — foundational
+  /// reference data a Sale/Expense/IncomeRecord/StockMovement points to,
+  /// not itself money that's already changed hands.
+  factory SyncTask.createLocation(String localId) => SyncTask(
+        entityType: 'location',
+        entityLocalId: localId,
+        operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   /// Same priority tier as `createSale` — a return is directly
   /// financial (a refund), not routine catalog upkeep.
   factory SyncTask.createReturn(String localId) => SyncTask(

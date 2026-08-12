@@ -207,6 +207,24 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
             currencySymbol: _currencySymbol,
           );
       if (!mounted) return;
+      // A third step alongside the two this screen's header comment
+      // already documents — same "separate repositories, no code-level
+      // coupling, whichever screen drives onboarding calls all of them"
+      // shape. Silently seeds this business's one default location
+      // (Decision 21: "created silently at onboarding, no location UI
+      // ever surfacing") now, while the business name is freshest,
+      // rather than leaving it to whichever of Sell/Stock/Money happens
+      // to load first. Best-effort: ResolveActiveLocation is idempotent
+      // and safe to re-run, so a failure here (e.g. no local storage
+      // headroom, vanishingly unlikely) just means the same resolution
+      // happens lazily on first use instead — not a reason to strand an
+      // otherwise fully-created owner+business on this screen.
+      try {
+        await ref.read(resolveActiveLocationProvider).call();
+      } catch (_) {
+        // Deliberately swallowed — see comment above.
+      }
+      if (!mounted) return;
       // Only now — both steps genuinely complete — does the app
       // actually consider this a signed-in session for navigation
       // purposes. See this file's own header comment and

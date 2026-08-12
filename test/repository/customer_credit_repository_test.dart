@@ -204,6 +204,57 @@ void main() {
     });
   });
 
+  group('getRepaymentsForPeriod', () {
+    test('includes a repayment made today when the period covers today', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      final repayment = await creditRepository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      );
+
+      final today = DateTime.now();
+      final results = await creditRepository.getRepaymentsForPeriod(start: today, end: today);
+
+      expect(results.map((e) => e.localId), contains(repayment.entry.localId));
+    });
+
+    test('excludes a creditSale entry even though it is in range — only repayment counts',
+        () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+
+      final today = DateTime.now();
+      final results = await creditRepository.getRepaymentsForPeriod(start: today, end: today);
+
+      expect(results, isEmpty);
+    });
+
+    test('excludes a repayment outside the requested range', () async {
+      final customerId = await createTestCustomer();
+      await creditRepository.recordCreditSale(
+        customerLocalId: customerId,
+        amount: 5000,
+        saleLocalId: 'sale-1',
+      );
+      await creditRepository.recordRepayment(customerLocalId: customerId, amount: 2000);
+
+      final farFuture = DateTime.now().add(const Duration(days: 365));
+      final results =
+          await creditRepository.getRepaymentsForPeriod(start: farFuture, end: farFuture);
+
+      expect(results, isEmpty);
+    });
+  });
+
   group('watchLedger', () {
     test('emits entries reverse-chronologically', () async {
       final customerId = await createTestCustomer();

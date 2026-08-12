@@ -10,15 +10,34 @@ import '../../../../domain/entities/supplier.dart';
 import '../../../../domain/entities/supplier_ledger_entry.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../data/money_repository.dart';
-import '../../data/mock_money_repository.dart';
+import '../../data/real_money_repository.dart';
 
-/// A single [MockMoneyRepository] instance for the whole app session —
-/// not `autoDispose`, deliberately, so the generated transaction list
-/// (and anything recorded into it via Add Income/Add Expense) stays
-/// consistent as the person moves between the Cash Flow screen,
-/// History, and Detail rather than regenerating every time the Money
-/// tab is reopened.
-final moneyRepositoryProvider = Provider<MoneyRepository>((ref) => MockMoneyRepository());
+/// A single [RealMoneyRepositoryImpl] instance for the whole app
+/// session — not `autoDispose`, deliberately, so it isn't rebuilt (and
+/// its `ResolveActiveLocation` call re-run) every time the Money tab is
+/// reopened.
+///
+/// CORRECTED: this used to construct `MockMoneyRepository()` — see
+/// `money_transaction.dart`'s own doc comment for the full "why this
+/// was mocked" story, now closed by `ResolveActiveLocation` making
+/// "which location" answerable. This is the one line that story's own
+/// doc comment predicted would need to change: "the screens themselves
+/// don't need to change, only which implementation
+/// `moneyRepositoryProvider` returns."
+final moneyRepositoryProvider = Provider<MoneyRepository>((ref) {
+  return RealMoneyRepositoryImpl(
+    saleRepository: ref.read(saleRepositoryProvider),
+    expenseRepository: ref.read(expenseRepositoryProvider),
+    incomeRecordRepository: ref.read(incomeRecordRepositoryProvider),
+    customerCreditRepository: ref.read(customerCreditRepositoryProvider),
+    supplierCreditRepository: ref.read(supplierCreditRepositoryProvider),
+    cashDrawerShiftRepository: ref.read(cashDrawerShiftRepositoryProvider),
+    expenseCategoryRepository: ref.read(expenseCategoryRepositoryProvider),
+    customerRepository: ref.read(customerRepositoryProvider),
+    supplierRepository: ref.read(supplierRepositoryProvider),
+    resolveActiveLocation: ref.read(resolveActiveLocationProvider),
+  );
+});
 
 /// Volume 8's shared period selector (Today / This Week / This Month /
 /// Custom) — one selection drives the Cash Flow screen, the breakdown

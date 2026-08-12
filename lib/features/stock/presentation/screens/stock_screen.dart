@@ -18,9 +18,8 @@ import '../widgets/stock_overview_stats.dart';
 /// a short recent-activity preview, then the full product list).
 ///
 /// Location-scoped throughout — see stock_providers.dart's
-/// [currentLocationIdProvider] for the real gap (no mobile-side
-/// location provisioning exists yet) this screen works around rather
-/// than blocks on.
+/// [currentLocationIdProvider] (now the shared, app-wide active-location
+/// resolver every feature uses, not a per-feature workaround).
 class StockScreen extends ConsumerStatefulWidget {
   const StockScreen({super.key});
 

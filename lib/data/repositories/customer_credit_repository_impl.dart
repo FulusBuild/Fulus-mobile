@@ -188,4 +188,28 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
       ]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
+
+  @override
+  Future<List<CustomerLedgerEntry>> getRepaymentsForPeriod({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+
+    // 'repayment' — the string form of CustomerLedgerEntryType.repayment,
+    // same textEnum WHERE-clause comparison
+    // FinanceStatsRepositoryImpl.getCashFlow already verified working
+    // against this exact column type elsewhere in this codebase.
+    final rows = await (_db.select(_db.customerLedgerEntries)
+          ..where(
+            (e) =>
+                e.entryType.equals('repayment') &
+                e.createdAt.isBiggerOrEqualValue(startOfDay) &
+                e.createdAt.isSmallerThanValue(endExclusive),
+          )
+          ..orderBy([(e) => OrderingTerm.desc(e.createdAt)]))
+        .get();
+    return rows.map((r) => r.toDomain()).toList();
+  }
 }
