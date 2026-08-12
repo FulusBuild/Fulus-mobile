@@ -76,18 +76,20 @@ void main() {
 
   final testSale = Sale(
     localId: 'sale-1',
+    clientReference: 'sale-1',
     locationId: 'loc-1',
     invoiceNumber: 'INV-001',
     saleDate: DateTime(2026, 7, 15),
     subtotal: 1000,
-    taxAmount: 0,
-    discountAmount: 0,
+    tax: 0,
+    discount: 0,
     total: 1000,
     amountPaid: 1000,
-    balanceDue: 0,
     paymentMethod: 'cash',
     cashierUserId: 'user-1',
     items: const [],
+    createdAt: now,
+    updatedAt: now,
   );
   final testExpense = Expense(
     localId: 'expense-1',
@@ -97,6 +99,8 @@ void main() {
     amount: 300,
     expenseDate: DateTime(2026, 7, 16),
     paymentMethod: 'cash',
+    createdAt: now,
+    updatedAt: now,
   );
   final testIncome = IncomeRecord(
     localId: 'income-1',
@@ -104,6 +108,8 @@ void main() {
     source: 'Equipment rental',
     amount: 200,
     incomeDate: DateTime(2026, 7, 17),
+    createdAt: now,
+    updatedAt: now,
   );
   final testRepayment = CustomerLedgerEntry(
     localId: 'repayment-1',
