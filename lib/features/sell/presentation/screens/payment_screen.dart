@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/business_engine/customer_credit_engine.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
@@ -185,6 +186,50 @@ class _PaymentScreenState extends State<PaymentScreen> {
         return;
       }
     }
+    // Bug fix (business-logic audit): checkCreditLimitWarning existed
+    // specifically for this moment — extending a customer's credit past
+    // their own set limit — but had no caller anywhere in the app
+    // (confirmed by grep). Informational only, per the function's own
+    // doc comment (Decision 23: a limit is "a guide," not an enforced
+    // ceiling) — this dialog can always be dismissed and the sale
+    // continues either way; it only ever adds a confirmation, never a
+    // block.
+    if (_method == 'credit') {
+      final customer = state.customer;
+      final overage = customer == null
+          ? null
+          : checkCreditLimitWarning(
+              currentBalance: customer.outstandingBalance,
+              proposedAdditionalCredit: amount,
+              creditLimit: customer.creditLimit,
+            );
+      if (overage != null && context.mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Over credit limit'),
+            content: Text(
+              'This would put ${customer!.name} '
+              '${state.currencySymbol}${overage.toStringAsFixed(2)} over their '
+              '${state.currencySymbol}${customer.creditLimit!.toStringAsFixed(2)} credit limit. '
+              'Continue anyway?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) return;
+        if (!context.mounted) return;
+      }
+    }
     setState(() => _adding = true);
     try {
       await context.read<CartCubit>().addPayment(_method, amount);
@@ -203,11 +248,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _completeSale(BuildContext context) async {
     final cubit = context.read<CartCubit>();
+    final state = cubit.state;
+    final currencySymbol = state is CartLoaded ? state.currencySymbol : '₦';
     try {
       final sale = await cubit.completeSale();
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => SaleSuccessScreen(saleId: sale.localId)),
+        MaterialPageRoute(
+          builder: (_) => SaleSuccessScreen(
+            saleId: sale.localId,
+            changeDue: sale.changeDue,
+            currencySymbol: currencySymbol,
+          ),
+        ),
       );
     } catch (_) {
       if (context.mounted) {
@@ -227,6 +280,15 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Bug fix (business-logic audit): the Remaining row below already
+    // clamped `state.remaining` to 0 on overpayment — correct, as
+    // "nothing more is owed" — but that clamp also silently threw away
+    // the one thing a cashier actually needs to know in that moment:
+    // how much change to hand back. PaymentScreen hides its own
+    // amount-entry field entirely once `remaining <= 0` (see
+    // `canComplete`'s own gate above), so this card is the last place
+    // on this screen the cashier sees before tapping Complete Sale.
+    final changeDue = state.remaining < 0 ? -state.remaining : 0.0;
     return FulusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -240,6 +302,14 @@ class _SummaryCard extends StatelessWidget {
             currencySymbol: state.currencySymbol,
             valueColor: state.remaining > 0.004 ? AppColors.warningOf(context) : AppColors.primaryOf(context),
           ),
+          if (changeDue > 0.004)
+            _Row(
+              label: 'Change due',
+              value: changeDue,
+              currencySymbol: state.currencySymbol,
+              valueColor: AppColors.primaryOf(context),
+              emphasized: true,
+            ),
         ],
       ),
     );

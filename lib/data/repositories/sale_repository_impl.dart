@@ -4,6 +4,7 @@ import 'package:ulid/ulid.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/entities/sale_draft.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/customer_credit_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
@@ -15,13 +16,26 @@ class SaleRepositoryImpl implements SaleRepository {
     required AppDatabase db,
     required SyncQueue syncQueue,
     required AuthRepository authRepository,
+    required CustomerCreditRepository customerCreditRepository,
   })  : _db = db,
         _syncQueue = syncQueue,
-        _authRepository = authRepository;
+        _authRepository = authRepository,
+        _customerCreditRepository = customerCreditRepository;
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
   final AuthRepository _authRepository;
+
+  /// Bug fix (business-logic audit): `createSale` used to persist a
+  /// credit sale's own `Sale.balanceDue`/`paymentStatus` correctly
+  /// (both are computed getters off `total`/`amountPaid`, and those
+  /// were always right) but never told `CustomerCreditRepository`
+  /// about it — `Customer.outstandingBalance` (the field every ledger/
+  /// repayment/credit-limit screen in Money actually reads) simply
+  /// never moved. `recordCreditSale` was fully implemented, tested in
+  /// isolation, and had a doc comment elsewhere claiming it was "called
+  /// by Sales" — it never was. See `_recordCreditSaleIfNeeded` below.
+  final CustomerCreditRepository _customerCreditRepository;
 
   @override
   Future<Sale> createSale(SaleDraft draft) async {
@@ -62,6 +76,7 @@ class SaleRepositoryImpl implements SaleRepository {
             .insert(payment.toDriftCompanion(saleLocalId: localId));
       }
       await _decrementLocalStock(sale.items, locationId: draft.locationId);
+      await _recordCreditSaleIfNeeded(sale);
 
       if (hasQuickSaleItem) {
         // Marked attentionNeeded directly, at creation — not enqueued.
@@ -84,6 +99,27 @@ class SaleRepositoryImpl implements SaleRepository {
     }
 
     return sale;
+  }
+
+  /// Extends the customer's `outstandingBalance` by whatever is left
+  /// unpaid on this sale — `sale.balanceDue`, not `sale.total`: a
+  /// customer who paid part cash toward a credit sale should only owe
+  /// the remainder, matching how `PaymentScreen`'s "Put Remaining on
+  /// Account" action already presents this to the cashier. A no-op
+  /// (never calls the ledger, which rejects a non-positive amount)
+  /// whenever there's no customer attached or the sale was paid in
+  /// full — the ordinary case for every cash/card/mobile-money sale
+  /// today, so this adds nothing for those.
+  Future<void> _recordCreditSaleIfNeeded(Sale sale) async {
+    final customerId = sale.customerId;
+    if (customerId == null) return;
+    final unpaid = sale.balanceDue;
+    if (unpaid <= 0) return;
+    await _customerCreditRepository.recordCreditSale(
+      customerLocalId: customerId,
+      amount: unpaid,
+      saleLocalId: sale.localId,
+    );
   }
 
   @override

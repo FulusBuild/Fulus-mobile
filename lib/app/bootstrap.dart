@@ -203,10 +203,18 @@ Future<ProviderContainer> bootstrap() async {
   final locationsApi = LocationsApi(apiClient);
   final businessSettingsApi = BusinessSettingsApi(apiClient);
   final syncQueue = SyncQueue(database);
+  // Moved ahead of saleRepository (bug fix: business logic audit) —
+  // SaleRepositoryImpl now needs this to record a credit sale's
+  // outstanding balance at the moment the sale is created; only needs
+  // `db`, so nothing else has to move to make room for it. See
+  // customerCreditRepository's own original construction comment
+  // further down for why it needs no syncQueue.
+  final customerCreditRepository = CustomerCreditRepositoryImpl(db: database);
   final saleRepository = SaleRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
     authRepository: authRepository,
+    customerCreditRepository: customerCreditRepository,
   );
   final customerRepository = CustomerRepositoryImpl(
     db: database,
@@ -255,11 +263,12 @@ Future<ProviderContainer> bootstrap() async {
     db: database,
     syncQueue: syncQueue,
   );
-  // No sync queue at all — every write path this repository has is
+  // customerCreditRepository itself now constructed earlier, just above
+  // saleRepository — see that construction's own comment. (No sync
+  // queue at all, still true: every write path this repository has is
   // marked settled by convention today; see CustomerCreditRepository's
   // own doc comment and CustomerLedgerEntryType's per-variant reasoning
-  // for exactly why.
-  final customerCreditRepository = CustomerCreditRepositoryImpl(db: database);
+  // for exactly why.)
   // The actual Decision 14 cart-persistence layer — see
   // DraftCartRepository's own doc comment. Depends on both
   // productRepository (price/name lookups when adding a catalog item)

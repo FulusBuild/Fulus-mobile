@@ -43,6 +43,26 @@ void main() {
     });
   });
 
+  // Regression coverage for a confirmed business-logic bug found during
+  // audit: no "change due" concept existed anywhere in this app before
+  // this — balanceDue (above) already floors at 0 on overpayment, but
+  // nothing on the opposite side ever surfaced how much change that
+  // implied. Mirrors balanceDue's own three cases exactly, on purpose.
+  group('ReceiptData.changeDue (bug fix)', () {
+    test('is zero when fully paid', () {
+      expect(sample(amountPaid: 1000, total: 1000).changeDue, 0);
+    });
+
+    test('is zero when underpaid — changeDue and balanceDue never both '
+        'have money owed at once', () {
+      expect(sample(amountPaid: 600, total: 1000).changeDue, 0);
+    });
+
+    test('is the excess amount on overpayment', () {
+      expect(sample(amountPaid: 1200, total: 1000).changeDue, 200);
+    });
+  });
+
   group('renderThermal', () {
     test('produces non-empty ESC/POS bytes with the expected metadata', () {
       final receipt = engine.renderThermal(sample());
@@ -81,6 +101,24 @@ void main() {
       final receipt = engine.renderThermal(sample(currencySymbol: '\$'));
       final text = String.fromCharCodes(receipt.bytes.where((b) => b >= 0x20 && b < 0x7f));
       expect(text, contains('\$'));
+    });
+
+    test('prints a "Change given" line on cash overpayment (bug fix)', () {
+      final receipt = engine.renderThermal(sample(amountPaid: 1500, total: 1000));
+      final text = String.fromCharCodes(receipt.bytes.where((b) => b >= 0x20 && b < 0x7f));
+      expect(text, contains('Change given'));
+      expect(text, contains('500'));
+    });
+
+    test('omits "Change given" entirely when paid exactly or underpaid',
+        () {
+      final exact = engine.renderThermal(sample(amountPaid: 1000, total: 1000));
+      final exactText = String.fromCharCodes(exact.bytes.where((b) => b >= 0x20 && b < 0x7f));
+      expect(exactText, isNot(contains('Change given')));
+
+      final under = engine.renderThermal(sample(amountPaid: 600, total: 1000));
+      final underText = String.fromCharCodes(under.bytes.where((b) => b >= 0x20 && b < 0x7f));
+      expect(underText, isNot(contains('Change given')));
     });
   });
 

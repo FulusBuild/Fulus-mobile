@@ -94,6 +94,20 @@ class ReceiptData {
     final due = total - amountPaid;
     return due > 0 ? due : 0;
   }
+
+  /// Bug fix (business-logic audit): added alongside balanceDue above,
+  /// which only ever moves in one direction (floored at 0, so an
+  /// overpayment just silently reads as balanceDue: 0 with nothing
+  /// noting the difference). Every receipt-rendering call site checked
+  /// `balanceDue > 0` for a "Balance due" line but had no symmetric
+  /// check for the opposite case — a cash sale where the customer
+  /// handed over more than the total is completely ordinary and this
+  /// receipt is often the cashier's own record of how much change was
+  /// actually given.
+  double get changeDue {
+    final change = amountPaid - total;
+    return change > 0 ? change : 0;
+  }
 }
 
 class ReceiptLineItem {

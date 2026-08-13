@@ -232,6 +232,24 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<Product> createProduct(ProductDraft draft) async {
+    // Defense-in-depth fix (business-logic audit): AddEditProductScreen
+    // already checks `price <= 0` before calling this (see that
+    // screen's own `_save`), so sellingPrice wasn't directly reachable
+    // through the normal UI — but nothing at this layer caught it
+    // either. costPrice had no guard anywhere, UI or repository — a
+    // negative cost here flows straight into every COGS calculation
+    // this app has (costPriceAtSale is captured from this exact field
+    // at cart-add time). 0 is allowed for costPrice — the same "cost
+    // not yet known" state Quick Sale items and costDataCompleteness
+    // already treat as legitimate, not an error — but sellingPrice
+    // must be strictly positive; a product genuinely cannot be sold
+    // for ₦0 or less.
+    if (draft.sellingPrice <= 0) {
+      throw ArgumentError.value(draft.sellingPrice, 'sellingPrice', 'must be > 0');
+    }
+    if (draft.costPrice < 0) {
+      throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
+    }
     final localId = Ulid().toString();
     final product = draft.toProductEntity(localId: localId);
 
@@ -269,6 +287,17 @@ class ProductRepositoryImpl implements ProductRepository {
     int? lowStockThreshold,
     bool? isActive,
   }) async {
+    // Defense-in-depth fix (business-logic audit): same reasoning as
+    // createProduct's own guard above — only fires when the field is
+    // actually being changed here, matching this method's existing
+    // partial-update convention (Value.absent() for anything not
+    // passed).
+    if (sellingPrice != null && sellingPrice <= 0) {
+      throw ArgumentError.value(sellingPrice, 'sellingPrice', 'must be > 0');
+    }
+    if (costPrice != null && costPrice < 0) {
+      throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
+    }
     // Value.absent() for anything not passed — a genuine partial
     // update, not a reset, same convention as setLocalOverrides below
     // and as the backend's own PATCH (exclude_unset=True, verified

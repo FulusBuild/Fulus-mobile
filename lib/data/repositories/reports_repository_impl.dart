@@ -188,13 +188,27 @@ class ReportsRepositoryImpl implements ReportsRepository {
   @override
   Future<FinanceReport> getFinanceReport(ReportPeriod period) async {
     final revenue = await _sumSalesRevenue(period.start, period.end);
+    final costOfGoodsSold = await _sumCostOfGoodsSold(period.start, period.end);
     final expenses = await _sumExpenses(period.start, period.end);
-    final netProfit = revenue - expenses;
+    // Bug fix (business-logic audit): this used to be `revenue -
+    // expenses`, omitting cost of goods sold entirely — the "Net
+    // profit" figure on the Finance tab (the only screen that calls
+    // this method) overstated real profit by the full COGS of every
+    // sale in the period. The correct, COGS-aware formula already
+    // existed in FinanceStatsRepositoryImpl.getProfitLoss — fully
+    // implemented, DI-wired via financeStatsRepositoryProvider — but
+    // had zero callers anywhere in the UI (confirmed by grep). Rather
+    // than switch this screen onto that separate repository (a larger
+    // change touching DI/provider wiring for a fix that doesn't need
+    // it), this brings the same correct formula here, so the one
+    // number the app actually shows a shop owner is right.
+    final netProfit = revenue - costOfGoodsSold - expenses;
 
     final prev = period.previous;
     final prevRevenue = await _sumSalesRevenue(prev.start, prev.end);
+    final prevCostOfGoodsSold = await _sumCostOfGoodsSold(prev.start, prev.end);
     final prevExpenses = await _sumExpenses(prev.start, prev.end);
-    final prevNetProfit = prevRevenue - prevExpenses;
+    final prevNetProfit = prevRevenue - prevCostOfGoodsSold - prevExpenses;
     final hasPrevData = prevRevenue > 0 || prevExpenses > 0;
 
     final expenseRows = await (_db.select(_db.expenses)
@@ -211,6 +225,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     return FinanceReport(
       period: period,
       totalRevenue: revenue,
+      totalCostOfGoodsSold: costOfGoodsSold,
       totalExpenses: expenses,
       netProfit: netProfit,
       previousPeriodNetProfit: hasPrevData ? prevNetProfit : null,
@@ -225,6 +240,30 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final income = await (_db.select(_db.incomeRecords)..where((i) => i.incomeDate.isBetweenValues(start, _endOfDay(end)))).get();
     final incomeTotal = income.fold<double>(0, (s, r) => s + r.amount);
     return salesTotal + incomeTotal;
+  }
+
+  /// Same join/sum FinanceStatsRepositoryImpl.getProfitLoss already
+  /// uses — Sales in range, joined to their SaleItems, summing
+  /// `costPriceAtSale * quantity`. `costPriceAtSale` is captured at the
+  /// moment each item was added to cart (see DraftCartRepositoryImpl.
+  /// addItem), so this is honest even if a product's cost price is
+  /// edited later; a Quick Sale line always contributes 0 here (no
+  /// catalog product, so no known cost — see that field's own doc
+  /// comment), same as it correctly does everywhere else in this app.
+  Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end) async {
+    final sales = await (_db.select(_db.sales)
+          ..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end))))
+        .get();
+    var costOfGoodsSold = 0.0;
+    for (final sale in sales) {
+      final items = await (_db.select(_db.saleItems)
+            ..where((i) => i.saleLocalId.equals(sale.localId)))
+          .get();
+      for (final item in items) {
+        costOfGoodsSold += item.costPriceAtSale * item.quantity;
+      }
+    }
+    return costOfGoodsSold;
   }
 
   Future<double> _sumExpenses(DateTime start, DateTime end) async {

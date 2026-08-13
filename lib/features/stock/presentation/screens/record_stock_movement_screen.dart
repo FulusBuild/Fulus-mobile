@@ -138,7 +138,17 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
       }
 
       if (!mounted) return;
-      showFulusSnackbar(context, message: 'Stock updated for ${product.name}.');
+      // Bug fix (business-logic audit): this used to say "Stock
+      // updated" — but stock-in/out/adjustment currentStock is only
+      // written once the sync task reaches the server and gets a
+      // response back (see StockMovementSyncHandler; confirmed by
+      // grep — unlike a sale's stock decrement, which does write
+      // locally right away, nothing here does). On a slow or offline
+      // connection, that gap could be long, and this message claimed
+      // it was already closed. "Recorded" is accurate either way —
+      // the movement itself is safely queued the instant this returns,
+      // regardless of when the number on the Stock screen catches up.
+      showFulusSnackbar(context, message: 'Stock movement recorded for ${product.name}.');
       context.pop();
     } on Failure catch (f) {
       if (!mounted) return;

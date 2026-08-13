@@ -1,5 +1,6 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
+import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
@@ -81,6 +82,7 @@ void main() {
       db: db,
       syncQueue: syncQueue,
       authRepository: _FakeAuthRepository(),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
     );
     draftCartRepository = DraftCartRepositoryImpl(
       db: db,

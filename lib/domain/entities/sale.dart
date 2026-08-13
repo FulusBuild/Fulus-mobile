@@ -73,6 +73,20 @@ class Sale {
   /// every time it's read, cannot drift.
   double get balanceDue => total - amountPaid;
 
+  /// Bug fix (business-logic audit): no "change due" concept existed
+  /// anywhere in this app before this — not in PaymentScreen, not in
+  /// SaleSuccessScreen, not on the printed receipt (confirmed by grep
+  /// across lib/ for every change-due naming variant). `addPayment`
+  /// only ever validated `amount > 0`, with no cap against `remaining`,
+  /// so a cashier taking cash could freely overpay — the ordinary,
+  /// completely normal case of a customer handing over a larger note
+  /// than the total — and nothing told them how much to hand back.
+  /// `balanceDue` above already goes negative in exactly this case
+  /// (`total - amountPaid`); this just gives that a name and a floor,
+  /// the same way a real cash register does: the change is a separate
+  /// concept from the balance, never itself negative.
+  double get changeDue => amountPaid > total ? amountPaid - total : 0.0;
+
   /// Also computed, also mirroring backend logic exactly rather than
   /// reintroducing a parallel definition of "what counts as paid" —
   /// verified directly against sale_service.py's _compute_payment_status:

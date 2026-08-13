@@ -106,6 +106,17 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
           'unitPrice is required for a Quick Sale item (no productLocalId)',
         );
       }
+      // Defense-in-depth fix (business-logic audit): QuickSaleSheet
+      // already checks `price <= 0` before ever calling this (see that
+      // widget's own validation), so this specific path wasn't directly
+      // reachable through the normal UI — but nothing at this layer
+      // caught it either, relying entirely on that one UI check. Mirrors
+      // the `quantity <= 0` guard immediately above for the same reason:
+      // a negative or zero price here would corrupt lineTotal, subtotal,
+      // and (if paid) amountPaid for the whole sale.
+      if (unitPrice <= 0) {
+        throw ArgumentError.value(unitPrice, 'unitPrice', 'must be > 0');
+      }
       if (description == null || description.trim().isEmpty) {
         throw ArgumentError(
           'description is required for a Quick Sale item (no productLocalId)',

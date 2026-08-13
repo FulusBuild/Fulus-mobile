@@ -57,6 +57,9 @@ class ReceiptEngine {
     if (data.balanceDue > 0) {
       b.line(_padRow('Balance due', money.format(data.balanceDue)));
     }
+    if (data.changeDue > 0) {
+      b.line(_padRow('Change given', money.format(data.changeDue)));
+    }
     if (data.paymentMethod != null) b.line('Payment: ${data.paymentMethod}');
     if (data.cashierName != null) b.line('Cashier: ${data.cashierName}');
 
@@ -212,6 +215,7 @@ class ReceiptEngine {
                     ),
                     _totalRow('Amount Paid:', money.format(data.amountPaid), grey, dark),
                     if (data.balanceDue > 0) _totalRow('Balance Due:', money.format(data.balanceDue), grey, red, bold: true),
+                    if (data.changeDue > 0) _totalRow('Change Given:', money.format(data.changeDue), grey, dark, bold: true),
                   ],
                 ),
               ),

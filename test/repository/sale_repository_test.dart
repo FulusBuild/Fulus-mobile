@@ -1,7 +1,10 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
@@ -70,6 +73,8 @@ void main() {
   late AppDatabase db;
   late SyncQueue syncQueue;
   late SaleRepositoryImpl repository;
+  late CustomerRepositoryImpl customerRepository;
+  late CustomerCreditRepositoryImpl customerCreditRepository;
 
   const locationId = 'loc-1';
   const productId = 'prod-1';
@@ -78,6 +83,8 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
+    customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
+    customerCreditRepository = CustomerCreditRepositoryImpl(db: db);
     repository = SaleRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
@@ -91,6 +98,7 @@ void main() {
           isActive: true,
         ),
       ),
+      customerCreditRepository: customerCreditRepository,
     );
 
     final now = DateTime.now();
@@ -216,6 +224,147 @@ void main() {
         repository.createSale(draftWithOneItem()),
         completes,
       );
+    });
+
+    // Regression coverage for a confirmed business-logic bug found
+    // during audit: createSale wrote a correct Sale.balanceDue/
+    // paymentStatus (both computed getters) but never told
+    // CustomerCreditRepository about a credit sale at all —
+    // Customer.outstandingBalance, the field every ledger/repayment/
+    // credit-limit screen actually reads, simply never moved.
+    // recordCreditSale itself was already fully implemented and
+    // covered by customer_credit_repository_test.dart; what was
+    // missing was ever calling it from here.
+    group('credit sale / customer balance (bug fix regression)', () {
+      Future<String> createTestCustomer() async {
+        final customer = await customerRepository.createCustomer(
+          const CustomerDraft(name: 'Chidinma Okafor'),
+        );
+        return customer.localId;
+      }
+
+      test('a sale left fully unpaid raises the balance by the full total',
+          () async {
+        final customerId = await createTestCustomer();
+        final item = SaleItem(
+          localId: 'item-credit-1',
+          productLocalId: productId,
+          quantity: 3,
+          unitPrice: 150,
+          costPriceAtSale: 100,
+        );
+        final draft = SaleDraft(
+          items: [item],
+          locationId: locationId,
+          customerId: customerId,
+          amountPaid: 0,
+        );
+
+        final sale = await repository.createSale(draft);
+
+        expect(sale.total, 450);
+        expect(sale.balanceDue, 450);
+        final customer = await customerRepository.getCustomerById(customerId);
+        expect(customer!.outstandingBalance, 450);
+      });
+
+      test(
+          'a sale part-paid in cash then put on credit raises the balance '
+          'by only the remainder, not the full total', () async {
+        final customerId = await createTestCustomer();
+        final item = SaleItem(
+          localId: 'item-credit-2',
+          productLocalId: productId,
+          quantity: 3,
+          unitPrice: 150,
+          costPriceAtSale: 100,
+        );
+        // ₦450 total, ₦200 paid in cash up front — matches how
+        // PaymentScreen's "Put Remaining on Account" leaves whatever
+        // cash legs were already added in place.
+        final draft = SaleDraft(
+          items: [item],
+          locationId: locationId,
+          customerId: customerId,
+          amountPaid: 200,
+        );
+
+        final sale = await repository.createSale(draft);
+
+        expect(sale.total, 450);
+        expect(sale.balanceDue, 250);
+        final customer = await customerRepository.getCustomerById(customerId);
+        // The bug this guards against: naively recording sale.total
+        // (450) instead of sale.balanceDue (250) would double-count
+        // the ₦200 already paid in cash.
+        expect(customer!.outstandingBalance, 250);
+      });
+
+      test('a fully-paid sale with a customer attached does not touch '
+          'the balance', () async {
+        final customerId = await createTestCustomer();
+        final draft = SaleDraft(
+          items: [
+            SaleItem(
+              localId: 'item-credit-3',
+              productLocalId: productId,
+              quantity: 2,
+              unitPrice: 150,
+              costPriceAtSale: 100,
+            ),
+          ],
+          locationId: locationId,
+          customerId: customerId,
+          amountPaid: 300,
+        );
+
+        final sale = await repository.createSale(draft);
+
+        expect(sale.balanceDue, 0);
+        final customer = await customerRepository.getCustomerById(customerId);
+        expect(customer!.outstandingBalance, 0);
+        final ledgerEntries =
+            await db.select(db.customerLedgerEntries).get();
+        expect(ledgerEntries, isEmpty);
+      });
+
+      test('a fully-paid sale with no customer attached never calls the '
+          'credit ledger at all', () async {
+        // Guards the null-customerId branch — the ordinary cash-sale
+        // case every other test in this file already exercises;
+        // asserted explicitly here since it's the one this fix's own
+        // null check depends on.
+        await repository.createSale(draftWithOneItem());
+
+        final ledgerEntries =
+            await db.select(db.customerLedgerEntries).get();
+        expect(ledgerEntries, isEmpty);
+      });
+
+      test('two separate credit sales for the same customer accumulate',
+          () async {
+        final customerId = await createTestCustomer();
+        SaleDraft creditDraftForItem(String itemId) => SaleDraft(
+              items: [
+                SaleItem(
+                  localId: itemId,
+                  productLocalId: productId,
+                  quantity: 1,
+                  unitPrice: 150,
+                  costPriceAtSale: 100,
+                ),
+              ],
+              locationId: locationId,
+              customerId: customerId,
+              amountPaid: 0,
+            );
+
+        await repository.createSale(creditDraftForItem('item-credit-4a'));
+        await repository.createSale(creditDraftForItem('item-credit-4b'));
+
+        final customer = await customerRepository.getCustomerById(customerId);
+        expect(customer!.outstandingBalance, 300);
+      });
     });
   });
 

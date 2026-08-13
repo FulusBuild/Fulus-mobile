@@ -467,6 +467,92 @@ void main() {
       expect(queued.single.operation, 'create');
       expect(queued.single.priority, SyncPriority.stockAndCustomerWrites);
     });
+
+    // Regression coverage for a confirmed business-logic gap found
+    // during audit: AddEditProductScreen already rejected sellingPrice
+    // <= 0 (see that screen's own `_save`), so this specific path
+    // wasn't directly reachable through the normal UI — but nothing at
+    // this layer caught it either. costPrice had no guard anywhere at
+    // all, UI or repository, despite flowing straight into every COGS
+    // calculation in the app (costPriceAtSale is captured from this
+    // exact field at cart-add time).
+    group('price validation (bug fix)', () {
+      test('rejects a zero sellingPrice', () async {
+        await seedLocation();
+        await expectLater(
+          repository.createProduct(const ProductDraft(
+            name: 'Free Sample',
+            sku: 'FREE-1',
+            costPrice: 3.0,
+            sellingPrice: 0,
+            locationId: locationId,
+          )),
+          throwsArgumentError,
+        );
+      });
+
+      test('rejects a negative sellingPrice', () async {
+        await seedLocation();
+        await expectLater(
+          repository.createProduct(const ProductDraft(
+            name: 'Bad Product',
+            sku: 'BAD-1',
+            costPrice: 3.0,
+            sellingPrice: -6.0,
+            locationId: locationId,
+          )),
+          throwsArgumentError,
+        );
+      });
+
+      test('rejects a negative costPrice', () async {
+        await seedLocation();
+        await expectLater(
+          repository.createProduct(const ProductDraft(
+            name: 'Bad Product',
+            sku: 'BAD-2',
+            costPrice: -3.0,
+            sellingPrice: 6.0,
+            locationId: locationId,
+          )),
+          throwsArgumentError,
+        );
+      });
+
+      test('allows a zero costPrice — "cost not yet known" is a '
+          'legitimate state here, same as Quick Sale items', () async {
+        await seedLocation();
+        final result = await repository.createProduct(const ProductDraft(
+          name: 'New Product',
+          sku: 'NEW-2',
+          costPrice: 0,
+          sellingPrice: 6.0,
+          locationId: locationId,
+        ));
+        expect(result.costPrice, 0);
+      });
+
+      test('a rejected creation writes nothing to the local database at '
+          'all — no product row, no stock row, no sync task', () async {
+        await seedLocation();
+        try {
+          await repository.createProduct(const ProductDraft(
+            name: 'Bad Product',
+            sku: 'BAD-3',
+            costPrice: 3.0,
+            sellingPrice: -6.0,
+            locationId: locationId,
+          ));
+        } on ArgumentError {
+          // expected — the guard fires before any write happens
+        }
+
+        final productRows = await db.select(db.products).get();
+        expect(productRows, isEmpty);
+        final queued = await db.select(db.syncQueueItems).get();
+        expect(queued, isEmpty);
+      });
+    });
   });
 
   group('updateProduct', () {
@@ -514,6 +600,88 @@ void main() {
       final queued = await db.select(db.syncQueueItems).get();
       expect(queued.single.entityType, 'product');
       expect(queued.single.operation, 'update');
+    });
+
+    // Regression coverage for the same confirmed gap as createProduct's
+    // own "price validation (bug fix)" group above — see that group's
+    // doc comment for the full reasoning. Only fires when the field is
+    // actually being changed here, matching this method's existing
+    // partial-update convention.
+    group('price validation (bug fix)', () {
+      Future<void> seedExistingProduct() async {
+        await seedLocation();
+        await db.into(db.products).insert(ProductsCompanion.insert(
+              localId: 'p1',
+              serverId: const Value('p1'),
+              name: 'Original Name',
+              sku: 'SKU-p1',
+              costPrice: 5.0,
+              sellingPrice: 10.0,
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+              syncStatus: SyncStatus.settled,
+            ));
+      }
+
+      test('rejects updating sellingPrice to zero or below', () async {
+        await seedExistingProduct();
+        await expectLater(
+          repository.updateProduct(localId: 'p1', sellingPrice: 0),
+          throwsArgumentError,
+        );
+        await expectLater(
+          repository.updateProduct(localId: 'p1', sellingPrice: -5.0),
+          throwsArgumentError,
+        );
+      });
+
+      test('rejects updating costPrice to a negative value', () async {
+        await seedExistingProduct();
+        await expectLater(
+          repository.updateProduct(localId: 'p1', costPrice: -1.0),
+          throwsArgumentError,
+        );
+      });
+
+      test('allows updating costPrice to exactly zero', () async {
+        await seedExistingProduct();
+        await repository.updateProduct(localId: 'p1', costPrice: 0);
+        final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+        expect(row.costPrice, 0);
+      });
+
+      test('leaving sellingPrice/costPrice unpassed never triggers the '
+          'guard, even though the existing row already has values',
+          () async {
+        await seedExistingProduct();
+        // Only updating name — sellingPrice/costPrice stay absent, not
+        // re-validated against the row's own existing values.
+        await expectLater(
+          repository.updateProduct(localId: 'p1', name: 'New Name'),
+          completes,
+        );
+      });
+
+      test('a rejected update leaves the existing row completely '
+          'unchanged, not partially applied', () async {
+        await seedExistingProduct();
+        try {
+          await repository.updateProduct(
+            localId: 'p1',
+            name: 'Should Not Stick',
+            sellingPrice: -5.0,
+          );
+        } on ArgumentError {
+          // expected
+        }
+
+        final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+        expect(row.name, 'Original Name');
+        expect(row.sellingPrice, 10.0);
+        expect(row.syncStatus, SyncStatus.settled); // never marked pending
+        final queued = await db.select(db.syncQueueItems).get();
+        expect(queued, isEmpty);
+      });
     });
   });
 

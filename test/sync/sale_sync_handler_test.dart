@@ -1,6 +1,7 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
+import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
@@ -83,6 +84,7 @@ void main() {
       db: db,
       syncQueue: SyncQueue(db),
       authRepository: _FakeAuthRepository(),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
     );
     handler = SaleSyncHandler(
       db: db,

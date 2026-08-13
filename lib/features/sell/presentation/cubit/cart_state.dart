@@ -1,3 +1,4 @@
+import '../../../../core/business_engine/draft_cart_aggregation.dart' as aggregation;
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../domain/entities/product.dart';
@@ -83,7 +84,26 @@ final class CartLoaded extends CartState {
   /// completeSale` does.
   double get subtotal => items.fold(0.0, (sum, i) => sum + i.lineTotal);
 
-  double get total => subtotal - draftCart.wholeCartDiscount + draftCart.tax;
+  /// Bug fix (business-logic audit): this used to be `subtotal -
+  /// draftCart.wholeCartDiscount + draftCart.tax`, silently dropping
+  /// every line's own `lineDiscount` — while the actual persisted sale
+  /// (`DraftCartRepositoryImpl.completeSale`, via `SaleDraft.total`)
+  /// always correctly combined whole-cart AND line discounts through
+  /// `combineDiscount`. No UI exists yet that lets a cashier set either
+  /// kind of discount from Sell (confirmed by grep — `updateItemDiscount`/
+  /// `setWholeCartDiscount` have no caller anywhere in features/sell/),
+  /// so this was dormant, not yet money lost — but it would have shown
+  /// the wrong total, and let a sale complete for less than the
+  /// cashier could see on screen, the moment either discount UI ships.
+  /// Reuses `combineDiscount` — the exact same aggregation
+  /// `completeSale` calls — rather than re-deriving the sum here, so
+  /// the two can never drift apart again the way they just did.
+  double get discount => aggregation.combineDiscount(
+        wholeCartDiscount: draftCart.wholeCartDiscount,
+        lineDiscounts: items.map((i) => i.lineDiscount).toList(),
+      );
+
+  double get total => subtotal - discount + draftCart.tax;
 
   double get amountPaid => payments.fold(0.0, (sum, p) => sum + p.amount);
 
