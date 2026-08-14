@@ -13,9 +13,15 @@ import 'payment_screen.dart';
 
 /// Volume 5's "The Cart" — review, adjust quantity, optionally attach a
 /// customer, then proceed to payment. Reads the same [CartCubit]
-/// `SellScreen` created (this screen is pushed onto the Sell branch's
-/// own Navigator, which sits beneath that `BlocProvider`, so no second
-/// provider is needed here).
+/// `SellScreen` created. CORRECTED: `SellScreen`'s `BlocProvider` wraps
+/// only `_SellScreenBody`, not the Sell branch's own `Navigator` — a
+/// `Navigator.push` from there lands as a sibling of that provider, not
+/// a descendant, so `CartCubit` isn't reachable by plain lookup. The
+/// caller (`SellScreen`'s "View Cart" bar) re-wraps this screen with
+/// `BlocProvider.value(value: context.read<CartCubit>())` when pushing
+/// it, matching the pattern already used by `QuickSaleSheet.show` and
+/// `CustomerPickerSheet.show`. Do not push this screen directly without
+/// that wrapping.
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
@@ -330,9 +336,14 @@ class _TotalsFooter extends StatelessWidget {
               width: double.infinity,
               child: FulusButton(
                 label: 'Proceed to Payment',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PaymentScreen()),
-                ),
+                onPressed: () {
+                  final cubit = context.read<CartCubit>();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider.value(value: cubit, child: const PaymentScreen()),
+                    ),
+                  );
+                },
               ),
             ),
           ],
