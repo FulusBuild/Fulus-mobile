@@ -8,6 +8,7 @@ import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/customer_picker_sheet.dart';
+import '../widgets/discount_sheet.dart';
 import 'payment_screen.dart';
 
 /// Volume 5's "The Cart" — review, adjust quantity, optionally attach a
@@ -93,6 +94,9 @@ class _CartLineTile extends StatelessWidget {
       ),
       onDismissed: (_) => _remove(context),
       child: FulusCard(
+        // Gap fix: Volume 5, "tap a line to apply a discount to just
+        // that item" — no gesture existed anywhere on this row before.
+        onTap: () => _editDiscount(context),
         child: Row(
           children: [
             Expanded(
@@ -109,8 +113,12 @@ class _CartLineTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$currencySymbol${item.unitPrice.toStringAsFixed(2)} each',
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    item.lineDiscount > 0
+                        ? '$currencySymbol${item.unitPrice.toStringAsFixed(2)} each · $currencySymbol${item.lineDiscount.toStringAsFixed(2)} off'
+                        : '$currencySymbol${item.unitPrice.toStringAsFixed(2)} each',
+                    style: AppTypography.caption.copyWith(
+                      color: item.lineDiscount > 0 ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
+                    ),
                   ),
                 ],
               ),
@@ -120,7 +128,7 @@ class _CartLineTile extends StatelessWidget {
             SizedBox(
               width: 72,
               child: Text(
-                '$currencySymbol${item.lineTotal.toStringAsFixed(2)}',
+                '$currencySymbol${(item.lineTotal - item.lineDiscount).toStringAsFixed(2)}',
                 textAlign: TextAlign.right,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textPrimaryOf(context),
@@ -132,6 +140,20 @@ class _CartLineTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _editDiscount(BuildContext context) async {
+    final cubit = context.read<CartCubit>();
+    final state = cubit.state;
+    final currencySymbol = state is CartLoaded ? state.currencySymbol : '';
+    await DiscountSheet.show(
+      context,
+      title: 'Discount on ${item.description}',
+      baseAmount: item.lineTotal,
+      currencySymbol: currencySymbol,
+      initialDiscount: item.lineDiscount,
+      onSave: (amount) => cubit.updateItemDiscount(item, amount),
     );
   }
 
@@ -293,6 +315,7 @@ class _TotalsFooter extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _TotalRow(label: 'Subtotal', value: state.subtotal, currencySymbol: state.currencySymbol),
+            _DiscountRow(state: state),
             if (state.draftCart.tax > 0)
               _TotalRow(label: 'Tax', value: state.draftCart.tax, currencySymbol: state.currencySymbol),
             const SizedBox(height: AppSpacing.xs),
@@ -311,6 +334,42 @@ class _TotalsFooter extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const PaymentScreen()),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscountRow extends StatelessWidget {
+  const _DiscountRow({required this.state});
+  final CartLoaded state;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDiscount = state.discount > 0;
+    return InkWell(
+      onTap: () => DiscountSheet.show(
+        context,
+        title: 'Discount on this sale',
+        baseAmount: state.subtotal,
+        currencySymbol: state.currencySymbol,
+        initialDiscount: state.draftCart.wholeCartDiscount,
+        onSave: (amount) => context.read<CartCubit>().setWholeCartDiscount(amount),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Discount',
+              style: AppTypography.body.copyWith(color: AppColors.primaryOf(context)),
+            ),
+            Text(
+              hasDiscount ? '-${state.currencySymbol}${state.discount.toStringAsFixed(2)}' : 'Add',
+              style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
             ),
           ],
         ),

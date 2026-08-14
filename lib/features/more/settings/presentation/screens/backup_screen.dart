@@ -57,7 +57,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(title: const Text('Backup & Restore')),
       body: Column(
         children: [
@@ -157,7 +157,7 @@ class _BackupTile extends StatelessWidget {
     final sizeKb = (backup.sizeBytes / 1024).toStringAsFixed(0);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: AppColors.surfaceOf(context), borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Expanded(

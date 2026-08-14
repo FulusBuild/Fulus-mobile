@@ -8,6 +8,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/product.dart';
+import '../../../../shared/screens/barcode_scan_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
 import '../widgets/stock_error_banner.dart';
@@ -229,7 +230,18 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           ),
           if (_moreDetailsOpen) ...[
             const SizedBox(height: AppSpacing.sm),
-            FulusTextField(label: 'Barcode', controller: _barcodeController),
+            FulusTextField(
+              label: 'Barcode',
+              controller: _barcodeController,
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.qr_code_scanner_outlined),
+                tooltip: 'Scan barcode',
+                onPressed: () async {
+                  final scanned = await BarcodeScanScreen.scan(context, title: 'Scan product barcode');
+                  if (scanned != null) _barcodeController.text = scanned;
+                },
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
             categoriesAsync.when(
               data: (categories) => FulusDropdownField<String?>(

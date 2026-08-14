@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
+import '../../../../shared/screens/barcode_scan_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -99,6 +101,30 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
     super.dispose();
   }
 
+  Future<void> _scanAndAdd(BuildContext context) async {
+    final barcode = await BarcodeScanScreen.scan(context, title: 'Scan a product');
+    if (barcode == null || !context.mounted) return;
+    final cartState = context.read<CartCubit>().state;
+    if (cartState is! CartLoaded) return;
+    ProductWithStock? match;
+    for (final entry in cartState.catalog.values) {
+      if (entry.product.barcode == barcode) {
+        match = entry;
+        break;
+      }
+    }
+    if (match == null) {
+      showFulusSnackbar(context, message: "No product found with that barcode.");
+      return;
+    }
+    try {
+      await context.read<CartCubit>().addProduct(match.product.localId);
+      if (context.mounted) showFulusSnackbar(context, message: '${match.product.name} added.');
+    } on StateError catch (e) {
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartState = context.watch<CartCubit>().state;
@@ -106,6 +132,18 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
       title: 'Sell',
       applyPadding: false,
       actions: [
+        // Gap fix: BarcodeScannerService existed with no caller anywhere
+        // — see BarcodeScanScreen's own header comment.
+        FulusIconButton(
+          icon: Icons.qr_code_scanner_outlined,
+          tooltip: 'Scan a barcode',
+          onPressed: () => _scanAndAdd(context),
+        ),
+        FulusIconButton(
+          icon: Icons.assignment_return_outlined,
+          tooltip: 'Refund a sale',
+          onPressed: () => context.pushNamed('sellRefundSearch'),
+        ),
         FulusIconButton(
           icon: Icons.storefront_outlined,
           tooltip: 'Quick Sale',

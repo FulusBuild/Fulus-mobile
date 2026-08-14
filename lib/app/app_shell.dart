@@ -1,7 +1,11 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
+import '../sync/sync_status.dart';
+import 'providers.dart';
 
 /// The global app shell — Component Library 5.5's bottom bar,
 /// "visible from every screen... the product's spine." Wraps whichever
@@ -34,6 +38,28 @@ import '../core/theme/design_tokens.dart';
 /// stock-related capability stays reachable. Kept visible here on that
 /// basis — the more conservative reading between "explicitly hidden"
 /// and "never mentioned," not a confirmed decision.
+///
+/// Gap fix: Volume 2/Volume 12's persistent sync indicator — "same
+/// place on every screen" — didn't exist anywhere. It couldn't live on
+/// each screen's own AppBar: several screens (Home included) build no
+/// AppBar at all, so "same place on every screen" can only genuinely
+/// hold at the one layer that wraps literally every screen, which is
+/// this shell. Rendered as a small overlay above [navigationShell]
+/// rather than inside the Scaffold's own `appBar` slot, since that slot
+/// belongs to each individual screen, not this shared shell.
+///
+/// Gap fix: a global "you're offline" indicator didn't exist either —
+/// `connectivity_plus` (already a dependency) was only ever checked in
+/// one place, Payment, to block Card/Mobile Money specifically. This is
+/// a genuinely different signal from the sync indicator above: sync can
+/// be (and by default is) turned off entirely while the device is still
+/// online, and the device can go offline whether or not sync is even
+/// enabled — conflating the two would misreport one or the other.
+/// Rendered as a thin banner that pushes content down rather than an
+/// overlay, since Volume 12's own rule for this state ("never a
+/// full-screen interstitial... reassuring, not alarming") reads as
+/// wanting it noticeable, not just a small icon someone has to go
+/// looking for.
 class FulusAppShell extends StatelessWidget {
   const FulusAppShell({super.key, required this.navigationShell, required this.isOwner});
 
@@ -43,7 +69,19 @@ class FulusAppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: Column(
+        children: [
+          const _OfflineBanner(),
+          Expanded(
+            child: Stack(
+              children: [
+                navigationShell,
+                const Positioned(top: 0, right: 0, child: SafeArea(child: _SyncStatusIndicator())),
+              ],
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: _FulusBottomNav(
         currentIndex: navigationShell.currentIndex,
         isOwner: isOwner,
@@ -60,6 +98,134 @@ class FulusAppShell extends StatelessWidget {
     );
   }
 }
+
+/// A thin, dismissal-free banner — appears the moment the device goes
+/// offline, disappears the moment it's back, no tap target of its own
+/// (the sync indicator above is the tap target, for anyone who wants
+/// more than "you're offline" — this is purely informational).
+class _OfflineBanner extends ConsumerWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOnline = ref.watch(_isOnlineProvider).valueOrNull ?? true;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      child: isOnline
+          ? const SizedBox(width: double.infinity)
+          : SafeArea(
+              bottom: false,
+              child: Container(
+                width: double.infinity,
+                color: AppColors.textSecondaryOf(context),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.md),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.cloud_off_outlined, color: Colors.white, size: AppIconSize.dense),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      "You're offline — your work is saved and will sync when you're back.",
+                      style: AppTypography.caption.copyWith(color: Colors.white),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+/// `connectivity_plus` is already a dependency (payment_screen.dart's
+/// own comment on why) — `onConnectivityChanged` rather than repeatedly
+/// polling `checkConnectivity()`, since this needs to react the instant
+/// connectivity changes, not just when something else happens to
+/// re-check it.
+final _isOnlineProvider = StreamProvider.autoDispose<bool>((ref) {
+  return Connectivity()
+      .onConnectivityChanged
+      .map((results) => results.any((r) => r != ConnectivityResult.none));
+});
+
+/// The indicator itself — Volume 12: "exactly four visual states:
+/// quiet/settled, a small count, actively spinning, a soft amber mark,"
+/// plus [SyncStatusKind.disabled] (sync_status.dart's own doc comment
+/// on why that fifth state exists). Deliberately small and quiet even
+/// in its most attention-grabbing state — a soft amber dot, not a
+/// banner — matching "the user should never have to think about sync
+/// unless something is genuinely wrong" (Volume 12).
+class _SyncStatusIndicator extends ConsumerWidget {
+  const _SyncStatusIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(_shellSyncStatusProvider);
+    final status = statusAsync.valueOrNull;
+    if (status == null) return const SizedBox.shrink();
+
+    final (icon, color, badgeCount) = switch (status.kind) {
+      SyncStatusKind.disabled => (Icons.cloud_off_outlined, AppColors.textSecondaryOf(context), 0),
+      SyncStatusKind.settled => (Icons.cloud_done_outlined, AppColors.textSecondaryOf(context), 0),
+      SyncStatusKind.pending => (Icons.cloud_upload_outlined, AppColors.textSecondaryOf(context), status.pendingCount),
+      SyncStatusKind.syncing => (Icons.sync, AppColors.primaryOf(context), 0),
+      SyncStatusKind.attentionNeeded => (Icons.warning_amber_outlined, AppColors.warningOf(context), status.attentionCount),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpacing.md, top: AppSpacing.xs),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => context.pushNamed('moreSyncDetail'),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xs),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, color: color, size: AppIconSize.compact),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      constraints: const BoxConstraints(minWidth: 14),
+                      decoration: BoxDecoration(
+                        color: status.kind == SyncStatusKind.attentionNeeded
+                            ? AppColors.warningOf(context)
+                            : AppColors.textSecondaryOf(context),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Separate from sync_detail_screen.dart's own status provider
+/// (`.autoDispose`, torn down when that screen closes) — this one backs
+/// a widget that's mounted for the app's entire lifetime once signed
+/// in, so it deliberately stays alive rather than repeatedly
+/// resubscribing to `SyncStatusNotifier.watch()`'s underlying Drift
+/// query every time a screen with `.autoDispose` semantics happened to
+/// rebuild something nearby.
+final _shellSyncStatusProvider = StreamProvider<SyncStatus>((ref) {
+  return ref.watch(syncStatusNotifierProvider).watch();
+});
 
 /// Branch indices, matching 5.5's stated icon order (Home, Stock, Sell,
 /// Money, More) and router.dart's branch order — kept as named

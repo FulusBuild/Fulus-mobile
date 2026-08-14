@@ -6,6 +6,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../application/stock_providers.dart';
 import '../widgets/stock_movement_tile.dart';
 
@@ -55,6 +56,7 @@ class _ProductDetailBody extends ConsumerWidget {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
     final movementsAsync = ref.watch(stockMovementsProvider(locationId));
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
 
     return productsAsync.when(
       loading: () => const FulusScreen(body: FulusLoadingIndicator()),
@@ -109,7 +111,7 @@ class _ProductDetailBody extends ConsumerWidget {
           ],
           body: ListView(
             children: [
-              _PriceAndStockCard(item: item, category: category),
+              _PriceAndStockCard(item: item, category: category, currencySymbol: currencySymbol),
               const SizedBox(height: AppSpacing.lg),
               FulusButton(
                 label: 'Record stock',
@@ -138,10 +140,11 @@ class _ProductDetailBody extends ConsumerWidget {
 }
 
 class _PriceAndStockCard extends StatelessWidget {
-  const _PriceAndStockCard({required this.item, required this.category});
+  const _PriceAndStockCard({required this.item, required this.category, required this.currencySymbol});
 
   final ProductWithStock item;
   final Category? category;
+  final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +161,7 @@ class _PriceAndStockCard extends StatelessWidget {
             children: [
               Text('Price', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
               Text(
-                '₦${product.sellingPrice.toStringAsFixed(2)}',
+                '$currencySymbol${product.sellingPrice.toStringAsFixed(2)}',
                 style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
               ),
             ],
@@ -170,7 +173,7 @@ class _PriceAndStockCard extends StatelessWidget {
               children: [
                 Text('Margin', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                 Text(
-                  '₦${margin.toStringAsFixed(2)}',
+                  '$currencySymbol${margin.toStringAsFixed(2)}',
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ],

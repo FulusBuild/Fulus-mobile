@@ -6,6 +6,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../../money/presentation/widgets/opening_float_sheet.dart';
 
 /// Volume 4: "one evolving hero element... not five widgets shown at
@@ -31,14 +32,18 @@ import '../../../money/presentation/widgets/opening_float_sheet.dart';
 /// Foundation follow-up (Money): Open Shop / Close Shop were wired to
 /// nothing (`onTap: () {}`) — they now open the Money feature's
 /// opening-float sheet and Daily Closing flow respectively, the two
-/// places Volume 8 names these buttons as the trigger for. This is
-/// deliberately the only change in this file: [HomeHeroState] and
-/// which hero variant is shown still come entirely from
-/// [DashboardRepository], untouched — the two systems aren't merged,
-/// so closing a mock day here doesn't flip this screen's own hero
-/// state. That merge is a real gap, not solved by this pass; see
-/// `features/money/domain/money_transaction.dart` for why the Money
-/// feature is mock-backed at all.
+/// places Volume 8 names these buttons as the trigger for.
+///
+/// Gap fix (was: "closing a mock day here doesn't flip this screen's
+/// own hero state"): [HomeHeroState] still comes entirely from
+/// [DashboardRepository] — untouched — but this screen now also
+/// listens to [dashboardRefreshSignalProvider] and re-fetches whenever
+/// it changes. Opening or closing the drawer bumps that signal (see
+/// `daily_closing_count_screen.dart`), so returning to this tab after
+/// either action now shows the real, current state instead of whatever
+/// was cached from this screen's last `initState`. Home stays on a
+/// plain Future rather than converting to a Riverpod provider itself —
+/// see this class's own next paragraph for why that's deliberate.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.currentAuthUserId, required this.isOwner});
 
@@ -72,6 +77,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Gap fix — see this class's header comment. Any bump of this
+    // signal (Open Shop below, or Daily Closing elsewhere) means the
+    // real data behind the hero has changed, so re-fetch. `ref.listen`
+    // rather than `ref.watch` deliberately: this screen still owns its
+    // own Future/setState fetch cycle (unchanged from before), this
+    // just triggers that same cycle from a second place.
+    ref.listen<int>(dashboardRefreshSignalProvider, (previous, next) {
+      if (previous != null && previous != next) setState(_load);
+    });
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
       body: SafeArea(
@@ -89,7 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
-                  return _HeroCard(state: snapshot.data!);
+                  return _HeroCard(state: snapshot.data!, currencySymbol: currencySymbol);
                 },
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -110,12 +126,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.state});
+class _HeroCard extends ConsumerWidget {
+  const _HeroCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
+  final String currencySymbol;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final (label, amount, count, emphasizeAction) = switch (state) {
       NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => (
           'Yesterday',
@@ -146,7 +163,7 @@ class _HeroCard extends StatelessWidget {
           Text(label, style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7))),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '₦${amount.toStringAsFixed(2)}',
+            '$currencySymbol${amount.toStringAsFixed(2)}',
             style: AppTypography.display.copyWith(color: AppColors.onPrimaryOf(context)),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -162,6 +179,12 @@ class _HeroCard extends StatelessWidget {
                 final opened = await showOpeningFloatSheet(context);
                 if (opened && context.mounted) {
                   showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
+                  // Gap fix — see HomeScreen's header comment. Opening
+                  // the drawer changes exactly what this hero should
+                  // show (NotYetOpened → Open); without this, Home kept
+                  // showing "Ready to open?" until the next manual
+                  // pull-to-refresh.
+                  ref.read(dashboardRefreshSignalProvider.notifier).state++;
                 }
               },
             ),

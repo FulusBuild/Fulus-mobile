@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
+import '../domain/entities/app_notification.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/customer.dart';
 import '../domain/entities/product.dart';
@@ -25,12 +26,20 @@ import '../features/money/presentation/screens/record_repayment_screen.dart';
 import '../features/money/presentation/screens/supplier_profile_screen.dart';
 import '../features/money/presentation/screens/suppliers_list_screen.dart';
 import '../features/money/presentation/screens/transaction_detail_screen.dart';
+import '../features/more/employees/presentation/screens/employee_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
+import '../features/more/presentation/screens/notifications_screen.dart';
 import '../features/more/reports/presentation/screens/reports_screen.dart';
 import '../features/more/settings/presentation/screens/backup_screen.dart';
 import '../features/more/settings/presentation/screens/manage_locations_screen.dart';
+import '../features/more/settings/presentation/screens/printer_pairing_screen.dart';
+import '../features/more/settings/presentation/screens/settings_main_screen.dart';
+import '../features/more/settings/presentation/screens/sync_detail_screen.dart';
+import '../features/sell/presentation/screens/refund_confirm_screen.dart';
+import '../features/sell/presentation/screens/refund_search_screen.dart';
 import '../features/sell/presentation/screens/sell_screen.dart';
 import '../features/stock/presentation/screens/add_edit_product_screen.dart';
+import '../features/stock/presentation/screens/categories_screen.dart';
 import '../features/stock/presentation/screens/product_detail_screen.dart';
 import '../features/stock/presentation/screens/record_stock_movement_screen.dart';
 import '../features/stock/presentation/screens/stock_movement_history_screen.dart';
@@ -176,6 +185,11 @@ final appRouter = GoRouter(
                   name: 'stockHistory',
                   builder: (context, state) => StockMovementHistoryScreen(productId: state.extra as String?),
                 ),
+                GoRoute(
+                  path: 'categories',
+                  name: 'stockCategories',
+                  builder: (context, state) => const CategoriesScreen(),
+                ),
               ],
             ),
           ],
@@ -186,6 +200,21 @@ final appRouter = GoRouter(
               path: '/sell',
               name: 'sell',
               builder: (context, state) => const SellScreen(),
+              routes: [
+                GoRoute(
+                  path: 'refund',
+                  name: 'sellRefundSearch',
+                  builder: (context, state) => const RefundSearchScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':saleId',
+                      name: 'sellRefundConfirm',
+                      builder: (context, state) =>
+                          RefundConfirmScreen(saleId: state.pathParameters['saleId']!),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -318,6 +347,14 @@ final appRouter = GoRouter(
                   path: 'employees',
                   name: 'moreEmployees',
                   builder: (context, state) => const EmployeesListScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':employeeId',
+                      name: 'moreEmployeeDetail',
+                      builder: (context, state) =>
+                          EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!),
+                    ),
+                  ],
                 ),
                 GoRoute(
                   path: 'reports',
@@ -333,6 +370,28 @@ final appRouter = GoRouter(
                   path: 'settings/locations',
                   name: 'moreSettingsLocations',
                   builder: (context, state) => const ManageLocationsScreen(),
+                ),
+                GoRoute(
+                  path: 'settings',
+                  name: 'moreSettings',
+                  builder: (context, state) => const SettingsMainScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'printers',
+                      name: 'moreSettingsPrinters',
+                      builder: (context, state) => const PrinterPairingScreen(),
+                    ),
+                  ],
+                ),
+                GoRoute(
+                  path: 'sync',
+                  name: 'moreSyncDetail',
+                  builder: (context, state) => const SyncDetailScreen(),
+                ),
+                GoRoute(
+                  path: 'notifications',
+                  name: 'moreNotifications',
+                  builder: (context, state) => const NotificationsScreen(),
                 ),
               ],
             ),
@@ -407,9 +466,12 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
 /// same three real sub-screens as before, now using the shared
 /// components instead of a bare [ListView] of [ListTile]s, as a
 /// concrete example of the pattern for whoever builds the rest of
-/// Settings. Not the real More/Volume 9-11 landing screen — settings
-/// beyond Backup, and a proper Volume 9-11 layout, are still genuinely
-/// undone work belonging to whoever picks up Settings.
+/// Settings.
+///
+/// Gap fix: the rest of Settings this class's own comment used to flag
+/// as undone — Business info, Printers, Sync, Security — now exists at
+/// SettingsMainScreen; the on-screen "Not yet built" text below is
+/// replaced with a real link to it.
 class _MoreScreen extends StatelessWidget {
   const _MoreScreen();
 
@@ -433,30 +495,47 @@ class _MoreScreen extends StatelessWidget {
           ),
           const FulusListDivider(indented: false),
           FulusListRow(
-            title: const Text('Backup'),
+            title: const Text('Settings'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.goNamed('moreSettingsBackup'),
+            onTap: () => context.goNamed('moreSettings'),
           ),
           const FulusListDivider(indented: false),
-          FulusListRow(
-            title: const Text('Locations'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.goNamed('moreSettingsLocations'),
-          ),
-          const FulusListDivider(indented: false),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Text(
-              'Volumes 9–11 — the rest of Settings. Not yet built.',
-              textAlign: TextAlign.center,
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-            ),
+          Consumer(
+            builder: (context, ref, _) {
+              final notificationsAsync = ref.watch(_moreNotificationsProvider);
+              final unread = notificationsAsync.valueOrNull?.where((n) => !n.isRead).length ?? 0;
+              return FulusListRow(
+                title: const Text('Notifications'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (unread > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.warningOf(context),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+                onTap: () => context.goNamed('moreNotifications'),
+              );
+            },
           ),
         ],
       ),
     );
   }
 }
+
+final _moreNotificationsProvider = StreamProvider.autoDispose<List<AppNotification>>((ref) {
+  return ref.watch(notificationRepositoryProvider).watchAll();
+});
 
 /// A defensive fallback for the handful of Money routes that need an
 /// object passed via `extra` (a `Customer`, `Supplier`, or

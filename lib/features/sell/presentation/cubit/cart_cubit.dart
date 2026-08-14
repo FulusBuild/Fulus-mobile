@@ -297,6 +297,45 @@ class CartCubit extends Cubit<CartState> {
     await _draftCartRepository.removeItem(itemLocalId);
   }
 
+  /// Gap fix: the aggregation this feeds (CartState.discount,
+  /// cart_state.dart) already correctly combined whole-cart and
+  /// per-line discounts — this repository method already existed too —
+  /// but nothing in features/sell/ ever called it, so there was no way
+  /// to actually set a line discount from Sell. Mirrors
+  /// [setItemQuantity]'s validation shape: throw with a message the
+  /// calling sheet can surface directly, rather than let a negative or
+  /// over-100%-of-line-total discount silently produce a negative line.
+  Future<void> updateItemDiscount(DraftCartItem item, double lineDiscount) async {
+    if (lineDiscount < 0) {
+      throw StateError('Discount can\'t be negative.');
+    }
+    if (lineDiscount > item.lineTotal) {
+      throw StateError('Discount can\'t be more than the line total.');
+    }
+    await _draftCartRepository.updateItemDiscount(
+      itemLocalId: item.localId,
+      lineDiscount: lineDiscount,
+    );
+  }
+
+  /// Same gap as [updateItemDiscount], for the whole-cart figure
+  /// instead of one line — Volume 5: "A discount action sits near the
+  /// total... applying either to the whole sale or one line."
+  Future<void> setWholeCartDiscount(double discount) async {
+    final current = state;
+    if (current is! CartLoaded) return;
+    if (discount < 0) {
+      throw StateError('Discount can\'t be negative.');
+    }
+    if (discount > current.subtotal) {
+      throw StateError('Discount can\'t be more than the subtotal.');
+    }
+    await _draftCartRepository.setWholeCartDiscount(
+      draftCartLocalId: current.draftCart.localId,
+      discount: discount,
+    );
+  }
+
   /// Re-adds a just-removed line exactly as it was — the Bible's
   /// "Undo" toast after a swipe-to-remove. Preserves the original
   /// [DraftCartItem.unitPrice] explicitly (rather than letting

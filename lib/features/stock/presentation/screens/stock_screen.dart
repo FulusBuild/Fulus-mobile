@@ -43,6 +43,15 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     return FulusScreen(
       title: 'Stock',
       applyPadding: false,
+      actions: [
+        // Gap fix: nothing anywhere could create a category before —
+        // see CategoriesScreen's own header comment.
+        FulusIconButton(
+          icon: Icons.sell_outlined,
+          tooltip: 'Categories',
+          onPressed: () => context.pushNamed('stockCategories'),
+        ),
+      ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.pushNamed('stockRecordMovement'),
         icon: const Icon(Icons.swap_vert),

@@ -506,6 +506,22 @@ final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
   );
 });
 
+/// Gap fix: Home's hero state used to be a plain `Future` cached in
+/// [HomeScreen]'s own State (see that screen's header comment), fetched
+/// once in `initState` and never again — so opening or closing the
+/// drawer elsewhere (Money's opening-float sheet, Daily Closing)
+/// updated the real data `DashboardRepository` reads, but Home kept
+/// showing whatever it fetched before either action happened, since
+/// nothing ever told it to re-fetch. `HomeScreen` deliberately keeps its
+/// own Future-based fetch (its own doc comment: testability in
+/// isolation with plain constructor params, not a session-reading
+/// provider) — this is the smallest fix that respects that: a counter
+/// Home listens to and reloads on change, bumped by whichever screen
+/// actually changed the drawer/day state. Not scoped to one action
+/// specifically — anything that changes what Home's hero reflects bumps
+/// it, the same way `ref.invalidate` is used elsewhere in this app.
+final dashboardRefreshSignalProvider = StateProvider<int>((ref) => 0);
+
 final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
   throw UnimplementedError(
     'reportsRepositoryProvider must be overridden in bootstrap.dart.',

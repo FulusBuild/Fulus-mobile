@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/employee.dart';
+import '../../../../../shared/widgets/widgets.dart';
 
 /// Volume 9's roster screen — list + add + per-employee attendance
-/// marking. Leave request review is left as a follow-on screen (the
-/// repository/engine methods for it are complete; only this specific
-/// screen wasn't built this session — see INTEGRATION.md's "left for
-/// next session" list).
+/// marking. Leave request review, employee detail, and access
+/// revocation now live on EmployeeDetailScreen (tap a row) — see that
+/// screen's own header comment for why all three landed together.
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
 
@@ -29,7 +30,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(title: const Text('Team')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openAddSheet(context),
@@ -40,14 +41,15 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         builder: (context, snapshot) {
           final employees = snapshot.data ?? const [];
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const FulusLoadingIndicator();
           }
           if (employees.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppSpacing.xl),
-                child: Text('No team members yet. Tap + to add one.', style: AppTypography.body),
-              ),
+            return FulusEmptyState(
+              icon: Icons.people_outline,
+              headline: 'No team members yet.',
+              body: 'Invite your first team member to get started.',
+              actionLabel: 'Add team member',
+              onAction: () => _openAddSheet(context),
             );
           }
           return ListView.separated(
@@ -134,36 +136,60 @@ class _EmployeeTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: Text(
-              employee.fullName.isNotEmpty ? employee.fullName[0].toUpperCase() : '?',
-              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
               children: [
-                Text(employee.fullName, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
-                if (employee.role != null) Text(employee.role!, style: AppTypography.caption),
+                CircleAvatar(
+                  backgroundColor: AppColors.primaryOf(context).withOpacity(0.1),
+                  child: Text(
+                    employee.fullName.isNotEmpty ? employee.fullName[0].toUpperCase() : '?',
+                    style: TextStyle(color: AppColors.primaryOf(context), fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        employee.fullName,
+                        style: AppTypography.body
+                            .copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
+                      ),
+                      if (employee.role != null)
+                        Text(
+                          employee.role!,
+                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                        ),
+                    ],
+                  ),
+                ),
+                if (employee.authUserId == null)
+                  Tooltip(
+                    message: 'No login set up',
+                    child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.event_available_outlined),
+                  tooltip: 'Mark attendance',
+                  onPressed: () => _markToday(context, ref),
+                ),
+                Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.event_available_outlined),
-            tooltip: 'Mark attendance',
-            onPressed: () => _markToday(context, ref),
-          ),
-        ],
+        ),
       ),
     );
   }
