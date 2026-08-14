@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/providers.dart';
-import '../../../core/theme/design_tokens.dart';
-import '../../../domain/entities/app_notification.dart';
-import '../../../shared/widgets/widgets.dart';
+import '../../../../app/providers.dart';
+import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/app_notification.dart';
+import '../../../../shared/widgets/widgets.dart';
 
 /// Gap fix — full backend (NotificationRepository, NotificationService,
 /// the `flutter_local_notifications` package itself) existed with no

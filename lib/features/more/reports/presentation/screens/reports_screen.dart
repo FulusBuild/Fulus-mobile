@@ -6,7 +6,7 @@ import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/report.dart';
 import '../../../../../domain/usecases/reports_engine.dart';
 import '../../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
+import '../../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 
 /// Volume 10: one shared period selector above five categories, not
 /// eleven screens. Sales/Finance/Employees are period-scoped; Inventory

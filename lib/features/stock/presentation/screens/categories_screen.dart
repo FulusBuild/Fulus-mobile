@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../app/providers.dart';
-import '../../../../../core/theme/design_tokens.dart';
-import '../../../../../domain/entities/category.dart';
-import '../../../../../shared/widgets/widgets.dart';
+import '../../../../app/providers.dart';
+import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/category.dart';
+import '../../../../shared/widgets/widgets.dart';
 
 /// Gap fix: nothing anywhere in the app could create a category before
 /// this — Add/Edit Product could only *select* one of whatever already
