@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
+import '../core/onboarding/onboarding_state.dart';
+import '../core/security/app_lock_config.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
@@ -522,8 +524,38 @@ final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
 /// it, the same way `ref.invalidate` is used elsewhere in this app.
 final dashboardRefreshSignalProvider = StateProvider<int>((ref) => 0);
 
+/// Gap fix: App Lock (Volume 11) — self-sufficient like the signal
+/// above, not routed through bootstrap.dart's override pattern, since
+/// AppLockConfig.load() needs nothing bootstrap.dart already
+/// constructs (just SharedPreferences, fetched fresh via
+/// SharedPreferences.getInstance()'s own internal caching).
+final appLockConfigProvider = FutureProvider<AppLockConfig>((ref) => AppLockConfig.load());
+
 final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
   throw UnimplementedError(
     'reportsRepositoryProvider must be overridden in bootstrap.dart.',
   );
+});
+
+// ---------------------------------------------------------------------
+// Nice-to-have gap closure — Volume 3: Onboarding polish
+// ---------------------------------------------------------------------
+
+final onboardingStateProvider = Provider<OnboardingState>((ref) {
+  throw UnimplementedError(
+    'onboardingStateProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// Reactive mirror of [OnboardingState.hasSeenFirstRunPrompt] — same
+/// shape, and same reason, as [sessionProvider] mirroring
+/// `AuthRepository.currentUser` above: `_ShellGate` (router.dart) needs
+/// to rebuild the instant this flips, and `ref.watch` only reacts to a
+/// *provider* changing, not to a plain field mutating inside whatever
+/// object a provider returns. Seeded once from the real, persisted
+/// value; every call site that flips the underlying flag (currently
+/// just [FirstRunSetupScreen]) writes here too, right after its
+/// `OnboardingState` call succeeds.
+final firstRunPromptSeenProvider = StateProvider<bool>((ref) {
+  return ref.watch(onboardingStateProvider).hasSeenFirstRunPrompt;
 });

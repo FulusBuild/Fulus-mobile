@@ -85,6 +85,22 @@ class NotificationService {
     _initialized = true;
   }
 
+  /// Nice-to-have gap closure — Volume 3's onboarding permission-primer
+  /// list names notifications specifically, timed to "when they finish
+  /// their first sale," which is neither of this class's two existing
+  /// situations. Rather than fabricate a notification just to trigger
+  /// the OS permission dialog early, this is a thin public seam onto
+  /// the same two private steps [notifyStuckSync] and
+  /// [notifyBlockedPaymentCompleted] already run lazily on their own
+  /// first call — no notification is shown, no [AppNotification] is
+  /// recorded, so this doesn't add a third "situation" in Decision 43's
+  /// sense, only an earlier moment to ask the one real question this
+  /// class ever asks the OS.
+  Future<bool> ensurePermission() async {
+    await initialize();
+    return _ensurePermission();
+  }
+
   Future<bool> _ensurePermission() async {
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();

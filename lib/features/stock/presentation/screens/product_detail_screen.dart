@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -111,6 +113,19 @@ class _ProductDetailBody extends ConsumerWidget {
           ],
           body: ListView(
             children: [
+              if (product.photoPath != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(product.photoPath!),
+                    width: double.infinity,
+                    height: 180,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               _PriceAndStockCard(item: item, category: category, currencySymbol: currencySymbol),
               const SizedBox(height: AppSpacing.lg),
               FulusButton(

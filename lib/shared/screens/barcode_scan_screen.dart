@@ -59,6 +59,26 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
 
   Future<void> _checkPermission() async {
     final service = ref.read(barcodeScannerServiceProvider);
+
+    // Nice-to-have gap closure — Volume 3 Decision 8's primer, shown
+    // only when there's actually an OS dialog about to follow (a
+    // returning owner who already granted camera access skips straight
+    // to `ensurePermission`, which then resolves without any dialog of
+    // its own).
+    if (!await service.hasPermission) {
+      if (!mounted) return;
+      final proceed = await showFulusPermissionPrimer(
+        context,
+        icon: Icons.camera_alt_outlined,
+        message:
+            "We'll ask to use your camera next — this lets you scan barcodes instead of typing them.",
+      );
+      if (!proceed) {
+        if (mounted) setState(() => _permission = _PermissionState.denied);
+        return;
+      }
+    }
+
     try {
       await service.ensurePermission();
       if (!mounted) return;

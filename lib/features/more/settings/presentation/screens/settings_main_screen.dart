@@ -92,6 +92,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _openChangePinSheet(context),
               ),
+              const FulusListDivider(indented: false),
+              const _AppLockStatusRow(),
               const SizedBox(height: AppSpacing.xxl),
             ],
           );
@@ -105,6 +107,53 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       context: context,
       isScrollControlled: true,
       builder: (_) => const _ChangePinSheet(),
+    );
+  }
+}
+
+/// Own StatefulWidget rather than inline Consumer+FutureBuilder in the
+/// parent's build() — a Future built directly inside build() is a new
+/// Future on every rebuild, resetting this back to a loading flash each
+/// time (reports_screen.dart's own header comment covers the same
+/// pattern in more depth). Cached once here in initState instead, and
+/// re-cached only when the sheet below actually changes something.
+class _AppLockStatusRow extends ConsumerStatefulWidget {
+  const _AppLockStatusRow();
+
+  @override
+  ConsumerState<_AppLockStatusRow> createState() => _AppLockStatusRowState();
+}
+
+class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
+  Future<bool>? _future;
+
+  Future<bool> _load() async {
+    final config = await ref.read(appLockConfigProvider.future);
+    return config.isActive();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _future ??= _load();
+    return FutureBuilder<bool>(
+      future: _future,
+      builder: (context, snap) {
+        final active = snap.data ?? false;
+        return FulusListRow(
+          leading: const Icon(Icons.lock_outline),
+          title: const Text('App Lock'),
+          subtitle: Text(active ? 'On — a PIN is required to open Fulus' : 'Off'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            await showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => const _AppLockSheet(),
+            );
+            setState(() => _future = _load());
+          },
+        );
+      },
     );
   }
 }
@@ -197,6 +246,19 @@ class _BusinessInfoFormState extends ConsumerState<_BusinessInfoForm> {
             value: _vatEnabled,
             onChanged: (v) => setState(() => _vatEnabled = v),
             title: Text('VAT enabled', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
+          ),
+          // Nice-to-have pass — general orientation, not tied to the
+          // business-type category chosen at onboarding (that value is
+          // deliberately not persisted on this profile; see
+          // BusinessCategoryDefaults' own doc comment for why), so this
+          // stays a general note rather than pretending to re-derive a
+          // category-specific one it no longer has access to.
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Businesses under ₦100m annual turnover are exempt from VAT collection under the Nigeria Tax Act 2025. Confirm your own registration status before enabling this.',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
           ),
           if (_vatEnabled) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -319,6 +381,141 @@ class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AppLockSheet extends ConsumerStatefulWidget {
+  const _AppLockSheet();
+
+  @override
+  ConsumerState<_AppLockSheet> createState() => _AppLockSheetState();
+}
+
+class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
+  final _pinController = TextEditingController();
+  final _confirmController = TextEditingController();
+  bool _active = false;
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final config = await ref.read(appLockConfigProvider.future);
+    final active = await config.isActive();
+    if (mounted) setState(() {
+      _active = active;
+      _loading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _turnOff() async {
+    setState(() => _saving = true);
+    final config = await ref.read(appLockConfigProvider.future);
+    await config.removePin();
+    if (mounted) {
+      Navigator.of(context).pop();
+      showFulusSnackbar(context, message: 'App Lock turned off.');
+    }
+  }
+
+  Future<void> _setPin() async {
+    final pin = _pinController.text.trim();
+    if (pin.length < 4) {
+      setState(() => _error = 'Use at least 4 digits.');
+      return;
+    }
+    if (pin != _confirmController.text.trim()) {
+      setState(() => _error = "PINs don't match.");
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final config = await ref.read(appLockConfigProvider.future);
+    await config.setPin(pin);
+    if (mounted) {
+      Navigator.of(context).pop();
+      showFulusSnackbar(context, message: 'App Lock turned on.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('App Lock', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'When on, Fulus asks for this PIN every time it\'s opened or '
+                  'resumed from the background — separate from your approval PIN.',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (_active) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(
+                      label: 'Turn off App Lock',
+                      variant: FulusButtonVariant.secondary,
+                      loading: _saving,
+                      onPressed: _saving ? null : _turnOff,
+                    ),
+                  ),
+                ] else ...[
+                  if (_error != null) ...[
+                    Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  FulusTextField(
+                    label: 'New PIN',
+                    controller: _pinController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusTextField(
+                    label: 'Confirm PIN',
+                    controller: _confirmController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(label: 'Turn on App Lock', loading: _saving, onPressed: _saving ? null : _setPin),
+                  ),
+                ],
+              ],
+            ),
     );
   }
 }

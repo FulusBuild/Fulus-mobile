@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
+import '../core/onboarding/onboarding_state.dart';
 import '../core/security/password_hasher.dart';
 import '../core/security/pin_hasher.dart';
 import '../data/local/database/app_database_lifecycle.dart';
@@ -134,6 +135,12 @@ Future<ProviderContainer> bootstrap() async {
   // SyncConfig's own doc comment for why this defaults to disabled and
   // what that default is actually claiming.
   final syncConfig = await SyncConfig.load();
+
+  // Nice-to-have gap closure — Volume 3 (Onboarding polish). Same
+  // reasoning as SyncConfig immediately above: loaded early, alongside
+  // the other basic infra, since _ShellGate (router.dart) needs its
+  // value before the widget tree's first real build.
+  final onboardingState = await OnboardingState.load();
 
   // Read from EnvConfig (core/config/env_config.dart) — see that file
   // for how to override at build/run time via --dart-define. No longer
@@ -573,6 +580,8 @@ Future<ProviderContainer> bootstrap() async {
       // Stage 16
       syncConfigProvider.overrideWithValue(syncConfig),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
+      // Onboarding polish
+      onboardingStateProvider.overrideWithValue(onboardingState),
       // Stage 13
       notificationRepositoryProvider.overrideWithValue(notificationRepository),
       notificationServiceProvider.overrideWithValue(notificationService),

@@ -35,10 +35,13 @@ import '../features/more/settings/presentation/screens/manage_locations_screen.d
 import '../features/more/settings/presentation/screens/printer_pairing_screen.dart';
 import '../features/more/settings/presentation/screens/settings_main_screen.dart';
 import '../features/more/settings/presentation/screens/sync_detail_screen.dart';
+import '../features/onboarding/presentation/screens/first_run_setup_screen.dart';
 import '../features/sell/presentation/screens/refund_confirm_screen.dart';
 import '../features/sell/presentation/screens/refund_search_screen.dart';
 import '../features/sell/presentation/screens/sell_screen.dart';
 import '../features/stock/presentation/screens/add_edit_product_screen.dart';
+import '../features/stock/presentation/screens/bulk_import_review_screen.dart';
+import '../features/stock/presentation/screens/bulk_import_screen.dart';
 import '../features/stock/presentation/screens/categories_screen.dart';
 import '../features/stock/presentation/screens/product_detail_screen.dart';
 import '../features/stock/presentation/screens/record_stock_movement_screen.dart';
@@ -189,6 +192,18 @@ final appRouter = GoRouter(
                   path: 'categories',
                   name: 'stockCategories',
                   builder: (context, state) => const CategoriesScreen(),
+                ),
+                GoRoute(
+                  path: 'bulk-import',
+                  name: 'stockBulkImport',
+                  builder: (context, state) => const BulkImportScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'review',
+                      name: 'stockBulkImportReview',
+                      builder: (context, state) => BulkImportReviewScreen(csvContent: state.extra as String),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -402,10 +417,12 @@ final appRouter = GoRouter(
   ],
 );
 
-/// Resolves to exactly one of three things, in order:
-/// [AuthGateScreen] (signed out), [OwnerSetupScreen] resumed at its
-/// business step (signed in as an owner with no business configured —
-/// the interrupted-setup recovery case), or [FulusAppShell] (the normal
+/// Resolves to exactly one of four things, in order: [AuthGateScreen]
+/// (signed out), [OwnerSetupScreen] resumed at its business step
+/// (signed in as an owner with no business configured — the
+/// interrupted-setup recovery case), [FirstRunSetupScreen] (an owner
+/// whose business WAS just configured but who hasn't seen the
+/// nice-to-have first-run nudge yet), or [FulusAppShell] (the normal
 /// case). See the `redirect` above and this router's own header comment
 /// for the employee-enforcement half of this same gap-closure pass.
 ///
@@ -414,7 +431,11 @@ final appRouter = GoRouter(
 /// does (`createEmployeeAccount` is owner-initiated, and an owner
 /// wouldn't reach Employees to provision one before their own business
 /// setup finished), so checking for Employee sessions would just be an
-/// unnecessary database read on every rebuild.
+/// unnecessary database read on every rebuild. [firstRunPromptSeenProvider]
+/// (providers.dart) is watched directly rather than re-read from
+/// [OnboardingState] here, for the same "a plain field mutating doesn't
+/// trigger `ref.watch`" reason [sessionProvider] mirrors
+/// `AuthRepository.currentUser` — see that provider's own doc comment.
 class _ShellGate extends ConsumerStatefulWidget {
   const _ShellGate({required this.navigationShell});
 
@@ -455,6 +476,9 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
         }
         if (!snapshot.data!) {
           return OwnerSetupScreen(startAtBusinessStep: true, resumingOwner: user);
+        }
+        if (!ref.watch(firstRunPromptSeenProvider)) {
+          return const FirstRunSetupScreen();
         }
         return FulusAppShell(navigationShell: widget.navigationShell, isOwner: true);
       },

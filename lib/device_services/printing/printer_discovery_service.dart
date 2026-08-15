@@ -19,6 +19,14 @@ class PrinterDiscoveryService {
 
   final DevicePermissions _permissions;
 
+  /// Nice-to-have gap closure — passthrough to
+  /// [DevicePermissions.hasBluetoothPermission], mirroring
+  /// [BarcodeScannerService.hasPermission]: lets the "Find a printer"
+  /// sheet (printer_pairing_screen.dart) show Decision 8's
+  /// plain-language primer before [scanBluetooth] triggers the real OS
+  /// dialog, without owning its own `DevicePermissions` instance.
+  Future<bool> get hasBluetoothPermission => _permissions.hasBluetoothPermission;
+
   /// Already-PAIRED-at-the-OS-level Bluetooth devices, per
   /// print_bluetooth_thermal's own model (it lists the phone's existing
   /// Bluetooth pairings, the same list Android's own Bluetooth settings

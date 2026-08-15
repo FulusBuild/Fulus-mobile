@@ -56,6 +56,13 @@ class BarcodeScannerService {
     }
   }
 
+  /// Nice-to-have gap closure — passthrough to
+  /// [DevicePermissions.hasCameraPermission], so [BarcodeScanScreen] can
+  /// decide whether to show Decision 8's plain-language primer before
+  /// calling [ensurePermission], without reaching past this service to
+  /// construct its own `DevicePermissions`.
+  Future<bool> get hasPermission => _permissions.hasCameraPermission;
+
   /// Sensible defaults for a POS barcode-lookup use case specifically —
   /// NOT a general-purpose camera/scan configuration. `formats` is left
   /// at mobile_scanner's own default (all supported formats) deliberately:

@@ -148,10 +148,25 @@ class _FindPrinterSheetState extends ConsumerState<_FindPrinterSheet> {
   Future<List<PrinterDevice>>? _future;
 
   Future<void> _scan(bool bluetooth) async {
+    final discovery = ref.read(printerDiscoveryServiceProvider);
+
+    // Nice-to-have gap closure — Volume 3 Decision 8's primer. USB has
+    // no permission_handler permission to prime for (see
+    // usb_receipt_printer.dart's own doc comment on why), so this only
+    // applies to the Bluetooth branch, and only when access isn't
+    // already granted from a previous pairing.
+    if (bluetooth && !await discovery.hasBluetoothPermission) {
+      if (!mounted) return;
+      final proceed = await showFulusPermissionPrimer(
+        context,
+        icon: Icons.bluetooth,
+        message: "We'll ask to use Bluetooth next — this lets us find and connect to your receipt printer.",
+      );
+      if (!proceed) return;
+    }
+
     setState(() {
-      _future = bluetooth
-          ? ref.read(printerDiscoveryServiceProvider).scanBluetooth()
-          : ref.read(printerDiscoveryServiceProvider).scanUsb();
+      _future = bluetooth ? discovery.scanBluetooth() : discovery.scanUsb();
     });
   }
 

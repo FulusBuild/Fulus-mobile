@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../shared/widgets/widgets.dart';
+import 'get_started_screen.dart';
 import 'owner_setup_screen.dart';
 import 'sign_in_screen.dart';
 
@@ -11,10 +12,13 @@ import 'sign_in_screen.dart';
 /// right now. [AuthRepository.hasAnyOwnerAccount] answers the same
 /// question the backend's old bootstrap-status endpoint used to,
 /// purely locally: false means a genuinely fresh install (show
-/// [OwnerSetupScreen]), true means a device that's been set up before
-/// (show [SignInScreen] — this also covers an employee whose login the
-/// owner has already provisioned, since [AuthRepository.login] doesn't
-/// distinguish role until after the lookup).
+/// [GetStartedScreen], which is itself just a single tap away from
+/// [OwnerSetupScreen] — see that screen's own doc comment for why it
+/// sits in front of the form rather than replacing it), true means a
+/// device that's been set up before (show [SignInScreen] — this also
+/// covers an employee whose login the owner has already provisioned,
+/// since [AuthRepository.login] doesn't distinguish role until after
+/// the lookup).
 ///
 /// Volume 3 also describes a second employee-side journey: entering an
 /// invite code or scanning a QR to join a business directly, with no
@@ -27,19 +31,23 @@ import 'sign_in_screen.dart';
 /// doesn't exist would be inventing a parallel auth system rather than
 /// tracing the real one (the one rule this whole phase was told not to
 /// break) — so for now, every device without an owner account yet
-/// lands in [OwnerSetupScreen], and every subsequent login — owner or
-/// employee — goes through the one real path, [SignInScreen].
+/// lands in [GetStartedScreen] → [OwnerSetupScreen], and every
+/// subsequent login — owner or employee — goes through the one real
+/// path, [SignInScreen].
 ///
-/// Known open edge case, not solved here: if the app is killed between
-/// [OwnerSetupScreen]'s two steps (account created, business not yet),
-/// the next launch restores that session (AuthRepositoryImpl persists
-/// it the moment the account is created) and lands directly in the app
-/// shell with no business configured — this screen is never reached
-/// again to finish that second step, since [hasAnyOwnerAccount] is now
-/// true. Resuming an interrupted setup is a real gap, but fixing it
-/// touches how the shell/Home handles an unconfigured business profile
-/// generally, which is Home's own existing concern, not something to
-/// patch from this screen. Flagged rather than silently worked around.
+/// Doc correction, not a behavior change: this comment previously
+/// flagged an "open edge case" here — the app killed mid-[
+/// OwnerSetupScreen] (account created, business not yet) landing in a
+/// dead end on relaunch. That's not actually true of the app as it
+/// stands: `_ShellGate` (router.dart) already checks
+/// `BusinessSettingsRepository.hasBeenConfigured()` for exactly this
+/// case and resumes at `OwnerSetupScreen(startAtBusinessStep: true,
+/// resumingOwner: user)` — see that class's own doc comment. This
+/// screen was simply never the right place that resume logic could
+/// live (by the time [hasAnyOwnerAccount] is true, this screen isn't
+/// reached again, same reasoning the old comment already had right),
+/// so nothing here changed; the comment describing it as unsolved was
+/// just stale.
 class AuthGateScreen extends ConsumerStatefulWidget {
   const AuthGateScreen({super.key});
 
@@ -65,7 +73,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
           // per 5.18, not a skeleton.
           return const FulusScreen(body: FulusLoadingIndicator());
         }
-        return snapshot.data! ? const SignInScreen() : const OwnerSetupScreen();
+        return snapshot.data! ? const SignInScreen() : const GetStartedScreen();
       },
     );
   }

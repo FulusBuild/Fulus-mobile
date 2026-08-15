@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
+import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/security/password_policy.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/auth_user.dart';
@@ -16,9 +17,15 @@ import '../widgets/auth_error_banner.dart';
 /// after — printer setup, first product, first sale, the success
 /// celebration — is explicitly optional/deferred per Volume 3 itself
 /// ("Nothing else is asked here... reachable later, never blocking
-/// this screen") and belongs to Sell/Stock, not this foundation phase;
-/// this screen's only job is to land a real, signed-in owner with a
-/// real business profile into the app shell.
+/// this screen") and belongs to Sell/Stock, not this screen; this
+/// screen's only job is to land a real, signed-in owner with a real
+/// business profile into the app shell. (Nice-to-have gap closure: the
+/// optional first-product/printer/quick-sale nudge now exists too, as
+/// its own screen — router.dart's `_ShellGate` inserts
+/// [FirstRunSetupScreen] between this screen finishing and the shell
+/// actually rendering, keyed off [OnboardingState.armFirstRun] below —
+/// but it's still deliberately a separate screen this one has no
+/// direct reference to, same reasoning as the rest of this comment.)
 ///
 /// Two real network-free calls, not one — [AuthRepository.
 /// createFirstOwner] then [BusinessSettingsRepository.createBusiness],
@@ -34,15 +41,16 @@ import '../widgets/auth_error_banner.dart';
 ///
 /// Volume 3 also specifies business type "pre-configures sensible
 /// tax/VAT defaults" and currency "defaulted from the phone's SIM/
-/// locale, changeable with one tap." The tax-default mechanism exists
-/// ([BusinessCategoryDefaults]) but every category currently resolves
-/// to the same placeholder numbers — that's business_category.dart's
-/// own honestly-flagged gap, not something this screen re-decides.
-/// SIM/locale currency detection needs a package this project doesn't
-/// have (`intl` isn't a dependency) — this defaults to ₦ instead, the
-/// currency every persona and example in the Bible itself uses, and
-/// stays changeable with one tap via [FulusDropdownField], which is at
-/// least faithful to the "one tap" part of the spec even though the
+/// locale, changeable with one tap." The tax-default mechanism
+/// ([BusinessCategoryDefaults]) now carries real, sourced per-category
+/// numbers (nice-to-have pass — see that class's own doc comment for
+/// the sourcing); this screen surfaces its `guidance` string under the
+/// category list so the default doesn't look arbitrary. SIM/locale
+/// currency detection needs a package this project doesn't have (`intl`
+/// isn't a dependency) — this defaults to ₦ instead, the currency every
+/// persona and example in the Bible itself uses, and stays changeable
+/// with one tap via [FulusDropdownField], which is at least faithful to
+/// the "one tap" part of the spec even though the
 /// "defaulted from SIM" part is a reasonable substitute, not the real
 /// mechanism.
 ///
@@ -225,6 +233,25 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         // Deliberately swallowed — see comment above.
       }
       if (!mounted) return;
+      // A fourth step, same shape as the location seed just above —
+      // nice-to-have gap closure, Volume 3's onboarding polish. This is
+      // the one moment the app can say "this business is new" with
+      // certainty (business creation happens exactly once, right
+      // above, whether or not Step 1 was resumed from an earlier
+      // session — see OnboardingState.armFirstRun's own doc comment for
+      // why both onboarding flags key off this exact call rather than
+      // off account creation). Best-effort for the same reason as the
+      // location seed: a failure here shouldn't strand an otherwise
+      // fully-created owner+business on this screen — it just means
+      // FirstRunSetupScreen and the first-sale celebration default to
+      // "already seen" (OnboardingState's own true-by-default) instead
+      // of showing once, a missed nicety, not a broken app.
+      try {
+        await ref.read(onboardingStateProvider).armFirstRun();
+      } catch (_) {
+        // Deliberately swallowed — see comment above.
+      }
+      if (!mounted) return;
       // Only now — both steps genuinely complete — does the app
       // actually consider this a signed-in session for navigation
       // purposes. See this file's own header comment and
@@ -351,6 +378,13 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Text(
+            BusinessCategoryDefaults.forCategory(_category).guidance,
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+        ),
         const SizedBox(height: AppSpacing.sm),
         FulusDropdownField<String>(
           label: 'Currency',

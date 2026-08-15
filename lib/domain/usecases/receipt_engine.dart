@@ -15,12 +15,12 @@ class ReceiptEngine {
   const ReceiptEngine();
 
   /// Ported line-for-line from frontend/lib/receipt.ts's buildReceipt —
-  /// see [_MoneyFormatter] and [_ThermalBuilder] below for the two
+  /// see [MoneyFormatter] and [_ThermalBuilder] below for the two
   /// pieces of that file this splits into. 58mm width (32 cols),
   /// text-only, matching the original's own stated scope.
   GeneratedReceipt renderThermal(ReceiptData data) {
     final b = _ThermalBuilder()..init();
-    final money = _MoneyFormatter(data.currencySymbol);
+    final money = MoneyFormatter(data.currencySymbol);
 
     b.align(_Align.center).bold(true).doubleSize(true).line(data.businessName);
     b.doubleSize(false).bold(false);
@@ -84,7 +84,7 @@ class ReceiptEngine {
   /// ReportLab one.
   Future<GeneratedReceipt> renderPdf(ReceiptData data) async {
     final doc = pw.Document();
-    final money = _MoneyFormatter(data.currencySymbol, spaceBeforeAmount: false, forcePrefix: true);
+    final money = MoneyFormatter(data.currencySymbol, spaceBeforeAmount: false, forcePrefix: true);
 
     const blue = PdfColor.fromInt(0xFF1D4ED8);
     const dark = PdfColor.fromInt(0xFF111827);
@@ -374,8 +374,16 @@ typedef Uint8Array = Uint8List;
 /// default (₦) maps to "NGN", and any OTHER non-ASCII symbol a business
 /// explicitly chose prints with no currency label rather than a
 /// confidently wrong one.
-class _MoneyFormatter {
-  _MoneyFormatter(this._configuredSymbol, {this.spaceBeforeAmount = true, this.forcePrefix = false});
+///
+/// Made public (was `_MoneyFormatter`) for the nice-to-have receipt
+/// preview redesign: receipt_preview_sheet.dart needs the exact same
+/// thousands-formatted amounts this file prints, and duplicating the
+/// formatting logic in two places risked the on-screen preview quietly
+/// drifting from what actually gets printed/shared — a worse outcome
+/// than one shared class crossing a file boundary. No behavior change,
+/// every existing use within this file untouched.
+class MoneyFormatter {
+  MoneyFormatter(this._configuredSymbol, {this.spaceBeforeAmount = true, this.forcePrefix = false});
 
   final String? _configuredSymbol;
   final bool spaceBeforeAmount;

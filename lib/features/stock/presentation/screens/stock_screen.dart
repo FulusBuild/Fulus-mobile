@@ -51,6 +51,11 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           tooltip: 'Categories',
           onPressed: () => context.pushNamed('stockCategories'),
         ),
+        FulusIconButton(
+          icon: Icons.upload_file_outlined,
+          tooltip: 'Bulk import',
+          onPressed: () => context.pushNamed('stockBulkImport'),
+        ),
       ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.pushNamed('stockRecordMovement'),

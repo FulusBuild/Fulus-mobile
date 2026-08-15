@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/receipt_preview_sheet.dart';
@@ -17,7 +19,32 @@ import '../widgets/receipt_preview_sheet.dart';
 /// action from here lands on Cart, now showing empty (the same
 /// completed sale cleared it), not on a stale Payment screen for a sale
 /// that's already done. No extra back-button handling needed for that.
-class SaleSuccessScreen extends StatelessWidget {
+///
+/// Nice-to-have gap closure — Volume 3's "Success Celebration": "A
+/// short, warm, restrained confirmation... 'That's your first sale on
+/// [Fulus]. Nice work.' with the completed receipt shown underneath,
+/// and a single next action." [_isFirstSale] decides, once, whether
+/// this build shows that variant or the ordinary one every sale after
+/// it already shows — see [OnboardingState.hasCelebratedFirstSale]'s
+/// doc comment for why the flag this reads defaults to "already
+/// celebrated" for every business except one just created in this same
+/// session.
+///
+/// The receipt itself is embedded directly ([ReceiptPreviewSheet] used
+/// inline, not behind the "View Receipt" tap it's normally behind) to
+/// satisfy "shown underneath" literally — deliberately reusing that
+/// widget completely unmodified rather than duplicating its layout or
+/// its data-loading `FutureBuilder`, which also means this screen
+/// inherits, rather than fixes, that widget's own known rendering gap
+/// (raw total, no line items) — a separate, already-flagged piece of
+/// work, not something this pass touches.
+///
+/// Also carries Volume 3's third contextual-permission moment
+/// ("Notifications... when they finish their first sale") — primed and
+/// requested from [_continue] rather than the instant this screen
+/// appears, so the primer dialog doesn't compete with the celebration
+/// copy for attention; it fires as the owner is already moving on.
+class SaleSuccessScreen extends ConsumerStatefulWidget {
   const SaleSuccessScreen({
     super.key,
     required this.saleId,
@@ -39,20 +66,65 @@ class SaleSuccessScreen extends StatelessWidget {
   final String currencySymbol;
 
   @override
+  ConsumerState<SaleSuccessScreen> createState() => _SaleSuccessScreenState();
+}
+
+class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
+  // Decided once, from the value as it stood the instant this screen
+  // opened — `late final` (not a plain getter) so this screen instance
+  // can't flip which variant is showing mid-view on some unrelated
+  // rebuild.
+  late final bool _isFirstSale = !ref.read(onboardingStateProvider).hasCelebratedFirstSale;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isFirstSale) {
+      // Fire-and-forget, same as ResolveActiveLocation's best-effort
+      // calls in OwnerSetupScreen — nothing on this screen depends on
+      // the write finishing; a rare failure here just means this
+      // one-time moment quietly doesn't repeat, not a broken sale.
+      ref.read(onboardingStateProvider).markFirstSaleCelebrated();
+    }
+  }
+
+  Future<void> _continue(BuildContext context) async {
+    if (_isFirstSale) {
+      final notifications = ref.read(notificationServiceProvider);
+      final proceed = await showFulusPermissionPrimer(
+        context,
+        icon: Icons.notifications_outlined,
+        message:
+            "We'll ask to send notifications next — this lets us tell you if a blocked payment finishes going through, or if something needs your attention.",
+      );
+      if (proceed) await notifications.ensurePermission();
+    }
+    if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Sale Complete',
-      body: Center(
+      body: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.check_circle, color: AppColors.primaryOf(context), size: AppIconSize.hero),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Sale complete',
+              _isFirstSale ? "That's your first sale on Fulus." : 'Sale complete',
+              textAlign: TextAlign.center,
               style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
             ),
-            if (changeDue > 0) ...[
+            if (_isFirstSale) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Nice work.',
+                style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+              ),
+            ],
+            if (widget.changeDue > 0) ...[
               const SizedBox(height: AppSpacing.lg),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
@@ -68,7 +140,7 @@ class SaleSuccessScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '$currencySymbol${changeDue.toStringAsFixed(2)}',
+                      '${widget.currencySymbol}${widget.changeDue.toStringAsFixed(2)}',
                       style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context)),
                     ),
                   ],
@@ -76,23 +148,36 @@ class SaleSuccessScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.xxl),
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: 'View Receipt',
-                variant: FulusButtonVariant.secondary,
-                icon: Icons.receipt_long_outlined,
-                onPressed: () => ReceiptPreviewSheet.show(context, saleId),
+            if (_isFirstSale) ...[
+              // "the completed receipt shown underneath" — the exact
+              // existing widget, unmodified, just not gated behind a
+              // tap the way the ordinary "View Receipt" button below
+              // gates it.
+              ReceiptPreviewSheet(saleId: widget.saleId),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FulusButton(label: 'Continue', onPressed: () => _continue(context)),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: 'New Sale',
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: FulusButton(
+                  label: 'View Receipt',
+                  variant: FulusButtonVariant.secondary,
+                  icon: Icons.receipt_long_outlined,
+                  onPressed: () => ReceiptPreviewSheet.show(context, widget.saleId),
+                ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: FulusButton(
+                  label: 'New Sale',
+                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                ),
+              ),
+            ],
           ],
         ),
       ),

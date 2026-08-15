@@ -153,6 +153,14 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # asset/font declarations added in the phase that actually introduces
-  # the first real asset — an empty assets: block here would be a
-  # structural lie about what exists.
+  # Nice-to-have gap closure — Volume 3's "Install & Launch" ("the icon
+  # and name must read clearly") is the first real in-app use of
+  # assets/branding/ — previously declared nowhere in this file (the
+  # comment this replaces was accurate at the time: nothing had used a
+  # bundled asset yet). Only the branding folder is declared, not
+  # design/fulus-logo-assets/ alongside it — that folder is app-icon/
+  # favicon source material for the Play Store listing and build
+  # tooling, not something any screen loads via `Image.asset` at
+  # runtime.
+  assets:
+    - assets/branding/

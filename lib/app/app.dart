@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
+import 'app_lock_gate.dart';
 import 'router.dart';
 
 /// The root widget — per Architecture Section 1, main.dart stays thin
@@ -27,6 +28,10 @@ class FulusApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: appRouter,
+      // Gap fix: App Lock (Volume 11) — wraps every route via this
+      // builder hook rather than living in the route tree itself, so it
+      // overlays regardless of where go_router's stack currently is.
+      builder: (context, child) => AppLockGate(child: child ?? const SizedBox.shrink()),
     );
   }
 }

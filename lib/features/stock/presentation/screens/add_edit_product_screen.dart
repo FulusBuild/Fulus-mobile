@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/screens/barcode_scan_screen.dart';
+import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
 import '../widgets/stock_error_banner.dart';
@@ -48,6 +50,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
   late final _thresholdController =
       TextEditingController(text: (widget.existingProduct?.lowStockThreshold ?? 10).toString());
   late final _initialStockController = TextEditingController(text: '0');
+  late String? _photoPath = widget.existingProduct?.photoPath;
 
   late String? _categoryId = widget.existingProduct?.categoryId;
   late String? _supplierId = widget.existingProduct?.supplierId;
@@ -122,6 +125,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           productLocalId: existing.localId,
           tracksStock: _tracksStock,
           unit: _unitController.text.trim().isEmpty ? 'piece' : _unitController.text.trim(),
+          photoPath: _photoPath,
         );
       } else {
         final sku = await _generateSku(name);
@@ -143,6 +147,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           productLocalId: created.localId,
           tracksStock: _tracksStock,
           unit: _unitController.text.trim().isEmpty ? 'piece' : _unitController.text.trim(),
+          photoPath: _photoPath,
         );
       }
 
@@ -241,6 +246,45 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                   if (scanned != null) _barcodeController.text = scanned;
                 },
               ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Photo', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                if (_photoPath != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(File(_photoPath!), width: 64, height: 64, fit: BoxFit.cover),
+                  )
+                else
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceOf(context),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.image_outlined, color: AppColors.textSecondaryOf(context)),
+                  ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: FulusButton(
+                    label: _photoPath == null ? 'Take photo' : 'Retake photo',
+                    variant: FulusButtonVariant.secondary,
+                    onPressed: () async {
+                      final path = await PhotoCaptureScreen.capture(context, title: 'Photo this product');
+                      if (path != null) setState(() => _photoPath = path);
+                    },
+                  ),
+                ),
+                if (_photoPath != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Remove photo',
+                    onPressed: () => setState(() => _photoPath = null),
+                  ),
+              ],
             ),
             const SizedBox(height: AppSpacing.lg),
             categoriesAsync.when(

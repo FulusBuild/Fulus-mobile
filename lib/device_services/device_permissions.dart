@@ -34,6 +34,28 @@ class DevicePermissions {
     return status.isGranted;
   }
 
+  /// Nice-to-have gap closure — Volume 3 Decision 8's other half:
+  /// "Each system permission dialog is preceded by one plain-language
+  /// line explaining why." That line (`showFulusPermissionPrimer`,
+  /// shared/widgets/fulus_dialogs.dart) only belongs on screen when an
+  /// OS dialog is actually about to appear — a pure status check, not a
+  /// request, so a call site can decide "is there really a dialog
+  /// coming?" before deciding whether to show the primer. Checking
+  /// first also means a returning owner who already granted the
+  /// permission on a previous visit never sees the primer again: [
+  /// ensureCamera] would just resolve instantly with no OS dialog of
+  /// its own, and a primer with nothing behind it would be a confusing,
+  /// unexplained extra dialog rather than a helpful one.
+  Future<bool> get hasCameraPermission async => (await Permission.camera.status).isGranted;
+
+  /// Same reasoning as [hasCameraPermission], checking both halves of
+  /// the paired request [ensureBluetooth] makes.
+  Future<bool> get hasBluetoothPermission async {
+    final scan = await Permission.bluetoothScan.status;
+    final connect = await Permission.bluetoothConnect.status;
+    return scan.isGranted && connect.isGranted;
+  }
+
   /// USB host-mode access is deliberately NOT requested through
   /// permission_handler here — on Android, attaching to a specific USB
   /// device is authorized through a per-device system dialog
