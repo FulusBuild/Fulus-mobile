@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
 import '../domain/entities/app_notification.dart';
 import '../domain/entities/auth_user.dart';
@@ -474,13 +475,22 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
         if (!snapshot.hasData) {
           return const FulusScreen(body: FulusLoadingIndicator());
         }
-        if (!snapshot.data!) {
-          return OwnerSetupScreen(startAtBusinessStep: true, resumingOwner: user);
+        // Resolved through resolvePostSignInStage
+        // (core/onboarding/onboarding_routing.dart) rather than the two
+        // inline ifs this used to be — same behavior, now unit-testable
+        // without a widget pump. See that function's own doc comment.
+        final stage = resolvePostSignInStage(
+          businessConfigured: snapshot.data!,
+          firstRunPromptSeen: ref.watch(firstRunPromptSeenProvider),
+        );
+        switch (stage) {
+          case PostSignInStage.resumeBusinessSetup:
+            return OwnerSetupScreen(startAtBusinessStep: true, resumingOwner: user);
+          case PostSignInStage.showFirstRunPrompt:
+            return const FirstRunSetupScreen();
+          case PostSignInStage.enterShell:
+            return FulusAppShell(navigationShell: widget.navigationShell, isOwner: true);
         }
-        if (!ref.watch(firstRunPromptSeenProvider)) {
-          return const FirstRunSetupScreen();
-        }
-        return FulusAppShell(navigationShell: widget.navigationShell, isOwner: true);
       },
     );
   }

@@ -10,6 +10,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../helpers/db_seed_helpers.dart';
+
 class MockBusinessSettingsApi extends Mock implements BusinessSettingsApi {}
 
 class MockAuthRepository extends Mock implements AuthRepository {}
@@ -286,6 +288,59 @@ void main() {
 
       final rows = await db.select(db.businessSettings).get();
       expect(rows.single.id, 'singleton');
+    });
+  });
+
+  group('clearLocalBusinessData — Restore Progress "Start Fresh"', () {
+    test('removes the singleton row, so hasBeenConfigured is false again', () async {
+      await repository.createBusiness(
+        businessName: 'Orphaned Business',
+        category: BusinessCategory.retailShop,
+        currencySymbol: '\u20a6',
+      );
+      expect(await repository.hasBeenConfigured(), isTrue);
+
+      await repository.clearLocalBusinessData();
+
+      expect(await repository.hasBeenConfigured(), isFalse);
+      final rows = await db.select(db.businessSettings).get();
+      expect(rows, isEmpty);
+    });
+
+    test('a fresh createBusiness call succeeds afterward — the whole point of '
+        'Start Fresh, matching the exact state a genuinely new install starts from',
+        () async {
+      await repository.createBusiness(
+        businessName: 'Orphaned Business',
+        category: BusinessCategory.retailShop,
+        currencySymbol: '\u20a6',
+      );
+
+      await repository.clearLocalBusinessData();
+
+      await repository.createBusiness(
+        businessName: 'Brand New Business',
+        category: BusinessCategory.pharmacy,
+        currencySymbol: '\u20a6',
+      );
+
+      final settings = await repository.watchSettings().first;
+      expect(settings!.businessName, 'Brand New Business');
+    });
+
+    test('also clears related tables (locations), not just the singleton row',
+        () async {
+      await repository.createBusiness(
+        businessName: 'Orphaned Business',
+        category: BusinessCategory.retailShop,
+        currencySymbol: '\u20a6',
+      );
+      await seedLocation(db, name: 'Main Shop');
+      expect(await db.select(db.locations).get(), isNotEmpty);
+
+      await repository.clearLocalBusinessData();
+
+      expect(await db.select(db.locations).get(), isEmpty);
     });
   });
 }
