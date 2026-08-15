@@ -155,7 +155,7 @@ class ProductImportEngine {
         continue;
       }
 
-      if (sku != null) skusSeenThisFile.add(sku);
+      skusSeenThisFile.add(sku);
       if (barcode != null && barcode.isNotEmpty) barcodesSeenThisFile.add(barcode);
 
       final categoryName = _field(row, 'category');
@@ -164,7 +164,7 @@ class ProductImportEngine {
       toCreate.add(ValidatedProductImportRow(
         row: rowNumber,
         name: name!,
-        sku: sku!,
+        sku: sku,
         barcode: (barcode == null || barcode.isEmpty) ? null : barcode,
         categoryName: (categoryName == null || categoryName.isEmpty) ? null : categoryName,
         supplierName: (supplierName == null || supplierName.isEmpty) ? null : supplierName,
