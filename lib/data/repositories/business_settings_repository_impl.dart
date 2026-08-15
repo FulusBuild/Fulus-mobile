@@ -142,6 +142,59 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
     await _db.into(_db.businessSettings).insertOnConflictUpdate(response.toDriftCompanion());
   }
 
+  @override
+  Future<void> clearLocalBusinessData() async {
+    // One transaction, children deleted before parents — `beforeOpen`
+    // (database.dart) turns on `PRAGMA foreign_keys = ON`, so this
+    // order is load-bearing, not cosmetic. Built directly against every
+    // `references()` declaration in tables.dart/employee_tables.dart at
+    // the time this was written: SaleItems/SalePayments/
+    // CustomerLedgerEntries/ReturnRequests -> Sales; ReturnItems ->
+    // ReturnRequests + Products; DraftCartItems/DraftCartPayments ->
+    // DraftCarts; DraftCarts -> Locations; StockMovements/
+    // ProductStockLevels -> Products + Locations; SupplierLedgerEntries
+    // -> Suppliers; TaxRemittances/CashDrawerShifts -> Locations;
+    // Sales -> Locations + Users; AttendanceRecords/LeaveRecords ->
+    // Employees; Employees/LeaveRecords/Sessions -> Users. Anything not
+    // referenced by another table (AuditLogs, AppNotifications,
+    // PairedPrinters, SyncQueueItems, ExpenseCategories, Expenses,
+    // IncomeRecords, Categories) can go in any order, grouped up front.
+    await _db.transaction(() async {
+      await _db.delete(_db.saleItems).go();
+      await _db.delete(_db.salePayments).go();
+      await _db.delete(_db.customerLedgerEntries).go();
+      await _db.delete(_db.returnItems).go();
+      await _db.delete(_db.draftCartItems).go();
+      await _db.delete(_db.draftCartPayments).go();
+      await _db.delete(_db.supplierLedgerEntries).go();
+      await _db.delete(_db.taxRemittances).go();
+      await _db.delete(_db.cashDrawerShifts).go();
+      await _db.delete(_db.stockMovements).go();
+      await _db.delete(_db.productStockLevels).go();
+      await _db.delete(_db.attendanceRecords).go();
+      await _db.delete(_db.leaveRecords).go();
+      await _db.delete(_db.auditLogs).go();
+      await _db.delete(_db.appNotifications).go();
+      await _db.delete(_db.pairedPrinters).go();
+      await _db.delete(_db.syncQueueItems).go();
+      await _db.delete(_db.expenseCategories).go();
+      await _db.delete(_db.expenses).go();
+      await _db.delete(_db.incomeRecords).go();
+      await _db.delete(_db.categories).go();
+      await _db.delete(_db.returnRequests).go();
+      await _db.delete(_db.draftCarts).go();
+      await _db.delete(_db.employees).go();
+      await _db.delete(_db.suppliers).go();
+      await _db.delete(_db.customers).go();
+      await _db.delete(_db.sales).go();
+      await _db.delete(_db.products).go();
+      await _db.delete(_db.sessions).go();
+      await _db.delete(_db.users).go();
+      await _db.delete(_db.locations).go();
+      await _db.delete(_db.businessSettings).go();
+    });
+  }
+
   void _validateBusinessName(String businessName) {
     // Mirrors schemas/settings.py's Field(min_length=1, max_length=150)
     // exactly — verified directly.

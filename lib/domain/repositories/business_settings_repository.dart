@@ -72,4 +72,30 @@ abstract class BusinessSettingsRepository {
   });
 
   Future<void> syncFromServer();
+
+  /// Wipes every locally-owned business record on this device — the
+  /// destructive half of the Restore Progress flow's "Start Fresh"
+  /// action (`RestoreProgressScreen`), for the one state the rest of
+  /// this interface has no other way out of: a `businessSettings`
+  /// singleton row survives locally with no matching owner account
+  /// (`AuthRepository.hasAnyOwnerAccount()` false), so [createBusiness]
+  /// refuses every attempt with "This business has already been set up
+  /// on this device" and there is no owner credential left on the
+  /// device to sign in and reach [updateSettings] or any other path
+  /// that could fix it instead.
+  ///
+  /// Deletes every row this device holds, not just the businessSettings
+  /// singleton — this schema has no per-business id to filter by (one
+  /// device, one business, per the singleton pattern), so leaving
+  /// Sales/Products/Customers/etc. behind would let old data resurface
+  /// the moment a new business is created here. Respects every foreign
+  /// key the schema declares (tables.dart) by deleting children before
+  /// parents inside one transaction — nothing is left partially
+  /// cleared.
+  ///
+  /// Unconditional once called — no dialog, no "are you sure" here.
+  /// Volume 12's "never delete silently" rule is the caller's job
+  /// (`RestoreProgressScreen` gates this behind `showFulusConfirmDialog`
+  /// per Component Library 5.9), not this method's.
+  Future<void> clearLocalBusinessData();
 }
