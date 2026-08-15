@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
@@ -109,7 +108,6 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     }
 
-    debugPrint('TEMP-DEBUG: A before _createLocalUser');
     final user = await _createLocalUser(
       username: username,
       email: email,
@@ -117,17 +115,13 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
       role: AuthRole.owner,
     );
-    debugPrint('TEMP-DEBUG: B after _createLocalUser');
 
     // Collapsed into one step rather than create-then-separately-log-in
     // — see AuthRepository.createFirstOwner's own doc comment for why.
     _currentUser = user;
-    debugPrint('TEMP-DEBUG: C before _persistSession');
     await _persistSession(user);
-    debugPrint('TEMP-DEBUG: D after _persistSession');
     // Mirrors the backend's own BOOTSTRAP_ADMIN action name and details
     // shape exactly (verified directly against routers/auth.py).
-    debugPrint('TEMP-DEBUG: E before audit log');
     await _auditRepository.log(
       action: 'BOOTSTRAP_ADMIN',
       module: 'AUTH',
@@ -135,7 +129,6 @@ class AuthRepositoryImpl implements AuthRepository {
       recordId: user.id,
       details: {'created_username': user.username},
     );
-    debugPrint('TEMP-DEBUG: F after audit log');
     return user;
   }
 
@@ -367,35 +360,26 @@ class AuthRepositoryImpl implements AuthRepository {
     required AuthRole role,
   }) async {
     // Throws ValidationFailure itself if this doesn't pass.
-    debugPrint('TEMP-DEBUG: 1 before PasswordPolicy.validate');
     PasswordPolicy.validate(password);
-    debugPrint('TEMP-DEBUG: 2 after PasswordPolicy.validate');
 
-    debugPrint('TEMP-DEBUG: 3 before username query');
     final usernameTaken = await (_db.select(_db.users)
           ..where((u) => u.username.equals(username)))
         .getSingleOrNull();
-    debugPrint('TEMP-DEBUG: 4 after username query');
     if (usernameTaken != null) {
       throw const BusinessRuleFailure('Username already taken.');
     }
 
-    debugPrint('TEMP-DEBUG: 5 before email query');
     final emailTaken =
         await (_db.select(_db.users)..where((u) => u.email.equals(email)))
             .getSingleOrNull();
-    debugPrint('TEMP-DEBUG: 6 after email query');
     if (emailTaken != null) {
       throw const BusinessRuleFailure('Email already registered.');
     }
 
-    debugPrint('TEMP-DEBUG: 7 before argon2 hash');
     final passwordHash = await _passwordHasher.hash(password);
-    debugPrint('TEMP-DEBUG: 8 after argon2 hash');
     final localId = Ulid().toString();
     final now = DateTime.now();
 
-    debugPrint('TEMP-DEBUG: 9 before db insert');
     await _db.into(_db.users).insert(
           UsersCompanion.insert(
             localId: localId,
@@ -409,7 +393,6 @@ class AuthRepositoryImpl implements AuthRepository {
             updatedAt: now,
           ),
         );
-    debugPrint('TEMP-DEBUG: 10 after db insert');
 
     return AuthUser(
       id: localId,

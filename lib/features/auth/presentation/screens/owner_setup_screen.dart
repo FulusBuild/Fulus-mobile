@@ -61,18 +61,45 @@ import '../widgets/auth_error_banner.dart';
 /// account is real and already signed in, only the business step never
 /// ran). [resumingOwner] must be supplied whenever [startAtBusinessStep]
 /// is true, since there's no Step 1 in this run to have produced it.
+///
+/// [linkToExistingBusiness]: the other interrupted-setup recovery path
+/// — [RestoreProgressScreen]'s "Continue Setup" choice, for the mirror
+/// case [resolveAuthGateStage] (core/onboarding/onboarding_routing.dart)
+/// exists to catch: local business data survives with no matching
+/// owner account (app killed between Step 1 and Step 2 in the OTHER
+/// order, or a partial local restore). Here it's Step 1 that still
+/// needs running and Step 2 that must NOT — see
+/// [BusinessSettingsRepository.createBusiness]'s own doc comment: it
+/// "rejects a second business unconditionally," so calling it again
+/// against a business that already exists isn't a safe no-op, it's a
+/// guaranteed failure. [_submitAccount] below branches on this flag
+/// immediately after Step 1 succeeds: no business form, no
+/// [OnboardingState.armFirstRun] (this isn't a new business, so the
+/// onboarding flags are left exactly as they already stand — correct
+/// whether this business had already finished onboarding or was itself
+/// interrupted mid-onboarding), straight to a signed-in session.
+/// Mutually exclusive with [startAtBusinessStep]: one recovers a
+/// business missing its owner, the other an owner missing its
+/// business — a single run of this screen is never both at once.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
   const OwnerSetupScreen({
     super.key,
     this.startAtBusinessStep = false,
     this.resumingOwner,
-  }) : assert(
+    this.linkToExistingBusiness = false,
+  })  : assert(
           !startAtBusinessStep || resumingOwner != null,
           'resumingOwner is required when starting at the business step.',
+        ),
+        assert(
+          !(startAtBusinessStep && linkToExistingBusiness),
+          'startAtBusinessStep and linkToExistingBusiness are mutually '
+          'exclusive recovery paths — see this class\'s own doc comment.',
         );
 
   final bool startAtBusinessStep;
   final AuthUser? resumingOwner;
+  final bool linkToExistingBusiness;
 
   @override
   ConsumerState<OwnerSetupScreen> createState() => _OwnerSetupScreenState();
@@ -177,6 +204,24 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
             password: password,
           );
       if (!mounted) return;
+      if (widget.linkToExistingBusiness) {
+        // Step 2 deliberately skipped — see this class's own doc
+        // comment on [linkToExistingBusiness] for why createBusiness
+        // must not run here. Best-effort location seed for the same
+        // reason _submitBusiness's identical call is best-effort: a
+        // business restored this way already has its own location(s)
+        // from before, so this is just the same safety net
+        // resolveActiveLocationProvider already is everywhere else,
+        // not expected to actually do anything here.
+        try {
+          await ref.read(resolveActiveLocationProvider).call();
+        } catch (_) {
+          // Deliberately swallowed — see comment above.
+        }
+        if (!mounted) return;
+        ref.read(sessionProvider.notifier).state = owner;
+        return;
+      }
       setState(() {
         _createdOwner = owner;
         _step = 1;
@@ -278,7 +323,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Step ${_step + 1} of 2',
+                  widget.linkToExistingBusiness ? 'Finish setting up' : 'Step ${_step + 1} of 2',
                   textAlign: TextAlign.center,
                   style: AppTypography.label.copyWith(color: AppColors.primaryOf(context)),
                 ),
