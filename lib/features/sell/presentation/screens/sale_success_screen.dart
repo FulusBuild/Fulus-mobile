@@ -173,36 +173,26 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            if (_isFirstSale) ...[
-              // "the completed receipt shown underneath" — the exact
-              // existing widget, unmodified, just not gated behind a
-              // tap the way the ordinary "View Receipt" button below
-              // gates it.
-              ReceiptPreviewSheet(saleId: widget.saleId),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(label: 'Continue', onPressed: () => _continue(context)),
+            // UX fix: this used to only embed the receipt (and its
+            // Print/Share buttons) inline for the first-ever sale,
+            // hiding them behind an extra "View Receipt" tap for every
+            // sale after it — i.e. almost every sale a business ever
+            // records. Volume 5 asks for print, share, and skip as
+            // "three equally-weighted options... on the same screen,"
+            // none behind a tap — now true for every sale, not just the
+            // first. The first-sale/ordinary distinction stays only in
+            // the copy above and which action `_continue` runs.
+            ReceiptPreviewSheet(saleId: widget.saleId),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(
+                label: _isFirstSale ? 'Continue' : 'New Sale',
+                onPressed: () => _isFirstSale
+                    ? _continue(context)
+                    : Navigator.of(context).popUntil((route) => route.isFirst),
               ),
-            ] else ...[
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(
-                  label: 'View Receipt',
-                  variant: FulusButtonVariant.secondary,
-                  icon: Icons.receipt_long_outlined,
-                  onPressed: () => ReceiptPreviewSheet.show(context, widget.saleId),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(
-                  label: 'New Sale',
-                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),

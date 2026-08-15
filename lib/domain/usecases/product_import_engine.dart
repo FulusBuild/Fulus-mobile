@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../entities/product_import.dart';
 
 /// **Phase 0 completion pass.** Pure business logic — no database, no
@@ -18,7 +20,15 @@ import '../entities/product_import.dart';
 class ProductImportEngine {
   const ProductImportEngine();
 
-  static const _requiredHeaders = ['name', 'sku', 'selling_price'];
+  // UX fix: 'sku' used to be required here even though
+  // AddEditProductScreen (the single-product path) never asks a person
+  // for one at all — it generates one internally (see that screen's own
+  // `_generateSku`). Requiring it here forced anyone doing a bulk
+  // import to invent SKU codes for a field the rest of the app treats
+  // as invisible plumbing, with no explanation of what it even is.
+  // 'sku' is now optional per-row instead — see the generation branch
+  // in [validate] below.
+  static const _requiredHeaders = ['name', 'selling_price'];
 
   /// Header-only check, deliberately split out from [validate] so a
   /// caller (ImportProductsFromCsv) can reject a bad file before doing
@@ -78,16 +88,21 @@ class ProductImportEngine {
       final rowErrors = <ProductImportRowError>[];
 
       final name = _field(row, 'name');
-      final sku = _field(row, 'sku');
+      var sku = _field(row, 'sku');
 
       if (name == null || name.isEmpty) {
         rowErrors.add(ProductImportRowError(row: rowNumber, field: 'name', message: 'Name is required.'));
       }
 
-      if (sku == null || sku.isEmpty) {
-        rowErrors.add(ProductImportRowError(row: rowNumber, field: 'sku', message: 'SKU is required.'));
-      } else if (existingSkus.contains(sku) || skusSeenThisFile.contains(sku)) {
-        rowErrors.add(ProductImportRowError(row: rowNumber, field: 'sku', message: "SKU '$sku' already exists."));
+      if (sku != null && sku.isNotEmpty) {
+        if (existingSkus.contains(sku) || skusSeenThisFile.contains(sku)) {
+          rowErrors.add(ProductImportRowError(row: rowNumber, field: 'sku', message: "SKU '$sku' already exists."));
+        }
+      } else {
+        // A row that leaves sku blank (or omits the column entirely)
+        // gets one generated rather than rejected — see this class's
+        // header comment and the `_requiredHeaders` comment above.
+        sku = _generateSku(name ?? '', existingSkus, skusSeenThisFile);
       }
 
       final sellingPrice = _parseDouble(
@@ -172,6 +187,28 @@ class ProductImportEngine {
       headerErrors: const [],
       totalRows: rows.length,
     );
+  }
+
+  /// Synchronous counterpart to AddEditProductScreen's own async
+  /// `_generateSku` — same prefix + random-suffix shape, kept
+  /// deliberately identical so a generated SKU looks the same whether
+  /// it came from the single-product screen or a bulk import row.
+  /// Checked against the sku sets this validation pass already holds in
+  /// memory rather than a fresh repository round-trip per row, since
+  /// [validate] has no repository access by design (see this class's
+  /// own header comment).
+  String _generateSku(String name, Set<String> existingSkus, Set<String> skusSeenThisFile) {
+    final prefix = name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '').padRight(3, 'X').substring(0, 3);
+    final random = Random();
+    for (var attempt = 0; attempt < 20; attempt++) {
+      final suffix = (1000 + random.nextInt(9000)).toString();
+      final candidate = '$prefix-$suffix';
+      if (!existingSkus.contains(candidate) && !skusSeenThisFile.contains(candidate)) return candidate;
+    }
+    // Same reasoning as AddEditProductScreen's own fallback: 20
+    // collisions against a 9000-value space won't happen in practice,
+    // but this keeps the function total rather than assuming it.
+    return '$prefix-${DateTime.now().microsecondsSinceEpoch}';
   }
 
   /// Case-insensitive column lookup — headers were already

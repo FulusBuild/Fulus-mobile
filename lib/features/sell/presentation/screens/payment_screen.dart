@@ -94,6 +94,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _syncAmountDefault(cartState.remaining);
         final creditEnabled = cartState.customer != null;
         final canComplete = cartState.remaining <= 0.004;
+        // UX fix: the overwhelmingly common sale — one payment method,
+        // full amount, no split — used to always cost two taps ("Add
+        // Payment", then "Complete Sale") even though the amount field
+        // is pre-filled with the full remaining balance from the start.
+        // When this tap would be the first payment AND it fully covers
+        // the total, the button says what it will actually do and
+        // _addPayment below completes the sale in the same tap instead
+        // of waiting for a second press.
+        final enteredAmount = double.tryParse(_amountController.text.trim());
+        final willCompleteInOneTap = !canComplete &&
+            _method != 'credit' && // 'Put Remaining on Account' already says what it does
+            cartState.payments.isEmpty &&
+            enteredAmount != null &&
+            enteredAmount >= cartState.remaining - 0.004;
 
         return FulusScreen(
           title: 'Payment',
@@ -169,7 +183,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ],
                 const SizedBox(height: AppSpacing.xl),
                 FulusButton(
-                  label: canComplete
+                  label: canComplete || willCompleteInOneTap
                       ? 'Complete Sale'
                       : (_method == 'credit' ? 'Put Remaining on Account' : 'Add Payment'),
                   loading: canComplete ? cartState.submitting : _adding,
@@ -251,6 +265,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (!context.mounted) return;
       }
     }
+    final wasFirstPayment = state.payments.isEmpty;
     setState(() => _adding = true);
     try {
       await context.read<CartCubit>().addPayment(_method, amount);
@@ -258,6 +273,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
       // figure on the next build, rather than keep showing what's now
       // a stale default.
       _amountSyncedForRemaining = null;
+      // UX fix: a first payment that fully covers the total shouldn't
+      // need a second tap to finish the sale — see this screen's
+      // `willCompleteInOneTap` for why. Split-payment behavior is
+      // unchanged: this only fires when it was the FIRST payment leg,
+      // never after a partial payment brings remaining to zero on a
+      // later leg, so a cashier deliberately splitting a payment still
+      // sees the ordinary review-then-"Complete Sale" step.
+      if (!context.mounted) return;
+      final after = context.read<CartCubit>().state;
+      if (wasFirstPayment && after is CartLoaded && after.remaining <= 0.004) {
+        await _completeSale(context);
+        return;
+      }
     } on StateError catch (e) {
       if (context.mounted) showFulusSnackbar(context, message: e.message);
     } catch (_) {

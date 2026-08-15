@@ -424,10 +424,21 @@ class _HeroCard extends ConsumerWidget {
                     }
                   },
                 ),
-              ] else if (emphasizeAction) ...[
+              ] else if (state is OpenHero) ...[
                 const SizedBox(height: AppSpacing.lg),
+                // Bug fix (UX audit): this used to be gated behind
+                // `emphasizeAction`, so for the entire middle of a normal
+                // business day — OpenHero with closeShopEmphasized false,
+                // the state Home spends most of its life in — no Close
+                // Shop button rendered at all, and nothing else on this
+                // screen reaches Daily Closing either. Close Shop should
+                // read as "available the entire time, just visually
+                // stronger near closing," not "appears near closing."
+                // `emphasized` below is still what carries that visual
+                // distinction; only reachability changed here.
                 _HeroButton(
                   label: 'Close Shop',
+                  emphasized: emphasizeAction,
                   onTap: () => context.goNamed('moneyDailyClosingCount'),
                 ),
               ],
@@ -440,31 +451,60 @@ class _HeroCard extends ConsumerWidget {
 }
 
 class _HeroButton extends StatelessWidget {
-  const _HeroButton({required this.label, required this.onTap});
+  const _HeroButton({required this.label, required this.onTap, this.emphasized = true});
   final String label;
   final VoidCallback onTap;
 
+  /// Bug fix (UX audit) — Close Shop now renders throughout OpenHero,
+  /// not just when emphasized, so it needs a visual weight below its
+  /// original solid-fill treatment for the ordinary case, reserving that
+  /// original look for when it's genuinely emphasized (near closing, or
+  /// Open Shop, which is always the one action on its own screen and
+  /// stays solid via this parameter's default).
+  final bool emphasized;
+
   @override
   Widget build(BuildContext context) {
+    final onPrimary = AppColors.onPrimaryOf(context);
     return SizedBox(
       width: double.infinity,
       height: AppTouchTarget.minimum,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.onPrimaryOf(context),
-          foregroundColor: AppColors.primaryOf(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-        ),
-        onPressed: onTap,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(label, style: AppTypography.buttonLabel),
-            const SizedBox(width: AppSpacing.xs),
-            const Icon(Icons.arrow_forward, size: AppIconSize.compact),
-          ],
-        ),
-      ),
+      child: emphasized
+          ? FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: onPrimary,
+                foregroundColor: AppColors.primaryOf(context),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              ),
+              onPressed: onTap,
+              child: _HeroButtonLabel(label: label),
+            )
+          : OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: onPrimary,
+                side: BorderSide(color: onPrimary.withOpacity(0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              ),
+              onPressed: onTap,
+              child: _HeroButtonLabel(label: label),
+            ),
+    );
+  }
+}
+
+class _HeroButtonLabel extends StatelessWidget {
+  const _HeroButtonLabel({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(label, style: AppTypography.buttonLabel),
+        const SizedBox(width: AppSpacing.xs),
+        const Icon(Icons.arrow_forward, size: AppIconSize.compact),
+      ],
     );
   }
 }

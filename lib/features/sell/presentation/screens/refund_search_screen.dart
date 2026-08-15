@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/sale.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
+import '../../../money/presentation/providers/money_providers.dart'
+    show moneyCurrencySymbolProvider, moneyCustomersProvider;
 
 /// Gap fix: refunds had a complete backend (ReturnRepository — create,
 /// approve/reject, complete, eligibility) and zero UI. This screen and
@@ -57,6 +59,15 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    // UX fix: this used to only match on invoice number, though Volume
+    // 5 names receipt number OR customer as valid ways to find a sale —
+    // a cashier who remembers who bought something but not the receipt
+    // number had no way to find it. Sale itself only carries a
+    // customerId (no denormalized name), so this builds a small lookup
+    // from the same customer list the Credit Book already watches.
+    final customerNameById = <String, String>{
+      for (final c in ref.watch(moneyCustomersProvider).valueOrNull ?? const <Customer>[]) c.localId: c.name,
+    };
 
     return FulusScreen(
       title: 'Find a sale to refund',
@@ -67,7 +78,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
             child: FulusSearchField(
               controller: _searchController,
-              hintText: 'Search by receipt number…',
+              hintText: 'Search by receipt number or customer…',
               onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
               onClear: () => setState(() => _query = ''),
             ),
@@ -89,7 +100,8 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                 if (_query.isNotEmpty) {
                   sales = sales.where((s) {
                     final invoice = (s.invoiceNumber ?? s.localId).toLowerCase();
-                    return invoice.contains(_query);
+                    final customerName = (s.customerId != null ? customerNameById[s.customerId] : null)?.toLowerCase();
+                    return invoice.contains(_query) || (customerName?.contains(_query) ?? false);
                   }).toList();
                 }
                 if (sales.isEmpty) {
@@ -119,7 +131,8 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                                       .copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
                                 ),
                                 Text(
-                                  '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}',
+                                  '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}'
+                                  '${sale.customerId != null && customerNameById[sale.customerId] != null ? ' · ${customerNameById[sale.customerId]}' : ''}',
                                   style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                                 ),
                               ],

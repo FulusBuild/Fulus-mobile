@@ -21,11 +21,13 @@ import '../../../../shared/widgets/widgets.dart';
 /// actual shape the usecase expects.
 ///
 /// No column-mapping step: ProductImportEngine expects fixed header
-/// names (name/sku/selling_price required), not arbitrary ones — Volume
-/// 6's "CSV Mapping" screen would be building a remapping capability
-/// the engine underneath doesn't have. This screen's format guide is
-/// the honest equivalent: show the required shape up front, catch
-/// mismatches on Review instead of pretending to remap them.
+/// names (name/selling_price required; sku optional and auto-generated
+/// when omitted, matching AddEditProductScreen — see that engine's own
+/// doc comment), not arbitrary ones — Volume 6's "CSV Mapping" screen
+/// would be building a remapping capability the engine underneath
+/// doesn't have. This screen's format guide is the honest equivalent:
+/// show the required shape up front, catch mismatches on Review instead
+/// of pretending to remap them.
 class BulkImportScreen extends ConsumerStatefulWidget {
   const BulkImportScreen({super.key});
 
@@ -55,9 +57,11 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
                 Text('Format', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'First row is column names. Required: name, sku, selling_price. '
-                  'Optional: barcode, cost_price, category, supplier, initial_stock, '
-                  'low_stock_threshold.',
+                  'First row is column names. Required: name, selling_price. '
+                  "Optional: sku, barcode, cost_price, category, supplier, "
+                  'initial_stock, low_stock_threshold. Leave sku blank (or leave '
+                  "out the column) and Fulus will generate one for you — same as "
+                  'adding a product one at a time.',
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.sm),
