@@ -61,6 +61,11 @@ class DashboardEngine {
           todayTotal: shiftOrTodayTotal,
           todaySalesCount: shiftOrTodaySalesCount,
           closeShopEmphasized: hour >= typicalClosingHour,
+          // Redesign pass — see OpenHero's own doc comment: these were
+          // already being computed and passed into this method for
+          // every owner call, just never forwarded past this switch.
+          yesterdayTotal: yesterdayTotal,
+          yesterdaySalesCount: yesterdaySalesCount,
         );
     }
   }

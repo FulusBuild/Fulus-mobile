@@ -397,3 +397,39 @@ class AppIconSize {
 /// Surface Dark. All four clear the floor with more margin than their
 /// light-theme counterparts, not less.
 const double kMinimumContrastRatio = 4.5;
+
+/// Redesign pass (see PROGRESS.md/CHANGES.md for context): a small,
+/// additive set of hero-surface gradients. Volume 16's own elevation
+/// doc is explicit Fulus only has two elevation levels and deliberately
+/// avoids inventing a third "just because" — the same discipline
+/// applies here: this is not a general-purpose gradient library, only
+/// the two surfaces the redesign actually asked for (Home's hero, and
+/// the sale-success celebration moment), each derived from tokens that
+/// already exist rather than new hand-picked hex values. Kept as a
+/// diagonal 2-stop primary ramp — subtle enough to still read as "the
+/// primary color" at a glance, not a decorative rainbow.
+class AppGradients {
+  AppGradients._();
+
+  static LinearGradient heroOf(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isDark
+          ? [AppColors.primary700, AppColors.darkPrimaryStrong.withOpacity(0.55)]
+          : [AppColors.primary600, AppColors.primary],
+    );
+  }
+
+  static LinearGradient successOf(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: isDark
+          ? [AppColors.primary700, AppColors.surfaceDark]
+          : [AppColors.primary50, AppColors.surfaceLight],
+    );
+  }
+}

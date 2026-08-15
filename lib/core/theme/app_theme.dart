@@ -28,6 +28,7 @@ class AppTheme {
       outlinedButtonTheme: _outlinedButtonTheme(colorScheme),
       cardTheme: _cardTheme(),
       inputDecorationTheme: _inputDecorationTheme(),
+      appBarTheme: _appBarTheme(AppColors.backgroundLight, AppColors.textPrimaryLight),
       pageTransitionsTheme: _pageTransitionsTheme,
     );
   }
@@ -65,6 +66,7 @@ class AppTheme {
       outlinedButtonTheme: _outlinedButtonTheme(colorScheme),
       cardTheme: _cardTheme(),
       inputDecorationTheme: _inputDecorationTheme(),
+      appBarTheme: _appBarTheme(AppColors.backgroundDark, AppColors.darkTextPrimary),
       pageTransitionsTheme: _pageTransitionsTheme,
     );
   }
@@ -137,6 +139,24 @@ class AppTheme {
         borderRadius: BorderRadius.circular(AppSpacing.md),
       ),
       margin: const EdgeInsets.all(AppSpacing.sm),
+    );
+  }
+
+  // Redesign pass — flat, background-matched app bar (no seam between
+  // bar and body), consistent with [FulusScreen]'s own per-instance
+  // AppBar so the five screens still building a raw Scaffold (Home,
+  // Money, Reports, Employees, Backup — see those files' own header
+  // comments) inherit the same base look without each needing its own
+  // copy of this styling.
+  static AppBarTheme _appBarTheme(Color background, Color foreground) {
+    return AppBarTheme(
+      backgroundColor: background,
+      foregroundColor: foreground,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0.5,
+      centerTitle: false,
+      titleTextStyle: AppTypography.heading.copyWith(color: foreground),
     );
   }
 

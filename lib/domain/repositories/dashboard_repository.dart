@@ -15,5 +15,13 @@ abstract class DashboardRepository {
     required bool isOwner,
   });
 
-  Future<SecondaryNoticeSelection> getSecondaryNotices();
+  /// Redesign pass — [max] is new (default `2`, matching the existing,
+  /// still-tested Decision 12 cap exactly, so every current caller and
+  /// test keeps its old behavior unchanged). Home's new dashboard-style
+  /// notice row asks for a higher [max] so it can show all three
+  /// categories at once, per the explicit product decision to make
+  /// Home richer than Decision 12's single-hero restraint for this
+  /// redesign; nothing else in the app needs a different value than
+  /// the default.
+  Future<SecondaryNoticeSelection> getSecondaryNotices({int max = 2});
 }

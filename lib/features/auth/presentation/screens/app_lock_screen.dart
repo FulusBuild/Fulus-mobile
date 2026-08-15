@@ -61,7 +61,13 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline, size: 48, color: AppColors.primaryOf(context)),
+                Container(
+                  width: 88,
+                  height: 88,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: AppColors.selectedTintOf(context), shape: BoxShape.circle),
+                  child: Icon(Icons.lock_outline, size: AppIconSize.emphasis, color: AppColors.primaryOf(context)),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   'Fulus is locked',

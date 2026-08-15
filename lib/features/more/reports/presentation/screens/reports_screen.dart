@@ -406,11 +406,11 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
+    final radius = BorderRadius.circular(AppRadius.md);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      decoration: BoxDecoration(color: AppColors.surfaceOf(context), borderRadius: radius),
+      decoration: BoxDecoration(color: AppColors.surfaceOf(context), borderRadius: radius, boxShadow: AppElevation.cardOf(context)),
       child: Material(
         type: MaterialType.transparency,
         borderRadius: radius,
@@ -515,7 +515,7 @@ class _SalesTab extends StatelessWidget {
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
         _StatCard(
           label: 'Revenue',
-          value: '$currencySymbol${r.totalRevenue.toStringAsFixed(2)}',
+          value: formatMoney(r.totalRevenue, symbol: currencySymbol),
           onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.saleIncome),
         ),
         _StatCard(
@@ -523,14 +523,14 @@ class _SalesTab extends StatelessWidget {
           value: '${r.totalSalesCount}',
           onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.saleIncome),
         ),
-        _StatCard(label: 'Discounts given', value: '$currencySymbol${r.totalDiscount.toStringAsFixed(2)}'),
+        _StatCard(label: 'Discounts given', value: formatMoney(r.totalDiscount, symbol: currencySymbol)),
         if (r.topProducts.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           Text('Top products', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
           for (final p in r.topProducts.take(5))
             _StatCard(
               label: p.productName,
-              value: '$currencySymbol${p.revenue.toStringAsFixed(2)}',
+              value: formatMoney(p.revenue, symbol: currencySymbol),
               onTap: () => context.pushNamed('stockProductDetail', pathParameters: {'productId': p.productId}),
             ),
         ],
@@ -576,7 +576,7 @@ class _InventoryTab extends StatelessWidget {
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
         _StatCard(
           label: 'Stock value',
-          value: '$currencySymbol${r.totalStockValue.toStringAsFixed(2)}',
+          value: formatMoney(r.totalStockValue, symbol: currencySymbol),
           onTap: () => context.go('/stock'),
         ),
         _StatCard(label: 'Low stock', value: '${r.lowStockCount}', onTap: () => context.go('/stock')),
@@ -614,7 +614,7 @@ class _CustomersTab extends StatelessWidget {
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
         _StatCard(
           label: 'Outstanding credit',
-          value: '$currencySymbol${r.totalOutstandingCredit.toStringAsFixed(2)}',
+          value: formatMoney(r.totalOutstandingCredit, symbol: currencySymbol),
           onTap: () => context.pushNamed('moneyCustomers'),
         ),
         _StatCard(
@@ -625,7 +625,7 @@ class _CustomersTab extends StatelessWidget {
         for (final c in r.topCustomers.take(5))
           _StatCard(
             label: c.customerName,
-            value: '$currencySymbol${c.totalSpend.toStringAsFixed(2)}',
+            value: formatMoney(c.totalSpend, symbol: currencySymbol),
             onTap: () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': c.customerId}),
           ),
       ]),
@@ -658,17 +658,17 @@ class _FinanceTab extends StatelessWidget {
         return _ReportScaffold(insights: r.insights, children: [
           _StatCard(
             label: 'Revenue',
-            value: '$currencySymbol${r.totalRevenue.toStringAsFixed(2)}',
+            value: formatMoney(r.totalRevenue, symbol: currencySymbol),
             onTap: () => onOpenMoneyHistory(),
           ),
-          _StatCard(label: 'Cost of goods sold', value: '$currencySymbol${r.totalCostOfGoodsSold.toStringAsFixed(2)}'),
-          _StatCard(label: 'Gross profit', value: '$currencySymbol${r.grossProfit.toStringAsFixed(2)}'),
+          _StatCard(label: 'Cost of goods sold', value: formatMoney(r.totalCostOfGoodsSold, symbol: currencySymbol)),
+          _StatCard(label: 'Gross profit', value: formatMoney(r.grossProfit, symbol: currencySymbol)),
           _StatCard(
             label: 'Expenses',
-            value: '$currencySymbol${r.totalExpenses.toStringAsFixed(2)}',
+            value: formatMoney(r.totalExpenses, symbol: currencySymbol),
             onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense),
           ),
-          _StatCard(label: 'Net profit', value: '$currencySymbol${r.netProfit.toStringAsFixed(2)}'),
+          _StatCard(label: 'Net profit', value: formatMoney(r.netProfit, symbol: currencySymbol)),
           if (trend != null)
             _StatCard(label: 'Vs. last period', value: '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)}%'),
           if (r.expenseBreakdown.isNotEmpty) ...[
@@ -677,7 +677,7 @@ class _FinanceTab extends StatelessWidget {
             for (final e in r.expenseBreakdown)
               _StatCard(
                 label: e.category,
-                value: '$currencySymbol${e.total.toStringAsFixed(2)}',
+                value: formatMoney(e.total, symbol: currencySymbol),
                 onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense, category: e.category),
               ),
           ],

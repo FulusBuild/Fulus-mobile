@@ -210,7 +210,7 @@ class _BalanceHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: AppColors.primaryOf(context),
+        gradient: AppGradients.heroOf(context),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: AppElevation.liftOf(context),
       ),
@@ -273,71 +273,34 @@ class _QuickActionsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _QuickAction(
+          child: FulusQuickAction(
             icon: Icons.add,
             label: 'Add income',
             onTap: () => context.pushNamed('moneyAddIncome'),
           ),
         ),
         Expanded(
-          child: _QuickAction(
+          child: FulusQuickAction(
             icon: Icons.remove,
             label: 'Add expense',
             onTap: () => context.pushNamed('moneyAddExpense'),
           ),
         ),
         Expanded(
-          child: _QuickAction(
+          child: FulusQuickAction(
             icon: Icons.people_outline,
             label: 'Customers',
             onTap: () => context.pushNamed('moneyCustomers'),
           ),
         ),
         Expanded(
-          child: _QuickAction(
+          child: FulusQuickAction(
             icon: Icons.local_shipping_outlined,
             label: 'Suppliers',
             onTap: () => context.pushNamed('moneySuppliers'),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: AppTouchTarget.minimum,
-              height: AppTouchTarget.minimum,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.selectedTintOf(context)),
-              child: Icon(icon, color: AppColors.primaryOf(context)),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(color: AppColors.textPrimaryOf(context), fontSize: 12),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

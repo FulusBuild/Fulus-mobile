@@ -1,18 +1,40 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
+import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/dashboard_summary.dart';
+import '../../../../domain/entities/report.dart';
+import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
+import '../../../../sync/sync_status.dart';
+import '../../../money/domain/money_transaction.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
 import '../../../money/presentation/widgets/opening_float_sheet.dart';
+import '../../../money/presentation/widgets/transaction_tile.dart';
 
-/// Volume 4: "one evolving hero element... not five widgets shown at
-/// once." This screen is deliberately thin — everything that decides
-/// WHICH hero to show lives in DashboardEngine; this file only renders
-/// whichever [HomeHeroState] it's handed.
+/// Redesign pass, Home (owner view): explicitly overrides Volume 4's
+/// "one evolving hero element... not five widgets shown at once" —
+/// product decision for this pass specifically, not a reinterpretation
+/// of the Bible. Every other screen in this app keeps that restraint;
+/// Home alone now shows a greeting header, the hero, a notice row, a
+/// quick-action row, and a recent-activity feed together, matching the
+/// agreed reference design. [DashboardEngine] itself is untouched — it
+/// still only decides WHICH hero variant applies; this screen decides
+/// how much else surrounds it.
+///
+/// Decision 13 ("an employee's Home is their own shift, full stop —
+/// never the business total") is *not* overridden: everything below
+/// the hero here is business-wide data an employee's role can't even
+/// navigate to (Money and Reports are owner-only branches — see
+/// app_shell.dart), so it all stays gated behind [isOwner], and the
+/// employee hero keeps its original single-card presentation, just
+/// carried over onto the same visual language (gradient, formatting).
 ///
 /// [currentAuthUserId] / [isOwner] are passed in from wherever Stage 2's
 /// session lives (not built by this module — see dashboard_repository
@@ -21,29 +43,16 @@ import '../../../money/presentation/widgets/opening_float_sheet.dart';
 /// compiles and is testable in isolation; the merge step is one line at
 /// the call site once Stage 2's session provider exists.
 ///
-/// Foundation follow-up: every color here now goes through the
-/// brightness-aware `AppColors.*Of(context)` accessors (design_tokens
-/// .dart) instead of the flat Light-suffixed constants this screen used
-/// before — it previously ignored `ThemeMode.system` entirely despite
-/// that being wired in app.dart, a real, visible bug on a device set to
-/// dark mode. No layout or structure changed, only which token each
-/// color reads from.
-///
-/// Foundation follow-up (Money): Open Shop / Close Shop were wired to
-/// nothing (`onTap: () {}`) — they now open the Money feature's
-/// opening-float sheet and Daily Closing flow respectively, the two
-/// places Volume 8 names these buttons as the trigger for.
-///
 /// Gap fix (was: "closing a mock day here doesn't flip this screen's
 /// own hero state"): [HomeHeroState] still comes entirely from
-/// [DashboardRepository] — untouched — but this screen now also
-/// listens to [dashboardRefreshSignalProvider] and re-fetches whenever
-/// it changes. Opening or closing the drawer bumps that signal (see
+/// [DashboardRepository] — untouched — but this screen also listens to
+/// [dashboardRefreshSignalProvider] and re-fetches whenever it changes.
+/// Opening or closing the drawer bumps that signal (see
 /// `daily_closing_count_screen.dart`), so returning to this tab after
 /// either action now shows the real, current state instead of whatever
-/// was cached from this screen's last `initState`. Home stays on a
-/// plain Future rather than converting to a Riverpod provider itself —
-/// see this class's own next paragraph for why that's deliberate.
+/// was cached from this screen's last `initState`. Home stays on plain
+/// Futures rather than converting to Riverpod providers itself — same
+/// reasoning as before, now covering the notice/activity fetches too.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.currentAuthUserId, required this.isOwner});
 
@@ -57,6 +66,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
   late Future<SecondaryNoticeSelection> _noticesFuture;
+  late Future<List<MoneyTransaction>> _activityFuture;
+
+  static const _reportsEngine = ReportsEngine();
 
   @override
   void initState() {
@@ -67,12 +79,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _load() {
     final repo = ref.read(dashboardRepositoryProvider);
     _heroFuture = repo.getHeroState(currentAuthUserId: widget.currentAuthUserId, isOwner: widget.isOwner);
-    _noticesFuture = repo.getSecondaryNotices();
+    // Redesign pass — max: 3 so Home's notice row can show all three
+    // categories at once (see dashboard_repository.dart's own doc on
+    // this parameter); every other caller of this method keeps the
+    // default cap of 2.
+    _noticesFuture = repo.getSecondaryNotices(max: 3);
+    _activityFuture = widget.isOwner
+        ? ref.read(moneyRepositoryProvider).getTransactions(_reportsEngine.resolvePeriod(ReportPeriodKind.today))
+        : Future.value(const <MoneyTransaction>[]);
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture]);
+    await Future.wait([_heroFuture, _noticesFuture, _activityFuture]);
   }
 
   @override
@@ -96,31 +115,190 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
+              if (widget.isOwner) ...[
+                const _GreetingHeader(),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               FutureBuilder<HomeHeroState>(
                 future: _heroFuture,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
+                    return const _HeroSkeleton();
                   }
                   return _HeroCard(state: snapshot.data!, currencySymbol: currencySymbol);
                 },
               ),
-              const SizedBox(height: AppSpacing.lg),
-              if (widget.isOwner)
+              if (widget.isOwner) ...[
+                const SizedBox(height: AppSpacing.lg),
                 FutureBuilder<SecondaryNoticeSelection>(
                   future: _noticesFuture,
                   builder: (context, snapshot) {
                     final selection = snapshot.data;
                     if (selection == null || selection.shown.isEmpty) return const SizedBox.shrink();
-                    return _SecondaryNotices(selection: selection);
+                    return _NoticeRow(selection: selection, currencySymbol: currencySymbol);
                   },
                 ),
+                const SizedBox(height: AppSpacing.xl),
+                const _QuickActionRow(),
+                const SizedBox(height: AppSpacing.xl),
+                FulusSectionHeader(
+                  title: 'Recent activity',
+                  action: 'See all',
+                  onActionTap: () => context.goNamed('moneyHistory'),
+                ),
+                FutureBuilder<List<MoneyTransaction>>(
+                  future: _activityFuture,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]);
+                    }
+                    final transactions = snapshot.data!;
+                    if (transactions.isEmpty) {
+                      return FulusCard(
+                        child: FulusEmptyState(
+                          headline: 'No activity yet today',
+                          body: 'Sales, stock, and expenses you record will show up here.',
+                          icon: Icons.receipt_long_outlined,
+                        ),
+                      );
+                    }
+                    return FulusCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < transactions.length.clamp(0, 5); i++) ...[
+                            if (i > 0) const FulusListDivider(),
+                            MoneyTransactionTile(
+                              transaction: transactions[i],
+                              currencySymbol: currencySymbol,
+                              showDate: false,
+                              onTap: () => context.pushNamed(
+                                'moneyTransactionDetail',
+                                pathParameters: {'id': transactions[i].id},
+                                extra: transactions[i],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Business name, a "Good morning"-style greeting, an initials avatar,
+/// and the live sync status — the header the reference design calls
+/// for. Its own widget (rather than inline in `build`) purely to keep
+/// `_HomeScreenState.build` scannable.
+class _GreetingHeader extends ConsumerWidget {
+  const _GreetingHeader();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(_businessProfileProvider);
+    final profile = profileAsync.valueOrNull;
+    final businessName = profile?.businessName ?? '';
+    final greeting = greetingForHour(DateTime.now().hour);
+
+    return Row(
+      children: [
+        FulusAvatar(name: businessName.isEmpty ? '?' : businessName, size: 44),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(greeting, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+              Text(
+                businessName.isEmpty ? 'Fulus' : businessName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        const _SyncStatusPill(),
+      ],
+    );
+  }
+}
+
+/// Business-wide profile stream, scoped to this screen — mirrors
+/// `money_providers.dart`'s own `moneyCurrencySymbolProvider` (same
+/// underlying `businessSettingsRepositoryProvider.watchSettings()`
+/// call); kept local rather than promoted to a shared provider since
+/// Home is the only place currently reading the business name itself.
+final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) {
+  return ref.watch(businessSettingsRepositoryProvider).watchSettings();
+});
+
+/// A quiet "Synced" / "N pending" / "Syncing" / "Needs attention" pill —
+/// same underlying [SyncStatus] the app bar's own indicator
+/// (app_shell.dart's `_SyncStatusIndicator`) already renders as an icon;
+/// this is a second, header-appropriate presentation of the identical
+/// state; Volume 12's "the user should never have to think about sync
+/// unless something is genuinely wrong" still holds — quiet dot, no
+/// banner.
+class _SyncStatusPill extends ConsumerWidget {
+  const _SyncStatusPill();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(_homeSyncStatusProvider).valueOrNull;
+    if (status == null) return const SizedBox.shrink();
+
+    final (label, tone) = switch (status.kind) {
+      SyncStatusKind.disabled => ('Sync off', FulusStatusTone.neutral),
+      SyncStatusKind.settled => ('Synced', FulusStatusTone.positive),
+      SyncStatusKind.pending => ('${status.pendingCount} pending', FulusStatusTone.neutral),
+      SyncStatusKind.syncing => ('Syncing', FulusStatusTone.positive),
+      SyncStatusKind.attentionNeeded => ('Needs attention', FulusStatusTone.warning),
+    };
+
+    return GestureDetector(
+      onTap: () => context.pushNamed('moreSyncDetail'),
+      child: FulusStatusPill(label: label, tone: tone),
+    );
+  }
+}
+
+final _homeSyncStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
+  return ref.watch(syncStatusNotifierProvider).watch();
+});
+
+class _HeroSkeleton extends StatelessWidget {
+  const _HeroSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 176,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAltOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FulusSkeletonBox(width: 100, height: 14),
+          SizedBox(height: AppSpacing.md),
+          FulusSkeletonBox(width: 180, height: 32),
+          SizedBox(height: AppSpacing.sm),
+          FulusSkeletonBox(width: 90, height: 14),
+        ],
       ),
     );
   }
@@ -133,68 +311,148 @@ class _HeroCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (label, amount, count, emphasizeAction) = switch (state) {
+    final (label, amount, count, emphasizeAction, statusLabel) = switch (state) {
       NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => (
           'Yesterday',
           yesterdayTotal,
           yesterdaySalesCount,
           false,
+          'Not yet opened',
         ),
       OpenHero(:final todayTotal, :final todaySalesCount, :final closeShopEmphasized) => (
           'Today so far',
           todayTotal,
           todaySalesCount,
           closeShopEmphasized,
+          'Open',
         ),
-      ClosedHero(:final finalTotal, :final finalSalesCount) => ('Today (closed)', finalTotal, finalSalesCount, false),
-      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => ('Your shift', shiftTotal, shiftSalesCount, false),
+      ClosedHero(:final finalTotal, :final finalSalesCount) => (
+          'Today (closed)',
+          finalTotal,
+          finalSalesCount,
+          false,
+          'Closed',
+        ),
+      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => (
+          'Your shift',
+          shiftTotal,
+          shiftSalesCount,
+          false,
+          null,
+        ),
     };
+
+    // Redesign pass — only rendered for OpenHero, and only once a real
+    // yesterday baseline exists (never "0% vs yesterday" from a missing
+    // comparison — see OpenHero.yesterdayTotal's own doc comment).
+    String? trendLabel;
+    bool trendUp = true;
+    if (state is OpenHero && state.yesterdayTotal > 0) {
+      final delta = ((state.todayTotal - state.yesterdayTotal) / state.yesterdayTotal) * 100;
+      trendUp = delta >= 0;
+      trendLabel = '${delta.abs().round()}% vs yesterday';
+    }
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: AppColors.primaryOf(context),
-        borderRadius: BorderRadius.circular(16),
+        gradient: AppGradients.heroOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7))),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '$currencySymbol${amount.toStringAsFixed(2)}',
-            style: AppTypography.display.copyWith(color: AppColors.onPrimaryOf(context)),
+          Positioned(
+            right: -18,
+            bottom: -18,
+            child: Icon(Icons.storefront, size: 128, color: AppColors.onPrimaryOf(context).withOpacity(0.08)),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '$count sale${count == 1 ? '' : 's'}',
-            style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(color: AppColors.onPrimaryOf(context), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        statusLabel == null ? label.toUpperCase() : '${label.toUpperCase()} · ${statusLabel.toUpperCase()}',
+                        style: AppTypography.label.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.85)),
+                      ),
+                    ],
+                  ),
+                  if (trendLabel != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.onPrimaryOf(context).withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            trendUp ? Icons.arrow_upward : Icons.arrow_downward,
+                            size: AppIconSize.dense,
+                            color: AppColors.onPrimaryOf(context),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            trendLabel,
+                            style: AppTypography.caption.copyWith(color: AppColors.onPrimaryOf(context), fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                formatMoney(amount, symbol: currencySymbol),
+                style: AppTypography.display.copyWith(
+                  color: AppColors.onPrimaryOf(context),
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '$count sale${count == 1 ? '' : 's'} so far',
+                style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.75)),
+              ),
+              if (state is NotYetOpenedHero) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _HeroButton(
+                  label: 'Open Shop',
+                  onTap: () async {
+                    final opened = await showOpeningFloatSheet(context);
+                    if (opened && context.mounted) {
+                      showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
+                      // Gap fix — see HomeScreen's header comment. Opening
+                      // the drawer changes exactly what this hero should
+                      // show (NotYetOpened → Open); without this, Home kept
+                      // showing "Ready to open?" until the next manual
+                      // pull-to-refresh.
+                      ref.read(dashboardRefreshSignalProvider.notifier).state++;
+                    }
+                  },
+                ),
+              ] else if (emphasizeAction) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _HeroButton(
+                  label: 'Close Shop',
+                  onTap: () => context.goNamed('moneyDailyClosingCount'),
+                ),
+              ],
+            ],
           ),
-          if (state is NotYetOpenedHero) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _HeroButton(
-              label: 'Open Shop',
-              onTap: () async {
-                final opened = await showOpeningFloatSheet(context);
-                if (opened && context.mounted) {
-                  showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
-                  // Gap fix — see HomeScreen's header comment. Opening
-                  // the drawer changes exactly what this hero should
-                  // show (NotYetOpened → Open); without this, Home kept
-                  // showing "Ready to open?" until the next manual
-                  // pull-to-refresh.
-                  ref.read(dashboardRefreshSignalProvider.notifier).state++;
-                }
-              },
-            ),
-          ] else if (emphasizeAction) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _HeroButton(
-              label: 'Close Shop',
-              onTap: () => context.goNamed('moneyDailyClosingCount'),
-            ),
-          ],
         ],
       ),
     );
@@ -215,52 +473,131 @@ class _HeroButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.onPrimaryOf(context),
           foregroundColor: AppColors.primaryOf(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         ),
         onPressed: onTap,
-        child: Text(label, style: AppTypography.buttonLabel),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label, style: AppTypography.buttonLabel),
+            const SizedBox(width: AppSpacing.xs),
+            const Icon(Icons.arrow_forward, size: AppIconSize.compact),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _SecondaryNotices extends StatelessWidget {
-  const _SecondaryNotices({required this.selection});
+/// Redesign pass — replaces the old single-column bordered-box list
+/// with a horizontal row of [FulusStatCard]s (the same widget Money and
+/// Stock already use for their own overview numbers, per that widget's
+/// own doc comment anticipating "any future dashboard summary"), one
+/// per [SecondaryNotice]. Tapping a tile routes to wherever that notice
+/// is actionable — Stock for low stock, the Credit Book for pending
+/// credit, Sync detail for unsynced items.
+class _NoticeRow extends StatelessWidget {
+  const _NoticeRow({required this.selection, required this.currencySymbol});
   final SecondaryNoticeSelection selection;
+  final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final notice in selection.shown)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceOf(context),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warningOf(context).withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.warningOf(context), size: 20),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      '${notice.label}: ${notice.value}',
-                      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        SizedBox(
+          height: 128,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: selection.shown.length,
+            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (context, i) {
+              final notice = selection.shown[i];
+              return SizedBox(width: 152, child: _noticeTile(context, notice));
+            },
           ),
-        if (selection.overflowCount > 0)
+        ),
+        if (selection.overflowCount > 0) ...[
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'and ${selection.overflowCount} more',
             style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
           ),
+        ],
+      ],
+    );
+  }
+
+  Widget _noticeTile(BuildContext context, SecondaryNotice notice) {
+    switch (notice.type) {
+      case SecondaryNoticeType.lowStock:
+        return FulusStatCard(
+          label: notice.label,
+          value: notice.value.toInt().toString(),
+          icon: Icons.inventory_2_outlined,
+          valueColor: AppColors.warningOf(context),
+          onTap: () => context.goNamed('stock'),
+        );
+      case SecondaryNoticeType.pendingCredit:
+        return FulusStatCard(
+          label: notice.label,
+          value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true),
+          icon: Icons.request_page_outlined,
+          valueColor: AppColors.infoOf(context),
+          onTap: () => context.goNamed('moneyCustomers'),
+        );
+      case SecondaryNoticeType.unsyncedItems:
+        return FulusStatCard(
+          label: notice.label,
+          value: notice.value.toInt().toString(),
+          icon: Icons.cloud_upload_outlined,
+          valueColor: AppColors.textSecondaryOf(context),
+          onTap: () => context.pushNamed('moreSyncDetail'),
+        );
+    }
+  }
+}
+
+/// Sell / Add stock / Add expense / Reports — the reference design's
+/// shortcut row. Deliberately just navigation, no numbers, so it reads
+/// as a different kind of thing than [_NoticeRow]'s stat tiles right
+/// above it (see [FulusQuickAction]'s own doc comment).
+class _QuickActionRow extends StatelessWidget {
+  const _QuickActionRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: FulusQuickAction(
+            icon: Icons.point_of_sale_outlined,
+            label: 'Sell',
+            onTap: () => context.goNamed('sell'),
+          ),
+        ),
+        Expanded(
+          child: FulusQuickAction(
+            icon: Icons.inventory_2_outlined,
+            label: 'Add stock',
+            onTap: () => context.goNamed('stockRecordMovement'),
+          ),
+        ),
+        Expanded(
+          child: FulusQuickAction(
+            icon: Icons.receipt_long_outlined,
+            label: 'Add expense',
+            onTap: () => context.goNamed('moneyAddExpense'),
+          ),
+        ),
+        Expanded(
+          child: FulusQuickAction(
+            icon: Icons.bar_chart_outlined,
+            label: 'Reports',
+            onTap: () => context.goNamed('moreReports'),
+          ),
+        ),
       ],
     );
   }

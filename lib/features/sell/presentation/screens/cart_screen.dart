@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -120,8 +121,8 @@ class _CartLineTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     item.lineDiscount > 0
-                        ? '$currencySymbol${item.unitPrice.toStringAsFixed(2)} each · $currencySymbol${item.lineDiscount.toStringAsFixed(2)} off'
-                        : '$currencySymbol${item.unitPrice.toStringAsFixed(2)} each',
+                        ? '${formatMoney(item.unitPrice, symbol: currencySymbol)} each · ${formatMoney(item.lineDiscount, symbol: currencySymbol)} off'
+                        : '${formatMoney(item.unitPrice, symbol: currencySymbol)} each',
                     style: AppTypography.caption.copyWith(
                       color: item.lineDiscount > 0 ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
                     ),
@@ -132,9 +133,9 @@ class _CartLineTile extends StatelessWidget {
             _QuantityStepper(item: item, unit: unit),
             const SizedBox(width: AppSpacing.md),
             SizedBox(
-              width: 72,
+              width: 84,
               child: Text(
-                '$currencySymbol${(item.lineTotal - item.lineDiscount).toStringAsFixed(2)}',
+                formatMoney(item.lineTotal - item.lineDiscount, symbol: currencySymbol),
                 textAlign: TextAlign.right,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textPrimaryOf(context),
@@ -379,7 +380,7 @@ class _DiscountRow extends StatelessWidget {
               style: AppTypography.body.copyWith(color: AppColors.primaryOf(context)),
             ),
             Text(
-              hasDiscount ? '-${state.currencySymbol}${state.discount.toStringAsFixed(2)}' : 'Add',
+              hasDiscount ? '-${formatMoney(state.discount, symbol: state.currencySymbol)}' : 'Add',
               style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
             ),
           ],
@@ -413,7 +414,7 @@ class _TotalRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text('$currencySymbol${value.toStringAsFixed(2)}', style: style),
+          Text(formatMoney(value, symbol: currencySymbol), style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
         ],
       ),
     );

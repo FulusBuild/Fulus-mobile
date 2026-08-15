@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/business_engine/customer_credit_engine.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -25,6 +26,24 @@ const _paymentMethods = <_PaymentMethodOption>[
   (key: 'card', label: 'Card'),
   (key: 'credit', label: 'Credit'),
 ];
+
+/// Redesign pass — the glyph shown on each [_PaymentMethodTile], purely
+/// cosmetic (the `key` string is still what actually drives logic
+/// everywhere else on this screen).
+IconData _iconForMethod(String key) {
+  switch (key) {
+    case 'cash':
+      return Icons.payments_outlined;
+    case 'mobile_money':
+      return Icons.phone_android_outlined;
+    case 'card':
+      return Icons.credit_card_outlined;
+    case 'credit':
+      return Icons.receipt_long_outlined;
+    default:
+      return Icons.payment_outlined;
+  }
+}
 
 /// Volume 5's "Checkout & Payment" — method selection (Credit only once
 /// a customer is attached, per the Bible's exact ordering), an amount
@@ -89,16 +108,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
+                Column(
                   children: [
                     for (final method in _paymentMethods)
                       if (method.key != 'credit' || creditEnabled)
-                        FulusChip(
-                          label: method.label,
-                          selected: _method == method.key,
-                          onTap: () => setState(() => _method = method.key),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: _PaymentMethodTile(
+                            icon: _iconForMethod(method.key),
+                            label: method.label,
+                            selected: _method == method.key,
+                            onTap: () => setState(() => _method = method.key),
+                          ),
                         ),
                   ],
                 ),
@@ -131,7 +152,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '${cartState.currencySymbol}${payment.amount.toStringAsFixed(2)}',
+                            formatMoney(payment.amount, symbol: cartState.currencySymbol),
                             style: AppTypography.body.copyWith(
                               color: AppColors.textPrimaryOf(context),
                               fontFeatures: const [FontFeature.tabularFigures()],
@@ -210,8 +231,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             title: const Text('Over credit limit'),
             content: Text(
               'This would put ${customer!.name} '
-              '${state.currencySymbol}${overage.toStringAsFixed(2)} over their '
-              '${state.currencySymbol}${customer.creditLimit!.toStringAsFixed(2)} credit limit. '
+              '${formatMoney(overage, symbol: state.currencySymbol)} over their '
+              '${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. '
               'Continue anyway?',
             ),
             actions: [
@@ -344,8 +365,58 @@ class _Row extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: labelStyle),
-          Text('$currencySymbol${value.toStringAsFixed(2)}', style: valueStyle),
+          Text(formatMoney(value, symbol: currencySymbol), style: valueStyle),
         ],
+      ),
+    );
+  }
+}
+
+/// Redesign pass — a selectable, icon-labeled row standing in for the
+/// old [FulusChip]-in-a-[Wrap] layout. One selectable payment method
+/// carries more weight than a filter chip (it decides how the sale is
+/// recorded, plus gates a live-connectivity check for two of the four
+/// options) — a full-width row with its own icon reads as a deliberate
+/// choice rather than a tag, and stacks cleanly regardless of label
+/// length ("Mobile Money" vs "Cash").
+class _PaymentMethodTile extends StatelessWidget {
+  const _PaymentMethodTile({required this.icon, required this.label, required this.selected, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Container(
+        height: AppTouchTarget.minimum + AppSpacing.sm,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.selectedTintOf(context) : AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: selected ? primary : AppColors.borderOf(context)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: AppIconSize.base, color: selected ? primary : AppColors.textSecondaryOf(context)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTypography.body.copyWith(
+                  color: selected ? primary : AppColors.textPrimaryOf(context),
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (selected) Icon(Icons.check_circle, size: AppIconSize.compact, color: primary),
+          ],
+        ),
       ),
     );
   }

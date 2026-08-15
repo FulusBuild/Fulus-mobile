@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/return_request.dart';
 import '../../../../domain/entities/sale.dart';
@@ -135,7 +136,7 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FulusButton(
-                    label: 'Confirm refund${_totalSelectedQuantity > 0 ? ' — $currencySymbol${_estimatedRefund(data).toStringAsFixed(2)}' : ''}',
+                    label: 'Confirm refund${_totalSelectedQuantity > 0 ? ' — ${formatMoney(_estimatedRefund(data), symbol: currencySymbol)}' : ''}',
                     loading: _submitting,
                     onPressed: _submitting ? null : () => _submit(context, data),
                   ),

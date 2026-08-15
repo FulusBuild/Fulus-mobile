@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Gap fix: Volume 5's discount action — "sits near the total... a flat
@@ -138,7 +139,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
             children: [
               Text('New total', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
               Text(
-                '${widget.currencySymbol}${resultingTotal.toStringAsFixed(2)}',
+                formatMoney(resultingTotal, symbol: widget.currencySymbol),
                 style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
               ),
             ],
@@ -180,7 +181,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
       return;
     }
     if (amount > widget.baseAmount) {
-      setState(() => _error = "Discount can't be more than ${widget.currencySymbol}${widget.baseAmount.toStringAsFixed(2)}.");
+      setState(() => _error = "Discount can't be more than ${formatMoney(widget.baseAmount, symbol: widget.currencySymbol)}.");
       return;
     }
     setState(() {

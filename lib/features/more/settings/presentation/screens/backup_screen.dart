@@ -5,7 +5,9 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/utils/formatting.dart';
 import '../../../../../domain/entities/backup_record.dart';
+import '../../../../../shared/widgets/widgets.dart';
 
 /// Implementation Bible: "Backup is local. Backup creates SQLite
 /// snapshots. Restore replaces database. Export uses Android Share
@@ -51,7 +53,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   }
 
   void _showError(String message) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) showFulusSnackbar(context, message: message);
   }
 
   @override
@@ -63,14 +65,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: SizedBox(
-              width: double.infinity,
-              height: AppTouchTarget.minimum,
-              child: FilledButton.icon(
-                onPressed: _busy ? null : () => _runBusy(() => ref.read(backupRepositoryProvider).createBackup(label: 'manual')),
-                icon: const Icon(Icons.backup_outlined),
-                label: Text(_busy ? 'Working…' : 'Back up now'),
-              ),
+            child: FulusButton(
+              label: _busy ? 'Working…' : 'Back up now',
+              icon: Icons.backup_outlined,
+              loading: _busy,
+              onPressed: _busy ? () {} : () => _runBusy(() => ref.read(backupRepositoryProvider).createBackup(label: 'manual')),
             ),
           ),
           Expanded(
@@ -80,7 +79,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                 final backups = snapshot.data ?? const [];
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 if (backups.isEmpty) {
-                  return const Center(child: Text('No backups yet.', style: AppTypography.body));
+                  return const FulusEmptyState(
+                    icon: Icons.backup_outlined,
+                    headline: 'No backups yet.',
+                    body: 'Back up now to keep a local snapshot you can restore from later.',
+                  );
                 }
                 return ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -155,9 +158,8 @@ class _BackupTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sizeKb = (backup.sizeBytes / 1024).toStringAsFixed(0);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.surfaceOf(context), borderRadius: BorderRadius.circular(12)),
+    final createdAt = backup.createdAt.toLocal();
+    return FulusCard(
       child: Row(
         children: [
           Expanded(
@@ -165,7 +167,10 @@ class _BackupTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(backup.label, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
-                Text('${backup.createdAt.toLocal()} · $sizeKb KB', style: AppTypography.caption),
+                Text(
+                  '${formatRelativeDay(createdAt)} · ${formatTime(createdAt)} · $sizeKb KB',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                ),
               ],
             ),
           ),

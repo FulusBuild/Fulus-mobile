@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -35,7 +36,7 @@ class ProductListTile extends StatelessWidget {
       subtitle: Text(
         [
           category?.name ?? 'Uncategorized',
-          '₦${product.sellingPrice.toStringAsFixed(0)}',
+          formatMoney(product.sellingPrice),
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

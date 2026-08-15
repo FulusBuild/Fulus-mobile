@@ -67,6 +67,61 @@ class FulusChipRow extends StatelessWidget {
   }
 }
 
+/// Redesign pass addition — a small dot-plus-label pill for a passive
+/// status, not a tappable filter. Distinct from [FulusChip] on purpose:
+/// 5.2 is explicit chips are "never used for status or alerts" — this
+/// is the widget that *is* for status (Home's "Synced"/"Offline",
+/// Settings' role labels), so the two don't get conflated at a call
+/// site. No `onTap` — a status pill only ever reports state.
+enum FulusStatusTone { positive, neutral, warning }
+
+class FulusStatusPill extends StatelessWidget {
+  const FulusStatusPill({super.key, required this.label, this.tone = FulusStatusTone.positive, this.icon});
+
+  final String label;
+  final FulusStatusTone tone;
+
+  /// Optional leading icon in place of the default dot — e.g. a cloud
+  /// glyph for sync state.
+  final IconData? icon;
+
+  Color _color(BuildContext context) {
+    switch (tone) {
+      case FulusStatusTone.positive:
+        return AppColors.primaryOf(context);
+      case FulusStatusTone.neutral:
+        return AppColors.textSecondaryOf(context);
+      case FulusStatusTone.warning:
+        return AppColors.warningOf(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color(context);
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null)
+            Icon(icon, size: AppIconSize.dense, color: color)
+          else
+            Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: AppSpacing.xs),
+          Text(label, style: AppTypography.label.copyWith(color: color, letterSpacing: 0.2)),
+        ],
+      ),
+    );
+  }
+}
+
 /// Numeric count badge — Component Library 5.10. Caps at "99+", never
 /// truncates to something ambiguous.
 class FulusBadge extends StatelessWidget {

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/screens/barcode_scan_screen.dart';
@@ -307,14 +308,14 @@ class _ProductTile extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceAltOf(context),
+                  color: AppColors.selectedTintOf(context),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   Icons.inventory_2_outlined,
                   size: AppIconSize.emphasis,
-                  color: AppColors.textSecondaryOf(context),
+                  color: AppColors.primaryOf(context).withOpacity(0.55),
                 ),
               ),
             ),
@@ -330,8 +331,8 @@ class _ProductTile extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              '$currencySymbol${product.sellingPrice.toStringAsFixed(2)}',
-              style: AppTypography.body.copyWith(color: AppColors.primaryOf(context)),
+              formatMoney(product.sellingPrice, symbol: currencySymbol),
+              style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
             ),
             if (_outOfStock)
               Text('Out of stock', style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)))
@@ -408,7 +409,7 @@ class _CartSummaryBar extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${state.currencySymbol}${state.total.toStringAsFixed(2)}',
+                      formatMoney(state.total, symbol: state.currencySymbol),
                       style: AppTypography.buttonLabel.copyWith(color: AppColors.onPrimaryOf(context)),
                     ),
                   ],

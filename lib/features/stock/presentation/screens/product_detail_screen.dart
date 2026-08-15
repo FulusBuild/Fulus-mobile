@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -115,7 +116,7 @@ class _ProductDetailBody extends ConsumerWidget {
             children: [
               if (product.photoPath != null) ...[
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   child: Image.file(
                     File(product.photoPath!),
                     width: double.infinity,
@@ -176,7 +177,7 @@ class _PriceAndStockCard extends StatelessWidget {
             children: [
               Text('Price', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
               Text(
-                '$currencySymbol${product.sellingPrice.toStringAsFixed(2)}',
+                formatMoney(product.sellingPrice, symbol: currencySymbol),
                 style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
               ),
             ],
@@ -188,7 +189,7 @@ class _PriceAndStockCard extends StatelessWidget {
               children: [
                 Text('Margin', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                 Text(
-                  '$currencySymbol${margin.toStringAsFixed(2)}',
+                  formatMoney(margin, symbol: currencySymbol),
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ],

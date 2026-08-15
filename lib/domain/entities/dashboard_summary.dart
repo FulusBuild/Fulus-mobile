@@ -39,10 +39,24 @@ final class OpenHero extends HomeHeroState {
     required this.todayTotal,
     required this.todaySalesCount,
     this.closeShopEmphasized = false,
+    this.yesterdayTotal = 0,
+    this.yesterdaySalesCount = 0,
   });
   final double todayTotal;
   final int todaySalesCount;
   final bool closeShopEmphasized;
+
+  /// Redesign pass addition — DashboardRepositoryImpl already fetched
+  /// yesterday's total for the [NotYetOpenedHero] case; it was
+  /// discarded rather than reused for the (far more common) open-day
+  /// case. Defaults to 0 so every existing construction of [OpenHero]
+  /// (dashboard_engine_test.dart included) keeps compiling and passing
+  /// unchanged. Zero is also the correct "no comparison available"
+  /// value here, not just a safe default — see [HomeHeroState] callers'
+  /// own "never shown as '0% vs yesterday'" rule for why a UI reading
+  /// this must treat 0 as "omit the comparison," never as a real -100%.
+  final double yesterdayTotal;
+  final int yesterdaySalesCount;
 }
 
 /// After Close Shop / Daily Closing — "a number that's now history."

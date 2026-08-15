@@ -72,7 +72,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
   }
 
   @override
-  Future<SecondaryNoticeSelection> getSecondaryNotices() async {
+  Future<SecondaryNoticeSelection> getSecondaryNotices({int max = 2}) async {
     final products = await (_db.select(_db.products)..where((p) => p.isActive.equals(true))).get();
     final stockLevels = await _db.select(_db.productStockLevels).get();
     final stockByProduct = <String, int>{};
@@ -99,6 +99,6 @@ class DashboardRepositoryImpl implements DashboardRepository {
       SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Pending credit', value: pendingCredit),
       SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: unsyncedCount),
     ];
-    return _engine.selectSecondaryNotices(candidates);
+    return _engine.selectSecondaryNotices(candidates, max: max);
   }
 }

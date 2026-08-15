@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
@@ -11,6 +12,16 @@ import '../../application/stock_providers.dart';
 /// Stock Value, Products, Low Stock, Out of Stock. Low Stock and Out of
 /// Stock are tappable — they're really shortcuts into the same product
 /// list below with a filter pre-applied, not just numbers to look at.
+///
+/// Redesign pass — was a hand-rolled `_compact()` + `_TappableStat`
+/// wrapper; both are now shared, reusable pieces instead: compacting
+/// goes through `formatMoney(..., compact: true)` (core/utils/
+/// formatting.dart), and tappability is [FulusStatCard]'s own new
+/// `onTap`. Real bug fix along the way: the old `_compact` only had a
+/// "≥ 1,000,000 → M" branch, so a stock value in the billions rendered
+/// as e.g. "₦44000.00M" (44,000 million, never reduced further) rather
+/// than "₦44.0B" — visible on this exact screen in the reference
+/// screenshots. `formatMoney`'s compact form has a proper B tier.
 class StockOverviewStats extends StatelessWidget {
   const StockOverviewStats({
     super.key,
@@ -37,53 +48,31 @@ class StockOverviewStats extends StatelessWidget {
       crossAxisSpacing: AppSpacing.sm,
       childAspectRatio: 1.7,
       children: [
-        FulusStatCard(label: 'Stock value', value: '₦${_compact(value)}'),
-        FulusStatCard(label: 'Products', value: '${products.length}'),
-        _TappableStat(
-          onTap: onTapLowStock,
-          child: FulusStatCard(
-            label: 'Low stock',
-            value: '$lowStockCount',
-            valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
-          ),
+        FulusStatCard(
+          label: 'Stock value',
+          value: formatMoney(value, compact: true),
+          icon: Icons.payments_outlined,
         ),
-        _TappableStat(
+        FulusStatCard(
+          label: 'Products',
+          value: '${products.length}',
+          icon: Icons.inventory_2_outlined,
+        ),
+        FulusStatCard(
+          label: 'Low stock',
+          value: '$lowStockCount',
+          icon: Icons.trending_down,
+          valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
+          onTap: onTapLowStock,
+        ),
+        FulusStatCard(
+          label: 'Out of stock',
+          value: '$outOfStock',
+          icon: Icons.remove_shopping_cart_outlined,
+          valueColor: outOfStock > 0 ? AppColors.errorOf(context) : null,
           onTap: onTapOutOfStock,
-          child: FulusStatCard(
-            label: 'Out of stock',
-            value: '$outOfStock',
-            valueColor: outOfStock > 0 ? AppColors.errorOf(context) : null,
-          ),
         ),
       ],
-    );
-  }
-
-  /// ₦48,200 stays as-is; ₦1,284,000 becomes ₦1.28M — a stat card (5.17)
-  /// is a glance, not a ledger, and the Bible's own 130dp-minimum-width
-  /// rule for these cards means a long, un-compacted number is exactly
-  /// what risks getting clipped.
-  static String _compact(double value) {
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(2)}M';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
-    return value.toStringAsFixed(0);
-  }
-}
-
-/// [FulusStatCard] has no onTap of its own (5.17 doesn't call for one —
-/// most stat cards are look-only) — wrapping rather than adding a
-/// tap-specific variant, since only two of the four cards here need it.
-class _TappableStat extends StatelessWidget {
-  const _TappableStat({required this.child, required this.onTap});
-  final Widget child;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: child,
     );
   }
 }

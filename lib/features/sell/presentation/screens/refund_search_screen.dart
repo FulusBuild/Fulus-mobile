@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/sale.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
@@ -118,14 +119,14 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                                       .copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
                                 ),
                                 Text(
-                                  '${_formatDate(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}',
+                                  '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}',
                                   style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                                 ),
                               ],
                             ),
                           ),
                           Text(
-                            '$currencySymbol${sale.total.toStringAsFixed(2)}',
+                            formatMoney(sale.total, symbol: currencySymbol),
                             style: AppTypography.body.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimaryOf(context)),
                           ),
                           Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
@@ -142,5 +143,4 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
     );
   }
 
-  String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 }

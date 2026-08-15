@@ -32,9 +32,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
       appBar: AppBar(title: const Text('Team')),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddSheet(context),
-        child: const Icon(Icons.person_add),
+        icon: const Icon(Icons.person_add_outlined),
+        label: const Text('Add member'),
       ),
       body: StreamBuilder<List<Employee>>(
         stream: _employeesStream,
@@ -85,16 +86,16 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
             children: [
               Text('Add team member', style: AppTypography.heading),
               const SizedBox(height: AppSpacing.lg),
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full name')),
+              FulusTextField(label: 'Full name', controller: nameController),
               const SizedBox(height: AppSpacing.sm),
-              TextField(controller: roleController, decoration: const InputDecoration(labelText: 'Role (e.g. Cashier)')),
+              FulusTextField(label: 'Role (e.g. Cashier)', controller: roleController),
               const SizedBox(height: AppSpacing.sm),
-              TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone (optional)')),
+              FulusTextField(label: 'Phone (optional)', controller: phoneController, keyboardType: TextInputType.phone),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
-                height: AppTouchTarget.minimum,
-                child: FilledButton(
+                child: FulusButton(
+                  label: 'Add',
                   onPressed: () async {
                     final repo = ref.read(employeeRepositoryProvider);
                     try {
@@ -105,12 +106,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                       ));
                       if (context.mounted) Navigator.of(context).pop();
                     } on EmployeeValidationException catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-                      }
+                      if (context.mounted) showFulusSnackbar(context, message: e.message);
                     }
                   },
-                  child: const Text('Add'),
                 ),
               ),
             ],
@@ -135,61 +133,41 @@ class _EmployeeTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceOf(context),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
+    return FulusCard(
+      onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
+      child: Row(
+        children: [
+          FulusAvatar(name: employee.fullName),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primaryOf(context).withOpacity(0.1),
-                  child: Text(
-                    employee.fullName.isNotEmpty ? employee.fullName[0].toUpperCase() : '?',
-                    style: TextStyle(color: AppColors.primaryOf(context), fontWeight: FontWeight.bold),
-                  ),
+                Text(
+                  employee.fullName,
+                  style: AppTypography.body
+                      .copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        employee.fullName,
-                        style: AppTypography.body
-                            .copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
-                      ),
-                      if (employee.role != null)
-                        Text(
-                          employee.role!,
-                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                        ),
-                    ],
+                if (employee.role != null)
+                  Text(
+                    employee.role!,
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
-                ),
-                if (employee.authUserId == null)
-                  Tooltip(
-                    message: 'No login set up',
-                    child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.event_available_outlined),
-                  tooltip: 'Mark attendance',
-                  onPressed: () => _markToday(context, ref),
-                ),
-                Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
               ],
             ),
           ),
-        ),
+          if (employee.authUserId == null)
+            Tooltip(
+              message: 'No login set up',
+              child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
+            ),
+          IconButton(
+            icon: const Icon(Icons.event_available_outlined),
+            tooltip: 'Mark attendance',
+            onPressed: () => _markToday(context, ref),
+          ),
+          Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
+        ],
       ),
     );
   }

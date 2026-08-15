@@ -10,6 +10,7 @@
 /// that only needs one piece.
 library;
 
+export 'fulus_avatar.dart';
 export 'fulus_bottom_sheet.dart';
 export 'fulus_button.dart';
 export 'fulus_card.dart';
@@ -19,6 +20,7 @@ export 'fulus_dropdown_field.dart';
 export 'fulus_empty_state.dart';
 export 'fulus_error_state.dart';
 export 'fulus_list_row.dart';
+export 'fulus_quick_action.dart';
 export 'fulus_screen.dart';
 export 'fulus_search_field.dart';
 export 'fulus_section_header.dart';

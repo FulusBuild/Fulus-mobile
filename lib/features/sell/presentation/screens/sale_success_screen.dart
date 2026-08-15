@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/receipt_preview_sheet.dart';
 
@@ -110,43 +111,67 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle, color: AppColors.primaryOf(context), size: AppIconSize.hero),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              _isFirstSale ? "That's your first sale on Fulus." : 'Sale complete',
-              textAlign: TextAlign.center,
-              style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
-            ),
-            if (_isFirstSale) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Nice work.',
-                style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            // Redesign pass — a soft celebratory panel behind the
+            // checkmark rather than it floating on plain background;
+            // still "restrained" (Volume 3) — a tint, not a full-bleed
+            // banner or confetti.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              decoration: BoxDecoration(
+                gradient: AppGradients.successOf(context),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
-            ],
-            if (widget.changeDue > 0) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryOf(context).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Change due',
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: AppColors.primaryOf(context), shape: BoxShape.circle),
+                    child: Icon(Icons.check, color: AppColors.onPrimaryOf(context), size: AppIconSize.emphasis),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    _isFirstSale ? "That's your first sale on Fulus." : 'Sale complete',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+                  ),
+                  if (_isFirstSale) ...[
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${widget.currencySymbol}${widget.changeDue.toStringAsFixed(2)}',
-                      style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context)),
+                      'Nice work.',
+                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                     ),
                   ],
-                ),
+                  if (widget.changeDue > 0) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceOf(context),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        boxShadow: AppElevation.cardOf(context),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Change due',
+                            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            formatMoney(widget.changeDue, symbol: widget.currencySymbol),
+                            style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
+            ),
             const SizedBox(height: AppSpacing.xxl),
             if (_isFirstSale) ...[
               // "the completed receipt shown underneath" — the exact

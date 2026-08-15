@@ -73,6 +73,9 @@ class FulusStatCard extends StatelessWidget {
     this.trend,
     this.trendLabel,
     this.valueColor,
+    this.icon,
+    this.iconColor,
+    this.onTap,
   });
 
   final String label;
@@ -89,9 +92,27 @@ class FulusStatCard extends StatelessWidget {
   /// (e.g. a warn-colored "Low stock" value) — see [FulusTrend] doc.
   final Color? valueColor;
 
+  /// Redesign pass addition — a small icon-in-tint badge above the
+  /// label, purely additive (defaults to none, so every existing call
+  /// site — Money, Stock — renders exactly as before). Used by Home's
+  /// new notice row so "Low stock" / "Pending credit" / "Unsynced" each
+  /// carry a recognizable glyph rather than relying on the label text
+  /// alone. Defaults [iconColor] to [valueColor] when unset, since the
+  /// two usually agree (a warn-colored value gets a warn-colored icon).
+  final IconData? icon;
+  final Color? iconColor;
+
+  /// Redesign pass addition — also purely additive. [FulusCard] already
+  /// supports `onTap`; this just threads it through so a stat tile can
+  /// route somewhere (e.g. Home's "Low stock" tile opening Stock) —
+  /// unset leaves the card static, matching every pre-existing call
+  /// site.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     return FulusCard(
+      onTap: onTap,
       child: ConstrainedBox(
         // "A stat card that's too narrow to read its own number has
         // stopped being useful" — the 130dp floor from 5.17's
@@ -101,6 +122,19 @@ class FulusStatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (icon != null) ...[
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: (iconColor ?? valueColor ?? AppColors.primaryOf(context)).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(icon, size: AppIconSize.compact, color: iconColor ?? valueColor ?? AppColors.primaryOf(context)),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
             Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
             const SizedBox(height: AppSpacing.xs),
             Text(
