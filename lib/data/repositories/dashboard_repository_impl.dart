@@ -42,23 +42,36 @@ class DashboardRepositoryImpl implements DashboardRepository {
       yesterdayCount = yesterdaySales.length;
     }
 
-    // Real Daily Closing status, wired now that CashDrawerShifts exists:
-    // any shift with no closedAt, at any location, means the day is
-    // open. Not location-scoped — same as todaySales/yesterdaySales
-    // above, neither of which filter by location either; Home has no
-    // location context to filter by until a location switcher exists
-    // (Phase 2). notYetOpened (the one ShopDayStatus this can't
-    // currently distinguish from "closed") would need a real
-    // "business day start" concept this table doesn't track yet, so a
-    // day with no shifts at all — including before the very first one
-    // ever opened — reads as closed rather than notYetOpened; see
-    // dashboard_engine.dart's own ShopDayStatus doc for how the engine
-    // presents that.
+    // Bug fix: this used to be a hard binary (`open` if a shift is
+    // currently open, `closed` otherwise) with no way back to
+    // notYetOpened once ANY shift had ever been closed — Home's Open
+    // Shop button only renders for NotYetOpenedHero (see
+    // home_screen.dart), and ClosedHero has no button at all, so once a
+    // shop closed once, Home was permanently stuck on "Today (Closed)"
+    // with no way to open again, even the next calendar day. A day now
+    // only reads as `closed` if the most recently CLOSED shift closed
+    // today; closed on any earlier day (or no shift ever existed) reads
+    // as `notYetOpened` instead. Still not location-scoped — same as
+    // todaySales/yesterdaySales above, neither of which filter by
+    // location either; Home has no location context to filter by until
+    // a location switcher exists (Phase 2).
     final openShift = await (_db.select(_db.cashDrawerShifts)
           ..where((s) => s.closedAt.isNull())
           ..limit(1))
         .getSingleOrNull();
-    final dayStatus = openShift != null ? ShopDayStatus.open : ShopDayStatus.closed;
+
+    final ShopDayStatus dayStatus;
+    if (openShift != null) {
+      dayStatus = ShopDayStatus.open;
+    } else {
+      final lastClosedShift = await (_db.select(_db.cashDrawerShifts)
+            ..where((s) => s.closedAt.isNotNull())
+            ..orderBy([(s) => OrderingTerm.desc(s.closedAt)])
+            ..limit(1))
+          .getSingleOrNull();
+      final closedToday = lastClosedShift != null && !lastClosedShift.closedAt!.isBefore(todayStart);
+      dayStatus = closedToday ? ShopDayStatus.closed : ShopDayStatus.notYetOpened;
+    }
 
     return _engine.deriveHeroState(
       isOwner: isOwner,
