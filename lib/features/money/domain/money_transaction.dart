@@ -77,6 +77,7 @@ class MoneyTransaction {
     this.reference,
     this.note,
     this.lineItems,
+    this.receiptPhotoPath,
   });
 
   final String id;
@@ -111,6 +112,12 @@ class MoneyTransaction {
   /// "2 × Bag of Rice — ₦9,000" — shown on the transaction detail
   /// screen only, never on a list row.
   final List<String>? lineItems;
+
+  /// A local file path to a photographed receipt — only ever set for
+  /// [MoneyTransactionType.expense] (see `Expense.receiptPhotoPath`'s
+  /// own doc comment). Gap-closure pass: "Receipt photo attachment on
+  /// expenses."
+  final String? receiptPhotoPath;
 
   bool get isInflow => type.isInflow;
 

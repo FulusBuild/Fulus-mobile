@@ -64,6 +64,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     for (final entry in productTotals.entries) {
       final product = await (_db.select(_db.products)..where((p) => p.localId.equals(entry.key))).getSingleOrNull();
       topProducts.add(TopProduct(
+        productId: entry.key,
         productName: product?.name ?? entry.key,
         quantitySold: entry.value[0].toInt(),
         revenue: entry.value[1].toDouble(),
@@ -160,7 +161,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     for (final entry in spendByCustomer.entries) {
       final customer = await (_db.select(_db.customers)..where((c) => c.localId.equals(entry.key))).getSingleOrNull();
       if (customer != null) {
-        topCustomers.add(TopCustomer(customerName: customer.name, totalSpend: entry.value));
+        topCustomers.add(TopCustomer(customerId: customer.localId, customerName: customer.name, totalSpend: entry.value));
       }
     }
     topCustomers.sort((a, b) => b.totalSpend.compareTo(a.totalSpend));
@@ -214,9 +215,22 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final expenseRows = await (_db.select(_db.expenses)
           ..where((e) => e.expenseDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
+    // Bug fix found while wiring the Finance tab's breakdown display up
+    // to real data for the first time (gap-closure pass — "Reports
+    // drill-down"): this used to key `byCategory` by `e.categoryId`
+    // itself (a ULID) and pass that straight through as
+    // `ExpenseCategoryTotal.category` — since nothing in the UI ever
+    // rendered `expenseBreakdown` before now, a raw id masquerading as
+    // a display label went unnoticed. Resolved against
+    // ExpenseCategories the same way `getSalesReport`'s topProducts
+    // loop resolves a product name from its id, just batched into one
+    // query up front rather than one per row.
+    final categoryNamesById = {
+      for (final c in await _db.select(_db.expenseCategories).get()) c.localId: c.name,
+    };
     final byCategory = <String, double>{};
     for (final e in expenseRows) {
-      final cat = e.categoryId ?? 'Uncategorized';
+      final cat = e.categoryId != null ? (categoryNamesById[e.categoryId] ?? 'Other') : 'Uncategorized';
       byCategory[cat] = (byCategory[cat] ?? 0) + e.amount;
     }
     final breakdown = byCategory.entries.map((e) => ExpenseCategoryTotal(category: e.key, total: e.value)).toList()

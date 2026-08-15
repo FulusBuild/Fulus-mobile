@@ -27,4 +27,13 @@ abstract class ExpenseRepository {
   });
 
   Future<void> markSynced({required String localId, required String serverId});
+
+  /// Attaches, replaces, or removes (pass `null`) the receipt photo on
+  /// an already-saved expense — the after-the-fact counterpart to
+  /// [ExpenseDraft.receiptPhotoPath] (attaching one at creation time,
+  /// on Add Expense itself). Gap-closure pass: "Receipt photo
+  /// attachment on expenses." Does not enqueue a sync task — see
+  /// [Expense.receiptPhotoPath]'s own doc comment for why this field
+  /// never syncs at all.
+  Future<void> updateReceiptPhoto({required String localId, required String? photoPath});
 }

@@ -29,6 +29,7 @@ class Expense {
     required this.amount,
     required this.expenseDate,
     this.paymentMethod,
+    this.receiptPhotoPath,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -42,6 +43,14 @@ class Expense {
   final double amount;
   final DateTime expenseDate;
   final String? paymentMethod;
+
+  /// **New (gap-closure pass — Receipt photo attachment on
+  /// expenses).** A local file path, this device's own, never sent to
+  /// the backend — see `Expenses.receiptPhotoPath`'s own doc comment
+  /// in tables.dart for why (same device-local-only status as
+  /// `Product.photoPath`/`Customer.photoPath`). Not part of
+  /// [toCreateDto] below for that same reason.
+  final String? receiptPhotoPath;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -134,6 +143,7 @@ class ExpenseDraft {
     required this.amount,
     required this.expenseDate,
     this.paymentMethod,
+    this.receiptPhotoPath,
   });
 
   final String locationId;
@@ -142,6 +152,12 @@ class ExpenseDraft {
   final double amount;
   final DateTime expenseDate;
   final String? paymentMethod;
+
+  /// See [Expense.receiptPhotoPath]'s own doc comment — set here when
+  /// a photo was captured before the expense was ever saved (Add
+  /// Expense's own flow); attaching one to an already-saved expense
+  /// instead goes through [ExpenseRepository.updateReceiptPhoto].
+  final String? receiptPhotoPath;
 
   Expense toExpenseEntity({required String localId}) {
     final now = DateTime.now();
@@ -153,6 +169,7 @@ class ExpenseDraft {
       amount: amount,
       expenseDate: expenseDate,
       paymentMethod: paymentMethod,
+      receiptPhotoPath: receiptPhotoPath,
       createdAt: now,
       updatedAt: now,
     );

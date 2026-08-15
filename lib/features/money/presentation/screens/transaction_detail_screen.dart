@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/export/export_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
@@ -41,6 +44,16 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         : ref.read(moneyRepositoryProvider).getTransactionById(widget.transactionId);
   }
 
+  /// Re-fetches after the receipt-photo section below changes
+  /// something — `widget.preloaded` (if any) only ever seeds the
+  /// first frame, so a stale copy of it is never reused past this
+  /// point.
+  void _reload() {
+    setState(() {
+      _future = ref.read(moneyRepositoryProvider).getTransactionById(widget.transactionId);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
@@ -70,7 +83,7 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
               body: 'It may have been part of an older period.',
             );
           }
-          return _DetailBody(transaction: t, currencySymbol: currencySymbol);
+          return _DetailBody(transaction: t, currencySymbol: currencySymbol, onChanged: _reload);
         },
       ),
     );
@@ -78,10 +91,15 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
 }
 
 class _DetailBody extends ConsumerWidget {
-  const _DetailBody({required this.transaction, required this.currencySymbol});
+  const _DetailBody({required this.transaction, required this.currencySymbol, required this.onChanged});
 
   final MoneyTransaction transaction;
   final String currencySymbol;
+
+  /// Called after the receipt-photo section below successfully
+  /// attaches or removes a photo, so the parent screen re-fetches
+  /// rather than this widget silently going stale.
+  final VoidCallback onChanged;
 
   Future<void> _share(BuildContext context, WidgetRef ref) async {
     final t = transaction;
@@ -181,6 +199,11 @@ class _DetailBody extends ConsumerWidget {
             ),
           ),
         ],
+        if (t.type == MoneyTransactionType.expense) ...[
+          const SizedBox(height: AppSpacing.lg),
+          FulusSectionHeader(title: 'Receipt photo'),
+          _ReceiptPhotoSection(transaction: t, onChanged: onChanged),
+        ],
         if (t.note != null) ...[
           const SizedBox(height: AppSpacing.lg),
           FulusSectionHeader(title: 'Note'),
@@ -256,6 +279,104 @@ class _DetailSkeleton extends StatelessWidget {
           FulusSkeletonBox(width: 160, height: 32),
           SizedBox(height: AppSpacing.sm),
           FulusSkeletonBox(width: 120, height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+/// The after-the-fact counterpart to Add Expense's own capture flow —
+/// gap-closure pass: "Receipt photo attachment on expenses." Only
+/// ever rendered for a [MoneyTransactionType.expense] row (see the
+/// `if` guard in [_DetailBody.build] above). Uses the same shared
+/// `PhotoCaptureScreen` (shared/screens) Product Photo Capture uses.
+class _ReceiptPhotoSection extends ConsumerWidget {
+  const _ReceiptPhotoSection({required this.transaction, required this.onChanged});
+
+  final MoneyTransaction transaction;
+  final VoidCallback onChanged;
+
+  Future<void> _capture(BuildContext context, WidgetRef ref) async {
+    final path = await PhotoCaptureScreen.capture(context, title: 'Receipt photo');
+    if (path == null) return;
+    try {
+      await ref.read(moneyRepositoryProvider).attachReceiptPhoto(
+            transactionId: transaction.id,
+            photoPath: path,
+          );
+      onChanged();
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't attach that photo. Please try again.");
+      }
+    }
+  }
+
+  Future<void> _remove(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showFulusConfirmDialog(
+      context,
+      title: 'Remove receipt photo?',
+      message: 'This only removes the photo — the expense itself stays exactly as recorded.',
+      confirmLabel: 'Remove',
+    );
+    if (!confirmed) return;
+    try {
+      await ref.read(moneyRepositoryProvider).attachReceiptPhoto(
+            transactionId: transaction.id,
+            photoPath: null,
+          );
+      onChanged();
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't remove that photo. Please try again.");
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final path = transaction.receiptPhotoPath;
+    if (path == null) {
+      return FulusCard(
+        onTap: () => _capture(context, ref),
+        child: Row(
+          children: [
+            Icon(Icons.add_a_photo_outlined, color: AppColors.primaryOf(context)),
+            const SizedBox(width: AppSpacing.md),
+            Text('Add photo of receipt',
+                style: AppTypography.body.copyWith(color: AppColors.primaryOf(context))),
+          ],
+        ),
+      );
+    }
+    return FulusCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
+            child: Image.file(File(path), width: double.infinity, height: 200, fit: BoxFit.cover),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FulusButton(
+                    label: 'Retake',
+                    variant: FulusButtonVariant.secondary,
+                    onPressed: () => _capture(context, ref),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                FulusIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Remove',
+                  onPressed: () => _remove(context, ref),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

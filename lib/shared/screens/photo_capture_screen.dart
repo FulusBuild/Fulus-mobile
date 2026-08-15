@@ -25,6 +25,19 @@ import '../widgets/widgets.dart';
 /// and `Product.photoPath`'s own doc comment says "a local file path,"
 /// implying something this device can keep relying on, not a path that
 /// might be cleaned up by the OS the way a cache directory can be.
+///
+/// **Gap-closure pass addendum** (Receipt Photo Attachment on
+/// Expenses, this screen's second caller after Product Photo Capture):
+/// added a preview step between capture and returning — a shot that's
+/// blurry or has glare across the numbers is exactly the failure mode
+/// a receipt photo exists to avoid, and there was previously no way to
+/// notice that before it was already saved and this screen had already
+/// popped. Retake keeps the same live `CameraController` rather than
+/// tearing it down and recreating it (`CameraService.capturePhoto` is
+/// a plain `controller.takePicture()` — the controller stays valid for
+/// another shot afterward), and best-effort deletes the discarded
+/// file it's replacing so a string of retakes doesn't leave orphaned
+/// photos behind in the documents directory.
 class PhotoCaptureScreen extends ConsumerStatefulWidget {
   const PhotoCaptureScreen({super.key, this.title = 'Take a photo'});
 
@@ -40,12 +53,17 @@ class PhotoCaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<PhotoCaptureScreen> createState() => _PhotoCaptureScreenState();
 }
 
-enum _CaptureState { checking, ready, denied, saving }
+enum _CaptureState { checking, ready, saving, preview, denied }
 
 class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
   _CaptureState _state = _CaptureState.checking;
   CameraController? _controller;
   String? _errorMessage;
+
+  /// Set once a shot has been captured and copied to disk, cleared
+  /// again on retake — only meaningful while [_state] is
+  /// [_CaptureState.preview].
+  String? _previewPath;
 
   @override
   void initState() {
@@ -97,13 +115,44 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
       }
       final destination = p.join(photosDir.path, '${Ulid()}${p.extension(captured.path)}');
       await File(captured.path).copy(destination);
-      if (mounted) Navigator.of(context).pop(destination);
+      if (mounted) {
+        setState(() {
+          _previewPath = destination;
+          _state = _CaptureState.preview;
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _state = _CaptureState.ready);
         showFulusSnackbar(context, message: "Couldn't save that photo. Please try again.");
       }
     }
+  }
+
+  /// Back to a live preview for another shot — the controller from
+  /// [_setUp] is still initialized (see this class's own doc comment),
+  /// so there's no camera-reinitialization flicker here, just a state
+  /// change.
+  Future<void> _retake() async {
+    final discarded = _previewPath;
+    setState(() {
+      _previewPath = null;
+      _state = _CaptureState.ready;
+    });
+    if (discarded != null) {
+      try {
+        await File(discarded).delete();
+      } catch (_) {
+        // Harmless clutter, not a correctness problem — the user
+        // already told us they don't want this shot; failing loudly
+        // about cleanup would only confuse them.
+      }
+    }
+  }
+
+  void _confirm() {
+    final path = _previewPath;
+    if (path != null) Navigator.of(context).pop(path);
   }
 
   @override
@@ -134,6 +183,7 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
               ),
             ],
           ),
+        _CaptureState.preview => _PreviewBody(path: _previewPath!, onRetake: _retake, onConfirm: _confirm),
       },
     );
   }
@@ -161,6 +211,35 @@ class _MessageBody extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PreviewBody extends StatelessWidget {
+  const _PreviewBody({required this.path, required this.onRetake, required this.onConfirm});
+
+  final String path;
+  final VoidCallback onRetake;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(child: Image.file(File(path), fit: BoxFit.contain)),
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            children: [
+              Expanded(
+                child: FulusButton(label: 'Retake', variant: FulusButtonVariant.secondary, onPressed: onRetake),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: FulusButton(label: 'Use photo', onPressed: onConfirm)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

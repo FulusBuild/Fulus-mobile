@@ -504,6 +504,19 @@ class Expenses extends Table with SyncableColumns {
   DateTimeColumn get expenseDate => dateTime()();
   TextColumn get paymentMethod => text().nullable()();
 
+  /// **New in schema v5** (gap-closure pass: "Receipt photo attachment
+  /// on expenses"). A local file path under this device's own app
+  /// documents directory (see `photo_capture_screen.dart`), same
+  /// device-local-only status as `Products.photoPath`/
+  /// `Customers.photoPath` above — no upload endpoint exists for any
+  /// of the three, so this deliberately isn't sent in
+  /// `ExpenseCreateDto` (see `expense.dart`'s own doc comment) and
+  /// isn't expected to survive a restore onto a different device.
+  /// Nullable — most expenses (Volume 8: "amount, a category... and
+  /// how it was paid") have no photo at all; this is a pure addition
+  /// on top of that required set, never itself required.
+  TextColumn get receiptPhotoPath => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {localId};
 }

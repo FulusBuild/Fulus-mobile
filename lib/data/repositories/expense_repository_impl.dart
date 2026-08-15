@@ -83,4 +83,18 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       ),
     );
   }
+
+  @override
+  Future<void> updateReceiptPhoto({
+    required String localId,
+    required String? photoPath,
+  }) async {
+    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId)))
+        .write(
+      ExpensesCompanion(
+        receiptPhotoPath: Value(photoPath),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
 }

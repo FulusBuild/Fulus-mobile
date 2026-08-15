@@ -196,6 +196,7 @@ class MockMoneyRepository implements MoneyRepository {
     required String category,
     required String paymentMethod,
     String? note,
+    String? receiptPhotoPath,
   }) async {
     await _delay();
     if (amount <= 0) {
@@ -211,9 +212,52 @@ class MockMoneyRepository implements MoneyRepository {
       dateTime: DateTime.now(),
       paymentMethod: paymentMethod,
       note: note,
+      receiptPhotoPath: receiptPhotoPath,
     );
     _transactions.insert(0, transaction);
     return transaction;
+  }
+
+  /// Mock-repository counterpart to `RealMoneyRepositoryImpl.
+  /// attachReceiptPhoto` — finds the in-memory row by id and replaces
+  /// it (this class's list holds immutable [MoneyTransaction]s, same
+  /// as every other mutator in this file) with a copy carrying the
+  /// new [photoPath].
+  @override
+  Future<MoneyTransaction> attachReceiptPhoto({
+    required String transactionId,
+    required String? photoPath,
+  }) async {
+    await _delay();
+    final index = _transactions.indexWhere((t) => t.id == transactionId);
+    if (index == -1) {
+      throw StateError('Transaction $transactionId no longer exists.');
+    }
+    final existing = _transactions[index];
+    if (existing.type != MoneyTransactionType.expense) {
+      throw ArgumentError.value(
+        transactionId,
+        'transactionId',
+        'Only an expense transaction can carry a receipt photo.',
+      );
+    }
+    final updated = MoneyTransaction(
+      id: existing.id,
+      type: existing.type,
+      title: existing.title,
+      subtitle: existing.subtitle,
+      category: existing.category,
+      amount: existing.amount,
+      dateTime: existing.dateTime,
+      paymentMethod: existing.paymentMethod,
+      counterpartyName: existing.counterpartyName,
+      reference: existing.reference,
+      note: existing.note,
+      lineItems: existing.lineItems,
+      receiptPhotoPath: photoPath,
+    );
+    _transactions[index] = updated;
+    return updated;
   }
 
   // ── Cash Drawer & Daily Closing ───────────────────────────────────────

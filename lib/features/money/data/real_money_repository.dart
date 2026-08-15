@@ -203,6 +203,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       amount: expense.amount,
       dateTime: expense.expenseDate,
       paymentMethod: _displayPaymentMethod(expense.paymentMethod),
+      receiptPhotoPath: expense.receiptPhotoPath,
     );
   }
 
@@ -494,6 +495,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     required String category,
     required String paymentMethod,
     String? note,
+    String? receiptPhotoPath,
   }) async {
     final locationId = await _locationId;
     final categoryId = await _resolveExpenseCategoryId(category);
@@ -512,8 +514,32 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         amount: amount,
         expenseDate: DateTime.now(),
         paymentMethod: _toStorageKey(paymentMethod),
+        receiptPhotoPath: receiptPhotoPath,
       ),
     );
+    final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
+    final categoryNamesById = {for (final c in categories) c.localId: c.name};
+    return _fromExpense(expense, categoryNamesById);
+  }
+
+  @override
+  Future<MoneyTransaction> attachReceiptPhoto({
+    required String transactionId,
+    required String? photoPath,
+  }) async {
+    if (!transactionId.startsWith('expense-')) {
+      throw ArgumentError.value(
+        transactionId,
+        'transactionId',
+        'Only an expense transaction can carry a receipt photo.',
+      );
+    }
+    final localId = transactionId.substring('expense-'.length);
+    await _expenseRepository.updateReceiptPhoto(localId: localId, photoPath: photoPath);
+    final expense = await _expenseRepository.getExpenseById(localId);
+    if (expense == null) {
+      throw StateError('Expense $localId no longer exists.');
+    }
     final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
     final categoryNamesById = {for (final c in categories) c.localId: c.name};
     return _fromExpense(expense, categoryNamesById);

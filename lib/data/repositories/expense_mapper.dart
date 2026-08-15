@@ -18,6 +18,7 @@ extension ExpenseToCompanion on Expense {
       serverId: Value(serverId),
       categoryId: Value(categoryId),
       paymentMethod: Value(paymentMethod),
+      receiptPhotoPath: Value(receiptPhotoPath),
       deletedAt: const Value(null),
     );
   }
@@ -34,6 +35,7 @@ extension ExpenseRowToDomain on ExpenseRow {
       amount: amount,
       expenseDate: expenseDate,
       paymentMethod: paymentMethod,
+      receiptPhotoPath: receiptPhotoPath,
       createdAt: createdAt,
       updatedAt: updatedAt,
       deletedAt: deletedAt,

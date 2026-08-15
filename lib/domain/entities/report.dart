@@ -59,7 +59,17 @@ class SalesByHour {
 }
 
 class TopProduct {
-  const TopProduct({required this.productName, required this.quantitySold, required this.revenue});
+  const TopProduct({
+    required this.productId,
+    required this.productName,
+    required this.quantitySold,
+    required this.revenue,
+  });
+
+  /// **New** (gap-closure pass: "Reports drill-down") — a
+  /// `Product.localId`, so a tapped row can open that product's own
+  /// detail screen instead of the report only ever being a dead end.
+  final String productId;
   final String productName;
   final int quantitySold;
   final double revenue;
@@ -118,7 +128,12 @@ class InventoryReport {
 // ── Customers ───────────────────────────────────────────────────────────────
 
 class TopCustomer {
-  const TopCustomer({required this.customerName, required this.totalSpend});
+  const TopCustomer({required this.customerId, required this.customerName, required this.totalSpend});
+
+  /// **New** (gap-closure pass: "Reports drill-down") — a
+  /// `Customer.localId`, so a tapped row can open that customer's own
+  /// profile instead of the report only ever being a dead end.
+  final String customerId;
   final String customerName;
   final double totalSpend;
 }

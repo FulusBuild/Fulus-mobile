@@ -56,6 +56,12 @@ part 'database.g.dart';
 /// were explicitly left for "whoever merges this against the real auth
 /// table" (employee_tables.dart's own prior doc comments), which is
 /// this pass.
+///
+/// FOURTH MERGE NOTE (gap-closure pass — Receipt photo attachment on
+/// expenses): schemaVersion is 5. One new nullable column,
+/// `Expenses.receiptPhotoPath` — purely additive, same `addColumn`
+/// treatment as `Products.photoPath`/`Customers.photoPath` got in the
+/// `from < 3` block below, just one version later.
 @DriftDatabase(
   tables: [
     Locations,
@@ -131,7 +137,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -255,6 +261,14 @@ class AppDatabase extends _$AppDatabase {
           // partial one.
           await m.alterTable(TableMigration(employees));
           await m.alterTable(TableMigration(leaveRecords));
+        }
+        if (from < 5) {
+          // Expenses.receiptPhotoPath — purely additive and nullable,
+          // same addColumn treatment as Products.photoPath/
+          // Customers.photoPath got above; no data transformation
+          // needed for existing rows, which simply start out with no
+          // receipt photo attached.
+          await m.addColumn(expenses, expenses.receiptPhotoPath);
         }
       },
       beforeOpen: (details) async {

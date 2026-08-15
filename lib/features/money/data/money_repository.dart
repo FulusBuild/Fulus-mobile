@@ -45,6 +45,23 @@ abstract class MoneyRepository {
     required String category,
     required String paymentMethod,
     String? note,
+
+    /// See `Expense.receiptPhotoPath`'s own doc comment — a local file
+    /// path from `PhotoCaptureScreen`, captured before this expense was
+    /// ever saved. Gap-closure pass: "Receipt photo attachment on
+    /// expenses."
+    String? receiptPhotoPath,
+  });
+
+  /// Attaches, replaces, or removes (pass `null`) the receipt photo on
+  /// an already-recorded expense transaction — [transactionId] is a
+  /// [MoneyTransaction.id] (the `expense-<localId>`-prefixed form), not
+  /// a bare `Expense.localId`. Throws [ArgumentError] if [transactionId]
+  /// doesn't refer to an expense — there is no receipt-photo concept
+  /// for a sale, income record, repayment, or supplier payment.
+  Future<MoneyTransaction> attachReceiptPhoto({
+    required String transactionId,
+    required String? photoPath,
   });
 
   // ── Cash Drawer & Daily Closing ─────────────────────────────────────
