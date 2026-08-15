@@ -10,7 +10,6 @@ import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../../sync/sync_status.dart';
 import '../../../money/domain/money_transaction.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
 import '../../../money/presentation/widgets/opening_float_sheet.dart';
@@ -192,9 +191,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 /// Business name, a "Good morning"-style greeting, an initials avatar,
-/// and the live sync status — the header the reference design calls
-/// for. Its own widget (rather than inline in `build`) purely to keep
+/// Business name, a "Good morning"-style greeting, and an initials
+/// avatar — the header the reference design calls for. Its own widget
+/// (rather than inline in `build`) purely to keep
 /// `_HomeScreenState.build` scannable.
+///
+/// Deliberately does NOT duplicate a sync-status pill here — that was
+/// this pass's first draft, and it was wrong: `app_shell.dart`'s own
+/// `_SyncStatusIndicator` already renders the identical [SyncStatus] as
+/// an icon in the same top-right corner, on every screen including this
+/// one, so a second "Sync off" pill right underneath it was reporting
+/// the same fact twice in the same glance. No other screen in this app
+/// duplicates that indicator; Home shouldn't either.
 class _GreetingHeader extends ConsumerWidget {
   const _GreetingHeader();
 
@@ -224,8 +232,6 @@ class _GreetingHeader extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        const _SyncStatusPill(),
       ],
     );
   }
@@ -238,40 +244,6 @@ class _GreetingHeader extends ConsumerWidget {
 /// Home is the only place currently reading the business name itself.
 final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) {
   return ref.watch(businessSettingsRepositoryProvider).watchSettings();
-});
-
-/// A quiet "Synced" / "N pending" / "Syncing" / "Needs attention" pill —
-/// same underlying [SyncStatus] the app bar's own indicator
-/// (app_shell.dart's `_SyncStatusIndicator`) already renders as an icon;
-/// this is a second, header-appropriate presentation of the identical
-/// state; Volume 12's "the user should never have to think about sync
-/// unless something is genuinely wrong" still holds — quiet dot, no
-/// banner.
-class _SyncStatusPill extends ConsumerWidget {
-  const _SyncStatusPill();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(_homeSyncStatusProvider).valueOrNull;
-    if (status == null) return const SizedBox.shrink();
-
-    final (label, tone) = switch (status.kind) {
-      SyncStatusKind.disabled => ('Sync off', FulusStatusTone.neutral),
-      SyncStatusKind.settled => ('Synced', FulusStatusTone.positive),
-      SyncStatusKind.pending => ('${status.pendingCount} pending', FulusStatusTone.neutral),
-      SyncStatusKind.syncing => ('Syncing', FulusStatusTone.positive),
-      SyncStatusKind.attentionNeeded => ('Needs attention', FulusStatusTone.warning),
-    };
-
-    return GestureDetector(
-      onTap: () => context.pushNamed('moreSyncDetail'),
-      child: FulusStatusPill(label: label, tone: tone),
-    );
-  }
-}
-
-final _homeSyncStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
-  return ref.watch(syncStatusNotifierProvider).watch();
 });
 
 class _HeroSkeleton extends StatelessWidget {
@@ -309,34 +281,36 @@ class _HeroCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (label, amount, count, emphasizeAction, statusLabel) = switch (state) {
+    // Redesign pass — one explicit label per state rather than the
+    // earlier "label · statusLabel" concatenation, which produced a
+    // literal "TODAY (CLOSED) · CLOSED" for the closed state (both
+    // halves said the same thing) — caught on-device after this pass
+    // first shipped. Each state now owns its full top-line wording
+    // directly, so there's no combination step left to go wrong.
+    final (topLabel, amount, count, emphasizeAction) = switch (state) {
       NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => (
           'Yesterday',
           yesterdayTotal,
           yesterdaySalesCount,
           false,
-          'Not yet opened',
         ),
       OpenHero(:final todayTotal, :final todaySalesCount, :final closeShopEmphasized) => (
-          'Today so far',
+          'Today · Open',
           todayTotal,
           todaySalesCount,
           closeShopEmphasized,
-          'Open',
         ),
       ClosedHero(:final finalTotal, :final finalSalesCount) => (
-          'Today (closed)',
+          'Today · Closed',
           finalTotal,
           finalSalesCount,
           false,
-          'Closed',
         ),
       EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => (
           'Your shift',
           shiftTotal,
           shiftSalesCount,
           false,
-          null,
         ),
     };
 
@@ -390,7 +364,7 @@ class _HeroCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
-                        statusLabel == null ? label.toUpperCase() : '${label.toUpperCase()} · ${statusLabel.toUpperCase()}',
+                        topLabel.toUpperCase(),
                         style: AppTypography.label.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.85)),
                       ),
                     ],
@@ -509,6 +483,15 @@ class _NoticeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Redesign pass — a lone notice (the common case: usually only one
+    // of low-stock/pending-credit/unsynced is actually nonzero at a
+    // time) now fills the row instead of sitting in a 152dp-wide card
+    // inside a horizontal scroller built for two or three, which left
+    // the rest of the row visibly empty (seen on-device with just the
+    // "Unsynced" tile).
+    if (selection.shown.length == 1) {
+      return SizedBox(width: double.infinity, child: _noticeTile(context, selection.shown.first));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
