@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -345,10 +343,18 @@ class _HeroCard extends ConsumerWidget {
     // Redesign pass — only rendered for OpenHero, and only once a real
     // yesterday baseline exists (never "0% vs yesterday" from a missing
     // comparison — see OpenHero.yesterdayTotal's own doc comment).
+    //
+    // `if (state case OpenHero(...))` rather than `if (state is
+    // OpenHero) { state.yesterdayTotal }` deliberately — [state] is a
+    // public field here, and Dart only promotes private fields (or
+    // locals) after an `is` check, so the `is`-then-access form fails
+    // to compile with "getter isn't defined for HomeHeroState". Pattern
+    // matching destructures directly and sidesteps promotion entirely
+    // — same mechanism the switch above already uses.
     String? trendLabel;
     bool trendUp = true;
-    if (state is OpenHero && state.yesterdayTotal > 0) {
-      final delta = ((state.todayTotal - state.yesterdayTotal) / state.yesterdayTotal) * 100;
+    if (state case OpenHero(:final todayTotal, :final yesterdayTotal) when yesterdayTotal > 0) {
+      final delta = ((todayTotal - yesterdayTotal) / yesterdayTotal) * 100;
       trendUp = delta >= 0;
       trendLabel = '${delta.abs().round()}% vs yesterday';
     }
