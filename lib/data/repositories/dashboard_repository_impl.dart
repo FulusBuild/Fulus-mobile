@@ -10,21 +10,28 @@ import '../local/database/database.dart';
 /// touches Sales/Products/ProductStockLevels/Customers/SyncQueue
 /// directly.
 class DashboardRepositoryImpl implements DashboardRepository {
+  /// [clock] exists for tests. getHeroState's dayStatus needs to know
+  /// whether a shift closed "today" — see that method's comment — and
+  /// DateTime.now() can't give a test a fixed instant to build fixtures
+  /// against, only whatever moment CI happens to run at.
   DashboardRepositoryImpl({
     required AppDatabase db,
     DashboardEngine engine = const DashboardEngine(),
+    DateTime Function() clock = DateTime.now,
   })  : _db = db,
-        _engine = engine;
+        _engine = engine,
+        _clock = clock;
 
   final AppDatabase _db;
   final DashboardEngine _engine;
+  final DateTime Function() _clock;
 
   @override
   Future<HomeHeroState> getHeroState({
     required String currentAuthUserId,
     required bool isOwner,
   }) async {
-    final now = DateTime.now();
+    final now = _clock();
     final todayStart = DateTime(now.year, now.month, now.day);
     final yesterdayStart = todayStart.subtract(const Duration(days: 1));
 
@@ -42,26 +49,37 @@ class DashboardRepositoryImpl implements DashboardRepository {
       yesterdayCount = yesterdaySales.length;
     }
 
-    // Simple binary: `open` iff a shift is currently open (closedAt
-    // null), `closed` otherwise — no shift ever, or the most recent one
-    // is already closed, regardless of when. A prior version tried a
-    // third path back to `notYetOpened` once the last closed shift
-    // wasn't from today (so Home would get its Open Shop button back on
-    // a new calendar day), comparing closedAt against todayStart. That
-    // broke two ways, both caught by dashboard_repository_impl_test.dart:
-    // a location with zero shift history ever read as `notYetOpened`
-    // when the tests require `closed` for that case, and the
-    // today-vs-earlier comparison was wall-clock-dependent — a shift
-    // closed shortly before midnight and checked shortly after rolled
-    // over to "yesterday" and flipped the result, which is exactly what
-    // happened in the CI run this fixes (test ran ~00:08 UTC).
-    // Trade-off worth knowing: ClosedHero has no Open Shop button (see
-    // home_screen.dart), and DailyClosingCountScreen is only reachable
-    // from OpenHero's Close Shop action, so once a shift closes, Home
-    // has no path back to Open Shop until dayStatus has a real source
-    // (Volume 8's Daily Closing, Stage 8 — see dashboard_engine.dart's
-    // ShopDayStatus doc comment) or that gap gets closed some other
-    // way. Still not location-scoped — same as todaySales/yesterdaySales
+    // The Screen Gallery mockup (Volume 4, Home · All States) settles
+    // what the two earlier attempts here got wrong: Closed is
+    // deliberately button-less — "a quieter treatment... the
+    // difference between a total still moving and one that's now
+    // history" — and Kwame's employee view has "no Open/Close Shop...
+    // at all, not hidden, structurally absent" either. So ClosedHero
+    // must never carry a button (reverted from home_screen.dart; see
+    // that file's comment); reachability on a new day has to come from
+    // dayStatus itself resolving back to notYetOpened, which is also
+    // what "Before opening"'s "Yesterday: X" framing assumes exists in
+    // the first place.
+    //
+    // So: `open` iff a shift is currently open. Otherwise `closed` if
+    // the most recently closed shift closed today, or if no shift ever
+    // existed (dashboard_repository_impl_test.dart's zero-history case
+    // expects `closed`, not a "Ready to open?" prompt with no real
+    // yesterday to show); `notYetOpened` if the last close was on an
+    // earlier day, which is what actually gives Home its Open Shop
+    // button back.
+    //
+    // This exact three-way split was tried once already and reverted:
+    // it compared closedAt to todayStart using DateTime.now() directly,
+    // and broke on a real CI run — a shift closed shortly before
+    // midnight and checked shortly after rolled over to "yesterday" and
+    // flipped the result (that run started ~00:08 UTC). [_clock] fixes
+    // that at the root instead of routing around it: tests inject a
+    // fixed instant and build fixtures against it, so this comparison
+    // is deterministic instead of failing in roughly the one hour out
+    // of twenty-four when CI happens to run right after local midnight.
+    //
+    // Still not location-scoped — same as todaySales/yesterdaySales
     // above, neither of which filter by location either; Home has no
     // location context to filter by until a location switcher exists
     // (Phase 2).
@@ -69,7 +87,23 @@ class DashboardRepositoryImpl implements DashboardRepository {
           ..where((s) => s.closedAt.isNull())
           ..limit(1))
         .getSingleOrNull();
-    final dayStatus = openShift != null ? ShopDayStatus.open : ShopDayStatus.closed;
+
+    final ShopDayStatus dayStatus;
+    if (openShift != null) {
+      dayStatus = ShopDayStatus.open;
+    } else {
+      final lastClosedShift = await (_db.select(_db.cashDrawerShifts)
+            ..where((s) => s.closedAt.isNotNull())
+            ..orderBy([(s) => OrderingTerm.desc(s.closedAt)])
+            ..limit(1))
+          .getSingleOrNull();
+      if (lastClosedShift == null) {
+        dayStatus = ShopDayStatus.closed;
+      } else {
+        final closedToday = !lastClosedShift.closedAt!.isBefore(todayStart);
+        dayStatus = closedToday ? ShopDayStatus.closed : ShopDayStatus.notYetOpened;
+      }
+    }
 
     return _engine.deriveHeroState(
       isOwner: isOwner,
