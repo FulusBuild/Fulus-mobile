@@ -4,6 +4,7 @@ import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/cash_drawer_shift.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
