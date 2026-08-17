@@ -241,6 +241,12 @@ void main() {
     test('incrementItem throws once the line already holds all available '
         'stock', () async {
       await cubit.addProduct(limitedProductId);
+      // addProduct's own increment-vs-new-line decision reads current
+      // cubit state (not a fresh DB query), so the second call needs to
+      // wait for the first one's write to come back through the watch
+      // stream first — otherwise it can't see the first unit yet and
+      // inserts a second line instead of incrementing the first.
+      await waitFor(cubit, (s) => s.itemCount == 1);
       await cubit.addProduct(limitedProductId);
       final state = await waitFor(cubit, (s) => s.itemCount == 2);
       final line = state.items.single;
