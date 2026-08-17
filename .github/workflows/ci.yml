@@ -218,3 +218,32 @@ jobs:
           # from the Actions run, sideload it, and that's the first point
           # any of this has genuinely run on real hardware rather than
           # been reasoned about.
+
+      # ── Step 6: build a release APK ─────────────────────────────────────
+      # A release build exercises a genuinely different code path than
+      # --debug above: minification/obfuscation as configured in
+      # android/app/build.gradle, and — the specific risk this step
+      # exists to catch — env_config.dart's API_BASE_URL, which defaults
+      # to http://10.0.2.2:8000 (the Android emulator's loopback to its
+      # host) so local development works out of the box. That default
+      # must never end up in a build real users install; the check below
+      # fails the build rather than silently shipping it. Set the
+      # API_BASE_URL repository variable (Settings → Secrets and
+      # variables → Actions → Variables) to the real API host before this
+      # job can pass. This does not configure release signing — Gradle
+      # falls back to the debug key for the release build type until a
+      # real signing config is added, so this APK is good for sideloading
+      # and verifying the release build itself, not yet for store
+      # distribution.
+      - name: Verify a real API_BASE_URL is configured
+        run: |
+          if [ -z "${{ vars.API_BASE_URL }}" ] || [ "${{ vars.API_BASE_URL }}" = "http://10.0.2.2:8000" ]; then
+            echo "::error::API_BASE_URL is not set (or is still the emulator-only default). A release build must not ship pointing at 10.0.2.2 — set the API_BASE_URL repository variable to the real API host."
+            exit 1
+          fi
+      - run: flutter build apk --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fulus-mobile-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7

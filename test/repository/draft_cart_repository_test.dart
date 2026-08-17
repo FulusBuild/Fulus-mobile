@@ -4,9 +4,12 @@ import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.d
 import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
-import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/sale.dart';
+import 'package:fulus_mobile/domain/entities/sale_draft.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -64,6 +67,7 @@ class _FakeAuthRepository implements AuthRepository {
 void main() {
   late AppDatabase db;
   late DraftCartRepositoryImpl draftCartRepository;
+  late SaleRepositoryImpl saleRepository;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -78,7 +82,7 @@ void main() {
       productsApi: MockProductsApi(),
       syncQueue: syncQueue,
     );
-    final saleRepository = SaleRepositoryImpl(
+    saleRepository = SaleRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
       authRepository: _FakeAuthRepository(),
@@ -204,6 +208,56 @@ void main() {
           unitPrice: 500,
         ),
         throwsArgumentError,
+      );
+    });
+
+    // Regression test for a confirmed bug (audit finding F-2):
+    // completeSale used to call SaleRepository.createSale (which
+    // commits its own transaction) and then, as a separate step,
+    // clearDraft — so a failure in that second step left a real,
+    // committed sale behind while completeSale still threw, and
+    // PaymentScreen's catch block told the cashier "nothing was
+    // charged." A retry from the same cart then created a second,
+    // duplicate sale. completeSale now runs both steps inside one
+    // _db.transaction(); this proves that transaction actually rolls
+    // the sale back too when something after it fails — the same
+    // structure completeSale itself now uses — rather than assuming
+    // Drift's nested-transaction behavior works the way the fix
+    // depends on.
+    test(
+        'regression (F-2): a failure after the sale is written rolls the '
+        'sale back too, instead of leaving an orphaned, already-charged '
+        'sale behind', () async {
+      final saleDraft = SaleDraft(
+        items: [
+          SaleItem(
+            localId: 'regression-f2-item',
+            description: 'Item A',
+            quantity: 1,
+            unitPrice: 1000,
+            costPriceAtSale: 0,
+          ),
+        ],
+        locationId: 'loc-1',
+        amountPaid: 1000,
+      );
+
+      await expectLater(
+        db.transaction(() async {
+          await saleRepository.createSale(saleDraft);
+          throw StateError('simulated failure after the sale write');
+        }),
+        throwsStateError,
+      );
+
+      final salesRows = await db.select(db.sales).get();
+      expect(
+        salesRows,
+        isEmpty,
+        reason:
+            'the sale write must roll back with everything else in the same '
+            'transaction, or a retry after this exact failure would create '
+            'a second, duplicate sale',
       );
     });
   });

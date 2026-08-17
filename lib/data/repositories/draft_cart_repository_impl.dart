@@ -395,8 +395,22 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
       payments: payments,
     );
 
-    final sale = await _saleRepository.createSale(saleDraft);
-    await clearDraft(draftCartLocalId);
-    return sale;
+    // Everything from here on runs in one transaction so it can only
+    // succeed or fail as a whole. createSale() and clearDraft() each
+    // open their own _db.transaction() internally, which nests inside
+    // this one rather than committing separately — so does the sync
+    // enqueue createSale() triggers on the way out. Before this, a
+    // failure anywhere after the sale itself was written (clearing the
+    // draft, enqueueing it for sync) could leave a real, committed sale
+    // behind while the caller still saw an exception — and since
+    // nothing tied a retry back to this specific draft, retrying from
+    // the same cart created a second, duplicate sale. Now, any failure
+    // in this block rolls the sale back too, so "the sale didn't go
+    // through" is true whenever this throws.
+    return _db.transaction(() async {
+      final sale = await _saleRepository.createSale(saleDraft);
+      await clearDraft(draftCartLocalId);
+      return sale;
+    });
   }
 }

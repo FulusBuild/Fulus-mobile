@@ -55,25 +55,35 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
       throw StateError('Cannot open a shift with no signed-in user.');
     }
 
-    final existing = await getActiveShift(locationId: draft.locationId);
-    if (existing != null) {
-      throw StateError(
-        'A shift is already open for this location — close it before '
-        'opening another.',
-      );
-    }
+    // The "is one already open" check and the insert that opens a new
+    // one have to run as a single transaction, not two separate calls —
+    // otherwise a rapid double-tap on "Open Shop" can have both calls
+    // see no active shift before either insert lands, opening two
+    // concurrent shifts for the same location. Wrapping both in one
+    // _db.transaction() forces the second call to wait for the first to
+    // fully commit, so its own check runs against the row the first
+    // call just wrote.
+    return _db.transaction(() async {
+      final existing = await getActiveShift(locationId: draft.locationId);
+      if (existing != null) {
+        throw StateError(
+          'A shift is already open for this location — close it before '
+          'opening another.',
+        );
+      }
 
-    final localId = Ulid().toString();
-    final shift = CashDrawerShift(
-      localId: localId,
-      cashierUserId: currentUser.id,
-      locationId: draft.locationId,
-      openedAt: DateTime.now(),
-      openingCash: draft.openingCash,
-    );
-    await _db.into(_db.cashDrawerShifts).insert(shift.toDriftCompanion());
-    await _syncQueue.enqueue(SyncTask.createCashDrawerShift(localId));
-    return shift;
+      final localId = Ulid().toString();
+      final shift = CashDrawerShift(
+        localId: localId,
+        cashierUserId: currentUser.id,
+        locationId: draft.locationId,
+        openedAt: DateTime.now(),
+        openingCash: draft.openingCash,
+      );
+      await _db.into(_db.cashDrawerShifts).insert(shift.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createCashDrawerShift(localId));
+      return shift;
+    });
   }
 
   @override
@@ -153,39 +163,47 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
         'must be ≥ 0 (backend: ShiftClose.closing_cash, ge=0)',
       );
     }
-    final row = await (_db.select(_db.cashDrawerShifts)
-          ..where((s) => s.localId.equals(shiftLocalId)))
-        .getSingleOrNull();
-    if (row == null) {
-      throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
-    }
-    if (row.closedAt != null) {
-      throw StateError('This shift is already closed.');
-    }
 
-    final preview = await computeExpectedCash(shiftLocalId);
-    final difference = closingCash - preview.expectedCash;
-    final now = DateTime.now();
+    // Same reasoning as openShift above: the already-closed check and
+    // the update that closes the shift need to be one transaction, or
+    // two rapid close attempts could both pass the check before either
+    // write lands, and the second would silently overwrite the first's
+    // closing figures instead of being rejected.
+    return _db.transaction(() async {
+      final row = await (_db.select(_db.cashDrawerShifts)
+            ..where((s) => s.localId.equals(shiftLocalId)))
+          .getSingleOrNull();
+      if (row == null) {
+        throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
+      }
+      if (row.closedAt != null) {
+        throw StateError('This shift is already closed.');
+      }
 
-    await (_db.update(_db.cashDrawerShifts)
-          ..where((s) => s.localId.equals(shiftLocalId)))
-        .write(
-      CashDrawerShiftsCompanion(
-        closedAt: Value(now),
-        closingCash: Value(closingCash),
-        cashDifference: Value(difference),
-        closingNote: Value(notes),
-        closingSummaryLocked: const Value(true),
-        updatedAt: Value(now),
-      ),
-    );
+      final preview = await computeExpectedCash(shiftLocalId);
+      final difference = closingCash - preview.expectedCash;
+      final now = DateTime.now();
 
-    await _syncQueue.enqueue(SyncTask.closeCashDrawerShift(shiftLocalId));
+      await (_db.update(_db.cashDrawerShifts)
+            ..where((s) => s.localId.equals(shiftLocalId)))
+          .write(
+        CashDrawerShiftsCompanion(
+          closedAt: Value(now),
+          closingCash: Value(closingCash),
+          cashDifference: Value(difference),
+          closingNote: Value(notes),
+          closingSummaryLocked: const Value(true),
+          updatedAt: Value(now),
+        ),
+      );
 
-    final updated = await (_db.select(_db.cashDrawerShifts)
-          ..where((s) => s.localId.equals(shiftLocalId)))
-        .getSingle();
-    return updated.toDomain();
+      await _syncQueue.enqueue(SyncTask.closeCashDrawerShift(shiftLocalId));
+
+      final updated = await (_db.select(_db.cashDrawerShifts)
+            ..where((s) => s.localId.equals(shiftLocalId)))
+          .getSingle();
+      return updated.toDomain();
+    });
   }
 
   @override
