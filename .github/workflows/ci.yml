@@ -238,7 +238,7 @@ jobs:
       - name: Verify a real API_BASE_URL is configured
         run: |
           if [ -z "${{ vars.API_BASE_URL }}" ] || [ "${{ vars.API_BASE_URL }}" = "http://10.0.2.2:8000" ]; then
-            echo "::error::API_BASE_URL is not set (or is still the emulator-only default). A release build must not ship pointing at 10.0.2.2 — set the API_BASE_URL repository variable to the real API host."
+            echo "::error::API_BASE_URL is not set (or is still the emulator-only default). A release build must not ship pointing at 10.0.2.2. Set it at: repo Settings -> Secrets and variables -> Actions -> Variables tab -> New repository variable -> name API_BASE_URL, value your real API host. It doesn't need to be the final production URL yet — anything other than 10.0.2.2 unblocks this check."
             exit 1
           fi
       - run: flutter build apk --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}
