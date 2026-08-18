@@ -38,7 +38,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
   Future<void> _pickFile() async {
     setState(() => _picking = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
         withData: true,
