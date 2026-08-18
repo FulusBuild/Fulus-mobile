@@ -82,6 +82,57 @@ subprojects {
     }
 }
 
+// Workaround for file_picker (pinned to 11.0.3 via pubspec.yaml's
+// `file_picker: ^11.0.0`) referencing `flutter.compileSdkVersion` in its
+// own android/build.gradle — added upstream to close
+// https://github.com/miguelpruivo/flutter_file_picker/issues/1842, and
+// present in every file_picker release from 10.3.3 through the current
+// 11.x/12.x lines, so it can't be dodged by picking a different 11.x
+// patch version.
+//
+// That reference only resolves where the Flutter Gradle Plugin injects a
+// `flutter` extension into plugin *subprojects* — on this project's
+// pinned Flutter 3.24.0 (see FLUTTER_VERSION in the CI workflow), that
+// extension is only ever registered on the `:app` module itself; plugin
+// subprojects never get one, in any evaluation order. (Compare
+// flutter_plugin_android_lifecycle's own changelog, which notes it only
+// started relying on `flutter.compileSdkVersion` in its build.gradle
+// after bumping its *minimum supported Flutter version* to 3.27 — i.e.
+// the injection point plugin authors now assume is a Flutter 3.27+
+// mechanism that 3.24.0 predates.) So this isn't a script-evaluation-order
+// problem — forcing subprojects to evaluate after `:app`
+// (`evaluationDependsOn(":app")` above) doesn't help, because the
+// property is never defined for subprojects on this Flutter version no
+// matter when they evaluate. Without this, the build fails first with
+// "Could not get unknown property 'flutter' for extension 'android'"
+// (the property lookup falls through to nothing) and then, as a
+// consequence of the resulting `compileSdk` assignment never running,
+// with "compileSdkVersion is not specified".
+//
+// Defining `flutter` as a plain extra-property Map (Groovy resolves
+// `flutter.compileSdkVersion` on a Map the same way it would on the real
+// extension) sidesteps that gap. It carries the same compileSdk value
+// app/build.gradle already pins explicitly for the same reason (several
+// plugins need a higher compileSdk than Flutter 3.24.0's own default) —
+// this just makes that one value visible to plugin subprojects too. Like
+// the Kotlin-version-forcing block above, this runs as part of root
+// project configuration, i.e. before any subproject's own build.gradle
+// script is evaluated, so it's in place well before file_picker's script
+// reads it.
+//
+// Excludes `:app` by name (not by checking hasProperty("flutter") — at
+// this point in root's configuration, :app hasn't applied
+// "dev.flutter.flutter-gradle-plugin" yet either, so that check can't
+// tell the two cases apart). `:app` gets its own real `flutter`
+// extension — a `FlutterExtension` instance, not a Map — when its own
+// build.gradle applies the Flutter Gradle Plugin; setting this fake one
+// there first would fight that later, real registration.
+subprojects {
+    if (project.name != "app") {
+        project.ext.flutter = [compileSdkVersion: 36]
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
