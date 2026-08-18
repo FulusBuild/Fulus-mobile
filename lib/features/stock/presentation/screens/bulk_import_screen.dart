@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,29 +8,16 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 
-/// Gap fix — Volume 6's "Bulk Import" (CSV path). `ImportProductsFromCsv`
-/// was a complete, tested usecase with no screen calling it.
-///
-/// Paste-based, deliberately: this app has no file-picker package
-/// (`file_picker` isn't a dependency, and this pass can't add one
-/// without network access to fetch it), and hand-rolling raw Android
-/// storage browsing without a compiler to verify scoped-storage
-/// handling against is a real way to ship something broken. Pasting
-/// works identically on every Android version, needs no storage
-/// permission, and is a normal way to move a spreadsheet's contents on
-/// a phone (copy from Sheets/Excel/a WhatsApp-shared file opened in
-/// another app, paste here). `ImportProductsFromCsv.call` already takes
-/// raw CSV text, not a file path, so this isn't a workaround — it's the
-/// actual shape the usecase expects.
+/// Bulk-import screen for `ImportProductsFromCsv`. Supports picking a
+/// .csv file or pasting spreadsheet content directly — both paths feed
+/// the same [_contentController], since the usecase takes raw CSV text
+/// rather than a file path or handle.
 ///
 /// No column-mapping step: ProductImportEngine expects fixed header
 /// names (name/selling_price required; sku optional and auto-generated
-/// when omitted, matching AddEditProductScreen — see that engine's own
-/// doc comment), not arbitrary ones — Volume 6's "CSV Mapping" screen
-/// would be building a remapping capability the engine underneath
-/// doesn't have. This screen's format guide is the honest equivalent:
-/// show the required shape up front, catch mismatches on Review instead
-/// of pretending to remap them.
+/// when omitted, matching AddEditProductScreen). This screen's format
+/// guide shows that shape up front and catches mismatches on Review,
+/// rather than offering a remapping capability the engine doesn't have.
 class BulkImportScreen extends ConsumerStatefulWidget {
   const BulkImportScreen({super.key});
 
@@ -37,11 +27,32 @@ class BulkImportScreen extends ConsumerStatefulWidget {
 
 class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
   final _contentController = TextEditingController();
+  bool _picking = false;
 
   @override
   void dispose() {
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickFile() async {
+    setState(() => _picking = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        withData: true,
+      );
+      final bytes = result?.files.single.bytes;
+      if (bytes == null) return; // canceled, or a picker that didn't return data
+      _contentController.text = utf8.decode(bytes, allowMalformed: true);
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      showFulusSnackbar(context, message: "Couldn't read that file. Try pasting its contents instead.");
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
   @override
@@ -85,7 +96,18 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          FulusSectionHeader(title: 'Paste your CSV'),
+          SizedBox(
+            width: double.infinity,
+            child: FulusButton(
+              label: 'Choose a .csv file',
+              icon: Icons.upload_file,
+              variant: FulusButtonVariant.secondary,
+              loading: _picking,
+              onPressed: _picking ? null : _pickFile,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          FulusSectionHeader(title: 'Or paste manually'),
           FulusTextField(
             label: 'CSV content',
             controller: _contentController,

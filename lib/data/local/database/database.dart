@@ -62,6 +62,17 @@ part 'database.g.dart';
 /// `Expenses.receiptPhotoPath` — purely additive, same `addColumn`
 /// treatment as `Products.photoPath`/`Customers.photoPath` got in the
 /// `from < 3` block below, just one version later.
+///
+/// FIFTH MERGE NOTE (DB-level uniqueness on Products.sku/barcode):
+/// schemaVersion is 6. Two partial unique indexes, issued via
+/// `customStatement` rather than `Products.uniqueKeys` — Drift's
+/// `uniqueKeys` can't express the `WHERE deleted_at IS NULL` clause
+/// these need so a soft-deleted product's sku/barcode can be reused by
+/// a new one, matching how every other uniqueness check in this app
+/// already treats a soft-deleted row as gone. Defense-in-depth
+/// alongside the existing application-layer generator
+/// (`product_import_engine.dart::_generateSku`), not a replacement for
+/// it.
 @DriftDatabase(
   tables: [
     Locations,
@@ -137,13 +148,21 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
         await m.createAll();
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku '
+          'ON products(sku) WHERE deleted_at IS NULL',
+        );
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode '
+          'ON products(barcode) WHERE deleted_at IS NULL',
+        );
       },
       // The first real onUpgrade implementation this project has needed
       // — schemaVersion 1 -> 2. Covers every table that's new relative
@@ -269,6 +288,32 @@ class AppDatabase extends _$AppDatabase {
           // needed for existing rows, which simply start out with no
           // receipt photo attached.
           await m.addColumn(expenses, expenses.receiptPhotoPath);
+        }
+        if (from < 6) {
+          // Same two indexes onCreate gets, added here for installs
+          // that already have a products table. Wrapped individually:
+          // this is defense-in-depth, not the primary guarantee (the
+          // generator in product_import_engine.dart already avoids
+          // collisions on new writes), so an install that somehow
+          // already has a duplicate sku or barcode just doesn't get
+          // the index for that column, rather than the whole upgrade
+          // failing over it.
+          try {
+            await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku '
+              'ON products(sku) WHERE deleted_at IS NULL',
+            );
+          } catch (_) {
+            // Pre-existing duplicate sku on this device — skip the index.
+          }
+          try {
+            await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode '
+              'ON products(barcode) WHERE deleted_at IS NULL',
+            );
+          } catch (_) {
+            // Pre-existing duplicate barcode on this device — skip the index.
+          }
         }
       },
       beforeOpen: (details) async {

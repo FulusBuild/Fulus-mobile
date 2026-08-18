@@ -177,6 +177,9 @@ class FulusIconButton extends StatelessWidget {
               minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
             ),
           );
-    return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    final wrapped = tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    return tooltip == null
+        ? wrapped
+        : Semantics(button: true, label: tooltip, excludeSemantics: true, child: wrapped);
   }
 }

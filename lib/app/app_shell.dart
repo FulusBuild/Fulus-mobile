@@ -172,42 +172,56 @@ class _SyncStatusIndicator extends ConsumerWidget {
       SyncStatusKind.syncing => (Icons.sync, AppColors.primaryOf(context), 0),
       SyncStatusKind.attentionNeeded => (Icons.warning_amber_outlined, AppColors.warningOf(context), status.attentionCount),
     };
+    final label = switch (status.kind) {
+      SyncStatusKind.disabled => 'Sync is off',
+      SyncStatusKind.settled => 'All synced',
+      SyncStatusKind.syncing => 'Syncing now',
+      SyncStatusKind.pending =>
+        badgeCount > 0 ? 'Sync pending, $badgeCount item${badgeCount == 1 ? '' : 's'} waiting' : 'Sync pending',
+      SyncStatusKind.attentionNeeded =>
+        badgeCount > 0 ? 'Sync needs attention, $badgeCount item${badgeCount == 1 ? '' : 's'}' : 'Sync needs attention',
+    };
 
-    return Padding(
-      padding: const EdgeInsets.only(right: AppSpacing.md, top: AppSpacing.xs),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: () => context.pushNamed('moreSyncDetail'),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xs),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: color, size: AppIconSize.compact),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -4,
-                    right: -6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      constraints: const BoxConstraints(minWidth: 14),
-                      decoration: BoxDecoration(
-                        color: status.kind == SyncStatusKind.attentionNeeded
-                            ? AppColors.warningOf(context)
-                            : AppColors.textSecondaryOf(context),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$badgeCount',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.md, top: AppSpacing.xs),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => context.pushNamed('moreSyncDetail'),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, color: color, size: AppIconSize.compact),
+                  if (badgeCount > 0)
+                    Positioned(
+                      top: -4,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        constraints: const BoxConstraints(minWidth: 14),
+                        decoration: BoxDecoration(
+                          color: status.kind == SyncStatusKind.attentionNeeded
+                              ? AppColors.warningOf(context)
+                              : AppColors.textSecondaryOf(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$badgeCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

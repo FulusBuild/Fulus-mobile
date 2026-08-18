@@ -88,58 +88,42 @@ import 'providers.dart';
 /// written, before this file existed) resolve to something real.
 ///
 /// Order matters here and is deliberate, not incidental: the database
-/// opens first because everything else (secure storage doesn't depend on
-/// it, but the eventual repository layer does) should be able to assume
-/// it's ready.
+/// opens first because the repository layer depends on it being ready.
 ///
-/// **Merge note (integrating Stages 1-4 + 9-12 + 13-17):** the Stage
-/// 13-17 session's own version of this comment claimed
-/// "AuthRepositoryImpl currently has no local-authentication path at
-/// all (login() calls _authApi.login() directly)" as the reason
-/// ApiClient/AuthApi stay unconditional rather than gated behind
-/// SyncConfig. That claim was accurate against the bare checkpoint that
-/// session had visibility into, not against Stage 2's actual
-/// implementation (which that session never received — see
-/// HANDOVER-2.md's own audit trail on this exact point). It's moot now
-/// either way: AuthRepositoryImpl.login() is fully local since Stage 2
-/// (no ApiClient/AuthApi involvement at all — see that file's own doc
-/// comment), so there's no login-availability reason left to keep
-/// ApiClient/AuthApi unconditional. They stay unconditional anyway,
-/// for a reason that doesn't depend on any of that: constructing them is
-/// inert (ApiClient's own doc comment — building a Dio instance makes no
-/// network call by itself), and ApprovalPinRepositoryImpl's push/pull
-/// still uses AuthApi regardless of the general sync toggle (Stage 3's
-/// own reasoning: an owner's approval PIN sync is a narrower, separate
-/// concern from bulk catalog/settings sync). What Stage 16 actually
-/// gates: the three read-repository pull-sync calls below, and (inside
-/// sync_triggers.dart itself) every path that would start the sync
-/// engine or touch the network on an ongoing basis.
+/// ApiClient/AuthApi are constructed unconditionally, not gated behind
+/// SyncConfig: constructing a Dio instance makes no network call by
+/// itself (see ApiClient's own doc comment), and
+/// ApprovalPinRepositoryImpl's push/pull still uses AuthApi regardless
+/// of the general sync toggle — an owner's approval-PIN sync is a
+/// narrower, separate concern from bulk catalog/settings sync. What
+/// SyncConfig actually gates: the three read-repository pull-sync calls
+/// below, and (inside sync_triggers.dart itself) every path that would
+/// start the sync engine or touch the network on an ongoing basis.
 Future<ProviderContainer> bootstrap() async {
   // AppDatabase.open() uses LazyDatabase internally (see database.dart) —
   // the actual file I/O is deferred until the first query, not blocking
   // here, but the object itself is real and ready to be depended on by
   // the time this function returns.
   //
-  // `var`, not `final`: AppDatabaseLifecycle (Stage 10/Backup) needs to
-  // be able to swap this to a freshly-reopened instance after a restore
-  // closes the original connection — see that class's own doc comment
-  // for exactly what this does and does not achieve regarding the
-  // repositories constructed below, which capture today's value directly
-  // and are NOT retroactively updated by a later reassignment here.
+  // `var`, not `final`: AppDatabaseLifecycle needs to be able to swap
+  // this to a freshly-reopened instance after a restore closes the
+  // original connection — see that class's own doc comment for exactly
+  // what this does and does not achieve regarding the repositories
+  // constructed below, which capture today's value directly and are NOT
+  // retroactively updated by a later reassignment here.
   var database = AppDatabase.open();
 
   final secureStorage = SecureStorage();
 
-  // Stage 16: loaded early, right alongside the other basic infra above,
-  // since it gates several of the steps immediately below — see
-  // SyncConfig's own doc comment for why this defaults to disabled and
-  // what that default is actually claiming.
+  // Loaded early, right alongside the other basic infra above, since it
+  // gates several of the steps immediately below — see SyncConfig's own
+  // doc comment for why this defaults to disabled and what that default
+  // is actually claiming.
   final syncConfig = await SyncConfig.load();
 
-  // Nice-to-have gap closure — Volume 3 (Onboarding polish). Same
-  // reasoning as SyncConfig immediately above: loaded early, alongside
-  // the other basic infra, since _ShellGate (router.dart) needs its
-  // value before the widget tree's first real build.
+  // Loaded early for the same reason as SyncConfig immediately above:
+  // _ShellGate (router.dart) needs its value before the widget tree's
+  // first real build.
   final onboardingState = await OnboardingState.load();
 
   // Read from EnvConfig (core/config/env_config.dart) — see that file
@@ -169,10 +153,10 @@ Future<ProviderContainer> bootstrap() async {
 
   // Constructed before AuthRepositoryImpl on purpose: AuthRepositoryImpl
   // depends on AuditRepository (to log login/logout/account-creation
-  // events, Stage 3), and AuditRepositoryImpl has no dependency on
-  // AuthRepository at all — see AuditRepository.getAuditLogs' own doc
-  // comment on why that asymmetry is deliberate, not an oversight; the
-  // reverse would make the two impossible to construct.
+  // events), and AuditRepositoryImpl has no dependency on AuthRepository
+  // at all — see AuditRepository.getAuditLogs' own doc comment on why
+  // that asymmetry is deliberate, not an oversight; the reverse would
+  // make the two impossible to construct.
   final auditRepository = AuditRepositoryImpl(db: database);
 
   final authRepository = AuthRepositoryImpl(
@@ -181,12 +165,10 @@ Future<ProviderContainer> bootstrap() async {
     auditRepository: auditRepository,
   );
 
-  // Was: "attempt a silent refresh using the stored refresh token before
-  // showing any login screen at all," per Architecture Section 6 —
-  // Architecture Redesign: restoreSession() is now a plain local Sessions
-  // + Users table lookup, no network call at all, so awaiting it here
-  // costs nothing and there's no "network failure" branch left to reason
-  // about — it either finds a valid local session or it doesn't.
+  // restoreSession() is a plain local Sessions + Users table lookup, no
+  // network call at all, so awaiting it here costs nothing and there's
+  // no "network failure" branch to reason about — it either finds a
+  // valid local session or it doesn't.
   await authRepository.restoreSession();
 
   final approvalPinRepository = ApprovalPinRepositoryImpl(
@@ -239,24 +221,20 @@ Future<ProviderContainer> bootstrap() async {
     db: database,
     syncQueue: syncQueue,
   );
-  // Phase 0 completion pass: Product is no longer read + pull-sync
-  // only — createProduct/updateProduct now push through the same
-  // SyncQueue/SyncEngine machinery every other write-capable repository
-  // here does (Product Design Bible Volume 6, "Adding & Managing
-  // Products" is a real mobile capability, confirmed directly against
-  // the Bible's own text — see ProductRepository's interface doc for
-  // the fuller reasoning).
+  // Product is no longer read + pull-sync only — createProduct/
+  // updateProduct now push through the same SyncQueue/SyncEngine
+  // machinery every other write-capable repository here does; see
+  // ProductRepository's interface doc for the fuller reasoning.
   final productRepository = ProductRepositoryImpl(
     db: database,
     productsApi: productsApi,
     syncQueue: syncQueue,
   );
-  // Stages 5-8 additions (Category/Supplier/CustomerCredit/DraftCart/
-  // Return) — inserted here rather than interleaved individually
-  // above, since every one of them needs at least productRepository
-  // (already constructed by this point) and some need each other too;
-  // grouping them keeps the dependency order legible in one place
-  // instead of scattered.
+  // Category/Supplier/CustomerCredit/DraftCart/Return are grouped here
+  // rather than interleaved individually above, since every one of them
+  // needs at least productRepository (already constructed by this
+  // point) and some need each other too — grouping keeps the dependency
+  // order legible in one place instead of scattered.
   //
   // Category/Supplier — same push-sync shape as customerRepository
   // above (write-locally-then-enqueue), not productRepository's
@@ -276,11 +254,10 @@ Future<ProviderContainer> bootstrap() async {
   // marked settled by convention today; see CustomerCreditRepository's
   // own doc comment and CustomerLedgerEntryType's per-variant reasoning
   // for exactly why.)
-  // The actual Decision 14 cart-persistence layer — see
-  // DraftCartRepository's own doc comment. Depends on both
-  // productRepository (price/name lookups when adding a catalog item)
-  // and saleRepository (completeSale's bridge to a real, synced Sale) —
-  // both already constructed above.
+  // The cart-persistence layer — see DraftCartRepository's own doc
+  // comment. Depends on both productRepository (price/name lookups when
+  // adding a catalog item) and saleRepository (completeSale's bridge to
+  // a real, synced Sale) — both already constructed above.
   final draftCartRepository = DraftCartRepositoryImpl(
     db: database,
     productRepository: productRepository,
@@ -291,15 +268,14 @@ Future<ProviderContainer> bootstrap() async {
     syncQueue: syncQueue,
     customerCreditRepository: customerCreditRepository,
   );
-  // Finance (Stage 8) additions — same grouping-not-interleaving
-  // reasoning as the Category/Supplier/CustomerCredit/DraftCart/Return
-  // group above.
+  // Finance additions — same grouping-not-interleaving reasoning as the
+  // Category/Supplier/CustomerCredit/DraftCart/Return group above.
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
   );
-  // Mirrors customerCreditRepository above — Decision 26's "works
-  // exactly like the customer credit book," opposite direction.
+  // Mirrors customerCreditRepository above — works exactly like the
+  // customer credit book, opposite direction.
   final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database);
   final taxRemittanceRepository = TaxRemittanceRepositoryImpl(db: database);
   final financeStatsRepository = FinanceStatsRepositoryImpl(db: database);
@@ -308,23 +284,19 @@ Future<ProviderContainer> bootstrap() async {
     syncQueue: syncQueue,
     authRepository: authRepository,
   );
-  // CORRECTED: this used to say "read + pull-sync only, deliberately no
-  // create/update method" — LocationRepository now also creates
-  // locations locally (mobile-side location management), so it needs
-  // the same syncQueue dependency supplierRepository/categoryRepository
-  // already take for their own create-locally-then-push path.
+  // LocationRepository also creates locations locally (mobile-side
+  // location management), so it needs the same syncQueue dependency
+  // supplierRepository/categoryRepository already take for their own
+  // create-locally-then-push path.
   final locationRepository = LocationRepositoryImpl(
     db: database,
     locationsApi: locationsApi,
     syncQueue: syncQueue,
   );
-  // STALE COMMENT CORRECTED (Stage 4): this used to say "read +
-  // pull-sync only, matching the backend's BusinessProfile having no
-  // create/update path from mobile either" — Stage 4 added
-  // createBusiness/updateSettings to close a real offline-onboarding
-  // gap (a fresh install couldn't complete "create your business"
-  // without a server). authRepository must exist first — see the
-  // comment right above authRepository's own construction for why.
+  // createBusiness/updateSettings close a real offline-onboarding gap (a
+  // fresh install couldn't complete "create your business" without a
+  // server). authRepository must exist first — see the comment right
+  // above authRepository's own construction for why.
   final businessSettingsRepository = BusinessSettingsRepositoryImpl(
     db: database,
     businessSettingsApi: businessSettingsApi,
@@ -368,19 +340,17 @@ Future<ProviderContainer> bootstrap() async {
   //
   // What this deliberately does NOT solve: a fresh install's very first
   // launch with zero connectivity has no cached Location/Product data to
-  // fall back to regardless of what runs here — that's a real,
-  // separate onboarding-UX gap (the Product Design Bible's eventual
-  // "waiting for setup" treatment), not something built as part of
-  // choosing this trigger.
+  // fall back to regardless of what runs here — that's a real, separate
+  // onboarding-UX gap (an eventual "waiting for setup" treatment), not
+  // something built as part of choosing this trigger.
   //
-  // Stage 16: gated behind syncConfig.isEnabled — these three calls are
-  // the one place in bootstrap.dart that reaches the network on an
-  // ongoing (well, once-per-launch) basis outside of auth/approval-pin
-  // sync, so they're the one place here that needs an explicit check
-  // rather than relying on sync_triggers.dart's own internal guards
-  // (which don't cover these three at all — they call *Api directly,
-  // bypassing SyncTriggers/SyncEngine entirely, per the paragraph
-  // above).
+  // Gated behind syncConfig.isEnabled: these three calls are the one
+  // place in bootstrap.dart that reaches the network on an ongoing
+  // (well, once-per-launch) basis outside of auth/approval-pin sync, so
+  // they're the one place here that needs an explicit check rather than
+  // relying on sync_triggers.dart's own internal guards (which don't
+  // cover these three at all — they call *Api directly, bypassing
+  // SyncTriggers/SyncEngine entirely, per the paragraph above).
   if (syncConfig.isEnabled) {
     unawaited(locationRepository.syncFromServer().catchError((_) {}));
     unawaited(businessSettingsRepository.syncFromServer().catchError((_) {}));
@@ -462,21 +432,20 @@ Future<ProviderContainer> bootstrap() async {
       'stock_movement': stockMovementSyncHandler,
       'product': productSyncHandler,
     },
-    // Stage 16: passed explicitly so this and syncStatusNotifier below
-    // are guaranteed to agree — see defaultSyncAttentionThreshold's own
-    // doc comment (sync/sync_status_notifier.dart) for why that's a
-    // named constant now rather than two independent literal 5s.
+    // Passed explicitly so this and syncStatusNotifier below are
+    // guaranteed to agree — see defaultSyncAttentionThreshold's own doc
+    // comment (sync/sync_status_notifier.dart) for why that's a named
+    // constant now rather than two independent literal 5s.
     maxAttemptsBeforeAttentionNeeded: defaultSyncAttentionThreshold,
   );
 
-  // --- Stage 13: Notifications ---
+  // --- Notifications ---
   // Constructed before syncStatusNotifier below, which depends on it.
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(
     notificationRepository: notificationRepository,
   );
 
-  // --- Stage 16: Sync Layer Repositioning (status/notification tie-in) ---
   final syncStatusNotifier = SyncStatusNotifier(
     db: database,
     syncConfig: syncConfig,
@@ -495,7 +464,7 @@ Future<ProviderContainer> bootstrap() async {
 
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
-  // --- Stage 15: Device Services ---
+  // --- Device Services ---
   final printerRepository = PrinterRepositoryImpl(db: database);
   final receiptPrinterService = ReceiptPrinterService(
     printerRepository: printerRepository,
@@ -504,13 +473,11 @@ Future<ProviderContainer> bootstrap() async {
   final barcodeScannerService = BarcodeScannerService();
   final cameraService = CameraService();
 
-  // --- Stage 14: Search / Export ---
+  // --- Search / Export ---
   final searchRepository = SearchRepositoryImpl(db: database);
   final globalSearch = GlobalSearch(searchRepository: searchRepository);
   final exportService = ExportService();
 
-  // Phase 0 completion pass — Product Design Bible Volume 6, "Bulk
-  // Import."
   final importProductsFromCsv = ImportProductsFromCsv(
     productRepository: productRepository,
     categoryRepository: categoryRepository,
@@ -577,20 +544,16 @@ Future<ProviderContainer> bootstrap() async {
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
-      // Stage 16
       syncConfigProvider.overrideWithValue(syncConfig),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       // Onboarding polish
       onboardingStateProvider.overrideWithValue(onboardingState),
-      // Stage 13
       notificationRepositoryProvider.overrideWithValue(notificationRepository),
       notificationServiceProvider.overrideWithValue(notificationService),
-      // Stage 14
       searchRepositoryProvider.overrideWithValue(searchRepository),
       globalSearchProvider.overrideWithValue(globalSearch),
       importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),
       exportServiceProvider.overrideWithValue(exportService),
-      // Stage 15
       printerRepositoryProvider.overrideWithValue(printerRepository),
       receiptPrinterServiceProvider.overrideWithValue(receiptPrinterService),
       printerDiscoveryServiceProvider.overrideWithValue(printerDiscoveryService),

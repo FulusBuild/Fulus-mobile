@@ -9,6 +9,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/product.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../../../shared/screens/barcode_scan_screen.dart';
 import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -88,7 +89,10 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
     final price = double.tryParse(_priceController.text.trim());
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Give this product a name.';
-    if (price == null || price <= 0) errors['price'] = "Price can't be ₦0.";
+    if (price == null || price <= 0) {
+      final currencySymbol = ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+      errors['price'] = "Price can't be ${currencySymbol}0.";
+    }
 
     final cost = double.tryParse(_costController.text.trim());
     final threshold = int.tryParse(_thresholdController.text.trim()) ?? 10;

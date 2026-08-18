@@ -70,9 +70,12 @@ class _OpeningFloatFormState extends ConsumerState<_OpeningFloatForm> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           hintText: '0.00',
           errorText: _error,
-          suffixIcon: const Padding(
-            padding: EdgeInsets.only(right: AppSpacing.lg),
-            child: Align(widthFactor: 1, child: Text('₦')),
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.lg),
+            child: Align(
+              widthFactor: 1,
+              child: Text(ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦'),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),

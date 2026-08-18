@@ -116,6 +116,13 @@ dependencies:
   # `printing` above rather than a separate package ---
   # (no additional package beyond pdf/printing/share_plus above)
 
+  # File picking for bulk-import's file-based flow (BulkImportScreen).
+  # Deliberately on the 11.x line, not 12.x: file_picker 12 changed
+  # pickFiles() to return List<PlatformFile> directly instead of
+  # FilePickerResult?, and the code here (and this constraint) is
+  # written against 11's API.
+  file_picker: ^11.0.0
+
   # --- Stage 15 (Device Services) ---
   mobile_scanner: ^6.0.2
   camera: ^0.11.0+2

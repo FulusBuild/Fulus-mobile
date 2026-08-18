@@ -1,29 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// Every value below is copied directly from Volume 16 (Mobile Design
-/// System) of the Fulus Mobile Product Design Bible's own "Design Tokens:
-/// The Reference Table" — re-read from the source document immediately
-/// before writing this file, not recalled from an earlier pass through
-/// it weeks prior. Per Architecture Section 1: "Volume 16 tokens: color,
-/// typography, spacing — as Dart constants, not hardcoded [inline
-/// throughout the UI]." This file IS that constant set; nowhere else in
-/// the codebase should a hex color or a raw spacing number appear
-/// inline — every UI file references these names instead.
+/// Design tokens: color, typography, spacing, motion. No hex color or
+/// raw spacing/duration number should appear inline anywhere else in
+/// the codebase — UI code references these names instead.
 class AppColors {
   AppColors._();
 
-  // "Primary doubles as the success color rather than introducing a
-  // second green" — Volume 16, Color System. Used for primary buttons,
-  // the elevated Sell action, and positive/synced states, per the
-  // Bible's own stated reuse — there is no separate "success" token.
+  // Primary doubles as the success color (primary buttons, the Sell
+  // action, positive/synced states) — there is no separate "success"
+  // token.
   static const primary = Color(0xFF0E6B5C);
 
   static const warning = Color(0xFFD97706);
   static const error = Color(0xFFB3261E);
-  // No standalone "info" concept existed in this file before — the
-  // Visual Design Bible treats it as a full peer of warning/error (its
-  // own 50–900 ramp, its own dark variant), so it gets the same flat
-  // semantic alias treatment those two already have.
+  // info is treated as a peer of warning/error: same flat semantic-alias
+  // treatment, own tint ramp, own dark variant.
   static const info = Color(0xFF2E629E);
 
   static const textPrimaryLight = Color(0xFF1A1A1A);
@@ -34,19 +25,13 @@ class AppColors {
   static const surfaceLight = Color(0xFFFFFFFF);
   static const surfaceAltLight = Color(0xFFF3F3F3);
 
-  // "Dark mode isn't light mode inverted. Surfaces lift slightly above
-  // pure black... rather than true black-on-black" — Volume 16, Dark
-  // Mode & Light Mode.
+  // Dark mode isn't light mode inverted — surfaces lift slightly above
+  // pure black instead of true black-on-black.
   static const backgroundDark = Color(0xFF121212);
   static const surfaceDark = Color(0xFF1E1E1E);
   static const surfaceAltDark = Color(0xFF292929);
   static const borderDark = Color(0xFF333333);
 
-  // Volume 16 states colors "desaturate a touch in dark mode" but gives
-  // no exact desaturated hex values in its own prose — only the
-  // light-mode values and that qualitative direction. The Visual Design
-  // Bible (10-Design-Tokens, not Volume 16 itself) since worked out real
-  // values for this; sourced from there rather than invented here.
   static const darkWarning = Color(0xFFE69E4C);
   static const darkWarningOn = Color(0xFF1A1A1A);
   static const darkError = Color(0xFFE27A74);
@@ -55,25 +40,12 @@ class AppColors {
   static const darkPrimaryStrong = Color(0xFF6BD9C6);
   static const darkOnPrimary = Color(0xFF0A2420);
   static const darkInfo = Color(0xFF699BD3);
-  // Text — sourced from the Visual Design Bible's 10-Design-Tokens.dart
-  // (darkTextPrimary/darkTextSecondary), the same source as the
-  // desaturated semantic colors above. This file previously had no
-  // dark-mode text values at all — AppTheme.dark fell back to
-  // Colors.white/white70 as an honest placeholder rather than inventing
-  // a hex value Volume 16 never stated. The Bible has since worked out
-  // real values, so that placeholder is retired below.
   static const darkTextPrimary = Color(0xFFF0F0F0);
   static const darkTextSecondary = Color(0xFFADADAD);
-  // Foundation phase (shared components + theme reconciliation):
-  // AppTheme.dark now consumes every dark-mode token above — see
-  // app_theme.dart. The "does NOT consume these yet" gap this comment
-  // used to flag is closed.
 
-  // Full tint ramps, for call sites needing something between a flat
-  // semantic color and a hand-picked hex (chip fills, pressed/hover
-  // states, subtle tints). Neither Volume 16 nor this file exposed
-  // these before; sourced from the Visual Design Bible's own ramps,
-  // which is the only place they're defined.
+  // Tint ramps for call sites needing something between a flat semantic
+  // color and a hand-picked hex: chip fills, pressed/hover states,
+  // subtle backgrounds.
   static const primary50 = Color(0xFFEEF9F7);
   static const primary100 = Color(0xFFD4F2ED);
   static const primary200 = Color(0xFFA1E8DC);
@@ -148,14 +120,11 @@ class AppColors {
   static Color textPrimaryOf(BuildContext context) => isDark(context) ? darkTextPrimary : textPrimaryLight;
   static Color textSecondaryOf(BuildContext context) => isDark(context) ? darkTextSecondary : textSecondaryLight;
 
-  /// The "Primary/50 fill" selected-state tint used by Chips (5.2) and
-  /// the Dropdown/Select's selected row (5.13). primary50 is a
-  /// light-surface tint with no dark-mode counterpart defined anywhere
-  /// in the Bible, so dark mode instead applies AppOpacity.badgeTintDark
-  /// (0.14) over darkPrimary — that opacity value is exactly what the
-  /// Bible itself specifies for "dark-mode selected chip/tag fills," so
-  /// this isn't an invented number, just the two real per-theme values
-  /// collapsed into one accessor.
+  /// The "Primary/50 fill" selected-state tint used by Chips and the
+  /// Dropdown/Select's selected row. primary50 is a light-surface tint
+  /// with no dark-mode counterpart, so dark mode instead applies
+  /// AppOpacity.badgeTintDark (0.14) over darkPrimary — the two real
+  /// per-theme values collapsed into one accessor.
   static Color selectedTintOf(BuildContext context) =>
       isDark(context) ? darkPrimary.withOpacity(AppOpacity.badgeTintDark) : primary50;
 }
@@ -163,14 +132,11 @@ class AppColors {
 class AppTypography {
   AppTypography._();
 
-  // Sizes and weights per Volume 16's Typography table exactly. Roboto
-  // is not set explicitly as a fontFamily anywhere in this file — Volume
-  // 16 states "The system font (Roboto on Android), not a custom
-  // typeface", and Flutter's Material theme already defaults to the
-  // platform's system font on Android without needing an explicit
-  // fontFamily override, so setting one here would be redundant at best
-  // and a real risk of silently diverging from "system font" if Roboto
-  // ever isn't the system default on some future Android version.
+  // Roboto is not set explicitly as a fontFamily anywhere in this file:
+  // Flutter's Material theme already defaults to the platform's system
+  // font on Android without an explicit override, so setting one here
+  // would be redundant at best and a real risk of silently diverging
+  // from "system font" if Roboto ever isn't the Android default.
 
   static const display = TextStyle(
     fontSize: 36,
@@ -179,8 +145,6 @@ class AppTypography {
     letterSpacing: -0.5,
   );
 
-  // New — the Bible's scale has a step between display and heading that
-  // this file didn't have yet.
   static const title = TextStyle(
     fontSize: 28,
     fontWeight: FontWeight.w700,
@@ -194,28 +158,26 @@ class AppTypography {
     height: 1.25,
   );
 
-  // New.
   static const subheading = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.w600,
     height: 1.3,
   );
 
-  // New — body's larger sibling; the Bible uses this for lead paragraphs
-  // and empty-state copy where 16sp reads slightly cramped.
+  // body's larger sibling, for lead paragraphs and empty-state copy
+  // where 16sp reads slightly cramped.
   static const bodyLarge = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.normal,
     height: 1.55,
   );
 
-  // "16sp as the body minimum is deliberate — smaller is common in this
-  // category, but not appropriate for the low-vision and low-literacy
-  // accessibility bar set in Volume 1." This is not a default Material
-  // body size (Flutter's own Typography.material2021 bodyMedium is
-  // 14sp) — it's a specific, deliberate product requirement, which is
-  // exactly why it's named here explicitly rather than left to Flutter's
-  // own default and assumed to already be correct.
+  // 16sp as the body minimum is deliberate: smaller is common in this
+  // app category, but not appropriate for the low-vision and
+  // low-literacy accessibility bar this product targets. Not a default
+  // Material body size either (Flutter's Typography.material2021
+  // bodyMedium is 14sp) — a specific product requirement, named here
+  // explicitly rather than left to Flutter's default.
   static const body = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.normal,
@@ -228,9 +190,9 @@ class AppTypography {
     height: 1.5,
   );
 
-  // New — small, weighted, wide-tracked; the Bible uses this for chip/
-  // tag text and section eyebrows, distinct from caption's body-adjacent
-  // use (e.g. helper text under a field).
+  // Small, weighted, wide-tracked — chip/tag text and section eyebrows,
+  // distinct from caption's body-adjacent use (e.g. helper text under a
+  // field).
   static const label = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w500,
@@ -238,10 +200,8 @@ class AppTypography {
     letterSpacing: 0.6,
   );
 
-  // Named buttonLabel here, "button" in the Bible's own export — kept
-  // this file's existing name rather than renaming (4 existing call
-  // sites reference AppTypography.buttonLabel already; renaming is a
-  // pure cosmetic sync with zero functional benefit for the churn).
+  // 4 existing call sites reference AppTypography.buttonLabel already;
+  // kept this name rather than renaming for a purely cosmetic sync.
   static const buttonLabel = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w600,
@@ -250,11 +210,10 @@ class AppTypography {
   );
 }
 
-/// "A 4dp base unit, scaling as: 4, 8, 12, 16, 24, 32, 48." — Volume 16,
-/// Spacing & Layout. Named constants rather than a raw list, so a call
-/// site reads as `AppSpacing.md` (intent) rather than `spacingScale[3]`
-/// (an index into a list, which says nothing about why that value was
-/// chosen at that call site).
+/// A 4dp base unit, scaling as 4/8/12/16/24/32/48. Named constants
+/// rather than a raw list, so a call site reads as `AppSpacing.md`
+/// (intent) rather than `spacingScale[3]` (an index that says nothing
+/// about why that value was chosen at that call site).
 class AppSpacing {
   AppSpacing._();
 
@@ -267,9 +226,7 @@ class AppSpacing {
   static const xxxl = 48.0;
 }
 
-/// Corner radius scale. Didn't exist as named constants anywhere before
-/// this — call sites presumably hardcoded BorderRadius values inline.
-/// Sourced from the Visual Design Bible's own radius scale.
+/// Corner radius scale.
 class AppRadius {
   AppRadius._();
 
@@ -280,11 +237,11 @@ class AppRadius {
 }
 
 /// Two-level elevation system — deliberately not a 0–5 Material scale.
-/// Per the Visual Design Bible: "Fulus only ever needs 'resting' (cards,
-/// list rows) and 'lifted' (dialogs, sheets, the elevated Sell button,
-/// Home hero). A third level was never designed because nothing in the
-/// product sits at an in-between depth; add one only if a real screen
-/// needs it, not speculatively."
+/// This app only ever needs "resting" (cards, list rows) and "lifted"
+/// (dialogs, sheets, the elevated Sell button, Home hero). A third
+/// level was never designed because nothing in the product sits at an
+/// in-between depth; add one only if a real screen needs it, not
+/// speculatively.
 class AppElevation {
   AppElevation._();
 
@@ -315,9 +272,7 @@ class AppElevation {
 }
 
 /// Named opacity values, so a dimmed row or a scrim references a name
-/// instead of a new inline literal at every call site — per the Bible,
-/// this table existed in prose before but was never exposed as reusable
-/// values in any format.
+/// instead of a new inline literal at every call site.
 class AppOpacity {
   AppOpacity._();
 
@@ -333,40 +288,39 @@ class AppOpacity {
   static const scrim = 0.45;
 }
 
-/// "Minimum touch target: 48×48dp, everywhere, no exceptions." — Volume
-/// 16, Accessibility. Not folded into AppSpacing.xxxl even though the
-/// numeric value is identical (48.0), because the two mean different
-/// things at a call site: AppSpacing.xxxl is "the largest step on the
-/// spacing scale", AppTouchTarget.minimum is "the accessibility floor
-/// for anything tappable" — conflating them would make a future spacing
-/// change silently also change the touch-target floor, or vice versa.
+/// Minimum touch target: 48×48dp, everywhere, no exceptions. Not folded
+/// into AppSpacing.xxxl even though the numeric value is identical
+/// (48.0), because the two mean different things at a call site:
+/// AppSpacing.xxxl is "the largest step on the spacing scale",
+/// AppTouchTarget.minimum is "the accessibility floor for anything
+/// tappable" — conflating them would make a future spacing change
+/// silently also change the touch-target floor, or vice versa.
 class AppTouchTarget {
   AppTouchTarget._();
 
   static const minimum = 48.0;
 }
 
-/// "Motion 150–250ms standard, 300ms ceiling (Volume 15)." — Volume 16's
-/// own reference table, cross-referencing Volume 15. Matches Architecture
-/// Section 12's own "step-to-step transitions under 300ms" performance
-/// target exactly — the product spec and the performance target are the
-/// same number, not a coincidence worth losing track of.
+/// Motion: 150-250ms standard, 300ms ceiling. Matches this app's own
+/// "step-to-step transitions under 300ms" performance target exactly —
+/// the product spec and the performance target are the same number, not
+/// a coincidence worth losing track of.
 class AppMotion {
   AppMotion._();
 
   static const fast = Duration(milliseconds: 120);
   static const standard = Duration(milliseconds: 200);
-  static const ceiling = Duration(milliseconds: 300); // Bible calls this "slow" — same 300ms value
+  static const ceiling = Duration(milliseconds: 300);
 
   // Built with Cubic() directly rather than a named Curves.* constant,
-  // so the Flutter easing is the exact same bezier as --ease-standard /
-  // --ease-decelerate in the Bible's CSS, not merely a visually-similar
+  // so the Flutter easing is the exact bezier this design system uses
+  // (--ease-standard / --ease-decelerate), not merely a visually-similar
   // named curve.
   static const curveStandard = Cubic(0.4, 0.0, 0.2, 1.0); // cubic-bezier(0.4,0,0.2,1)
   static const curveDecelerate = Cubic(0.0, 0.0, 0.2, 1.0); // cubic-bezier(0,0,0.2,1)
 }
 
-/// Icon sizing scale. Didn't exist as named constants before this.
+/// Icon sizing scale.
 class AppIconSize {
   AppIconSize._();
 
@@ -378,36 +332,32 @@ class AppIconSize {
   static const strokeWidth = 2.0;
 }
 
-/// "Minimum contrast: 4.5:1 for all body text, in both themes." — Volume
-/// 16, Accessibility. Verified directly, not just referenced: computed
-/// the real WCAG relative-luminance contrast ratio for every light-theme
-/// text/background pairing this token set produces. Text Primary
-/// (#1A1A1A) against Background Light (#FAFAFA) is 16.67:1; against
-/// Surface Light (#FFFFFF) is 17.40:1. Text Secondary (#6B6B6B) — the
-/// tighter case, as expected for a deliberately muted color — is 5.11:1
-/// against Background Light and 5.33:1 against Surface Light. All four
-/// clear the 4.5:1 floor with real margin, not marginally.
+/// Minimum contrast: 4.5:1 for all body text, in both themes. Verified
+/// directly: computed the real WCAG relative-luminance contrast ratio
+/// for every light-theme text/background pairing this token set
+/// produces. Text Primary (#1A1A1A) against Background Light (#FAFAFA)
+/// is 16.67:1; against Surface Light (#FFFFFF) is 17.40:1. Text
+/// Secondary (#6B6B6B) — the tighter case, as expected for a
+/// deliberately muted color — is 5.11:1 against Background Light and
+/// 5.33:1 against Surface Light. All four clear the 4.5:1 floor with
+/// real margin, not marginally.
 ///
-/// Dark-theme pairings, computed the same way now that AppTheme.dark
-/// wires up the real dark-mode tokens instead of falling back to the
-/// light-mode values (see that file): Text Primary Dark (#F0F0F0)
-/// against Background Dark (#121212) is ~16.4:1; against Surface Dark
-/// (#1E1E1E) is ~14.6:1. Text Secondary Dark (#ADADAD) — again the
-/// tighter case — is ~8.4:1 against Background Dark and ~7.4:1 against
-/// Surface Dark. All four clear the floor with more margin than their
-/// light-theme counterparts, not less.
+/// Dark-theme pairings, computed the same way: Text Primary Dark
+/// (#F0F0F0) against Background Dark (#121212) is ~16.4:1; against
+/// Surface Dark (#1E1E1E) is ~14.6:1. Text Secondary Dark (#ADADAD) —
+/// again the tighter case — is ~8.4:1 against Background Dark and
+/// ~7.4:1 against Surface Dark. All four clear the floor with more
+/// margin than their light-theme counterparts, not less.
 const double kMinimumContrastRatio = 4.5;
 
-/// Redesign pass (see PROGRESS.md/CHANGES.md for context): a small,
-/// additive set of hero-surface gradients. Volume 16's own elevation
-/// doc is explicit Fulus only has two elevation levels and deliberately
-/// avoids inventing a third "just because" — the same discipline
-/// applies here: this is not a general-purpose gradient library, only
-/// the two surfaces the redesign actually asked for (Home's hero, and
-/// the sale-success celebration moment), each derived from tokens that
-/// already exist rather than new hand-picked hex values. Kept as a
-/// diagonal 2-stop primary ramp — subtle enough to still read as "the
-/// primary color" at a glance, not a decorative rainbow.
+/// A small, additive set of hero-surface gradients. This app only has
+/// two elevation levels and deliberately avoids inventing a third "just
+/// because" — the same discipline applies here: not a general-purpose
+/// gradient library, only the two surfaces actually needed (Home's
+/// hero, and the sale-success celebration moment), each derived from
+/// tokens that already exist rather than new hand-picked hex values.
+/// Kept as a diagonal 2-stop primary ramp — subtle enough to still read
+/// as "the primary color" at a glance, not a decorative rainbow.
 class AppGradients {
   AppGradients._();
 

@@ -90,20 +90,29 @@ class _StockBadge extends StatelessWidget {
         : isLow
             ? AppColors.warningOf(context)
             : AppColors.textPrimaryOf(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$quantity',
-          style: AppTypography.body.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-            fontFeatures: const [FontFeature.tabularFigures()],
+    final label = isOut
+        ? 'Out of stock'
+        : isLow
+            ? 'Low stock, $quantity $unit left'
+            : '$quantity $unit in stock';
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$quantity',
+            style: AppTypography.body.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
-        ),
-        Text(unit, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      ],
+          Text(unit, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+        ],
+      ),
     );
   }
 }
