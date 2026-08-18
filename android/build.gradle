@@ -44,6 +44,9 @@ rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
+subprojects {
+    project.evaluationDependsOn(":app")
+}
 
 // Workaround for old, unmaintained plugins (flutter_usb_printer in
 // particular) that predate AGP's namespace requirement: AGP 8+ needs
@@ -55,25 +58,14 @@ subprojects {
 // `namespace` for any library module that doesn't already have one,
 // leaving already-namespaced modules untouched.
 //
-// Uses pluginManager.withPlugin rather than afterEvaluate: withPlugin
-// fires the instant "com.android.library" is applied to a subproject,
-// regardless of that subproject's own evaluation order relative to
-// this file or to :app — so it can't miss a subproject that happens
-// to evaluate before this block runs, and doesn't risk registering a
-// new afterEvaluate on a project Gradle already considers evaluated.
-//
-// (An earlier version of this file also forced every subproject to
-// evaluate before :app via `subprojects { evaluationDependsOn(":app") }`,
-// which was the original reason afterEvaluate was unsafe here. That
-// line was removed — it broke plugins such as file_picker whose own
-// build.gradle reads `flutter.compileSdkVersion`/`flutter.ndkVersion`
-// off the root `flutter {}` extension in android/app/build.gradle:
-// forcing those plugins to evaluate before :app meant they ran before
-// the Flutter Gradle Plugin (applied inside :app) had populated that
-// extension, so Gradle saw `flutter` as an unknown property on their
-// LibraryExtension and their compileSdk was never set. withPlugin
-// doesn't need that ordering guarantee, so removing it only affects
-// the afterEvaluate-vs-withPlugin choice this comment documents.)
+// Uses pluginManager.withPlugin rather than afterEvaluate: the
+// `evaluationDependsOn(":app")` above forces some plugin subprojects
+// to evaluate eagerly during this file's own configuration, so by the
+// time a later `subprojects { afterEvaluate { ... } }` block runs,
+// those subprojects may already be evaluated — Gradle refuses to
+// register a new afterEvaluate on an already-evaluated project.
+// withPlugin fires the instant the plugin is applied, independent of
+// each subproject's evaluation order, so it can't lose that race.
 subprojects {
     pluginManager.withPlugin("com.android.library") {
         def androidExt = project.extensions.findByName("android")
