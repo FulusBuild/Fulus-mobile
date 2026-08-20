@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'csv_export_service.dart';
+import 'export_metadata.dart';
 import 'pdf_export_service.dart';
 
 enum ExportFormat { csv, pdf }
@@ -37,18 +38,25 @@ class ExportService {
 
   /// [fileName] should NOT include an extension — this method appends
   /// the correct one for [format] itself, so a caller can't accidentally
-  /// mismatch a `.csv` name with PDF bytes or vice versa.
+  /// mismatch a `.csv` name with PDF bytes or vice versa. [metadata],
+  /// when given, is written into the exported file itself (see
+  /// CsvExportService.build/PdfExportService.build) — business name,
+  /// report name, date range, generated-at, currency, applied filters —
+  /// so the file is self-describing once it's left the app via the
+  /// Share Sheet and the in-app filter bar isn't there to explain it
+  /// anymore.
   Future<void> export({
     required ExportFormat format,
     required String fileName,
     required String title,
     String? subtitle,
+    ExportMetadata? metadata,
     required List<String> headers,
     required List<List<Object?>> rows,
   }) async {
     final file = switch (format) {
-      ExportFormat.csv => await _writeCsv(fileName, headers, rows),
-      ExportFormat.pdf => await _writePdf(fileName, title, subtitle, headers, rows),
+      ExportFormat.csv => await _writeCsv(fileName, metadata, headers, rows),
+      ExportFormat.pdf => await _writePdf(fileName, title, subtitle, metadata, headers, rows),
     };
 
     // share_plus is pinned to ^10.1.2 (see pubspec.yaml's merge note),
@@ -61,10 +69,11 @@ class ExportService {
 
   Future<File> _writeCsv(
     String fileName,
+    ExportMetadata? metadata,
     List<String> headers,
     List<List<Object?>> rows,
   ) async {
-    final content = _csv.build(headers: headers, rows: rows);
+    final content = _csv.build(metadata: metadata, headers: headers, rows: rows);
     final file = await _tempFile('$fileName.csv');
     return file.writeAsString(content);
   }
@@ -73,12 +82,14 @@ class ExportService {
     String fileName,
     String title,
     String? subtitle,
+    ExportMetadata? metadata,
     List<String> headers,
     List<List<Object?>> rows,
   ) async {
     final bytes = await _pdf.build(
       title: title,
       subtitle: subtitle,
+      metadata: metadata,
       headers: headers,
       rows: rows,
     );

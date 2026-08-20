@@ -75,6 +75,56 @@ class TopProduct {
   final double revenue;
 }
 
+/// completed: no return against this sale has ever been completed.
+/// partiallyRefunded/refunded: a completed, non-void return exists,
+/// covering less than / all of what was purchased. voided: a completed
+/// return tagged isVoid exists — see ReturnRequests.isVoid's own doc
+/// comment in tables.dart for what distinguishes the two.
+enum SaleRecordStatus { completed, partiallyRefunded, refunded, voided }
+
+/// One row of the Sales report's drill-down — the audit trail your
+/// brief asked for: "revenue → sales transactions → individual sale →
+/// ... → payment → customer → cashier/user → timestamp →
+/// receipt/reference." Every field here is read straight off the real
+/// Sale record (see ReportsRepositoryImpl.getSalesReport) — nothing
+/// computed or estimated.
+class SaleRecord {
+  const SaleRecord({
+    required this.saleLocalId,
+    required this.saleDate,
+    this.invoiceNumber,
+    this.customerId,
+    this.customerName,
+    this.cashierUserId,
+    this.cashierName,
+    this.paymentMethod,
+    required this.total,
+    required this.discount,
+    required this.status,
+  });
+
+  final String saleLocalId;
+  final DateTime saleDate;
+
+  /// Falls back to a truncated `saleLocalId` when null, same convention
+  /// receipts and global search already use — see
+  /// ReportsRepositoryImpl.getSalesReport for exactly where.
+  final String? invoiceNumber;
+  final String? customerId;
+  final String? customerName;
+  final String? cashierUserId;
+
+  /// Null when [cashierUserId] itself is null (a sale recorded before
+  /// schema v4 added the column) or, less commonly, when that user has
+  /// since been removed — the report doesn't hide the sale in either
+  /// case, it just can't say who rang it up.
+  final String? cashierName;
+  final String? paymentMethod;
+  final double total;
+  final double discount;
+  final SaleRecordStatus status;
+}
+
 class SalesReport {
   const SalesReport({
     required this.period,
@@ -85,6 +135,7 @@ class SalesReport {
     required this.byPaymentMethod,
     required this.byHour,
     required this.topProducts,
+    required this.transactions,
     required this.insights,
   });
 
@@ -96,6 +147,13 @@ class SalesReport {
   final List<SalesByPaymentMethod> byPaymentMethod;
   final List<SalesByHour> byHour;
   final List<TopProduct> topProducts;
+
+  /// The drill-down list — every sale in [period], newest first. Not
+  /// paginated at the domain layer; ReportsRepositoryImpl's own doc
+  /// comment covers the same "acceptable at today's scale, revisit if
+  /// that assumption stops holding" reasoning this app already applies
+  /// elsewhere (e.g. InventoryReport.notSoldInThirtyDays).
+  final List<SaleRecord> transactions;
   final List<ReportInsight> insights;
 }
 

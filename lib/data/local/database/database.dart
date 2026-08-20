@@ -73,6 +73,16 @@ part 'database.g.dart';
 /// alongside the existing application-layer generator
 /// (`product_import_engine.dart::_generateSku`), not a replacement for
 /// it.
+///
+/// SIXTH NOTE (Reports & Auditability — void sales): schemaVersion is
+/// 7. One new column, `ReturnRequests.isVoid` — purely additive,
+/// boolean, defaults false. A void reuses the exact same
+/// createReturn/completeReturn mechanics as a customer return (reverse
+/// stock, reverse credit if applicable); this column is the only thing
+/// that tells the two apart afterward, since conflating them would
+/// lose a real business distinction (a void rate reflects cashier
+/// error, a return rate reflects product/customer issues) that
+/// reporting on this data needs to preserve.
 @DriftDatabase(
   tables: [
     Locations,
@@ -148,7 +158,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
@@ -314,6 +324,13 @@ class AppDatabase extends _$AppDatabase {
           } catch (_) {
             // Pre-existing duplicate barcode on this device — skip the index.
           }
+        }
+        if (from < 7) {
+          // Purely additive, nullable-with-default — every existing
+          // return row simply starts out as "not a void" (correct: it
+          // predates the concept, and every return created before this
+          // was a customer return by definition).
+          await m.addColumn(returnRequests, returnRequests.isVoid);
         }
       },
       beforeOpen: (details) async {

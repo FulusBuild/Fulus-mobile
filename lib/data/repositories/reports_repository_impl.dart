@@ -48,10 +48,13 @@ class ReportsRepositoryImpl implements ReportsRepository {
     }
 
     // Top products by revenue — joins sale items for sales in range.
+    // `items` is also reused below for the transactions drill-down's
+    // per-sale purchased-quantity count, rather than querying twice.
     final saleIds = sales.map((s) => s.localId).toSet();
     final productTotals = <String, List<num>>{}; // productLocalId -> [qty, revenue]
+    var items = <SaleItemRow>[];
     if (saleIds.isNotEmpty) {
-      final items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
+      items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
       for (final item in items) {
         final productId = item.productLocalId;
         if (productId == null) continue;
@@ -80,6 +83,8 @@ class ReportsRepositoryImpl implements ReportsRepository {
       ..sort((a, b) => a.hour.compareTo(b.hour));
     final top10 = topProducts.take(10).toList();
 
+    final transactions = await _buildSaleRecords(sales, items, saleIds);
+
     return SalesReport(
       period: period,
       totalRevenue: totalRevenue,
@@ -89,8 +94,92 @@ class ReportsRepositoryImpl implements ReportsRepository {
       byPaymentMethod: byPaymentMethod,
       byHour: byHourList,
       topProducts: top10,
+      transactions: transactions,
       insights: _engine.salesInsights(byPaymentMethod: byPaymentMethod, byHour: byHourList, topProducts: top10),
     );
+  }
+
+  /// The Sales report's drill-down — one [SaleRecord] per sale in
+  /// [sales], newest first. [saleItems] is the already-fetched sale
+  /// items for these same sales (reused, not re-queried) to compute
+  /// each sale's purchased quantity; returned quantity and void status
+  /// come from one batched query each over ReturnRequests/ReturnItems,
+  /// not a per-sale query — the same N+1 mistake
+  /// `_sumCostOfGoodsSold` below already had to be fixed for.
+  Future<List<SaleRecord>> _buildSaleRecords(
+    List<SaleRow> sales,
+    List<SaleItemRow> saleItems,
+    Set<String> saleIds,
+  ) async {
+    if (sales.isEmpty) return const [];
+
+    final customerIds = sales.map((s) => s.customerId).whereType<String>().toSet();
+    final customerNames = customerIds.isEmpty
+        ? <String, String>{}
+        : {
+            for (final c in await (_db.select(_db.customers)..where((c) => c.localId.isIn(customerIds))).get())
+              c.localId: c.name,
+          };
+
+    final cashierIds = sales.map((s) => s.cashierUserId).whereType<String>().toSet();
+    final cashierNames = cashierIds.isEmpty
+        ? <String, String>{}
+        : {
+            for (final u in await (_db.select(_db.users)..where((u) => u.localId.isIn(cashierIds))).get())
+              u.localId: u.fullName,
+          };
+
+    final purchasedQtyBySale = <String, int>{};
+    for (final item in saleItems) {
+      purchasedQtyBySale[item.saleLocalId] = (purchasedQtyBySale[item.saleLocalId] ?? 0) + item.quantity;
+    }
+
+    final completedReturns = await (_db.select(_db.returnRequests)
+          ..where((r) => r.originalSaleLocalId.isIn(saleIds) & r.status.equals('completed')))
+        .get();
+    final returnSaleIdByReturnId = {for (final r in completedReturns) r.localId: r.originalSaleLocalId};
+    final voidReturnIds = completedReturns.where((r) => r.isVoid).map((r) => r.localId).toSet();
+    final returnItemRows = returnSaleIdByReturnId.isEmpty
+        ? <ReturnItemRow>[]
+        : await (_db.select(_db.returnItems)..where((i) => i.returnLocalId.isIn(returnSaleIdByReturnId.keys))).get();
+
+    final returnedQtyBySale = <String, int>{};
+    final voidedSaleIds = <String>{};
+    for (final item in returnItemRows) {
+      final saleId = returnSaleIdByReturnId[item.returnLocalId];
+      if (saleId == null) continue;
+      returnedQtyBySale[saleId] = (returnedQtyBySale[saleId] ?? 0) + item.quantity;
+      if (voidReturnIds.contains(item.returnLocalId)) voidedSaleIds.add(saleId);
+    }
+
+    final records = sales.map((s) {
+      final purchased = purchasedQtyBySale[s.localId] ?? 0;
+      final returned = returnedQtyBySale[s.localId] ?? 0;
+      final status = voidedSaleIds.contains(s.localId)
+          ? SaleRecordStatus.voided
+          : returned <= 0
+              ? SaleRecordStatus.completed
+              : (purchased > 0 && returned >= purchased)
+                  ? SaleRecordStatus.refunded
+                  : SaleRecordStatus.partiallyRefunded;
+      final shortId = s.localId.length > 8 ? s.localId.substring(0, 8) : s.localId;
+      return SaleRecord(
+        saleLocalId: s.localId,
+        saleDate: s.saleDate,
+        invoiceNumber: s.invoiceNumber ?? 'Sale $shortId',
+        customerId: s.customerId,
+        customerName: s.customerId != null ? customerNames[s.customerId] : null,
+        cashierUserId: s.cashierUserId,
+        cashierName: s.cashierUserId != null ? cashierNames[s.cashierUserId] : null,
+        paymentMethod: s.paymentMethod,
+        total: s.total,
+        discount: s.discount,
+        status: status,
+      );
+    }).toList()
+      ..sort((a, b) => b.saleDate.compareTo(a.saleDate));
+
+    return records;
   }
 
   @override
@@ -268,16 +357,13 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final sales = await (_db.select(_db.sales)
           ..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end))))
         .get();
-    var costOfGoodsSold = 0.0;
-    for (final sale in sales) {
-      final items = await (_db.select(_db.saleItems)
-            ..where((i) => i.saleLocalId.equals(sale.localId)))
-          .get();
-      for (final item in items) {
-        costOfGoodsSold += item.costPriceAtSale * item.quantity;
-      }
-    }
-    return costOfGoodsSold;
+    final saleIds = sales.map((s) => s.localId).toSet();
+    if (saleIds.isEmpty) return 0.0;
+    // One batched query, not one per sale (the exact N+1 shape
+    // getSalesReport's topProducts computation already avoided —
+    // this method just hadn't been brought in line with it yet).
+    final items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
+    return items.fold<double>(0.0, (sum, item) => sum + item.costPriceAtSale * item.quantity);
   }
 
   Future<double> _sumExpenses(DateTime start, DateTime end) async {
@@ -289,11 +375,36 @@ class ReportsRepositoryImpl implements ReportsRepository {
   Future<EmployeeReport> getEmployeeReport(ReportPeriod period) async {
     final employees = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
 
-    // Sales carries no cashier/employee reference in the checkpoint
-    // schema this was written against (same gap noted in
-    // receipt_repository_impl.dart) — per-employee sales figures are
-    // therefore 0 until Sales gains that column; attendance figures
-    // below are unaffected and fully real.
+    // **Confirmed bug fix (Reports & Auditability upgrade):** the
+    // comment this replaced claimed Sales carried no cashier reference
+    // at all — false since schema v4 added Sales.cashierUserId
+    // (populated at sale creation, see sale_repository_impl.dart).
+    // Verified directly rather than trusted: grepped the table
+    // definition and the write site before relying on either.
+    //
+    // The join key is Employees.authUserId (nullable — not every
+    // employee has a login account, see employee.dart's own doc
+    // comment), not Employees.id — Sales.cashierUserId references
+    // Users.localId, and authUserId is what links an Employee row to
+    // that Users row. An employee with no linked account (authUserId
+    // null) correctly gets 0/0 here, same as before — there's nothing
+    // on any Sale that could point back to them.
+    //
+    // One batched query for every sale in the period, then grouped by
+    // cashier in memory — not one query per employee, the same N+1
+    // shape _sumCostOfGoodsSold above just got fixed for.
+    final sales = await (_db.select(_db.sales)
+          ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
+        .get();
+    final salesTotalByCashier = <String, double>{};
+    final salesCountByCashier = <String, int>{};
+    for (final sale in sales) {
+      final cashierId = sale.cashierUserId;
+      if (cashierId == null) continue;
+      salesTotalByCashier[cashierId] = (salesTotalByCashier[cashierId] ?? 0) + sale.total;
+      salesCountByCashier[cashierId] = (salesCountByCashier[cashierId] ?? 0) + 1;
+    }
+
     final performance = <EmployeePerformance>[];
     for (final emp in employees) {
       final attendance = await (_db.select(_db.attendanceRecords)
@@ -313,11 +424,12 @@ class ReportsRepositoryImpl implements ReportsRepository {
             late++;
         }
       }
+      final authUserId = emp.authUserId;
       performance.add(EmployeePerformance(
         employeeId: emp.id,
         employeeName: emp.fullName,
-        salesTotal: 0,
-        salesCount: 0,
+        salesTotal: authUserId != null ? (salesTotalByCashier[authUserId] ?? 0) : 0,
+        salesCount: authUserId != null ? (salesCountByCashier[authUserId] ?? 0) : 0,
         daysPresent: present,
         daysAbsent: absent,
         daysLate: late,

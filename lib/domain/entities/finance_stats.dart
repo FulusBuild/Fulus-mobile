@@ -81,6 +81,7 @@ class CashFlowReport {
     required this.dateTo,
     required this.salesInflow,
     required this.manualIncomeInflow,
+    required this.customerRepaymentsInflow,
     required this.inflow,
     required this.expensesOutflow,
     required this.supplierPaymentsOutflow,
@@ -92,6 +93,26 @@ class CashFlowReport {
   final DateTime dateTo;
   final double salesInflow;
   final double manualIncomeInflow;
+
+  /// **Confirmed bug fix (Reports & Auditability upgrade):** this
+  /// component didn't exist before — `inflow` only ever summed
+  /// `salesInflow + manualIncomeInflow`, silently omitting every
+  /// customer repayment in the period. A different feature (Money)
+  /// caught this independently and built its own correct aggregation
+  /// rather than call this method — see
+  /// `features/money/data/real_money_repository.dart`'s own doc
+  /// comment for that history. Sourced from
+  /// `CustomerCreditRepository.getRepaymentsForPeriod`, the same method
+  /// Money already uses, so the two can't drift apart on this figure
+  /// again. One real scoping caveat, inherited from that method rather
+  /// than introduced here: it's business-wide, not location-scoped —
+  /// `CustomerLedgerEntries` has no `locationId` column, because
+  /// customers themselves aren't location-scoped in this data model.
+  /// For a single-location business this is a non-issue; for a
+  /// multi-location one, this component reflects repayments across
+  /// every location, not just [locationId].
+  final double customerRepaymentsInflow;
+
   final double inflow;
   final double expensesOutflow;
 

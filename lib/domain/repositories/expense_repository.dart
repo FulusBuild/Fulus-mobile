@@ -28,6 +28,31 @@ abstract class ExpenseRepository {
 
   Future<void> markSynced({required String localId, required String serverId});
 
+  /// Edits an already-saved expense in place, keeping a real history of
+  /// the change rather than silently overwriting it — via
+  /// AuditRepository (module `expenses`, action `expense.updated`,
+  /// `details` carrying the before/after values), the same
+  /// infrastructure Auth/PIN-approval/customer-credit already use, not
+  /// a new mechanism. [userId] is the editor, for that trail — same
+  /// "caller supplies who, not this method" split every other
+  /// permission-adjacent write in this codebase follows.
+  ///
+  /// Local-only for now: there's no confirmed backend endpoint for
+  /// updating an expense (only `createExpense` has a sync task — see
+  /// sync_queue.dart), so this does not enqueue one. Revisit once
+  /// that's confirmed one way or the other; inventing a sync task
+  /// against an unconfirmed backend contract would be a worse guess
+  /// than not syncing the edit at all.
+  Future<Expense> updateExpense({
+    required String localId,
+    required String description,
+    required double amount,
+    String? categoryId,
+    required DateTime expenseDate,
+    String? paymentMethod,
+    String? userId,
+  });
+
   /// Attaches, replaces, or removes (pass `null`) the receipt photo on
   /// an already-saved expense — the after-the-fact counterpart to
   /// [ExpenseDraft.receiptPhotoPath] (attaching one at creation time,

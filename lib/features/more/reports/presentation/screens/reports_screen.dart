@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/providers.dart';
+import '../../../../../core/export/export_metadata.dart';
 import '../../../../../core/export/export_service.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/report.dart';
@@ -181,13 +182,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     );
     if (format == null || !mounted) return;
     final currencySymbol = ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final businessName = ref.read(businessNameProvider).valueOrNull ?? 'Fulus';
     try {
       final payload = await _buildExportPayload(currencySymbol);
+      final dateRangeLabel = '${formatRelativeDay(_period.start)} – ${formatRelativeDay(_period.end)}';
       await ref.read(exportServiceProvider).export(
             format: format,
             fileName: 'report-${payload.name}-${DateTime.now().millisecondsSinceEpoch}',
             title: payload.title,
-            subtitle: '${formatRelativeDay(_period.start)} – ${formatRelativeDay(_period.end)}',
+            subtitle: dateRangeLabel,
+            metadata: ExportMetadata(
+              businessName: businessName,
+              reportName: payload.title,
+              dateRangeLabel: dateRangeLabel,
+              generatedAt: DateTime.now(),
+              currencySymbol: currencySymbol,
+            ),
             headers: payload.headers,
             rows: payload.rows,
           );

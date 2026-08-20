@@ -29,6 +29,21 @@ abstract class ReturnRepository {
     required String returnReason,
     required String refundMethod,
     required bool autoApprove,
+    bool isVoid = false,
+  });
+
+  /// A cashier/owner correcting their own mistake, not a customer
+  /// return — reuses createReturn/completeReturn for every line still
+  /// eligible on the sale (typically all of it, for a sale voided
+  /// right after ringing it up), auto-approved and completed in one
+  /// call rather than left pending. [refundMethod] isn't asked for:
+  /// it's set to the original sale's own payment method, since a void
+  /// doesn't introduce a new refund channel — it just undoes one that
+  /// never should have happened. Throws if the sale has already been
+  /// fully refunded/voided (nothing left eligible to void).
+  Future<ReturnRequest> voidSale({
+    required String saleLocalId,
+    required String reason,
   });
 
   /// Throws if the return isn't currently `pending` — mirrors
@@ -45,7 +60,10 @@ abstract class ReturnRepository {
 
   Future<ReturnRequest?> getReturnById(String localId);
 
-  Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status});
+  /// [isVoid], when non-null, additionally filters to only voids
+  /// (`true`) or only genuine customer returns (`false`) — for report
+  /// views that need to tell the two apart.
+  Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status, bool? isVoid});
 
   /// Reconciles a locally-created return with the server's own identity
   /// once the sync handler successfully pushes it — same role as every

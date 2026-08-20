@@ -28,8 +28,12 @@ import 'csv_export_service.dart';
 /// rather than higher-level convenience helpers specifically because
 /// those fundamentals are far less likely to have changed shape across
 /// recent package versions than a helper method might have.
+import 'csv_export_service.dart';
+import 'export_metadata.dart';
+
 class PdfExportService {
   Future<Uint8List> build({
+    ExportMetadata? metadata,
     required String title,
     String? subtitle,
     required List<String> headers,
@@ -49,6 +53,10 @@ class PdfExportService {
             pw.SizedBox(height: 4),
             pw.Text(subtitle, style: const pw.TextStyle(fontSize: 11)),
           ],
+          if (metadata != null) ...[
+            pw.SizedBox(height: 8),
+            _buildMetadataBlock(metadata),
+          ],
           pw.SizedBox(height: 16),
           _buildTable(headers, rows),
         ],
@@ -56,6 +64,23 @@ class PdfExportService {
     );
 
     return doc.save();
+  }
+
+  pw.Widget _buildMetadataBlock(ExportMetadata metadata) {
+    final lines = [
+      'Business: ${metadata.businessName}',
+      'Period: ${metadata.dateRangeLabel}',
+      'Generated: ${metadata.generatedAt.toIso8601String()}',
+      'Currency: ${metadata.currencySymbol}',
+      if (metadata.appliedFilters.isNotEmpty) 'Filters: ${metadata.appliedFilters.join(', ')}',
+    ];
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          pw.Text(line, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+      ],
+    );
   }
 
   pw.Widget _buildTable(List<String> headers, List<List<Object?>> rows) {

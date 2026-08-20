@@ -212,6 +212,7 @@ Future<ProviderContainer> bootstrap() async {
   final expenseRepository = ExpenseRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
+    auditRepository: auditRepository,
   );
   final incomeRecordRepository = IncomeRecordRepositoryImpl(
     db: database,
@@ -278,7 +279,10 @@ Future<ProviderContainer> bootstrap() async {
   // customer credit book, opposite direction.
   final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database);
   final taxRemittanceRepository = TaxRemittanceRepositoryImpl(db: database);
-  final financeStatsRepository = FinanceStatsRepositoryImpl(db: database);
+  final financeStatsRepository = FinanceStatsRepositoryImpl(
+    db: database,
+    customerCreditRepository: customerCreditRepository,
+  );
   final cashDrawerShiftRepository = CashDrawerShiftRepositoryImpl(
     db: database,
     syncQueue: syncQueue,

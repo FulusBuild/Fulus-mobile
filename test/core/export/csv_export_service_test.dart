@@ -1,4 +1,5 @@
 import 'package:fulus_mobile/core/export/csv_export_service.dart';
+import 'package:fulus_mobile/core/export/export_metadata.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Mirrors backend/tests/test_export_security.py directly — the same
@@ -98,6 +99,61 @@ void main() {
         ],
       );
       expect(csv, contains("'=HYPERLINK"));
+    });
+  });
+
+  group('CsvExportService.build — metadata block', () {
+    test('omitting metadata produces exactly the same output as before '
+        'this existed', () {
+      final withoutMetadata = service.build(headers: ['A'], rows: [
+        ['1'],
+      ]);
+      expect(withoutMetadata, 'A\r\n1\r\n');
+    });
+
+    test('metadata is written as rows above a blank line, before the '
+        'real header row', () {
+      final csv = service.build(
+        metadata: ExportMetadata(
+          businessName: 'Adaeze Stores',
+          reportName: 'Sales Report',
+          dateRangeLabel: '1 Jan – 31 Jan 2026',
+          generatedAt: DateTime.utc(2026, 2, 1, 9, 30),
+          currencySymbol: '₦',
+          appliedFilters: const ['Cashier: Amaka Okafor'],
+        ),
+        headers: ['Date', 'Total'],
+        rows: [
+          ['2026-01-05', '1000'],
+        ],
+      );
+
+      final lines = csv.split('\r\n');
+      expect(lines[0], 'Business,Adaeze Stores');
+      expect(lines[1], 'Report,Sales Report');
+      expect(lines[2], 'Period,1 Jan – 31 Jan 2026');
+      expect(lines[4], 'Currency,₦');
+      expect(lines[5], 'Filter,Cashier: Amaka Okafor');
+      expect(lines[6], ''); // the blank separator row
+      expect(lines[7], 'Date,Total'); // the real header, unaffected
+      expect(lines[8], '2026-01-05,1000');
+    });
+
+    test('no filters means no Filter rows at all, not an empty one', () {
+      final csv = service.build(
+        metadata: ExportMetadata(
+          businessName: 'Adaeze Stores',
+          reportName: 'Sales Report',
+          dateRangeLabel: 'Today',
+          generatedAt: DateTime.utc(2026, 2, 1),
+          currencySymbol: '₦',
+        ),
+        headers: ['A'],
+        rows: [
+          ['1'],
+        ],
+      );
+      expect(csv, isNot(contains('Filter,')));
     });
   });
 }

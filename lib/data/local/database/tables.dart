@@ -842,6 +842,19 @@ class ReturnRequests extends Table with SyncableColumns {
   TextColumn get refundMethod => text().withLength(min: 1, max: 30)();
   BoolColumn get inventoryRestored =>
       boolean().withDefault(const Constant(false))();
+
+  /// Distinguishes "the cashier voided their own mistake" from "a
+  /// customer brought something back" — same underlying mechanics
+  /// (full or partial refund, stock restored, credit reversed if
+  /// applicable) but a different business event, worth reporting on
+  /// separately: a void rate says something about cashier training: a
+  /// return rate says something about product/customer satisfaction.
+  /// Local-only — deliberately not part of ReturnCreateDto's sync
+  /// payload, since there's no confirmed backend field for it (same
+  /// reasoning as the other unconfirmed-backend-support gaps from the
+  /// Phase 2 audit); a return synced from this device before another
+  /// device's view of it won't know it was a void specifically.
+  BoolColumn get isVoid => boolean().withDefault(const Constant(false))();
   DateTimeColumn get completedAt => dateTime().nullable()();
 
   @override

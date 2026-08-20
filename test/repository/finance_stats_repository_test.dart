@@ -1,5 +1,6 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/finance_stats_repository_impl.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -11,7 +12,10 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = FinanceStatsRepositoryImpl(db: db);
+    repository = FinanceStatsRepositoryImpl(
+      db: db,
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+    );
   });
 
   tearDown(() async {
@@ -244,6 +248,66 @@ void main() {
       expect(report.expensesOutflow, 150);
       expect(report.supplierPaymentsOutflow, 400);
       expect(report.outflow, 550);
+    });
+
+    // Regression test for a confirmed bug (Reports & Auditability
+    // upgrade): inflow used to only ever sum salesInflow +
+    // manualIncomeInflow, silently omitting every customer repayment —
+    // see CashFlowReport.customerRepaymentsInflow's own doc comment.
+    test('a customer repayment counts toward inflow, not just sales and '
+        'manual income', () async {
+      await insertLocation('loc-1');
+      await db.into(db.customers).insert(
+            CustomersCompanion.insert(
+              localId: 'customer-1',
+              name: 'Test Customer',
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+      await insertCompletedSale(
+        localId: 'sale-1',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5),
+        total: 1000,
+        amountPaid: 1000,
+        items: const [],
+      );
+      await db.into(db.customerLedgerEntries).insert(
+            CustomerLedgerEntriesCompanion.insert(
+              localId: 'cle-1',
+              customerLocalId: 'customer-1',
+              entryType: 'repayment',
+              amount: 250,
+              createdAt: DateTime(2026, 1, 18),
+              updatedAt: DateTime(2026, 1, 18),
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+      // A creditSale entry in the same period must NOT be counted here
+      // — it isn't cash moving, it's the debt being created in the
+      // first place. Only 'repayment' entries are real inflow.
+      await db.into(db.customerLedgerEntries).insert(
+            CustomerLedgerEntriesCompanion.insert(
+              localId: 'cle-2',
+              customerLocalId: 'customer-1',
+              entryType: 'creditSale',
+              amount: 999,
+              createdAt: DateTime(2026, 1, 19),
+              updatedAt: DateTime(2026, 1, 19),
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+
+      final report = await repository.getCashFlow(
+        dateFrom: DateTime(2026, 1, 1),
+        dateTo: DateTime(2026, 1, 31),
+        locationId: 'loc-1',
+      );
+
+      expect(report.customerRepaymentsInflow, 250);
+      expect(report.inflow, 1000 + 250);
     });
   });
 }

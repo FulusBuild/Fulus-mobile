@@ -28,12 +28,14 @@ extension ReturnRequestToCompanion on ReturnRequest {
       syncStatus: SyncStatus.pending,
       serverId: Value(serverId),
       inventoryRestored: Value(inventoryRestored),
+      isVoid: Value(isVoid),
       completedAt: Value(completedAt),
     );
   }
 
   /// **No `clientReference`** — see `ReturnCreateDto`'s own doc comment
-  /// for the confirmed gap.
+  /// for the confirmed gap. **No `isVoid`** either — local-only, see
+  /// `ReturnRequests.isVoid`'s doc comment in tables.dart for why.
   ReturnCreateDto toCreateDto() {
     return ReturnCreateDto(
       originalSaleId: originalSaleLocalId,
@@ -60,6 +62,7 @@ extension ReturnRequestRowToDomain on ReturnRequestRow {
       refundAmount: refundAmount,
       refundMethod: refundMethod,
       inventoryRestored: inventoryRestored,
+      isVoid: isVoid,
       items: items,
       createdAt: createdAt,
       updatedAt: updatedAt,

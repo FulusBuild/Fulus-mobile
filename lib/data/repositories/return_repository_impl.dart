@@ -132,6 +132,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
     required String returnReason,
     required String refundMethod,
     required bool autoApprove,
+    bool isVoid = false,
   }) async {
     if (items.isEmpty) {
       throw ArgumentError.value(items, 'items', 'must have at least one item');
@@ -202,6 +203,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
       refundAmount: double.parse(refundAmount.toStringAsFixed(2)),
       refundMethod: refundMethod,
       inventoryRestored: false,
+      isVoid: isVoid,
       items: returnItems,
       createdAt: now,
       updatedAt: now,
@@ -221,6 +223,52 @@ class ReturnRepositoryImpl implements ReturnRepository {
     await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
 
     return returnRequest;
+  }
+
+  @override
+  Future<ReturnRequest> voidSale({
+    required String saleLocalId,
+    required String reason,
+  }) async {
+    if (reason.trim().isEmpty) {
+      throw ArgumentError.value(reason, 'reason', 'is required');
+    }
+    final saleRow = await (_db.select(_db.sales)
+          ..where((s) => s.localId.equals(saleLocalId)))
+        .getSingleOrNull();
+    if (saleRow == null) {
+      throw ArgumentError.value(saleLocalId, 'saleLocalId', 'no such sale');
+    }
+
+    final eligibility = await getReturnEligibility(saleLocalId);
+    final items = eligibility
+        .where((line) => line.remainingReturnable > 0)
+        .map(
+          (line) => ReturnItemRequest(
+            productLocalId: line.productLocalId,
+            quantity: line.remainingReturnable,
+          ),
+        )
+        .toList();
+    if (items.isEmpty) {
+      throw StateError(
+        'Nothing left on this sale to void — it may already be fully '
+        'refunded or voided.',
+      );
+    }
+
+    final created = await createReturn(
+      originalSaleLocalId: saleLocalId,
+      items: items,
+      returnReason: reason,
+      // Not a new refund channel — undoes the original payment the same
+      // way it was made, same as the "matches the original payment
+      // method by default" convention a real refund follows.
+      refundMethod: saleRow.paymentMethod ?? 'cash',
+      autoApprove: true,
+      isVoid: true,
+    );
+    return completeReturn(created.localId);
   }
 
   @override
@@ -346,11 +394,14 @@ class ReturnRepositoryImpl implements ReturnRepository {
   }
 
   @override
-  Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status}) {
+  Stream<List<ReturnRequest>> watchReturns({ReturnStatus? status, bool? isVoid}) {
     final query = _db.select(_db.returnRequests)
       ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]);
     if (status != null) {
       query.where((r) => r.status.equals(status.name));
+    }
+    if (isVoid != null) {
+      query.where((r) => r.isVoid.equals(isVoid));
     }
     return query.watch().asyncMap((rows) async {
       final results = <ReturnRequest>[];

@@ -1,13 +1,19 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/entities/finance_stats.dart';
+import '../../domain/repositories/customer_credit_repository.dart';
 import '../../domain/repositories/finance_stats_repository.dart';
 import '../local/database/database.dart';
 
 class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
-  FinanceStatsRepositoryImpl({required AppDatabase db}) : _db = db;
+  FinanceStatsRepositoryImpl({
+    required AppDatabase db,
+    required CustomerCreditRepository customerCreditRepository,
+  })  : _db = db,
+        _customerCreditRepository = customerCreditRepository;
 
   final AppDatabase _db;
+  final CustomerCreditRepository _customerCreditRepository;
 
   double _round2(double value) => double.parse(value.toStringAsFixed(2));
 
@@ -156,7 +162,18 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
     final supplierPaymentsOutflow =
         supplierPaymentRows.fold<double>(0.0, (sum, e) => sum + e.amount);
 
-    final inflow = salesInflow + manualIncomeInflow;
+    // The confirmed fix — see CashFlowReport.customerRepaymentsInflow's
+    // own doc comment for the full history of this gap. Business-wide,
+    // not location-filtered (getRepaymentsForPeriod has no locationId
+    // parameter — see that method's own doc comment for why).
+    final repayments = await _customerCreditRepository.getRepaymentsForPeriod(
+      start: dateFrom,
+      end: dateTo,
+    );
+    final customerRepaymentsInflow =
+        repayments.fold<double>(0.0, (sum, r) => sum + r.amount);
+
+    final inflow = salesInflow + manualIncomeInflow + customerRepaymentsInflow;
     final outflow = expensesOutflow + supplierPaymentsOutflow;
 
     return CashFlowReport(
@@ -164,6 +181,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
       dateTo: dateTo,
       salesInflow: _round2(salesInflow),
       manualIncomeInflow: _round2(manualIncomeInflow),
+      customerRepaymentsInflow: _round2(customerRepaymentsInflow),
       inflow: _round2(inflow),
       expensesOutflow: _round2(expensesOutflow),
       supplierPaymentsOutflow: _round2(supplierPaymentsOutflow),

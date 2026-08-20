@@ -17,17 +17,36 @@
 /// exported file) is a property of the file format those two apps
 /// share, not of the backend's Python runtime, so the same guard is
 /// exactly as necessary here.
+import 'export_metadata.dart';
+
 class CsvExportService {
   static const _dangerousPrefixes = ['=', '+', '-', '@', '\t', '\r'];
 
   /// Builds a complete CSV document (header row + data rows) as a single
   /// string, CRLF-terminated per RFC 4180 (the format's own specified
-  /// line ending, not merely this platform's convention).
+  /// line ending, not merely this platform's convention). When
+  /// [metadata] is given, it's written as plain key/value rows above
+  /// the real header row, then a blank row — every spreadsheet app
+  /// that opens this file still just sees ordinary rows, no special
+  /// CSV feature required, and nothing here changes [rows]' own column
+  /// count or content.
   String build({
+    ExportMetadata? metadata,
     required List<String> headers,
     required List<List<Object?>> rows,
   }) {
     final buffer = StringBuffer();
+    if (metadata != null) {
+      buffer.write(_buildRow(['Business', metadata.businessName]));
+      buffer.write(_buildRow(['Report', metadata.reportName]));
+      buffer.write(_buildRow(['Period', metadata.dateRangeLabel]));
+      buffer.write(_buildRow(['Generated', metadata.generatedAt.toIso8601String()]));
+      buffer.write(_buildRow(['Currency', metadata.currencySymbol]));
+      for (final filter in metadata.appliedFilters) {
+        buffer.write(_buildRow(['Filter', filter]));
+      }
+      buffer.write(_buildRow(const []));
+    }
     buffer.write(_buildRow(headers.cast<Object?>()));
     for (final row in rows) {
       buffer.write(_buildRow(row));

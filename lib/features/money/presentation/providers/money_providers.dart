@@ -82,6 +82,16 @@ final moneyCurrencySymbolProvider = StreamProvider<String>((ref) {
   });
 });
 
+/// Same shape as [moneyCurrencySymbolProvider] above, same source —
+/// added for export metadata (Reports & Auditability upgrade), which
+/// needs the business name on every exported file, not just Money's
+/// screens.
+final businessNameProvider = StreamProvider<String?>((ref) {
+  return ref.watch(businessSettingsRepositoryProvider).watchSettings().map((BusinessProfile? profile) {
+    return profile?.businessName;
+  });
+});
+
 // ── Customers (Credit Book) & Suppliers (Pay Supplier) ──────────────────
 //
 // Unlike everything above, these are wired to the REAL repositories —

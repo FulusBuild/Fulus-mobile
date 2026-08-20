@@ -502,4 +502,134 @@ void main() {
       expect(updatedCustomer!.outstandingBalance, 0);
     });
   });
+
+  group('voidSale', () {
+    test('claims every unit still eligible, auto-approved and completed '
+        'in one call', () async {
+      final sale = await purchase(); // 5x productA, 3x productB
+
+      final voided = await returnRepository.voidSale(
+        saleLocalId: sale.localId,
+        reason: 'Rung up in error',
+      );
+
+      expect(voided.status, ReturnStatus.completed);
+      expect(voided.isVoid, isTrue);
+      expect(voided.inventoryRestored, isTrue);
+      expect(voided.items.fold<int>(0, (sum, i) => sum + i.quantity), 8); // 5 + 3
+
+      final lines = await returnRepository.getReturnEligibility(sale.localId);
+      for (final line in lines) {
+        expect(line.remainingReturnable, 0);
+      }
+    });
+
+    test('restores stock the same way a completed return does', () async {
+      final sale = await purchase();
+      final before = await (db.select(db.productStockLevels)
+            ..where(
+              (s) =>
+                  s.productLocalId.equals(productAId) &
+                  s.locationLocalId.equals(locationId),
+            ))
+          .getSingle();
+
+      await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
+
+      final after = await (db.select(db.productStockLevels)
+            ..where(
+              (s) =>
+                  s.productLocalId.equals(productAId) &
+                  s.locationLocalId.equals(locationId),
+            ))
+          .getSingle();
+      expect(after.currentStock, before.currentStock + 5); // all 5 units back
+    });
+
+    test('uses the original sale\'s own payment method, not a caller-'
+        'supplied one', () async {
+      // Explicit, non-'cash' payment method — purchase()'s default sale
+      // never sets one (falls through to null), which would make this
+      // assertion pass for the wrong reason via voidSale's own '??
+      // cash' fallback rather than genuinely reading the sale's value.
+      final sale = await saleRepository.createSale(
+        SaleDraft(
+          items: [
+            SaleItem(
+              localId: 'transfer-item-1',
+              productLocalId: productAId,
+              quantity: 1,
+              unitPrice: 1000,
+              costPriceAtSale: 400,
+            ),
+          ],
+          locationId: locationId,
+          amountPaid: 1000,
+          paymentMethod: 'transfer',
+        ),
+      );
+
+      final voided = await returnRepository.voidSale(
+        saleLocalId: sale.localId,
+        reason: 'Mistake',
+      );
+
+      expect(voided.refundMethod, 'transfer');
+    });
+
+    test('reduces an outstanding credit balance the same way a completed '
+        'return does', () async {
+      final customer = await customerRepository.createCustomer(
+        const CustomerDraft(name: 'Test Customer'),
+      );
+      final sale = await purchase(customerId: customer.localId, amountPaid: 3000);
+
+      await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
+
+      final updated = await customerRepository.getCustomerById(customer.localId);
+      expect(updated!.outstandingBalance, 0);
+    });
+
+    test('rejects voiding a sale that has already been fully voided',
+        () async {
+      final sale = await purchase();
+      await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
+
+      await expectLater(
+        returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Again?'),
+        throwsStateError,
+      );
+    });
+
+    test('rejects an empty reason', () async {
+      final sale = await purchase();
+
+      await expectLater(
+        returnRepository.voidSale(saleLocalId: sale.localId, reason: '   '),
+        throwsArgumentError,
+      );
+    });
+
+    test('watchReturns(isVoid: true) only returns voids, not genuine '
+        'customer returns', () async {
+      final saleA = await purchase();
+      final saleB = await purchase();
+      await returnRepository.voidSale(saleLocalId: saleA.localId, reason: 'Mistake');
+      await returnRepository.createReturn(
+        originalSaleLocalId: saleB.localId,
+        items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+        returnReason: 'Customer changed mind',
+        refundMethod: 'cash',
+        autoApprove: true,
+      );
+
+      final voids = await returnRepository.watchReturns(isVoid: true).first;
+      final returns = await returnRepository.watchReturns(isVoid: false).first;
+
+      expect(voids, hasLength(1));
+      expect(voids.single.originalSaleLocalId, saleA.localId);
+      expect(returns, hasLength(1));
+      expect(returns.single.originalSaleLocalId, saleB.localId);
+    });
+  });
 }

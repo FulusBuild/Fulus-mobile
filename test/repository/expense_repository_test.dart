@@ -1,7 +1,9 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/repositories/audit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/expense_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/expense.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,7 @@ void main() {
   late AppDatabase db;
   late SyncQueue syncQueue;
   late ExpenseRepositoryImpl repository;
+  late AuditRepositoryImpl auditRepository;
 
   // Expenses.locationId is a required, real FK reference to Locations
   // (Architecture Section 7a — confirmed, not inferred, see
@@ -21,7 +24,12 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
-    repository = ExpenseRepositoryImpl(db: db, syncQueue: syncQueue);
+    auditRepository = AuditRepositoryImpl(db: db);
+    repository = ExpenseRepositoryImpl(
+      db: db,
+      syncQueue: syncQueue,
+      auditRepository: auditRepository,
+    );
 
     await db.into(db.locations).insert(LocationsCompanion.insert(
           localId: locationId,
@@ -200,6 +208,87 @@ void main() {
           .getSingle();
       expect(row.serverId, 'server-1');
       expect(row.syncStatus, SyncStatus.settled);
+    });
+  });
+
+  group('updateExpense', () {
+    test('changes the stored amount and description', () async {
+      final created = await repository.recordExpense(
+        ExpenseDraft(locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
+      );
+
+      final updated = await repository.updateExpense(
+        localId: created.localId,
+        description: 'Fuel (corrected)',
+        amount: 3500,
+        expenseDate: DateTime(2026, 7, 1),
+        userId: 'user-1',
+      );
+
+      expect(updated.description, 'Fuel (corrected)');
+      expect(updated.amount, 3500);
+    });
+
+    // The actual auditability requirement: an edit has to leave a real
+    // trail, not just silently overwrite the old value.
+    test('writes a before/after audit entry for the edit', () async {
+      final created = await repository.recordExpense(
+        ExpenseDraft(locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
+      );
+
+      await repository.updateExpense(
+        localId: created.localId,
+        description: 'Fuel (corrected)',
+        amount: 3500,
+        expenseDate: DateTime(2026, 7, 1),
+        userId: 'user-1',
+      );
+
+      final logs = await auditRepository.getAuditLogs(requestingRole: AuthRole.owner);
+      final entry = logs.singleWhere((l) => l.action == 'expense.updated');
+      expect(entry.module, 'expenses');
+      expect(entry.recordId, created.localId);
+      expect(entry.userId, 'user-1');
+      expect(entry.details?['before'], {
+        'description': 'Fuel',
+        'amount': 3000.0,
+        'category_id': null,
+        'expense_date': DateTime(2026, 7, 1).toIso8601String(),
+      });
+      expect(entry.details?['after'], {
+        'description': 'Fuel (corrected)',
+        'amount': 3500.0,
+        'category_id': null,
+        'expense_date': DateTime(2026, 7, 1).toIso8601String(),
+      });
+    });
+
+    test('rejects an amount of zero', () async {
+      final created = await repository.recordExpense(
+        ExpenseDraft(locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
+      );
+
+      await expectLater(
+        repository.updateExpense(
+          localId: created.localId,
+          description: 'Fuel',
+          amount: 0,
+          expenseDate: DateTime(2026, 7, 1),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects an expense that does not exist', () async {
+      await expectLater(
+        repository.updateExpense(
+          localId: 'does-not-exist',
+          description: 'Fuel',
+          amount: 100,
+          expenseDate: DateTime(2026, 7, 1),
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }

@@ -34,6 +34,7 @@ class ReturnRequest {
     required this.refundAmount,
     required this.refundMethod,
     required this.inventoryRestored,
+    this.isVoid = false,
     required this.items,
     required this.createdAt,
     required this.updatedAt,
@@ -63,6 +64,7 @@ class ReturnRequest {
   final String refundMethod;
 
   final bool inventoryRestored;
+  final bool isVoid;
   final List<ReturnItem> items;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -83,6 +85,7 @@ class ReturnRequest {
       refundAmount: refundAmount,
       refundMethod: refundMethod,
       inventoryRestored: inventoryRestored ?? this.inventoryRestored,
+      isVoid: isVoid,
       items: items,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
