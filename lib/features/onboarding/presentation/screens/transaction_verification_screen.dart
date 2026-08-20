@@ -9,6 +9,7 @@ import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../domain/entities/sale.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import 'completion_screen.dart';
 
 T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
