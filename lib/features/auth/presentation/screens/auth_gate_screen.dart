@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_routing.dart';
+import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'get_started_screen.dart';
 import 'restore_progress_screen.dart';
@@ -61,6 +62,22 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
     final hasOwnerAccount = await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
     final businessConfigured =
         await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    final stage = resolveAuthGateStage(
+      hasOwnerAccount: hasOwnerAccount,
+      businessConfigured: businessConfigured,
+    );
+    // Arms the walkthrough exactly once, at the same moment this
+    // screen would show GetStartedScreen for it. Guarded on
+    // walkthroughNotStarted so re-entering this future (unlikely in
+    // practice — see the class doc comment above on why this is cached
+    // — but cheap to guard) never regresses progress made since.
+    if (stage == AuthGateStage.needsAccountCreation) {
+      final onboardingState = ref.read(onboardingStateProvider);
+      if (onboardingState.walkthroughNotStarted) {
+        await onboardingState.advanceWalkthroughTo(OnboardingStep.welcome);
+        ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.welcome;
+      }
+    }
     return (hasOwnerAccount, businessConfigured);
   }
 

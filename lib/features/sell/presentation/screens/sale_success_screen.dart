@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../onboarding/presentation/screens/transaction_verification_screen.dart';
 import '../widgets/receipt_preview_sheet.dart';
 
 /// Volume 5: "The instant payment is confirmed, the sale is done —
@@ -99,8 +101,32 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
             "We'll ask to send notifications next — this lets us tell you if a blocked payment finishes going through, or if something needs your attention.",
       );
       if (proceed) await notifications.ensurePermission();
+      // Only relevant when the guided walkthrough is actually running
+      // — a pre-existing install celebrating an ordinary first sale
+      // (no GetStartedScreen involved) has walkthroughStep null, and
+      // this is a no-op for it, same guard shape as
+      // OwnerSetupScreen._submitBusiness uses for its own
+      // walkthrough-advance call.
+      try {
+        final onboardingState = ref.read(onboardingStateProvider);
+        if (onboardingState.walkthroughStep == OnboardingStep.firstSale) {
+          await onboardingState.recordWalkthroughFirstSale(widget.saleId);
+          await onboardingState.advanceWalkthroughTo(OnboardingStep.verification);
+          if (context.mounted) {
+            ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.verification;
+          }
+        }
+      } catch (_) {
+        // Deliberately swallowed — best-effort, same as
+        // markFirstSaleCelebrated above; a rare failure here just means
+        // this one-time transition quietly doesn't happen, not a
+        // broken sale.
+      }
     }
-    if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    if (!context.mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => TransactionVerificationScreen(saleId: widget.saleId)),
+    );
   }
 
   @override
@@ -187,7 +213,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
             SizedBox(
               width: double.infinity,
               child: FulusButton(
-                label: _isFirstSale ? 'Continue' : 'New Sale',
+                label: _isFirstSale ? 'View what changed' : 'New Sale',
                 onPressed: () => _isFirstSale
                     ? _continue(context)
                     : Navigator.of(context).popUntil((route) => route.isFirst),

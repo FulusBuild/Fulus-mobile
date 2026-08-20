@@ -50,4 +50,79 @@ void main() {
     expect(second.hasSeenFirstRunPrompt, isTrue);
     expect(second.hasCelebratedFirstSale, isFalse);
   });
+
+  group('guided walkthrough', () {
+    test('not started on a fresh install, independent of the two flags above', () async {
+      final state = await OnboardingState.load();
+      expect(state.walkthroughStep, isNull);
+      expect(state.walkthroughNotStarted, isTrue);
+      expect(state.walkthroughCompleted, isFalse);
+      expect(state.walkthroughSkippedSteps, isEmpty);
+      // Advancing the walkthrough doesn't touch the older, separate flags.
+      expect(state.hasSeenFirstRunPrompt, isTrue);
+      expect(state.hasCelebratedFirstSale, isTrue);
+    });
+
+    test('advanceWalkthroughTo moves the current step forward', () async {
+      final state = await OnboardingState.load();
+      await state.advanceWalkthroughTo(OnboardingStep.businessSetup);
+      expect(state.walkthroughStep, OnboardingStep.businessSetup);
+      expect(state.walkthroughNotStarted, isFalse);
+      expect(state.walkthroughCompleted, isFalse);
+    });
+
+    test('reaching OnboardingStep.completion is the only completion signal', () async {
+      final state = await OnboardingState.load();
+      await state.advanceWalkthroughTo(OnboardingStep.verification);
+      expect(state.walkthroughCompleted, isFalse);
+      await state.advanceWalkthroughTo(OnboardingStep.completion);
+      expect(state.walkthroughCompleted, isTrue);
+    });
+
+    test('skipping a step records it without affecting the current step', () async {
+      final state = await OnboardingState.load();
+      await state.advanceWalkthroughTo(OnboardingStep.essentialSettings);
+      await state.skipWalkthroughStep(OnboardingStep.essentialSettings);
+      expect(state.walkthroughSkippedSteps, {OnboardingStep.essentialSettings});
+      expect(state.walkthroughStep, OnboardingStep.essentialSettings);
+    });
+
+    test('skipped steps accumulate rather than replace each other', () async {
+      final state = await OnboardingState.load();
+      await state.skipWalkthroughStep(OnboardingStep.firstProduct);
+      await state.skipWalkthroughStep(OnboardingStep.navigationIntro);
+      expect(state.walkthroughSkippedSteps, {
+        OnboardingStep.firstProduct,
+        OnboardingStep.navigationIntro,
+      });
+    });
+
+    test('skipping the same step twice is a no-op, not a duplicate', () async {
+      final state = await OnboardingState.load();
+      await state.skipWalkthroughStep(OnboardingStep.verification);
+      await state.skipWalkthroughStep(OnboardingStep.verification);
+      expect(state.walkthroughSkippedSteps, {OnboardingStep.verification});
+    });
+
+    test('step and skipped-set both persist across a fresh OnboardingState.load()', () async {
+      final first = await OnboardingState.load();
+      await first.advanceWalkthroughTo(OnboardingStep.firstSale);
+      await first.skipWalkthroughStep(OnboardingStep.navigationIntro);
+
+      final second = await OnboardingState.load();
+      expect(second.walkthroughStep, OnboardingStep.firstSale);
+      expect(second.walkthroughSkippedSteps, {OnboardingStep.navigationIntro});
+    });
+
+    test('isSkippable matches the spec: required and terminal steps are not', () {
+      expect(OnboardingStep.welcome.isSkippable, isFalse);
+      expect(OnboardingStep.businessSetup.isSkippable, isFalse);
+      expect(OnboardingStep.firstSale.isSkippable, isFalse);
+      expect(OnboardingStep.completion.isSkippable, isFalse);
+      expect(OnboardingStep.essentialSettings.isSkippable, isTrue);
+      expect(OnboardingStep.firstProduct.isSkippable, isTrue);
+      expect(OnboardingStep.navigationIntro.isSkippable, isTrue);
+      expect(OnboardingStep.verification.isSkippable, isTrue);
+    });
+  });
 }

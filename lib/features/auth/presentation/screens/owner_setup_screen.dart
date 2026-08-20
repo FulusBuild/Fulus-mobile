@@ -297,6 +297,23 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         // Deliberately swallowed — see comment above.
       }
       if (!mounted) return;
+      // A fifth step, same best-effort shape as the two above — only
+      // relevant when the guided walkthrough is actually running
+      // (someone who started at GetStartedScreen); a pre-existing
+      // install resuming Step 2 here never armed it in the first
+      // place, so walkthroughStep is null and this is a no-op. See
+      // onboarding_routing.dart's resolvePostSignInStage for what
+      // essentialSettings actually triggers next.
+      try {
+        final onboardingState = ref.read(onboardingStateProvider);
+        if (onboardingState.walkthroughStep == OnboardingStep.businessSetup) {
+          await onboardingState.advanceWalkthroughTo(OnboardingStep.essentialSettings);
+          ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.essentialSettings;
+        }
+      } catch (_) {
+        // Deliberately swallowed — see comment above.
+      }
+      if (!mounted) return;
       // Only now — both steps genuinely complete — does the app
       // actually consider this a signed-in session for navigation
       // purposes. See this file's own header comment and

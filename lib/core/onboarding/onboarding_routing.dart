@@ -34,6 +34,8 @@
 /// testability reason, not because the behavior changed.
 library;
 
+import 'onboarding_state.dart';
+
 /// Where [AuthGateScreen] should route a launch with no active session.
 enum AuthGateStage {
   /// No owner account, no business — the ordinary fresh-install case.
@@ -72,8 +74,32 @@ enum PostSignInStage {
   /// account creation or showing a false duplicate-business warning.
   resumeBusinessSetup,
 
+  /// Business just configured and the guided walkthrough is mid-flight
+  /// at its essential-settings step — show EssentialSettingsScreen.
+  /// Only reachable via the walkthrough itself (OwnerSetupScreen arms
+  /// this exact step right after creating the business); a pre-
+  /// existing install that never went through GetStartedScreen has a
+  /// null walkthroughStep and skips straight past this branch to
+  /// whichever of the two below already applied to it.
+  showEssentialSettings,
+
+  /// Walkthrough at its add-first-product step — show
+  /// AddFirstProductScreen.
+  showAddFirstProduct,
+
+  /// Walkthrough at its navigation-introduction step — show
+  /// NavigationIntroScreen.
+  showNavigationIntro,
+
+  /// Walkthrough at its first-sale step. `_ShellGate` special-cases
+  /// this one: shows FirstSaleIntroScreen once per session, then the
+  /// real app shell directly — see that screen's own doc comment.
+  showFirstSaleIntro,
+
   /// Business configured, but the one-time first-run nudge hasn't been
-  /// shown or dismissed yet — show FirstRunSetupScreen.
+  /// shown or dismissed yet — show FirstRunSetupScreen. Also where the
+  /// walkthrough hands off once its own built-out phases are done, for
+  /// however much of the walkthrough isn't built yet.
   showFirstRunPrompt,
 
   /// Fully set up — enter the app shell normally.
@@ -83,8 +109,31 @@ enum PostSignInStage {
 PostSignInStage resolvePostSignInStage({
   required bool businessConfigured,
   required bool firstRunPromptSeen,
+  required OnboardingStep? walkthroughStep,
 }) {
   if (!businessConfigured) return PostSignInStage.resumeBusinessSetup;
+  if (walkthroughStep == OnboardingStep.essentialSettings) {
+    return PostSignInStage.showEssentialSettings;
+  }
+  if (walkthroughStep == OnboardingStep.firstProduct) {
+    return PostSignInStage.showAddFirstProduct;
+  }
+  if (walkthroughStep == OnboardingStep.navigationIntro) {
+    return PostSignInStage.showNavigationIntro;
+  }
+  if (walkthroughStep == OnboardingStep.firstSale) {
+    return PostSignInStage.showFirstSaleIntro;
+  }
+  // verification/completion: real screens for these are a later
+  // milestone. A completed first sale already happened by the time
+  // either is reached, so falling through to showFirstRunPrompt below
+  // would be wrong here specifically — "add a product / sell now"
+  // makes no sense to someone who just did both. Enter the ordinary,
+  // fully-working shell instead until those screens exist.
+  if (walkthroughStep == OnboardingStep.verification ||
+      walkthroughStep == OnboardingStep.completion) {
+    return PostSignInStage.enterShell;
+  }
   if (!firstRunPromptSeen) return PostSignInStage.showFirstRunPrompt;
   return PostSignInStage.enterShell;
 }

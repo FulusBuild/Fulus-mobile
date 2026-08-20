@@ -14,9 +14,9 @@ Fulus is designed to be understood in under a minute by someone who has never us
 
 ## Project Status
 
-**Phase 0 — the Business Engine and data foundation — is complete.** Every core business capability runs against the local database today: local-first authentication (including owner-provisioned staff logins), full product catalog management with CSV bulk import, sales and POS logic, inventory and stock tracking, customer credit, employee records, finance tracking, receipt printing, backup, and optional synchronization with automatic retry and conflict detection. All of it is implemented and tested directly against the local database.
+**The core app — the Business Engine and the full user interface built against it — is complete.** Home, Sell, Stock, Money, and the More section (Employees, Reports, Settings, Backup) are all built, routed, and reachable today. Every core workflow — selling, stock and catalog management, customer credit, finance tracking, employee records, receipt printing, backup, and optional synchronization — runs end to end, on-device.
 
-**Phase 1 — the full user interface — is underway.** Home and three of the More section's screens (Employees, Reports, Backup) are built and reachable today. The core selling flow — Sell, Stock, and Money — doesn't have a screen yet; that's the immediate next phase of work, and everything it needs from the Business Engine is already in place, ready to be called.
+Current work is production-readiness refinement: accessibility, data-integrity hardening, and the remaining items tracked ahead of a wider commercial release.
 
 ## Key Features
 
@@ -197,8 +197,7 @@ flutter build ios --release
 ## Roadmap
 
 **Near-term priorities:**
-- Build the Sell, Stock, and Money screens — the core selling flow — against the Business Engine capability that's already in place
-- Round out the rest of Settings beyond Backup
+- Round out the rest of Settings beyond what's built today
 - A cross-device employee invite flow (QR-code based) for shops running more than one device — today, an owner sets up a staff login from the same device that staff member will use
 
 **Further out:**

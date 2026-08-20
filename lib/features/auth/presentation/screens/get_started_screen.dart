@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/providers.dart';
+import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'owner_setup_screen.dart';
@@ -33,11 +36,11 @@ import 'owner_setup_screen.dart';
 /// than not offering it at all, per Volume 12's "never a dead end"
 /// production rule — see [AuthGateScreen]'s own doc comment for the
 /// same reasoning applied to sign-in.
-class GetStartedScreen extends StatelessWidget {
+class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FulusScreen(
       body: Column(
         children: [
@@ -59,9 +62,15 @@ class GetStartedScreen extends StatelessWidget {
             width: double.infinity,
             child: FulusButton(
               label: 'Get started',
-              onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
-              ),
+              onPressed: () async {
+                final onboardingState = ref.read(onboardingStateProvider);
+                await onboardingState.advanceWalkthroughTo(OnboardingStep.businessSetup);
+                ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.businessSetup;
+                if (!context.mounted) return;
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
+                );
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

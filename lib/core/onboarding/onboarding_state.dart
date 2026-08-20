@@ -82,4 +82,98 @@ class OnboardingState {
   /// still consumes the one-time moment rather than showing it again on
   /// a second sale.
   Future<void> markFirstSaleCelebrated() => _preferences.setBool(_firstSaleCelebratedKey, true);
+
+  // --- Guided walkthrough ---
+  //
+  // A separate, more granular tracker from the two flags above, which
+  // stay exactly as they are — read by FirstRunSetupScreen and
+  // SaleSuccessScreen — until those are folded into the walkthrough in
+  // a later milestone. Deliberately just two keys, not a third
+  // "isComplete" flag: completion is `walkthroughStep ==
+  // OnboardingStep.completion`, not a second fact that could drift out
+  // of sync with the first. `null` means the walkthrough hasn't started
+  // for this business — armed by whichever screen first detects that no
+  // business/user setup exists yet, not by this class itself, the same
+  // division of responsibility [armFirstRun] already has with
+  // [OwnerSetupScreen].
+
+  static const _walkthroughStepKey = 'fulus_onboarding_walkthrough_step';
+  static const _walkthroughSkippedKey = 'fulus_onboarding_walkthrough_skipped_steps';
+  static const _walkthroughFirstSaleIdKey = 'fulus_onboarding_walkthrough_first_sale_id';
+
+  OnboardingStep? get walkthroughStep {
+    final name = _preferences.getString(_walkthroughStepKey);
+    if (name == null) return null;
+    return OnboardingStep.values.asNameMap()[name];
+  }
+
+  bool get walkthroughNotStarted => walkthroughStep == null;
+
+  bool get walkthroughCompleted => walkthroughStep == OnboardingStep.completion;
+
+  Set<OnboardingStep> get walkthroughSkippedSteps {
+    final names = _preferences.getStringList(_walkthroughSkippedKey) ?? const <String>[];
+    final byName = OnboardingStep.values.asNameMap();
+    return names.map((name) => byName[name]).whereType<OnboardingStep>().toSet();
+  }
+
+  /// Called on entering a step and on finishing the walkthrough alike —
+  /// [OnboardingStep.completion] is a real step here, not a separate
+  /// method.
+  Future<void> advanceWalkthroughTo(OnboardingStep step) =>
+      _preferences.setString(_walkthroughStepKey, step.name);
+
+  /// Marks an optional step as explicitly skipped, so resuming the
+  /// walkthrough doesn't re-offer it — see [OnboardingStep.isSkippable]
+  /// for which steps this applies to.
+  Future<void> skipWalkthroughStep(OnboardingStep step) async {
+    final updated = walkthroughSkippedSteps..add(step);
+    await _preferences.setStringList(
+      _walkthroughSkippedKey,
+      updated.map((s) => s.name).toList(),
+    );
+  }
+
+  /// The sale [TransactionVerificationScreen] should look up — recorded
+  /// once, at the same moment [advanceWalkthroughTo] moves to
+  /// [OnboardingStep.verification], specifically so a second sale made
+  /// before the owner ever opens that screen (nothing blocks them from
+  /// using the real app in the meantime — see that step's own doc
+  /// comment) can't get shown in place of the actual first one.
+  String? get walkthroughFirstSaleId => _preferences.getString(_walkthroughFirstSaleIdKey);
+
+  Future<void> recordWalkthroughFirstSale(String saleId) =>
+      _preferences.setString(_walkthroughFirstSaleIdKey, saleId);
+}
+
+/// The walkthrough's resume points. Coarser than the phases a person
+/// actually walks through: [firstSale] covers preparation → cart →
+/// payment → success as one resume point, because a mid-sale
+/// interruption already has a real source of truth to resume from
+/// (DraftCartRepository's own persistence, then this class's own
+/// [OnboardingState.hasCelebratedFirstSale] once a sale exists) —
+/// tracking a second, finer-grained "which sale sub-step" here would be
+/// exactly the duplicate source of truth a walkthrough should avoid.
+enum OnboardingStep {
+  welcome,
+  businessSetup,
+  essentialSettings,
+  firstProduct,
+  navigationIntro,
+  firstSale,
+  verification,
+  completion;
+
+  /// Whether this step can be permanently dismissed without doing it.
+  /// businessSetup can't be — the app has nothing to run without it,
+  /// already enforced independently of this walkthrough. welcome isn't
+  /// something with a separate skip action; proceeding through it IS
+  /// the action. firstSale is deferrable (pause, resume later) but not
+  /// permanently skippable — reaching a real sale is the walkthrough's
+  /// whole point, not something to opt out of once the steps before it
+  /// are done. completion is terminal.
+  bool get isSkippable => switch (this) {
+        welcome || businessSetup || firstSale || completion => false,
+        essentialSettings || firstProduct || navigationIntro || verification => true,
+      };
 }

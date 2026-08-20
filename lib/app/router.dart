@@ -36,7 +36,11 @@ import '../features/more/settings/presentation/screens/manage_locations_screen.d
 import '../features/more/settings/presentation/screens/printer_pairing_screen.dart';
 import '../features/more/settings/presentation/screens/settings_main_screen.dart';
 import '../features/more/settings/presentation/screens/sync_detail_screen.dart';
+import '../features/onboarding/presentation/screens/add_first_product_screen.dart';
+import '../features/onboarding/presentation/screens/essential_settings_screen.dart';
 import '../features/onboarding/presentation/screens/first_run_setup_screen.dart';
+import '../features/onboarding/presentation/screens/first_sale_intro_screen.dart';
+import '../features/onboarding/presentation/screens/navigation_intro_screen.dart';
 import '../features/sell/presentation/screens/refund_confirm_screen.dart';
 import '../features/sell/presentation/screens/refund_search_screen.dart';
 import '../features/sell/presentation/screens/sell_screen.dart';
@@ -482,10 +486,22 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
         final stage = resolvePostSignInStage(
           businessConfigured: snapshot.data!,
           firstRunPromptSeen: ref.watch(firstRunPromptSeenProvider),
+          walkthroughStep: ref.watch(walkthroughStepProvider),
         );
         switch (stage) {
           case PostSignInStage.resumeBusinessSetup:
             return OwnerSetupScreen(startAtBusinessStep: true, resumingOwner: user);
+          case PostSignInStage.showEssentialSettings:
+            return const EssentialSettingsScreen();
+          case PostSignInStage.showAddFirstProduct:
+            return const AddFirstProductScreen();
+          case PostSignInStage.showNavigationIntro:
+            return const NavigationIntroScreen();
+          case PostSignInStage.showFirstSaleIntro:
+            final introSeen = ref.watch(firstSaleIntroSeenProvider);
+            return introSeen
+                ? FulusAppShell(navigationShell: widget.navigationShell, isOwner: true)
+                : const FirstSaleIntroScreen();
           case PostSignInStage.showFirstRunPrompt:
             return const FirstRunSetupScreen();
           case PostSignInStage.enterShell:

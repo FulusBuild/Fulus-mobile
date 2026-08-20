@@ -315,44 +315,51 @@ class _GroupedTransactionList extends StatelessWidget {
     for (final t in items) {
       groups.putIfAbsent(formatRelativeDay(t.dateTime), () => []).add(t);
     }
+    final dayKeys = groups.keys.toList();
 
-    return ListView(
+    return ListView.builder(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      children: [
-        for (final entry in groups.entries) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
-            child: Text(
-              entry.key,
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondaryOf(context),
-                fontWeight: FontWeight.w600,
+      itemCount: dayKeys.length,
+      itemBuilder: (context, index) {
+        final dayKey = dayKeys[index];
+        final dayItems = groups[dayKey]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+              child: Text(
+                dayKey,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          FulusCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (var i = 0; i < entry.value.length; i++) ...[
-                  if (i > 0) const FulusListDivider(),
-                  MoneyTransactionTile(
-                    transaction: entry.value[i],
-                    currencySymbol: currencySymbol,
-                    showDate: false,
-                    onTap: () => context.pushNamed(
-                      'moneyTransactionDetail',
-                      pathParameters: {'id': entry.value[i].id},
-                      extra: entry.value[i],
+            FulusCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (var i = 0; i < dayItems.length; i++) ...[
+                    if (i > 0) const FulusListDivider(),
+                    MoneyTransactionTile(
+                      transaction: dayItems[i],
+                      currencySymbol: currencySymbol,
+                      showDate: false,
+                      onTap: () => context.pushNamed(
+                        'moneyTransactionDetail',
+                        pathParameters: {'id': dayItems[i].id},
+                        extra: dayItems[i],
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-      ],
+            const SizedBox(height: AppSpacing.md),
+          ],
+        );
+      },
     );
   }
 }

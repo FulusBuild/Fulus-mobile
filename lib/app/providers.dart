@@ -559,3 +559,23 @@ final onboardingStateProvider = Provider<OnboardingState>((ref) {
 final firstRunPromptSeenProvider = StateProvider<bool>((ref) {
   return ref.watch(onboardingStateProvider).hasSeenFirstRunPrompt;
 });
+
+/// Reactive mirror of [OnboardingState.walkthroughStep] — same shape,
+/// same reason, as [firstRunPromptSeenProvider] immediately above:
+/// `_ShellGate` needs to rebuild the instant this changes, and
+/// `ref.watch` only reacts to a *provider* changing. Whichever
+/// walkthrough screen advances the step writes here too, right after
+/// its `OnboardingState` call succeeds.
+final walkthroughStepProvider = StateProvider<OnboardingStep?>((ref) {
+  return ref.watch(onboardingStateProvider).walkthroughStep;
+});
+
+/// Deliberately NOT backed by [OnboardingState] / SharedPreferences,
+/// unlike every provider above it: whether the walkthrough's brief
+/// "now let's sell it" interstitial has been dismissed *this session*
+/// isn't onboarding progress — [OnboardingStep.firstSale] itself is
+/// already the durable fact that this span is in progress. If the app
+/// restarts mid-first-sale, showing this one-time interstitial again is
+/// a fine, low-cost re-show, not a second source of truth to keep in
+/// sync with the first.
+final firstSaleIntroSeenProvider = StateProvider<bool>((ref) => false);
