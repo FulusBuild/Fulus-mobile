@@ -111,7 +111,6 @@ void main() {
             role: AuthRole.employee,
             createdAt: now,
             updatedAt: now,
-            syncStatus: SyncStatus.settled,
           ),
         );
   }
@@ -351,7 +350,7 @@ void main() {
       );
 
       final report = await repository.getSalesReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       expect(report.transactions, hasLength(2));
@@ -384,7 +383,7 @@ void main() {
       );
 
       final report = await repository.getSalesReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       final record = report.transactions.single;
@@ -405,7 +404,7 @@ void main() {
       );
 
       final report = await repository.getSalesReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       expect(report.transactions.single.status, SaleRecordStatus.completed);
@@ -447,7 +446,7 @@ void main() {
       );
 
       final report = await repository.getSalesReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       final refunded = report.transactions.firstWhere((t) => t.saleLocalId == 'sale-refunded');
@@ -475,7 +474,7 @@ void main() {
       );
 
       final report = await repository.getSalesReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       expect(report.transactions.single.status, SaleRecordStatus.partiallyRefunded);
@@ -516,7 +515,7 @@ void main() {
       );
 
       final report = await repository.getEmployeeReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       final perf = report.performance.single;
@@ -547,7 +546,7 @@ void main() {
       );
 
       final report = await repository.getEmployeeReport(
-        ReportPeriod(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
       );
 
       final perf = report.performance.single;

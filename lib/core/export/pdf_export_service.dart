@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'csv_export_service.dart';
+import 'export_metadata.dart';
 
 /// Stage 14 (Export half).
 ///
@@ -28,9 +29,6 @@ import 'csv_export_service.dart';
 /// rather than higher-level convenience helpers specifically because
 /// those fundamentals are far less likely to have changed shape across
 /// recent package versions than a helper method might have.
-import 'csv_export_service.dart';
-import 'export_metadata.dart';
-
 class PdfExportService {
   Future<Uint8List> build({
     ExportMetadata? metadata,

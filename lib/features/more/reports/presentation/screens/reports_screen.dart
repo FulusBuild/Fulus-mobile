@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/widgets.dart';
 import '../../../../money/domain/money_history_filter.dart';
 import '../../../../money/domain/money_transaction.dart';
 import '../../../../money/presentation/providers/money_providers.dart'
-    show moneyCurrencySymbolProvider, moneyPeriodKindProvider, customMoneyRangeProvider;
+    show moneyCurrencySymbolProvider, moneyPeriodKindProvider, customMoneyRangeProvider, businessNameProvider;
 import '../../../../money/presentation/utils/money_format.dart';
 
 /// Volume 10: one shared period selector above five categories, not

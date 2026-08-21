@@ -1,6 +1,7 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/expenses_api.dart';
+import 'package:fulus_mobile/data/repositories/audit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/expense_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/expense.dart';
 import 'package:fulus_mobile/sync/handlers/expense_sync_handler.dart';
@@ -14,6 +15,7 @@ class MockExpensesApi extends Mock implements ExpensesApi {}
 void main() {
   late AppDatabase db;
   late MockExpensesApi expensesApi;
+  late AuditRepositoryImpl auditRepository;
   late ExpenseRepositoryImpl expenseRepository;
   late ExpenseSyncHandler handler;
 
@@ -36,7 +38,8 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     expensesApi = MockExpensesApi();
-    expenseRepository = ExpenseRepositoryImpl(db: db, syncQueue: SyncQueue(db));
+    auditRepository = AuditRepositoryImpl(db: db);
+    expenseRepository = ExpenseRepositoryImpl(db: db, syncQueue: SyncQueue(db), auditRepository: auditRepository);
     handler = ExpenseSyncHandler(
       expensesApi: expensesApi,
       expenseRepository: expenseRepository,
