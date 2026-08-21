@@ -14,6 +14,7 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:ulid/ulid.dart';
 
 import '../helpers/db_seed_helpers.dart';
 
@@ -144,14 +145,14 @@ void main() {
   Future<Sale> purchase({String? customerId, double? amountPaid}) {
     final items = [
       SaleItem(
-        localId: 'item-a-1',
+        localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
         unitPrice: 1000,
         costPriceAtSale: 400,
       ),
       SaleItem(
-        localId: 'item-b-1',
+        localId: Ulid().toString(),
         productLocalId: productBId,
         quantity: 3,
         unitPrice: 1000,
