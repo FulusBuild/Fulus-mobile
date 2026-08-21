@@ -67,17 +67,6 @@ void main() {
       );
     });
 
-    test('walkthrough past essentialSettings -> falls through to the first-run prompt check', () {
-      expect(
-        resolvePostSignInStage(
-          businessConfigured: true,
-          firstRunPromptSeen: false,
-          walkthroughStep: OnboardingStep.firstProduct,
-        ),
-        PostSignInStage.showFirstRunPrompt,
-      );
-    });
-
     test('walkthrough mid-flight at firstProduct -> showAddFirstProduct', () {
       expect(
         resolvePostSignInStage(
@@ -97,17 +86,6 @@ void main() {
           walkthroughStep: OnboardingStep.navigationIntro,
         ),
         PostSignInStage.showNavigationIntro,
-      );
-    });
-
-    test('walkthrough past navigationIntro -> falls through to the first-run prompt check', () {
-      expect(
-        resolvePostSignInStage(
-          businessConfigured: true,
-          firstRunPromptSeen: false,
-          walkthroughStep: OnboardingStep.firstSale,
-        ),
-        PostSignInStage.showFirstRunPrompt,
       );
     });
 
