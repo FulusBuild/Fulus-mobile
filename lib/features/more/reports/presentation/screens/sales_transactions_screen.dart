@@ -7,7 +7,7 @@ import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/formatting.dart';
 import '../../../../../domain/entities/report.dart';
 import '../../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
+import '../../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 
 /// The Sales report's drill-down screen — "revenue → sales transactions
 /// → individual sale → ... → payment → customer → cashier/user →
