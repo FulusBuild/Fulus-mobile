@@ -13,38 +13,44 @@ on:
 
   workflow_dispatch:
     inputs:
-      upload_debug_apk:
-        description: "Upload the debug APK for device testing"
-        required: false
-        default: false
-        type: boolean
+      build_apk:
+        description: "Build and upload an APK"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - debug
+          - release
 
-      upload_release_apk:
-        description: "Upload the release APK"
+      api_base_url:
+        description: "API base URL for release APK (leave empty to use repository variable)"
         required: false
-        default: false
-        type: boolean
+        default: ""
+        type: string
 
 env:
   FLUTTER_VERSION: "3.24.0"
 
+# If several commits are pushed quickly, don't waste CI minutes
+# building commits that have already been superseded.
+concurrency:
+  group: fulus-mobile-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
-concurrency:
-  group: fulus-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
 
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
   # 1. DEPENDENCIES
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
 
   dependencies:
     name: Resolve dependencies
+
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -55,28 +61,25 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+          cache: true
 
-      - name: Cache Pub packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
+      - name: Flutter version
+        run: flutter --version
 
       - name: Resolve dependencies
         run: flutter pub get
 
 
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
   # 2. CODE GENERATION
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
 
   codegen:
-    name: Code generation
+    name: Generate Dart code
+
     needs: dependencies
+
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -87,31 +90,27 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+          cache: true
 
-      - name: Cache Pub packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Resolve dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Generate Dart code
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Generate code
+        run: |
+          dart run build_runner build \
+            --delete-conflicting-outputs
 
 
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
   # 3. STATIC ANALYSIS
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
 
   analyze:
-    name: Flutter analyze
+    name: Static analysis
+
     needs: codegen
+
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -122,34 +121,31 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+          cache: true
 
-      - name: Cache Pub packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Resolve dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Generate Dart code
-        run: dart run build_runner build --delete-conflicting-outputs
+      # Generated files are intentionally regenerated here.
+      - name: Generate code
+        run: |
+          dart run build_runner build \
+            --delete-conflicting-outputs
 
       - name: Analyze
         run: flutter analyze --fatal-infos
 
 
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
   # 4. TESTS
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
 
   test:
     name: Flutter tests
+
     needs: analyze
+
     runs-on: ubuntu-latest
-    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -160,36 +156,36 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+          cache: true
 
-      - name: Cache Pub packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Resolve dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Generate Dart code
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Generate code
+        run: |
+          dart run build_runner build \
+            --delete-conflicting-outputs
 
       - name: Run tests
         run: flutter test
 
 
-  # ────────────────────────────────────────────────────────────────────────
+  # ============================================================
   # 5. ANDROID DEBUG BUILD VERIFICATION
   #
-  # This verifies the Android/Gradle project but DOES NOT store an APK.
-  # ────────────────────────────────────────────────────────────────────────
+  # IMPORTANT:
+  # This builds the APK on every CI run to verify Android/Gradle.
+  # It DOES NOT upload the APK.
+  #
+  # Therefore a normal push consumes ZERO artifact storage.
+  # ============================================================
 
-  build_debug:
-    name: Android debug build
+  android_debug_verify:
+    name: Verify Android debug build
+
     needs: test
+
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -200,8 +196,9 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+          cache: true
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -221,55 +218,45 @@ jobs:
 
           gradle wrapper --distribution-type all
 
-          cp -v gradlew gradlew.bat "$GITHUB_WORKSPACE/android/"
+          cp -v gradlew gradlew.bat \
+            "$GITHUB_WORKSPACE/android/"
+
           cp -v gradle/wrapper/gradle-wrapper.jar \
             "$GITHUB_WORKSPACE/android/gradle/wrapper/"
 
           chmod +x "$GITHUB_WORKSPACE/android/gradlew"
 
-      - name: Cache Pub packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Resolve dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Generate Dart code
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Generate code
+        run: |
+          dart run build_runner build \
+            --delete-conflicting-outputs
 
       - name: Build debug APK
         run: flutter build apk --debug
 
-      # APK storage is opt-in.
-      # Normal CI runs store NOTHING.
-      - name: Upload debug APK
-        if: github.event_name == 'workflow_dispatch' && inputs.upload_debug_apk == true
-        uses: actions/upload-artifact@v4
-        with:
-          name: fulus-debug-apk-${{ github.run_number }}
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 2
 
-
-  # ────────────────────────────────────────────────────────────────────────
-  # 6. RELEASE BUILD VERIFICATION
+  # ============================================================
+  # 6. MANUAL DEBUG APK
   #
-  # Release builds run on pushes to main/develop and manual runs.
-  # They are NOT run on pull requests to reduce CI cost.
+  # Runs ONLY when you choose:
   #
-  # The APK is NOT stored unless explicitly requested.
-  # ────────────────────────────────────────────────────────────────────────
+  # Actions → Fulus Mobile CI → Run workflow
+  # Build APK → debug
+  #
+  # This is the ONLY normal way to consume artifact storage.
+  # ============================================================
 
-  build_release:
-    name: Android release build
-    needs: test
-    if: github.event_name != 'pull_request'
+  debug_apk:
+    name: Build debug APK
+
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_apk == 'debug'
+
     runs-on: ubuntu-latest
-    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -280,8 +267,9 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+          cache: true
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -301,52 +289,130 @@ jobs:
 
           gradle wrapper --distribution-type all
 
-          cp -v gradlew gradlew.bat "$GITHUB_WORKSPACE/android/"
+          cp -v gradlew gradlew.bat \
+            "$GITHUB_WORKSPACE/android/"
+
           cp -v gradle/wrapper/gradle-wrapper.jar \
             "$GITHUB_WORKSPACE/android/gradle/wrapper/"
 
           chmod +x "$GITHUB_WORKSPACE/android/gradlew"
 
-      - name: Cache Pub packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Resolve dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Generate Dart code
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Verify API configuration
-        env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
+      - name: Generate code
         run: |
+          dart run build_runner build \
+            --delete-conflicting-outputs
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fulus-mobile-debug-apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 2
+
+
+  # ============================================================
+  # 7. MANUAL RELEASE APK
+  #
+  # Runs ONLY when explicitly requested.
+  # ============================================================
+
+  release_apk:
+    name: Build release APK
+
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_apk == 'release'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Bootstrap Gradle wrapper
+        run: |
+          mkdir -p /tmp/gradle-wrapper-bootstrap
+          cd /tmp/gradle-wrapper-bootstrap
+
+          touch settings.gradle
+
+          gradle wrapper --distribution-type all
+
+          cp -v gradlew gradlew.bat \
+            "$GITHUB_WORKSPACE/android/"
+
+          cp -v gradle/wrapper/gradle-wrapper.jar \
+            "$GITHUB_WORKSPACE/android/gradle/wrapper/"
+
+          chmod +x "$GITHUB_WORKSPACE/android/gradlew"
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Generate code
+        run: |
+          dart run build_runner build \
+            --delete-conflicting-outputs
+
+      - name: Resolve API base URL
+        id: api
+        env:
+          INPUT_API_BASE_URL: ${{ inputs.api_base_url }}
+          REPOSITORY_API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          API_BASE_URL="$INPUT_API_BASE_URL"
+
+          if [ -z "$API_BASE_URL" ]; then
+            API_BASE_URL="$REPOSITORY_API_BASE_URL"
+          fi
+
           if [ -z "$API_BASE_URL" ]; then
             echo "::error::API_BASE_URL is not configured."
             exit 1
           fi
 
           if [ "$API_BASE_URL" = "http://10.0.2.2:8000" ]; then
-            echo "::error::API_BASE_URL still points to the emulator-only default."
+            echo "::error::API_BASE_URL still points to the Android emulator."
             exit 1
           fi
 
-      - name: Build release APK
-        env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
-        run: |
-          flutter build apk --release \
-            --dart-define=API_BASE_URL="$API_BASE_URL"
+          echo "API_BASE_URL=$API_BASE_URL" >> "$GITHUB_OUTPUT"
 
-      # Release artifact storage is also opt-in.
+      - name: Build release APK
+        run: |
+          flutter build apk \
+            --release \
+            --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}"
+
       - name: Upload release APK
-        if: github.event_name == 'workflow_dispatch' && inputs.upload_release_apk == true
         uses: actions/upload-artifact@v4
         with:
-          name: fulus-release-apk-${{ github.run_number }}
+          name: fulus-mobile-release-apk-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 3
+          if-no-files-found: error
+          retention-days: 2
