@@ -38,7 +38,7 @@ abstract class EmployeeRepository {
   /// Null for an id that doesn't exist OR that belongs to a
   /// deactivated employee — consistent with every list/stream method
   /// on this repository, all of which exclude deactivated employees.
-  Future<Employee?> getEmployeeById(String id);
+  Future<Employee?> getEmployeeById(String id, {bool includeInactive = false});
 
   Future<EmployeeStats> getStats();
 
