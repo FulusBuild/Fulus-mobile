@@ -1,249 +1,352 @@
 name: Fulus Mobile CI
 
-# Runs on every push and PR against main/develop. This is the first real
-# verification this codebase gets — nothing in this repository has been
-# compiled, analyzed, or tested by the person/process that wrote it,
-# since that was built in an environment with no Flutter/Android SDK at
-# all. This workflow is where that stops being true. Treat a red run here
-# as a genuine, first-time signal, not a formality.
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+
   pull_request:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+
+  workflow_dispatch:
+    inputs:
+      upload_debug_apk:
+        description: "Upload the debug APK for device testing"
+        required: false
+        default: false
+        type: boolean
+
+      upload_release_apk:
+        description: "Upload the release APK"
+        required: false
+        default: false
+        type: boolean
 
 env:
   FLUTTER_VERSION: "3.24.0"
-  # Pinned explicitly rather than "latest stable" — a CI pipeline whose
-  # Flutter version silently drifts between runs makes a red build
-  # ambiguous (did the code break, or did the toolchain move under it?).
-  # Bump this deliberately, as its own reviewable change, not implicitly.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fulus-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ── Step 1: dependency resolution ──────────────────────────────────────
-  # If pubspec.yaml has a real version conflict (every version number in
-  # it was hand-written against my knowledge of published packages, never
-  # confirmed by an actual resolver — see the Phase 1 summary), THIS is
-  # where it surfaces, before any code is even looked at.
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 1. DEPENDENCIES
+  # ────────────────────────────────────────────────────────────────────────
+
   dependencies:
+    name: Resolve dependencies
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-      - run: flutter pub get
-      - name: Cache pub packages for later jobs
+
+      - name: Cache Pub packages
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.pub-cache
-            **/.dart_tool
+          path: ~/.pub-cache
           key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
 
-  # ── Step 2: code generation ────────────────────────────────────────────
-  # tables.dart (and every Riverpod/Freezed-annotated file added in later
-  # phases) declares `part '*.g.dart'` — those files do not exist in this
-  # repository; build_runner generates them. Nothing downstream can even
-  # be analyzed until this succeeds. If this step fails, the problem is in
-  # a table/provider/entity DEFINITION, not in code that uses one.
+      - name: Resolve dependencies
+        run: flutter pub get
+
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 2. CODE GENERATION
+  # ────────────────────────────────────────────────────────────────────────
+
   codegen:
+    name: Code generation
     needs: dependencies
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-      - run: flutter pub get
-      - run: dart run build_runner build --delete-conflicting-outputs
-      # No upload-artifact step: analyze and build_debug_apk each run
-      # codegen themselves now rather than depend on this job's output
-      # (see analyze job's comment). This job still runs first and still
-      # gives an isolated, fast signal if codegen itself is what's broken.
 
-  # ── Step 3: static analysis ─────────────────────────────────────────────
-  # A failure here is a real defect in the code as written — a type
-  # error, an unresolved import, a genuine mistake — not a toolchain or
-  # generation problem, since codegen already succeeded by this point.
+      - name: Cache Pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate Dart code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 3. STATIC ANALYSIS
+  # ────────────────────────────────────────────────────────────────────────
+
   analyze:
+    name: Flutter analyze
     needs: codegen
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-      - run: flutter pub get
-      # Generate code directly in this job rather than downloading the
-      # codegen job's artifact. upload-artifact@v4 computes its output
-      # structure from the least-common-ancestor of matched files across
-      # ALL glob patterns combined — not guaranteed to reproduce every
-      # file's original nested path, and not something this step should
-      # depend on for a compile-blocking input. A few redundant seconds
-      # of build_runner here removes that class of failure entirely.
-      - run: dart run build_runner build --delete-conflicting-outputs
-      - run: flutter analyze --fatal-infos
-      # --fatal-infos, not just the default (which only fails on
-      # warnings/errors) — deliberately the stricter setting for a
-      # foundation phase specifically, since this is the layer everything
-      # else builds on; a merely-passing analyze with unaddressed info-
-      # level lints here compounds across every later phase built on top.
 
-  # ── Step 4: tests ────────────────────────────────────────────────────────
-  # Split into the same layers Architecture Section 13 specifies. A
-  # failure names which LAYER broke — a unit-test failure means a
-  # business-rule bug; a database-test failure means the Drift schema
-  # itself is wrong, a more foundational problem.
-  #
-  # Phase 0 completion pass: this used to scope down to `flutter test
-  # test/repository` alone, with a comment claiming test/unit and
-  # test/database "don't exist yet." That comment was stale — test/unit,
-  # test/sync, test/core, test/data, and test/device_services all have
-  # real files in this tree, and none of them were ever actually run in
-  # CI as a result. Running the whole suite now; this is the first time
-  # roughly twenty of this project's test files will have executed
-  # anywhere.
+      - name: Cache Pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate Dart code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 4. TESTS
+  # ────────────────────────────────────────────────────────────────────────
+
   test:
+    name: Flutter tests
     needs: analyze
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-      - run: flutter pub get
-      - run: dart run build_runner build --delete-conflicting-outputs
-      - run: flutter test
 
-  # ── Step 5: build a debug APK ────────────────────────────────────────────
-  # Debug, not release — a foundation-phase CI has no signing keystore
-  # configured, and shouldn't invent one. This step's actual purpose is
-  # confirming the Android project itself is correctly configured (Gradle,
-  # minSdkVersion 26 per the brief's Android 8.0 floor, manifest) — a
-  # concern entirely separate from whether the Dart code above is
-  # correct, and one that needs its own explicit pass/fail signal.
+      - name: Cache Pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate Dart code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Run tests
+        run: flutter test
+
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 5. ANDROID DEBUG BUILD VERIFICATION
   #
-  # RE-ENABLED as of this checkpoint — the android/ scaffold now exists
-  # (hand-built, since the environment that added it had no network
-  # access to run `flutter create` itself; see the PR description for
-  # exactly what was verified vs. assumed). This is the first time this
-  # job has ever actually run — treat its result as a real, first-time
-  # signal, not a formality.
-  build_debug_apk:
+  # This verifies the Android/Gradle project but DOES NOT store an APK.
+  # ────────────────────────────────────────────────────────────────────────
+
+  build_debug:
+    name: Android debug build
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-      - uses: actions/setup-java@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
+          distribution: temurin
           java-version: "17"
-      - name: Install Gradle 8.11.1
-        # Used only to generate the wrapper JAR in the next step — the
-        # `flutter build apk` step further down invokes android/gradlew,
-        # not this gradle binary directly. Pinned to match
-        # gradle-wrapper.properties (not left on an older/unrelated
-        # version) so the JAR that `gradle wrapper` below produces is
-        # guaranteed built by, and compatible with, the same Gradle
-        # release our committed wrapper config actually requests.
+
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
-      - name: Bootstrap the official Gradle wrapper
-        # android/gradle/wrapper/gradle-wrapper.jar is a small compiled
-        # binary. It was NOT hand-authored or fabricated — this step
-        # obtains the real one, generated by Gradle itself. It's
-        # regenerated here (not just trusted from git) because the
-        # environment that wrote this workflow had no network access to
-        # produce or verify that binary directly. Generated in an empty
-        # scratch directory, not inside android/, because
-        # android/settings.gradle reads local.properties (flutter.sdk)
-        # during Gradle's initialization phase for ANY invocation —
-        # including `gradle wrapper` — and local.properties doesn't exist
-        # until Flutter itself writes it on the first real build/run
-        # below.
-        #
-        # Deliberately does NOT copy gradle-wrapper.properties out of
-        # this scratch dir: that file is plain text, already committed,
-        # and already correct (see android/gradle/wrapper/gradle-wrapper.properties)
-        # — it's the actual source of truth for which Gradle version the
-        # wrapper resolves. Only the binary jar (which can't be
-        # hand-verified/diffed the same way) needs bootstrapping here.
-        # Copying the properties file too was the original bug: an
-        # earlier version of this step ran `gradle wrapper
-        # --gradle-version 8.6` and then overwrote the repo's real
-        # gradle-wrapper.properties with that scratch dir's own
-        # 8.6-pinned copy on every single run, permanently reverting any
-        # version bump made to the committed file. Not copying it here
-        # removes that whole class of bug — this step no longer has an
-        # opinion on which Gradle version the project builds with at all.
+
+      - name: Bootstrap Gradle wrapper
         run: |
           mkdir -p /tmp/gradle-wrapper-bootstrap
           cd /tmp/gradle-wrapper-bootstrap
-          # Gradle refuses to run ANY task, including the built-in
-          # `wrapper` task, unless the directory it's invoked in is a
-          # recognizable Gradle build — it errors with "does not contain
-          # a Gradle build" otherwise. An empty settings.gradle is enough
-          # to satisfy that (a valid, empty, single-project build) without
-          # pulling in android/settings.gradle's local.properties read.
+
           touch settings.gradle
-          # No --gradle-version flag: with none given, the wrapper task
-          # generates a JAR for whatever Gradle version is currently
-          # running it, i.e. the 8.11.1 installed by setup-gradle above.
-          # That keeps the version pinned in exactly one place in this
-          # workflow instead of two independently-drifting literals.
+
           gradle wrapper --distribution-type all
+
           cp -v gradlew gradlew.bat "$GITHUB_WORKSPACE/android/"
           cp -v gradle/wrapper/gradle-wrapper.jar \
             "$GITHUB_WORKSPACE/android/gradle/wrapper/"
-          chmod +x "$GITHUB_WORKSPACE/android/gradlew"
-      - run: flutter pub get
-      - run: dart run build_runner build --delete-conflicting-outputs
-      - run: flutter build apk --debug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: fulus-mobile-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
-          # This is the artifact meant for your physical device — pull it
-          # from the Actions run, sideload it, and that's the first point
-          # any of this has genuinely run on real hardware rather than
-          # been reasoned about.
 
-      # ── Step 6: build a release APK ─────────────────────────────────────
-      # A release build exercises a genuinely different code path than
-      # --debug above: minification/obfuscation as configured in
-      # android/app/build.gradle, and — the specific risk this step
-      # exists to catch — env_config.dart's API_BASE_URL, which defaults
-      # to http://10.0.2.2:8000 (the Android emulator's loopback to its
-      # host) so local development works out of the box. That default
-      # must never end up in a build real users install; the check below
-      # fails the build rather than silently shipping it. Set the
-      # API_BASE_URL repository variable (Settings → Secrets and
-      # variables → Actions → Variables) to the real API host before this
-      # job can pass. This does not configure release signing — Gradle
-      # falls back to the debug key for the release build type until a
-      # real signing config is added, so this APK is good for sideloading
-      # and verifying the release build itself, not yet for store
-      # distribution.
-      - name: Verify a real API_BASE_URL is configured
+          chmod +x "$GITHUB_WORKSPACE/android/gradlew"
+
+      - name: Cache Pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate Dart code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      # APK storage is opt-in.
+      # Normal CI runs store NOTHING.
+      - name: Upload debug APK
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_debug_apk == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fulus-debug-apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 2
+
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 6. RELEASE BUILD VERIFICATION
+  #
+  # Release builds run on pushes to main/develop and manual runs.
+  # They are NOT run on pull requests to reduce CI cost.
+  #
+  # The APK is NOT stored unless explicitly requested.
+  # ────────────────────────────────────────────────────────────────────────
+
+  build_release:
+    name: Android release build
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Bootstrap Gradle wrapper
         run: |
-          if [ -z "${{ vars.API_BASE_URL }}" ] || [ "${{ vars.API_BASE_URL }}" = "http://10.0.2.2:8000" ]; then
-            echo "::error::API_BASE_URL is not set (or is still the emulator-only default). A release build must not ship pointing at 10.0.2.2. Set it at: repo Settings -> Secrets and variables -> Actions -> Variables tab -> New repository variable -> name API_BASE_URL, value your real API host. It doesn't need to be the final production URL yet — anything other than 10.0.2.2 unblocks this check."
+          mkdir -p /tmp/gradle-wrapper-bootstrap
+          cd /tmp/gradle-wrapper-bootstrap
+
+          touch settings.gradle
+
+          gradle wrapper --distribution-type all
+
+          cp -v gradlew gradlew.bat "$GITHUB_WORKSPACE/android/"
+          cp -v gradle/wrapper/gradle-wrapper.jar \
+            "$GITHUB_WORKSPACE/android/gradle/wrapper/"
+
+          chmod +x "$GITHUB_WORKSPACE/android/gradlew"
+
+      - name: Cache Pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate Dart code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify API configuration
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::API_BASE_URL is not configured."
             exit 1
           fi
-      - run: flutter build apk --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}
-      - uses: actions/upload-artifact@v4
+
+          if [ "$API_BASE_URL" = "http://10.0.2.2:8000" ]; then
+            echo "::error::API_BASE_URL still points to the emulator-only default."
+            exit 1
+          fi
+
+      - name: Build release APK
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      # Release artifact storage is also opt-in.
+      - name: Upload release APK
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_release_apk == true
+        uses: actions/upload-artifact@v4
         with:
-          name: fulus-mobile-release-apk
+          name: fulus-release-apk-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          retention-days: 3
