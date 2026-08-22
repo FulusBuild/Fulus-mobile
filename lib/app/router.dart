@@ -30,7 +30,9 @@ import '../features/money/presentation/screens/transaction_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employee_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/presentation/screens/notifications_screen.dart';
+import '../domain/entities/report.dart';
 import '../features/more/reports/presentation/screens/reports_screen.dart';
+import '../features/more/reports/presentation/screens/sales_transactions_screen.dart';
 import '../features/more/settings/presentation/screens/backup_screen.dart';
 import '../features/more/settings/presentation/screens/manage_locations_screen.dart';
 import '../features/more/settings/presentation/screens/printer_pairing_screen.dart';
@@ -42,6 +44,7 @@ import '../features/onboarding/presentation/screens/first_run_setup_screen.dart'
 import '../features/onboarding/presentation/screens/first_sale_intro_screen.dart';
 import '../features/onboarding/presentation/screens/navigation_intro_screen.dart';
 import '../features/sell/presentation/screens/refund_confirm_screen.dart';
+import '../features/sell/presentation/screens/void_sale_screen.dart';
 import '../features/sell/presentation/screens/refund_search_screen.dart';
 import '../features/sell/presentation/screens/sell_screen.dart';
 import '../features/stock/presentation/screens/add_edit_product_screen.dart';
@@ -380,6 +383,20 @@ final appRouter = GoRouter(
                   path: 'reports',
                   name: 'moreReports',
                   builder: (context, state) => const ReportsScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'sales',
+                      name: 'moreReportsSalesTransactions',
+                      builder: (context, state) =>
+                          SalesTransactionsScreen(period: state.extra! as ReportPeriod),
+                    ),
+                    GoRoute(
+                      path: 'void/:saleId',
+                      name: 'moreReportsVoidSale',
+                      builder: (context, state) =>
+                          VoidSaleScreen(saleId: state.pathParameters['saleId']!),
+                    ),
+                  ],
                 ),
                 GoRoute(
                   path: 'settings/backup',

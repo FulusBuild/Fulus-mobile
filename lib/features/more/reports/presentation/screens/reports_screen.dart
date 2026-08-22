@@ -6,6 +6,7 @@ import '../../../../../app/providers.dart';
 import '../../../../../core/export/export_metadata.dart';
 import '../../../../../core/export/export_service.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../domain/entities/finance_stats.dart';
 import '../../../../../domain/entities/report.dart';
 import '../../../../../domain/usecases/reports_engine.dart';
 import '../../../../../shared/widgets/widgets.dart';
@@ -88,6 +89,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   late Future<CustomerReport> _customersFuture;
   late Future<FinanceReport> _financeFuture;
   late Future<EmployeeReport> _employeesFuture;
+  late Future<CashFlowReport> _cashFlowFuture;
 
   @override
   void initState() {
@@ -103,14 +105,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     _customersFuture = repo.getCustomerReport(period);
     _financeFuture = repo.getFinanceReport(period);
     _employeesFuture = repo.getEmployeeReport(period);
+    // FinanceStatsRepository, not ReportsRepository — the confirmed
+    // inflow bug was fixed at its source there (see
+    // CashFlowReport.customerRepaymentsInflow's own doc comment), not
+    // duplicated into a second implementation here. getCashFlow needs
+    // a locationId reports_repository_impl.dart's own methods don't —
+    // chained off the same activeLocationIdProvider Stock/Sell already
+    // read from, rather than adding a second, competing notion of
+    // "current location" to this screen.
+    _cashFlowFuture = ref.read(activeLocationIdProvider.future).then(
+          (locationId) => ref.read(financeStatsRepositoryProvider).getCashFlow(
+                dateFrom: period.start,
+                dateTo: period.end,
+                locationId: locationId,
+              ),
+        );
   }
 
-  /// One retry for all five tabs rather than five independent ones —
-  /// matches [_loadAll] itself, which already fetches all five
-  /// together. A tab whose data loaded fine re-fetches unnecessarily
-  /// when a sibling tab retries, but that's one cheap extra read, not a
-  /// user-visible cost, and keeps this screen's one existing "how do I
-  /// reload" mechanism the only one instead of adding five more.
+  /// One retry for every tab's data (including cash flow) rather than
+  /// independent ones per fetch — matches [_loadAll] itself, which
+  /// already fetches everything together. A tab whose data loaded fine
+  /// re-fetches unnecessarily when a sibling tab retries, but that's
+  /// one cheap extra read, not a user-visible cost, and keeps this
+  /// screen's one existing "how do I reload" mechanism the only one
+  /// instead of adding more.
   void _retry() => setState(_loadAll);
 
   Future<void> _onPeriodSelectionChanged(Set<ReportPeriodKind> selection) async {
@@ -341,7 +359,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                   future: _salesFuture,
                   currencySymbol: currencySymbol,
                   onRetry: _retry,
-                  onOpenMoneyHistory: _openMoneyHistory,
+                  period: _period,
                 ),
                 _InventoryTab(future: _inventoryFuture, currencySymbol: currencySymbol, onRetry: _retry),
                 _CustomersTab(
@@ -351,6 +369,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                 ),
                 _FinanceTab(
                   future: _financeFuture,
+                  cashFlowFuture: _cashFlowFuture,
                   currencySymbol: currencySymbol,
                   onRetry: _retry,
                   onOpenMoneyHistory: _openMoneyHistory,
@@ -507,12 +526,16 @@ class _SalesTab extends StatelessWidget {
     required this.future,
     required this.currencySymbol,
     required this.onRetry,
-    required this.onOpenMoneyHistory,
+    required this.period,
   });
   final Future<SalesReport> future;
   final String currencySymbol;
   final VoidCallback onRetry;
-  final void Function({MoneyTransactionType? type, String? category}) onOpenMoneyHistory;
+  final ReportPeriod period;
+
+  void _openTransactions(BuildContext context) {
+    context.pushNamed('moreReportsSalesTransactions', extra: period);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -526,12 +549,16 @@ class _SalesTab extends StatelessWidget {
         _StatCard(
           label: 'Revenue',
           value: formatMoney(r.totalRevenue, symbol: currencySymbol),
-          onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.saleIncome),
+          // Was onOpenMoneyHistory — that screen has no receipt
+          // number, cashier, or void/refund status, which is exactly
+          // what "where did this number come from" needs. Money
+          // History is still one tap away from here if wanted (below).
+          onTap: () => _openTransactions(context),
         ),
         _StatCard(
           label: 'Sales',
           value: '${r.totalSalesCount}',
-          onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.saleIncome),
+          onTap: () => _openTransactions(context),
         ),
         _StatCard(label: 'Discounts given', value: formatMoney(r.totalDiscount, symbol: currencySymbol)),
         if (r.topProducts.isNotEmpty) ...[
@@ -646,11 +673,13 @@ class _CustomersTab extends StatelessWidget {
 class _FinanceTab extends StatelessWidget {
   const _FinanceTab({
     required this.future,
+    required this.cashFlowFuture,
     required this.currencySymbol,
     required this.onRetry,
     required this.onOpenMoneyHistory,
   });
   final Future<FinanceReport> future;
+  final Future<CashFlowReport> cashFlowFuture;
   final String currencySymbol;
   final VoidCallback onRetry;
   final void Function({MoneyTransactionType? type, String? category}) onOpenMoneyHistory;
@@ -691,6 +720,61 @@ class _FinanceTab extends StatelessWidget {
                 onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense, category: e.category),
               ),
           ],
+          const SizedBox(height: AppSpacing.sm),
+          Text('Cash flow', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+          // Own FutureBuilder, not folded into the FinanceReport one
+          // above — money actually moving (this) and profit already
+          // earned (everything above) are different questions with
+          // different sources; a slow or failed cash-flow fetch
+          // shouldn't blank out a Finance tab that otherwise loaded
+          // fine.
+          FutureBuilder<CashFlowReport>(
+            future: cashFlowFuture,
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return Text(
+                  "Couldn't load cash flow for this period.",
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                );
+              }
+              if (!snap.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final cf = snap.data!;
+              return Column(
+                children: [
+                  _StatCard(label: 'Money in', value: formatMoney(cf.inflow, symbol: currencySymbol)),
+                  _StatCard(
+                    label: '· from sales',
+                    value: formatMoney(cf.salesInflow, symbol: currencySymbol),
+                  ),
+                  _StatCard(
+                    label: '· from customer repayments',
+                    value: formatMoney(cf.customerRepaymentsInflow, symbol: currencySymbol),
+                  ),
+                  if (cf.manualIncomeInflow > 0)
+                    _StatCard(
+                      label: '· other income',
+                      value: formatMoney(cf.manualIncomeInflow, symbol: currencySymbol),
+                    ),
+                  _StatCard(label: 'Money out', value: formatMoney(cf.outflow, symbol: currencySymbol)),
+                  _StatCard(
+                    label: '· expenses',
+                    value: formatMoney(cf.expensesOutflow, symbol: currencySymbol),
+                  ),
+                  if (cf.supplierPaymentsOutflow > 0)
+                    _StatCard(
+                      label: '· supplier payments',
+                      value: formatMoney(cf.supplierPaymentsOutflow, symbol: currencySymbol),
+                    ),
+                  _StatCard(label: 'Net cash flow', value: formatMoney(cf.netCashFlow, symbol: currencySymbol)),
+                ],
+              );
+            },
+          ),
         ]);
       },
     );
