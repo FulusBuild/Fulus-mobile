@@ -59,13 +59,59 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   @override
   Future<void> deactivateEmployee(String id) async {
     final now = DateTime.now();
-    await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
-      EmployeesCompanion(
-        isActive: const Value(false),
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-      ),
-    );
+    await _db.transaction(() async {
+      final row = await (_db.select(
+        _db.employees,
+      )..where((e) => e.id.equals(id))).getSingleOrNull();
+      await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
+        EmployeesCompanion(
+          isActive: const Value(false),
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+      // Deactivating the roster record alone never revoked sign-in
+      // access for staff with a linked login — Users.isActive is what
+      // auth_repository_impl actually checks, and this row's own
+      // isActive is a separate flag on a separate table. Cascading it
+      // here is what makes "they'll no longer be able to sign in"
+      // (the confirmation dialog's own claim) actually true.
+      final authUserId = row?.authUserId;
+      if (authUserId != null) {
+        await (_db.update(
+          _db.users,
+        )..where((u) => u.localId.equals(authUserId))).write(
+          const UsersCompanion(isActive: Value(false)),
+        );
+      }
+    });
+  }
+
+  /// The reverse of [deactivateEmployee] — restores both the roster
+  /// record and, symmetrically, sign-in access for a linked account.
+  @override
+  Future<void> reactivateEmployee(String id) async {
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      final row = await (_db.select(
+        _db.employees,
+      )..where((e) => e.id.equals(id))).getSingleOrNull();
+      await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
+        EmployeesCompanion(
+          isActive: const Value(true),
+          deletedAt: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+      final authUserId = row?.authUserId;
+      if (authUserId != null) {
+        await (_db.update(
+          _db.users,
+        )..where((u) => u.localId.equals(authUserId))).write(
+          const UsersCompanion(isActive: Value(true)),
+        );
+      }
+    });
   }
 
   @override
@@ -87,13 +133,22 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
-  Future<Employee?> getEmployeeById(String id) async {
-    // Filtered the same as every other read in this file — without
-    // this, a deactivated employee's id would still resolve here, and
-    // updateEmployee() (which calls this to load the "existing" record
-    // before applying edits) would silently be able to edit someone the
-    // roster UI no longer shows at all.
-    final row = await (_db.select(_db.employees)..where((e) => e.id.equals(id) & e.deletedAt.isNull())).getSingleOrNull();
+  Future<Employee?> getEmployeeById(String id, {bool includeInactive = false}) async {
+    // Filtered the same as every other read in this file by default —
+    // without this, a deactivated employee's id would still resolve
+    // here, and updateEmployee() (which calls this to load the
+    // "existing" record before applying edits) would silently be able
+    // to edit someone the roster UI no longer shows at all.
+    // includeInactive exists for the one caller that legitimately does
+    // need a deactivated employee by id — EmployeeDetailScreen, so a
+    // deactivated-employees view has somewhere real to navigate to for
+    // reactivating one. updateEmployee's own call site doesn't pass it,
+    // so this stays exactly as protective as before for that path.
+    final query = _db.select(_db.employees)..where((e) => e.id.equals(id));
+    if (!includeInactive) {
+      query.where((e) => e.deletedAt.isNull());
+    }
+    final row = await query.getSingleOrNull();
     return row?.toDomain();
   }
 

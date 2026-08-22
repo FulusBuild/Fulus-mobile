@@ -16,6 +16,7 @@ import '../features/money/domain/cash_drawer_state.dart';
 import '../features/money/domain/money_transaction.dart';
 import '../features/money/presentation/screens/add_expense_screen.dart';
 import '../features/money/presentation/screens/add_income_screen.dart';
+import '../features/money/presentation/screens/archived_customers_screen.dart';
 import '../features/money/presentation/screens/customer_profile_screen.dart';
 import '../features/money/presentation/screens/customers_list_screen.dart';
 import '../features/money/presentation/screens/daily_closing_count_screen.dart';
@@ -27,6 +28,7 @@ import '../features/money/presentation/screens/record_repayment_screen.dart';
 import '../features/money/presentation/screens/supplier_profile_screen.dart';
 import '../features/money/presentation/screens/suppliers_list_screen.dart';
 import '../features/money/presentation/screens/transaction_detail_screen.dart';
+import '../features/more/employees/presentation/screens/deactivated_employees_screen.dart';
 import '../features/more/employees/presentation/screens/employee_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/presentation/screens/notifications_screen.dart';
@@ -277,6 +279,11 @@ final appRouter = GoRouter(
                   builder: (context, state) => const CustomersListScreen(),
                   routes: [
                     GoRoute(
+                      path: 'archived',
+                      name: 'moneyArchivedCustomers',
+                      builder: (context, state) => const ArchivedCustomersScreen(),
+                    ),
+                    GoRoute(
                       path: ':id',
                       name: 'moneyCustomerProfile',
                       builder: (context, state) => CustomerProfileScreen(
@@ -371,6 +378,11 @@ final appRouter = GoRouter(
                   name: 'moreEmployees',
                   builder: (context, state) => const EmployeesListScreen(),
                   routes: [
+                    GoRoute(
+                      path: 'deactivated',
+                      name: 'moreEmployeesDeactivated',
+                      builder: (context, state) => const DeactivatedEmployeesScreen(),
+                    ),
                     GoRoute(
                       path: ':employeeId',
                       name: 'moreEmployeeDetail',

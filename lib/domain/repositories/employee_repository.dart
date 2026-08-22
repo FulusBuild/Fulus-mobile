@@ -19,8 +19,15 @@ abstract class EmployeeRepository {
   /// Soft delete — mirrors employee_service.delete_employee (is_deleted +
   /// deleted_at + forces is_active false), never a hard row delete, so a
   /// departed employee's attendance/leave/sales-performance history
-  /// stays intact for Reports.
+  /// stays intact for Reports. Also revokes sign-in access when this
+  /// roster row has a linked login account (`authUserId`) — see
+  /// [reactivateEmployee] for the reverse.
   Future<void> deactivateEmployee(String id);
+
+  /// Restores a deactivated employee — the roster record, and sign-in
+  /// access if they have a linked login account. Recoverable by design:
+  /// nothing about [deactivateEmployee] is a hard delete.
+  Future<void> reactivateEmployee(String id);
 
   Stream<List<Employee>> watchEmployees({
     String? searchQuery,

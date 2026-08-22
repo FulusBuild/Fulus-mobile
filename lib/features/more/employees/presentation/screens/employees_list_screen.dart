@@ -31,7 +31,16 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
-      appBar: AppBar(title: const Text('Team')),
+      appBar: AppBar(
+        title: const Text('Team'),
+        actions: [
+          FulusIconButton(
+            icon: Icons.person_off_outlined,
+            tooltip: 'Deactivated team members',
+            onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddSheet(context),
         icon: const Icon(Icons.person_add_outlined),

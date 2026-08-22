@@ -147,6 +147,8 @@ class _ProfileBody extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
+        _ArchiveSection(customer: customer, onChanged: onChanged),
+        const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Credit history'),
         _buildLedgerSection(ref),
         const SizedBox(height: AppSpacing.xl),
@@ -182,6 +184,75 @@ class _ProfileBody extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ArchiveSection extends ConsumerWidget {
+  const _ArchiveSection({required this.customer, required this.onChanged});
+
+  final Customer customer;
+  final VoidCallback onChanged;
+
+  bool get _isArchived => customer.deletedAt != null;
+
+  Future<void> _archive(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showFulusConfirmDialog(
+      context,
+      title: 'Archive ${customer.name}?',
+      message: 'They\'ll disappear from your customer list, but their record and full '
+          "credit history are kept. You can restore them from here any time — nothing "
+          'here is permanent.',
+      confirmLabel: 'Archive',
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      await ref.read(customerRepositoryProvider).archiveCustomer(customer.localId);
+      if (context.mounted) {
+        showFulusSnackbar(context, message: '${customer.name} was archived.');
+        onChanged();
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't archive ${customer.name}. Try again.");
+      }
+    }
+  }
+
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(customerRepositoryProvider).restoreCustomer(customer.localId);
+      if (context.mounted) {
+        showFulusSnackbar(context, message: '${customer.name} was restored.');
+        onChanged();
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't restore ${customer.name}. Try again.");
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FulusButton(
+          label: _isArchived ? 'Restore this customer' : 'Archive this customer',
+          variant: _isArchived ? FulusButtonVariant.secondary : FulusButtonVariant.destructive,
+          onPressed: () => _isArchived ? _restore(context, ref) : _archive(context, ref),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          _isArchived
+              ? 'Restoring brings them back to your active customer list.'
+              : "They'll disappear from your customer list. Their record and credit "
+                  'history are kept, and this can be undone any time.',
+          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

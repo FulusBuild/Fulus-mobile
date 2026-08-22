@@ -31,9 +31,9 @@ class CustomerRepositoryImpl implements CustomerRepository {
   }
 
   @override
-  Stream<List<Customer>> watchCustomers() {
+  Stream<List<Customer>> watchCustomers({bool archivedOnly = false}) {
     final query = _db.select(_db.customers)
-      ..where((c) => c.deletedAt.isNull())
+      ..where((c) => archivedOnly ? c.deletedAt.isNotNull() : c.deletedAt.isNull())
       ..orderBy([(c) => OrderingTerm.asc(c.name)]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
@@ -44,6 +44,26 @@ class CustomerRepositoryImpl implements CustomerRepository {
           ..where((c) => c.localId.equals(localId)))
         .getSingleOrNull();
     return row?.toDomain();
+  }
+
+  @override
+  Future<void> archiveCustomer(String localId) async {
+    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+      CustomersCompanion(
+        deletedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  @override
+  Future<void> restoreCustomer(String localId) async {
+    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+      CustomersCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   @override

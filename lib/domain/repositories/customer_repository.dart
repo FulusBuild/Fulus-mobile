@@ -13,9 +13,26 @@ abstract class CustomerRepository {
   /// Reactive by default — the customer picker at checkout (Volume 4)
   /// and a customer list/search screen both need this to update the
   /// instant a new customer is created or a synced change arrives.
-  Stream<List<Customer>> watchCustomers();
+  /// Excludes archived customers by default, matching every other read
+  /// here. Pass [archivedOnly] to see only archived ones instead — used
+  /// by the one screen that legitimately needs them, so an archived
+  /// customer is reachable to restore.
+  Stream<List<Customer>> watchCustomers({bool archivedOnly = false});
 
   Future<Customer?> getCustomerById(String localId);
+
+  /// Soft delete: sets `deletedAt`, same convention as every other
+  /// SyncableColumns table — [watchCustomers] already filters on it.
+  /// Local-only, deliberately: [CustomerSyncHandler] only implements
+  /// the 'create' operation today (see that class's own comment) and
+  /// would throw on anything else, so this doesn't enqueue a sync task.
+  /// The archive is real on this device; it just doesn't reach the
+  /// backend or other devices yet.
+  Future<void> archiveCustomer(String localId);
+
+  /// The reverse of [archiveCustomer] — clears `deletedAt`. Same
+  /// local-only constraint applies.
+  Future<void> restoreCustomer(String localId);
 
   /// Reconciles a locally-created customer with the server's own
   /// identity once the sync engine's handler for this entity type

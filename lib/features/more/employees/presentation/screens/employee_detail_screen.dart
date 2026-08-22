@@ -52,7 +52,7 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
 
   Future<_DetailData> _load() async {
     final repo = ref.read(employeeRepositoryProvider);
-    final employee = await repo.getEmployeeById(widget.employeeId);
+    final employee = await repo.getEmployeeById(widget.employeeId, includeInactive: true);
     if (employee == null) {
       return (employee: null, attendance: null, leaveRequests: const <LeaveRequest>[]);
     }
@@ -218,19 +218,23 @@ class _EmployeeDetailBody extends ConsumerWidget {
         ],
         const SizedBox(height: AppSpacing.xxl),
 
-        // ── Deactivate ─────────────────────────────────────────────────
+        // ── Deactivate / Reactivate ──────────────────────────────────────
         SizedBox(
           width: double.infinity,
           child: FulusButton(
-            label: 'Deactivate this team member',
-            variant: FulusButtonVariant.destructive,
-            onPressed: () => _deactivate(context, ref),
+            label: employee.isActive ? 'Deactivate this team member' : 'Reactivate this team member',
+            variant: employee.isActive ? FulusButtonVariant.destructive : FulusButtonVariant.secondary,
+            onPressed: () => employee.isActive ? _deactivate(context, ref) : _reactivate(context, ref),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'They\'ll no longer be able to sign in, and will disappear from the '
-          'active roster. Their sales and attendance history is kept.',
+          employee.isActive
+              ? "They'll no longer be able to sign in, and will disappear from the "
+                  'active roster. Their sales and attendance history is kept, and this '
+                  'can be undone at any time.'
+              : "They'll be restored to the active roster and, if they had a login, "
+                  'able to sign in again.',
           style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
           textAlign: TextAlign.center,
         ),
@@ -243,7 +247,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
       context,
       title: 'Deactivate ${employee.fullName}?',
       message: '${employee.fullName} will immediately lose access to sign in on this device. '
-          'This can\'t be undone from here — they would need to be re-added.',
+          "You can reactivate them from this same screen any time — nothing here is permanent.",
       confirmLabel: 'Deactivate',
     );
     if (!confirmed || !context.mounted) return;
@@ -253,8 +257,24 @@ class _EmployeeDetailBody extends ConsumerWidget {
         showFulusSnackbar(context, message: '${employee.fullName} was deactivated.');
         context.pop();
       }
-    } on Failure catch (f) {
-      if (context.mounted) showFulusSnackbar(context, message: f.message);
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't deactivate ${employee.fullName}. Try again.");
+      }
+    }
+  }
+
+  Future<void> _reactivate(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(employeeRepositoryProvider).reactivateEmployee(employee.id);
+      if (context.mounted) {
+        showFulusSnackbar(context, message: '${employee.fullName} was reactivated.');
+        context.pop();
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't reactivate ${employee.fullName}. Try again.");
+      }
     }
   }
 

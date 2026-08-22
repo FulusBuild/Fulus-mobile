@@ -29,6 +29,13 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
     return FulusScreen(
       title: 'Customers',
       applyPadding: false,
+      actions: [
+        FulusIconButton(
+          icon: Icons.archive_outlined,
+          tooltip: 'Archived customers',
+          onPressed: () => context.pushNamed('moneyArchivedCustomers'),
+        ),
+      ],
       body: Column(
         children: [
           Padding(
