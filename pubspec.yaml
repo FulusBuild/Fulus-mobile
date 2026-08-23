@@ -131,7 +131,7 @@ dependencies:
   # pickFiles() to return List<PlatformFile> directly instead of
   # FilePickerResult?, and the code here (and this constraint) is
   # written against 11's API.
-  file_picker: ^11.0.0
+  file_picker: ^12.0.0
 
   # --- Stage 15 (Device Services) ---
   mobile_scanner: ^6.0.2
