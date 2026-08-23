@@ -48,7 +48,7 @@ dependencies:
   connectivity_plus: ^6.0.4
 
   # --- Secure storage (Architecture Section 11) ---
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^10.1.0
 
   # --- Background sync (Architecture Section 8) ---
   workmanager: ^0.5.2
