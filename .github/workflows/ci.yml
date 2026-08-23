@@ -30,7 +30,7 @@ on:
         type: string
 
 env:
-  FLUTTER_VERSION: "3.24.0"
+  FLUTTER_VERSION: "3.38.0"
 
 # If several commits are pushed quickly, don't waste CI minutes
 # building commits that have already been superseded.
