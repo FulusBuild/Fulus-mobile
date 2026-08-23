@@ -74,6 +74,7 @@ class _SellScreenState extends ConsumerState<SellScreen> {
             customerRepository: ref.read(customerRepositoryProvider),
             businessSettingsRepository: ref.read(businessSettingsRepositoryProvider),
             locationId: snapshot.data!,
+            diagnosticLogger: ref.read(diagnosticLoggerProvider),
           ),
           child: const _SellScreenBody(),
         );

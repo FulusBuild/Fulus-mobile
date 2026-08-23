@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
 import '../domain/entities/app_notification.dart';
@@ -29,6 +30,8 @@ import '../features/money/presentation/screens/supplier_profile_screen.dart';
 import '../features/money/presentation/screens/suppliers_list_screen.dart';
 import '../features/money/presentation/screens/transaction_detail_screen.dart';
 import '../features/more/employees/presentation/screens/deactivated_employees_screen.dart';
+import '../features/more/diagnostics/presentation/screens/diagnostic_detail_screen.dart';
+import '../features/more/diagnostics/presentation/screens/diagnostics_screen.dart';
 import '../features/more/employees/presentation/screens/employee_detail_screen.dart';
 import '../features/more/employees/presentation/screens/employees_list_screen.dart';
 import '../features/more/presentation/screens/notifications_screen.dart';
@@ -442,6 +445,19 @@ final appRouter = GoRouter(
                   name: 'moreNotifications',
                   builder: (context, state) => const NotificationsScreen(),
                 ),
+                GoRoute(
+                  path: 'diagnostics',
+                  name: 'moreDiagnostics',
+                  builder: (context, state) => const DiagnosticsScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':eventId',
+                      name: 'moreDiagnosticDetail',
+                      builder: (context, state) =>
+                          DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!),
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -603,6 +619,40 @@ class _MoreScreen extends StatelessWidget {
                   ],
                 ),
                 onTap: () => context.goNamed('moreNotifications'),
+              );
+            },
+          ),
+          const FulusListDivider(indented: false),
+          Consumer(
+            builder: (context, ref, _) {
+              final eventsAsync = ref.watch(diagnosticEventsProvider);
+              final errorCount = eventsAsync.valueOrNull
+                      ?.where((e) =>
+                          e.severity == DiagnosticSeverity.critical || e.severity == DiagnosticSeverity.error)
+                      .length ??
+                  0;
+              return FulusListRow(
+                title: const Text('Diagnostics'),
+                subtitle: const Text('Error logs & crash reports'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (errorCount > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorOf(context),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('$errorCount',
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+                onTap: () => context.goNamed('moreDiagnostics'),
               );
             },
           ),

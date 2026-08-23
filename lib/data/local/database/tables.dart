@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../domain/entities/app_notification.dart';
 import '../../../domain/entities/auth_user.dart';
 import '../../../domain/entities/printer_device.dart';
@@ -1050,4 +1051,86 @@ class CashDrawerShifts extends Table with SyncableColumns {
 
   @override
   Set<Column> get primaryKey => {localId};
+}
+
+/// Local, on-device diagnostic/crash log — the Diagnostics system's own
+/// persistent store (More -> Diagnostics -> Error Logs). Deliberately
+/// NOT a SyncableColumns table, same reasoning as AppNotifications/
+/// PairedPrinters above: a captured error is a fact about what happened
+/// on THIS device, with no server counterpart to reconcile against
+/// today. `remoteSyncStatus` stays nullable and unused by anything in
+/// this phase specifically so a future remote-telemetry layer (the
+/// diagnostic-system brief's own Section 13: "if remote telemetry is
+/// later introduced, design the model so it can support Pending sync /
+/// Synced / Sync failed... but do not make remote telemetry a
+/// requirement for the first implementation") is an additive column
+/// read later, not a schema migration away from records already
+/// sitting on real devices — see DiagnosticLifecycleStatus's own doc
+/// comment (core/diagnostics/models/diagnostic_enums.dart).
+///
+/// Breadcrumbs, evidence, and technical-context are stored as JSON text
+/// rather than their own related tables — each is a small, bounded,
+/// write-once-read-many snapshot scoped to exactly one event (never
+/// queried or filtered independently of it), which is exactly the case
+/// this codebase already treats as a plain JSON text column elsewhere
+/// (AuditLogs.details above: "JSON-encoded, mirroring the backend's own
+/// Text column exactly").
+@DataClassName('DiagnosticEventRow')
+class DiagnosticEvents extends Table {
+  TextColumn get id => text()(); // ULID
+
+  /// Most recent occurrence — what the list sorts/displays by.
+  DateTimeColumn get timestamp => dateTime()();
+
+  /// First occurrence — preserved across repeat occurrences; see
+  /// [occurrenceCount].
+  DateTimeColumn get firstOccurredAt => dateTime()();
+
+  /// Duplicate-event handling (diagnostic-system brief Section 14):
+  /// bumped instead of inserting a new row when the same title/
+  /// component/operation/exceptionType repeats within a short window —
+  /// see DriftDiagnosticStore.save's own matching logic.
+  IntColumn get occurrenceCount => integer().withDefault(const Constant(1))();
+
+  TextColumn get severity => textEnum<DiagnosticSeverity>()();
+  TextColumn get category => textEnum<DiagnosticCategory>()();
+  TextColumn get title => text()();
+  TextColumn get message => text()();
+  TextColumn get component => text().nullable()();
+  TextColumn get operation => text().nullable()();
+  TextColumn get screen => text().nullable()();
+  TextColumn get exceptionType => text().nullable()();
+  TextColumn get errorCode => text().nullable()();
+
+  /// Truncated per DiagnosticLogger's own size bound before it ever
+  /// reaches this column — see that class's own `_maxStackTraceChars`.
+  TextColumn get stackTrace => text().nullable()();
+
+  TextColumn get causeDescription => text()();
+  TextColumn get causeConfidence => textEnum<DiagnosticConfidence>()();
+
+  /// JSON array of `{"label": ..., "value": ...}` objects — see this
+  /// table's own header comment on why this and the two columns below
+  /// are text, not related tables.
+  TextColumn get evidenceJson => text().withDefault(const Constant('[]'))();
+  TextColumn get technicalContextJson => text().withDefault(const Constant('[]'))();
+  TextColumn get breadcrumbsJson => text().withDefault(const Constant('[]'))();
+
+  /// e.g. "5 — Update inventory" — null for events with no tracked
+  /// multi-step operation.
+  TextColumn get failureStage => text().nullable()();
+
+  /// JSON object — app version/build/device model/OS at capture time
+  /// (DeviceContext.toJson).
+  TextColumn get deviceJson => text()();
+
+  TextColumn get lifecycleStatus => textEnum<DiagnosticLifecycleStatus>()();
+
+  /// Reserved for a future remote-telemetry layer — see this table's
+  /// own header comment. Always null in this phase; nothing writes to
+  /// it yet.
+  TextColumn get remoteSyncStatus => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }

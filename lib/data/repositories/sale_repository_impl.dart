@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
+import '../../core/diagnostics/diagnostic_logger.dart';
+import '../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/entities/sale_draft.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -17,14 +19,31 @@ class SaleRepositoryImpl implements SaleRepository {
     required SyncQueue syncQueue,
     required AuthRepository authRepository,
     required CustomerCreditRepository customerCreditRepository,
+    DiagnosticLogger? diagnosticLogger,
   })  : _db = db,
         _syncQueue = syncQueue,
         _authRepository = authRepository,
-        _customerCreditRepository = customerCreditRepository;
+        _customerCreditRepository = customerCreditRepository,
+        _diagnosticLogger = diagnosticLogger;
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
   final AuthRepository _authRepository;
+
+  /// Optional, same reasoning as SyncEngine's own `_diagnosticLogger`
+  /// field (see that class's doc comment) — every existing call site
+  /// and test that constructs a SaleRepositoryImpl without this
+  /// parameter is unaffected. Used here only for breadcrumbs
+  /// (`logger?.breadcrumb(...)`, a silent no-op when null) — this class
+  /// intentionally does NOT call `captureError` itself; the multi-step
+  /// "Complete Sale" operation this method is one piece of is tracked
+  /// one layer up, in DraftCartRepositoryImpl.completeSale, which is
+  /// what actually calls `createSale` and is where a failure here is
+  /// caught and reported. See DiagnosticOperation's own header comment
+  /// in diagnostic_logger.dart for exactly why breadcrumbs recorded here
+  /// still end up on whichever event that outer layer eventually
+  /// captures.
+  final DiagnosticLogger? _diagnosticLogger;
 
   /// Bug fix (business-logic audit): `createSale` used to persist a
   /// credit sale's own `Sale.balanceDue`/`paymentStatus` correctly
@@ -63,6 +82,11 @@ class SaleRepositoryImpl implements SaleRepository {
     //    receipt shown, Home's total updated) before any network call
     //    is attempted, per Architecture Section 4's Offline Checkout
     //    requirement.
+    _diagnosticLogger?.breadcrumb(
+      'Sale transaction started',
+      category: DiagnosticCategory.sales,
+      data: {'Sale ID': localId},
+    );
     await _db.transaction(() async {
       await _db.into(_db.sales).insert(sale.toDriftCompanion());
       for (final item in sale.items) {
@@ -75,7 +99,9 @@ class SaleRepositoryImpl implements SaleRepository {
             .into(_db.salePayments)
             .insert(payment.toDriftCompanion(saleLocalId: localId));
       }
+      _diagnosticLogger?.breadcrumb('Inventory update started', category: DiagnosticCategory.inventory);
       await _decrementLocalStock(sale.items, locationId: draft.locationId);
+      _diagnosticLogger?.breadcrumb('Inventory update completed', category: DiagnosticCategory.inventory);
       await _recordCreditSaleIfNeeded(sale);
 
       if (hasQuickSaleItem) {
@@ -88,6 +114,11 @@ class SaleRepositoryImpl implements SaleRepository {
             .write(const SalesCompanion(syncStatus: Value(SyncStatus.attentionNeeded)));
       }
     });
+    _diagnosticLogger?.breadcrumb(
+      'Sale transaction committed',
+      category: DiagnosticCategory.sales,
+      data: {'Sale ID': localId},
+    );
 
     // 2. Enqueue for sync — skipped entirely for a sale that can never
     //    sync (see above). Does NOT await a network call otherwise —

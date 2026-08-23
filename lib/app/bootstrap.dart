@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env_config.dart';
+import '../core/diagnostics/diagnostic_logger.dart';
+import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/onboarding/onboarding_state.dart';
@@ -99,7 +101,7 @@ import 'providers.dart';
 /// SyncConfig actually gates: the three read-repository pull-sync calls
 /// below, and (inside sync_triggers.dart itself) every path that would
 /// start the sync engine or touch the network on an ongoing basis.
-Future<ProviderContainer> bootstrap() async {
+Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}) async {
   // AppDatabase.open() uses LazyDatabase internally (see database.dart) —
   // the actual file I/O is deferred until the first query, not blocking
   // here, but the object itself is real and ready to be depended on by
@@ -112,6 +114,18 @@ Future<ProviderContainer> bootstrap() async {
   // constructed below, which capture today's value directly and are NOT
   // retroactively updated by a later reassignment here.
   var database = AppDatabase.open();
+
+  // Diagnostic & Crash Logging System: attached as early as possible,
+  // right after `database` exists — everything bootstrap() does from
+  // this line on is now covered by real persistence rather than the
+  // file-based fallback DiagnosticLogger's constructor already set it
+  // up with (see main.dart's own comment on why diagnosticLogger is
+  // constructed even earlier than this, before bootstrap() is called at
+  // all). Retention cleanup runs once per cold start, fire-and-forget —
+  // never worth delaying launch for housekeeping, and never worth a
+  // dedicated WorkManager task for something this cheap.
+  diagnosticLogger.attachStore(DriftDiagnosticStore(database));
+  unawaited(diagnosticLogger.applyRetentionPolicy());
 
   final secureStorage = SecureStorage();
 
@@ -204,6 +218,7 @@ Future<ProviderContainer> bootstrap() async {
     syncQueue: syncQueue,
     authRepository: authRepository,
     customerCreditRepository: customerCreditRepository,
+    diagnosticLogger: diagnosticLogger,
   );
   final customerRepository = CustomerRepositoryImpl(
     db: database,
@@ -263,6 +278,7 @@ Future<ProviderContainer> bootstrap() async {
     db: database,
     productRepository: productRepository,
     saleRepository: saleRepository,
+    diagnosticLogger: diagnosticLogger,
   );
   final returnRepository = ReturnRepositoryImpl(
     db: database,
@@ -441,6 +457,7 @@ Future<ProviderContainer> bootstrap() async {
     // comment (sync/sync_status_notifier.dart) for why that's a named
     // constant now rather than two independent literal 5s.
     maxAttemptsBeforeAttentionNeeded: defaultSyncAttentionThreshold,
+    diagnosticLogger: diagnosticLogger,
   );
 
   // --- Notifications ---
@@ -569,6 +586,8 @@ Future<ProviderContainer> bootstrap() async {
       backupRepositoryProvider.overrideWithValue(backupRepository),
       dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
       reportsRepositoryProvider.overrideWithValue(reportsRepository),
+      // Diagnostic & Crash Logging System
+      diagnosticLoggerProvider.overrideWithValue(diagnosticLogger),
     ],
   );
 

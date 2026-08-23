@@ -4,7 +4,17 @@ publish_to: "none"
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
+  # Floor raised from 3.3.0 to 3.10.0 alongside the Diagnostic & Crash
+  # Logging System addition below: package_info_plus 10.2.1 and
+  # device_info_plus 13.2.0 both declare a real minimum Dart SDK of
+  # 3.10 (checked directly against their pub.dev listings), so leaving
+  # this file's own stated floor at 3.3.0 would have been inaccurate —
+  # pub's resolver would reject 3.3-3.9 anyway once those two packages
+  # were added, whatever this line claimed. Safe to raise: every other
+  # dependency already declared here targets a floor at or below 3.3.0,
+  # so nothing else in this file needed a compatibility check against
+  # the new number.
   # Android 8.0 (API 26) is the architecture document's stated floor.
   # Flutter 3.19+ / Dart 3.3+ still supports minSdkVersion 26 in
   # android/app/build.gradle (set explicitly there, not implied by this
@@ -134,6 +144,16 @@ dependencies:
   # enabled/disabled flag persists here, not Drift — a device-local
   # setting with no business-data shape of its own ---
   shared_preferences: ^2.3.3
+
+  # --- Diagnostic & Crash Logging System: app version/build number and
+  # device/OS facts attached to every captured DiagnosticEvent (see
+  # core/diagnostics/models/device_context.dart) — no existing mechanism
+  # in this app tracked either before this. Versions verified directly
+  # against pub.dev at the time this was written (10.2.1 / 13.2.0, both
+  # published mid-2026); reasonable to bump further with a plain
+  # `flutter pub upgrade` later, same as any other dependency here ---
+  package_info_plus: ^10.2.1
+  device_info_plus: ^13.2.0
 
 dev_dependencies:
   flutter_test:

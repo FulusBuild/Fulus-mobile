@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
+import '../core/diagnostics/diagnostic_logger.dart';
+import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/errors/failure.dart';
 import '../data/local/database/database.dart';
 import 'conflict_resolver.dart';
@@ -25,15 +29,29 @@ class SyncEngine {
     this.maxAttemptsBeforeAttentionNeeded = 5,
     RetryPolicy retryPolicy = const RetryPolicy(),
     ConflictResolver conflictResolver = const ConflictResolver(),
+    DiagnosticLogger? diagnosticLogger,
   })  : _db = db,
         _handlersByEntityType = handlersByEntityType,
         _retryPolicy = retryPolicy,
-        _conflictResolver = conflictResolver;
+        _conflictResolver = conflictResolver,
+        _diagnosticLogger = diagnosticLogger;
 
   final AppDatabase _db;
   final Map<String, SyncHandler> _handlersByEntityType;
   final RetryPolicy _retryPolicy;
   final ConflictResolver _conflictResolver;
+
+  /// Optional, and deliberately so — everything else this class depends
+  /// on is plain Dart (see this class's own header comment on staying
+  /// Flutter-free and independently testable). DiagnosticLogger itself
+  /// has no Flutter *UI* dependency either, but its DeviceContextProvider
+  /// does reach device_info_plus/package_info_plus (real platform-channel
+  /// plugins) several layers down — nullable-with-a-safe-no-op default
+  /// keeps every existing call site and test that constructs a
+  /// SyncEngine without this parameter completely unaffected, and keeps
+  /// this class constructible in a plain `dart test` context that never
+  /// touches a platform channel, exactly as before.
+  final DiagnosticLogger? _diagnosticLogger;
 
   /// Architecture Section 8 names this as "a bounded number" without
   /// specifying the exact count — 5 chosen here as a reasonable default
@@ -128,18 +146,21 @@ class SyncEngine {
         // immediately rather than retried, since retrying can never fix
         // a missing handler, and the run continues — this says nothing
         // about whether the server itself is reachable.
-        await _markAttentionNeeded(
-          item.id,
-          error: 'No sync handler registered for entityType '
-              '"${item.entityType}".',
-        );
+        final message = 'No sync handler registered for entityType '
+            '"${item.entityType}".';
+        await _markAttentionNeeded(item.id, error: message);
+        unawaited(_captureSyncFailure(
+          item: item,
+          error: StateError(message),
+          stackTrace: StackTrace.current,
+        ));
         continue;
       }
 
       try {
         await handler.sync(item);
         await _removeFromQueue(item.id);
-      } on BusinessRuleFailure catch (e) {
+      } on BusinessRuleFailure catch (e, st) {
         // A 409 that reaches this far (ApiClient.mapError's own doc
         // comment: only when the endpoint method itself didn't already
         // intercept it as an idempotent-success case) is a genuine
@@ -150,11 +171,14 @@ class SyncEngine {
             ? _conflictResolver.annotate(e.message)
             : e.message;
         await _markAttentionNeeded(item.id, error: message);
-      } on ValidationFailure catch (e) {
+        unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
+      } on ValidationFailure catch (e, st) {
         await _markAttentionNeeded(item.id, error: e.message);
-      } on AuthFailure catch (e) {
+        unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
+      } on AuthFailure catch (e, st) {
         await _markAttentionNeeded(item.id, error: e.message);
-      } catch (e) {
+        unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
+      } catch (e, st) {
         // Everything else — NetworkFailure, a StateError from a
         // handler naming a real but temporary gap (see
         // sale_sync_handler.dart's product/customer serverId checks),
@@ -168,12 +192,47 @@ class SyncEngine {
         final attempts = item.syncAttempts + 1;
         if (attempts >= maxAttemptsBeforeAttentionNeeded) {
           await _markAttentionNeeded(item.id, error: e.toString());
+          // Only captured once the item actually stops being retried —
+          // a single transient failure well below the threshold is the
+          // normal, expected shape of "the network hiccuped," not
+          // something worth a permanent diagnostic record (brief
+          // Section 14's "no excessive logging during normal
+          // operation").
+          unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
         } else {
           await _recordAttempt(item.id, attempts: attempts, error: e.toString());
         }
         break;
       }
     }
+  }
+
+  /// Single capture point for every path above that ends in
+  /// `attentionNeeded` — matches the brief's own example list item
+  /// ("Sync failed / Remote record conflict / SyncService"). Severity is
+  /// `warning`, not `error`: nothing here is lost (the write already
+  /// succeeded locally and stays queued), so this is "needs a look," not
+  /// "something broke."
+  Future<void> _captureSyncFailure({
+    required dynamic item,
+    required Object error,
+    required StackTrace stackTrace,
+  }) async {
+    final logger = _diagnosticLogger;
+    if (logger == null) return;
+    await logger.captureError(
+      error: error,
+      stackTrace: stackTrace,
+      severity: DiagnosticSeverity.warning,
+      category: DiagnosticCategory.synchronization,
+      component: 'SyncEngine',
+      operation: 'runOnce',
+      context: {
+        'Entity type': '${item.entityType}',
+        'Sync attempts': '${item.syncAttempts}',
+        'syncOutcome': 'attentionNeeded',
+      },
+    );
   }
 
   Future<void> _removeFromQueue(String id) async {

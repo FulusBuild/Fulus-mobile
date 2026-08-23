@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/diagnostics/diagnostic_logger.dart';
+import '../../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
@@ -49,11 +51,13 @@ class CartCubit extends Cubit<CartState> {
     required CustomerRepository customerRepository,
     required BusinessSettingsRepository businessSettingsRepository,
     required String locationId,
+    DiagnosticLogger? diagnosticLogger,
   })  : _draftCartRepository = draftCartRepository,
         _productRepository = productRepository,
         _customerRepository = customerRepository,
         _businessSettingsRepository = businessSettingsRepository,
         _locationId = locationId,
+        _diagnosticLogger = diagnosticLogger,
         super(const CartInitial()) {
     _init();
   }
@@ -63,6 +67,16 @@ class CartCubit extends Cubit<CartState> {
   final CustomerRepository _customerRepository;
   final BusinessSettingsRepository _businessSettingsRepository;
   final String _locationId;
+
+  /// Optional, same reasoning as every other diagnosticLogger field
+  /// added in this pass. Used only for breadcrumbs here — one CartCubit
+  /// instance is one Sell-tab session (this class's own header comment),
+  /// which is exactly the granularity "Recent activity" on a later sale
+  /// failure benefits from: not just what
+  /// DraftCartRepositoryImpl.completeSale itself did, but what the
+  /// cashier was doing in the cart in the run-up to tapping Complete
+  /// Sale.
+  final DiagnosticLogger? _diagnosticLogger;
 
   late final String _draftCartId;
 
@@ -83,6 +97,7 @@ class CartCubit extends Cubit<CartState> {
   bool _submitting = false;
 
   Future<void> _init() async {
+    _diagnosticLogger?.breadcrumb('Sell screen opened', category: DiagnosticCategory.sales);
     try {
       final draft = await _draftCartRepository.getOrCreateDraftCart(locationId: _locationId);
       _draft = draft;
@@ -226,6 +241,11 @@ class CartCubit extends Cubit<CartState> {
         lineDiscount: 0.0,
       );
     }
+    _diagnosticLogger?.breadcrumb(
+      'Product added to cart',
+      category: DiagnosticCategory.sales,
+      data: {'Product ID': productLocalId},
+    );
   }
 
   /// Volume 5's Quick Sale — "for anything not in the catalog at all."
@@ -260,6 +280,7 @@ class CartCubit extends Cubit<CartState> {
       itemLocalId: item.localId,
       quantity: item.quantity + 1,
     );
+    _diagnosticLogger?.breadcrumb('Cart quantity changed', category: DiagnosticCategory.sales);
   }
 
   Future<void> decrementItem(DraftCartItem item) async {
@@ -271,6 +292,7 @@ class CartCubit extends Cubit<CartState> {
       itemLocalId: item.localId,
       quantity: item.quantity - 1,
     );
+    _diagnosticLogger?.breadcrumb('Cart quantity changed', category: DiagnosticCategory.sales);
   }
 
   /// Backs the Bible's "tap-to-type entry for bulk amounts." Throws
@@ -291,10 +313,12 @@ class CartCubit extends Cubit<CartState> {
       }
     }
     await _draftCartRepository.updateItemQuantity(itemLocalId: item.localId, quantity: quantity);
+    _diagnosticLogger?.breadcrumb('Cart quantity changed', category: DiagnosticCategory.sales);
   }
 
   Future<void> removeItem(String itemLocalId) async {
     await _draftCartRepository.removeItem(itemLocalId);
+    _diagnosticLogger?.breadcrumb('Item removed from cart', category: DiagnosticCategory.sales);
   }
 
   /// Gap fix: the aggregation this feeds (CartState.discount,
@@ -365,6 +389,7 @@ class CartCubit extends Cubit<CartState> {
       draftCartLocalId: _draftCartId,
       customerLocalId: customer?.localId,
     );
+    _diagnosticLogger?.breadcrumb('Customer selected', category: DiagnosticCategory.sales);
   }
 
   /// Volume 5: "a new customer can be added inline with just a name,
@@ -390,6 +415,11 @@ class CartCubit extends Cubit<CartState> {
       draftCartLocalId: _draftCartId,
       method: method,
       amount: amount,
+    );
+    _diagnosticLogger?.breadcrumb(
+      'Payment added',
+      category: DiagnosticCategory.sales,
+      data: {'Method': method},
     );
   }
 

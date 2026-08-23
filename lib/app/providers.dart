@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/diagnostics/diagnostic_logger.dart';
+import '../core/diagnostics/models/diagnostic_event.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/onboarding/onboarding_state.dart';
@@ -579,3 +581,46 @@ final walkthroughStepProvider = StateProvider<OnboardingStep?>((ref) {
 /// a fine, low-cost re-show, not a second source of truth to keep in
 /// sync with the first.
 final firstSaleIntroSeenProvider = StateProvider<bool>((ref) => false);
+
+// ---------------------------------------------------------------------
+// Diagnostic & Crash Logging System
+// ---------------------------------------------------------------------
+
+/// Unlike every other provider in this file, [diagnosticLogger] is
+/// constructed in main.dart, before `bootstrap()` even runs — not
+/// inside bootstrap.dart alongside everything above — specifically so
+/// error capture is live for the whole bootstrap process itself (see
+/// main.dart's own header comment). This provider exists so the rest
+/// of the app (in particular the Diagnostics screens) can still reach
+/// that same instance the ordinary way, through `ref.watch`, rather
+/// than needing a different access pattern just because of when it was
+/// constructed.
+final diagnosticLoggerProvider = Provider<DiagnosticLogger>((ref) {
+  throw UnimplementedError(
+    'diagnosticLoggerProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// The Diagnostics screen's own data source — every currently-stored
+/// event, newest first, up to a generous cap. Both the summary header
+/// ("N Errors / N Warnings") and the filtered/searched list the screen
+/// renders are derived from this SAME fetch (client-side, in the
+/// screen itself) rather than two separate providers, so the two can
+/// never disagree with each other over what "right now" means.
+///
+/// The cap (500) is not a hidden page size the person is meant to
+/// scroll past — it deliberately matches [DiagnosticLogger.applyRetentionPolicy]'s
+/// own default `keepAtLeast`, so in ordinary operation (retention
+/// already keeps the table near this size) the header count and the
+/// true on-device total agree exactly; only an extraordinary single
+/// session generating hundreds of events between app restarts would
+/// see the header undercount slightly until the next cold start prunes
+/// the table back down.
+final diagnosticEventsProvider = StreamProvider.autoDispose<List<DiagnosticEvent>>((ref) {
+  return ref.watch(diagnosticLoggerProvider).watchEvents(limit: 500);
+});
+
+final diagnosticEventByIdProvider =
+    FutureProvider.autoDispose.family<DiagnosticEvent?, String>((ref, id) {
+  return ref.watch(diagnosticLoggerProvider).getById(id);
+});

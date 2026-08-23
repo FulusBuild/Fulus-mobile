@@ -83,6 +83,13 @@ part 'database.g.dart';
 /// lose a real business distinction (a void rate reflects cashier
 /// error, a return rate reflects product/customer issues) that
 /// reporting on this data needs to preserve.
+///
+/// SEVENTH NOTE (Diagnostic & Crash Logging System): schemaVersion is
+/// 8. One new table, `DiagnosticEvents` — purely additive, same
+/// createTable treatment every other new-table version bump above got.
+/// Not a SyncableColumns table (see that table's own doc comment in
+/// tables.dart); nothing about this addition touches or migrates any
+/// existing table's data.
 @DriftDatabase(
   tables: [
     Locations,
@@ -121,6 +128,10 @@ part 'database.g.dart';
     // for why neither carries SyncableColumns either.
     AppNotifications,
     PairedPrinters,
+    // Diagnostic & Crash Logging System — see tables.dart's own doc
+    // comment on DiagnosticEvents for why this also isn't a
+    // SyncableColumns table.
+    DiagnosticEvents,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -158,7 +169,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -331,6 +342,12 @@ class AppDatabase extends _$AppDatabase {
           // predates the concept, and every return created before this
           // was a customer return by definition).
           await m.addColumn(returnRequests, returnRequests.isVoid);
+        }
+        if (from < 8) {
+          // One new table, no existing data touched — see this class's
+          // own SEVENTH NOTE above and DiagnosticEvents' own doc
+          // comment in tables.dart.
+          await m.createTable(diagnosticEvents);
         }
       },
       beforeOpen: (details) async {

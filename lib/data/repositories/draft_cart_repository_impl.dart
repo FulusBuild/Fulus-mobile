@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/business_engine/draft_cart_aggregation.dart' as aggregation;
+import '../../core/diagnostics/diagnostic_logger.dart';
+import '../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../domain/entities/draft_cart.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/entities/sale_draft.dart';
@@ -16,13 +20,23 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required AppDatabase db,
     required ProductRepository productRepository,
     required SaleRepository saleRepository,
+    DiagnosticLogger? diagnosticLogger,
   })  : _db = db,
         _productRepository = productRepository,
-        _saleRepository = saleRepository;
+        _saleRepository = saleRepository,
+        _diagnosticLogger = diagnosticLogger;
 
   final AppDatabase _db;
   final ProductRepository _productRepository;
   final SaleRepository _saleRepository;
+
+  /// Optional, same reasoning as SaleRepositoryImpl's own
+  /// `_diagnosticLogger` field. This is the class where the "Complete
+  /// Sale" multi-step operation the diagnostic-system brief's Section 5
+  /// describes actually lives (see [completeSale] below) — everywhere
+  /// else in this file stays uninstrumented, since nothing else here is
+  /// a multi-step business operation in the same sense.
+  final DiagnosticLogger? _diagnosticLogger;
 
   Future<DraftCartRow> _requireDraftCart(String localId) async {
     final row = await (_db.select(_db.draftCarts)
@@ -355,62 +369,104 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<Sale> completeSale(String draftCartLocalId) async {
-    final draft = await _requireDraftCart(draftCartLocalId);
-    final itemRows = await (_db.select(_db.draftCartItems)
-          ..where((i) => i.draftCartLocalId.equals(draftCartLocalId)))
-        .get();
-    if (itemRows.isEmpty) {
-      throw StateError('A sale must have at least one item.');
-    }
-    final paymentRows = await (_db.select(_db.draftCartPayments)
-          ..where((p) => p.draftCartLocalId.equals(draftCartLocalId)))
-        .get();
-
-    final items = itemRows
-        .map((row) => row.toDomain().toSaleItem(newLocalId: Ulid().toString()))
-        .toList();
-    final payments = paymentRows
-        .map((row) => row.toDomain().toSalePayment(newLocalId: Ulid().toString()))
-        .toList();
-
-    final discount = aggregation.combineDiscount(
-      wholeCartDiscount: draft.wholeCartDiscount,
-      lineDiscounts: items.map((i) => i.lineDiscount).toList(),
+    // The "Complete Sale" operation the diagnostic-system brief's own
+    // Section 5 uses as its worked example — stages named to match what
+    // this method actually does (audited directly, not copied from the
+    // brief's illustrative 8-step list, which described a shape this
+    // codebase's real implementation doesn't have — e.g. there is no
+    // separate "validate products" step here; a product that no longer
+    // exists surfaces as a foreign-key failure inside "Persist sale"
+    // instead, which RootCauseEngine's ForeignKeyViolationRule already
+    // accounts for).
+    final op = _diagnosticLogger?.startOperation(
+      operation: 'completeSale',
+      component: 'DraftCartRepositoryImpl',
+      category: DiagnosticCategory.sales,
+      screen: 'SellScreen',
+      stages: const ['Validate cart', 'Build sale', 'Persist sale', 'Clear cart'],
+      context: {'Draft cart ID': draftCartLocalId},
     );
-    final amountPaid = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
-    final paymentMethod = aggregation.aggregatePaymentMethod(
-      payments.map((p) => p.method).toList(),
-    );
+    try {
+      op?.stage('Validate cart');
+      final draft = await _requireDraftCart(draftCartLocalId);
+      final itemRows = await (_db.select(_db.draftCartItems)
+            ..where((i) => i.draftCartLocalId.equals(draftCartLocalId)))
+          .get();
+      if (itemRows.isEmpty) {
+        throw StateError('A sale must have at least one item.');
+      }
+      final paymentRows = await (_db.select(_db.draftCartPayments)
+            ..where((p) => p.draftCartLocalId.equals(draftCartLocalId)))
+          .get();
 
-    final saleDraft = SaleDraft(
-      items: items,
-      locationId: draft.locationId,
-      amountPaid: amountPaid,
-      customerId: draft.customerLocalId,
-      discount: discount,
-      wholeCartDiscount: draft.wholeCartDiscount,
-      tax: draft.tax,
-      paymentMethod: paymentMethod,
-      notes: draft.notes,
-      payments: payments,
-    );
+      op?.stage('Build sale');
+      final items = itemRows
+          .map((row) => row.toDomain().toSaleItem(newLocalId: Ulid().toString()))
+          .toList();
+      final payments = paymentRows
+          .map((row) => row.toDomain().toSalePayment(newLocalId: Ulid().toString()))
+          .toList();
 
-    // Everything from here on runs in one transaction so it can only
-    // succeed or fail as a whole. createSale() and clearDraft() each
-    // open their own _db.transaction() internally, which nests inside
-    // this one rather than committing separately — so does the sync
-    // enqueue createSale() triggers on the way out. Before this, a
-    // failure anywhere after the sale itself was written (clearing the
-    // draft, enqueueing it for sync) could leave a real, committed sale
-    // behind while the caller still saw an exception — and since
-    // nothing tied a retry back to this specific draft, retrying from
-    // the same cart created a second, duplicate sale. Now, any failure
-    // in this block rolls the sale back too, so "the sale didn't go
-    // through" is true whenever this throws.
-    return _db.transaction(() async {
-      final sale = await _saleRepository.createSale(saleDraft);
-      await clearDraft(draftCartLocalId);
+      final discount = aggregation.combineDiscount(
+        wholeCartDiscount: draft.wholeCartDiscount,
+        lineDiscounts: items.map((i) => i.lineDiscount).toList(),
+      );
+      final amountPaid = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
+      final paymentMethod = aggregation.aggregatePaymentMethod(
+        payments.map((p) => p.method).toList(),
+      );
+
+      final saleDraft = SaleDraft(
+        items: items,
+        locationId: draft.locationId,
+        amountPaid: amountPaid,
+        customerId: draft.customerLocalId,
+        discount: discount,
+        wholeCartDiscount: draft.wholeCartDiscount,
+        tax: draft.tax,
+        paymentMethod: paymentMethod,
+        notes: draft.notes,
+        payments: payments,
+      );
+      op?.addContext({
+        'Item count': '${items.length}',
+        if (paymentMethod != null) 'Payment method': paymentMethod,
+      });
+
+      // Everything from here on runs in one transaction so it can only
+      // succeed or fail as a whole. createSale() and clearDraft() each
+      // open their own _db.transaction() internally, which nests inside
+      // this one rather than committing separately — so does the sync
+      // enqueue createSale() triggers on the way out. Before this, a
+      // failure anywhere after the sale itself was written (clearing the
+      // draft, enqueueing it for sync) could leave a real, committed sale
+      // behind while the caller still saw an exception — and since
+      // nothing tied a retry back to this specific draft, retrying from
+      // the same cart created a second, duplicate sale. Now, any failure
+      // in this block rolls the sale back too, so "the sale didn't go
+      // through" is true whenever this throws.
+      op?.stage('Persist sale');
+      final sale = await _db.transaction(() async {
+        final createdSale = await _saleRepository.createSale(saleDraft);
+        op?.stage('Clear cart');
+        await clearDraft(draftCartLocalId);
+        return createdSale;
+      });
+      op?.complete();
       return sale;
-    });
+    } catch (error, stackTrace) {
+      // Captured here, then rethrown completely unchanged — see this
+      // class's own header note and DiagnosticOperation's header
+      // comment in diagnostic_logger.dart. PaymentScreen's existing
+      // `catch (_)` (payment_screen.dart's own `_completeSale`) is
+      // untouched by this addition: it still catches the same
+      // exception, still preserves the cart, still shows the same
+      // generic message — the difference this instrumentation makes is
+      // that a real DiagnosticEvent now exists to explain *why*, in
+      // More -> Diagnostics, instead of that information having been
+      // silently discarded the moment `catch (_)` ran.
+      unawaited(op?.fail(error, stackTrace));
+      rethrow;
+    }
   }
 }
