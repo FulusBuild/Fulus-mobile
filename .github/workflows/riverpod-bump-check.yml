@@ -1,0 +1,33 @@
+name: Riverpod-only bump check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.9"
+          channel: stable
+
+      # These edits are local to this runner only — never committed,
+      # never touches the real pubspec.yaml in the repo.
+      - name: Bump only flutter_riverpod / riverpod_annotation / riverpod_generator
+        run: |
+          sed -i 's/flutter_riverpod: \^2\.5\.1/flutter_riverpod: ^3.3.2/' pubspec.yaml
+          sed -i 's/riverpod_annotation: \^2\.3\.5/riverpod_annotation: ^4.0.3/' pubspec.yaml
+          sed -i 's/riverpod_generator: \^2\.4\.0/riverpod_generator: ^4.0.4/' pubspec.yaml
+          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:" pubspec.yaml
+
+      - name: Resolve dependencies with only those three bumped
+        run: flutter pub get
+
+      - name: Show which analyzer version this resolved to
+        run: flutter pub deps | grep -i "analyzer "
+
+      - name: Try code generation against this narrower dependency set
+        run: dart run build_runner build --delete-conflicting-outputs
