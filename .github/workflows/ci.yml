@@ -51,6 +51,7 @@ jobs:
     name: Resolve dependencies
 
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -80,6 +81,7 @@ jobs:
     needs: dependencies
 
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -111,6 +113,7 @@ jobs:
     needs: codegen
 
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -146,6 +149,7 @@ jobs:
     needs: analyze
 
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -186,6 +190,7 @@ jobs:
     needs: test
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -257,6 +262,7 @@ jobs:
       inputs.build_apk == 'debug'
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -331,6 +337,7 @@ jobs:
       inputs.build_apk == 'release'
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
