@@ -6,7 +6,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -14,20 +14,23 @@ jobs:
           flutter-version: "3.44.9"
           channel: stable
 
-      # These edits are local to this runner only — never committed,
-      # never touches the real pubspec.yaml in the repo.
-      - name: Bump only flutter_riverpod / riverpod_annotation / riverpod_generator
+      # Scoped preview: only shows what these five packages need,
+      # not the full 18-package --major-versions blast radius.
+      - name: Preview a scoped major-version bump
         run: |
-          sed -i 's/flutter_riverpod: \^2\.5\.1/flutter_riverpod: ^3.3.2/' pubspec.yaml
-          sed -i 's/riverpod_annotation: \^2\.3\.5/riverpod_annotation: ^4.0.3/' pubspec.yaml
-          sed -i 's/riverpod_generator: \^2\.4\.0/riverpod_generator: ^4.0.4/' pubspec.yaml
-          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:" pubspec.yaml
+          flutter pub upgrade --major-versions --dry-run \
+            flutter_riverpod riverpod_annotation riverpod_generator \
+            freezed freezed_annotation
 
-      - name: Resolve dependencies with only those three bumped
-        run: flutter pub get
-
-      - name: Show which analyzer version this resolved to
-        run: flutter pub deps | grep -i "analyzer "
+      # Actually applies it on this runner only. Nothing is committed
+      # back to the repo — pubspec.yaml/pubspec.lock changes die with
+      # the runner.
+      - name: Apply the scoped bump
+        run: |
+          flutter pub upgrade --major-versions \
+            flutter_riverpod riverpod_annotation riverpod_generator \
+            freezed freezed_annotation
+          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:|freezed:|freezed_annotation:" pubspec.yaml
 
       - name: Try code generation against this narrower dependency set
         run: dart run build_runner build --delete-conflicting-outputs
