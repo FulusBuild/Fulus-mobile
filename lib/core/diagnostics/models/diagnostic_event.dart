@@ -1,6 +1,11 @@
 import 'breadcrumb.dart';
 import 'device_context.dart';
 import 'diagnostic_enums.dart';
+// Re-exported so files that only import this file (DiagnosticCause's own
+// defining file) also get DiagnosticSeverity/Category/Confidence/
+// LifecycleStatus without needing a separate direct import — several
+// rule files under engine/rules/ were relying on this already.
+export 'diagnostic_enums.dart';
 
 /// One labeled fact backing either a [DiagnosticCause] ("Product ID:
 /// 184") or supplementary technical context ("Connectivity: offline").

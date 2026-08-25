@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../domain/entities/app_notification.dart';
 import '../../../domain/entities/auth_user.dart';
 import '../../../domain/entities/printer_device.dart';

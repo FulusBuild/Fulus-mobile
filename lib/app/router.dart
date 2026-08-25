@@ -598,7 +598,7 @@ class _MoreScreen extends StatelessWidget {
           Consumer(
             builder: (context, ref, _) {
               final notificationsAsync = ref.watch(_moreNotificationsProvider);
-              final unread = notificationsAsync.valueOrNull?.where((n) => !n.isRead).length ?? 0;
+              final unread = notificationsAsync.value?.where((n) => !n.isRead).length ?? 0;
               return FulusListRow(
                 title: const Text('Notifications'),
                 trailing: Row(
@@ -626,7 +626,7 @@ class _MoreScreen extends StatelessWidget {
           Consumer(
             builder: (context, ref, _) {
               final eventsAsync = ref.watch(diagnosticEventsProvider);
-              final errorCount = eventsAsync.valueOrNull
+              final errorCount = eventsAsync.value
                       ?.where((e) =>
                           e.severity == DiagnosticSeverity.critical || e.severity == DiagnosticSeverity.error)
                       .length ??

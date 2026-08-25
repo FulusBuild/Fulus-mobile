@@ -108,7 +108,7 @@ class _OfflineBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isOnline = ref.watch(_isOnlineProvider).valueOrNull ?? true;
+    final isOnline = ref.watch(_isOnlineProvider).value ?? true;
     return AnimatedSize(
       duration: const Duration(milliseconds: 200),
       child: isOnline
@@ -162,7 +162,7 @@ class _SyncStatusIndicator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(_shellSyncStatusProvider);
-    final status = statusAsync.valueOrNull;
+    final status = statusAsync.value;
     if (status == null) return const SizedBox.shrink();
 
     final (icon, color, badgeCount) = switch (status.kind) {

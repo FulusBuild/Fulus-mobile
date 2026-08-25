@@ -1,4 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// StateProvider moved out of the main flutter_riverpod export in 3.0 —
+// still fully supported, just needs this import now. See:
+// https://riverpod.dev/docs/3.0_migration
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../core/diagnostics/diagnostic_logger.dart';
 import '../core/diagnostics/models/diagnostic_event.dart';
