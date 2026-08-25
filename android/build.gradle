@@ -127,9 +127,25 @@ subprojects {
 // extension — a `FlutterExtension` instance, not a Map — when its own
 // build.gradle applies the Flutter Gradle Plugin; setting this fake one
 // there first would fight that later, real registration.
+//
+// `ndkVersion` was added to this Map alongside `compileSdkVersion` after
+// the same gap surfaced a second way: `jni` (pub.dev's JNI support
+// library — a transitive dependency, not listed directly in
+// pubspec.yaml, most likely pulled in by device_info_plus's Android
+// implementation) ships an android/build.gradle containing the standard
+// FFI-plugin-template line `ndkVersion flutter.ndkVersion`. Against this
+// fake Map with no `ndkVersion` key, Groovy property access on a missing
+// key returns null rather than throwing — so that line silently became
+// `ndkVersion null`, which AGP's LibraryExtension.setNdkVersion (a
+// Kotlin non-null parameter) rejects with "Parameter specified as
+// non-null is null" instead of the clearer missing-property error
+// compileSdkVersion's absence used to produce. Same fix as above: give
+// the Map the real value (matching app/build.gradle's own explicit
+// `ndkVersion` pin) so any other plugin reading `flutter.ndkVersion`
+// resolves it correctly too, rather than special-casing `jni` alone.
 subprojects {
     if (project.name != "app") {
-        project.ext.flutter = [compileSdkVersion: 36]
+        project.ext.flutter = [compileSdkVersion: 36, ndkVersion: "25.1.8937393"]
     }
 }
 
