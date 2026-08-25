@@ -214,6 +214,24 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Free runner disk space
+        run: |
+          echo "===== DISK BEFORE CLEANUP ====="
+          df -h
+
+          # Remove large preinstalled Android components not required for APK compilation.
+          sudo rm -rf /usr/local/lib/android/sdk/system-images || true
+          sudo rm -rf /usr/local/lib/android/sdk/emulator || true
+          sudo rm -rf /usr/local/lib/android/sdk/platform-tools || true
+
+          # Remove large preinstalled tools that this workflow does not need.
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+
+          echo "===== DISK AFTER CLEANUP ====="
+          df -h
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
