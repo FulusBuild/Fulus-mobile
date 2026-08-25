@@ -22,16 +22,22 @@ android {
     // compileSdk/ndkVersion are pinned explicitly rather than deferred
     // to Flutter's own recommended defaults (flutter.compileSdkVersion/
     // flutter.ndkVersion): several plugins now require higher versions
-    // than Flutter 3.24.0's own defaults resolve to —
+    // than Flutter 3.44.9's own defaults resolve to —
     // androidx.camera:*:1.5.0 (via the camera/mobile_scanner plugins)
-    // needs compileSdk >=35, and mobile_scanner itself asks for 36;
-    // camera_android_camerax, connectivity_plus, sqlite3_flutter_libs,
-    // flutter_secure_storage, and several others all ask for NDK
-    // 25.1.8937393 versus Flutter's older default. Both are backward
-    // compatible bumps per Android's own guidance, so this is safe even
+    // needs compileSdk >=35, and mobile_scanner itself asks for 36.
+    // ndkVersion was raised a second time, from 25.1.8937393 to
+    // 27.0.12077973, after the CI log for this exact pin started listing
+    // 17 plugins (android_file_picker, camera_android_camerax,
+    // connectivity_plus, device_info_plus, flutter_local_notifications,
+    // flutter_plugin_android_lifecycle, flutter_secure_storage,
+    // flutter_usb_printer, jni_flutter, mobile_scanner, package_info_plus,
+    // permission_handler_android, print_bluetooth_thermal, printing,
+    // share_plus, shared_preferences_android, workmanager) all asking for
+    // 27.0.12077973 — the CI warning's own suggested fix. Both bumps are
+    // backward compatible per Android's own guidance, so this is safe even
     // for plugins that don't strictly need the newer versions.
     compileSdk = 36
-    ndkVersion = "25.1.8937393"
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

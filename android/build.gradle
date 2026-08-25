@@ -143,9 +143,13 @@ subprojects {
 // the Map the real value (matching app/build.gradle's own explicit
 // `ndkVersion` pin) so any other plugin reading `flutter.ndkVersion`
 // resolves it correctly too, rather than special-casing `jni` alone.
+// That value was itself bumped afterward, from 25.1.8937393 to
+// 27.0.12077973 — see the matching comment in app/build.gradle — so it's
+// repeated here to keep the two pins in sync, not re-derived from first
+// principles.
 subprojects {
     if (project.name != "app") {
-        project.ext.flutter = [compileSdkVersion: 36, ndkVersion: "25.1.8937393"]
+        project.ext.flutter = [compileSdkVersion: 36, ndkVersion: "27.0.12077973"]
     }
 }
 

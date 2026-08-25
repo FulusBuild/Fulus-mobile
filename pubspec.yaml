@@ -51,7 +51,22 @@ dependencies:
   flutter_secure_storage: ^10.1.0
 
   # --- Background sync (Architecture Section 8) ---
-  workmanager: ^0.5.2
+  # Bumped from 0.5.2 to 0.10.9 (current stable) after Flutter 3.44.9's CI
+  # runner started failing assembleDebug: 0.5.2's Android implementation
+  # (BackgroundWorker.kt / WorkmanagerPlugin.kt) still referenced the v1
+  # embedding compatibility shim (ShimPluginRegistry, PluginRegistrantCallback,
+  # Registrar) that Flutter removed outright in 3.29.0, so it no longer
+  # compiles on any Flutter version at or above that. The package dropped
+  # v1-embedding support itself back at 0.6.0; nothing before that is usable
+  # here regardless of what else changed since. Went straight to latest
+  # rather than the minimum 0.6.0 fix: 0.10.9 is the actively maintained
+  # release, and since nothing in lib/ actually calls the Workmanager API
+  # yet (declared for the still-pending background sync work, not wired up),
+  # none of the intervening breaking changes — the 0.8.0 federated-plugin
+  # split (workmanager_android/workmanager_apple, pulled in automatically
+  # via this same version line) or the 0.8.0 enum renames — have any call
+  # site here to migrate.
+  workmanager: ^0.10.9
 
   # --- IDs, equality, immutability ---
   # ULID for local_id generation — Architecture Section 3 is explicit this
