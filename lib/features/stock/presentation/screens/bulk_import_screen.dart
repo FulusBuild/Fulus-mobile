@@ -41,10 +41,9 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
-        withData: true,
       );
-      final bytes = result?.files.single.bytes;
-      if (bytes == null) return; // canceled, or a picker that didn't return data
+      if (result.isEmpty) return; // canceled
+      final bytes = await result.single.readAsBytes();
       _contentController.text = utf8.decode(bytes, allowMalformed: true);
       setState(() {});
     } catch (_) {

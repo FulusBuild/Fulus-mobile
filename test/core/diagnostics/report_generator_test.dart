@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:fulus_mobile/core/diagnostics/export/diagnostic_report_generator.dart';
 import 'package:fulus_mobile/core/diagnostics/models/breadcrumb.dart';
 import 'package:fulus_mobile/core/diagnostics/models/device_context.dart';
-import 'package:fulus_mobile/core/diagnostics/models/diagnostic_enums.dart';
 import 'package:fulus_mobile/core/diagnostics/models/diagnostic_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 

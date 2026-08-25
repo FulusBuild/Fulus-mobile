@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart'; // for StateProvider.autoDispose
 
 import '../../../app/providers.dart';
 import '../../../domain/entities/category.dart';

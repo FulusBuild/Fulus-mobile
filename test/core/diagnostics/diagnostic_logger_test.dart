@@ -1,5 +1,4 @@
 import 'package:fulus_mobile/core/diagnostics/diagnostic_logger.dart';
-import 'package:fulus_mobile/core/diagnostics/models/diagnostic_enums.dart';
 import 'package:fulus_mobile/core/diagnostics/models/diagnostic_event.dart';
 import 'package:fulus_mobile/core/diagnostics/storage/diagnostic_store.dart';
 import 'package:fulus_mobile/core/diagnostics/storage/fallback_diagnostic_store.dart';

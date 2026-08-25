@@ -1,11 +1,9 @@
 import 'package:drift/native.dart';
 import 'package:fulus_mobile/core/diagnostics/models/breadcrumb.dart';
 import 'package:fulus_mobile/core/diagnostics/models/device_context.dart';
-import 'package:fulus_mobile/core/diagnostics/models/diagnostic_enums.dart';
 import 'package:fulus_mobile/core/diagnostics/models/diagnostic_event.dart';
 import 'package:fulus_mobile/core/diagnostics/storage/drift_diagnostic_store.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
-import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:flutter_test/flutter_test.dart';
 
 DiagnosticEvent _event({
