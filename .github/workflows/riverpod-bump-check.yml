@@ -14,14 +14,6 @@ jobs:
           flutter-version: "3.44.9"
           channel: stable
 
-      # Scoped preview: only shows what these five packages need,
-      # not the full 18-package --major-versions blast radius.
-      - name: Preview a scoped major-version bump
-        run: |
-          flutter pub upgrade --major-versions --dry-run \
-            flutter_riverpod riverpod_annotation riverpod_generator \
-            freezed freezed_annotation sqlite3 sqlite3_flutter_libs
-
       # Actually applies it on this runner only. Nothing is committed
       # back to the repo — pubspec.yaml/pubspec.lock changes die with
       # the runner.
