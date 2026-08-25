@@ -26,3 +26,9 @@ jobs:
 
       - name: Try code generation against this narrower dependency set
         run: dart run build_runner build --delete-conflicting-outputs
+
+      # This is the real test: codegen not crashing doesn't mean your
+      # hand-written code still compiles against the new Riverpod/
+      # freezed/sqlite3 APIs. This mirrors the real "analyze" job.
+      - name: Analyze against the narrower dependency set
+        run: flutter analyze --fatal-infos
