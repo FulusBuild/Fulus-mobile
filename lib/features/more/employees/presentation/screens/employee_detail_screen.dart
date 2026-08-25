@@ -129,7 +129,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor: AppColors.primaryOf(context).withOpacity(0.1),
+                backgroundColor: AppColors.primaryOf(context).withValues(alpha: 0.1),
                 child: Text(
                   employee.fullName.isNotEmpty ? employee.fullName[0].toUpperCase() : '?',
                   style: TextStyle(color: AppColors.primaryOf(context), fontWeight: FontWeight.bold, fontSize: 20),
@@ -335,7 +335,7 @@ class _LeaveRequestTile extends ConsumerWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
-                  decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                   child: Text(label, style: AppTypography.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
                 ),
               ],

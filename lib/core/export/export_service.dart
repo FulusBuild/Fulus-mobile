@@ -64,6 +64,10 @@ class ExportService {
     // backup_screen.dart and receipt_preview_sheet.dart, deliberately —
     // SharePlus.instance.share(ShareParams(...)) doesn't exist before
     // share_plus 11.0.0.
+    // ignore: deprecated_member_use — SharePlus.instance.share() has open
+    // bugs on platforms this app targets: broken entirely on Windows
+    // (plus_plugins#3619) and throws/hangs on iOS 26 (plus_plugins#3685,
+    // #3631). Revisit once those are resolved upstream.
     await Share.shareXFiles([XFile(file.path)], subject: title);
   }
 

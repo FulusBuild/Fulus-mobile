@@ -59,8 +59,8 @@ class FulusButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryOf(context),
             foregroundColor: AppColors.onPrimaryOf(context),
-            disabledBackgroundColor: AppColors.primaryOf(context).withOpacity(AppOpacity.disabled),
-            disabledForegroundColor: AppColors.onPrimaryOf(context).withOpacity(AppOpacity.disabled),
+            disabledBackgroundColor: AppColors.primaryOf(context).withValues(alpha: AppOpacity.disabled),
+            disabledForegroundColor: AppColors.onPrimaryOf(context).withValues(alpha: AppOpacity.disabled),
           ),
           child: child,
         );
@@ -79,8 +79,8 @@ class FulusButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.errorOf(context),
             foregroundColor: AppColors.errorOnOf(context),
-            disabledBackgroundColor: AppColors.errorOf(context).withOpacity(AppOpacity.disabled),
-            disabledForegroundColor: AppColors.errorOnOf(context).withOpacity(AppOpacity.disabled),
+            disabledBackgroundColor: AppColors.errorOf(context).withValues(alpha: AppOpacity.disabled),
+            disabledForegroundColor: AppColors.errorOnOf(context).withValues(alpha: AppOpacity.disabled),
           ),
           child: child,
         );

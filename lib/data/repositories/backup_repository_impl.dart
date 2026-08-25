@@ -58,7 +58,7 @@ class BackupRepositoryImpl implements BackupRepository {
     try {
       src.execute('VACUUM INTO ?', [destPath]);
     } finally {
-      src.dispose();
+      src.close();
     }
 
     final size = await File(destPath).length();

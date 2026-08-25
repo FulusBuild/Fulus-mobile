@@ -63,6 +63,10 @@ class DiagnosticShareService {
     final file = File('${dir.path}/$filenamePrefix-$timestamp.$extension');
     await file.writeAsString(content);
 
+    // ignore: deprecated_member_use — SharePlus.instance.share() has open
+    // bugs on platforms this app targets: broken entirely on Windows
+    // (plus_plugins#3619) and throws/hangs on iOS 26 (plus_plugins#3685,
+    // #3631). Revisit once those are resolved upstream.
     await Share.shareXFiles([XFile(file.path)], subject: reportTitle);
   }
 }

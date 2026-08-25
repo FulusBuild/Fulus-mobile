@@ -128,7 +128,7 @@ class FulusStatCard extends StatelessWidget {
                 height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: (iconColor ?? valueColor ?? AppColors.primaryOf(context)).withOpacity(0.12),
+                  color: (iconColor ?? valueColor ?? AppColors.primaryOf(context)).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(icon, size: AppIconSize.compact, color: iconColor ?? valueColor ?? AppColors.primaryOf(context)),

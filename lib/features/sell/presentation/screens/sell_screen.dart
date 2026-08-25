@@ -316,7 +316,7 @@ class _ProductTile extends StatelessWidget {
                 child: Icon(
                   Icons.inventory_2_outlined,
                   size: AppIconSize.emphasis,
-                  color: AppColors.primaryOf(context).withOpacity(0.55),
+                  color: AppColors.primaryOf(context).withValues(alpha: 0.55),
                 ),
               ),
             ),

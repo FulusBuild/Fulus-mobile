@@ -346,7 +346,7 @@ class _HeroCard extends ConsumerWidget {
           Positioned(
             right: -18,
             bottom: -18,
-            child: Icon(Icons.storefront, size: 128, color: AppColors.onPrimaryOf(context).withOpacity(0.08)),
+            child: Icon(Icons.storefront, size: 128, color: AppColors.onPrimaryOf(context).withValues(alpha: 0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +365,7 @@ class _HeroCard extends ConsumerWidget {
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         topLabel.toUpperCase(),
-                        style: AppTypography.label.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.85)),
+                        style: AppTypography.label.copyWith(color: AppColors.onPrimaryOf(context).withValues(alpha: 0.85)),
                       ),
                     ],
                   ),
@@ -373,7 +373,7 @@ class _HeroCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.onPrimaryOf(context).withOpacity(0.16),
+                        color: AppColors.onPrimaryOf(context).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                       child: Row(
@@ -405,7 +405,7 @@ class _HeroCard extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 '$count sale${count == 1 ? '' : 's'} so far',
-                style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.75)),
+                style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withValues(alpha: 0.75)),
               ),
               if (state is NotYetOpenedHero) ...[
                 const SizedBox(height: AppSpacing.lg),
@@ -482,7 +482,7 @@ class _HeroButton extends StatelessWidget {
           : OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: onPrimary,
-                side: BorderSide(color: onPrimary.withOpacity(0.5)),
+                side: BorderSide(color: onPrimary.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
               ),
               onPressed: onTap,

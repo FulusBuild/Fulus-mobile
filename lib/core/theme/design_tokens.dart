@@ -126,7 +126,7 @@ class AppColors {
   /// AppOpacity.badgeTintDark (0.14) over darkPrimary — the two real
   /// per-theme values collapsed into one accessor.
   static Color selectedTintOf(BuildContext context) =>
-      isDark(context) ? darkPrimary.withOpacity(AppOpacity.badgeTintDark) : primary50;
+      isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
 }
 
 class AppTypography {
@@ -367,7 +367,7 @@ class AppGradients {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: isDark
-          ? [AppColors.primary700, AppColors.darkPrimaryStrong.withOpacity(0.55)]
+          ? [AppColors.primary700, AppColors.darkPrimaryStrong.withValues(alpha: 0.55)]
           : [AppColors.primary600, AppColors.primary],
     );
   }

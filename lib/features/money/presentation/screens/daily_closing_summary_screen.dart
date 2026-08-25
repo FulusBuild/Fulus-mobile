@@ -60,7 +60,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
                 Container(
                   width: 56,
                   height: 56,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryOf(context).withOpacity(0.12)),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryOf(context).withValues(alpha: 0.12)),
                   child: Icon(Icons.check_circle_outline, size: AppIconSize.base, color: AppColors.primaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -115,7 +115,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             decoration: BoxDecoration(
-              color: (matches ? AppColors.primaryOf(context) : AppColors.warningOf(context)).withOpacity(0.12),
+              color: (matches ? AppColors.primaryOf(context) : AppColors.warningOf(context)).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Row(

@@ -33,9 +33,7 @@ class SecureStorage {
   SecureStorage({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(
-                encryptedSharedPreferences: true,
-              ),
+              aOptions: AndroidOptions(),
             );
 
   final FlutterSecureStorage _storage;

@@ -132,7 +132,7 @@ class _OptionCard extends StatelessWidget {
               // 0.1 tint on the primary color — matching the icon-badge
               // treatment SaleSuccessScreen's own checkmark circle
               // already uses, rather than inventing a new value.
-              color: AppColors.primaryOf(context).withOpacity(0.1),
+              color: AppColors.primaryOf(context).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Icon(icon, color: AppColors.primaryOf(context)),

@@ -219,7 +219,7 @@ class _BalanceHero extends StatelessWidget {
         children: [
           Text(
             'Available balance',
-            style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7)),
+            style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withValues(alpha: 0.7)),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
@@ -232,7 +232,7 @@ class _BalanceHero extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Net of every sale, expense, and payment recorded',
-            style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withOpacity(0.7)),
+            style: AppTypography.body.copyWith(color: AppColors.onPrimaryOf(context).withValues(alpha: 0.7)),
           ),
         ],
       ),

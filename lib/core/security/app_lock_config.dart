@@ -28,7 +28,7 @@ class AppLockConfig {
         _pinHasher = pinHasher ?? const Argon2PinHasher(),
         _secureStorage = secureStorage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              aOptions: AndroidOptions(),
             );
 
   final SharedPreferences _preferences;
