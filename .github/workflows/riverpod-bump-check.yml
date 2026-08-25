@@ -20,7 +20,7 @@ jobs:
         run: |
           flutter pub upgrade --major-versions --dry-run \
             flutter_riverpod riverpod_annotation riverpod_generator \
-            freezed freezed_annotation
+            freezed freezed_annotation sqlite3 sqlite3_flutter_libs
 
       # Actually applies it on this runner only. Nothing is committed
       # back to the repo — pubspec.yaml/pubspec.lock changes die with
@@ -29,8 +29,8 @@ jobs:
         run: |
           flutter pub upgrade --major-versions \
             flutter_riverpod riverpod_annotation riverpod_generator \
-            freezed freezed_annotation
-          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:|freezed:|freezed_annotation:" pubspec.yaml
+            freezed freezed_annotation sqlite3 sqlite3_flutter_libs
+          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:|freezed:|freezed_annotation:|sqlite3:|sqlite3_flutter_libs:" pubspec.yaml
 
       - name: Try code generation against this narrower dependency set
         run: dart run build_runner build --delete-conflicting-outputs
