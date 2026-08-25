@@ -93,7 +93,14 @@ void main() {
         cause: const DiagnosticCause(description: 'ok', confidence: DiagnosticConfidence.high),
         evidence: const [EvidenceItem('password', 'hunter2')],
         breadcrumbs: [
-          Breadcrumb(message: 'used token abcdef1234567890xyz', timestamp: DateTime(2026, 1, 1)),
+          // Must actually match one of DiagnosticRedactor's recognized
+          // secret shapes (Bearer-prefixed or JWT-shaped) — it
+          // deliberately does not strip arbitrary-looking strings, so a
+          // bare token here would legitimately survive redaction.
+          Breadcrumb(
+            message: 'retried with Bearer abcdef1234567890xyz',
+            timestamp: DateTime(2026, 1, 1),
+          ),
         ],
         device: const DeviceContext.unknown(),
       );

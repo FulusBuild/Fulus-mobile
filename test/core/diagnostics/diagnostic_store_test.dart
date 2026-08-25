@@ -99,10 +99,15 @@ void main() {
 
   group('getSummary', () {
     test('counts errors, warnings, and total correctly', () async {
-      await store.save(_event(id: '1', severity: DiagnosticSeverity.error));
-      await store.save(_event(id: '2', severity: DiagnosticSeverity.critical));
-      await store.save(_event(id: '3', severity: DiagnosticSeverity.warning));
-      await store.save(_event(id: '4', severity: DiagnosticSeverity.info));
+      // Distinct components so these four don't fall inside the
+      // duplicate-event window (same title, saved milliseconds apart)
+      // and get merged into one row by save()'s own dedup logic — see
+      // the 'duplicate-event handling' group above for that behavior
+      // tested on its own terms.
+      await store.save(_event(id: '1', component: 'C1', severity: DiagnosticSeverity.error));
+      await store.save(_event(id: '2', component: 'C2', severity: DiagnosticSeverity.critical));
+      await store.save(_event(id: '3', component: 'C3', severity: DiagnosticSeverity.warning));
+      await store.save(_event(id: '4', component: 'C4', severity: DiagnosticSeverity.info));
 
       final summary = await store.getSummary();
       expect(summary.errorCount, 2); // error + critical
@@ -180,8 +185,16 @@ void main() {
   group('applyRetentionPolicy', () {
     test('never deletes any of the most recent keepAtLeast rows, regardless of age', () async {
       final veryOld = DateTime.now().subtract(const Duration(days: 400));
+      // Distinct components: these five are all within the 5-minute
+      // duplicate window of each other (1 second apart), so without a
+      // distinguishing component they'd merge into a single row via
+      // save()'s dedup logic instead of staying five separate rows.
       for (var i = 0; i < 5; i++) {
-        await store.save(_event(id: 'evt-$i', timestamp: veryOld.add(Duration(seconds: i))));
+        await store.save(_event(
+          id: 'evt-$i',
+          component: 'evt-$i',
+          timestamp: veryOld.add(Duration(seconds: i)),
+        ));
       }
 
       await store.applyRetentionPolicy(olderThan: const Duration(days: 30), keepAtLeast: 5);
@@ -193,11 +206,22 @@ void main() {
     test('deletes rows beyond keepAtLeast that are also older than olderThan', () async {
       final veryOld = DateTime.now().subtract(const Duration(days: 400));
       final recent = DateTime.now();
+      // Distinct components here too, for the same reason as above —
+      // each trio is otherwise saved close enough in time to collapse
+      // into a single deduplicated row.
       for (var i = 0; i < 3; i++) {
-        await store.save(_event(id: 'old-$i', timestamp: veryOld.add(Duration(seconds: i))));
+        await store.save(_event(
+          id: 'old-$i',
+          component: 'old-$i',
+          timestamp: veryOld.add(Duration(seconds: i)),
+        ));
       }
       for (var i = 0; i < 3; i++) {
-        await store.save(_event(id: 'new-$i', timestamp: recent.add(Duration(seconds: i))));
+        await store.save(_event(
+          id: 'new-$i',
+          component: 'new-$i',
+          timestamp: recent.add(Duration(seconds: i)),
+        ));
       }
 
       await store.applyRetentionPolicy(olderThan: const Duration(days: 30), keepAtLeast: 3);
