@@ -209,10 +209,28 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Free runner disk space
+        run: |
+          echo "===== DISK BEFORE CLEANUP ====="
+          df -h
+
+          # Remove large preinstalled SDK components that this project does not need.
+          sudo rm -rf /usr/local/lib/android/sdk/system-images || true
+          sudo rm -rf /usr/local/lib/android/sdk/emulator || true
+
+          # Remove unused preinstalled toolchains/caches.
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+
+          echo "===== DISK AFTER CLEANUP ====="
+          df -h
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+          cache-cleanup: on-success
 
       - name: Bootstrap Gradle wrapper
         run: |
@@ -221,7 +239,7 @@ jobs:
 
           touch settings.gradle
 
-          gradle wrapper --distribution-type all
+          gradle wrapper --distribution-type bin
 
           cp -v gradlew gradlew.bat \
             "$GITHUB_WORKSPACE/android/"
@@ -293,7 +311,7 @@ jobs:
 
           touch settings.gradle
 
-          gradle wrapper --distribution-type all
+          gradle wrapper --distribution-type bin
 
           cp -v gradlew gradlew.bat \
             "$GITHUB_WORKSPACE/android/"
@@ -368,7 +386,7 @@ jobs:
 
           touch settings.gradle
 
-          gradle wrapper --distribution-type all
+          gradle wrapper --distribution-type bin
 
           cp -v gradlew gradlew.bat \
             "$GITHUB_WORKSPACE/android/"
