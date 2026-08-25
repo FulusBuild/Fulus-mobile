@@ -111,10 +111,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (!mounted) return;
       // See pubspec.yaml's comment on the share_plus version pin — this
       // uses the long-stable Share.shareXFiles API deliberately.
-      // ignore: deprecated_member_use — SharePlus.instance.share() has open
-      // bugs on platforms this app targets: broken entirely on Windows
-      // (plus_plugins#3619) and throws/hangs on iOS 26 (plus_plugins#3685,
-      // #3631). Revisit once those are resolved upstream.
+      // SharePlus.instance.share() has open bugs on platforms this app
+      // targets: broken entirely on Windows (plus_plugins#3619) and
+      // throws/hangs on iOS 26 (plus_plugins#3685, #3631). Revisit once
+      // those are resolved upstream.
+      // ignore: deprecated_member_use
       await Share.shareXFiles([XFile(path)], text: 'Fulus backup: ${backup.fileName}');
     } on BackupException catch (e) {
       _showError(e.message);
