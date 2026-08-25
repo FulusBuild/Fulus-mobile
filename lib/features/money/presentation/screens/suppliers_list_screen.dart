@@ -23,7 +23,7 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
   @override
   Widget build(BuildContext context) {
     final suppliersAsync = ref.watch(moneySuppliersProvider);
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Suppliers',

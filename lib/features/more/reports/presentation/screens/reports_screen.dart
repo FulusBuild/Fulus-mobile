@@ -199,8 +199,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       ),
     );
     if (format == null || !mounted) return;
-    final currencySymbol = ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
-    final businessName = ref.read(businessNameProvider).valueOrNull ?? 'Fulus';
+    final currencySymbol = ref.read(moneyCurrencySymbolProvider).value ?? '₦';
+    final businessName = ref.read(businessNameProvider).value ?? 'Fulus';
     try {
       final payload = await _buildExportPayload(currencySymbol);
       final dateRangeLabel = '${formatRelativeDay(_period.start)} – ${formatRelativeDay(_period.end)}';
@@ -310,7 +310,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),

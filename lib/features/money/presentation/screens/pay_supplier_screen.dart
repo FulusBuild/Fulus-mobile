@@ -15,7 +15,7 @@ class PaySupplierScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return LedgerPaymentScreen(
       title: 'Pay supplier',

@@ -148,7 +148,7 @@ class _VerificationBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     final soldItem = _firstWhereOrNull(sale.items, (item) => item.productLocalId != null);
 
     return SingleChildScrollView(

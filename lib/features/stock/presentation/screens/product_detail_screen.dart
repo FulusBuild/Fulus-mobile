@@ -59,7 +59,7 @@ class _ProductDetailBody extends ConsumerWidget {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
     final movementsAsync = ref.watch(stockMovementsProvider(locationId));
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return productsAsync.when(
       loading: () => const FulusScreen(body: FulusLoadingIndicator()),

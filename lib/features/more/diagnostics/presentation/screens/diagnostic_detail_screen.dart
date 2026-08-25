@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/diagnostics/export/diagnostic_share_service.dart';
-import '../../../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../../../core/diagnostics/models/diagnostic_event.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/formatting.dart';

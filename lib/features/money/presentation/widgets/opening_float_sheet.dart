@@ -74,7 +74,7 @@ class _OpeningFloatFormState extends ConsumerState<_OpeningFloatForm> {
             padding: const EdgeInsets.only(right: AppSpacing.lg),
             child: Align(
               widthFactor: 1,
-              child: Text(ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦'),
+              child: Text(ref.watch(moneyCurrencySymbolProvider).value ?? '₦'),
             ),
           ),
         ),

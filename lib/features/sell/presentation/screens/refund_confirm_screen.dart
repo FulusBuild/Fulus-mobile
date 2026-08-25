@@ -70,7 +70,7 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Confirm refund',

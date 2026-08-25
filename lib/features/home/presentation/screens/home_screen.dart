@@ -102,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.listen<int>(dashboardRefreshSignalProvider, (previous, next) {
       if (previous != null && previous != next) setState(_load);
     });
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
@@ -209,7 +209,7 @@ class _GreetingHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(_businessProfileProvider);
-    final profile = profileAsync.valueOrNull;
+    final profile = profileAsync.value;
     final businessName = profile?.businessName ?? '';
     final greeting = greetingForHour(DateTime.now().hour);
 

@@ -34,7 +34,7 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
 
   @override
   Widget build(BuildContext context) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Sales transactions',
@@ -95,12 +95,12 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
           if (record.paymentMethod != null) _DetailRow(label: 'Payment method', value: record.paymentMethod!),
           _DetailRow(
             label: 'Total',
-            value: formatMoney(record.total, symbol: ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦'),
+            value: formatMoney(record.total, symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
           ),
           if (record.discount > 0)
             _DetailRow(
               label: 'Discount',
-              value: formatMoney(record.discount, symbol: ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦'),
+              value: formatMoney(record.discount, symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
             ),
           if (record.status == SaleRecordStatus.completed) ...[
             const SizedBox(height: AppSpacing.lg),

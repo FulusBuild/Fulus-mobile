@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart'; // for StateProvider — see app/providers.dart
 
 import '../../../../app/providers.dart';
 import '../../../../domain/entities/business_settings.dart';

@@ -90,7 +90,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Give this product a name.';
     if (price == null || price <= 0) {
-      final currencySymbol = ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+      final currencySymbol = ref.read(moneyCurrencySymbolProvider).value ?? '₦';
       errors['price'] = "Price can't be ${currencySymbol}0.";
     }
 

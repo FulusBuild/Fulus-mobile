@@ -90,7 +90,7 @@ class ManageLocationsScreen extends ConsumerWidget {
               onAction: () => _addLocation(context, ref),
             );
           }
-          final activeId = activeIdAsync.valueOrNull;
+          final activeId = activeIdAsync.value;
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             itemCount: locations.length,

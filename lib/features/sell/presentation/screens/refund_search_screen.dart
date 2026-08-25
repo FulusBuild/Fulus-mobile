@@ -58,7 +58,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     // UX fix: this used to only match on invoice number, though Volume
     // 5 names receipt number OR customer as valid ways to find a sale —
     // a cashier who remembers who bought something but not the receipt
@@ -66,7 +66,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
     // customerId (no denormalized name), so this builds a small lookup
     // from the same customer list the Credit Book already watches.
     final customerNameById = <String, String>{
-      for (final c in ref.watch(moneyCustomersProvider).valueOrNull ?? const <Customer>[]) c.localId: c.name,
+      for (final c in ref.watch(moneyCustomersProvider).value ?? const <Customer>[]) c.localId: c.name,
     };
 
     return FulusScreen(

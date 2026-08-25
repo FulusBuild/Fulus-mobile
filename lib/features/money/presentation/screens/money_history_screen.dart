@@ -175,7 +175,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
     if (_needsReload(period)) {
       _load(period);
     }
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Money history',

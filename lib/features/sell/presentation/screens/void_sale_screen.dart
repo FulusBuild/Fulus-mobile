@@ -59,7 +59,7 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Void sale',

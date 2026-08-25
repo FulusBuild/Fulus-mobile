@@ -33,7 +33,7 @@ class SyncDetailScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          if (syncConfig.isEnabled && statusAsync.valueOrNull?.kind != SyncStatusKind.disabled) ...[
+          if (syncConfig.isEnabled && statusAsync.value?.kind != SyncStatusKind.disabled) ...[
             SizedBox(
               width: double.infinity,
               child: FulusButton(

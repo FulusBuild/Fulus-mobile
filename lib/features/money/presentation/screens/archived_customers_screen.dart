@@ -19,7 +19,7 @@ class ArchivedCustomersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     final archivedAsync = ref.watch(_archivedCustomersProvider);
 
     return FulusScreen(

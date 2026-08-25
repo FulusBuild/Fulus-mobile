@@ -66,7 +66,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     if (_builtForPeriod != period) {
       _load(period);
     }
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),

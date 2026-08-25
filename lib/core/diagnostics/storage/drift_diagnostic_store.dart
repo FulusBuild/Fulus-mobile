@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../data/local/database/database.dart';
-import '../../../data/local/database/tables.dart';
 import '../models/breadcrumb.dart';
 import '../models/device_context.dart';
-import '../models/diagnostic_enums.dart';
 import '../models/diagnostic_event.dart';
 import 'diagnostic_store.dart';
 

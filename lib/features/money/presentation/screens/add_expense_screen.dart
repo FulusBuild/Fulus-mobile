@@ -49,7 +49,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   Future<void> _submit() async {
     final amount = _parsedAmount();
-    final currencySymbol = ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.read(moneyCurrencySymbolProvider).value ?? '₦';
     setState(() {
       _amountError = amount == null || amount <= 0 ? "Amount can't be ${currencySymbol}0" : null;
     });
@@ -102,7 +102,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               padding: const EdgeInsets.only(right: AppSpacing.lg),
               child: Align(
                 widthFactor: 1,
-                child: Text(ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦'),
+                child: Text(ref.watch(moneyCurrencySymbolProvider).value ?? '₦'),
               ),
             ),
           ),

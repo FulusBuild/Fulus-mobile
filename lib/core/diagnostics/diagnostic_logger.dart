@@ -8,7 +8,6 @@ import 'breadcrumbs/breadcrumb_trail.dart';
 import 'capture/device_context_provider.dart';
 import 'engine/diagnostic_signal.dart';
 import 'engine/root_cause_engine.dart';
-import 'models/diagnostic_enums.dart';
 import 'models/diagnostic_event.dart';
 import 'redaction/diagnostic_redactor.dart';
 import 'storage/diagnostic_store.dart';

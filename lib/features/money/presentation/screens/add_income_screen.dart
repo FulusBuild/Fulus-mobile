@@ -39,7 +39,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
   Future<void> _submit() async {
     final amount = _parsedAmount();
     final source = _sourceController.text.trim();
-    final currencySymbol = ref.read(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.read(moneyCurrencySymbolProvider).value ?? '₦';
     setState(() {
       _amountError = amount == null || amount <= 0 ? "Amount can't be ${currencySymbol}0" : null;
       _sourceError = source.isEmpty ? 'Say what this income was from' : null;
@@ -79,7 +79,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
               padding: const EdgeInsets.only(right: AppSpacing.lg),
               child: Align(
                 widthFactor: 1,
-                child: Text(ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦'),
+                child: Text(ref.watch(moneyCurrencySymbolProvider).value ?? '₦'),
               ),
             ),
           ),

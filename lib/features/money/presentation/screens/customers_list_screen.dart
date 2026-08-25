@@ -24,7 +24,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
   @override
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(moneyCustomersProvider);
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).valueOrNull ?? '₦';
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
       title: 'Customers',
