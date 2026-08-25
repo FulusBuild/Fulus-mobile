@@ -30,8 +30,8 @@ dependencies:
   # Riverpod is the app-wide default. flutter_bloc is present ONLY for
   # the cart Cubit — a deliberate, narrow, justified exception (Section 2),
   # not the start of a second state-management pattern elsewhere.
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  flutter_riverpod: ^3.3.2
+  riverpod_annotation: ^4.0.3
   flutter_bloc: ^8.1.5
 
   # --- Routing ---
@@ -39,7 +39,7 @@ dependencies:
 
   # --- Local database (Architecture Section 3) ---
   drift: ^2.18.0
-  sqlite3_flutter_libs: ^0.5.24
+  sqlite3_flutter_libs: ^0.6.0+eol
   path_provider: ^2.1.3
   path: ^1.9.0
 
@@ -61,7 +61,7 @@ dependencies:
   # to prefer it over uuid here, not an arbitrary pick.
   ulid: ^2.0.1
   equatable: ^2.0.5
-  freezed_annotation: ^2.4.4
+  freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
 
   # --- Password/PIN hashing (Architecture Section 6 — the offline
@@ -94,7 +94,7 @@ dependencies:
   # --- Stage 10 (Backup): direct sqlite3 access for VACUUM INTO, per
   # backup_repository_impl.dart's own header comment on why that's
   # preferred over Drift's own backup API for this specific operation ---
-  sqlite3: ^2.4.6
+  sqlite3: ^3.5.2
 
   # --- Stage 9 (Receipts) / Stage 10 (Backup): PDF receipts and sharing
   # either a receipt or a backup file via the Android Share Sheet ---
@@ -161,9 +161,9 @@ dev_dependencies:
 
   # --- Code generation ---
   build_runner: ^2.4.11
-  riverpod_generator: ^2.4.0
+  riverpod_generator: ^4.0.4
   drift_dev: ^2.18.0
-  freezed: ^2.5.5
+  freezed: ^3.2.6-dev.1
   json_serializable: ^6.8.0
 
   # --- Lint ---
