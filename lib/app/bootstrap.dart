@@ -8,7 +8,6 @@ import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/onboarding/onboarding_state.dart';
-import '../core/security/password_hasher.dart';
 import '../core/security/pin_hasher.dart';
 import '../data/local/database/app_database_lifecycle.dart';
 import '../data/local/database/database.dart';
@@ -175,7 +174,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final authRepository = AuthRepositoryImpl(
     db: database,
-    passwordHasher: const Argon2PasswordHasher(),
+    // Same Argon2PinHasher instance shape ApprovalPinRepositoryImpl
+    // below already constructs — see AuthRepositoryImpl's own doc
+    // comment for why local identities use a PIN, not a password, as
+    // of the onboarding-simplification pass. Argon2PasswordHasher is no
+    // longer wired in here at all; nothing in AuthRepositoryImpl calls
+    // it anymore (see that class's doc comment for where it's still
+    // needed instead).
+    pinHasher: const Argon2PinHasher(),
     auditRepository: auditRepository,
   );
 

@@ -5,22 +5,40 @@
 /// ApiClient's interceptor and SecureStorage instead); there's simply no
 /// token at all now; there's a signed-in local user, full stop, per the
 /// plain local-session model this same redesign settled on.
+///
+/// username/email nullable as of the onboarding-simplification pass —
+/// see tables.dart's Users class doc comment for the full reasoning.
+/// Both are null for the common case (a local identity created from a
+/// name alone) and only ever populated for a real, portable, future
+/// sync credential — never displayed anywhere in this app today (there
+/// was never a screen that showed the owner their own username/email
+/// to begin with), so a null value here has nothing depending on it
+/// rendering as a fallback string.
 class AuthUser {
   const AuthUser({
     required this.id,
-    required this.username,
-    required this.email,
+    this.username,
+    this.email,
     required this.fullName,
     required this.role,
     required this.isActive,
+    required this.hasLoginPin,
   });
 
   final String id;
-  final String username;
-  final String email;
+  final String? username;
+  final String? email;
   final String fullName;
   final AuthRole role;
   final bool isActive;
+
+  /// Whether this identity has a local PIN set yet (AuthRepository.
+  /// setOwnLoginPin) — never the PIN or its hash, just whether one
+  /// exists. A device's sole local user genuinely has none (nothing to
+  /// distinguish them from); the UI uses this to gate "add another
+  /// person to this device" behind "set your own PIN first" rather than
+  /// AuthRepositoryImpl inventing one on someone's behalf.
+  final bool hasLoginPin;
 }
 
 /// The Bible's actual two-role product model (Volume 9), not the

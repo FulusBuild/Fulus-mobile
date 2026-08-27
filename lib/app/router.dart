@@ -92,11 +92,15 @@ import 'providers.dart';
 /// flagged as open are closed now, both in [_ShellGate] below and this
 /// `redirect`:
 /// - An owner signed in with no business configured (app killed between
-///   [OwnerSetupScreen]'s two steps in an earlier session) used to land
+///   [OwnerSetupScreen]'s two underlying local calls — create the owner,
+///   then create the business — in an earlier session) used to land
 ///   straight in the shell with nothing configured. [_ShellGate] now
 ///   checks [BusinessSettingsRepository.hasBeenConfigured] for a
 ///   signed-in owner and resumes [OwnerSetupScreen] at its business
-///   step instead, before ever building [FulusAppShell].
+///   fields instead, before ever building [FulusAppShell]. Onboarding-
+///   simplification pass: those two calls sit behind one combined form
+///   now, not two separate submits — see that screen's own doc comment
+///   — but the interruption window between them is exactly the same.
 /// - Employee sessions previously reached `/money` and everything under
 ///   `/more` exactly like an owner would (Volume 9: "never sees Money,
 ///   Reports, Employees, or Settings"). [FulusAppShell] hides those nav

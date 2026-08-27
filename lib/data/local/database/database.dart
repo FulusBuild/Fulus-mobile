@@ -91,6 +91,23 @@ part 'database.g.dart';
 /// Not a SyncableColumns table (see that table's own doc comment in
 /// tables.dart); nothing about this addition touches or migrates any
 /// existing table's data.
+///
+/// EIGHTH NOTE (Onboarding simplification — local PIN identity):
+/// schemaVersion is 9. Users.username/email/hashedPassword/
+/// passwordSalt relax from required to nullable, and
+/// Users.loginPinHash/loginPinSalt are added — see tables.dart's own
+/// ONBOARDING SIMPLIFICATION NOTE on the Users class for the full
+/// reasoning. The relax-an-existing-column's-constraint half of this
+/// needs the same tool the `from < 3` block's SaleItems migration
+/// needed for exactly the same reason (SQLite's ALTER TABLE can't drop
+/// a NOT NULL directly) — `alterTable(TableMigration(...))`, with the
+/// two new PIN columns folded into the same `newColumns` list rather
+/// than a separate `addColumn` call each, since the table is already
+/// being recreated either way. No existing row loses data: every
+/// current Users row already has a real username/email/password (this
+/// table had no other shape before today), so relaxing the constraint
+/// changes nothing about what's already stored — it only changes what
+/// a NEW row is allowed to omit going forward.
 @DriftDatabase(
   tables: [
     Locations,
@@ -170,7 +187,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -349,6 +366,20 @@ class AppDatabase extends _$AppDatabase {
           // own SEVENTH NOTE above and DiagnosticEvents' own doc
           // comment in tables.dart.
           await m.createTable(diagnosticEvents);
+        }
+        if (from < 9) {
+          // See this class's own EIGHTH NOTE above and the Users
+          // table's ONBOARDING SIMPLIFICATION NOTE in tables.dart.
+          // Same tool, same reason, as the SaleItems migration in the
+          // `from < 3` block: an existing column's constraint is
+          // changing (required -> nullable), not just new columns
+          // being added, so a plain addColumn isn't enough here either.
+          await m.alterTable(
+            TableMigration(
+              users,
+              newColumns: [users.loginPinHash, users.loginPinSalt],
+            ),
+          );
         }
       },
       beforeOpen: (details) async {

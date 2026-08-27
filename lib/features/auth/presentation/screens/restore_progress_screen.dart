@@ -7,8 +7,8 @@ import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/location.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'get_started_screen.dart';
+import 'identity_picker_screen.dart';
 import 'owner_setup_screen.dart';
-import 'sign_in_screen.dart';
 
 /// Shown by [AuthGateScreen] (via `resolveAuthGateStage` in
 /// core/onboarding/onboarding_routing.dart) for the one local state the
@@ -26,11 +26,11 @@ import 'sign_in_screen.dart';
 ///   straight in the app — [OwnerSetupScreen] in
 ///   `linkToExistingBusiness` mode, since the business itself doesn't
 ///   need re-doing.
-/// - **Use Existing Business**: skip straight to sign-in, for the case
-///   a working account does exist and this screen's detection is
-///   simply wrong (e.g. a Sessions row expired but the Users row is
-///   fine) — [SignInScreen] itself is the safe way to find out either
-///   way.
+/// - **Use Existing Business**: skip straight to the identity picker,
+///   for the case a working account does exist and this screen's
+///   detection is simply wrong (e.g. a Sessions row expired but the
+///   Users row is fine) — [IdentityPickerScreen] itself is the safe way
+///   to find out either way.
 /// - **Start Fresh**: wipes every local business record
 ///   (`BusinessSettingsRepository.clearLocalBusinessData()`) — gated
 ///   behind [showFulusConfirmDialog] per Component Library 5.9, never
@@ -157,7 +157,7 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
                       label: 'Use Existing Business',
                       variant: FulusButtonVariant.secondary,
                       onPressed: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const SignInScreen()),
+                        MaterialPageRoute(builder: (_) => const IdentityPickerScreen()),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),

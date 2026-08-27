@@ -5,8 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/failure.dart';
-import '../../../../../core/security/password_policy.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/employee.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
@@ -279,6 +279,21 @@ class _EmployeeDetailBody extends ConsumerWidget {
   }
 
   Future<void> _openSetUpLoginSheet(BuildContext context, WidgetRef ref) async {
+    // See setOwnLoginPin's own doc comment on AuthRepository — an owner
+    // can't provision someone else's PIN before choosing their own
+    // first. Checked here, not just left to createEmployeeAccount's own
+    // enforcement, so the owner gets a real next step instead of a
+    // banner explaining why "Create login" failed.
+    final actingOwner = ref.read(sessionProvider);
+    if (actingOwner != null && !actingOwner.hasLoginPin) {
+      final pinSet = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => const _SetOwnPinSheet(),
+      );
+      if (pinSet != true) return;
+    }
+    if (!context.mounted) return;
     final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -396,11 +411,126 @@ class _LeaveRequestTile extends ConsumerWidget {
   }
 }
 
-/// The missing "Add team member" → login link. Reuses
-/// [PasswordPolicy] and the same field-error pattern as
-/// OwnerSetupScreen (core/security/password_policy.dart's own
-/// validate()), rather than a second, potentially drifting copy of
-/// the same rule.
+/// setOwnLoginPin's own required precondition for
+/// createAdditionalOwner/createEmployeeAccount, surfaced as a real step
+/// rather than a dead-end error — see _openSetUpLoginSheet above. Not
+/// employee-specific despite living in this file: an owner sets THEIR
+/// OWN PIN here regardless of which flow (co-owner or employee)
+/// prompted it, so it stays generic rather than named after either.
+class _SetOwnPinSheet extends ConsumerStatefulWidget {
+  const _SetOwnPinSheet();
+
+  @override
+  ConsumerState<_SetOwnPinSheet> createState() => _SetOwnPinSheetState();
+}
+
+class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
+  final _pinController = TextEditingController();
+  final _confirmController = TextEditingController();
+  Map<String, String> _errors = {};
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final pin = _pinController.text.trim();
+    final errors = <String, String>{};
+    if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.';
+    if (_confirmController.text.trim() != pin) errors['confirm'] = "PINs don't match.";
+    if (errors.isNotEmpty) {
+      setState(() => _errors = errors);
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _errors = {};
+    });
+    try {
+      await ref.read(authRepositoryProvider).setOwnLoginPin(pin: pin);
+      final updated = ref.read(sessionProvider);
+      if (updated != null) {
+        ref.read(sessionProvider.notifier).state = AuthUser(
+          id: updated.id,
+          username: updated.username,
+          email: updated.email,
+          fullName: updated.fullName,
+          role: updated.role,
+          isActive: updated.isActive,
+          hasLoginPin: true,
+        );
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } on Failure catch (f) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errors = {'form': f.message};
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Set your own PIN first', style: AppTypography.heading),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            "You'll use this to switch back to your own account once "
+            "someone else has one on this device.",
+            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (_errors['form'] != null) ...[
+            Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          FulusTextField(
+            label: 'Your PIN',
+            controller: _pinController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            errorText: _errors['pin'],
+            helperText: 'At least 4 digits.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FulusTextField(
+            label: 'Confirm PIN',
+            controller: _confirmController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            errorText: _errors['confirm'],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FulusButton(label: 'Save PIN', loading: _submitting, onPressed: _submitting ? null : _submit),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The missing "Add team member" → login link. Onboarding-simplification
+/// pass: collects a PIN instead of username/email/password — see
+/// AuthRepository.createEmployeeAccount's own doc comment for why.
 class _SetUpLoginSheet extends ConsumerStatefulWidget {
   const _SetUpLoginSheet({required this.employee});
   final Employee employee;
@@ -410,38 +540,25 @@ class _SetUpLoginSheet extends ConsumerStatefulWidget {
 }
 
 class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
-  final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _pinController = TextEditingController();
   final _confirmController = TextEditingController();
   Map<String, String> _errors = {};
   bool _submitting = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _pinController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final username = _usernameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final pin = _pinController.text.trim();
 
     final errors = <String, String>{};
-    if (username.isEmpty) errors['username'] = 'Choose a username.';
-    if (email.isEmpty || !email.contains('@')) errors['email'] = 'Enter a valid email address.';
-    try {
-      if (password.isNotEmpty) PasswordPolicy.validate(password);
-      if (password.isEmpty) errors['password'] = 'Choose a password.';
-    } on ValidationFailure catch (v) {
-      errors.addAll(v.fieldErrors);
-    }
-    if (_confirmController.text != password) {
-      errors['confirm'] = "Passwords don't match.";
+    if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.';
+    if (_confirmController.text.trim() != pin) {
+      errors['confirm'] = "PINs don't match.";
     }
     if (errors.isNotEmpty) {
       setState(() => _errors = errors);
@@ -455,30 +572,29 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
     try {
       await ref.read(authRepositoryProvider).createEmployeeAccount(
             employeeId: widget.employee.id,
-            username: username,
-            email: email,
-            password: password,
+            pin: pin,
           );
       if (!mounted) return;
       Navigator.of(context).pop(true);
-      // The owner just chose this username/password themselves (this
-      // isn't a generated secret to reveal) — this confirmation is
-      // about making the handoff moment explicit, since nothing in
-      // this app told anyone to do this before now.
+      // The owner just chose this PIN themselves (this isn't a
+      // generated secret to reveal) — this confirmation is about making
+      // the handoff moment explicit, since nothing in this app told
+      // anyone to do this before now.
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Login created'),
           content: Text(
-            'Share the username and password you set with ${widget.employee.fullName} '
-            'so they can sign in.\n\nUsername: $username',
+            'Share the PIN you set with ${widget.employee.fullName} so '
+            'they can switch to their own account on this device — they\'ll '
+            'find their name in the "who\'s this?" list.\n\nPIN: $pin',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Clipboard.setData(ClipboardData(text: username));
+                Clipboard.setData(ClipboardData(text: pin));
               },
-              child: const Text('Copy username'),
+              child: const Text('Copy PIN'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
@@ -512,7 +628,7 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
           Text('Set up login for ${widget.employee.fullName}', style: AppTypography.heading),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'They\'ll use this username and password to sign in on this device.',
+            "They'll use this PIN to switch to their own account on this device.",
             style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -520,22 +636,20 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
             Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
             const SizedBox(height: AppSpacing.sm),
           ],
-          FulusTextField(label: 'Username', controller: _usernameController, errorText: _errors['username']),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Email', controller: _emailController, errorText: _errors['email']),
-          const SizedBox(height: AppSpacing.sm),
           FulusTextField(
-            label: 'Password',
-            controller: _passwordController,
+            label: 'PIN',
+            controller: _pinController,
             obscureText: true,
-            errorText: _errors['password'],
-            helperText: 'At least ${PasswordPolicy.minLength} characters.',
+            keyboardType: TextInputType.number,
+            errorText: _errors['pin'],
+            helperText: 'At least 4 digits.',
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusTextField(
-            label: 'Confirm password',
+            label: 'Confirm PIN',
             controller: _confirmController,
             obscureText: true,
+            keyboardType: TextInputType.number,
             errorText: _errors['confirm'],
           ),
           const SizedBox(height: AppSpacing.lg),

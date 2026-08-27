@@ -2,8 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
-import '../../core/security/password_hasher.dart';
-import '../../core/security/password_policy.dart';
+import '../../core/security/pin_hasher.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/audit_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -14,26 +13,47 @@ import '../local/database/database.dart';
 /// token. The Users table (tables.dart) is this device's own source of
 /// truth; Sessions (also tables.dart) just says which Users row is
 /// currently active.
+///
+/// SIMPLIFICATION pass: PasswordHasher/Argon2PasswordHasher is no longer
+/// a dependency of this class — nothing below hashes or verifies a
+/// password, since local identities no longer have one (see
+/// AuthRepository's own doc comment). It's still exactly the right tool
+/// for the future cross-device sync credential that doc comment
+/// describes, and stays available in core/security/password_hasher.dart
+/// for whatever constructs that feature later; there was simply nothing
+/// left in THIS class to still call it, and an injected dependency
+/// nothing here reads is a real unused_field, not a hypothetical one, so
+/// it's removed rather than kept as an inert parameter.
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
     required AppDatabase db,
-    required PasswordHasher passwordHasher,
+    required PinHasher pinHasher,
     required AuditRepository auditRepository,
   })  : _db = db,
-        _passwordHasher = passwordHasher,
+        _pinHasher = pinHasher,
         _auditRepository = auditRepository;
 
   final AppDatabase _db;
-  final PasswordHasher _passwordHasher;
+  final PinHasher _pinHasher;
   final AuditRepository _auditRepository;
 
   // Mirrors auth_service.py's own module-level constants exactly
   // (verified directly) — see failure.dart's _AccountLocked doc comment
   // for why this throttle still matters with no network involved at
   // all: it defends against someone with physical access to the device
-  // guessing a credential, which has nothing to do with networking.
+  // guessing a credential, which has nothing to do with networking. As
+  // of the onboarding-simplification pass this throttles loginPin
+  // guesses (switchLocalUser) the same way it always throttled password
+  // guesses — a short PIN's smaller keyspace needs this defense at
+  // least as much as a password did, arguably more.
   static const _maxFailedLoginAttempts = 5;
   static const _lockoutDuration = Duration(minutes: 15);
+
+  // Same 4-digit floor settings_main_screen.dart's own approval-PIN
+  // setup already established as this app's PIN-length convention —
+  // matched here rather than invented separately, so both PIN concepts
+  // enforce the same floor for the same reason.
+  static const _minPinLength = 4;
 
   AuthUser? _currentUser;
 
@@ -42,14 +62,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> hasAnyOwnerAccount() async {
-    // Specifically an Owner-role row, not just any row — CORRECTED:
-    // currently equivalent to "any row at all" only by accident, since
-    // nothing yet writes an Employee-role row to this same Users table
-    // (that path doesn't exist until a future Sync/Employees stage adds
-    // accepting an invite). The method's own name is a promise about
-    // Owner specifically; checking role explicitly keeps that promise
-    // true regardless of what gets built into this table later, rather
-    // than relying on today's coincidence.
+    // Specifically an Owner-role row, not just any row — this table
+    // also holds Employee-role rows (see createEmployeeAccount below),
+    // so "any row exists" and "an Owner exists" are genuinely different
+    // questions; this method's own name promises the second one.
     //
     // Filters in Dart after fetching, rather than a WHERE clause on the
     // enum column itself — this codebase has no existing precedent
@@ -92,12 +108,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthUser> createFirstOwner({
-    required String username,
-    required String email,
-    required String fullName,
-    required String password,
-  }) async {
+  Future<AuthUser> createFirstOwner({required String fullName}) async {
     if (await hasAnyOwnerAccount()) {
       // Mirrors the shape of a genuine business-rule rejection
       // (BusinessRuleFailure, per failure.dart) rather than a generic
@@ -108,111 +119,157 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     }
 
-    final user = await _createLocalUser(
-      username: username,
-      email: email,
+    final user = await _insertLocalIdentity(
       fullName: fullName,
-      password: password,
       role: AuthRole.owner,
+      pin: null,
     );
 
     // Collapsed into one step rather than create-then-separately-log-in
     // — see AuthRepository.createFirstOwner's own doc comment for why.
     _currentUser = user;
     await _persistSession(user);
-    // Mirrors the backend's own BOOTSTRAP_ADMIN action name and details
-    // shape exactly (verified directly against routers/auth.py).
+    // Mirrors the backend's own BOOTSTRAP_ADMIN action name exactly
+    // (verified directly against routers/auth.py); details payload
+    // changed from created_username to created_full_name since the
+    // former no longer exists for a local-only identity.
     await _auditRepository.log(
       action: 'BOOTSTRAP_ADMIN',
       module: 'AUTH',
       userId: user.id,
       recordId: user.id,
-      details: {'created_username': user.username},
+      details: {'created_full_name': user.fullName},
     );
     return user;
   }
 
   @override
-  Future<AuthUser> login({
-    required String username,
-    required String password,
+  Future<void> setOwnLoginPin({required String pin}) async {
+    final acting = _currentUser;
+    if (acting == null) {
+      throw const AuthFailure.forbidden();
+    }
+    _validatePin(pin);
+    final hashed = await _pinHasher.hash(pin);
+    await (_db.update(_db.users)..where((u) => u.localId.equals(acting.id)))
+        .write(
+      UsersCompanion(
+        loginPinHash: Value(hashed.hash),
+        loginPinSalt: Value(hashed.salt),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    _currentUser = AuthUser(
+      id: acting.id,
+      username: acting.username,
+      email: acting.email,
+      fullName: acting.fullName,
+      role: acting.role,
+      isActive: acting.isActive,
+      hasLoginPin: true,
+    );
+  }
+
+  @override
+  Future<List<AuthUser>> listLocalIdentities() async {
+    final rows = await _db.select(_db.users).get();
+    return rows.map(_toAuthUser).toList();
+  }
+
+  @override
+  Future<AuthUser> switchLocalUser({
+    required String userId,
+    String? pin,
   }) async {
     final userRow = await (_db.select(_db.users)
-          ..where((u) => u.username.equals(username)))
+          ..where((u) => u.localId.equals(userId)))
         .getSingleOrNull();
 
-    // Deliberately the same generic message whether the username
-    // doesn't exist at all or the password is wrong for one that does —
-    // mirrors auth_service.py's authenticate_user exactly (verified
-    // directly: it raises the identical AuthenticationError either way),
-    // so a local account-enumeration attempt learns nothing from the
-    // difference.
+    // Deliberately a generic failure rather than "no such user" — same
+    // don't-let-an-enumeration-attempt-learn-anything reasoning the old
+    // username+password login already applied (auth_service.py's
+    // authenticate_user, verified directly), even though the picker UI
+    // realistically only ever passes an id it just listed itself.
     if (userRow == null) {
-      await _auditRepository.log(
-        action: 'LOGIN_FAILED',
-        module: 'AUTH',
-        details: {'username': username},
-      );
       throw const AuthFailure.invalidCredentials();
     }
 
-    if (userRow.lockedUntil != null && userRow.lockedUntil!.isAfter(DateTime.now())) {
+    if (userRow.lockedUntil != null &&
+        userRow.lockedUntil!.isAfter(DateTime.now())) {
       await _auditRepository.log(
         action: 'LOGIN_BLOCKED_LOCKOUT',
         module: 'AUTH',
-        details: {'username': username},
+        details: {'user_id': userId},
       );
       throw AuthFailure.accountLocked(lockedUntil: userRow.lockedUntil!);
     }
 
-    final passwordMatches = await _passwordHasher.verify(
-      password,
-      expectedHash: userRow.hashedPassword,
-      salt: userRow.passwordSalt,
-    );
+    final pinHash = userRow.loginPinHash;
+    final pinSalt = userRow.loginPinSalt;
 
-    if (!passwordMatches) {
-      final failedAttempts = userRow.failedLoginAttempts + 1;
-      final lockingNow = failedAttempts >= _maxFailedLoginAttempts;
-      await (_db.update(_db.users)..where((u) => u.localId.equals(userRow.localId)))
-          .write(
-        UsersCompanion(
-          failedLoginAttempts: Value(failedAttempts),
-          lockedUntil: lockingNow
-              ? Value(DateTime.now().add(_lockoutDuration))
-              : const Value.absent(),
-          updatedAt: Value(DateTime.now()),
-        ),
+    // No PIN set at all — the sole-local-user case (see this method's
+    // own doc comment on AuthRepository). Nothing to verify [pin]
+    // against, so it's ignored entirely rather than rejected: there is
+    // no PIN this identity was ever asked to set, so there's nothing a
+    // caller could have gotten "wrong." isActive is still checked below
+    // either way — this only skips the PIN check, not every check.
+    final hasPinSet = pinHash != null && pinSalt != null;
+
+    if (hasPinSet) {
+      if (pin == null) {
+        throw const AuthFailure.invalidCredentials();
+      }
+      final pinMatches = await _pinHasher.verify(
+        pin,
+        expectedHash: pinHash,
+        salt: pinSalt,
       );
-      await _auditRepository.log(
-        action: 'LOGIN_FAILED',
-        module: 'AUTH',
-        details: {'username': username},
-      );
-      throw const AuthFailure.invalidCredentials();
+
+      if (!pinMatches) {
+        final failedAttempts = userRow.failedLoginAttempts + 1;
+        final lockingNow = failedAttempts >= _maxFailedLoginAttempts;
+        await (_db.update(_db.users)..where((u) => u.localId.equals(userRow.localId)))
+            .write(
+          UsersCompanion(
+            failedLoginAttempts: Value(failedAttempts),
+            lockedUntil: lockingNow
+                ? Value(DateTime.now().add(_lockoutDuration))
+                : const Value.absent(),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+        await _auditRepository.log(
+          action: 'LOGIN_FAILED',
+          module: 'AUTH',
+          details: {'user_id': userId},
+        );
+        throw const AuthFailure.invalidCredentials();
+      }
     }
 
-    // BUG FIX (self-audit pass, after Stage 4): this check was missing
-    // entirely — auth_service.py's authenticate_user checks is_active
-    // here, in this exact position (after the password matches, before
-    // resetting the failure counter), verified by re-reading the source
-    // a second time specifically to check this. Without it, a
-    // deactivated account (Volume 9's access-revocation flow) could
-    // still log in successfully as long as the password was still
-    // correct.
+    // isActive is checked here — after the PIN matches (or is skipped
+    // entirely for a PIN-less identity), before resetting the failure
+    // counter — deliberately, not incidentally: checking it before the
+    // PIN would let a wrong-PIN attempt on a deactivated account learn
+    // that the account exists at all, and checking it only via the
+    // counter-reset would skip it on a first-try-correct PIN entirely.
+    // This mirrors auth_service.py's authenticate_user's own check order
+    // (verified directly). Without it, a deactivated account (Volume 9's
+    // access-revocation flow) could still switch to successfully as
+    // long as the PIN was still correct — or, for a PIN-less identity,
+    // unconditionally.
     if (!userRow.isActive) {
       await _auditRepository.log(
         action: 'LOGIN_FAILED',
         module: 'AUTH',
-        details: {'username': username},
+        details: {'user_id': userId},
       );
       throw const AuthFailure.accountDeactivated();
     }
 
-    // Successful login resets the failed-attempt counter — mirrors
-    // auth_service.py's authenticate_user exactly (verified directly:
-    // it zeroes failed_login_attempts on success, not just on an
-    // explicit unlock).
+    // Successful switch resets the failed-attempt counter — same
+    // reasoning as the old login method: only on success, not just on
+    // an explicit unlock.
     if (userRow.failedLoginAttempts != 0) {
       await (_db.update(_db.users)..where((u) => u.localId.equals(userRow.localId)))
           .write(
@@ -232,40 +289,46 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthUser> createAdditionalOwner({
-    required String username,
-    required String email,
     required String fullName,
-    required String password,
+    required String pin,
   }) async {
+    final acting = _currentUser;
     // The local check IS the real enforcement now — see
     // AuthFailure.forbidden's doc comment in failure.dart.
-    if (_currentUser?.role != AuthRole.owner) {
+    if (acting?.role != AuthRole.owner) {
       throw const AuthFailure.forbidden();
+    }
+    // See setOwnLoginPin's own doc comment: this repository never
+    // invents a PIN for the acting owner on their behalf — they must
+    // have chosen their own already.
+    if (!acting!.hasLoginPin) {
+      throw const BusinessRuleFailure(
+        'Set your own PIN before adding another person to this device.',
+      );
     }
 
     // Deliberately does NOT touch _currentUser or the Sessions table —
     // unlike createFirstOwner, there is already a signed-in owner, and
-    // creating a co-owner's account (Volume 9, Decision 33) doesn't sign
-    // the acting owner out or sign the new account in. The new owner
-    // logs in separately, the normal way, whenever they actually pick up
-    // the device.
-    final newOwner = await _createLocalUser(
-      username: username,
-      email: email,
+    // creating a co-owner's identity (Volume 9, Decision 33) doesn't
+    // sign the acting owner out or sign the new identity in. The new
+    // owner switches in separately, via switchLocalUser, whenever they
+    // actually pick up the device.
+    final newOwner = await _insertLocalIdentity(
       fullName: fullName,
-      password: password,
       role: AuthRole.owner,
+      pin: pin,
     );
-    // Mirrors the backend's own admin-creates-user CREATE action and
-    // details shape exactly (verified directly) — userId is the ACTING
-    // owner (matches the backend's user_id=admin.id), recordId is the
-    // newly created account.
+    // Mirrors the backend's own admin-creates-user CREATE action shape
+    // exactly (verified directly) — userId is the ACTING owner (matches
+    // the backend's user_id=admin.id), recordId is the newly created
+    // identity; details payload changed from created_username to
+    // created_full_name, same reason as createFirstOwner's.
     await _auditRepository.log(
       action: 'CREATE',
       module: 'AUTH',
-      userId: _currentUser!.id,
+      userId: acting.id,
       recordId: newOwner.id,
-      details: {'created_username': newOwner.username},
+      details: {'created_full_name': newOwner.fullName},
     );
     return newOwner;
   }
@@ -273,14 +336,18 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<AuthUser> createEmployeeAccount({
     required String employeeId,
-    required String username,
-    required String email,
-    required String password,
+    required String pin,
   }) async {
-    // Same enforcement as createAdditionalOwner — only an Owner can
-    // provision a login for someone else.
-    if (_currentUser?.role != AuthRole.owner) {
+    final acting = _currentUser;
+    // Same enforcement as createAdditionalOwner — only an Owner who has
+    // already set their own PIN can provision a login for someone else.
+    if (acting?.role != AuthRole.owner) {
       throw const AuthFailure.forbidden();
+    }
+    if (!acting!.hasLoginPin) {
+      throw const BusinessRuleFailure(
+        'Set your own PIN before adding another person to this device.',
+      );
     }
 
     final employeeRow = await (_db.select(_db.employees)
@@ -298,17 +365,15 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     // Reuses the exact same creation path createFirstOwner/
-    // createAdditionalOwner use — same password-policy check, same
-    // username/email uniqueness check, same hashing — just with
-    // AuthRole.employee instead of AuthRole.owner, and the new
-    // account's display name taken from the roster entry already on
-    // file rather than re-collected here.
-    final newAccount = await _createLocalUser(
-      username: username,
-      email: email,
+    // createAdditionalOwner use — just with AuthRole.employee instead
+    // of AuthRole.owner, and the new identity's display name taken from
+    // the roster entry already on file rather than re-collected here.
+    // No username/email/password to collect at all anymore — pin is
+    // the entire credential now.
+    final newAccount = await _insertLocalIdentity(
       fullName: employeeRow.fullName,
-      password: password,
       role: AuthRole.employee,
+      pin: pin,
     );
 
     await (_db.update(_db.employees)..where((e) => e.id.equals(employeeId)))
@@ -324,10 +389,10 @@ class AuthRepositoryImpl implements AuthRepository {
     await _auditRepository.log(
       action: 'CREATE',
       module: 'AUTH',
-      userId: _currentUser!.id,
+      userId: acting.id,
       recordId: newAccount.id,
       details: {
-        'created_username': newAccount.username,
+        'created_full_name': newAccount.fullName,
         'linked_employee_id': employeeId,
       },
     );
@@ -346,49 +411,62 @@ class AuthRepositoryImpl implements AuthRepository {
     await _auditRepository.log(action: 'LOGOUT', module: 'AUTH', userId: signedOutUserId);
   }
 
-  /// Shared by createFirstOwner and createAdditionalOwner — mirrors
-  /// auth_service.py's create_user exactly (verified directly):
-  /// password-strength check, then username/email uniqueness, in that
-  /// order, both as the same DuplicateError-equivalent
-  /// (BusinessRuleFailure here, matching how ApiClient.mapError bucketed
-  /// a 409 — verified directly, not assumed).
-  Future<AuthUser> _createLocalUser({
-    required String username,
-    required String email,
+  /// pin.length < _minPinLength check shared by every call site that
+  /// hashes a NEW pin (setOwnLoginPin, and _insertLocalIdentity when
+  /// [pin] is non-null) — the same floor settings_main_screen.dart's
+  /// approval-PIN setup already enforces client-side, applied here too
+  /// as the repository-level backstop, the same defense-in-depth shape
+  /// PasswordPolicy.validate used to provide for a new password before
+  /// this pass.
+  void _validatePin(String pin) {
+    if (pin.length < _minPinLength) {
+      throw ValidationFailure(
+        fieldErrors: {'pin': 'Use at least $_minPinLength digits.'},
+      );
+    }
+  }
+
+  /// Shared by createFirstOwner, createAdditionalOwner, and
+  /// createEmployeeAccount — inserts one new Users row. [pin] is null
+  /// only for createFirstOwner's lone-local-user case (see that
+  /// method's own doc comment); every other caller passes one, hashed
+  /// here with the same Argon2PinHasher approvalPinHash already uses.
+  /// No username/email/uniqueness check anymore — those columns are
+  /// simply left null for a local-only identity (see tables.dart's
+  /// ONBOARDING SIMPLIFICATION NOTE), and a local identity's fullName
+  /// was never required to be unique even before this pass (real
+  /// people share names; the ULID primary key is what's actually
+  /// unique). Two different local identities landing on the same PIN
+  /// by coincidence is likewise harmless and deliberately unchecked:
+  /// the picker screen disambiguates by NAME first (tap a specific
+  /// person, then enter a PIN checked only against that one row), so
+  /// nothing about switchLocalUser's own correctness depends on PINs
+  /// being unique across rows the way it would for a PIN-only, no-name
+  /// entry scheme.
+  Future<AuthUser> _insertLocalIdentity({
     required String fullName,
-    required String password,
     required AuthRole role,
+    required String? pin,
   }) async {
-    // Throws ValidationFailure itself if this doesn't pass.
-    PasswordPolicy.validate(password);
-
-    final usernameTaken = await (_db.select(_db.users)
-          ..where((u) => u.username.equals(username)))
-        .getSingleOrNull();
-    if (usernameTaken != null) {
-      throw const BusinessRuleFailure('Username already taken.');
+    String? pinHash;
+    String? pinSalt;
+    if (pin != null) {
+      _validatePin(pin);
+      final hashed = await _pinHasher.hash(pin);
+      pinHash = hashed.hash;
+      pinSalt = hashed.salt;
     }
 
-    final emailTaken =
-        await (_db.select(_db.users)..where((u) => u.email.equals(email)))
-            .getSingleOrNull();
-    if (emailTaken != null) {
-      throw const BusinessRuleFailure('Email already registered.');
-    }
-
-    final passwordHash = await _passwordHasher.hash(password);
     final localId = Ulid().toString();
     final now = DateTime.now();
 
     await _db.into(_db.users).insert(
           UsersCompanion.insert(
             localId: localId,
-            username: username,
-            email: email,
             fullName: fullName,
-            hashedPassword: passwordHash.hash,
-            passwordSalt: passwordHash.salt,
             role: role,
+            loginPinHash: Value(pinHash),
+            loginPinSalt: Value(pinSalt),
             createdAt: now,
             updatedAt: now,
           ),
@@ -396,11 +474,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
     return AuthUser(
       id: localId,
-      username: username,
-      email: email,
       fullName: fullName,
       role: role,
       isActive: true,
+      hasLoginPin: pin != null,
     );
   }
 
@@ -420,33 +497,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   /// Writes the signed-in user as this device's active session — called
-  /// on every successful createFirstOwner and login. A fixed 'current'
-  /// id (matching Sessions' own singleton design, tables.dart), deleted
-  /// and re-inserted unconditionally rather than upserted — enforcing
-  /// "at most one active session" for the same edge case as before this
-  /// redesign: a different user signing in without an intervening clean
-  /// logout (app force-closed, etc).
+  /// on every successful createFirstOwner, setOwnLoginPin's related
+  /// callers, and switchLocalUser. A fixed 'current' id (matching
+  /// Sessions' own singleton design, tables.dart), deleted and
+  /// re-inserted unconditionally rather than upserted — enforcing "at
+  /// most one active session" even when a different user switches in
+  /// without an intervening clean logout (app force-closed, etc).
   ///
-  /// CORRECTED: activeLocationId used to be dropped unconditionally on
-  /// every call ("no location-switcher UI exists yet to make preserving
-  /// it across a re-login actually matter (Phase 2)"). Phase 2 is now:
+  /// Reads whatever the outgoing session row had for activeLocationId
+  /// and carries it forward onto the new row, rather than starting that
+  /// field over at null: the location is a property of the
+  /// device/counter this app is running on, not of whichever person is
+  /// currently signed in on it, so a different local identity switching
+  /// in on the same till has no reason to reset which location the
+  /// screen is showing. This matters concretely because
   /// [setActiveLocationId] is a real, called write path
-  /// (`ResolveActiveLocation`), so silently wiping it here would be a
-  /// real regression, not a harmless simplification anymore. This now
-  /// reads whatever the outgoing session had and carries it forward —
-  /// the location is a property of the device/counter, not the
-  /// signed-in user, so there's no reason a different user signing in
-  /// on the same till should reset it.
+  /// (`ResolveActiveLocation`, domain/usecases/) — resetting it here on
+  /// every switch would undo that resolver's own work on every switch.
   ///
-  /// Only reaches an existing row to preserve when this method runs
-  /// without an intervening [_clearSession] — [login] goes straight to
-  /// this method with no clear step first, so signing in again while a
-  /// session row already exists (this method's own original scenario:
-  /// "a different user signing in without an intervening clean logout,
-  /// app force-closed, etc") does carry it forward. An explicit
-  /// [logout] deletes the row outright first, so that specific path —
-  /// sign out, then sign back in — starts genuinely fresh; there's
-  /// nothing left at that point for this method to read.
+  /// Only an outgoing row that still exists gets carried forward — an
+  /// explicit [logout] deletes the row outright first, so sign-out then
+  /// switch-back-in starts genuinely fresh; there's nothing left at
+  /// that point for this method to read.
   Future<void> _persistSession(AuthUser user) async {
     await _db.transaction(() async {
       final outgoing = await (_db.select(_db.sessions)
@@ -474,5 +546,6 @@ class AuthRepositoryImpl implements AuthRepository {
         fullName: row.fullName,
         role: row.role,
         isActive: row.isActive,
+        hasLoginPin: row.loginPinHash != null,
       );
 }

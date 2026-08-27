@@ -5,13 +5,13 @@ import '../../../../core/theme/design_tokens.dart';
 /// A form-level error message — shown above the fields it applies to
 /// when a submission fails for a reason that isn't specific to one
 /// field (e.g. [AuthFailure.invalidCredentials], which is deliberately
-/// generic about whether the username or password was wrong — see
-/// failure.dart's own doc comment on why that's intentional, not
-/// something a specific field's [FulusTextField.errorText] should
-/// pretend to know). Scoped to the auth feature rather than promoted to
-/// `shared/widgets/` — no numbered Component Library entry covers a
-/// generic banner, so this stays local rather than presented as part of
-/// the Bible-sourced foundation.
+/// generic about whether the PIN was wrong or the identity itself
+/// wasn't recognized — see failure.dart's own doc comment on why that's
+/// intentional, not something a specific field's
+/// [FulusTextField.errorText] should pretend to know). Scoped to the
+/// auth feature rather than promoted to `shared/widgets/` — no numbered
+/// Component Library entry covers a generic banner, so this stays local
+/// rather than presented as part of the Bible-sourced foundation.
 class AuthErrorBanner extends StatelessWidget {
   const AuthErrorBanner({super.key, required this.message});
 

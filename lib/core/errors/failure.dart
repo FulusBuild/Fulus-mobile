@@ -95,14 +95,18 @@ final class _Forbidden extends AuthFailure {
 /// authenticate_user raises this exact, distinct message — verified
 /// directly, re-reading the source a second time specifically to check
 /// this — for is_active=false, deliberately NOT the same generic
-/// "Incorrect username or password" it uses for a wrong password or an
-/// unknown username. Whether that asymmetry (revealing that an account
-/// exists and was deactivated, vs. staying silent on wrong-password/
-/// unknown-username) was itself a deliberate choice or an oversight in
-/// the original backend isn't something to second-guess or "improve" by
-/// generalizing it into invalidCredentials — faithfully porting what's
-/// actually there, asymmetry included, rather than substituting a
-/// different security posture nobody asked for.
+/// message it uses for a wrong credential or an unknown identity.
+/// Whether that asymmetry (revealing that an account exists and was
+/// deactivated, vs. staying silent on wrong-credential/unknown-identity)
+/// was itself a deliberate choice or an oversight in the original
+/// backend isn't something to second-guess or "improve" by generalizing
+/// it into invalidCredentials — faithfully porting what's actually
+/// there, asymmetry included, rather than substituting a different
+/// security posture nobody asked for. Still applies unchanged after the
+/// onboarding-simplification pass moved local sign-in from a
+/// username+password to a name+PIN — the asymmetry was never about
+/// which kind of credential, just about not being silent regarding
+/// deactivation specifically.
 ///
 /// This variant didn't exist until this self-audit pass caught that
 /// AuthRepositoryImpl.login had no is_active check at all — a real
@@ -113,8 +117,18 @@ final class _AccountDeactivated extends AuthFailure {
   const _AccountDeactivated() : super('This account has been deactivated.');
 }
 
+/// Message updated by the onboarding-simplification pass — was
+/// 'Incorrect username or password.', from when local sign-in still
+/// meant a username+password ([AuthRepository.switchLocalUser]'s own
+/// doc comment covers what replaced it). Kept deliberately as generic
+/// wording about the identity as a whole, matching [AppLockScreen]'s
+/// own "Incorrect PIN." for the same reason [_AccountDeactivated]'s doc
+/// comment above describes: this is also thrown for an unrecognized
+/// userId, and staying non-specific here is the same asymmetry, just
+/// applied to "wrong PIN" and "no such identity" instead of "wrong
+/// password" and "unknown username."
 final class _InvalidCredentials extends AuthFailure {
-  const _InvalidCredentials() : super('Incorrect username or password.');
+  const _InvalidCredentials() : super('Incorrect PIN.');
 }
 
 /// Mirrors the backend's own account-lockout mechanism exactly (verified

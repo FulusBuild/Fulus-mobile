@@ -131,8 +131,9 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// builds (a real restored session, or null), and from then on it's
 /// each mutating call site's own job to write the new value here right
 /// after its underlying AuthRepository call actually succeeds —
-/// `sign_in_screen.dart` and `owner_setup_screen.dart` do this now;
-/// logout, whenever a Settings screen adds one, will need to as well.
+/// `identity_picker_screen.dart` and `owner_setup_screen.dart` do this
+/// now; logout, whenever a Settings screen adds one, will need to as
+/// well.
 final sessionProvider = StateProvider<AuthUser?>((ref) {
   return ref.watch(authRepositoryProvider).currentUser;
 });

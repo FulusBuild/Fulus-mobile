@@ -39,14 +39,15 @@ import 'onboarding_state.dart';
 /// Where [AuthGateScreen] should route a launch with no active session.
 enum AuthGateStage {
   /// No owner account, no business — the ordinary fresh-install case.
-  /// Route to GetStartedScreen -> OwnerSetupScreen (both steps, from
-  /// scratch).
+  /// Route to GetStartedScreen -> OwnerSetupScreen (one combined form,
+  /// name + business, since the onboarding-simplification pass — see
+  /// that screen's own doc comment).
   needsAccountCreation,
 
-  /// An owner account exists locally — route to SignInScreen. Whether
-  /// the business step also still needs finishing is
-  /// [resolvePostSignInStage]'s question, not this one; it only
-  /// matters once someone is actually signed in.
+  /// An owner account exists locally — route to IdentityPickerScreen
+  /// (tap a name, enter a PIN if one is set). Whether the business step
+  /// also still needs finishing is [resolvePostSignInStage]'s question,
+  /// not this one; it only matters once someone is actually signed in.
   needsSignIn,
 
   /// No owner account, but a business already exists locally — the gap

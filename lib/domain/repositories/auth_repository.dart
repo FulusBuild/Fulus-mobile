@@ -1,18 +1,34 @@
 import '../entities/auth_user.dart';
 
-/// Architecture Section 6's login flow, re-scoped by the Architecture
-/// Redesign: local Business Engine, no server-issued credentials, no
-/// client/server boundary for any of this anymore. Every method below
-/// is now backed entirely by the local Users table (AuthRepositoryImpl)
-/// — nothing here makes a network call.
+/// Architecture Section 6's login flow, re-scoped twice now: first by
+/// the Architecture Redesign (local Business Engine, no server-issued
+/// credentials, no client/server boundary for any of this), then by the
+/// onboarding-simplification pass this doc comment describes. Every
+/// method below is backed entirely by the local Users table
+/// (AuthRepositoryImpl) — nothing here makes a network call.
+///
+/// SIMPLIFICATION: a username+email+password made sense when every
+/// account had to authenticate across a network boundary; nothing here
+/// does that anymore, so nothing here should still cost that much to
+/// set up. What's actually needed locally is just enough to tell two
+/// people on the same device apart — a name, and (only once there IS a
+/// second person to tell apart from the first) a short PIN. A real
+/// portable credential is still exactly the right tool for its one
+/// remaining job — a future cross-device sync feature, not built yet —
+/// which is why the Users table's username/email/hashedPassword columns
+/// still exist (see tables.dart) rather than being removed outright;
+/// they're just no longer what a local-only identity is required to
+/// have.
 ///
 /// The owner-approval PIN system is still deliberately NOT part of this
-/// interface, for the same reason as before the redesign: it's a
-/// separate concern with its own repository (ApprovalPinRepository) and
-/// its own sync path, not something this login/session lifecycle needs
-/// to own — and it remains a genuinely multi-device concern (one
-/// device's owner approving something on a DIFFERENT device), unlike
-/// everything in this interface, which is now single-device by design.
+/// interface, for the same reason as before: it's a separate concern
+/// with its own repository (ApprovalPinRepository), answering a
+/// different question ("is this specific action authorized") from what
+/// this interface answers ("who is currently using this device") — see
+/// ApprovalPinRepository's own doc comment. That the local identity PIN
+/// below and the approval PIN happen to both be short numeric secrets
+/// hashed with the same Argon2PinHasher is a shared implementation
+/// detail, not a sign these are the same concern.
 abstract class AuthRepository {
   /// The currently authenticated user, or null if no session is active.
   /// A plain getter rather than a reactive stream/StateNotifier, for the
@@ -26,8 +42,8 @@ abstract class AuthRepository {
   /// used to (verified directly against routers/auth.py) — false means
   /// this is a genuinely fresh install and the UI should show
   /// "create your business" (Volume 3), not a login form; true means it
-  /// should show sign-in instead. No server round-trip anymore: this is
-  /// a plain local Users-table count.
+  /// should show the identity picker instead. No server round-trip
+  /// anymore: this is a plain local Users-table count.
   Future<bool> hasAnyOwnerAccount();
 
   /// Restores the active session at app launch (bootstrap.dart), before
@@ -37,46 +53,86 @@ abstract class AuthRepository {
   /// table says is current, and return them — or null if there's no
   /// active session row, or the user it points to is no longer active
   /// (Volume 9's access-revocation case; see AuthFailure.sessionExpired's
-  /// doc comment). Either way, null means "show sign-in," same as
-  /// before, just for a different, purely local reason now.
+  /// doc comment). Unaffected by the onboarding-simplification pass:
+  /// this was never a credential check to begin with, just "which user
+  /// id does the session row point at," so a null loginPin on that row
+  /// changes nothing about how this method behaves. Null means show
+  /// [hasAnyOwnerAccount] ? the identity picker (see
+  /// [listLocalIdentities]) : account creation — never a password
+  /// prompt; there's no longer a scenario in this interface where one
+  /// would apply.
   Future<AuthUser?> restoreSession();
 
-  /// Creates the very first local Owner account and signs them in
-  /// immediately — mirrors the backend's bootstrap_admin exactly
-  /// (verified directly: the first account created is always Owner-
-  /// equivalent regardless of what's requested), collapsed into one
-  /// step rather than create-then-separately-log-in, since there's no
-  /// remaining reason to force a redundant explicit login right after
-  /// creating the device's first account. Must only be called when
+  /// Creates the very first local Owner identity and signs them in
+  /// immediately — mirrors the backend's bootstrap_admin's "collapsed
+  /// into one step, no redundant separate login" shape, just with no
+  /// credential to collect first. [fullName] is genuinely all that's
+  /// needed: a device with exactly one local user has nothing to
+  /// distinguish that user FROM, so nothing here is deferred out of
+  /// laziness — there is no more input a first run could ask for that
+  /// would change how this method behaves. Must only be called when
   /// [hasAnyOwnerAccount] is false — AuthRepositoryImpl enforces this
   /// itself rather than trusting the caller to have checked.
-  Future<AuthUser> createFirstOwner({
-    required String username,
-    required String email,
-    required String fullName,
-    required String password,
-  });
+  Future<AuthUser> createFirstOwner({required String fullName});
 
-  /// Logs an existing local account in — same signature as before this
-  /// redesign; only what's underneath it changed (a local Users-table
-  /// lookup + Argon2id verify + the ported lockout check, instead of a
-  /// POST to the backend).
-  Future<AuthUser> login({required String username, required String password});
+  /// Sets or replaces the CURRENTLY signed-in identity's own local PIN
+  /// — mirrors ApprovalPinRepository.setOwnApprovalPin's naming and
+  /// "always the caller's own account" shape exactly, for the same
+  /// reason: an owner sets the PIN that identifies THEM, never one
+  /// they're picking for someone else (that's what the [pin] parameter
+  /// on [createAdditionalOwner]/[createEmployeeAccount] is for, and it
+  /// exists specifically so this method never has to invent one on
+  /// another identity's behalf). A device's sole local user has no
+  /// reason to call this — see [createFirstOwner]'s own doc comment —
+  /// so in practice this is called once, right before that same owner
+  /// calls [createAdditionalOwner] or [createEmployeeAccount] for the
+  /// first time; AuthRepositoryImpl requires it to have already been
+  /// called before either of those will succeed, rather than silently
+  /// assigning the acting owner a PIN they never chose.
+  Future<void> setOwnLoginPin({required String pin});
 
-  /// An already-signed-in Owner creates ANOTHER local Owner account on
+  /// Every local identity on this device — id, name, role; never a
+  /// hash or salt — for the "who's using this" picker [switchLocalUser]
+  /// below needs whenever there's more than one. Deliberately returns
+  /// the full list rather than taking a search term: this device
+  /// realistically holds a handful of local accounts at most, the same
+  /// judgment call [hasAnyOwnerAccount]'s own implementation already
+  /// makes.
+  Future<List<AuthUser>> listLocalIdentities();
+
+  /// Switches the active session to a different already-existing local
+  /// identity on this device — [userId] from [listLocalIdentities]. If
+  /// that row has a PIN set, [pin] is checked against its
+  /// loginPinHash/loginPinSalt with the same Argon2PinHasher
+  /// approvalPinHash already uses, same lockout throttle a wrong
+  /// password used to trigger before this pass. If it does NOT have a
+  /// PIN set — the sole-local-user case [restoreSession] normally
+  /// handles without ever reaching this method — this succeeds with no
+  /// PIN required at all, [pin] ignored: there is nothing to
+  /// distinguish that identity from, the same reasoning
+  /// [createFirstOwner] already applies. This keeps the identity-picker
+  /// screen able to call one method uniformly (tap a name, and either
+  /// see a PIN field or go straight in) rather than needing a second,
+  /// separate code path for an identity nobody has been asked to
+  /// distinguish yet. Replaces the old username+password login entirely
+  /// for same-device use; a future cross-device sync-restore flow gets
+  /// its own method, built alongside that feature rather than left as
+  /// an unused stub here now.
+  Future<AuthUser> switchLocalUser({required String userId, String? pin});
+
+  /// An already-signed-in Owner creates ANOTHER local Owner identity on
   /// this same device — Volume 9, Decision 33's co-equal-owners-sharing-
-  /// a-till case (e.g. two owners, one physical counter). Genuinely new:
-  /// the backend had an equivalent (admin-gated create_user), but
-  /// nothing in the mobile app called it before this stage.
-  /// AuthRepositoryImpl enforces that [currentUser] is actually an Owner
-  /// before allowing this — the local check IS the real enforcement now
-  /// (see AuthFailure.forbidden's doc comment), not just UI convenience.
-  Future<AuthUser> createAdditionalOwner({
-    required String username,
-    required String email,
-    required String fullName,
-    required String password,
-  });
+  /// a-till case (e.g. two owners, one physical counter). [pin] is
+  /// required here (unlike [createFirstOwner]) precisely because this
+  /// call means a second identity now exists to distinguish the first
+  /// one from. AuthRepositoryImpl enforces two things before allowing
+  /// this: that [currentUser] is actually an Owner (the local check IS
+  /// the real enforcement now — see AuthFailure.forbidden's doc
+  /// comment, not just UI convenience), and that the acting owner has
+  /// already called [setOwnLoginPin] themselves — see that method's own
+  /// doc comment for why this repository never assigns one on their
+  /// behalf instead.
+  Future<AuthUser> createAdditionalOwner({required String fullName, required String pin});
 
   /// Clears the local session. Was also a best-effort call to the
   /// backend's /api/auth/logout audit-log entry; gone along with the
@@ -86,27 +142,26 @@ abstract class AuthRepository {
   /// network round-trip needed for it to still happen reliably.
   Future<void> logout();
 
-  /// An already-signed-in Owner sets up sign-in credentials for an
-  /// existing roster entry (Employees, EmployeeRepository), so that
-  /// person can subsequently log in on this same device with their own
-  /// account rather than sharing the owner's. This is deliberately a
+  /// An already-signed-in Owner sets up sign-in for an existing roster
+  /// entry (Employees, EmployeeRepository), so that person can
+  /// subsequently switch to their own identity on this same device
+  /// rather than sharing the owner's. This is deliberately a
   /// same-device, owner-provisioned action — not a cross-device
   /// invite/QR-claim flow (Volume 9 describes one, but Employees is
   /// explicitly not a synced table in this architecture, so nothing
   /// about a roster entry is visible to a second device to claim
   /// against; a cross-device version is a later-phase capability once
-  /// Employees has a sync story, not a Phase 0 one).
+  /// Employees has a sync story, not a Phase 0 one). [pin] replaces the
+  /// former username+email+password entirely — the new account's
+  /// display name is still taken from the roster entry already on
+  /// file, same as before.
   ///
   /// [employeeId] must reference an existing, non-deleted Employees row
   /// that doesn't already have an account linked — AuthRepositoryImpl
-  /// enforces both, and that [currentUser] is actually an Owner, the
-  /// same way [createAdditionalOwner] does.
-  Future<AuthUser> createEmployeeAccount({
-    required String employeeId,
-    required String username,
-    required String email,
-    required String password,
-  });
+  /// enforces both that and everything [createAdditionalOwner] enforces
+  /// about the acting owner (must be an Owner, must already have called
+  /// [setOwnLoginPin]).
+  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin});
 
   /// The location this device's current session is viewing —
   /// Architecture Section 7a's location switcher backing store. Reads

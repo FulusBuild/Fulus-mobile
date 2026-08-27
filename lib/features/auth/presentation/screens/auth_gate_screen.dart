@@ -6,8 +6,8 @@ import '../../../../core/onboarding/onboarding_routing.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'get_started_screen.dart';
+import 'identity_picker_screen.dart';
 import 'restore_progress_screen.dart';
-import 'sign_in_screen.dart';
 
 /// Decides which first-run experience to show — resolved through
 /// [resolveAuthGateStage] (core/onboarding/onboarding_routing.dart)
@@ -39,8 +39,10 @@ import 'sign_in_screen.dart';
 /// repository method that doesn't exist would be inventing a parallel
 /// auth system rather than tracing the real one — so every device
 /// without an owner account and no local business data lands in
-/// [GetStartedScreen], and every subsequent login goes through
-/// [SignInScreen].
+/// [GetStartedScreen], and every subsequent same-device switch goes
+/// through [IdentityPickerScreen] — see AuthRepository.switchLocalUser's
+/// own doc comment for why that replaced a username+password sign-in
+/// screen entirely as of the onboarding-simplification pass.
 class AuthGateScreen extends ConsumerStatefulWidget {
   const AuthGateScreen({super.key});
 
@@ -101,7 +103,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
           case AuthGateStage.needsAccountCreation:
             return const GetStartedScreen();
           case AuthGateStage.needsSignIn:
-            return const SignInScreen();
+            return const IdentityPickerScreen();
           case AuthGateStage.needsRestoreDecision:
             return const RestoreProgressScreen();
         }

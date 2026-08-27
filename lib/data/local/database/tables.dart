@@ -104,25 +104,65 @@ class Locations extends Table with SyncableColumns {
 ///    local account for the same business is its own explicit,
 ///    validated invite/claim flow — not "this table's rows get
 ///    replicated," which SyncableColumns would otherwise imply.
+///
+/// ONBOARDING SIMPLIFICATION NOTE (schemaVersion 9): username/email/
+/// hashedPassword/passwordSalt relaxed from required to nullable, and
+/// loginPinHash/loginPinSalt added. The backend this table used to
+/// mirror required a username+email+password for every account because
+/// every account had to authenticate across a network boundary; nothing
+/// in this app does that anymore (see this class's own opening line —
+/// "no server-issued credentials" — which was already true before this
+/// note, just not yet carried through to what onboarding actually asks
+/// for). A device with exactly one local user has nothing to
+/// distinguish that user FROM — restoreSession's session-row pointer is
+/// enough, no credential needed at all, so the first Owner account is
+/// now created from a name alone (see AuthRepository.createFirstOwner).
+/// A credential only earns its cost once there's a second local
+/// identity on the same device to tell apart from the first (another
+/// Owner sharing a till, or an Employee) — loginPinHash/loginPinSalt is
+/// that credential: a short PIN, hashed with the exact same
+/// Argon2PinHasher the pre-existing approvalPinHash/approvalPinSalt
+/// pair already uses (see pin_hasher.dart), not a new algorithm. A real
+/// portable username+email+password remains exactly what it's needed
+/// for now: the future cross-device sync case this table's own
+/// still-true "must never leave this device" reasoning above describes
+/// — which is also why these four columns are relaxed to nullable
+/// rather than removed outright; a business that later turns sync on
+/// can still populate them for its Owner account at that point, same
+/// columns, no schema change needed a second time.
 @DataClassName('UserRow')
 class Users extends Table {
   TextColumn get localId => text()();
-  TextColumn get username => text().withLength(min: 1, max: 150)();
-  TextColumn get email => text().withLength(min: 1, max: 255)();
+  TextColumn get username => text().withLength(min: 1, max: 150).nullable()();
+  TextColumn get email => text().withLength(min: 1, max: 255).nullable()();
   TextColumn get fullName => text().withLength(min: 1, max: 150)();
-  TextColumn get hashedPassword => text()();
-  TextColumn get passwordSalt => text()();
+  TextColumn get hashedPassword => text().nullable()();
+  TextColumn get passwordSalt => text().nullable()();
+  // The local, same-device credential — see the class doc comment's
+  // ONBOARDING SIMPLIFICATION NOTE above. Null for a device's sole
+  // local user (nothing to distinguish them from); set the moment a
+  // second local identity is created alongside them, on both rows.
+  TextColumn get loginPinHash => text().nullable()();
+  TextColumn get loginPinSalt => text().nullable()();
   TextColumn get role => textEnum<AuthRole>()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   // Mirrors auth_service.py's MAX_FAILED_LOGIN_ATTEMPTS/
   // LOGIN_LOCKOUT_DURATION mechanism exactly — verified directly, not
   // assumed — now enforced by the local Business Engine's own login
-  // check instead of the backend's.
+  // check instead of the backend's. As of schemaVersion 9 this also
+  // throttles loginPin guesses the same way it always throttled
+  // password guesses — a guessable-length local PIN needs this
+  // defense at least as much as a password did, arguably more.
   IntColumn get failedLoginAttempts => integer().withDefault(const Constant(0))();
   DateTimeColumn get lockedUntil => dateTime().nullable()();
   // Nullable: an owner sets this during their own account setup (Volume
   // 9), not necessarily at the moment the account is first created —
-  // matches the backend column's own nullability.
+  // matches the backend column's own nullability. A distinct secret
+  // from loginPinHash/loginPinSalt above on purpose — see
+  // ApprovalPinRepository's own doc comment: approval is "an
+  // offline-verifiable, multi-owner credential synced as data," a
+  // different concern from same-device identity switching, even though
+  // both now happen to be short PINs hashed the same way.
   TextColumn get approvalPinHash => text().nullable()();
   TextColumn get approvalPinSalt => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
