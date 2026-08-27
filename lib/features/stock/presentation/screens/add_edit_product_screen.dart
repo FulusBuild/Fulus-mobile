@@ -3,11 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../../../shared/screens/barcode_scan_screen.dart';
@@ -30,9 +30,25 @@ import '../widgets/stock_error_banner.dart';
 /// regardless (a real backend/domain requirement, not a Bible field),
 /// so this screen generates one internally — see [_generateSku].
 class AddEditProductScreen extends ConsumerStatefulWidget {
-  const AddEditProductScreen({super.key, this.existingProduct});
+  const AddEditProductScreen({super.key, this.existingProduct, this.pushedImperatively = false});
 
   final Product? existingProduct;
+
+  /// True only when shown via a plain `Navigator.push` — currently just
+  /// [AddFirstProductScreen] during onboarding, which lives outside
+  /// go_router's shell branch tree. The normal Stock tab reaches this
+  /// screen through the real `stockAddProduct`/`stockEditProduct`
+  /// go_router routes instead, where this stays false.
+  ///
+  /// This has to be an explicit flag, not a runtime guess: go_router's
+  /// own `canPop()` looked like a natural way to detect "was I pushed
+  /// imperatively", but it reflects the *whole* router's match-list
+  /// depth (this app uses `StatefulShellRoute`, so that's >1 almost
+  /// always) rather than whether *this* screen instance is one of
+  /// go_router's own pages — trusting it crashed the app on startup via
+  /// `GoRouterDelegate._findCurrentNavigator`. See `ScreenExit`'s doc
+  /// comment in `core/utils/screen_exit.dart` for the full story.
+  final bool pushedImperatively;
 
   bool get isEditing => existingProduct != null;
 
@@ -159,13 +175,18 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
       showFulusSnackbar(context, message: widget.isEditing ? 'Product updated.' : 'Product added.');
       // FIX (onboarding audit): reached both via a normal go_router
       // route (Stock tab) AND via a raw Navigator.push from
-      // AddFirstProductScreen (onboarding). A bare `context.pop()` only
-      // pops go_router's own stack — for the onboarding caller that has
-      // nothing to pop, so it threw `GoError: There is nothing to pop`,
-      // landing in the catch-all below and showing a false "couldn't
-      // save" banner on top of a save that had already succeeded.
-      // closeScreenOr handles both callers correctly.
-      context.closeScreenOr('/');
+      // AddFirstProductScreen (onboarding) — a bare `context.pop()`
+      // only pops go_router's own stack, which threw `GoError: There
+      // is nothing to pop` for the onboarding caller, landing in the
+      // catch-all below and showing a false "couldn't save" banner on
+      // top of a save that had already succeeded. `pushedImperatively`
+      // is an explicit flag rather than a runtime guess — see the
+      // field's own doc comment for why guessing isn't safe here.
+      if (widget.pushedImperatively) {
+        Navigator.of(context).pop();
+      } else {
+        context.pop();
+      }
     } on ValidationFailure catch (v) {
       if (!mounted) return;
       setState(() => _fieldErrors = v.fieldErrors);

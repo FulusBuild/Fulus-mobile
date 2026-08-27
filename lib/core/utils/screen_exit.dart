@@ -1,43 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Closes the current screen correctly regardless of *how it was shown*
-/// — a plain `Navigator.push` (as several onboarding screens use, to
-/// stay outside go_router's shell branch tree) or a real go_router
-/// route, or not "shown" at all in the navigation sense (rendered
-/// directly in place by a parent's conditional build, e.g. `_ShellGate`
-/// switching between onboarding stages).
+/// Closes the current screen correctly whether it was shown with a
+/// plain `Navigator.push` (several onboarding screens use this, to
+/// stay outside go_router's shell branch tree) or rendered directly in
+/// place by a parent's conditional build (e.g. `_ShellGate` switching
+/// between onboarding stages, with nothing pushed at all).
 ///
-/// Root cause this fixes: since go_router 3.0, `GoRouter.pop()`
-/// (`context.pop()`) and `GoRouter.go()` (`context.go()`) only ever
-/// operate on go_router's own declarative page stack — they no longer
-/// touch a plain `Navigator` route pushed imperatively on top of it.
-/// A screen pushed with `Navigator.push` and closed with `context.pop()`
-/// either throws `GoError: There is nothing to pop` (nothing on
-/// go_router's stack) or, for `context.go(...)`, silently updates
-/// go_router's state while leaving the pushed screen on top — looking
-/// like the button did nothing. See docs/dev-history or the onboarding
-/// audit (Fulus-onboarding-audit.md) for the concrete bugs this caused:
-/// the "Get started" double-tap, the phantom "already set up" dead end,
-/// and the false "Couldn't save this product" banner after a
-/// successful save.
+/// Root cause this fixes: several onboarding screens originally closed
+/// with `context.pop()`/`context.go()`. Since go_router 3.0, those only
+/// operate on go_router's own declarative page stack, not a plain
+/// `Navigator` route pushed on top of it — so on a screen that was
+/// merely `Navigator.push`-ed, `context.go(...)` silently updated
+/// go_router's state while leaving the screen on top (looking like the
+/// button did nothing — the "Get started" double-tap, the phantom
+/// "already set up" dead end), and `context.pop()` was worse: it threw
+/// `GoError: There is nothing to pop`.
 ///
-/// Checks, in order:
-/// 1. Is there something on go_router's own stack to pop? (True when
-///    this screen was reached via `context.push`/`context.pushNamed`.)
-///    -> `context.pop()`.
-/// 2. Is there something on the plain Navigator to pop? (True when this
-///    screen was reached via `Navigator.push`, go_router's own stack
-///    untouched.) -> `Navigator.of(context).pop()`.
-/// 3. Neither — this screen was rendered directly in place (no push at
-///    all), so there's nothing to pop. -> `context.go(fallbackLocation)`
-///    to move the app to a new location instead.
+/// go_router's own `canPop()` is NOT a safe way to tell these cases
+/// apart in an app built on `StatefulShellRoute` (as this one is):
+/// `canPop()` reflects the *overall* match-list depth of the whole
+/// router (shell + active branch), which is already >1 almost all the
+/// time regardless of whether the *current* screen is one of
+/// go_router's own tracked pages. Trusting it here caused `pop()` to
+/// run against a context go_router never actually registered, which
+/// crashed inside `GoRouterDelegate._findCurrentNavigator` with "Null
+/// check operator used on a null value" — worse than the bug it
+/// replaced, since that one broke a screen and this one crashed the
+/// app. So this helper only ever asks the plain `Navigator` — a local,
+/// framework-level check that isn't affected by go_router's shell
+/// structure — never go_router's own `canPop()`/`pop()`.
+///
+/// Only use this on a screen you've confirmed is *never* reached via a
+/// real go_router route (`context.push`/`pushNamed`/a `GoRoute`
+/// builder) — if it has a genuine go_router entry point too (like
+/// `AddEditProductScreen`, reached both by onboarding's raw push and
+/// the Stock tab's real `stockAddProduct` route), guessing at runtime
+/// isn't safe; branch on an explicit constructor flag set by each
+/// caller instead, and use `context.pop()` for the go_router-pushed
+/// path directly.
 extension ScreenExit on BuildContext {
   void closeScreenOr(String fallbackLocation) {
-    if (canPop()) {
-      pop();
-    } else if (Navigator.of(this).canPop()) {
-      Navigator.of(this).pop();
+    final navigator = Navigator.of(this);
+    if (navigator.canPop()) {
+      navigator.pop();
     } else {
       go(fallbackLocation);
     }

@@ -57,7 +57,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
 
   Future<void> _openProductForm() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => const AddEditProductScreen()),
+      MaterialPageRoute(builder: (_) => const AddEditProductScreen(pushedImperatively: true)),
     );
     if (!mounted) return;
     setState(() {
