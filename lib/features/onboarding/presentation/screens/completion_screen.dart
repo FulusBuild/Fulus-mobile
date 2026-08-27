@@ -11,16 +11,27 @@ import '../../../../shared/widgets/widgets.dart';
 /// this screen has nothing further to persist; it's the landing point,
 /// not another step to record. Each next action really navigates
 /// there via the same named routes the rest of the app already uses,
-/// not a decorative label. `goNamed` alone (no manual pop first) is
-/// deliberate — same pattern FirstRunSetupScreen already uses
-/// successfully: go_router re-resolves the whole route tree against
-/// the new location in one step, discarding this pushed screen and
-/// everything under it, without a separate pop that could hit an
-/// already-unmounting context.
+/// not a decorative label.
+///
+/// FIX (onboarding audit): this screen sits at the bottom of a chain of
+/// plain `Navigator.push`/`pushReplacement` calls — SellScreen's cart
+/// button -> CartScreen -> PaymentScreen -> SaleSuccessScreen ->
+/// TransactionVerificationScreen -> here — none of which are on
+/// go_router's own page stack. `goNamed` alone does NOT discard that
+/// pushed stack (the earlier comment's assumption was wrong): since
+/// go_router 3.0, `go`/`goNamed` only ever reconciles go_router's own
+/// declarative pages, leaving any plain-Navigator pushes sitting on top
+/// untouched. Every button here silently updated go_router's state
+/// while this whole chain stayed on screen, looking frozen. The
+/// `popUntil` below unwinds that plain-Navigator chain first (the same
+/// pattern SaleSuccessScreen's own "New sale" action already uses
+/// successfully), so `goNamed` then has a clean stack to resolve
+/// against.
 class CompletionScreen extends ConsumerWidget {
   const CompletionScreen({super.key});
 
   void _goAndClose(BuildContext context, String routeName) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
     context.goNamed(routeName);
   }
 

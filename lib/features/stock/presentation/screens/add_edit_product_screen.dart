@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../../../shared/screens/barcode_scan_screen.dart';
@@ -157,7 +158,15 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
 
       if (!mounted) return;
       showFulusSnackbar(context, message: widget.isEditing ? 'Product updated.' : 'Product added.');
-      context.pop();
+      // FIX (onboarding audit): reached both via a normal go_router
+      // route (Stock tab) AND via a raw Navigator.push from
+      // AddFirstProductScreen (onboarding). A bare `context.pop()` only
+      // pops go_router's own stack — for the onboarding caller that has
+      // nothing to pop, so it threw `GoError: There is nothing to pop`,
+      // landing in the catch-all below and showing a false "couldn't
+      // save" banner on top of a save that had already succeeded.
+      // closeScreenOr handles both callers correctly.
+      context.closeScreenOr('/');
     } on ValidationFailure catch (v) {
       if (!mounted) return;
       setState(() => _fieldErrors = v.fieldErrors);

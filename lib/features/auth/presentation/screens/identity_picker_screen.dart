@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../shared/widgets/widgets.dart';
 
@@ -79,7 +80,12 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
           .switchLocalUser(userId: identity.id, pin: pin);
       if (!mounted) return;
       ref.read(sessionProvider.notifier).state = user;
-      context.go('/');
+      // FIX (onboarding audit): shown both in place by AuthGateScreen
+      // (needsSignIn stage — nothing to pop) and pushed from
+      // RestoreProgressScreen's "Use Existing Business" (something to
+      // pop). A bare `context.go('/')` left the pushed case stuck on
+      // screen after a successful sign-in. closeScreenOr handles both.
+      context.closeScreenOr('/');
     } on Failure catch (f) {
       if (!mounted) return;
       setState(() {

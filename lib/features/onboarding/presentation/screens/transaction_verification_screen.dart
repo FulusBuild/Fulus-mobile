@@ -19,6 +19,20 @@ T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
   return null;
 }
 
+/// FIX (onboarding audit): this screen sits on the same plain-Navigator
+/// push chain as CompletionScreen (SellScreen -> CartScreen ->
+/// PaymentScreen -> SaleSuccessScreen -> here), none of which are on
+/// go_router's own page stack. The three shortcut actions below
+/// ("View sale history", "View in Money", "View Reports") called
+/// `context.goNamed` directly, which only reconciles go_router's own
+/// stack and left this whole pushed chain on screen underneath,
+/// looking frozen. `popUntil` unwinds it first — same fix, same reason,
+/// as CompletionScreen's own `_goAndClose`.
+void _goAndClose(BuildContext context, String routeName) {
+  Navigator.of(context).popUntil((route) => route.isFirst);
+  context.goNamed(routeName);
+}
+
 /// Walkthrough Phase 10 — "one sale flows through your business
 /// records." Every number here is read from the real, already-
 /// persisted sale and product, not recomputed or faked: `Sale.items`
@@ -173,7 +187,7 @@ class _VerificationBody extends ConsumerWidget {
             title: 'Sales',
             body: '${soldItem?.description ?? 'Your sale'} · '
                 '${formatMoney(sale.total, symbol: currencySymbol)}',
-            action: ('View sale history', () => context.goNamed('moneyHistory')),
+            action: ('View sale history', () => _goAndClose(context, 'moneyHistory')),
           ),
           const SizedBox(height: AppSpacing.md),
           _VerificationCard(
@@ -181,13 +195,13 @@ class _VerificationBody extends ConsumerWidget {
             body: sale.paymentMethod != null
                 ? 'Paid by ${sale.paymentMethod} — recorded in your Money history.'
                 : 'Recorded in your Money history.',
-            action: ('View in Money', () => context.goNamed('moneyHistory')),
+            action: ('View in Money', () => _goAndClose(context, 'moneyHistory')),
           ),
           const SizedBox(height: AppSpacing.md),
           _VerificationCard(
             title: 'Reports',
             body: "Reflected in your Sales report as soon as you look.",
-            action: ('View Reports', () => context.goNamed('moreReports')),
+            action: ('View Reports', () => _goAndClose(context, 'moreReports')),
           ),
           const SizedBox(height: AppSpacing.xl),
           FulusButton(label: 'Continue', onPressed: onContinue),

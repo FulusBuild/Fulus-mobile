@@ -6,6 +6,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -275,7 +276,16 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       // touches sessionProvider in this method at all (owner was
       // already signed in before this screen ever showed), so nothing
       // here is guaranteed to make the router re-check on its own.
-      context.go('/');
+      //
+      // FIX (onboarding audit): this screen is shown three different
+      // ways — pushed from GetStartedScreen, pushed from
+      // RestoreProgressScreen's "Continue Setup", or rendered directly
+      // in place by _ShellGate's own resumeBusinessSetup stage. A bare
+      // `context.go('/')` only ever updates go_router's own state; for
+      // the two pushed cases that leaves this screen stuck on top,
+      // looking like the tap did nothing (see ScreenExit's doc comment
+      // for the full mechanism). closeScreenOr handles all three.
+      context.closeScreenOr('/');
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
       if (await _isFullyConfiguredAlready()) {
@@ -398,7 +408,12 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                FulusButton(label: 'Continue', onPressed: () => context.go('/')),
+                // FIX (onboarding audit): same reason as _submit's own
+                // exit above — closeScreenOr instead of a bare
+                // context.go('/') so this button actually dismisses the
+                // screen when it was reached via a push, instead of
+                // becoming a dead end that needed a force-close.
+                FulusButton(label: 'Continue', onPressed: () => context.closeScreenOr('/')),
               ],
             ),
           ),
