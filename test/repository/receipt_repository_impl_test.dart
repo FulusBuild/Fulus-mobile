@@ -80,11 +80,11 @@ void main() {
     test('resolves the real cashier name when cashierUserId is set', () async {
       await db.into(db.users).insert(UsersCompanion.insert(
             localId: 'u1',
-            username: 'amaka',
-            email: 'amaka@example.com',
+            username: const Value('amaka'),
+            email: const Value('amaka@example.com'),
             fullName: 'Amaka Okafor',
-            hashedPassword: 'irrelevant-for-this-test',
-            passwordSalt: 'irrelevant-for-this-test',
+            hashedPassword: const Value('irrelevant-for-this-test'),
+            passwordSalt: const Value('irrelevant-for-this-test'),
             role: AuthRole.employee,
             createdAt: now,
             updatedAt: now,

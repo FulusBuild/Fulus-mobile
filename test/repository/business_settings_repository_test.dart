@@ -123,6 +123,7 @@ void main() {
           fullName: 'Chidinma Okafor',
           role: AuthRole.owner,
           isActive: true,
+          hasLoginPin: true,
         ),
       );
 
@@ -150,6 +151,7 @@ void main() {
           fullName: 'An Employee',
           role: AuthRole.employee,
           isActive: true,
+          hasLoginPin: true,
         ),
       );
 
@@ -174,6 +176,7 @@ void main() {
           fullName: 'Chidinma Okafor',
           role: AuthRole.owner,
           isActive: true,
+          hasLoginPin: true,
         ),
       );
 

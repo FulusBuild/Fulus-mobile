@@ -55,11 +55,11 @@ Future<String> seedUser(
   await db.into(db.users).insert(
         UsersCompanion.insert(
           localId: localId,
-          username: username,
-          email: email,
+          username: Value(username),
+          email: Value(email),
           fullName: fullName,
-          hashedPassword: 'irrelevant-for-this-test',
-          passwordSalt: 'irrelevant-for-this-test',
+          hashedPassword: const Value('irrelevant-for-this-test'),
+          passwordSalt: const Value('irrelevant-for-this-test'),
           role: role,
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),

@@ -30,31 +30,20 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<AuthUser?> restoreSession() async => throw UnimplementedError();
   @override
-  Future<AuthUser> createFirstOwner({
-    required String username,
-    required String email,
-    required String fullName,
-    required String password,
-  }) async =>
+  Future<AuthUser> createFirstOwner({required String fullName}) async =>
       throw UnimplementedError();
   @override
-  Future<AuthUser> login({required String username, required String password}) async =>
+  Future<void> setOwnLoginPin({required String pin}) async => throw UnimplementedError();
+  @override
+  Future<List<AuthUser>> listLocalIdentities() async => throw UnimplementedError();
+  @override
+  Future<AuthUser> switchLocalUser({required String userId, String? pin}) async =>
       throw UnimplementedError();
   @override
-  Future<AuthUser> createAdditionalOwner({
-    required String username,
-    required String email,
-    required String fullName,
-    required String password,
-  }) async =>
+  Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async =>
       throw UnimplementedError();
   @override
-  Future<AuthUser> createEmployeeAccount({
-    required String employeeId,
-    required String username,
-    required String email,
-    required String password,
-  }) async =>
+  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin}) async =>
       throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
@@ -119,6 +108,7 @@ void main() {
         fullName: 'Test Cashier',
         role: AuthRole.employee,
         isActive: true,
+        hasLoginPin: true,
       ),
     );
     final customerCreditRepository = CustomerCreditRepositoryImpl(db: db);

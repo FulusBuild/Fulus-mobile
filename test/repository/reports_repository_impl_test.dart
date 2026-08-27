@@ -103,11 +103,11 @@ void main() {
     await db.into(db.users).insert(
           UsersCompanion.insert(
             localId: localId,
-            username: localId,
-            email: '$localId@test.local',
+            username: Value(localId),
+            email: Value('$localId@test.local'),
             fullName: fullName,
-            hashedPassword: 'x',
-            passwordSalt: 'x',
+            hashedPassword: const Value('x'),
+            passwordSalt: const Value('x'),
             role: AuthRole.employee,
             createdAt: now,
             updatedAt: now,
