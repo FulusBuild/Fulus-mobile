@@ -36,12 +36,33 @@ class FulusSearchField extends StatefulWidget {
 }
 
 class _FulusSearchFieldState extends State<FulusSearchField> {
-  late final TextEditingController _controller = widget.controller ?? TextEditingController();
+  // FIX (Sell-screen crash investigation): was `late final`, so if a
+  // caller ever passed a *different* controller instance across
+  // rebuilds, this widget wouldn't notice — it would silently keep
+  // listening to (and rendering) the original one forever, while
+  // whoever now owns the new instance has no idea this widget still
+  // holds a reference to the old one. That's exactly the shape of bug
+  // a "used after disposed" TextEditingController crash looks like.
+  // Not confirmed as the cause of the crash we're chasing (every
+  // current call site passes a stable controller instance), but it's a
+  // real defect worth closing regardless — see didUpdateWidget below.
+  late TextEditingController _controller = widget.controller ?? TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(FulusSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      _controller.removeListener(_onTextChanged);
+      if (oldWidget.controller == null) _controller.dispose();
+      _controller = widget.controller ?? TextEditingController();
+      _controller.addListener(_onTextChanged);
+    }
   }
 
   void _onTextChanged() => setState(() {});

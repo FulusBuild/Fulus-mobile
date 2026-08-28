@@ -38,6 +38,19 @@ void installGlobalErrorCapture(DiagnosticLogger logger) {
         title: 'Display error',
         context: {
           if (details.context != null) 'Context': details.context.toString(),
+          // FIX (Sell-screen crash investigation): Flutter already
+          // computes "the relevant error-causing widget was: X, created
+          // by file:line" for exactly the error types we couldn't
+          // localize (RenderFlex overflow, "RenderBox was not laid
+          // out") — it lives in FlutterErrorDetails.informationCollector,
+          // which this handler was dropping entirely. Several assertion
+          // types (BuildScope/InheritedElement/etc.) fire deep in
+          // framework traversal code with zero app frames in the stack
+          // itself; informationCollector is often the only place an app
+          // file:line shows up at all for those. Most FlutterErrorDetails
+          // (anything reported via a plain `throw`) have no
+          // informationCollector and this stays absent, same as before.
+          if (_collectWidgetInfo(details) case final info?) 'Widget details': info,
         },
       ),
     );
@@ -73,6 +86,20 @@ void installGlobalErrorCapture(DiagnosticLogger logger) {
   // at its Flutter default (the familiar red screen) — a developer
   // running the app locally wants the raw error, not the same calm
   // fallback a cashier would see.
+}
+
+/// See the doc comment above the `'Widget details'` context entry in
+/// [installGlobalErrorCapture] for why this exists. Returns null for
+/// the (common) case where Flutter didn't attach an
+/// [FlutterErrorDetails.informationCollector] at all — most exceptions
+/// don't have one; it's specific to a handful of framework-detected
+/// conditions like layout overflow.
+String? _collectWidgetInfo(FlutterErrorDetails details) {
+  final collector = details.informationCollector;
+  if (collector == null) return null;
+  final nodes = collector().toList();
+  if (nodes.isEmpty) return null;
+  return nodes.map((node) => node.toStringDeep()).join('\n').trim();
 }
 
 /// A calm, on-brand fallback shown instead of the red screen of death
