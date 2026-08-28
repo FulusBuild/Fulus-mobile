@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -62,6 +63,16 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Gap fix — see dataRefreshSignalProvider's own doc comment in
+    // app/providers.dart. This screen already owns its own
+    // Future/setState fetch cycle (_load above); this just re-triggers
+    // it whenever something elsewhere changes the numbers it shows —
+    // completing a sale, a refund, an expense/income entry, and so on.
+    ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
+      }
+    });
     final period = ref.watch(moneyPeriodProvider);
     if (_builtForPeriod != period) {
       _load(period);
@@ -323,7 +334,8 @@ class _SummarySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        IntrinsicHeight(
+          child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
@@ -342,6 +354,7 @@ class _SummarySection extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         FulusStatCard(

@@ -30,7 +30,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     _future = ref.read(backupRepositoryProvider).listBackups();
   }
 
-  void _reload() => setState(() => _future = ref.read(backupRepositoryProvider).listBackups());
+  void _reload() => setState(() {
+        _future = ref.read(backupRepositoryProvider).listBackups();
+      });
 
   Future<void> _runBusy(Future<void> Function() action) async {
     setState(() => _busy = true);

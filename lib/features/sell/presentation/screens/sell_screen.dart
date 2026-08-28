@@ -60,7 +60,9 @@ class _SellScreenState extends ConsumerState<SellScreen> {
             body: FulusErrorState(
               message: "Couldn't open Sell.",
               reassurance: 'Nothing was sold or lost — this is only about loading the screen.',
-              onRetry: () => setState(() => _locationIdFuture = _resolveLocationId()),
+              onRetry: () => setState(() {
+                _locationIdFuture = _resolveLocationId();
+              }),
             ),
           );
         }

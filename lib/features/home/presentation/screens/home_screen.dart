@@ -43,7 +43,7 @@ import '../../../money/presentation/widgets/transaction_tile.dart';
 /// Gap fix (was: "closing a mock day here doesn't flip this screen's
 /// own hero state"): [HomeHeroState] still comes entirely from
 /// [DashboardRepository] — untouched — but this screen also listens to
-/// [dashboardRefreshSignalProvider] and re-fetches whenever it changes.
+/// [dataRefreshSignalProvider] and re-fetches whenever it changes.
 /// Opening or closing the drawer bumps that signal (see
 /// `daily_closing_count_screen.dart`), so returning to this tab after
 /// either action now shows the real, current state instead of whatever
@@ -99,7 +99,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // rather than `ref.watch` deliberately: this screen still owns its
     // own Future/setState fetch cycle (unchanged from before), this
     // just triggers that same cycle from a second place.
-    ref.listen<int>(dashboardRefreshSignalProvider, (previous, next) {
+    ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
       if (previous != null && previous != next) setState(_load);
     });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
@@ -420,7 +420,7 @@ class _HeroCard extends ConsumerWidget {
                       // show (NotYetOpened → Open); without this, Home kept
                       // showing "Ready to open?" until the next manual
                       // pull-to-refresh.
-                      ref.read(dashboardRefreshSignalProvider.notifier).state++;
+                      ref.read(dataRefreshSignalProvider.notifier).state++;
                     }
                   },
                 ),

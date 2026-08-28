@@ -515,21 +515,29 @@ final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
   );
 });
 
-/// Gap fix: Home's hero state used to be a plain `Future` cached in
-/// [HomeScreen]'s own State (see that screen's header comment), fetched
-/// once in `initState` and never again — so opening or closing the
-/// drawer elsewhere (Money's opening-float sheet, Daily Closing)
-/// updated the real data `DashboardRepository` reads, but Home kept
-/// showing whatever it fetched before either action happened, since
-/// nothing ever told it to re-fetch. `HomeScreen` deliberately keeps its
-/// own Future-based fetch (its own doc comment: testability in
-/// isolation with plain constructor params, not a session-reading
-/// provider) — this is the smallest fix that respects that: a counter
-/// Home listens to and reloads on change, bumped by whichever screen
-/// actually changed the drawer/day state. Not scoped to one action
-/// specifically — anything that changes what Home's hero reflects bumps
-/// it, the same way `ref.invalidate` is used elsewhere in this app.
-final dashboardRefreshSignalProvider = StateProvider<int>((ref) => 0);
+/// Gap fix, later widened: several screens (Home, Money, Money History,
+/// Reports) cache their data as a plain `Future` in their own State
+/// (fetched once in `initState`/on first build, never again), and
+/// `StatefulShellRoute.indexedStack` (app_shell.dart) keeps each tab's
+/// screens alive across tab switches — so none of those screens' own
+/// `initState` re-runs just from navigating back to them. Nothing told
+/// them to re-fetch after a sale, a stock movement, an expense/income
+/// entry, or any other action that changes the numbers they show — a
+/// sale would complete but Home's totals, Money's balance, and Reports
+/// would all keep showing stale figures until the person manually
+/// pulled-to-refresh.
+///
+/// This is a counter every such screen listens to (`ref.listen`) and
+/// reloads on change, bumped by whichever action actually changed the
+/// data those screens read — completing or voiding a sale, a refund, a
+/// stock movement, an income/expense entry, a repayment, a supplier
+/// payment, a daily close, a bulk import. Not scoped to one screen or
+/// one action — anything that changes derived/aggregate data bumps it,
+/// the same way `ref.invalidate` is used elsewhere in this app. Screens
+/// backed by a genuinely reactive `StreamProvider` (Stock's product
+/// list, for instance) don't need this — they already update on their
+/// own as soon as the underlying rows change.
+final dataRefreshSignalProvider = StateProvider<int>((ref) => 0);
 
 /// Gap fix: App Lock (Volume 11) — self-sufficient like the signal
 /// above, not routed through bootstrap.dart's override pattern, since

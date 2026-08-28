@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../utils/money_format.dart';
@@ -89,6 +91,12 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
         paymentMethod: _paymentMethod!,
         note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       );
+      // Covers both Record Repayment and Pay Supplier (this screen is
+      // shared between them) — see dataRefreshSignalProvider's own doc
+      // comment in app/providers.dart.
+      if (mounted) {
+        ProviderScope.containerOf(context, listen: false).read(dataRefreshSignalProvider.notifier).state++;
+      }
       if (!mounted) return;
       if (result.excessAmount > 0) {
         showFulusSnackbar(

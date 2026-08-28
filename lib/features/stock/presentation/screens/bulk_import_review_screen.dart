@@ -24,10 +24,15 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
 
   Future<ProductImportResult> _run() async {
     final locationId = await ref.read(activeLocationIdProvider.future);
-    return ref.read(importProductsFromCsvProvider).call(
+    final result = await ref.read(importProductsFromCsvProvider).call(
           csvContent: widget.csvContent,
           locationId: locationId,
         );
+    // See dataRefreshSignalProvider's own doc comment in
+    // app/providers.dart — same reasoning as AddEditProductScreen's
+    // own save, just for a whole batch of new products at once.
+    ref.read(dataRefreshSignalProvider.notifier).state++;
+    return result;
   }
 
   @override
@@ -40,7 +45,9 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
           if (snap.hasError) {
             return FulusErrorState(
               message: "Couldn't run this import.",
-              onRetry: () => setState(() => _future = _run()),
+              onRetry: () => setState(() {
+                _future = _run();
+              }),
             );
           }
           if (!snap.hasData) {

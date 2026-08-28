@@ -1,7 +1,9 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/providers.dart';
 import '../../../../core/business_engine/customer_credit_engine.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
@@ -301,6 +303,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final currencySymbol = state is CartLoaded ? state.currencySymbol : '₦';
     try {
       final sale = await cubit.completeSale();
+      // Gap fix: nothing told Home/Money/Reports a sale had happened —
+      // see dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart. This screen is a plain StatefulWidget (not
+      // ConsumerStatefulWidget — CartCubit/flutter_bloc is this
+      // feature's own deliberate exception, see this file's own header
+      // comment), so this reads the provider via its container directly
+      // rather than converting the whole widget just for one bump.
+      if (context.mounted) {
+        ProviderScope.containerOf(context, listen: false).read(dataRefreshSignalProvider.notifier).state++;
+      }
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

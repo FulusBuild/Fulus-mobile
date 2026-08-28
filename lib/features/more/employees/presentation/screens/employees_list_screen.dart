@@ -73,66 +73,101 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     );
   }
 
-  Future<void> _openAddSheet(BuildContext context) async {
-    final nameController = TextEditingController();
-    final roleController = TextEditingController();
-    final phoneController = TextEditingController();
+  Future<void> _openAddSheet(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _AddEmployeeSheet(),
+    );
+  }
+}
 
+/// A proper `StatefulWidget` so its `TextEditingController`s are owned
+/// and disposed by `State.dispose()` — i.e. only once this sheet's
+/// element is actually removed from the tree, after its close
+/// animation finishes.
+///
+/// CORRECTED: this used to be a `builder:` closure with three
+/// controllers created as local variables and disposed in a `finally`
+/// the instant `showModalBottomSheet`'s Future resolved — which fires
+/// on `Navigator.pop()`, *before* the sheet's slide-down exit
+/// animation finishes, while its `FulusTextField`s (still bound to
+/// those now-disposed controllers) were still mounted and potentially
+/// still focused. That's what was producing the diagnostics report's
+/// `_batchEditDepth <= 0` assertion and "A TextEditingController was
+/// used after being disposed." — confirmed against `_SetUpLoginSheet`
+/// below, which already used this correct pattern.
+class _AddEmployeeSheet extends ConsumerStatefulWidget {
+  const _AddEmployeeSheet();
+
+  @override
+  ConsumerState<_AddEmployeeSheet> createState() => _AddEmployeeSheetState();
+}
+
+class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
+  final _nameController = TextEditingController();
+  final _roleController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _roleController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final repo = ref.read(employeeRepositoryProvider);
+    setState(() => _saving = true);
     try {
-      await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.lg,
-            right: AppSpacing.lg,
-            top: AppSpacing.lg,
-            bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Add team member', style: AppTypography.heading),
-              const SizedBox(height: AppSpacing.lg),
-              FulusTextField(label: 'Full name', controller: nameController),
-              const SizedBox(height: AppSpacing.sm),
-              FulusTextField(label: 'Role (e.g. Cashier)', controller: roleController),
-              const SizedBox(height: AppSpacing.sm),
-              FulusTextField(label: 'Phone (optional)', controller: phoneController, keyboardType: TextInputType.phone),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(
-                  label: 'Add',
-                  onPressed: () async {
-                    final repo = ref.read(employeeRepositoryProvider);
-                    try {
-                      await repo.createEmployee(EmployeeDraft(
-                        fullName: nameController.text,
-                        role: roleController.text.trim().isEmpty ? null : roleController.text.trim(),
-                        phone: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
-                      ));
-                      if (context.mounted) Navigator.of(context).pop();
-                    } on EmployeeValidationException catch (e) {
-                      if (context.mounted) showFulusSnackbar(context, message: e.message);
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } finally {
-      // The sheet is built from a `builder:` callback (fresh BuildContext
-      // each open), not a State this widget owns, so there's no
-      // State.dispose() to hook into — disposing here, once the sheet's
-      // own await completes, is what plays that role instead.
-      nameController.dispose();
-      roleController.dispose();
-      phoneController.dispose();
+      await repo.createEmployee(EmployeeDraft(
+        fullName: _nameController.text,
+        role: _roleController.text.trim().isEmpty ? null : _roleController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      ));
+      if (mounted) Navigator.of(context).pop();
+    } on EmployeeValidationException catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        showFulusSnackbar(context, message: e.message);
+      }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Add team member', style: AppTypography.heading),
+          const SizedBox(height: AppSpacing.lg),
+          FulusTextField(label: 'Full name', controller: _nameController),
+          const SizedBox(height: AppSpacing.sm),
+          FulusTextField(label: 'Role (e.g. Cashier)', controller: _roleController),
+          const SizedBox(height: AppSpacing.sm),
+          FulusTextField(label: 'Phone (optional)', controller: _phoneController, keyboardType: TextInputType.phone),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FulusButton(
+              label: 'Add',
+              loading: _saving,
+              onPressed: _saving ? null : _submit,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

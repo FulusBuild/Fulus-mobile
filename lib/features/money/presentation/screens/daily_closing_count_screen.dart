@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/providers.dart' show dashboardRefreshSignalProvider;
+import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/cash_drawer_state.dart';
@@ -49,7 +49,11 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
 
   Future<void> _openDrawer() async {
     final opened = await showOpeningFloatSheet(context);
-    if (opened && mounted) setState(() => _future = _load());
+    if (opened && mounted) {
+      setState(() {
+        _future = _load();
+      });
+    }
   }
 
   Future<void> _closeDay() async {
@@ -65,12 +69,12 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
           );
       // Gap fix: Home's hero used to keep showing "open" after this —
-      // see dashboardRefreshSignalProvider's own doc comment in
+      // see dataRefreshSignalProvider's own doc comment in
       // app/providers.dart. Bumped here, the moment the close is
       // actually committed, not on the Summary screen after — Home
       // should already be caught up by the time anyone backs out to it,
       // whether or not they view the summary all the way through.
-      ref.read(dashboardRefreshSignalProvider.notifier).state++;
+      ref.read(dataRefreshSignalProvider.notifier).state++;
       if (!mounted) return;
       context.pushReplacementNamed('moneyDailyClosingSummary', extra: summary);
     } catch (_) {
@@ -92,7 +96,9 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
           if (snapshot.hasError) {
             return FulusErrorState(
               message: "Couldn't load the drawer.",
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() {
+                _future = _load();
+              }),
             );
           }
           if (!snapshot.hasData) {

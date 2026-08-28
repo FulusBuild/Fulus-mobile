@@ -68,7 +68,9 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
     );
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -294,12 +296,40 @@ class _EmployeeDetailBody extends ConsumerWidget {
       if (pinSet != true) return;
     }
     if (!context.mounted) return;
-    final created = await showModalBottomSheet<bool>(
+    final createdPin = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => _SetUpLoginSheet(employee: employee),
     );
-    if (created == true) onChanged();
+    if (createdPin == null) return;
+    onChanged();
+    // Shown from this (stable, still-on-screen) context rather than
+    // the now-popped sheet's own — see _SetUpLoginSheet._submit's own
+    // comment for why that distinction is the fix here.
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Login created'),
+        content: Text(
+          'Share the PIN you set with ${employee.fullName} so '
+          'they can switch to their own account on this device — they\'ll '
+          'find their name in the "who\'s this?" list.\n\nPIN: $createdPin',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: createdPin));
+            },
+            child: const Text('Copy PIN'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -575,34 +605,17 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
             pin: pin,
           );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
-      // The owner just chose this PIN themselves (this isn't a
-      // generated secret to reveal) — this confirmation is about making
-      // the handoff moment explicit, since nothing in this app told
-      // anyone to do this before now.
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Login created'),
-          content: Text(
-            'Share the PIN you set with ${widget.employee.fullName} so '
-            'they can switch to their own account on this device — they\'ll '
-            'find their name in the "who\'s this?" list.\n\nPIN: $pin',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: pin));
-              },
-              child: const Text('Copy PIN'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Done'),
-            ),
-          ],
-        ),
-      );
+      // Pop with the PIN itself, and leave the confirmation dialog to
+      // the caller (_openSetUpLoginSheet) instead of showing it here.
+      //
+      // CORRECTED: this used to call Navigator.of(context).pop(true)
+      // and then immediately reuse this same `context` — which belongs
+      // to this sheet, and is already on its way out of the tree — to
+      // open a showDialog. That's what was producing the diagnostics
+      // report's "No Overlay widget found" errors. The caller's own
+      // context stays valid for as long as the underlying screen is on
+      // screen, so it's the safe one to show a follow-up dialog from.
+      Navigator.of(context).pop(pin);
     } on Failure catch (f) {
       if (!mounted) return;
       setState(() {

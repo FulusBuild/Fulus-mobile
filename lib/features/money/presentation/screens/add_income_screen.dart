@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
@@ -53,6 +54,9 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
             source: source,
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
           );
+      // See dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart.
+      ref.read(dataRefreshSignalProvider.notifier).state++;
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Income recorded.');
       context.pop();

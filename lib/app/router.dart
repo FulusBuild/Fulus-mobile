@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/diagnostics/capture/current_screen_tracker.dart';
 import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
@@ -128,6 +129,7 @@ import 'providers.dart';
 /// that drifts silently once a path changes in only one place.
 final appRouter = GoRouter(
   initialLocation: '/',
+  observers: [CurrentScreenObserver()],
   redirect: (context, state) {
     final user = ProviderScope.containerOf(context, listen: false).read(sessionProvider);
     if (user == null || user.role == AuthRole.owner) return null;

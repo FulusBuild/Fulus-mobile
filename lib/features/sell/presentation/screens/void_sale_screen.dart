@@ -69,7 +69,9 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
           if (snap.hasError) {
             return FulusErrorState(
               message: "Couldn't load this sale.",
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() {
+                _future = _load();
+              }),
             );
           }
           if (!snap.hasData) {
@@ -159,6 +161,10 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
             saleLocalId: widget.saleId,
             reason: _reasonController.text.trim(),
           );
+      // See dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart — a void changes the numbers Home/Money/
+      // Reports show, same as completing a sale does.
+      ref.read(dataRefreshSignalProvider.notifier).state++;
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Sale voided.');
       context.pop(); // back to the Sales transactions list

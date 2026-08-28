@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../diagnostic_logger.dart';
 import '../models/diagnostic_enums.dart';
+import 'current_screen_tracker.dart';
 
 /// Installs the two process-wide error hooks Flutter offers, plus a
 /// calm release-mode fallback for [ErrorWidget.builder] — together,
@@ -36,6 +37,7 @@ void installGlobalErrorCapture(DiagnosticLogger logger) {
         category: DiagnosticCategory.flutterFramework,
         component: details.library ?? 'Flutter framework',
         title: 'Display error',
+        screen: CurrentScreenTracker.current,
         context: {
           if (details.context != null) 'Context': details.context.toString(),
           // FIX (Sell-screen crash investigation): Flutter already
@@ -70,6 +72,7 @@ void installGlobalErrorCapture(DiagnosticLogger logger) {
         severity: DiagnosticSeverity.error,
         category: DiagnosticCategory.dartRuntime,
         title: 'Unexpected error',
+        screen: CurrentScreenTracker.current,
       ),
     );
     // `true` = handled; Flutter should not additionally treat this as

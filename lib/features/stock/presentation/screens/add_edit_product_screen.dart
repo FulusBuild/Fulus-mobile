@@ -171,6 +171,13 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
         );
       }
 
+      // See dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart — a new/edited product can change Reports'
+      // Inventory figures, which read a one-shot Future the same way
+      // Money does (Stock's own list is already reactive and doesn't
+      // need this).
+      ref.read(dataRefreshSignalProvider.notifier).state++;
+
       if (!mounted) return;
       showFulusSnackbar(context, message: widget.isEditing ? 'Product updated.' : 'Product added.');
       // FIX (onboarding audit): reached both via a normal go_router

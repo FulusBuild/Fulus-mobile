@@ -90,7 +90,9 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                 if (snap.hasError) {
                   return FulusErrorState(
                     message: "Couldn't load recent sales.",
-                    onRetry: () => setState(() => _future = _load()),
+                    onRetry: () => setState(() {
+                      _future = _load();
+                    }),
                   );
                 }
                 if (!snap.hasData) {

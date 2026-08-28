@@ -137,6 +137,13 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
           throw StateError('Unreachable — not offered by this screen\'s type switcher.');
       }
 
+      // See dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart — Reports' Inventory figures and Home read
+      // this the same one-shot-Future way Money does, so they need the
+      // same nudge (Stock's own screen already updates live via a
+      // Drift stream and doesn't need this).
+      ref.read(dataRefreshSignalProvider.notifier).state++;
+
       if (!mounted) return;
       // Bug fix (business-logic audit): this used to say "Stock
       // updated" — but stock-in/out/adjustment currentStock is only

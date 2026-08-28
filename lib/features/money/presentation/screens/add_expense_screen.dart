@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -69,6 +70,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
             receiptPhotoPath: _receiptPhotoPath,
           );
+      // See dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart.
+      ref.read(dataRefreshSignalProvider.notifier).state++;
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Expense recorded.');
       context.pop();

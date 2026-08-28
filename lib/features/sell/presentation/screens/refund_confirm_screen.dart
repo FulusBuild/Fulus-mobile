@@ -80,7 +80,9 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
           if (snap.hasError) {
             return FulusErrorState(
               message: "Couldn't load this sale.",
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() {
+                _future = _load();
+              }),
             );
           }
           if (!snap.hasData) {
@@ -219,6 +221,10 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
       // complete, e.g. a data conflict) rather than because this screen
       // has two steps for the cashier.
       await returnRepo.completeReturn(created.localId);
+      // See dataRefreshSignalProvider's own doc comment in
+      // app/providers.dart — a completed refund changes the numbers
+      // Home/Money/Reports show, same as completing a sale does.
+      ref.read(dataRefreshSignalProvider.notifier).state++;
 
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Refund completed.');

@@ -163,6 +163,15 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // See dataRefreshSignalProvider's own doc comment in
+    // app/providers.dart, and MoneyScreen's own listener above it for
+    // the same pattern — this screen owns the same kind of
+    // Future/setState fetch cycle Money's main screen does.
+    ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
+      }
+    });
     if (!_initializedFromExtra) {
       _initializedFromExtra = true;
       final extra = GoRouterState.of(context).extra;

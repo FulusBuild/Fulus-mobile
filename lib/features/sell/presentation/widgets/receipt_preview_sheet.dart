@@ -74,7 +74,9 @@ class _ReceiptPreviewSheetState extends ConsumerState<ReceiptPreviewSheet> {
 
   Future<ReceiptData> _load() => ref.read(receiptRepositoryProvider).buildReceiptData(widget.saleId);
 
-  void _reload() => setState(() => _receiptFuture = _load());
+  void _reload() => setState(() {
+        _receiptFuture = _load();
+      });
 
   @override
   Widget build(BuildContext context) {

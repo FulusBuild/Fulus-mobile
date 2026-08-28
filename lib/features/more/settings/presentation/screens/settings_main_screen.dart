@@ -42,8 +42,9 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
           if (snap.hasError) {
             return FulusErrorState(
               message: "Couldn't load business settings.",
-              onRetry: () => setState(() => _future =
-                  ref.read(businessSettingsRepositoryProvider).watchSettings().first),
+              onRetry: () => setState(() {
+                _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
+              }),
             );
           }
           if (!snap.hasData) {
@@ -150,7 +151,9 @@ class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
               isScrollControlled: true,
               builder: (_) => const _AppLockSheet(),
             );
-            setState(() => _future = _load());
+            setState(() {
+              _future = _load();
+            });
           },
         );
       },

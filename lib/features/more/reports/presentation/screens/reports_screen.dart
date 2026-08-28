@@ -310,6 +310,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    // See dataRefreshSignalProvider's own doc comment in
+    // app/providers.dart — every tab here is a one-shot Future fetched
+    // in initState/_loadAll, so none of them notice a sale, refund,
+    // stock change, or money entry made elsewhere on their own.
+    ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
+      if (previous != null && previous != next) setState(_loadAll);
+    });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return Scaffold(
