@@ -93,10 +93,24 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                   // known Flutter/IME quirk, not something app code
                   // controls) — this gives a guaranteed way to clear a
                   // wrong PIN regardless of that.
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.backspace_outlined),
-                    tooltip: 'Clear',
-                    onPressed: _pinController.clear,
+                  //
+                  // No `tooltip:` here deliberately — IconButton wraps
+                  // itself in a Tooltip whenever one's given, and Tooltip
+                  // needs an Overlay ancestor to render into. This
+                  // screen doesn't have one: AppLockGate shows it as a
+                  // Stack sibling *outside* MaterialApp's own Navigator/
+                  // Overlay, specifically so it can appear over any
+                  // route (see that file's own doc comment) — which is
+                  // exactly what made a tooltip here throw "No Overlay
+                  // widget found". Semantics gives the same screen-reader
+                  // label without needing one.
+                  suffixIcon: Semantics(
+                    label: 'Clear',
+                    button: true,
+                    child: IconButton(
+                      icon: const Icon(Icons.backspace_outlined),
+                      onPressed: _pinController.clear,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),

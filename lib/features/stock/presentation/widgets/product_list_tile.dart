@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
@@ -31,7 +33,7 @@ class ProductListTile extends StatelessWidget {
 
     return FulusListRow(
       onTap: onTap,
-      leading: _Thumbnail(name: product.name),
+      leading: _Thumbnail(name: product.name, photoPath: product.photoPath),
       title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [
@@ -55,22 +57,44 @@ class ProductListTile extends StatelessWidget {
 /// comment). This is the honest placeholder for that gap: the product's
 /// own initial, not a generic box icon, so a photo-less catalog still
 /// reads as differentiated rows rather than identical gray squares.
+/// Product Design Bible Volume 6: "Photo — strongly encouraged." Shows
+/// the actual product photo when one's been captured (AddEditProductScreen
+/// already lets an owner take one — Product.photoPath's own doc comment
+/// covers the sync-gap it has, but the local file itself is real), and
+/// falls back to the product's own initial when there isn't one, so a
+/// photo-less catalog still reads as differentiated rows rather than
+/// identical gray squares.
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.name});
+  const _Thumbnail({required this.name, required this.photoPath});
   final String name;
+  final String? photoPath;
 
   @override
   Widget build(BuildContext context) {
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.selectedTintOf(context),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.selectedTintOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        alignment: Alignment.center,
+        child: photoPath == null
+            ? Text(
+                initial,
+                style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)),
+              )
+            : Image.file(
+                File(photoPath!),
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Text(
+                  initial,
+                  style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)),
+                ),
+              ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,17 +310,39 @@ class _ProductTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.selectedTintOf(context),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.inventory_2_outlined,
-                  size: AppIconSize.emphasis,
-                  color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.selectedTintOf(context),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  alignment: Alignment.center,
+                  // Product Design Bible Volume 6 already lets Add
+                  // Product capture a photo (AddEditProductScreen,
+                  // `photoPath`) — this tile just wasn't reading it,
+                  // showing the same generic box icon for every product
+                  // regardless. errorBuilder falls back to that same
+                  // icon rather than a broken-image glyph if the file's
+                  // gone missing from disk for some reason.
+                  child: product.photoPath == null
+                      ? Icon(
+                          Icons.inventory_2_outlined,
+                          size: AppIconSize.emphasis,
+                          color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+                        )
+                      : Image.file(
+                          File(product.photoPath!),
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.inventory_2_outlined,
+                            size: AppIconSize.emphasis,
+                            color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+                          ),
+                        ),
                 ),
               ),
             ),
