@@ -88,6 +88,16 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                   onChanged: (_) {
                     if (_error != null) setState(() => _error = null);
                   },
+                  // Some Android keyboards don't reliably send backspace
+                  // to a TextInputType.number + obscureText field (a
+                  // known Flutter/IME quirk, not something app code
+                  // controls) — this gives a guaranteed way to clear a
+                  // wrong PIN regardless of that.
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.backspace_outlined),
+                    tooltip: 'Clear',
+                    onPressed: _pinController.clear,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 SizedBox(

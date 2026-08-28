@@ -610,21 +610,31 @@ class _QuickActionRow extends StatelessWidget {
           child: FulusQuickAction(
             icon: Icons.inventory_2_outlined,
             label: 'Add stock',
-            onTap: () => context.goNamed('stockRecordMovement'),
+            // pushNamed, not goNamed — Sell above is the root of its
+            // own shell branch, so `go` switches straight to it with
+            // nothing else involved. This one and the two below are
+            // *nested* routes inside a branch (Stock/Money/More) Home
+            // hasn't necessarily visited yet this session — `go`-ing
+            // straight to a deep route makes StatefulShellRoute build
+            // that branch's own root screen first to establish it,
+            // then navigate deeper, which is the flash to one screen
+            // before landing on the right one. `push` opens the target
+            // directly above the shell instead, skipping all of that.
+            onTap: () => context.pushNamed('stockRecordMovement'),
           ),
         ),
         Expanded(
           child: FulusQuickAction(
             icon: Icons.receipt_long_outlined,
             label: 'Add expense',
-            onTap: () => context.goNamed('moneyAddExpense'),
+            onTap: () => context.pushNamed('moneyAddExpense'),
           ),
         ),
         Expanded(
           child: FulusQuickAction(
             icon: Icons.bar_chart_outlined,
             label: 'Reports',
-            onTap: () => context.goNamed('moreReports'),
+            onTap: () => context.pushNamed('moreReports'),
           ),
         ),
       ],

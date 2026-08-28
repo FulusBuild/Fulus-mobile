@@ -538,6 +538,11 @@ class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
             keyboardType: TextInputType.number,
             errorText: _errors['pin'],
             helperText: 'At least 4 digits.',
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.backspace_outlined),
+              tooltip: 'Clear',
+              onPressed: _pinController.clear,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusTextField(
@@ -546,6 +551,11 @@ class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
             obscureText: true,
             keyboardType: TextInputType.number,
             errorText: _errors['confirm'],
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.backspace_outlined),
+              tooltip: 'Clear',
+              onPressed: _confirmController.clear,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
@@ -656,6 +666,11 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
             keyboardType: TextInputType.number,
             errorText: _errors['pin'],
             helperText: 'At least 4 digits.',
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.backspace_outlined),
+              tooltip: 'Clear',
+              onPressed: _pinController.clear,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusTextField(
@@ -664,6 +679,11 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
             obscureText: true,
             keyboardType: TextInputType.number,
             errorText: _errors['confirm'],
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.backspace_outlined),
+              tooltip: 'Clear',
+              onPressed: _confirmController.clear,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           SizedBox(

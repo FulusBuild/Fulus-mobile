@@ -128,6 +128,11 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('New Customer'),
+        // `scrollable: true` wraps the content in a scroll view so it
+        // can shrink instead of overflowing once the keyboard opens and
+        // reduces the available height — that's what your screenshot's
+        // "BOTTOM OVERFLOWED BY 82 PIXELS" banner was.
+        scrollable: true,
         content: FulusTextField(label: 'Name', controller: controller),
         actions: [
           TextButton(

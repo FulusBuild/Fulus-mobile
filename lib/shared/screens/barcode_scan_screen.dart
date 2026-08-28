@@ -148,6 +148,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Enter barcode'),
+        scrollable: true,
         content: FulusTextField(label: 'Barcode', controller: controller, keyboardType: TextInputType.text),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),

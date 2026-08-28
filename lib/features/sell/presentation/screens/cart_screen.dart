@@ -234,6 +234,7 @@ class _QuantityStepper extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Quantity'),
+        scrollable: true,
         content: FulusTextField(
           label: 'Quantity',
           controller: controller,

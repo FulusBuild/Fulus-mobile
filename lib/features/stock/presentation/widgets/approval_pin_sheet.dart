@@ -95,6 +95,11 @@ class _ApprovalPinFormState extends State<_ApprovalPinForm> {
           onChanged: (_) {
             if (_error != null) setState(() => _error = null);
           },
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.backspace_outlined),
+            tooltip: 'Clear',
+            onPressed: _pinController.clear,
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         FulusButton(label: 'Approve', loading: _submitting, onPressed: _submitting ? null : _submit),
