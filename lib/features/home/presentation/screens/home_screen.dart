@@ -233,8 +233,8 @@ class _GreetingHeader extends ConsumerWidget {
     // still sees the business name as the headline (unchanged from
     // before); an Employee sees their own name instead — more useful on
     // a shared device than a business name they already know.
-    final avatarName = isOwner ? (businessName.isEmpty ? '?' : businessName) : user!.fullName;
-    final headline = isOwner ? (businessName.isEmpty ? 'Fulus' : businessName) : user!.fullName;
+    final avatarName = isOwner ? (businessName.isEmpty ? '?' : businessName) : user.fullName;
+    final headline = isOwner ? (businessName.isEmpty ? 'Fulus' : businessName) : user.fullName;
 
     return Row(
       children: [
