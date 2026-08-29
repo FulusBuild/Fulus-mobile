@@ -56,14 +56,29 @@ enum AuthGateStage {
   /// Start Fresh, instead of being funneled into a new-business attempt
   /// that can only ever fail.
   needsRestoreDecision,
+
+  /// No owner account, no business — same as [needsAccountCreation]'s
+  /// own two conditions — but at least one backup file was found (see
+  /// [hasDetectedBackup]'s own parameter doc below). Route to
+  /// `BackupRestoreDecisionScreen` so this reads as "Restore or start
+  /// fresh" instead of silently funneling a genuine reinstall into
+  /// recreating the business from scratch — Backup & Restore's own
+  /// task requirement, not a Restore Progress bug fix like
+  /// [needsRestoreDecision] above; the two exist for unrelated reasons
+  /// and are deliberately checked in the order below so an in-progress
+  /// local setup ([needsRestoreDecision]) is never overridden by an
+  /// old backup file that happens to also be sitting on the device.
+  needsBackupDecision,
 }
 
 AuthGateStage resolveAuthGateStage({
   required bool hasOwnerAccount,
   required bool businessConfigured,
+  required bool hasDetectedBackup,
 }) {
   if (hasOwnerAccount) return AuthGateStage.needsSignIn;
   if (businessConfigured) return AuthGateStage.needsRestoreDecision;
+  if (hasDetectedBackup) return AuthGateStage.needsBackupDecision;
   return AuthGateStage.needsAccountCreation;
 }
 

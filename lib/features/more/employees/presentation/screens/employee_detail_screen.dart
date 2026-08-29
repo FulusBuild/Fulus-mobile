@@ -8,7 +8,9 @@ import '../../../../../core/errors/failure.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/employee.dart';
+import '../../../../../domain/entities/permission.dart';
 import '../../../../../shared/widgets/widgets.dart';
+import '../widgets/permission_editor.dart';
 
 /// Gap fix — three items from the audit land on one screen because
 /// they're really one story (an owner looking at one team member):
@@ -123,6 +125,12 @@ class _EmployeeDetailBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = leaveRequests.where((l) => l.status == LeaveStatus.pending).toList();
     final decided = leaveRequests.where((l) => l.status != LeaveStatus.pending).toList();
+    // The ACTING user's own held permissions — see PermissionEditor's
+    // own doc comment on [grantableBy] for why this, not
+    // Permission.all, bounds what shows up editable below for a
+    // Manager viewing this screen.
+    final actingIsOwner = ref.watch(sessionProvider)?.role == AuthRole.owner;
+    final grantableBy = actingIsOwner ? Permission.all : ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
 
     return ListView(
       children: [
@@ -188,13 +196,27 @@ class _EmployeeDetailBody extends ConsumerWidget {
                       width: double.infinity,
                       child: FulusButton(
                         label: 'Set up login',
-                        onPressed: () => _openSetUpLoginSheet(context, ref),
+                        onPressed: () => _openSetUpLoginSheet(context, ref, grantableBy),
                       ),
                     ),
                   ],
                 ),
         ),
         const SizedBox(height: AppSpacing.lg),
+
+        // ── Access & permissions ──────────────────────────────────────
+        // Only reachable once a login exists — there's no AuthRole/
+        // Permission grant to edit before that point at all (see
+        // AuthRepository.createEmployeeAccount's own doc comment: this
+        // is seeded at account-creation time, in the "Set up login"
+        // sheet itself).
+        if (employee.authUserId != null) ...[
+          FulusSectionHeader(title: 'Access & permissions'),
+          FulusCard(
+            child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
 
         // ── Attendance ─────────────────────────────────────────────────
         FulusSectionHeader(title: 'Attendance this month'),
@@ -280,7 +302,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
     }
   }
 
-  Future<void> _openSetUpLoginSheet(BuildContext context, WidgetRef ref) async {
+  Future<void> _openSetUpLoginSheet(BuildContext context, WidgetRef ref, Set<Permission> grantableBy) async {
     // See setOwnLoginPin's own doc comment on AuthRepository — an owner
     // can't provision someone else's PIN before choosing their own
     // first. Checked here, not just left to createEmployeeAccount's own
@@ -299,7 +321,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
     final createdPin = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => _SetUpLoginSheet(employee: employee),
+      builder: (sheetContext) => _SetUpLoginSheet(employee: employee, grantableBy: grantableBy),
     );
     if (createdPin == null) return;
     onChanged();
@@ -329,6 +351,123 @@ class _EmployeeDetailBody extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AccessPermissionsSection extends ConsumerStatefulWidget {
+  const _AccessPermissionsSection({required this.authUserId, required this.grantableBy});
+  final String authUserId;
+  final Set<Permission> grantableBy;
+
+  @override
+  ConsumerState<_AccessPermissionsSection> createState() => _AccessPermissionsSectionState();
+}
+
+class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSection> {
+  late Future<Set<Permission>> _future;
+  Set<Permission> _editing = {};
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _future = ref.read(permissionRepositoryProvider).getPermissions(widget.authUserId).then((stored) {
+      // .then, not awaited here — this keeps _editing's very first value
+      // in sync with what's actually stored the moment the fetch
+      // resolves, without a separate "has the initial value been set
+      // yet" flag; every _editing mutation after that point is the
+      // owner's own edit, and this callback never runs again unless
+      // _load is called afresh (Save/Cancel below).
+      _editing = Set<Permission>.of(stored);
+      return stored;
+    });
+  }
+
+  Future<void> _save() async {
+    final acting = ref.read(sessionProvider);
+    if (acting == null) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(permissionRepositoryProvider).setPermissions(
+            userId: widget.authUserId,
+            permissions: _editing,
+            grantedBy: acting.id,
+          );
+      if (!mounted) return;
+      // Defensive — see sessionPermissionsProvider's own doc comment on
+      // why this normally never needs invalidating (the edited login
+      // can't be the active session while this screen is reachable at
+      // all); cheap enough to do anyway rather than lean entirely on
+      // that reasoning holding forever.
+      ref.invalidate(sessionPermissionsProvider);
+      setState(() {
+        _saving = false;
+        _load();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permissions updated.')));
+    } on Failure catch (f) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = f.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Set<Permission>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final stored = snapshot.data!;
+        final dirty = !setEquals(stored, _editing);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_error != null) ...[
+              Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            PermissionEditor(
+              selected: _editing,
+              grantableBy: widget.grantableBy,
+              onChanged: (next) => setState(() => _editing = next),
+            ),
+            if (dirty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -572,8 +711,9 @@ class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
 /// pass: collects a PIN instead of username/email/password — see
 /// AuthRepository.createEmployeeAccount's own doc comment for why.
 class _SetUpLoginSheet extends ConsumerStatefulWidget {
-  const _SetUpLoginSheet({required this.employee});
+  const _SetUpLoginSheet({required this.employee, required this.grantableBy});
   final Employee employee;
+  final Set<Permission> grantableBy;
 
   @override
   ConsumerState<_SetUpLoginSheet> createState() => _SetUpLoginSheetState();
@@ -584,12 +724,50 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
   final _confirmController = TextEditingController();
   Map<String, String> _errors = {};
   bool _submitting = false;
+  AuthRolePreset _preset = AuthRolePreset.cashier;
+  // Starts at Cashier's own preset and tracks _preset's changes via
+  // _onPresetChanged below, but stops following it the moment the
+  // owner touches an individual checkbox — see that method's own
+  // comment for why "snap back to the preset on every tap" would be
+  // the wrong behavior for someone who just deliberately customized
+  // it.
+  Set<Permission> _permissions = {};
+  bool _permissionsCustomized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _permissions = _defaultsWithinGrant(AuthRole.cashier);
+  }
+
+  /// [Permission.defaultsForRole] intersected with what this acting
+  /// user can actually grant — see PermissionEditor's own doc comment
+  /// on [grantableBy]. Without the intersection, a Manager who lacks,
+  /// say, viewReports themselves could still hand a brand-new Cashier
+  /// login the Manager preset's viewReports default, just by never
+  /// having touched that checkbox — the exact escalation
+  /// [grantableBy] exists to close.
+  Set<Permission> _defaultsWithinGrant(AuthRole role) =>
+      Permission.defaultsForRole(role).intersection(widget.grantableBy);
 
   @override
   void dispose() {
     _pinController.dispose();
     _confirmController.dispose();
     super.dispose();
+  }
+
+  void _onPresetChanged(AuthRolePreset preset) {
+    setState(() {
+      _preset = preset;
+      // Only re-derives from the new preset if the owner hasn't already
+      // hand-picked individual permissions this session — switching
+      // Manager -> Cashier -> Manager shouldn't silently discard a
+      // deliberate customization made along the way.
+      if (!_permissionsCustomized) {
+        _permissions = _defaultsWithinGrant(preset.role);
+      }
+    });
   }
 
   Future<void> _submit() async {
@@ -610,10 +788,29 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
       _errors = {};
     });
     try {
-      await ref.read(authRepositoryProvider).createEmployeeAccount(
+      final acting = ref.read(sessionProvider);
+      final created = await ref.read(authRepositoryProvider).createEmployeeAccount(
             employeeId: widget.employee.id,
             pin: pin,
+            role: _preset.role,
           );
+      // createEmployeeAccount already seeds Permission.defaultsForRole
+      // (the full, un-intersected preset) as a self-contained default
+      // for the owner-acts-normally case. This second call is what
+      // actually enforces [grantableBy] end to end: _permissions here
+      // was already intersected with it (see _defaultsWithinGrant), so
+      // this always runs, not just when the owner customized a
+      // checkbox — otherwise a Manager creating a login without
+      // touching any checkbox would leave the account with the
+      // un-intersected seed instead of what this Manager was actually
+      // allowed to grant.
+      if (acting != null) {
+        await ref.read(permissionRepositoryProvider).setPermissions(
+              userId: created.id,
+              permissions: _permissions,
+              grantedBy: acting.id,
+            );
+      }
       if (!mounted) return;
       // Pop with the PIN itself, and leave the confirmation dialog to
       // the caller (_openSetUpLoginSheet) instead of showing it here.
@@ -644,53 +841,73 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
         top: AppSpacing.lg,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Set up login for ${widget.employee.fullName}', style: AppTypography.heading),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            "They'll use this PIN to switch to their own account on this device.",
-            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          if (_errors['form'] != null) ...[
-            Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Set up login for ${widget.employee.fullName}', style: AppTypography.heading),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              "They'll use this PIN to switch to their own account on this device.",
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (_errors['form'] != null) ...[
+              Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            FulusTextField(
+              label: 'PIN',
+              controller: _pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              errorText: _errors['pin'],
+              helperText: 'At least 4 digits.',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.backspace_outlined),
+                tooltip: 'Clear',
+                onPressed: _pinController.clear,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
+            FulusTextField(
+              label: 'Confirm PIN',
+              controller: _confirmController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              errorText: _errors['confirm'],
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.backspace_outlined),
+                tooltip: 'Clear',
+                onPressed: _confirmController.clear,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Role', style: AppTypography.subheading),
+            const SizedBox(height: AppSpacing.xs),
+            RolePresetSelector(selected: _preset, onChanged: _onPresetChanged),
+            const SizedBox(height: AppSpacing.md),
+            Text('Permissions', style: AppTypography.subheading),
+            Text(
+              'Starts from the role above — adjust anything before creating the login.',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+            PermissionEditor(
+              selected: _permissions,
+              grantableBy: widget.grantableBy,
+              onChanged: (next) => setState(() {
+                _permissions = next;
+                _permissionsCustomized = true;
+              }),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(label: 'Create login', loading: _submitting, onPressed: _submitting ? null : _submit),
+            ),
           ],
-          FulusTextField(
-            label: 'PIN',
-            controller: _pinController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            errorText: _errors['pin'],
-            helperText: 'At least 4 digits.',
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.backspace_outlined),
-              tooltip: 'Clear',
-              onPressed: _pinController.clear,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(
-            label: 'Confirm PIN',
-            controller: _confirmController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            errorText: _errors['confirm'],
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.backspace_outlined),
-              tooltip: 'Clear',
-              onPressed: _confirmController.clear,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(label: 'Create login', loading: _submitting, onPressed: _submitting ? null : _submit),
-          ),
-        ],
+        ),
       ),
     );
   }

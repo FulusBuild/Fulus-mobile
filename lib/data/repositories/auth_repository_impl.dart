@@ -6,6 +6,7 @@ import '../../core/security/pin_hasher.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/audit_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/permission_repository.dart';
 import '../local/database/database.dart';
 
 /// Architecture Section 6's login flow, entirely local now — Architecture
@@ -29,13 +30,22 @@ class AuthRepositoryImpl implements AuthRepository {
     required AppDatabase db,
     required PinHasher pinHasher,
     required AuditRepository auditRepository,
+    required PermissionRepository permissionRepository,
   })  : _db = db,
         _pinHasher = pinHasher,
-        _auditRepository = auditRepository;
+        _auditRepository = auditRepository,
+        _permissionRepository = permissionRepository;
 
   final AppDatabase _db;
   final PinHasher _pinHasher;
   final AuditRepository _auditRepository;
+  // Deliberately not required by createFirstOwner/createAdditionalOwner
+  // — an Owner login is structurally exempt from every permission check
+  // (PermissionRepository.hasPermission short-circuits on
+  // AuthRole.owner before ever touching this), so seeding a stored
+  // grant for one would just be a row nothing ever reads. Only
+  // createEmployeeAccount below calls this.
+  final PermissionRepository _permissionRepository;
 
   // Mirrors auth_service.py's own module-level constants exactly
   // (verified directly) — see failure.dart's _AccountLocked doc comment
@@ -337,7 +347,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthUser> createEmployeeAccount({
     required String employeeId,
     required String pin,
+    AuthRole role = AuthRole.employee,
   }) async {
+    // See AuthRepository.createEmployeeAccount's own doc comment — this
+    // method provisions a non-owner login only; createAdditionalOwner
+    // is the (separate, more tightly gated) path for a second Owner.
+    if (role == AuthRole.owner) {
+      throw const BusinessRuleFailure(
+        'Use createAdditionalOwner to add another owner.',
+      );
+    }
     final acting = _currentUser;
     // Same enforcement as createAdditionalOwner — only an Owner who has
     // already set their own PIN can provision a login for someone else.
@@ -365,14 +384,15 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     // Reuses the exact same creation path createFirstOwner/
-    // createAdditionalOwner use — just with AuthRole.employee instead
-    // of AuthRole.owner, and the new identity's display name taken from
-    // the roster entry already on file rather than re-collected here.
-    // No username/email/password to collect at all anymore — pin is
-    // the entire credential now.
+    // createAdditionalOwner use — just with [role] (Manager, Cashier,
+    // or the generic Employee fallback) instead of AuthRole.owner, and
+    // the new identity's display name taken from the roster entry
+    // already on file rather than re-collected here. No username/
+    // email/password to collect at all anymore — pin is the entire
+    // credential now.
     final newAccount = await _insertLocalIdentity(
       fullName: employeeRow.fullName,
-      role: AuthRole.employee,
+      role: role,
       pin: pin,
     );
 
@@ -384,8 +404,20 @@ class AuthRepositoryImpl implements AuthRepository {
       ),
     );
 
+    // Seeds this brand-new login's stored permission grant from its
+    // role preset — see PermissionRepository.seedDefaultsForNewAccount's
+    // own doc comment. The owner can immediately adjust individual
+    // permissions afterward from the employee's detail screen; this is
+    // only the starting point.
+    await _permissionRepository.seedDefaultsForNewAccount(
+      userId: newAccount.id,
+      role: role,
+      grantedBy: acting.id,
+    );
+
     // Same CREATE/AUTH shape as createAdditionalOwner's own audit entry,
-    // plus which roster row this account now maps to.
+    // plus which roster row this account now maps to and which role
+    // preset it started with.
     await _auditRepository.log(
       action: 'CREATE',
       module: 'AUTH',
@@ -394,6 +426,7 @@ class AuthRepositoryImpl implements AuthRepository {
       details: {
         'created_full_name': newAccount.fullName,
         'linked_employee_id': employeeId,
+        'role': role.name,
       },
     );
     return newAccount;

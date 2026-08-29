@@ -49,4 +49,28 @@ abstract class BackupRepository {
   /// never touched by pruning — mirrors backup_service's own
   /// prune-only-scheduled behavior exactly.
   Future<BackupResult> runScheduledBackup({int keep = 14});
+
+  /// Backup & Restore (schemaVersion 10): brings a file the user picked
+  /// from anywhere on their device — a different app's export folder,
+  /// an SD card, a cloud-sync app's local copy, a file received over
+  /// email or chat — into this app's own managed backups, so it can go
+  /// through the exact same [restoreBackup] every other backup does.
+  /// This is the "pick a backup file from storage" half of Backup &
+  /// Restore's own task requirement; [listBackups] finding something
+  /// automatically in this app's own folder is the other half.
+  ///
+  /// [sourcePath] is a real filesystem path to the picked file (what a
+  /// file-picker plugin returns for a local file) — this repository
+  /// doesn't do the picking itself, same division of responsibility
+  /// [AuthRepository] and every presentation-layer caller already keep
+  /// elsewhere in this app. Validates the file actually looks like a
+  /// SQLite database (checks for SQLite's own 16-byte header magic)
+  /// before copying it in — rejects anything else with
+  /// [InvalidBackupFileName] rather than silently accepting a file
+  /// that would only fail confusingly later, inside [restoreBackup]
+  /// itself. The copy is stored under a freshly generated compliant
+  /// name (label 'imported') — [sourcePath]'s own filename is never
+  /// reused, since a file from outside this app has no reason to
+  /// already match [validateFileName]'s naming pattern.
+  Future<BackupResult> importBackupFile(String sourcePath);
 }

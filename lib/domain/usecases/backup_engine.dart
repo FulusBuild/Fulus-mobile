@@ -6,10 +6,19 @@ import '../entities/backup_record.dart';
 /// traversal guard, so all of it is directly unit-testable and so
 /// BackupRepositoryImpl (the only place touching real files) stays a
 /// thin adapter around this.
+///
+/// 'imported' (Backup & Restore, schemaVersion 10) is a fourth label —
+/// a file the user picked from outside this device's own backups
+/// folder (BackupRepository.importBackupFile), copied in under a fresh
+/// compliant name so it can go through the exact same [validateFileName]
+/// / restoreBackup path every other backup does. Never auto-pruned by
+/// [selectPruneCandidates], same as 'manual' and 'pre_restore_safety' —
+/// something the user explicitly brought in from elsewhere is exactly
+/// as deliberate a keep as a manual backup they made themselves.
 class BackupEngine {
   const BackupEngine();
 
-  static const _validLabels = {'manual', 'scheduled', 'pre_restore_safety'};
+  static const _validLabels = {'manual', 'scheduled', 'pre_restore_safety', 'imported'};
 
   /// BUG FIX (integration pass): this used to say "mirrors
   /// backup_service.create_backup's filename format exactly:

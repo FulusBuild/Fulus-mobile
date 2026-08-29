@@ -26,16 +26,28 @@ abstract class AuditRepository {
     Map<String, dynamic>? details,
   });
 
-  /// Owner-only (mirrors the backend's require_role(UserRole.ADMIN) on
-  /// GET /api/auth/audit-log exactly — Owner is this app's equivalent of
-  /// that role, per Volume 9's two-role model). Takes the caller's own
-  /// role explicitly rather than this repository holding a reference to
-  /// AuthRepository to look it up itself — AuthRepositoryImpl already
-  /// depends on AuditRepository (to log login/logout/account-creation
-  /// events), so the reverse dependency would make the two impossible to
-  /// construct at all. The enforcement itself doesn't move: this method
-  /// still throws AuthFailure.forbidden() itself if [requestingRole]
-  /// isn't owner — it just isn't the one looking that role up.
+  /// Owner-only by default (mirrors the backend's
+  /// require_role(UserRole.ADMIN) on GET /api/auth/audit-log exactly —
+  /// Owner is this app's equivalent of that role). Takes the caller's
+  /// own role explicitly rather than this repository holding a
+  /// reference to AuthRepository to look it up itself — AuthRepositoryImpl
+  /// already depends on AuditRepository (to log login/logout/account-
+  /// creation events), so the reverse dependency would make the two
+  /// impossible to construct at all. The enforcement itself doesn't
+  /// move: this method still throws AuthFailure.forbidden() itself if
+  /// [requestingRole] isn't owner and [hasAuditPermission] isn't true —
+  /// it just isn't the one looking either up.
+  ///
+  /// [hasAuditPermission] is the caller-computed result of
+  /// `PermissionRepository.hasPermission(..., permission:
+  /// Permission.viewAuditLog)` — this repository doesn't take a
+  /// PermissionRepository dependency itself for the same circularity
+  /// reason [requestingRole] isn't looked up here either: a future
+  /// PermissionRepositoryImpl that ever needed to audit-log a
+  /// permission change would create exactly the cycle this parameter
+  /// shape avoids. Defaults to false so any existing call built before
+  /// Roles & Permissions (schemaVersion 10) keeps its old owner-only
+  /// behavior unchanged.
   ///
   /// No total-count/pagination-metadata return yet (the backend's own
   /// paginate() helper provides one) — deliberately deferred, not
@@ -43,6 +55,7 @@ abstract class AuditRepository {
   /// exist), so there's nothing real to size that decision against yet.
   Future<List<AuditLogEntry>> getAuditLogs({
     required AuthRole requestingRole,
+    bool hasAuditPermission = false,
     String? module,
     String? userId,
     int page = 1,

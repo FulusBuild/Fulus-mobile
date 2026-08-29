@@ -32,12 +32,14 @@ import '../device_services/printing/printer_discovery_service.dart';
 import '../device_services/printing/receipt_printer_service.dart';
 import '../device_services/scanning/barcode_scanner_service.dart';
 import '../domain/entities/auth_user.dart';
+import '../domain/entities/permission.dart';
 import '../domain/repositories/approval_pin_repository.dart';
 import '../domain/repositories/audit_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/backup_repository.dart';
 import '../domain/repositories/business_settings_repository.dart';
 import '../domain/repositories/cash_drawer_shift_repository.dart';
+import '../domain/repositories/permission_repository.dart';
 import '../domain/repositories/customer_credit_repository.dart';
 import '../domain/repositories/customer_repository.dart';
 import '../domain/repositories/dashboard_repository.dart';
@@ -136,6 +138,34 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// well.
 final sessionProvider = StateProvider<AuthUser?>((ref) {
   return ref.watch(authRepositoryProvider).currentUser;
+});
+
+final permissionRepositoryProvider = Provider<PermissionRepository>((ref) {
+  throw UnimplementedError(
+    'permissionRepositoryProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+/// The signed-in session's effective permission set — Owner resolves to
+/// [Permission.all] without a lookup (mirrors PermissionRepository.
+/// hasPermission's own owner exemption), everyone else to whatever's
+/// actually stored. A `FutureProvider` that `ref.watch`es [sessionProvider]
+/// rather than a manually-updated StateProvider like [sessionProvider]
+/// itself, because — unlike a sign-in, which is always the thing that
+/// writes [sessionProvider] in the first place — nothing that changes
+/// this needs a matching "and now also update this provider" call at
+/// every edit site: an owner editing an employee's permissions can only
+/// happen while that employee's own session isn't the active one (they'd
+/// have to be signed out for the owner to reach the editor screen at
+/// all), so the next time that employee actually signs back in,
+/// [sessionProvider] changes for a real reason and this recomputes
+/// automatically alongside it. No case exists where this needs
+/// invalidating without [sessionProvider] also changing.
+final sessionPermissionsProvider = FutureProvider<Set<Permission>>((ref) async {
+  final user = ref.watch(sessionProvider);
+  if (user == null) return const {};
+  if (user.role == AuthRole.owner) return Permission.all;
+  return ref.watch(permissionRepositoryProvider).getPermissions(user.id);
 });
 
 final auditRepositoryProvider = Provider<AuditRepository>((ref) {

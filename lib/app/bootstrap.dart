@@ -45,6 +45,7 @@ import '../data/repositories/finance_stats_repository_impl.dart';
 import '../data/repositories/income_record_repository_impl.dart';
 import '../data/repositories/location_repository_impl.dart';
 import '../data/repositories/notification_repository_impl.dart';
+import '../data/repositories/permission_repository_impl.dart';
 import '../data/repositories/printer_repository_impl.dart';
 import '../data/repositories/product_repository_impl.dart';
 import '../data/repositories/receipt_repository_impl.dart';
@@ -172,6 +173,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // make the two impossible to construct.
   final auditRepository = AuditRepositoryImpl(db: database);
 
+  // Constructed before AuthRepositoryImpl for the same reason as
+  // auditRepository just above: AuthRepositoryImpl.createEmployeeAccount
+  // depends on this (to seed a new login's starting permission grant),
+  // and PermissionRepositoryImpl has no dependency back on AuthRepository
+  // at all.
+  final permissionRepository = PermissionRepositoryImpl(db: database);
+
   final authRepository = AuthRepositoryImpl(
     db: database,
     // Same Argon2PinHasher instance shape ApprovalPinRepositoryImpl
@@ -183,6 +191,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // needed instead).
     pinHasher: const Argon2PinHasher(),
     auditRepository: auditRepository,
+    permissionRepository: permissionRepository,
   );
 
   // restoreSession() is a plain local Sessions + Users table lookup, no
@@ -327,6 +336,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     db: database,
     businessSettingsApi: businessSettingsApi,
     authRepository: authRepository,
+    permissionRepository: permissionRepository,
   );
 
   // Closes the "no location-resolution mechanism exists anywhere in the
@@ -535,6 +545,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       authApiProvider.overrideWithValue(authApi),
       auditRepositoryProvider.overrideWithValue(auditRepository),
       authRepositoryProvider.overrideWithValue(authRepository),
+      permissionRepositoryProvider.overrideWithValue(permissionRepository),
       approvalPinRepositoryProvider.overrideWithValue(approvalPinRepository),
       salesApiProvider.overrideWithValue(salesApi),
       customersApiProvider.overrideWithValue(customersApi),

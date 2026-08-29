@@ -102,7 +102,7 @@ class BackupRepositoryImpl implements BackupRepository {
   /// prune rule, which filters by this same prefix match directly in
   /// [runScheduledBackup], not by round-tripping through this parse.
   String _labelFromFileName(String fileName) {
-    for (final label in const ['pre_restore_safety', 'scheduled', 'manual']) {
+    for (final label in const ['pre_restore_safety', 'scheduled', 'imported', 'manual']) {
       if (fileName.startsWith('fulus_${label}_') || fileName.startsWith('bms_${label}_')) {
         return label;
       }
@@ -184,5 +184,44 @@ class BackupRepositoryImpl implements BackupRepository {
       await deleteBackup(backup.fileName);
     }
     return result;
+  }
+
+  @override
+  Future<BackupResult> importBackupFile(String sourcePath) async {
+    final source = File(sourcePath);
+    if (!await source.exists()) {
+      throw const BackupException('Selected file could not be found.');
+    }
+
+    // SQLite's own on-disk format starts every valid database file with
+    // this exact 16-byte magic header (the C library's own documented
+    // guarantee, not something specific to this app) — checked before
+    // ever touching the live database, so a wrong file (a stray photo,
+    // a renamed .txt, someone else's export in a different format) is
+    // rejected right here with a clear reason instead of failing deep
+    // inside restoreBackup with a raw SQLite error.
+    const header = 'SQLite format 3\u0000';
+    final raf = await source.open();
+    List<int> bytes;
+    try {
+      bytes = await raf.read(header.length);
+    } finally {
+      await raf.close();
+    }
+    final looksLikeSqlite = bytes.length == header.length && String.fromCharCodes(bytes) == header;
+    if (!looksLikeSqlite) {
+      throw const BackupException(
+        "That file doesn't look like a Fulus backup.",
+      );
+    }
+
+    final now = DateTime.now().toUtc();
+    final fileName = _engine.buildFileName(label: 'imported', createdAtUtc: now);
+    final destPath = p.join((await _backupDir()).path, fileName);
+    await source.copy(destPath);
+
+    final size = await File(destPath).length();
+    final metadata = BackupMetadata(fileName: fileName, label: 'imported', createdAt: now, sizeBytes: size);
+    return BackupResult(metadata: metadata);
   }
 }

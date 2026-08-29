@@ -41,17 +41,44 @@ class AuthUser {
   final bool hasLoginPin;
 }
 
-/// The Bible's actual two-role product model (Volume 9), not the
-/// backend's four-value admin/manager/staff/cashier vocabulary. Was
-/// previously kept as a plain String specifically because "nothing in
-/// this phase branches on role yet" and the backend was the vocabulary's
-/// source of truth; both of those reasons are gone now — the local
-/// Business Engine's own permission checks are the actual enforcement
-/// (see failure.dart's AuthFailure.forbidden doc comment) and there's no
-/// external system left to defer the vocabulary to. A real enum,
-/// exhaustively switched on wherever a permission check happens, is
-/// strictly safer than a String that could silently be any value.
+/// Was the Bible's original two-role product model (Volume 9): just
+/// `owner`/`employee`, with `employee` a single fixed permission
+/// bundle. `manager` and `cashier` are added presets, not a return to
+/// the backend's old four-value admin/manager/staff/cashier vocabulary
+/// — the actual enforcement is no longer "which of these four values is
+/// this," it's the granular grant in domain/entities/permission.dart's
+/// `Permission` set (see PermissionRepository). AuthRole's job now is
+/// narrower than it used to be: (a) `owner` remains the one
+/// structurally-exempt value that no permissions table can ever
+/// restrict (every `hasPermission` check special-cases it first,
+/// deliberately never by checking a stored grant), and (b) every other
+/// value is just the *starting* permission bundle a login gets the
+/// moment it's created (`Permission.defaultsForRole`) — after that,
+/// the owner can add or remove individual permissions freely, and the
+/// login's actual capabilities live in the permissions table, not in
+/// which of these four names it was assigned.
+///
+/// `employee` is kept, not removed, for backward compatibility: every
+/// login created before this enum grew `manager`/`cashier` already has
+/// `employee` persisted (Users.role is a `textEnum`, stored by name),
+/// and it remains a legitimate fourth choice for a login that doesn't
+/// fit either preset — it defaults to the old hard-coded employee
+/// bundle (Stock + Sell only) rather than to Cashier's or Manager's.
+///
+/// Still a real enum rather than a String, for the same reason as
+/// before — see failure.dart's AuthFailure.forbidden doc comment.
+/// Note this codebase's existing AuthRole call sites were all plain
+/// `== AuthRole.owner` / `!= AuthRole.owner` checks, not exhaustive
+/// switches, when `manager`/`cashier` were added here — so unlike
+/// Permission.defaultsForRole's switch (which the compiler forced to
+/// handle both new values), those call sites needed a manual audit,
+/// not a compiler error, to confirm each one still does the right
+/// thing for a Manager or Cashier login. That audit is what changed
+/// each of them from "is this literally an owner" to a real permission
+/// check wherever the two now mean different things.
 enum AuthRole {
   owner,
   employee,
+  manager,
+  cashier,
 }

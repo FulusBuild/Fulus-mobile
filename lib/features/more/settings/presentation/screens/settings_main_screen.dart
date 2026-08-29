@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/failure.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/business_settings.dart';
+import '../../../../../domain/entities/permission.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
 /// Gap fix — the More screen's own header comment called this out by
@@ -22,6 +24,19 @@ import '../../../../../shared/widgets/widgets.dart';
 /// provider exists for it yet, and building one is a separate, real
 /// feature, not a Settings-hub wiring task like everything else on this
 /// screen.
+///
+/// Roles & Permissions (schemaVersion 10): this hub is reachable by a
+/// non-owner login now (router.dart's `_permissionsForMoreRoute` lets
+/// either `Permission.manageSettings` or `Permission.manageBackup`
+/// through the door), so Business/Printers/Sync/Locations gate
+/// themselves on the former and Backup on the latter — deliberately
+/// independent grants, not one implying the other, same reasoning
+/// Permission.manageBackup's own doc comment gives. Change approval
+/// PIN, App lock, and Log out stay visible to anyone who reaches this
+/// screen at all: those are about the signed-in login's own device
+/// security, not business configuration, so gating them the same way
+/// would block a Manager from managing their own PIN for no reason
+/// tied to what either permission is actually about.
 class SettingsMainScreen extends ConsumerStatefulWidget {
   const SettingsMainScreen({super.key});
 
@@ -34,6 +49,12 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(sessionProvider);
+    final isOwner = user?.role == AuthRole.owner;
+    final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+    final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
+    final canManageBackup = isOwner || permissions.contains(Permission.manageBackup);
+
     return FulusScreen(
       title: 'Settings',
       body: FutureBuilder<BusinessProfile?>(
@@ -53,38 +74,47 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
           final profile = snap.data;
           return ListView(
             children: [
-              FulusSectionHeader(title: 'Business'),
-              if (profile != null) _BusinessInfoForm(profile: profile),
-              const SizedBox(height: AppSpacing.lg),
-              FulusSectionHeader(title: 'Devices & data'),
-              FulusListRow(
-                leading: const Icon(Icons.print_outlined),
-                title: const Text('Printers'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.pushNamed('moreSettingsPrinters'),
-              ),
-              const FulusListDivider(indented: false),
-              FulusListRow(
-                leading: const Icon(Icons.sync_outlined),
-                title: const Text('Sync'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.pushNamed('moreSyncDetail'),
-              ),
-              const FulusListDivider(indented: false),
-              FulusListRow(
-                leading: const Icon(Icons.backup_outlined),
-                title: const Text('Backup'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.pushNamed('moreSettingsBackup'),
-              ),
-              const FulusListDivider(indented: false),
-              FulusListRow(
-                leading: const Icon(Icons.storefront_outlined),
-                title: const Text('Locations'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.pushNamed('moreSettingsLocations'),
-              ),
-              const SizedBox(height: AppSpacing.lg),
+              if (canManageSettings) ...[
+                FulusSectionHeader(title: 'Business'),
+                if (profile != null) _BusinessInfoForm(profile: profile),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (canManageSettings || canManageBackup) ...[
+                FulusSectionHeader(title: 'Devices & data'),
+                if (canManageSettings) ...[
+                  FulusListRow(
+                    leading: const Icon(Icons.print_outlined),
+                    title: const Text('Printers'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.pushNamed('moreSettingsPrinters'),
+                  ),
+                  const FulusListDivider(indented: false),
+                  FulusListRow(
+                    leading: const Icon(Icons.sync_outlined),
+                    title: const Text('Sync'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.pushNamed('moreSyncDetail'),
+                  ),
+                  const FulusListDivider(indented: false),
+                ],
+                if (canManageBackup) ...[
+                  FulusListRow(
+                    leading: const Icon(Icons.backup_outlined),
+                    title: const Text('Backup'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.pushNamed('moreSettingsBackup'),
+                  ),
+                  const FulusListDivider(indented: false),
+                ],
+                if (canManageSettings)
+                  FulusListRow(
+                    leading: const Icon(Icons.storefront_outlined),
+                    title: const Text('Locations'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.pushNamed('moreSettingsLocations'),
+                  ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               FulusSectionHeader(title: 'Security'),
               FulusListRow(
                 leading: const Icon(Icons.password_outlined),

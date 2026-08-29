@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
+import '../core/theme/device_form_factor.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
@@ -17,18 +18,31 @@ import 'providers.dart';
 /// This widget owns navigation chrome only — it has no opinion on auth;
 /// router.dart gates the entire shell behind a signed-in check before
 /// ever building this, so by the time this widget exists, a session is
-/// assumed to be real. [isOwner] is the one piece of session state it
-/// does need directly, though: Volume 2's Decision 6 — "the navigation
-/// structure itself is generated per role, so an employee login never
-/// renders tabs it doesn't need" — Money and More are both owner-only
+/// assumed to be real. [showMoneyTab] is the one piece of session state
+/// it does need directly, though: Volume 2's Decision 6 — "the
+/// navigation structure itself is generated per role, so an employee
+/// login never renders tabs it doesn't need" — Money was owner-only
 /// (Volume 9: "An Employee login never sees Money, Reports, Employees,
 /// or Settings at all — not grayed out, not present-but-locked, simply
-/// not rendered"), so an Employee session gets a 3-item bar (Home,
-/// Stock, Sell), not a 5-item bar with two disabled buttons. Hiding the
-/// buttons is only half of Decision 6's enforcement — router.dart's
-/// top-level `redirect` is the other half, blocking direct navigation
-/// to `/money` or `/more` for an Employee session even if nothing in
-/// this UI offers a way to tap there.
+/// not rendered"). Roles & Permissions (schemaVersion 10) replaces that
+/// blanket rule with `Permission.viewMoney`, granted or withheld per
+/// login rather than fixed to "is this literally an owner" — the caller
+/// (router.dart's `_ShellGate`) resolves that check and passes the
+/// result in here as a plain bool, keeping this widget itself free of
+/// any AuthRole/Permission-shaped decision.
+///
+/// More stays unconditionally visible now, for every signed-in role —
+/// unlike Money, it was never all-or-nothing to begin with even under
+/// the original two-role model: Notifications and Diagnostics under it
+/// were always meant to be reachable informational screens, not
+/// business-sensitive ones, and the individually-restricted rows inside
+/// it (Employees, Reports, Settings, Backup) now hide themselves per
+/// permission (see `_MoreScreen`) rather than the whole tab needing to
+/// disappear to protect them. Hiding the buttons is only half of
+/// Decision 6's enforcement either way — router.dart's top-level
+/// `redirect` is the other half, blocking direct navigation to a
+/// restricted route even if nothing in this UI offers a way to tap
+/// there.
 ///
 /// Stock's employee-visibility is genuinely ambiguous in the source
 /// material — Decision 6 and Volume 9 both name Money, Reports,
@@ -60,14 +74,45 @@ import 'providers.dart';
 /// full-screen interstitial... reassuring, not alarming") reads as
 /// wanting it noticeable, not just a small icon someone has to go
 /// looking for.
+///
+/// **Tablet Support.** [navigationShell] itself is centered and capped
+/// at [_maxContentWidth] on a tablet-width window ([isTabletWidth]) —
+/// the one shell-level layout change that benefits every single screen
+/// in the app at once, rather than requiring each of them to separately
+/// notice it's running on a wide window. Deliberately the extent of
+/// this pass's tablet-specific layout work, not a rewrite of every
+/// screen: the bottom nav bar itself, and every individual screen's own
+/// internal layout, are untouched either way and keep rendering exactly
+/// as they do on a phone, just inside a narrower, centered column
+/// instead of stretched edge-to-edge — the safe, additive foundation
+/// [isTabletWidth]'s own doc comment describes, for later screen-by-
+/// screen work (a Home/Reports two-column layout, a master-detail
+/// Employees/Products list) to build on without this shell needing to
+/// change again. A phone-width window (`isTabletWidth` false) takes the
+/// `else` branch below and is completely unaffected — this cannot
+/// change anything about the current Android/phone experience by
+/// construction, since that branch is byte-for-byte what this method
+/// returned before this change existed.
 class FulusAppShell extends StatelessWidget {
-  const FulusAppShell({super.key, required this.navigationShell, required this.isOwner});
+  const FulusAppShell({super.key, required this.navigationShell, required this.showMoneyTab});
 
   final StatefulNavigationShell navigationShell;
-  final bool isOwner;
+  final bool showMoneyTab;
+
+  static const _maxContentWidth = 840.0;
 
   @override
   Widget build(BuildContext context) {
+    final content = isTabletWidth(context)
+        ? Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+              child: navigationShell,
+            ),
+          )
+        : navigationShell;
+
     return Scaffold(
       body: Column(
         children: [
@@ -75,7 +120,7 @@ class FulusAppShell extends StatelessWidget {
           Expanded(
             child: Stack(
               children: [
-                navigationShell,
+                content,
                 const Positioned(top: 0, right: 0, child: SafeArea(child: _SyncStatusIndicator())),
               ],
             ),
@@ -84,7 +129,7 @@ class FulusAppShell extends StatelessWidget {
       ),
       bottomNavigationBar: _FulusBottomNav(
         currentIndex: navigationShell.currentIndex,
-        isOwner: isOwner,
+        showMoneyTab: showMoneyTab,
         // `initialLocation: true` when re-tapping the already-active
         // tab pops that branch back to its own root, matching the
         // Bible's implicit assumption that tapping a nav icon always
@@ -259,11 +304,11 @@ class FulusNavBranch {
 }
 
 class _FulusBottomNav extends StatelessWidget {
-  const _FulusBottomNav({required this.currentIndex, required this.onTap, required this.isOwner});
+  const _FulusBottomNav({required this.currentIndex, required this.onTap, required this.showMoneyTab});
 
   final int currentIndex;
   final ValueChanged<int> onTap;
-  final bool isOwner;
+  final bool showMoneyTab;
 
   static const _barHeight = 64.0;
   static const _sellDiameter = 54.0;
@@ -286,32 +331,29 @@ class _FulusBottomNav extends StatelessWidget {
         onTap: () => onTap(FulusNavBranch.stock),
       ),
     ];
-    // Empty for an Employee session — see this class's own doc comment
-    // and FulusAppShell's for why. An empty right side still keeps the
-    // Sell button centered (below, both halves are equal-width
-    // Expandeds regardless of how many items populate them), it just
-    // leaves the right half of the bar blank rather than attempting to
-    // rebalance Home/Stock across the full width — the simplest correct
-    // layout without a device to visually check a rebalanced version
-    // against.
-    final rightItems = isOwner
-        ? [
-            _NavItem(
-              icon: Icons.account_balance_wallet_outlined,
-              filledIcon: Icons.account_balance_wallet,
-              label: 'Money',
-              selected: currentIndex == FulusNavBranch.money,
-              onTap: () => onTap(FulusNavBranch.money),
-            ),
-            _NavItem(
-              icon: Icons.more_horiz,
-              filledIcon: Icons.more_horiz,
-              label: 'More',
-              selected: currentIndex == FulusNavBranch.more,
-              onTap: () => onTap(FulusNavBranch.more),
-            ),
-          ]
-        : const <Widget>[];
+    // Money is the one item that's ever absent from the right side now
+    // — see this class's own doc comment and FulusAppShell's for why
+    // More no longer varies the same way. A missing Money button still
+    // keeps More's icon centered under the same equal-width-Expandeds
+    // layout described below; it just leaves a one-item right side
+    // instead of two.
+    final rightItems = [
+      if (showMoneyTab)
+        _NavItem(
+          icon: Icons.account_balance_wallet_outlined,
+          filledIcon: Icons.account_balance_wallet,
+          label: 'Money',
+          selected: currentIndex == FulusNavBranch.money,
+          onTap: () => onTap(FulusNavBranch.money),
+        ),
+      _NavItem(
+        icon: Icons.more_horiz,
+        filledIcon: Icons.more_horiz,
+        label: 'More',
+        selected: currentIndex == FulusNavBranch.more,
+        onTap: () => onTap(FulusNavBranch.more),
+      ),
+    ];
 
     // Extra headroom above the bar so the Sell button's circle can
     // "break the baseline" (5.5) rather than sit flush inside the bar

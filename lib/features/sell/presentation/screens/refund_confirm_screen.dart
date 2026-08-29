@@ -7,6 +7,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/return_request.dart';
 import '../../../../domain/entities/sale.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -22,10 +23,15 @@ const _refundMethods = [
 
 /// Volume 5's Refund Confirm — select which lines and how much of each
 /// to return, against real eligibility (a line already partially
-/// returned can't be over-returned), then commit. Employee-initiated
-/// refunds reuse [requireOwnerApproval] — the same PIN mechanism Stock
-/// Out/Adjustment already uses — per Volume 5: "an employee-initiated
-/// refund requires the same owner approval."
+/// returned can't be over-returned), then commit. A non-owner login
+/// without `Permission.approveWithoutSupervisor` reuses
+/// [requireOwnerApproval] — the same PIN mechanism Stock Out/Adjustment
+/// already uses — per Volume 5: "an employee-initiated refund requires
+/// the same owner approval." Roles & Permissions (schemaVersion 10):
+/// this used to trigger on `role == AuthRole.employee` specifically;
+/// now it's the permission grant that decides, so an owner can trust a
+/// Manager with skipping this PIN while still requiring it from a
+/// Cashier — see Permission.approveWithoutSupervisor's own doc comment.
 class RefundConfirmScreen extends ConsumerStatefulWidget {
   const RefundConfirmScreen({super.key, required this.saleId});
   final String saleId;
@@ -183,8 +189,15 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
     }
 
     final user = ref.read(sessionProvider);
-    final isEmployee = user?.role == AuthRole.employee;
-    if (isEmployee) {
+    final needsApproval = user != null &&
+        user.role != AuthRole.owner &&
+        !(await ref.read(permissionRepositoryProvider).hasPermission(
+              userId: user.id,
+              role: user.role,
+              permission: Permission.approveWithoutSupervisor,
+            ));
+    if (!mounted) return;
+    if (needsApproval) {
       final approved = await requireOwnerApproval(context, ref);
       if (!mounted) return;
       if (!approved) return;

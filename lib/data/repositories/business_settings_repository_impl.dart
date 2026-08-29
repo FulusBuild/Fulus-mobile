@@ -4,8 +4,10 @@ import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/business_category.dart';
 import '../../domain/entities/business_settings.dart';
+import '../../domain/entities/permission.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/business_settings_repository.dart';
+import '../../domain/repositories/permission_repository.dart';
 import '../local/database/database.dart';
 import '../remote/endpoints/business_settings_api.dart';
 import 'business_settings_mapper.dart';
@@ -15,9 +17,11 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
     required AppDatabase db,
     required BusinessSettingsApi businessSettingsApi,
     required AuthRepository authRepository,
+    required PermissionRepository permissionRepository,
   })  : _db = db,
         _businessSettingsApi = businessSettingsApi,
-        _authRepository = authRepository;
+        _authRepository = authRepository,
+        _permissionRepository = permissionRepository;
 
   final AppDatabase _db;
   final BusinessSettingsApi _businessSettingsApi;
@@ -26,7 +30,10 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
   // risk here, since nothing AuthRepositoryImpl depends on depends back
   // on this class, so there's no reason to push the role-lookup out to
   // every call site the way Audit's genuine circular dependency forced.
+  // Same reasoning covers the added PermissionRepository dependency
+  // below.
   final AuthRepository _authRepository;
+  final PermissionRepository _permissionRepository;
 
   @override
   Stream<BusinessProfile?> watchSettings() {
@@ -85,8 +92,19 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
     String? receiptFooter,
   }) async {
     // The local check IS the real enforcement now — see
-    // AuthFailure.forbidden's doc comment in failure.dart.
-    if (_authRepository.currentUser?.role != AuthRole.owner) {
+    // AuthFailure.forbidden's doc comment in failure.dart. Roles &
+    // Permissions (schemaVersion 10): was a raw `role != AuthRole.owner`
+    // check; now it's Permission.manageSettings, which an owner always
+    // has (the usual structural exemption) and a Manager can now be
+    // granted too.
+    final user = _authRepository.currentUser;
+    final allowed = user != null &&
+        await _permissionRepository.hasPermission(
+          userId: user.id,
+          role: user.role,
+          permission: Permission.manageSettings,
+        );
+    if (!allowed) {
       throw const AuthFailure.forbidden();
     }
 

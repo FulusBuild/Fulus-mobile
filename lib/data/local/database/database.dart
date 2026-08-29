@@ -8,9 +8,11 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../domain/entities/app_notification.dart';
 import '../../../domain/entities/auth_user.dart';
+import '../../../domain/entities/permission.dart';
 import '../../../domain/entities/printer_device.dart';
 import 'tables.dart';
 import 'tables/employee_tables.dart';
+import 'tables/permission_tables.dart';
 
 part 'database.g.dart';
 
@@ -108,6 +110,15 @@ part 'database.g.dart';
 /// table had no other shape before today), so relaxing the constraint
 /// changes nothing about what's already stored — it only changes what
 /// a NEW row is allowed to omit going forward.
+///
+/// NINTH NOTE (Roles & Permissions): schemaVersion is 10. One new
+/// table, `UserPermissions` — see tables/permission_tables.dart's own
+/// doc comment. `AuthRole` itself gains `manager`/`cashier` values
+/// (auth_user.dart) but that needs no migration at all: Users.role is
+/// a `textEnum`, stored by the enum member's name, and adding new
+/// names to an existing enum doesn't touch how already-stored names
+/// are read back — every existing `owner`/`employee` row keeps meaning
+/// exactly what it always meant.
 @DriftDatabase(
   tables: [
     Locations,
@@ -150,6 +161,9 @@ part 'database.g.dart';
     // comment on DiagnosticEvents for why this also isn't a
     // SyncableColumns table.
     DiagnosticEvents,
+    // Roles & Permissions — see tables/permission_tables.dart's own doc
+    // comment for why this also isn't a SyncableColumns table.
+    UserPermissions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -187,7 +201,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -380,6 +394,12 @@ class AppDatabase extends _$AppDatabase {
               newColumns: [users.loginPinHash, users.loginPinSalt],
             ),
           );
+        }
+        if (from < 10) {
+          // One new table, no existing data touched — see this class's
+          // own NINTH NOTE above and permission_tables.dart's own doc
+          // comment on UserPermissions.
+          await m.createTable(userPermissions);
         }
       },
       beforeOpen: (details) async {

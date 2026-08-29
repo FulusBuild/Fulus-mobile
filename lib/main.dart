@@ -9,6 +9,7 @@ import 'app/bootstrap.dart';
 import 'core/diagnostics/capture/global_error_capture.dart';
 import 'core/diagnostics/diagnostic_logger.dart';
 import 'core/diagnostics/models/diagnostic_enums.dart';
+import 'core/theme/device_form_factor.dart';
 
 /// Entry point. Deliberately thin — every real decision (DB open order,
 /// DI wiring, WorkManager registration) lives in bootstrap.dart per
@@ -65,17 +66,18 @@ Future<void> main() async {
       // Phones lock to portrait (rotating the phone shouldn't flip the
       // whole UI to landscape — bug report); tablets don't, deliberately
       // — Fulus's stated direction is the same app working properly on
-      // iPad later, and a blanket portrait lock here would foreclose
-      // that before it's even built. WidgetsBinding.platformDispatcher
-      // is available this early (no widget tree/context needed yet);
-      // 600 logical pixels on the shortest side is the standard
-      // Material breakpoint this app's own responsive code should
-      // eventually match, so tablet detection stays consistent as that
-      // work happens rather than drifting from a second, differently-
-      // tuned threshold picked here in isolation.
+      // Android tablets later (Tablet Support), and a blanket portrait
+      // lock here would foreclose that before it's even built.
+      // WidgetsBinding.platformDispatcher is available this early (no
+      // widget tree/context needed yet), so this can't call
+      // [isTabletWidth] (core/theme/device_form_factor.dart), which
+      // needs a BuildContext/MediaQuery — but it uses that same file's
+      // [kTabletBreakpoint] constant directly, so the two checks can
+      // never drift to differently-tuned thresholds even though one of
+      // them has to run before the other's own function is callable.
       final view = WidgetsBinding.instance.platformDispatcher.views.first;
       final logicalSize = view.physicalSize / view.devicePixelRatio;
-      final isTablet = logicalSize.shortestSide >= 600;
+      final isTablet = logicalSize.shortestSide >= kTabletBreakpoint;
       if (!isTablet) {
         await SystemChrome.setPreferredOrientations([
           DeviceOrientation.portraitUp,

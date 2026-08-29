@@ -9,6 +9,7 @@ import '../core/theme/design_tokens.dart';
 import '../domain/entities/app_notification.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/customer.dart';
+import '../domain/entities/permission.dart';
 import '../domain/entities/product.dart';
 import '../domain/entities/supplier.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
@@ -111,6 +112,23 @@ import 'providers.dart';
 ///   `redirect` below is what actually blocks reaching those routes,
 ///   the same way a direct call bypassing the UI has to be rejected too.
 ///
+/// **Roles & Permissions (schemaVersion 10)**: the blanket "Employee ⇒
+/// blocked from `/money` and everything under `/more`" rule above is
+/// gone — replaced with a real per-[Permission] check against
+/// [PermissionRepository], same owner-is-structurally-exempt shortcut
+/// that repository's own `hasPermission` applies. `redirect` is `async`
+/// now (go_router's `GoRouterRedirect` has always allowed
+/// `FutureOr<String?>`) specifically so this can await a real
+/// permission lookup rather than relying on some other widget having
+/// already warmed [sessionPermissionsProvider]'s cache by the time
+/// navigation happens — the one thing actually gating a route should
+/// never depend on unrelated UI having rendered first. `/more` itself
+/// (the menu screen) and its Notifications/Diagnostics subroutes need
+/// no permission at all now — see `_permissionForMoreRoute` below and
+/// `_MoreScreen`'s own doc comment for why those two stayed
+/// unrestricted even as everything else under `/more` became
+/// individually gated.
+///
 /// **Foundation follow-up (Money)**: `/money` and everything under it
 /// (History, Transaction Detail, Add Income/Expense, Customers/
 /// Suppliers credit books, Daily Closing) are real screens now, not a
@@ -130,16 +148,25 @@ import 'providers.dart';
 final appRouter = GoRouter(
   initialLocation: '/',
   observers: [CurrentScreenObserver()],
-  redirect: (context, state) {
-    final user = ProviderScope.containerOf(context, listen: false).read(sessionProvider);
+  redirect: (context, state) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final user = container.read(sessionProvider);
     if (user == null || user.role == AuthRole.owner) return null;
-    // Employee session — Stock stays reachable (see app_shell.dart's
-    // own doc comment on why that one is a deliberately conservative
-    // reading, not a confirmed spec decision); Money and everything
-    // under More do not.
-    final blockedForEmployee =
-        state.matchedLocation.startsWith('/money') || state.matchedLocation.startsWith('/more');
-    return blockedForEmployee ? '/' : null;
+
+    final location = state.matchedLocation;
+    final requiredPermissions = location.startsWith('/money')
+        ? {Permission.viewMoney}
+        : location.startsWith('/more')
+            ? _permissionsForMoreRoute(location)
+            : const <Permission>{};
+    if (requiredPermissions.isEmpty) return null;
+
+    final permissionRepo = container.read(permissionRepositoryProvider);
+    for (final permission in requiredPermissions) {
+      final allowed = await permissionRepo.hasPermission(userId: user.id, role: user.role, permission: permission);
+      if (allowed) return null;
+    }
+    return '/';
   },
   routes: [
     StatefulShellRoute.indexedStack(
@@ -156,17 +183,24 @@ final appRouter = GoRouter(
               // testability in isolation) — the shell above already
               // guarantees a signed-in user by the time this builds,
               // but this Consumer stays as the one line that resolves
-              // the actual id/role HomeScreen needs, and as a
-              // defensive fallback if that guarantee is ever violated.
+              // the actual id/role/permission HomeScreen needs, and as
+              // a defensive fallback if that guarantee is ever
+              // violated. canViewDashboardStats resolves the same
+              // sessionPermissionsProvider _ShellGate and the redirect
+              // above both read from — .valueOrNull defaults to false
+              // for the same fail-closed reason _ShellGate's own read
+              // of it does.
               builder: (context, state) => Consumer(
                 builder: (context, ref, _) {
                   final user = ref.watch(sessionProvider);
                   if (user == null) {
                     return const AuthGateScreen();
                   }
+                  final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
                   return HomeScreen(
                     currentAuthUserId: user.id,
                     isOwner: user.role == AuthRole.owner,
+                    canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
                   );
                 },
               ),
@@ -473,6 +507,38 @@ final appRouter = GoRouter(
   ],
 );
 
+/// Which [Permission](s) unlock a `/more`-prefixed route — an empty
+/// result means open to any signed-in user, a non-empty one means
+/// "needs at least one of these" (almost always exactly one; see the
+/// `/more/settings` case for why it's ever more than that). Order
+/// matters: the more specific `settings/backup` check has to run
+/// before the general `settings` prefix, since the general prefix
+/// would otherwise match backup's path too.
+///
+/// `/more` itself and its Notifications/Diagnostics subroutes fall
+/// through to the empty set deliberately — they're informational, not
+/// business-sensitive, the same reasoning FulusAppShell's own doc
+/// comment gives for why More stays visible to every role now.
+Set<Permission> _permissionsForMoreRoute(String location) {
+  if (location.startsWith('/more/employees')) return {Permission.manageEmployees};
+  if (location.startsWith('/more/reports')) return {Permission.viewReports};
+  if (location.startsWith('/more/settings/backup')) return {Permission.manageBackup};
+  if (location == '/more/settings') {
+    // The settings hub itself, not any of its subroutes — reachable
+    // with either the general manageSettings grant or, on its own,
+    // manageBackup: Backup lives as a row inside this hub screen (see
+    // settings_main_screen.dart), and an owner may trust a Manager
+    // with just backup/restore without handing them the rest of
+    // Settings. That screen hides every other row for a
+    // manageBackup-only visitor itself — this only has to get them
+    // through the door.
+    return {Permission.manageSettings, Permission.manageBackup};
+  }
+  if (location.startsWith('/more/settings')) return {Permission.manageSettings};
+  if (location.startsWith('/more/sync')) return {Permission.manageSettings};
+  return const {};
+}
+
 /// Resolves to exactly one of four things, in order: [AuthGateScreen]
 /// (signed out), [OwnerSetupScreen] resumed at its business step
 /// (signed in as an owner with no business configured — the
@@ -516,7 +582,20 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       return const AuthGateScreen();
     }
     if (user.role != AuthRole.owner) {
-      return FulusAppShell(navigationShell: widget.navigationShell, isOwner: false);
+      // Owner's `showMoneyTab: true` below needs no lookup at all (see
+      // FulusAppShell's own doc comment on the owner exemption); a
+      // non-owner session does, via the same sessionPermissionsProvider
+      // the redirect above and _MoreScreen below both read from.
+      // .valueOrNull defaults to false while the very first lookup for
+      // a freshly-switched-in session is still resolving, which is the
+      // fail-closed direction to default to for a nav button that would
+      // otherwise flash visible then disappear once the real answer
+      // arrives.
+      final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+      return FulusAppShell(
+        navigationShell: widget.navigationShell,
+        showMoneyTab: permissions.contains(Permission.viewMoney),
+      );
     }
 
     if (!identical(_futureBuiltForUser, user)) {
@@ -551,12 +630,12 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
           case PostSignInStage.showFirstSaleIntro:
             final introSeen = ref.watch(firstSaleIntroSeenProvider);
             return introSeen
-                ? FulusAppShell(navigationShell: widget.navigationShell, isOwner: true)
+                ? FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true)
                 : const FirstSaleIntroScreen();
           case PostSignInStage.showFirstRunPrompt:
             return const FirstRunSetupScreen();
           case PostSignInStage.enterShell:
-            return FulusAppShell(navigationShell: widget.navigationShell, isOwner: true);
+            return FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true);
         }
       },
     );
@@ -573,34 +652,54 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
 /// as undone — Business info, Printers, Sync, Security — now exists at
 /// SettingsMainScreen; the on-screen "Not yet built" text below is
 /// replaced with a real link to it.
-class _MoreScreen extends StatelessWidget {
+class _MoreScreen extends ConsumerWidget {
   const _MoreScreen();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionProvider);
+    final isOwner = user?.role == AuthRole.owner;
+    // Same fail-closed default as _ShellGate's own read of this — see
+    // that widget's own comment. Owner never needs this at all (every
+    // `isOwner ||` check below short-circuits before it matters).
+    final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+
     return FulusScreen(
       title: 'More',
       applyPadding: false,
       body: ListView(
         children: [
-          FulusListRow(
-            title: const Text('Employees'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.goNamed('moreEmployees'),
-          ),
-          const FulusListDivider(indented: false),
-          FulusListRow(
-            title: const Text('Reports'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.goNamed('moreReports'),
-          ),
-          const FulusListDivider(indented: false),
-          FulusListRow(
-            title: const Text('Settings'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.goNamed('moreSettings'),
-          ),
-          const FulusListDivider(indented: false),
+          // Employees/Reports/Settings hide themselves entirely now,
+          // rather than this screen being reachable only once every row
+          // on it was already guaranteed visible — see
+          // _permissionForMoreRoute's own doc comment for the matching
+          // enforcement half of this (a hidden row alone isn't real
+          // enforcement, same point app_shell.dart's own doc comment
+          // makes about hidden nav buttons).
+          if (isOwner || permissions.contains(Permission.manageEmployees)) ...[
+            FulusListRow(
+              title: const Text('Employees'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.goNamed('moreEmployees'),
+            ),
+            const FulusListDivider(indented: false),
+          ],
+          if (isOwner || permissions.contains(Permission.viewReports)) ...[
+            FulusListRow(
+              title: const Text('Reports'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.goNamed('moreReports'),
+            ),
+            const FulusListDivider(indented: false),
+          ],
+          if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup)) ...[
+            FulusListRow(
+              title: const Text('Settings'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.goNamed('moreSettings'),
+            ),
+            const FulusListDivider(indented: false),
+          ],
           Consumer(
             builder: (context, ref, _) {
               final notificationsAsync = ref.watch(_moreNotificationsProvider);

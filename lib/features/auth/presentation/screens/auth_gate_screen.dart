@@ -5,6 +5,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_routing.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../shared/widgets/widgets.dart';
+import 'backup_restore_decision_screen.dart';
 import 'get_started_screen.dart';
 import 'identity_picker_screen.dart';
 import 'restore_progress_screen.dart';
@@ -39,10 +40,23 @@ import 'restore_progress_screen.dart';
 /// repository method that doesn't exist would be inventing a parallel
 /// auth system rather than tracing the real one — so every device
 /// without an owner account and no local business data lands in
-/// [GetStartedScreen], and every subsequent same-device switch goes
-/// through [IdentityPickerScreen] — see AuthRepository.switchLocalUser's
-/// own doc comment for why that replaced a username+password sign-in
+/// [GetStartedScreen] (or, since Backup & Restore below,
+/// [BackupRestoreDecisionScreen] first if a backup is actually
+/// detected), and every subsequent same-device switch goes through
+/// [IdentityPickerScreen] — see AuthRepository.switchLocalUser's own
+/// doc comment for why that replaced a username+password sign-in
 /// screen entirely as of the onboarding-simplification pass.
+///
+/// **Backup & Restore.** [AuthGateStage.needsBackupDecision] is the
+/// fresh-reinstall case Backup & Restore's own task requirement names
+/// directly: "detect existing backup data automatically on first
+/// launch and ask 'Restore or start fresh.'" Detection itself is one
+/// extra read alongside the two [resolveAuthGateStage] already took —
+/// [BackupRepository.listBackups] against this device's own backups
+/// folder (backup_repository_impl.dart's own doc comment covers
+/// exactly what that folder does and doesn't survive, and why a picked-
+/// from-anywhere file is [BackupRestoreDecisionScreen]'s real fallback
+/// for the case this folder-based check alone can't catch).
 class AuthGateScreen extends ConsumerStatefulWidget {
   const AuthGateScreen({super.key});
 
@@ -51,22 +65,30 @@ class AuthGateScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
-  // Both of resolveAuthGateStage's inputs, combined into one record
-  // future rather than two separate FutureBuilders — same reason
-  // RestoreProgressScreen's own _detectedFuture combines its two reads.
-  // Read once and cached (not built inline in `future:`) for the same
-  // reason as every other auth screen's own late-final future: a new
-  // Future on every rebuild would re-query the database and flicker
-  // back to loading for no reason.
-  late final Future<(bool, bool)> _stageInputsFuture = _loadStageInputs();
+  // All three of resolveAuthGateStage's inputs, combined into one
+  // record future rather than three separate FutureBuilders — same
+  // reason RestoreProgressScreen's own _detectedFuture combines its
+  // two reads. Read once and cached (not built inline in `future:`)
+  // for the same reason as every other auth screen's own late-final
+  // future: a new Future on every rebuild would re-query the database
+  // and flicker back to loading for no reason.
+  late final Future<(bool, bool, bool)> _stageInputsFuture = _loadStageInputs();
 
-  Future<(bool, bool)> _loadStageInputs() async {
+  Future<(bool, bool, bool)> _loadStageInputs() async {
     final hasOwnerAccount = await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
     final businessConfigured =
         await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    // Only worth even asking once the first two signals both say
+    // "genuinely nothing local yet" — resolveAuthGateStage's own
+    // deliberate check ordering means this answer is thrown away
+    // otherwise, so there's no reason to hit the filesystem for it.
+    final hasDetectedBackup = !hasOwnerAccount && !businessConfigured
+        ? (await ref.read(backupRepositoryProvider).listBackups()).isNotEmpty
+        : false;
     final stage = resolveAuthGateStage(
       hasOwnerAccount: hasOwnerAccount,
       businessConfigured: businessConfigured,
+      hasDetectedBackup: hasDetectedBackup,
     );
     // Arms the walkthrough exactly once, at the same moment this
     // screen would show GetStartedScreen for it. Guarded on
@@ -80,12 +102,12 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
         ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.welcome;
       }
     }
-    return (hasOwnerAccount, businessConfigured);
+    return (hasOwnerAccount, businessConfigured, hasDetectedBackup);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<(bool, bool)>(
+    return FutureBuilder<(bool, bool, bool)>(
       future: _stageInputsFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -94,10 +116,11 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
           // call per 5.18, not a skeleton.
           return const FulusScreen(body: FulusLoadingIndicator());
         }
-        final (hasOwnerAccount, businessConfigured) = snapshot.data!;
+        final (hasOwnerAccount, businessConfigured, hasDetectedBackup) = snapshot.data!;
         final stage = resolveAuthGateStage(
           hasOwnerAccount: hasOwnerAccount,
           businessConfigured: businessConfigured,
+          hasDetectedBackup: hasDetectedBackup,
         );
         switch (stage) {
           case AuthGateStage.needsAccountCreation:
@@ -106,6 +129,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
             return const IdentityPickerScreen();
           case AuthGateStage.needsRestoreDecision:
             return const RestoreProgressScreen();
+          case AuthGateStage.needsBackupDecision:
+            return const BackupRestoreDecisionScreen();
         }
       },
     );

@@ -6,6 +6,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/auth_user.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -87,9 +88,17 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
     }
 
     final user = ref.read(sessionProvider);
+    final requiresApprovalForType =
+        _type == StockMovementType.stockOut || _type == StockMovementType.adjustment;
     final needsApproval = user != null &&
-        user.role == AuthRole.employee &&
-        (_type == StockMovementType.stockOut || _type == StockMovementType.adjustment);
+        user.role != AuthRole.owner &&
+        requiresApprovalForType &&
+        !(await ref.read(permissionRepositoryProvider).hasPermission(
+              userId: user.id,
+              role: user.role,
+              permission: Permission.approveWithoutSupervisor,
+            ));
+    if (!mounted) return;
     if (needsApproval) {
       final approved = await requireOwnerApproval(context, ref);
       if (!mounted) return;

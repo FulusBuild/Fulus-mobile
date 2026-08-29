@@ -1,4 +1,5 @@
 import '../entities/auth_user.dart';
+import '../entities/permission.dart';
 
 /// Architecture Section 6's login flow, re-scoped twice now: first by
 /// the Architecture Redesign (local Business Engine, no server-issued
@@ -161,7 +162,22 @@ abstract class AuthRepository {
   /// enforces both that and everything [createAdditionalOwner] enforces
   /// about the acting owner (must be an Owner, must already have called
   /// [setOwnLoginPin]).
-  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin});
+  ///
+  /// [role] is the new login's starting [AuthRole] — Manager, Cashier,
+  /// or the generic Employee fallback (never Owner; use
+  /// [createAdditionalOwner] for that). Defaults to [AuthRole.employee]
+  /// only so this doesn't become a breaking signature change for any
+  /// other caller; the actual "Set up login" UI always passes an
+  /// explicit choice. AuthRepositoryImpl seeds this login's
+  /// UserPermissions grant from [Permission.defaultsForRole] the moment
+  /// the account is created — the owner can adjust individual
+  /// permissions afterward from the employee's detail screen, which
+  /// never touches [role] again once the login exists.
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String pin,
+    AuthRole role = AuthRole.employee,
+  });
 
   /// The location this device's current session is viewing —
   /// Architecture Section 7a's location switcher backing store. Reads

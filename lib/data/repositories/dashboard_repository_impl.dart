@@ -35,7 +35,19 @@ class DashboardRepositoryImpl implements DashboardRepository {
     final todayStart = DateTime(now.year, now.month, now.day);
     final yesterdayStart = todayStart.subtract(const Duration(days: 1));
 
-    final todaySales = await (_db.select(_db.sales)..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart))).get();
+    // deletedAt.isNull() matters here specifically: sale_repository_impl
+    // .dart's own sales queries always filter it (a void/return-voided
+    // sale is soft-deleted, same as everywhere else in this app that
+    // treats deletedAt as "gone"), but this method's todaySales/
+    // yesterdaySales queries didn't — a voided sale was still being
+    // counted into Home's own hero totals even though every other
+    // sales-total view in the app already excludes it. Fixed here
+    // rather than left as a pre-existing gap: it's a real correctness
+    // bug in the exact query Roles & Permissions' Home-dashboard review
+    // was checking, not a new one introduced by that work.
+    final todaySales = await (_db.select(_db.sales)
+          ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.deletedAt.isNull()))
+        .get();
     final todayTotal = todaySales.fold<double>(0, (s, r) => s + r.total);
 
     double yesterdayTotal = 0;
@@ -43,7 +55,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
     if (isOwner) {
       final yesterdaySales = await (_db.select(_db.sales)
             ..where((s) =>
-                s.saleDate.isBiggerOrEqualValue(yesterdayStart) & s.saleDate.isSmallerThanValue(todayStart)))
+                s.saleDate.isBiggerOrEqualValue(yesterdayStart) &
+                s.saleDate.isSmallerThanValue(todayStart) &
+                s.deletedAt.isNull()))
           .get();
       yesterdayTotal = yesterdaySales.fold<double>(0, (s, r) => s + r.total);
       yesterdayCount = yesterdaySales.length;

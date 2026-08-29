@@ -59,6 +59,7 @@ class AuditRepositoryImpl implements AuditRepository {
   @override
   Future<List<AuditLogEntry>> getAuditLogs({
     required AuthRole requestingRole,
+    bool hasAuditPermission = false,
     String? module,
     String? userId,
     int page = 1,
@@ -66,12 +67,16 @@ class AuditRepositoryImpl implements AuditRepository {
   }) async {
     // The local check IS the real enforcement now — see
     // AuthFailure.forbidden's doc comment in failure.dart. Takes the
-    // caller's role as a parameter rather than looking it up via
-    // AuthRepository itself — see this interface's own doc comment on
-    // why (breaking a genuine circular dependency with
-    // AuthRepositoryImpl, which depends on AuditRepository to log
-    // login/logout/account-creation events).
-    if (requestingRole != AuthRole.owner) {
+    // caller's role (and, as of Roles & Permissions/schemaVersion 10,
+    // their already-resolved Permission.viewAuditLog result) as plain
+    // parameters rather than looking either up via a repository
+    // dependency — see this interface's own doc comment on why
+    // (breaking a genuine circular dependency with AuthRepositoryImpl,
+    // which depends on AuditRepository to log login/logout/account-
+    // creation events, and — transitively, now that
+    // AuthRepositoryImpl also seeds a new login's permissions on
+    // creation — with PermissionRepositoryImpl too).
+    if (requestingRole != AuthRole.owner && !hasAuditPermission) {
       throw const AuthFailure.forbidden();
     }
 

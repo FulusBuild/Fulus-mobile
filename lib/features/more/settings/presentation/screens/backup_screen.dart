@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -13,6 +14,16 @@ import '../../../../../shared/widgets/widgets.dart';
 /// snapshots. Restore replaces database. Export uses Android Share
 /// Sheet. No server." This screen is a direct front-end for
 /// BackupRepository's five operations — no logic of its own.
+///
+/// Backup & Restore (schemaVersion 10) adds a sixth: "Restore from a
+/// file" alongside "Back up now" — [FilePicker], the same call shape
+/// `bulk_import_screen.dart` already uses, reaching anywhere Android's
+/// document picker can (an SD card, a cloud-sync folder, an email
+/// attachment) rather than only the backups this app already knows
+/// about below. This is the in-app half of "the user should be able to
+/// pick a backup file from storage" — BackupRestoreDecisionScreen (the
+/// onboarding-time flow, for a fresh install with no signed-in owner
+/// yet) is the other half, for before this screen is even reachable.
 class BackupScreen extends ConsumerStatefulWidget {
   const BackupScreen({super.key});
 
@@ -67,11 +78,26 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: FulusButton(
-              label: _busy ? 'Working…' : 'Back up now',
-              icon: Icons.backup_outlined,
-              loading: _busy,
-              onPressed: _busy ? () {} : () => _runBusy(() => ref.read(backupRepositoryProvider).createBackup(label: 'manual')),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FulusButton(
+                    label: _busy ? 'Working…' : 'Back up now',
+                    icon: Icons.backup_outlined,
+                    loading: _busy,
+                    onPressed: _busy ? () {} : () => _runBusy(() => ref.read(backupRepositoryProvider).createBackup(label: 'manual')),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: FulusButton(
+                    label: 'Restore from a file',
+                    icon: Icons.file_open_outlined,
+                    variant: FulusButtonVariant.secondary,
+                    onPressed: _busy ? () {} : _pickAndImport,
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -144,6 +170,34 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     if (confirmed == true) {
       await _runBusy(() => ref.read(backupRepositoryProvider).restoreBackup(backup.fileName));
     }
+  }
+
+  /// Same [showFulusConfirmDialog] Component Library 5.9 pattern this
+  /// screen's own [_confirmRestore] already uses for the same reason —
+  /// this is at least as destructive (it replaces the live database
+  /// too, right after copying the picked file in), so it needs the
+  /// same confirmation, not a lighter one just because the source is a
+  /// picked file instead of one already in the list below.
+  Future<void> _pickAndImport() async {
+    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['db']);
+    if (result.isEmpty || !mounted) return; // canceled
+    final path = result.single.path;
+    if (path == null) {
+      _showError("Couldn't read that file.");
+      return;
+    }
+    final confirmed = await showFulusConfirmDialog(
+      context,
+      title: 'Restore from this file?',
+      message: 'This replaces everything currently in the app with the contents of this file. '
+          'A safety copy of what\'s here now will be taken first, so this can be undone.',
+      confirmLabel: 'Restore',
+    );
+    if (!confirmed || !mounted) return;
+    await _runBusy(() async {
+      final imported = await ref.read(backupRepositoryProvider).importBackupFile(path);
+      await ref.read(backupRepositoryProvider).restoreBackup(imported.metadata.fileName);
+    });
   }
 }
 

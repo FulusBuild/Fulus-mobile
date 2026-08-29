@@ -27,19 +27,24 @@ import '../../../money/presentation/widgets/transaction_tile.dart';
 /// how much else surrounds it.
 ///
 /// Decision 13 ("an employee's Home is their own shift, full stop —
-/// never the business total") is *not* overridden: everything below
-/// the hero here is business-wide data an employee's role can't even
-/// navigate to (Money and Reports are owner-only branches — see
-/// app_shell.dart), so it all stays gated behind [isOwner], and the
-/// employee hero keeps its original single-card presentation, just
-/// carried over onto the same visual language (gradient, formatting).
+/// never the business total") is *not* overridden for a login with no
+/// extra grant: everything below the hero here is still business-wide
+/// data. Roles & Permissions (schemaVersion 10) replaces the old
+/// "gated behind [isOwner], full stop" rule with
+/// `Permission.viewDashboardStats` — an owner always has it (the usual
+/// structural exemption), and now a Manager can be granted it too,
+/// seeing the same notices/quick-actions/activity section an owner
+/// does; a Cashier or a plain Employee login without the grant still
+/// gets exactly Decision 13's single-card hero and nothing else. See
+/// [canViewDashboardStats].
 ///
-/// [currentAuthUserId] / [isOwner] are passed in from wherever Stage 2's
-/// session lives (not built by this module — see dashboard_repository
-/// .dart's own doc). Left as required constructor params rather than
-/// read from a session provider this module can't see, so this screen
-/// compiles and is testable in isolation; the merge step is one line at
-/// the call site once Stage 2's session provider exists.
+/// [currentAuthUserId] / [isOwner] / [canViewDashboardStats] are passed
+/// in from wherever Stage 2's session lives (not built by this module —
+/// see dashboard_repository.dart's own doc). Left as required
+/// constructor params rather than read from a session provider this
+/// module can't see, so this screen compiles and is testable in
+/// isolation; the merge step is one line at the call site once Stage
+/// 2's session provider exists.
 ///
 /// Gap fix (was: "closing a mock day here doesn't flip this screen's
 /// own hero state"): [HomeHeroState] still comes entirely from
@@ -52,10 +57,24 @@ import '../../../money/presentation/widgets/transaction_tile.dart';
 /// Futures rather than converting to Riverpod providers itself — same
 /// reasoning as before, now covering the notice/activity fetches too.
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key, required this.currentAuthUserId, required this.isOwner});
+  const HomeScreen({
+    super.key,
+    required this.currentAuthUserId,
+    required this.isOwner,
+    required this.canViewDashboardStats,
+  });
 
   final String currentAuthUserId;
   final bool isOwner;
+
+  /// Whether this session should see the business-wide sections below
+  /// the hero (and the business-wide hero itself, not just this user's
+  /// own shift) despite not being an Owner — Permission.viewDashboardStats,
+  /// resolved by the caller (router.dart). Always effectively true for
+  /// an Owner session regardless of what's passed here, since every
+  /// `widget.isOwner || widget.canViewDashboardStats` check below treats
+  /// the two as alternatives, not this flag alone.
+  final bool canViewDashboardStats;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -76,13 +95,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _load() {
     final repo = ref.read(dashboardRepositoryProvider);
-    _heroFuture = repo.getHeroState(currentAuthUserId: widget.currentAuthUserId, isOwner: widget.isOwner);
+    // See widget.canViewDashboardStats' own doc comment — a Manager
+    // granted that permission gets the same business-wide hero (not
+    // just their own shift) an Owner always does, not only the extra
+    // sections below it.
+    final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
+    _heroFuture = repo.getHeroState(currentAuthUserId: widget.currentAuthUserId, isOwner: showBusinessWide);
     // Redesign pass — max: 3 so Home's notice row can show all three
     // categories at once (see dashboard_repository.dart's own doc on
     // this parameter); every other caller of this method keeps the
     // default cap of 2.
     _noticesFuture = repo.getSecondaryNotices(max: 3);
-    _activityFuture = widget.isOwner
+    _activityFuture = showBusinessWide
         ? ref.read(moneyRepositoryProvider).getTransactions(_reportsEngine.resolvePeriod(ReportPeriodKind.today))
         : Future.value(const <MoneyTransaction>[]);
   }
@@ -124,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   return _HeroCard(state: snapshot.data!, currencySymbol: currencySymbol);
                 },
               ),
-              if (widget.isOwner) ...[
+              if (widget.isOwner || widget.canViewDashboardStats) ...[
                 const SizedBox(height: AppSpacing.lg),
                 FutureBuilder<SecondaryNoticeSelection>(
                   future: _noticesFuture,
@@ -286,7 +310,7 @@ class _GreetingHeader extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${user.fullName} · ${user.role == AuthRole.owner ? 'Owner' : 'Employee'}',
+                '${user.fullName} · ${_roleLabel(user.role)}',
                 style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(sheetContext)),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -314,6 +338,23 @@ class _GreetingHeader extends ConsumerWidget {
     Navigator.of(sheetContext).pop();
     await ref.read(authRepositoryProvider).logout();
     ref.read(sessionProvider.notifier).state = null;
+  }
+}
+
+/// Plain display text for this "signed in as" sheet — Roles &
+/// Permissions (schemaVersion 10) grew [AuthRole] past a straight
+/// owner/employee binary, so the old inline `? 'Owner' : 'Employee'`
+/// ternary silently mislabeled a Manager or Cashier login as "Employee".
+String _roleLabel(AuthRole role) {
+  switch (role) {
+    case AuthRole.owner:
+      return 'Owner';
+    case AuthRole.manager:
+      return 'Manager';
+    case AuthRole.cashier:
+      return 'Cashier';
+    case AuthRole.employee:
+      return 'Employee';
   }
 }
 

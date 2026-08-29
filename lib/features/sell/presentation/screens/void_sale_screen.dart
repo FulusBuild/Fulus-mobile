@@ -7,6 +7,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/return_request.dart';
 import '../../../../domain/entities/sale.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -19,9 +20,12 @@ import '../../../stock/presentation/widgets/approval_pin_sheet.dart';
 /// everything still eligible (ReturnRepositoryImpl.voidSale's own doc
 /// comment covers why) — this screen's job is just showing what that
 /// is and requiring a reason, not letting the reason and the scope
-/// disagree. Same owner-approval gate for an employee-initiated void as
+/// disagree. Same owner-approval gate for a non-owner-initiated void as
 /// a refund gets, for the same reason: undoing a completed sale is
-/// exactly as consequential either way.
+/// exactly as consequential either way. Roles & Permissions
+/// (schemaVersion 10): see RefundConfirmScreen's own doc comment for
+/// why this is now `Permission.approveWithoutSupervisor`, not a raw
+/// `role == AuthRole.employee` check.
 class VoidSaleScreen extends ConsumerStatefulWidget {
   const VoidSaleScreen({super.key, required this.saleId});
   final String saleId;
@@ -145,8 +149,15 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
     }
 
     final user = ref.read(sessionProvider);
-    final isEmployee = user?.role == AuthRole.employee;
-    if (isEmployee) {
+    final needsApproval = user != null &&
+        user.role != AuthRole.owner &&
+        !(await ref.read(permissionRepositoryProvider).hasPermission(
+              userId: user.id,
+              role: user.role,
+              permission: Permission.approveWithoutSupervisor,
+            ));
+    if (!mounted) return;
+    if (needsApproval) {
       final approved = await requireOwnerApproval(context, ref);
       if (!mounted) return;
       if (!approved) return;
