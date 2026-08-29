@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
@@ -60,6 +61,27 @@ Future<void> main() async {
       // own header comment on why binding init and runApp() being in
       // the same zone is a hard requirement, not incidental ordering.
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Phones lock to portrait (rotating the phone shouldn't flip the
+      // whole UI to landscape — bug report); tablets don't, deliberately
+      // — Fulus's stated direction is the same app working properly on
+      // iPad later, and a blanket portrait lock here would foreclose
+      // that before it's even built. WidgetsBinding.platformDispatcher
+      // is available this early (no widget tree/context needed yet);
+      // 600 logical pixels on the shortest side is the standard
+      // Material breakpoint this app's own responsive code should
+      // eventually match, so tablet detection stays consistent as that
+      // work happens rather than drifting from a second, differently-
+      // tuned threshold picked here in isolation.
+      final view = WidgetsBinding.instance.platformDispatcher.views.first;
+      final logicalSize = view.physicalSize / view.devicePixelRatio;
+      final isTablet = logicalSize.shortestSide >= 600;
+      if (!isTablet) {
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+        ]);
+      }
 
       installGlobalErrorCapture(diagnosticLogger);
       // Not awaited: resolving app version/device info crosses a

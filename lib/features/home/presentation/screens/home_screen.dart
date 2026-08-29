@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/report.dart';
@@ -112,10 +113,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              if (widget.isOwner) ...[
-                const _GreetingHeader(),
-                const SizedBox(height: AppSpacing.lg),
-              ],
+              const _GreetingHeader(),
+              const SizedBox(height: AppSpacing.lg),
               FutureBuilder<HomeHeroState>(
                 future: _heroFuture,
                 builder: (context, snapshot) {
@@ -221,10 +220,25 @@ class _GreetingHeader extends ConsumerWidget {
     final profile = profileAsync.value;
     final businessName = profile?.businessName ?? '';
     final greeting = greetingForHour(DateTime.now().hour);
+    final user = ref.watch(sessionProvider);
+    final isOwner = user == null || user.role == AuthRole.owner;
+    // Gap fix: this header used to be owner-only (Employees never saw
+    // it, or anything else identifying who was signed in), and nothing
+    // in the app gave an Employee session a way back to the owner's
+    // account short of uninstalling — Settings has the actual Log out
+    // action, but Money/More (where Settings lives) are both owner-only
+    // branches an Employee session can't reach at all (app_shell.dart's
+    // own doc comment). The switch-account button below is that access
+    // point, on the one screen every session can always reach. An Owner
+    // still sees the business name as the headline (unchanged from
+    // before); an Employee sees their own name instead — more useful on
+    // a shared device than a business name they already know.
+    final avatarName = isOwner ? (businessName.isEmpty ? '?' : businessName) : user!.fullName;
+    final headline = isOwner ? (businessName.isEmpty ? 'Fulus' : businessName) : user!.fullName;
 
     return Row(
       children: [
-        FulusAvatar(name: businessName.isEmpty ? '?' : businessName, size: 44),
+        FulusAvatar(name: avatarName, size: 44),
         const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
@@ -233,7 +247,7 @@ class _GreetingHeader extends ConsumerWidget {
             children: [
               Text(greeting, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
               Text(
-                businessName.isEmpty ? 'Fulus' : businessName,
+                headline,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
@@ -241,8 +255,65 @@ class _GreetingHeader extends ConsumerWidget {
             ],
           ),
         ),
+        IconButton(
+          icon: const Icon(Icons.swap_horiz),
+          tooltip: 'Switch account',
+          onPressed: () => _openAccountSheet(context, ref, user: user),
+        ),
       ],
     );
+  }
+
+  void _openAccountSheet(BuildContext context, WidgetRef ref, {required AuthUser? user}) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          top: AppSpacing.lg,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (user != null) ...[
+              Text(
+                'Signed in as',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(sheetContext)),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '${user.fullName} · ${user.role == AuthRole.owner ? 'Owner' : 'Employee'}',
+                style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(sheetContext)),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(
+                label: 'Switch account',
+                variant: FulusButtonVariant.secondary,
+                onPressed: () => _switchAccount(sheetContext, ref),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _switchAccount(BuildContext sheetContext, WidgetRef ref) async {
+    // Same "clears the local session, _ShellGate watches sessionProvider
+    // and swaps back to AuthGateScreen's 'Who's this?' picker on its
+    // own" mechanism as Settings' own Log out — see that action's own
+    // comment (settings_main_screen.dart) for why nothing further is
+    // needed after these two lines.
+    Navigator.of(sheetContext).pop();
+    await ref.read(authRepositoryProvider).logout();
+    ref.read(sessionProvider.notifier).state = null;
   }
 }
 
