@@ -202,6 +202,17 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
                 },
+                // Same "some Android keyboards don't reliably send
+                // backspace to a numeric+obscured field" fix as every
+                // other PIN entry in the app — see app_lock_screen.dart's
+                // own comment on this. This screen IS inside the shell's
+                // own Navigator/Overlay (unlike AppLockScreen), so a
+                // tooltip is safe here.
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.backspace_outlined),
+                  tooltip: 'Clear',
+                  onPressed: _pinController.clear,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               FulusButton(

@@ -95,12 +95,39 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               ),
               const FulusListDivider(indented: false),
               const _AppLockStatusRow(),
+              const SizedBox(height: AppSpacing.lg),
+              FulusSectionHeader(title: 'Account'),
+              // Gap fix: AuthRepository.logout() was fully implemented
+              // (see its own doc comment) but had no caller anywhere in
+              // the UI — sessionProvider's own doc comment even names
+              // this exact spot as the one that still needed to write
+              // to it. _ShellGate (router.dart) watches sessionProvider
+              // and swaps back to AuthGateScreen the moment it goes
+              // null, so nothing further is needed here beyond that.
+              FulusListRow(
+                leading: const Icon(Icons.logout),
+                title: const Text('Log out'),
+                subtitle: const Text('Your data on this device stays put — sign back in any time.'),
+                onTap: () => _logout(context, ref),
+              ),
               const SizedBox(height: AppSpacing.xxl),
             ],
           );
         },
       ),
     );
+  }
+
+  Future<void> _logout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showFulusConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: "You'll need your PIN to sign back in on this device.",
+      confirmLabel: 'Log out',
+    );
+    if (!confirmed || !context.mounted) return;
+    await ref.read(authRepositoryProvider).logout();
+    ref.read(sessionProvider.notifier).state = null;
   }
 
   void _openChangePinSheet(BuildContext context) {
@@ -369,6 +396,11 @@ class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
             controller: _pinController,
             obscureText: true,
             keyboardType: TextInputType.number,
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.backspace_outlined),
+              tooltip: 'Clear',
+              onPressed: _pinController.clear,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusTextField(
@@ -376,6 +408,11 @@ class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
             controller: _confirmController,
             obscureText: true,
             keyboardType: TextInputType.number,
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.backspace_outlined),
+              tooltip: 'Clear',
+              onPressed: _confirmController.clear,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
@@ -503,6 +540,11 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
                     controller: _pinController,
                     obscureText: true,
                     keyboardType: TextInputType.number,
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.backspace_outlined),
+                      tooltip: 'Clear',
+                      onPressed: _pinController.clear,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusTextField(
@@ -510,6 +552,11 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
                     controller: _confirmController,
                     obscureText: true,
                     keyboardType: TextInputType.number,
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.backspace_outlined),
+                      tooltip: 'Clear',
+                      onPressed: _confirmController.clear,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   SizedBox(

@@ -141,7 +141,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 FulusSectionHeader(
                   title: 'Recent activity',
                   action: 'See all',
-                  onActionTap: () => context.goNamed('moneyHistory'),
+                  // pushNamed, not goNamed — 'moneyHistory' is nested
+                  // inside the Money branch, same reasoning as
+                  // _QuickActionRow's own Add stock/Add expense/Reports
+                  // (see that class's comment): `go`-ing there straight
+                  // from Home, a different branch, makes
+                  // StatefulShellRoute build Money's own root screen
+                  // first to establish the branch, then navigate
+                  // deeper — the flash to one screen before landing on
+                  // the right one.
+                  onActionTap: () => context.pushNamed('moneyHistory'),
                 ),
                 FutureBuilder<List<MoneyTransaction>>(
                   future: _activityFuture,
@@ -439,7 +448,10 @@ class _HeroCard extends ConsumerWidget {
                 _HeroButton(
                   label: 'Close Shop',
                   emphasized: emphasizeAction,
-                  onTap: () => context.goNamed('moneyDailyClosingCount'),
+                  // pushNamed — see _QuickActionRow's own comment on the
+                  // same reasoning; 'moneyDailyClosingCount' is nested
+                  // inside the Money branch, not its root.
+                  onTap: () => context.pushNamed('moneyDailyClosingCount'),
                 ),
               ],
             ],
@@ -574,7 +586,9 @@ class _NoticeRow extends StatelessWidget {
           value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true),
           icon: Icons.request_page_outlined,
           valueColor: AppColors.infoOf(context),
-          onTap: () => context.goNamed('moneyCustomers'),
+          // pushNamed — same reasoning as this row's other two fixes
+          // above; 'moneyCustomers' is nested inside the Money branch.
+          onTap: () => context.pushNamed('moneyCustomers'),
         );
       case SecondaryNoticeType.unsyncedItems:
         return FulusStatCard(
@@ -620,7 +634,16 @@ class _QuickActionRow extends StatelessWidget {
             // then navigate deeper, which is the flash to one screen
             // before landing on the right one. `push` opens the target
             // directly above the shell instead, skipping all of that.
-            onTap: () => context.pushNamed('stockRecordMovement'),
+            //
+            // Bug report: this used to open Record Stock Movement
+            // ('stockRecordMovement' — pick an existing product, then
+            // adjust its quantity), but confirmed against what "Add
+            // stock" was actually expected to do here — create a new
+            // product — that's 'stockAddProduct', not this. Record
+            // Stock Movement is still reachable from the Stock tab
+            // itself for the "adjust an existing product's quantity"
+            // case.
+            onTap: () => context.pushNamed('stockAddProduct'),
           ),
         ),
         Expanded(

@@ -142,7 +142,13 @@ class _StockBody extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
                 child: FulusSectionHeader(
                   title: 'Products',
-                  action: 'Add',
+                  // Was bare 'Add' — read as ambiguous next to the
+                  // Record Stock button also on this screen (bug
+                  // report: expected this to be the stock-quantity
+                  // action, not "create a new product"). Both actions
+                  // are intentional and both stay — this only
+                  // disambiguates the label.
+                  action: 'Add product',
                   onActionTap: () => context.pushNamed('stockAddProduct'),
                 ),
               ),
