@@ -2,6 +2,7 @@ import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/core/security/pin_hasher.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/repositories/auth_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/permission_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/repositories/audit_repository.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -58,15 +59,18 @@ Future<void> _insertRosterEmployee(
 void main() {
   late MockAuditRepository auditRepository;
   late AppDatabase db;
+  late PermissionRepositoryImpl permissionRepository;
   late AuthRepositoryImpl repository;
 
   setUp(() {
     auditRepository = MockAuditRepository();
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    permissionRepository = PermissionRepositoryImpl(db: db);
     repository = AuthRepositoryImpl(
       db: db,
       pinHasher: _FakePinHasher(),
       auditRepository: auditRepository,
+      permissionRepository: permissionRepository,
     );
 
     when(() => auditRepository.log(
@@ -397,6 +401,7 @@ void main() {
         db: db,
         pinHasher: _FakePinHasher(),
         auditRepository: auditRepository,
+        permissionRepository: permissionRepository,
       );
 
       final restored = await restarted.restoreSession();

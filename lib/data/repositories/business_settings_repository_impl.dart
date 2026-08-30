@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import '../../core/errors/failure.dart';
-import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/business_category.dart';
 import '../../domain/entities/business_settings.dart';
 import '../../domain/entities/permission.dart';

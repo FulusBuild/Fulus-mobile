@@ -39,8 +39,11 @@ class _FakeAuthRepository implements AuthRepository {
   Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async =>
       throw UnimplementedError();
   @override
-  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin}) async =>
-      throw UnimplementedError();
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String pin,
+    AuthRole role = AuthRole.employee,
+  }) async => throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
   @override

@@ -90,6 +90,20 @@ class _Thumbnail extends StatelessWidget {
                 width: double.infinity,
                 height: double.infinity,
                 fit: BoxFit.cover,
+                // Perf: this row's leading slot is a fixed 40dp square
+                // (FulusListRow.leadingSize) but the source photo is
+                // whatever the device camera captured — full
+                // resolution, decoded fresh for every visible row.
+                // On a list built for up to 5,000 products (this
+                // class's own header comment), that's the difference
+                // between scrolling through small, cheap decodes and
+                // scrolling through full-size ones. cacheWidth alone,
+                // not cacheHeight too, so the decoder preserves the
+                // source's own aspect ratio — BoxFit.cover still does
+                // the final crop-to-fit unchanged. 120 covers the 40dp
+                // slot up to 3x device pixel ratio with headroom, not
+                // a tight fit.
+                cacheWidth: 120,
                 errorBuilder: (context, error, stackTrace) => Text(
                   initial,
                   style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)),

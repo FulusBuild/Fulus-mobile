@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -130,7 +131,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
     // Permission.all, bounds what shows up editable below for a
     // Manager viewing this screen.
     final actingIsOwner = ref.watch(sessionProvider)?.role == AuthRole.owner;
-    final grantableBy = actingIsOwner ? Permission.all : ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+    final grantableBy = actingIsOwner ? Permission.all : ref.watch(sessionPermissionsProvider).value ?? const {};
 
     return ListView(
       children: [

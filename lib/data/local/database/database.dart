@@ -119,6 +119,16 @@ part 'database.g.dart';
 /// names to an existing enum doesn't touch how already-stored names
 /// are read back — every existing `owner`/`employee` row keeps meaning
 /// exactly what it always meant.
+///
+/// TENTH NOTE (performance pass): schemaVersion is 11. One new index,
+/// `idx_sale_items_sale_local_id` — purely additive, same
+/// `CREATE INDEX IF NOT EXISTS` treatment the fifth note's two
+/// product-uniqueness indexes got, just without the try/catch those
+/// needed (those guard against a pre-existing UNIQUE-constraint
+/// collision; a plain non-unique index has no equivalent failure
+/// mode). Speeds up "get this sale's line items" — receipt rendering,
+/// the sale-detail screen, refunds — which was a full sale_items scan
+/// on every call; doesn't change what any query returns.
 @DriftDatabase(
   tables: [
     Locations,
@@ -201,7 +211,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -215,6 +225,10 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode '
           'ON products(barcode) WHERE deleted_at IS NULL',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_sale_items_sale_local_id '
+          'ON sale_items(sale_local_id)',
         );
       },
       // The first real onUpgrade implementation this project has needed
@@ -401,6 +415,20 @@ class AppDatabase extends _$AppDatabase {
           // comment on UserPermissions.
           await m.createTable(userPermissions);
         }
+        if (from < 11) {
+          // Perf pass: sale_items has no index on sale_local_id, so
+          // every "get the line items for this sale" lookup — receipt
+          // rendering, the sale-detail screen, the refund flow — scans
+          // the whole table, which only grows. Purely additive — an
+          // index changes no existing data or query result, only how
+          // fast a sale_local_id match is found — so unlike several
+          // blocks above, a plain CREATE INDEX is enough; no
+          // alterTable/TableMigration needed.
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_sale_items_sale_local_id '
+            'ON sale_items(sale_local_id)',
+          );
+        }
       },
       beforeOpen: (details) async {
         // Foreign keys are OFF by default in sqlite3 unless explicitly
@@ -440,6 +468,23 @@ LazyDatabase _openConnection() {
       }
     }
 
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (database) {
+        // Perf: not on by default (drift's own docs require opting in
+        // via `setup`). Without it, sqlite3 uses the default
+        // rollback-journal mode, where a writer briefly blocks readers.
+        // This app's UI reads happen almost entirely through drift's
+        // reactive `.watch()` streams while a background SyncEngine can
+        // write to the same file at the same time — WAL lets those
+        // proceed independently. Connection-level only — no schema
+        // change, no migration needed. Confirmed compatible with the
+        // existing backup/restore path: BackupRepositoryImpl already
+        // uses `VACUUM INTO` (self-contained snapshot regardless of
+        // journal mode) and already defensively clears stray -wal/-shm
+        // sidecars before reopening — see that class's own comments.
+        database.execute('PRAGMA journal_mode=WAL');
+      },
+    );
   });
 }

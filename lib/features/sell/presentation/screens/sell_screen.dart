@@ -133,7 +133,6 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
 
   @override
   Widget build(BuildContext context) {
-    final cartState = context.watch<CartCubit>().state;
     return FulusScreen(
       title: 'Sell',
       applyPadding: false,
@@ -192,28 +191,105 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
             },
           ),
           Expanded(
-            child: switch (cartState) {
-              CartFailure(:final message) => FulusErrorState(message: message),
-              CartLoaded state => _ProductArea(
-                  state: state,
+            // Perf: BlocSelector, not a plain context.watch — this
+            // subtree (and every visible _ProductTile inside
+            // _ProductArea) now only rebuilds when the catalog, its
+            // loaded flag, or the currency symbol actually change.
+            // Cart-only changes (add/remove/qty/payments/draft) used
+            // to rebuild this whole area, including every visible
+            // product tile, on every single cart tap; now they don't
+            // touch this widget at all. Relies on CartCubit keeping
+            // `catalog` reference-stable across those emissions (see
+            // its _catalogSnapshot field) — without that, this
+            // selector would see a "new" catalog Map on every emission
+            // and rebuild just as often as before.
+            child: BlocSelector<CartCubit, CartState, _ProductAreaState>(
+              selector: (state) => switch (state) {
+                CartFailure(:final message) => (errorMessage: message, catalogSlice: null),
+                CartLoaded state => (
+                    errorMessage: null,
+                    catalogSlice: (
+                      catalog: state.catalog,
+                      catalogLoaded: state.catalogLoaded,
+                      currencySymbol: state.currencySymbol,
+                    ),
+                  ),
+                _ => (errorMessage: null, catalogSlice: null),
+              },
+              builder: (context, result) {
+                final errorMessage = result.errorMessage;
+                if (errorMessage != null) {
+                  return FulusErrorState(message: errorMessage);
+                }
+                final slice = result.catalogSlice;
+                if (slice == null) {
+                  return const FulusLoadingIndicator();
+                }
+                return _ProductArea(
+                  catalog: slice.catalog,
+                  catalogLoaded: slice.catalogLoaded,
+                  currencySymbol: slice.currencySymbol,
                   query: _query,
                   categoryId: _selectedCategoryId,
-                ),
-              _ => const FulusLoadingIndicator(),
+                );
+              },
+            ),
+          ),
+          // Left as a plain BlocBuilder (full-state watch), not a
+          // selector — almost every CartLoaded field (items, total,
+          // itemCount) is genuinely relevant to what this bar shows,
+          // so there's nothing meaningful to narrow. Scoping the watch
+          // to just this widget (instead of the old top-of-build
+          // watch) still means a cart change only rebuilds this small
+          // bar now, not the search field and category row above it.
+          BlocBuilder<CartCubit, CartState>(
+            builder: (context, cartState) {
+              if (cartState is CartLoaded && cartState.items.isNotEmpty) {
+                return _CartSummaryBar(state: cartState);
+              }
+              return const SizedBox.shrink();
             },
           ),
-          if (cartState is CartLoaded && cartState.items.isNotEmpty)
-            _CartSummaryBar(state: cartState),
         ],
       ),
     );
   }
 }
 
-class _ProductArea extends StatelessWidget {
-  const _ProductArea({required this.state, required this.query, required this.categoryId});
+// Perf: the two small record typedefs the BlocSelector above uses to
+// pick out just the fields _ProductArea needs. Records get structural
+// equality for free (field-by-field ==), which is what lets
+// BlocSelector detect "nothing relevant changed" — for `catalog`
+// specifically that's an identity comparison (Maps compare by
+// reference), which is why CartCubit keeping catalog
+// reference-stable across cart-only emissions (see its
+// _catalogSnapshot field) is what makes the selector actually skip
+// work rather than always seeing "different."
+typedef _CatalogSlice = ({
+  Map<String, ProductWithStock> catalog,
+  bool catalogLoaded,
+  String currencySymbol,
+});
 
-  final CartLoaded state;
+typedef _ProductAreaState = ({String? errorMessage, _CatalogSlice? catalogSlice});
+
+class _ProductArea extends StatelessWidget {
+  const _ProductArea({
+    required this.catalog,
+    required this.catalogLoaded,
+    required this.currencySymbol,
+    required this.query,
+    required this.categoryId,
+  });
+
+  // Perf: takes just the catalog-derived fields it actually reads,
+  // rather than the whole CartLoaded state, so the BlocSelector in
+  // _SellScreenBodyState.build() can skip rebuilding this widget (and
+  // every visible _ProductTile beneath it) when only cart items,
+  // payments, or the draft change — none of which this widget uses.
+  final Map<String, ProductWithStock> catalog;
+  final bool catalogLoaded;
+  final String currencySymbol;
   final String query;
   final String? categoryId;
 
@@ -222,7 +298,7 @@ class _ProductArea extends StatelessWidget {
     // "Loading products" — the catalog stream hasn't emitted at all
     // yet, distinct from a catalog that has loaded and is genuinely
     // empty.
-    if (!state.catalogLoaded) {
+    if (!catalogLoaded) {
       return GridView.builder(
         padding: const EdgeInsets.all(AppSpacing.lg),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -241,7 +317,7 @@ class _ProductArea extends StatelessWidget {
     // either, so Quick Sale is the one real way to make a sale right
     // now — the empty state's action reflects that honestly rather
     // than pointing at a screen that doesn't exist.
-    if (state.catalog.isEmpty) {
+    if (catalog.isEmpty) {
       return FulusEmptyState(
         headline: 'No products yet',
         body: 'Add products from Stock once it\'s set up, or use Quick Sale for anything you\'re selling today.',
@@ -252,7 +328,7 @@ class _ProductArea extends StatelessWidget {
     }
 
     final normalizedQuery = query.trim().toLowerCase();
-    final products = state.catalog.values.where((p) {
+    final products = catalog.values.where((p) {
       final product = p.product;
       if (categoryId != null && product.categoryId != categoryId) return false;
       if (normalizedQuery.isEmpty) return true;
@@ -285,7 +361,7 @@ class _ProductArea extends StatelessWidget {
       ),
       itemCount: products.length,
       itemBuilder: (context, i) =>
-          _ProductTile(productWithStock: products[i], currencySymbol: state.currencySymbol),
+          _ProductTile(productWithStock: products[i], currencySymbol: currencySymbol),
     );
   }
 }
@@ -337,6 +413,28 @@ class _ProductTile extends StatelessWidget {
                           width: double.infinity,
                           height: double.infinity,
                           fit: BoxFit.cover,
+                          // Perf: photos come straight from the device
+                          // camera (often several MB, thousands of
+                          // pixels wide) but this tile only ever shows
+                          // one at grid-thumbnail size. Without this,
+                          // every tile decodes the full-resolution
+                          // source into memory just to downscale it —
+                          // expensive on both CPU (decode time, felt
+                          // as jank while scrolling) and RAM (an
+                          // ImageCache full of full-size bitmaps on a
+                          // catalog this app is designed to scale to
+                          // thousands of products — see
+                          // product_list_tile.dart's own comment on
+                          // that scale target). cacheWidth alone (not
+                          // cacheHeight too) so the decoder preserves
+                          // the source's own aspect ratio rather than
+                          // stretching it — BoxFit.cover above still
+                          // does the final crop-to-fit exactly as
+                          // before, just against a far smaller bitmap.
+                          // 300 is a generous upper bound for this
+                          // tile's on-screen width on the phones this
+                          // needs to feel fast on, not a tight fit.
+                          cacheWidth: 300,
                           errorBuilder: (context, error, stackTrace) => Icon(
                             Icons.inventory_2_outlined,
                             size: AppIconSize.emphasis,

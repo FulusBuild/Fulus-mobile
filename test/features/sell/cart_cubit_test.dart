@@ -9,6 +9,7 @@ import 'package:fulus_mobile/data/repositories/business_settings_repository_impl
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/permission_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
@@ -50,8 +51,11 @@ class _FakeAuthRepository implements AuthRepository {
   Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async =>
       throw UnimplementedError();
   @override
-  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin}) async =>
-      throw UnimplementedError();
+  Future<AuthUser> createEmployeeAccount({
+    required String employeeId,
+    required String pin,
+    AuthRole role = AuthRole.employee,
+  }) async => throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
   @override
@@ -154,6 +158,7 @@ void main() {
       db: db,
       businessSettingsApi: MockBusinessSettingsApi(),
       authRepository: authRepository,
+      permissionRepository: PermissionRepositoryImpl(db: db),
     );
     final saleRepository = SaleRepositoryImpl(
       db: db,

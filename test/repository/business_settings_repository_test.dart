@@ -2,6 +2,7 @@ import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/endpoints/business_settings_api.dart';
 import 'package:fulus_mobile/data/repositories/business_settings_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/permission_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/business_category.dart';
 import 'package:fulus_mobile/domain/entities/business_settings.dart';
@@ -20,16 +21,19 @@ void main() {
   late AppDatabase db;
   late MockBusinessSettingsApi businessSettingsApi;
   late MockAuthRepository authRepository;
+  late PermissionRepositoryImpl permissionRepository;
   late BusinessSettingsRepositoryImpl repository;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     businessSettingsApi = MockBusinessSettingsApi();
     authRepository = MockAuthRepository();
+    permissionRepository = PermissionRepositoryImpl(db: db);
     repository = BusinessSettingsRepositoryImpl(
       db: db,
       businessSettingsApi: businessSettingsApi,
       authRepository: authRepository,
+      permissionRepository: permissionRepository,
     );
   });
 

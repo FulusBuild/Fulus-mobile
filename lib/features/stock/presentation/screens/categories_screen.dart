@@ -23,13 +23,23 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
+  // Perf/correctness: created once here rather than inline in
+  // StreamBuilder's `stream:` parameter — the same fix
+  // sell_screen.dart already applies to this exact repository call.
+  // Constructing it in build() instead would tear down and recreate
+  // the underlying watch query (and briefly drop back to "no data")
+  // on every rebuild of this screen, not just when categories
+  // actually change.
+  late final Stream<List<Category>> _categoriesStream =
+      ref.read(categoryRepositoryProvider).watchCategories();
+
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Categories',
       applyPadding: false,
       body: StreamBuilder<List<Category>>(
-        stream: ref.watch(categoryRepositoryProvider).watchCategories(),
+        stream: _categoriesStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const FulusLoadingIndicator();

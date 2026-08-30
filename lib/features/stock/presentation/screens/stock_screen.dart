@@ -85,7 +85,6 @@ class _StockBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
-    final movementsAsync = ref.watch(stockMovementsProvider(locationId));
     final filter = ref.watch(stockFilterProvider);
 
     return productsAsync.when(
@@ -130,13 +129,29 @@ class _StockBody extends ConsumerWidget {
                 ),
               ),
             ),
-            if (movementsAsync.asData?.value.isNotEmpty ?? false)
-              SliverToBoxAdapter(
-                child: _RecentActivity(
-                  movements: movementsAsync.requireValue.take(3).toList(),
-                  products: products,
-                ),
-              ),
+            // Perf: scoped to this one slot via Consumer rather than
+            // watched at the top of _StockBody, so a new stock
+            // movement being recorded elsewhere only rebuilds this
+            // small preview — not the whole product list below it,
+            // which doesn't depend on movements at all but was
+            // re-running its filter/sort pass (applyStockFilter, over
+            // a catalog this app is designed to scale to 5,000
+            // products — see product_list_tile.dart's own comment)
+            // every time regardless.
+            Consumer(
+              builder: (context, ref, _) {
+                final movementsAsync = ref.watch(stockMovementsProvider(locationId));
+                if (!(movementsAsync.asData?.value.isNotEmpty ?? false)) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+                return SliverToBoxAdapter(
+                  child: _RecentActivity(
+                    movements: movementsAsync.requireValue.take(3).toList(),
+                    products: products,
+                  ),
+                );
+              },
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),

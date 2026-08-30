@@ -187,16 +187,18 @@ final appRouter = GoRouter(
               // a defensive fallback if that guarantee is ever
               // violated. canViewDashboardStats resolves the same
               // sessionPermissionsProvider _ShellGate and the redirect
-              // above both read from — .valueOrNull defaults to false
-              // for the same fail-closed reason _ShellGate's own read
-              // of it does.
+              // above both read from — .value defaults to false for
+              // the same fail-closed reason _ShellGate's own read of
+              // it does (Riverpod 3.x: AsyncValue.value is now the
+              // safe non-throwing accessor — .valueOrNull was renamed
+              // to .value, not kept as a separate getter).
               builder: (context, state) => Consumer(
                 builder: (context, ref, _) {
                   final user = ref.watch(sessionProvider);
                   if (user == null) {
                     return const AuthGateScreen();
                   }
-                  final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+                  final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
                   return HomeScreen(
                     currentAuthUserId: user.id,
                     isOwner: user.role == AuthRole.owner,
@@ -586,12 +588,13 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       // FulusAppShell's own doc comment on the owner exemption); a
       // non-owner session does, via the same sessionPermissionsProvider
       // the redirect above and _MoreScreen below both read from.
-      // .valueOrNull defaults to false while the very first lookup for
-      // a freshly-switched-in session is still resolving, which is the
+      // .value defaults to false while the very first lookup for a
+      // freshly-switched-in session is still resolving, which is the
       // fail-closed direction to default to for a nav button that would
       // otherwise flash visible then disappear once the real answer
-      // arrives.
-      final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+      // arrives. (Riverpod 3.x renamed AsyncValue.valueOrNull to
+      // .value — see the ShellGate's own note above.)
+      final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
       return FulusAppShell(
         navigationShell: widget.navigationShell,
         showMoneyTab: permissions.contains(Permission.viewMoney),
@@ -662,7 +665,7 @@ class _MoreScreen extends ConsumerWidget {
     // Same fail-closed default as _ShellGate's own read of this — see
     // that widget's own comment. Owner never needs this at all (every
     // `isOwner ||` check below short-circuits before it matters).
-    final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
 
     return FulusScreen(
       title: 'More',

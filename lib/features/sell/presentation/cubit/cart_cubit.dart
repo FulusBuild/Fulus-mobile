@@ -93,6 +93,14 @@ class CartCubit extends Cubit<CartState> {
   String? _resolvedCustomerId;
   BusinessProfile? _profile;
   final Map<String, ProductWithStock> _catalog = {};
+  // Perf: rebuilt only when the catalog stream below actually fires —
+  // not on every _emitLoaded() call. Map.unmodifiable() performs a
+  // full O(n) copy of its argument (dart:core), so recomputing it on
+  // every draft/items/payments/settings emission was copying the
+  // entire product catalog on every cart tap, not just on real catalog
+  // changes. This snapshot is computed once per real catalog change
+  // and referenced from then on.
+  Map<String, ProductWithStock> _catalogSnapshot = const {};
   bool _catalogLoaded = false;
   bool _submitting = false;
 
@@ -137,6 +145,7 @@ class CartCubit extends Cubit<CartState> {
         _catalog
           ..clear()
           ..addEntries(products.map((p) => MapEntry(p.product.localId, p)));
+        _catalogSnapshot = Map.unmodifiable(_catalog);
         _catalogLoaded = true;
         _emitLoaded();
       });
@@ -192,7 +201,7 @@ class CartCubit extends Cubit<CartState> {
       customer: _customer,
       locationId: _locationId,
       currencySymbol: _profile?.currencySymbol ?? '₦',
-      catalog: Map.unmodifiable(_catalog),
+      catalog: _catalogSnapshot,
       catalogLoaded: _catalogLoaded,
       submitting: _submitting,
     ));

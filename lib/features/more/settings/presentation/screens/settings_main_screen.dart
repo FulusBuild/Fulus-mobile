@@ -51,7 +51,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(sessionProvider);
     final isOwner = user?.role == AuthRole.owner;
-    final permissions = ref.watch(sessionPermissionsProvider).valueOrNull ?? const {};
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
     final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
     final canManageBackup = isOwner || permissions.contains(Permission.manageBackup);
 

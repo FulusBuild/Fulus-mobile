@@ -6,25 +6,42 @@ void main() {
   group('resolveAuthGateStage', () {
     test('no owner, no business -> needsAccountCreation', () {
       expect(
-        resolveAuthGateStage(hasOwnerAccount: false, businessConfigured: false),
+        resolveAuthGateStage(hasOwnerAccount: false, businessConfigured: false, hasDetectedBackup: false),
         AuthGateStage.needsAccountCreation,
       );
     });
 
     test('owner exists -> needsSignIn regardless of business state', () {
       expect(
-        resolveAuthGateStage(hasOwnerAccount: true, businessConfigured: false),
+        resolveAuthGateStage(hasOwnerAccount: true, businessConfigured: false, hasDetectedBackup: false),
         AuthGateStage.needsSignIn,
       );
       expect(
-        resolveAuthGateStage(hasOwnerAccount: true, businessConfigured: true),
+        resolveAuthGateStage(hasOwnerAccount: true, businessConfigured: true, hasDetectedBackup: false),
         AuthGateStage.needsSignIn,
       );
     });
 
     test('no owner but a business already exists -> needsRestoreDecision', () {
       expect(
-        resolveAuthGateStage(hasOwnerAccount: false, businessConfigured: true),
+        resolveAuthGateStage(hasOwnerAccount: false, businessConfigured: true, hasDetectedBackup: false),
+        AuthGateStage.needsRestoreDecision,
+      );
+    });
+
+    test('no owner, no business, but a backup file is detected -> needsBackupDecision', () {
+      expect(
+        resolveAuthGateStage(hasOwnerAccount: false, businessConfigured: false, hasDetectedBackup: true),
+        AuthGateStage.needsBackupDecision,
+      );
+    });
+
+    test('needsRestoreDecision still takes priority over a detected backup', () {
+      // Checked in this order deliberately (see resolveAuthGateStage's
+      // own doc comment) — an in-progress local setup should never be
+      // overridden by an old backup file also sitting on the device.
+      expect(
+        resolveAuthGateStage(hasOwnerAccount: false, businessConfigured: true, hasDetectedBackup: true),
         AuthGateStage.needsRestoreDecision,
       );
     });
