@@ -1,4 +1,3 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,12 +53,22 @@ IconData _iconForMethod(String key) {
 /// split-payment case the Bible names explicitly ("each amount entered
 /// reduces a visible 'remaining' figure").
 ///
-/// Card and Mobile Money each require a live connection before a leg is
-/// recorded (Decision 17: "the app says so honestly" rather than
-/// letting a cashier believe an unauthorized payment went through) —
-/// `connectivity_plus` is already a pubspec dependency (used by
-/// `sync_triggers.dart`); this is a second, independent, narrowly-scoped
-/// check, not a new dependency or a change to sync's own use of it.
+/// Decision 17 reversed: Card and Mobile Money no longer require a live
+/// connection before a leg is recorded. The original rationale ("the
+/// app says so honestly" rather than letting a cashier believe an
+/// unauthorized payment went through) assumed this app itself performs
+/// some kind of authorization it can honestly confirm or deny — it
+/// doesn't. There is no payment-gateway/card-reader integration
+/// anywhere in this codebase; selecting Card or Mobile Money is the
+/// same manual cashier attestation "I received this" that Cash always
+/// was, and the real-world charge (a separate POS terminal, the
+/// customer's own mobile-money transfer) happens over a connection this
+/// device's own signal has no bearing on. Gating entry on THIS device's
+/// connectivity blocked legitimate completed sales for exactly the
+/// offline, spotty-signal merchants this app is built for, without
+/// actually verifying anything real. Card/Mobile Money now persist
+/// through the same local-write-then-sync path as every other payment
+/// method (see `_addPayment` below) — no special-casing.
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
 
@@ -210,18 +219,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (amount == null || amount <= 0) {
       showFulusSnackbar(context, message: 'Enter a valid amount.');
       return;
-    }
-    if (_method == 'card' || _method == 'mobile_money') {
-      final results = await Connectivity().checkConnectivity();
-      if (!context.mounted) return;
-      final online = results.any((r) => r != ConnectivityResult.none);
-      if (!online) {
-        showFulusSnackbar(
-          context,
-          message: 'Needs a connection to confirm — try Cash or Credit, or wait for signal.',
-        );
-        return;
-      }
     }
     // Bug fix (business-logic audit): checkCreditLimitWarning existed
     // specifically for this moment — extending a customer's credit past
