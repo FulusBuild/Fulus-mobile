@@ -6,6 +6,7 @@ import '../../domain/repositories/reports_repository.dart';
 import '../../domain/usecases/reports_engine.dart';
 import '../local/database/database.dart';
 import 'employee_mapper.dart';
+import 'sale_reversal_adjustments.dart';
 
 /// Same integration posture as receipt_repository_impl.dart: this is
 /// the one place Stage 12's Reports half touches Sales/SaleItems/
@@ -29,28 +30,46 @@ class ReportsRepositoryImpl implements ReportsRepository {
           ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
 
-    final totalRevenue = sales.fold<double>(0, (s, r) => s + r.total);
-    final totalDiscount = sales.fold<double>(0, (s, r) => s + r.discount);
-    final totalTax = sales.fold<double>(0, (s, r) => s + r.tax);
+    final saleIds = sales.map((s) => s.localId).toSet();
+    // **Bug fix (void/refund audit):** a voided or refunded sale used to
+    // be counted here exactly as if it were still valid — voiding never
+    // touches the Sales row itself (see SaleReversalAdjustments' own
+    // doc comment for the full trace). A voided sale now contributes
+    // nothing to any total below; a genuine (non-void) refund nets out
+    // only the refunded amount/quantity, leaving the rest of a partial
+    // refund counted normally.
+    final adjustments = await SaleReversalAdjustments.load(_db, saleIds);
+    final validSales = sales.where((s) => !adjustments.isVoided(s.localId)).toList();
+
+    final totalRevenue = validSales.fold<double>(0, (s, r) => s + adjustments.netRevenue(r));
+    // Discount/tax are only zeroed out for a fully voided sale (the
+    // whole transaction is excluded); a partial refund does not
+    // prorate these — no business rule for that exists in this schema,
+    // and inventing one silently would be exactly the kind of
+    // unrequested distortion Decision 27 (finance_stats.dart) warns
+    // against for cost data. Flagged here rather than done quietly.
+    final totalDiscount = validSales.fold<double>(0, (s, r) => s + r.discount);
+    final totalTax = validSales.fold<double>(0, (s, r) => s + r.tax);
 
     final byMethod = <String, List<double>>{}; // method -> [total, count]
     final byHour = <int, List<double>>{};
-    for (final sale in sales) {
+    for (final sale in validSales) {
+      final net = adjustments.netRevenue(sale);
+      if (net <= 0) continue; // fully refunded, non-void — nothing left to attribute
       final method = sale.paymentMethod ?? 'Unspecified';
       byMethod.putIfAbsent(method, () => [0, 0]);
-      byMethod[method]![0] += sale.total;
+      byMethod[method]![0] += net;
       byMethod[method]![1] += 1;
 
       final hour = sale.saleDate.hour;
       byHour.putIfAbsent(hour, () => [0, 0]);
-      byHour[hour]![0] += sale.total;
+      byHour[hour]![0] += net;
       byHour[hour]![1] += 1;
     }
 
     // Top products by revenue — joins sale items for sales in range.
     // `items` is also reused below for the transactions drill-down's
     // per-sale purchased-quantity count, rather than querying twice.
-    final saleIds = sales.map((s) => s.localId).toSet();
     final productTotals = <String, List<num>>{}; // productLocalId -> [qty, revenue]
     var items = <SaleItemRow>[];
     if (saleIds.isNotEmpty) {
@@ -58,9 +77,14 @@ class ReportsRepositoryImpl implements ReportsRepository {
       for (final item in items) {
         final productId = item.productLocalId;
         if (productId == null) continue;
+        if (adjustments.isVoided(item.saleLocalId)) continue;
+        final refunded = adjustments.refundedItemsFor(item.saleLocalId)[productId];
+        final netQty = item.quantity - (refunded?.quantity ?? 0);
+        final netRevenue = item.unitPrice * item.quantity - (refunded?.amount ?? 0);
+        if (netQty <= 0) continue;
         productTotals.putIfAbsent(productId, () => [0, 0]);
-        productTotals[productId]![0] += item.quantity;
-        productTotals[productId]![1] += item.unitPrice * item.quantity;
+        productTotals[productId]![0] += netQty;
+        productTotals[productId]![1] += netRevenue < 0 ? 0 : netRevenue;
       }
     }
     final topProducts = <TopProduct>[];
@@ -83,12 +107,22 @@ class ReportsRepositoryImpl implements ReportsRepository {
       ..sort((a, b) => a.hour.compareTo(b.hour));
     final top10 = topProducts.take(10).toList();
 
+    // The drill-down list intentionally still lists every sale in
+    // range, voided/refunded ones included — that screen's whole job
+    // is showing what happened, status label and all (see
+    // SaleRecordStatus), unlike the aggregates above which report only
+    // what's still valid.
     final transactions = await _buildSaleRecords(sales, items, saleIds);
 
     return SalesReport(
       period: period,
       totalRevenue: totalRevenue,
-      totalSalesCount: sales.length,
+      // A voided sale is not a valid completed sale — excluded from
+      // the count, same as from revenue. A partially/fully-refunded
+      // (non-void) sale still happened as a transaction, so it still
+      // counts here even though its revenue contribution above may now
+      // be zero.
+      totalSalesCount: validSales.length,
       totalDiscount: totalDiscount,
       totalTax: totalTax,
       byPaymentMethod: byPaymentMethod,
@@ -218,13 +252,39 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final recentlySoldIds = recentItems.map((r) => r.readTable(_db.saleItems).productLocalId).toSet();
     final notSold = products.where((p) => !recentlySoldIds.contains(p.localId)).map((p) => p.name).toList();
 
+    // **Bug fix (inventory audit):** these two were hardcoded to 0 with
+    // a comment flagging the type split as "not wired in yet" — real
+    // data was available in StockMovements the whole time, just never
+    // queried. Scoped to the same last-30-days window `notSold` above
+    // already uses (this report takes no period of its own — it's a
+    // live snapshot, per this class's own header comment — so 30 days
+    // is a reasonable "recent activity" window consistent with the one
+    // other rolling window this report already shows, not a new
+    // business rule invented here). 'sale' movements are deliberately
+    // excluded from both buckets — they're a byproduct of a sale, not
+    // a manual stock-in/out event, and are already fully represented
+    // by the Sales report itself.
+    final recentMovements = await (_db.select(_db.stockMovements)
+          ..where((m) => m.createdAt.isBiggerOrEqualValue(cutoff)))
+        .get();
+    var movementsIn = 0;
+    var movementsOut = 0;
+    for (final m in recentMovements) {
+      switch (m.movementType) {
+        case 'in':
+          movementsIn += m.quantity ?? 0;
+        case 'out':
+          movementsOut += m.quantity ?? 0;
+      }
+    }
+
     return InventoryReport(
       totalStockValue: totalValue,
       lowStockCount: lowStock,
       outOfStockCount: outOfStock,
       totalProducts: products.length,
-      stockMovementsIn: 0, // see INTEGRATION.md — StockMovements type split not wired in yet
-      stockMovementsOut: 0,
+      stockMovementsIn: movementsIn,
+      stockMovementsOut: movementsOut,
       notSoldInThirtyDays: notSold,
       insights: _engine.inventoryInsights(
         lowStockCount: lowStock,
@@ -240,11 +300,17 @@ class ReportsRepositoryImpl implements ReportsRepository {
           ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
 
+    // **Bug fix (void/refund audit):** a customer's "top spender" total
+    // used to include whatever they spent on sales later voided or
+    // refunded — see SaleReversalAdjustments' own doc comment.
+    final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
     final spendByCustomer = <String, double>{};
     for (final sale in sales) {
       final id = sale.customerId;
       if (id == null) continue;
-      spendByCustomer[id] = (spendByCustomer[id] ?? 0) + sale.total;
+      final net = adjustments.netRevenue(sale);
+      if (net <= 0) continue;
+      spendByCustomer[id] = (spendByCustomer[id] ?? 0) + net;
     }
     final topCustomers = <TopCustomer>[];
     for (final entry in spendByCustomer.entries) {
@@ -339,7 +405,11 @@ class ReportsRepositoryImpl implements ReportsRepository {
 
   Future<double> _sumSalesRevenue(DateTime start, DateTime end) async {
     final sales = await (_db.select(_db.sales)..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end)))).get();
-    final salesTotal = sales.fold<double>(0, (s, r) => s + r.total);
+    // **Bug fix (void/refund audit):** see SaleReversalAdjustments' own
+    // doc comment — a voided or refunded sale used to contribute its
+    // full `total` here regardless.
+    final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
+    final salesTotal = sales.fold<double>(0, (s, r) => s + adjustments.netRevenue(r));
     final income = await (_db.select(_db.incomeRecords)..where((i) => i.incomeDate.isBetweenValues(start, _endOfDay(end)))).get();
     final incomeTotal = income.fold<double>(0, (s, r) => s + r.amount);
     return salesTotal + incomeTotal;
@@ -353,6 +423,13 @@ class ReportsRepositoryImpl implements ReportsRepository {
   /// edited later; a Quick Sale line always contributes 0 here (no
   /// catalog product, so no known cost — see that field's own doc
   /// comment), same as it correctly does everywhere else in this app.
+  ///
+  /// **Bug fix (void/refund audit):** a voided sale's items used to be
+  /// summed into cost of goods sold exactly like any other sale's — the
+  /// business no longer holds that inventory cost against a sale that
+  /// never should have counted. See SaleReversalAdjustments' own doc
+  /// comment for the full trace and for how a partial (non-void) refund
+  /// nets out only the refunded quantity's cost, not the whole sale's.
   Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end) async {
     final sales = await (_db.select(_db.sales)
           ..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end))))
@@ -363,7 +440,13 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // getSalesReport's topProducts computation already avoided —
     // this method just hadn't been brought in line with it yet).
     final items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
-    return items.fold<double>(0.0, (sum, item) => sum + item.costPriceAtSale * item.quantity);
+    final adjustments = await SaleReversalAdjustments.load(_db, saleIds);
+    final rawCostBySale = <String, double>{};
+    for (final item in items) {
+      rawCostBySale[item.saleLocalId] = (rawCostBySale[item.saleLocalId] ?? 0) + item.costPriceAtSale * item.quantity;
+    }
+    return rawCostBySale.entries
+        .fold<double>(0.0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
   }
 
   Future<double> _sumExpenses(DateTime start, DateTime end) async {
@@ -396,12 +479,19 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final sales = await (_db.select(_db.sales)
           ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
+    // **Bug fix (void/refund audit):** salesTotalByCashier used to sum
+    // `sale.total` unconditionally, same as every other aggregate this
+    // audit found — see SaleReversalAdjustments' own doc comment. Not
+    // currently rendered anywhere in the Team tab, but fixed at the
+    // source so a future UI addition doesn't silently inherit the bug.
+    final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
     final salesTotalByCashier = <String, double>{};
     final salesCountByCashier = <String, int>{};
     for (final sale in sales) {
       final cashierId = sale.cashierUserId;
       if (cashierId == null) continue;
-      salesTotalByCashier[cashierId] = (salesTotalByCashier[cashierId] ?? 0) + sale.total;
+      if (adjustments.isVoided(sale.localId)) continue;
+      salesTotalByCashier[cashierId] = (salesTotalByCashier[cashierId] ?? 0) + adjustments.netRevenue(sale);
       salesCountByCashier[cashierId] = (salesCountByCashier[cashierId] ?? 0) + 1;
     }
 

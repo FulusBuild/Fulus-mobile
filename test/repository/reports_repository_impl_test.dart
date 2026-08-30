@@ -481,6 +481,337 @@ void main() {
     });
   });
 
+  group('getSalesReport — void/refund audit (bug fix)', () {
+    test('a voided sale contributes nothing to revenue, count, top '
+        'products, or payment-method/hour breakdowns', () async {
+      await insertLocation('loc-1');
+      await insertProduct('product-a');
+      await insertCompletedSale(
+        localId: 'sale-good',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5, 10),
+        total: 1000,
+        amountPaid: 1000,
+        items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
+        paymentMethod: 'cash',
+      );
+      await insertCompletedSale(
+        localId: 'sale-voided',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 6, 14),
+        total: 500,
+        amountPaid: 500,
+        items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
+        paymentMethod: 'cash',
+      );
+      await insertCompletedReturn(
+        localId: 'return-void',
+        saleLocalId: 'sale-voided',
+        productId: 'product-a',
+        quantity: 1,
+        isVoid: true,
+      );
+
+      final report = await repository.getSalesReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      // Before the fix: totalRevenue 1500, count 2 — the voided sale
+      // counted as if it were still valid.
+      expect(report.totalRevenue, 1000);
+      expect(report.totalSalesCount, 1);
+      expect(report.topProducts.single.quantitySold, 2);
+      expect(report.topProducts.single.revenue, 200); // 2 * unitPrice(100)
+      expect(report.byPaymentMethod.single.total, 1000);
+      expect(report.byPaymentMethod.single.count, 1);
+      expect(report.byHour.single.total, 1000);
+    });
+
+    test('a partially-refunded sale nets the refunded amount/quantity '
+        'out of revenue and top products, but still counts as one sale',
+        () async {
+      await insertLocation('loc-1');
+      await insertProduct('product-a');
+      await insertCompletedSale(
+        localId: 'sale-1',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5, 10),
+        total: 400,
+        amountPaid: 400,
+        items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
+        paymentMethod: 'cash',
+      );
+      // 1 of 4 units returned (non-void) — unitPrice was 100 (see
+      // insertCompletedSale's fixed 100/unit), so 100 comes back out.
+      await insertCompletedReturn(
+        localId: 'return-1',
+        saleLocalId: 'sale-1',
+        productId: 'product-a',
+        quantity: 1,
+      );
+
+      final report = await repository.getSalesReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      expect(report.totalRevenue, 300); // 400 - 100 refunded
+      expect(report.totalSalesCount, 1); // still one real transaction
+      expect(report.topProducts.single.quantitySold, 3);
+      expect(report.topProducts.single.revenue, 300);
+    });
+  });
+
+  group('getFinanceReport — void/refund audit (bug fix)', () {
+    test('a voided sale contributes nothing to revenue or cost of goods '
+        'sold', () async {
+      await insertLocation('loc-1');
+      await insertProduct('product-a');
+      await insertCompletedSale(
+        localId: 'sale-voided',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5),
+        total: 1000,
+        amountPaid: 1000,
+        items: const [(costPriceAtSale: 60, quantity: 2, productId: 'product-a')],
+      );
+      await insertCompletedReturn(
+        localId: 'return-void',
+        saleLocalId: 'sale-voided',
+        productId: 'product-a',
+        quantity: 2,
+        isVoid: true,
+      );
+
+      final report = await repository.getFinanceReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      // Before the fix: revenue 1000, COGS 120 — the voided sale
+      // counted as if it were a normal, valid one.
+      expect(report.totalRevenue, 0);
+      expect(report.totalCostOfGoodsSold, 0);
+    });
+
+    test('a partially-refunded sale nets the refunded quantity\'s cost '
+        'out of cost of goods sold', () async {
+      await insertLocation('loc-1');
+      await insertProduct('product-a');
+      await insertCompletedSale(
+        localId: 'sale-1',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5),
+        total: 400,
+        amountPaid: 400,
+        items: const [(costPriceAtSale: 60, quantity: 4, productId: 'product-a')],
+      );
+      await insertCompletedReturn(
+        localId: 'return-1',
+        saleLocalId: 'sale-1',
+        productId: 'product-a',
+        quantity: 1, // 1 of 4 returned
+      );
+
+      final report = await repository.getFinanceReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      expect(report.totalRevenue, 300); // 400 - 100 (1 unit @ 100)
+      expect(report.totalCostOfGoodsSold, 180); // (4-1) units @ cost 60
+    });
+  });
+
+  group('getCustomerReport — void/refund audit (bug fix)', () {
+    test('a customer\'s top-spender total excludes a voided sale and '
+        'nets a partial refund', () async {
+      await insertLocation('loc-1');
+      await db.into(db.customers).insert(
+            CustomersCompanion.insert(
+              localId: 'customer-1',
+              name: 'Tunde Bakare',
+              createdAt: DateTime(2025, 1, 1),
+              updatedAt: DateTime(2025, 1, 1),
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+      await insertProduct('product-a');
+      await insertCompletedSale(
+        localId: 'sale-good',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5),
+        total: 300,
+        amountPaid: 300,
+        items: const [(costPriceAtSale: 40, quantity: 3, productId: 'product-a')],
+        customerId: 'customer-1',
+      );
+      await insertCompletedReturn(
+        localId: 'return-1',
+        saleLocalId: 'sale-good',
+        productId: 'product-a',
+        quantity: 1, // partial: 100 comes back out
+      );
+      await insertCompletedSale(
+        localId: 'sale-voided',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 6),
+        total: 500,
+        amountPaid: 500,
+        items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
+        customerId: 'customer-1',
+      );
+      await insertCompletedReturn(
+        localId: 'return-void',
+        saleLocalId: 'sale-voided',
+        productId: 'product-a',
+        quantity: 1,
+        isVoid: true,
+      );
+
+      final report = await repository.getCustomerReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      // Before the fix: 800 (300 + 500, both sales counted in full).
+      expect(report.topCustomers.single.totalSpend, 200); // 300 - 100
+    });
+  });
+
+  group('getEmployeeReport — void/refund audit (bug fix)', () {
+    test('a voided sale is excluded from a cashier\'s attributed sales '
+        'total and count', () async {
+      await insertLocation('loc-1');
+      await insertUser('user-1', 'Amaka Okafor');
+      await insertProduct('product-a');
+      await db.into(db.employees).insert(
+            EmployeesCompanion.insert(
+              id: 'emp-1',
+              fullName: 'Amaka Okafor',
+              authUserId: const Value('user-1'),
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+            ),
+          );
+      await insertCompletedSale(
+        localId: 'sale-voided',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 5),
+        total: 1500,
+        amountPaid: 1500,
+        items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
+        cashierUserId: 'user-1',
+      );
+      await insertCompletedReturn(
+        localId: 'return-void',
+        saleLocalId: 'sale-voided',
+        productId: 'product-a',
+        quantity: 1,
+        isVoid: true,
+      );
+
+      final report = await repository.getEmployeeReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      final perf = report.performance.single;
+      expect(perf.salesTotal, 0);
+      expect(perf.salesCount, 0);
+    });
+  });
+
+  group('getEmployeeReport — attendance insight coverage (bug fix)', () {
+    test('the team-attendance insight names how much of the roster was '
+        'actually tracked when it is not everyone', () async {
+      await insertLocation('loc-1');
+      await db.into(db.employees).insert(
+            EmployeesCompanion.insert(
+              id: 'emp-1',
+              fullName: 'Tracked Employee',
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+            ),
+          );
+      await db.into(db.employees).insert(
+            EmployeesCompanion.insert(
+              id: 'emp-2',
+              fullName: 'Untracked Employee',
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+            ),
+          );
+      await db.into(db.attendanceRecords).insert(
+            AttendanceRecordsCompanion.insert(
+              id: 'att-1',
+              employeeId: 'emp-1',
+              date: DateTime(2026, 1, 5),
+              status: AttendanceStatusValue.present,
+            ),
+          );
+
+      final report = await repository.getEmployeeReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+      );
+
+      // Before the fix, this read simply "Team attendance was 100% this
+      // period." — easy to misread as the whole team, when only 1 of 2
+      // employees has any attendance record at all this period.
+      expect(
+        report.insights.single.text,
+        'Team attendance was 100% this period (based on 1 of 2 '
+        'employees with attendance recorded).',
+      );
+    });
+  });
+
+  group('getInventoryReport — stock movements (bug fix)', () {
+    test('stockMovementsIn/Out reflect real StockMovements rows, not a '
+        'hardcoded 0', () async {
+      await insertLocation('loc-1');
+      await insertProduct('product-a');
+      final now = DateTime.now();
+      await db.into(db.stockMovements).insert(
+            StockMovementsCompanion.insert(
+              localId: 'move-in',
+              productLocalId: 'product-a',
+              locationId: 'loc-1',
+              movementType: 'in',
+              quantity: const Value(10),
+              createdAt: now,
+              updatedAt: now,
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+      await db.into(db.stockMovements).insert(
+            StockMovementsCompanion.insert(
+              localId: 'move-out',
+              productLocalId: 'product-a',
+              locationId: 'loc-1',
+              movementType: 'out',
+              quantity: const Value(4),
+              createdAt: now,
+              updatedAt: now,
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+      // Excluded: a sale-triggered movement, and an adjustment.
+      await db.into(db.stockMovements).insert(
+            StockMovementsCompanion.insert(
+              localId: 'move-sale',
+              productLocalId: 'product-a',
+              locationId: 'loc-1',
+              movementType: 'sale',
+              quantity: const Value(1),
+              createdAt: now,
+              updatedAt: now,
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+
+      final report = await repository.getInventoryReport();
+
+      expect(report.stockMovementsIn, 10);
+      expect(report.stockMovementsOut, 4);
+    });
+  });
+
   group('getEmployeeReport — sales figures (bug fix)', () {
     test('attributes sales to the employee whose linked account rang '
         'them up', () async {

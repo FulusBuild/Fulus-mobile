@@ -128,14 +128,32 @@ class ReportsEngine {
   /// this deliberately produces observations about the TEAM as a whole
   /// (attendance rate, total contribution), never a "top performer"
   /// sentence naming one individual against others.
+  ///
+  /// **Bug fix (team/attendance audit):** the rate below is only ever
+  /// computed over employee-days that actually have a marked
+  /// attendance record — an employee never marked present/absent/late
+  /// this period contributes (0, 0, 0) and so, correctly, doesn't skew
+  /// the ratio itself. But with most of the roster untracked, a
+  /// hypothetical "1 employee marked present, 9 never marked at all"
+  /// period would still read "Team attendance was 100% this period" —
+  /// technically accurate about the days that WERE tracked, but easy to
+  /// misread as full-roster coverage. Rather than inventing a coverage
+  /// threshold below which the insight is silently hidden (an arbitrary
+  /// business rule this schema states nowhere), the sentence itself now
+  /// names how much of the roster was actually tracked whenever that's
+  /// less than the whole team, so the number can't be misread.
   List<ReportInsight> employeeInsights(List<EmployeePerformance> performance) {
     if (performance.isEmpty) return const [];
-    final totalDays = performance.fold<int>(0, (s, p) => s + p.daysPresent + p.daysAbsent + p.daysLate);
-    final presentDays = performance.fold<int>(0, (s, p) => s + p.daysPresent);
+    final tracked = performance.where((p) => p.daysPresent + p.daysAbsent + p.daysLate > 0).toList();
+    final totalDays = tracked.fold<int>(0, (s, p) => s + p.daysPresent + p.daysAbsent + p.daysLate);
+    final presentDays = tracked.fold<int>(0, (s, p) => s + p.daysPresent);
     final insights = <ReportInsight>[];
     if (totalDays > 0) {
       final rate = (presentDays / totalDays) * 100;
-      insights.add(ReportInsight('Team attendance was ${rate.toStringAsFixed(0)}% this period.'));
+      final coverage = tracked.length == performance.length
+          ? ''
+          : ' (based on ${tracked.length} of ${performance.length} employees with attendance recorded)';
+      insights.add(ReportInsight('Team attendance was ${rate.toStringAsFixed(0)}% this period$coverage.'));
     }
     return insights;
   }

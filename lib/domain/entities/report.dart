@@ -171,10 +171,22 @@ class InventoryReport {
     required this.insights,
   });
 
+  /// **Cost value, not selling value** — `sum(currentStock *
+  /// product.costPrice)` (see `ReportsRepositoryImpl.
+  /// getInventoryReport`). Verified directly against the repository;
+  /// the UI label now says "at cost" explicitly rather than leaving
+  /// which basis this uses ambiguous (inventory audit).
   final double totalStockValue;
   final int lowStockCount;
   final int outOfStockCount;
   final int totalProducts;
+
+  /// Total quantity moved in/out via manual Stock In/Stock Out in the
+  /// last 30 days — the same rolling window [notSoldInThirtyDays]
+  /// already uses, since this report takes no period of its own.
+  /// Excludes 'adjustment' and 'sale'-type movements: an adjustment is
+  /// a correction, not a genuine in/out event, and a sale-triggered
+  /// movement is already fully represented by the Sales report.
   final int stockMovementsIn;
   final int stockMovementsOut;
 

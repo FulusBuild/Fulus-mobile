@@ -253,7 +253,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           title: 'Inventory report',
           headers: const ['Metric', 'Value'],
           rows: [
-            ['Stock value', formatMoney(r.totalStockValue, symbol: currencySymbol)],
+            ['Stock value (at cost)', formatMoney(r.totalStockValue, symbol: currencySymbol)],
             ['Low stock', '${r.lowStockCount}'],
             ['Out of stock', '${r.outOfStockCount}'],
             ['Total products', '${r.totalProducts}'],
@@ -619,7 +619,7 @@ class _InventoryTab extends StatelessWidget {
       emptyBody: 'Add products in Stock to see their value and status here.',
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
         _StatCard(
-          label: 'Stock value',
+          label: 'Stock value (at cost)',
           value: formatMoney(r.totalStockValue, symbol: currencySymbol),
           onTap: () => context.go('/stock'),
         ),

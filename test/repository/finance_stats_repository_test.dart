@@ -171,6 +171,115 @@ void main() {
     });
   });
 
+  group('date-boundary audit (bug fix)', () {
+    // Regression test for the exact symptom the Reports audit set out
+    // to trace ("Revenue: ₦7,500 while Money in from sales: ₦0"):
+    // dateTo used to be compared against raw, with no end-of-day
+    // normalization. A "Today" period has dateFrom == dateTo == bare
+    // midnight (see ReportPeriod.end), so any sale later that same day
+    // — like this one, at 2pm — used to fall outside
+    // `saleDate.isSmallerOrEqualValue(dateTo)` entirely.
+    test('a sale later the same day as dateTo is still included, not '
+        'silently excluded by a bare-midnight upper bound', () async {
+      await insertLocation('loc-1');
+      await insertCompletedSale(
+        localId: 'sale-1',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
+        total: 7500,
+        amountPaid: 7500,
+        items: const [],
+      );
+
+      // "Today" for Jan 15 — both bounds bare midnight, exactly like
+      // ReportPeriod.end for ReportPeriodKind.today.
+      final cashFlow = await repository.getCashFlow(
+        dateFrom: DateTime(2026, 1, 15),
+        dateTo: DateTime(2026, 1, 15),
+        locationId: 'loc-1',
+      );
+      expect(cashFlow.salesInflow, 7500);
+
+      final profitLoss = await repository.getProfitLoss(
+        dateFrom: DateTime(2026, 1, 15),
+        dateTo: DateTime(2026, 1, 15),
+        locationId: 'loc-1',
+      );
+      expect(profitLoss.revenue, 7500);
+    });
+  });
+
+  group('void/refund audit (bug fix)', () {
+    test('getCashFlow: a voided sale contributes no cash inflow', () async {
+      await insertLocation('loc-1');
+      await insertCompletedSale(
+        localId: 'sale-voided',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 15),
+        total: 1000,
+        amountPaid: 1000,
+        items: const [],
+      );
+      await db.into(db.returnRequests).insert(
+            ReturnRequestsCompanion.insert(
+              localId: 'return-1',
+              originalSaleLocalId: 'sale-voided',
+              status: 'completed',
+              returnReason: 'Test',
+              refundAmount: 1000,
+              refundMethod: 'cash',
+              isVoid: const Value(true),
+              createdAt: DateTime(2026, 1, 15),
+              updatedAt: DateTime(2026, 1, 15),
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+
+      final report = await repository.getCashFlow(
+        dateFrom: DateTime(2026, 1, 1),
+        dateTo: DateTime(2026, 1, 31),
+        locationId: 'loc-1',
+      );
+
+      expect(report.salesInflow, 0);
+      expect(report.inflow, 0);
+    });
+
+    test('getProfitLoss: a voided sale contributes no revenue', () async {
+      await insertLocation('loc-1');
+      await insertCompletedSale(
+        localId: 'sale-voided',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 15),
+        total: 1000,
+        amountPaid: 1000,
+        items: const [],
+      );
+      await db.into(db.returnRequests).insert(
+            ReturnRequestsCompanion.insert(
+              localId: 'return-1',
+              originalSaleLocalId: 'sale-voided',
+              status: 'completed',
+              returnReason: 'Test',
+              refundAmount: 1000,
+              refundMethod: 'cash',
+              isVoid: const Value(true),
+              createdAt: DateTime(2026, 1, 15),
+              updatedAt: DateTime(2026, 1, 15),
+              syncStatus: SyncStatus.settled,
+            ),
+          );
+
+      final report = await repository.getProfitLoss(
+        dateFrom: DateTime(2026, 1, 1),
+        dateTo: DateTime(2026, 1, 31),
+        locationId: 'loc-1',
+      );
+
+      expect(report.revenue, 0);
+    });
+  });
+
   group('getCashFlow', () {
     test('combines sales and manual income into inflow', () async {
       await insertLocation('loc-1');
