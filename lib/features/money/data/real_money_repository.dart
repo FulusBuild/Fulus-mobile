@@ -3,7 +3,6 @@ import '../../../domain/entities/customer_ledger_entry.dart';
 import '../../../domain/entities/expense.dart';
 import '../../../domain/entities/expense_category.dart';
 import '../../../domain/entities/income_record.dart';
-import '../../../domain/entities/product.dart';
 import '../../../domain/entities/report.dart';
 import '../../../domain/entities/sale.dart';
 import '../../../domain/entities/supplier_ledger_entry.dart';
