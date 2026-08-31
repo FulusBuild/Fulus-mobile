@@ -655,54 +655,58 @@ class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
         top: AppSpacing.lg,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Set your own PIN first', style: AppTypography.heading),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            "You'll use this to switch back to your own account once "
-            "someone else has one on this device.",
-            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          if (_errors['form'] != null) ...[
-            Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+      // Responsive UI audit — SingleChildScrollView added; same gap as
+      // DiscountSheet.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Set your own PIN first', style: AppTypography.heading),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              "You'll use this to switch back to your own account once "
+              "someone else has one on this device.",
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (_errors['form'] != null) ...[
+              Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            FulusTextField(
+              label: 'Your PIN',
+              controller: _pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              errorText: _errors['pin'],
+              helperText: 'At least 4 digits.',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.backspace_outlined),
+                tooltip: 'Clear',
+                onPressed: _pinController.clear,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
+            FulusTextField(
+              label: 'Confirm PIN',
+              controller: _confirmController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              errorText: _errors['confirm'],
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.backspace_outlined),
+                tooltip: 'Clear',
+                onPressed: _confirmController.clear,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(label: 'Save PIN', loading: _submitting, onPressed: _submitting ? null : _submit),
+            ),
           ],
-          FulusTextField(
-            label: 'Your PIN',
-            controller: _pinController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            errorText: _errors['pin'],
-            helperText: 'At least 4 digits.',
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.backspace_outlined),
-              tooltip: 'Clear',
-              onPressed: _pinController.clear,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(
-            label: 'Confirm PIN',
-            controller: _confirmController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            errorText: _errors['confirm'],
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.backspace_outlined),
-              tooltip: 'Clear',
-              onPressed: _confirmController.clear,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(label: 'Save PIN', loading: _submitting, onPressed: _submitting ? null : _submit),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -78,6 +78,7 @@ class MoneyTransaction {
     this.note,
     this.lineItems,
     this.receiptPhotoPath,
+    this.paymentBreakdown,
   });
 
   final String id;
@@ -118,6 +119,22 @@ class MoneyTransaction {
   /// own doc comment). Gap-closure pass: "Receipt photo attachment on
   /// expenses."
   final String? receiptPhotoPath;
+
+  /// Bug fix: the individual legs behind a *split* payment — e.g. a
+  /// sale paid "Credit ₦50,000 + Mobile Money ₦197,250" used to be
+  /// reduced down to just [paymentMethod] == "Split" everywhere,
+  /// including the detail screen, with the actual breakdown thrown
+  /// away after `Sale.paymentMethod` was computed. `method` is already
+  /// display-formatted (`RealMoneyRepositoryImpl._displayPaymentMethod`
+  /// — the same helper [paymentMethod] itself is built from); `amount`
+  /// is left raw for the presentation layer to format with whatever
+  /// currency symbol it already has on hand, the same division of
+  /// responsibility [amount] above already follows. Only ever populated
+  /// for the single-transaction detail view (same "detail screen only,
+  /// never a list row" cost tradeoff [lineItems] documents above) —
+  /// null for every non-split sale and for every other transaction
+  /// type.
+  final List<({String method, double amount})>? paymentBreakdown;
 
   bool get isInflow => type.isInflow;
 

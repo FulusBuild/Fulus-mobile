@@ -5,6 +5,7 @@ import '../../core/diagnostics/diagnostic_logger.dart';
 import '../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/entities/sale_draft.dart';
+import '../../domain/entities/sale_payment.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/customer_credit_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
@@ -102,7 +103,7 @@ class SaleRepositoryImpl implements SaleRepository {
       _diagnosticLogger?.breadcrumb('Inventory update started', category: DiagnosticCategory.inventory);
       await _decrementLocalStock(sale.items, locationId: draft.locationId);
       _diagnosticLogger?.breadcrumb('Inventory update completed', category: DiagnosticCategory.inventory);
-      await _recordCreditSaleIfNeeded(sale);
+      await _recordCreditSaleIfNeeded(sale, draft.payments);
 
       if (hasQuickSaleItem) {
         // Marked attentionNeeded directly, at creation — not enqueued.
@@ -132,23 +133,40 @@ class SaleRepositoryImpl implements SaleRepository {
     return sale;
   }
 
-  /// Extends the customer's `outstandingBalance` by whatever is left
-  /// unpaid on this sale — `sale.balanceDue`, not `sale.total`: a
-  /// customer who paid part cash toward a credit sale should only owe
-  /// the remainder, matching how `PaymentScreen`'s "Put Remaining on
-  /// Account" action already presents this to the cashier. A no-op
-  /// (never calls the ledger, which rejects a non-positive amount)
-  /// whenever there's no customer attached or the sale was paid in
-  /// full — the ordinary case for every cash/card/mobile-money sale
-  /// today, so this adds nothing for those.
-  Future<void> _recordCreditSaleIfNeeded(Sale sale) async {
+  /// Extends the customer's `outstandingBalance` by whatever was
+  /// actually extended on credit.
+  ///
+  /// Bug fix (business-logic audit, round 2): the previous version of
+  /// this method used `sale.balanceDue` (`total - amountPaid`)
+  /// exclusively — correct for a simple, single-method credit sale, but
+  /// wrong the moment a *split* payment includes a `'credit'` leg
+  /// alongside others: "Credit ₦50,000 + Mobile Money ₦197,250" against
+  /// a ₦247,250 total makes `amountPaid == total`, so `balanceDue` is
+  /// exactly 0 — even though ₦50,000 of that was never actually
+  /// collected, only promised. `Customer.outstandingBalance` silently
+  /// never moved for any split sale with a credit leg, no matter how
+  /// large.
+  ///
+  /// [payments] is `draft.payments` — when it's non-empty, it's the
+  /// ground truth for how this sale was actually paid, so credit
+  /// extended is the sum of its `'credit'`-method legs specifically,
+  /// not a value derived from the sale's overall total-vs-paid. Falls
+  /// back to `balanceDue` only when `payments` is empty — the older,
+  /// still-supported single-method path (`SalePayment`'s own doc
+  /// comment: "a single-method sale... doesn't need this populated"),
+  /// where `balanceDue` remains the correct (and only) source.
+  Future<void> _recordCreditSaleIfNeeded(Sale sale, List<SalePayment> payments) async {
     final customerId = sale.customerId;
     if (customerId == null) return;
-    final unpaid = sale.balanceDue;
-    if (unpaid <= 0) return;
+
+    final creditAmount = payments.isNotEmpty
+        ? payments.where((p) => p.method == 'credit').fold(0.0, (sum, p) => sum + p.amount)
+        : sale.balanceDue;
+
+    if (creditAmount <= 0) return;
     await _customerCreditRepository.recordCreditSale(
       customerLocalId: customerId,
-      amount: unpaid,
+      amount: creditAmount,
       saleLocalId: sale.localId,
     );
   }
@@ -318,5 +336,11 @@ class SaleRepositoryImpl implements SaleRepository {
         ),
       );
     }
+  }
+
+  @override
+  Future<List<SalePayment>> getPaymentsForSale(String saleLocalId) async {
+    final rows = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(saleLocalId))).get();
+    return rows.map((r) => r.toDomain()).toList();
   }
 }

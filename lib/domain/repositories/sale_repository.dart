@@ -1,5 +1,6 @@
 import '../entities/sale.dart';
 import '../entities/sale_draft.dart';
+import '../entities/sale_payment.dart';
 
 /// Architecture Section 4's repository pattern, applied to Sales — the
 /// one entity with a complete stack underneath it (table, domain
@@ -57,4 +58,15 @@ abstract class SaleRepository {
     required String serverId,
     required String invoiceNumber,
   });
+
+  /// The individual payment legs behind a split-payment sale — see
+  /// `SalePayment`'s own doc comment ("no backend equivalent, rides
+  /// with parent, aggregates into Sale.paymentMethod/amountPaid").
+  /// Bug fix: added so the transaction detail screen can show what a
+  /// "Split" sale was actually paid with, instead of just the word
+  /// "Split" — previously nothing read the `SalePayments` rows back out
+  /// once written. Empty for a single-method sale (no rows were ever
+  /// written for those); the caller already has `Sale.paymentMethod`/
+  /// `amountPaid` for that ordinary case.
+  Future<List<SalePayment>> getPaymentsForSale(String saleLocalId);
 }

@@ -3,6 +3,7 @@ import '../../../domain/entities/customer_ledger_entry.dart';
 import '../../../domain/entities/expense.dart';
 import '../../../domain/entities/expense_category.dart';
 import '../../../domain/entities/income_record.dart';
+import '../../../domain/entities/product.dart';
 import '../../../domain/entities/report.dart';
 import '../../../domain/entities/sale.dart';
 import '../../../domain/entities/supplier_ledger_entry.dart';
@@ -12,6 +13,7 @@ import '../../../domain/repositories/customer_repository.dart';
 import '../../../domain/repositories/expense_category_repository.dart';
 import '../../../domain/repositories/expense_repository.dart';
 import '../../../domain/repositories/income_record_repository.dart';
+import '../../../domain/repositories/product_repository.dart';
 import '../../../domain/repositories/sale_repository.dart';
 import '../../../domain/repositories/supplier_credit_repository.dart';
 import '../../../domain/repositories/supplier_repository.dart';
@@ -65,6 +67,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     required ExpenseCategoryRepository expenseCategoryRepository,
     required CustomerRepository customerRepository,
     required SupplierRepository supplierRepository,
+    required ProductRepository productRepository,
     required ResolveActiveLocation resolveActiveLocation,
   })  : _saleRepository = saleRepository,
         _expenseRepository = expenseRepository,
@@ -75,6 +78,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         _expenseCategoryRepository = expenseCategoryRepository,
         _customerRepository = customerRepository,
         _supplierRepository = supplierRepository,
+        _productRepository = productRepository,
         _resolveActiveLocation = resolveActiveLocation;
 
   final SaleRepository _saleRepository;
@@ -86,6 +90,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   final ExpenseCategoryRepository _expenseCategoryRepository;
   final CustomerRepository _customerRepository;
   final SupplierRepository _supplierRepository;
+  final ProductRepository _productRepository;
   final ResolveActiveLocation _resolveActiveLocation;
 
   /// Wide enough to include everything a real business could have
@@ -187,6 +192,64 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       lineItems: descriptiveItems.isEmpty
           ? null
           : [for (final item in descriptiveItems) '${item.quantity} × ${item.description}'],
+    );
+  }
+
+  /// Bug fix (business-logic audit): the detail-screen version of
+  /// [_fromSale]. Two gaps that method's own comments named but
+  /// deliberately left unfixed there because it also backs the Cash
+  /// Flow *list* (N+1 product/payment lookups across every sale in a
+  /// date range) don't apply here — `getTransactionById` resolves
+  /// exactly one sale, so both are worth doing:
+  ///
+  /// 1. Catalog line items (the ordinary case — Quick Sale is the
+  ///    exception) resolve their real product name via
+  ///    [ProductRepository] instead of being silently omitted, so
+  ///    "Items" shows real names for a normal sale, not just a Quick
+  ///    Sale's raw typed description (or nothing at all).
+  /// 2. A split-payment sale fetches its actual [SalePayment] legs and
+  ///    exposes them via [MoneyTransaction.paymentBreakdown], instead
+  ///    of only the collapsed "Split" label.
+  Future<MoneyTransaction> _fromSaleDetailed(Sale sale) async {
+    final base = _fromSale(sale);
+
+    final resolvedLineItems = <String>[];
+    for (final item in sale.items) {
+      if (item.description.isNotEmpty) {
+        resolvedLineItems.add('${item.quantity} × ${item.description}');
+        continue;
+      }
+      final productLocalId = item.productLocalId;
+      if (productLocalId == null) continue;
+      final product = await _productRepository.getProductById(productLocalId, locationId: sale.locationId);
+      resolvedLineItems.add('${item.quantity} × ${product?.product.name ?? 'Unknown item'}');
+    }
+
+    List<({String method, double amount})>? paymentBreakdown;
+    if (sale.paymentMethod == 'split') {
+      final legs = await _saleRepository.getPaymentsForSale(sale.localId);
+      if (legs.isNotEmpty) {
+        paymentBreakdown = [
+          for (final leg in legs) (method: _displayPaymentMethod(leg.method) ?? leg.method, amount: leg.amount),
+        ];
+      }
+    }
+
+    return MoneyTransaction(
+      id: base.id,
+      type: base.type,
+      title: base.title,
+      subtitle: base.subtitle,
+      amount: base.amount,
+      dateTime: base.dateTime,
+      category: base.category,
+      paymentMethod: base.paymentMethod,
+      counterpartyName: base.counterpartyName,
+      reference: base.reference,
+      note: base.note,
+      lineItems: resolvedLineItems.isEmpty ? null : resolvedLineItems,
+      receiptPhotoPath: base.receiptPhotoPath,
+      paymentBreakdown: paymentBreakdown,
     );
   }
 
@@ -429,7 +492,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   Future<MoneyTransaction?> getTransactionById(String id) async {
     if (id.startsWith('sale-')) {
       final sale = await _saleRepository.getSaleByLocalId(id.substring('sale-'.length));
-      return sale == null ? null : _fromSale(sale);
+      return sale == null ? null : _fromSaleDetailed(sale);
     }
     if (id.startsWith('expense-')) {
       final expense =

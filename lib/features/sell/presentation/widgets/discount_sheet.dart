@@ -104,75 +104,87 @@ class _DiscountSheetState extends State<DiscountSheet> {
         top: AppSpacing.lg,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(widget.title, style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-          const SizedBox(height: AppSpacing.lg),
-          SegmentedButton<_DiscountMode>(
-            segments: const [
-              ButtonSegment(value: _DiscountMode.amount, label: Text('Amount')),
-              ButtonSegment(value: _DiscountMode.percent, label: Text('Percent')),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (s) => setState(() => _mode = s.first),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FulusTextField(
-            label: _mode == _DiscountMode.amount ? 'Discount amount' : 'Discount percent',
-            controller: _controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            errorText: _error,
-            onChanged: (_) => setState(() {}),
-            suffixIcon: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.lg),
-              child: Align(
-                widthFactor: 1,
-                child: Text(_mode == _DiscountMode.amount ? widget.currencySymbol : '%'),
+      // Responsive UI audit — SingleChildScrollView added. This sheet
+      // calls showModalBottomSheet directly (see .show() above) rather
+      // than going through showFulusBottomSheet, so it never inherited
+      // that shared fix — and independently had the exact same "bare
+      // Column, no scroll wrapper" gap. With the on-screen keyboard
+      // open (which it will be, once the discount TextField below has
+      // focus) and this much content — heading, mode selector, text
+      // field, total row, two buttons — this is precisely the
+      // "BOTTOM OVERFLOWED" a diagnostic report from this app caught
+      // here after adjusting cart quantities and opening this sheet.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.title, style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+            const SizedBox(height: AppSpacing.lg),
+            SegmentedButton<_DiscountMode>(
+              segments: const [
+                ButtonSegment(value: _DiscountMode.amount, label: Text('Amount')),
+                ButtonSegment(value: _DiscountMode.percent, label: Text('Percent')),
+              ],
+              selected: {_mode},
+              onSelectionChanged: (s) => setState(() => _mode = s.first),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FulusTextField(
+              label: _mode == _DiscountMode.amount ? 'Discount amount' : 'Discount percent',
+              controller: _controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              errorText: _error,
+              onChanged: (_) => setState(() {}),
+              suffixIcon: Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                child: Align(
+                  widthFactor: 1,
+                  child: Text(_mode == _DiscountMode.amount ? widget.currencySymbol : '%'),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('New total', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-              // Responsive UI audit — Flexible+ellipsis on the value side.
-              Flexible(
-                child: Text(
-                  formatMoney(resultingTotal, symbol: widget.currencySymbol),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              if (widget.initialDiscount > 0)
-                Expanded(
-                  child: FulusButton(
-                    label: 'Remove discount',
-                    variant: FulusButtonVariant.secondary,
-                    loading: _saving,
-                    onPressed: _saving ? null : () => _save(0),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('New total', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+                // Responsive UI audit — Flexible+ellipsis on the value side.
+                Flexible(
+                  child: Text(
+                    formatMoney(resultingTotal, symbol: widget.currencySymbol),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
                   ),
                 ),
-              if (widget.initialDiscount > 0) const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: FulusButton(
-                  label: 'Apply',
-                  loading: _saving,
-                  onPressed: _saving ? null : () => _save(resolved),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                if (widget.initialDiscount > 0)
+                  Expanded(
+                    child: FulusButton(
+                      label: 'Remove discount',
+                      variant: FulusButtonVariant.secondary,
+                      loading: _saving,
+                      onPressed: _saving ? null : () => _save(0),
+                    ),
+                  ),
+                if (widget.initialDiscount > 0) const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: FulusButton(
+                    label: 'Apply',
+                    loading: _saving,
+                    onPressed: _saving ? null : () => _save(resolved),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

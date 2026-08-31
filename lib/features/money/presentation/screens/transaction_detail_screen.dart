@@ -116,6 +116,8 @@ class _DetailBody extends ConsumerWidget {
               if (t.counterpartyName != null) ['With', t.counterpartyName!],
               if (t.reference != null) ['Reference', t.reference!],
               if (t.note != null) ['Note', t.note!],
+              for (final leg in t.paymentBreakdown ?? const <({String method, double amount})>[])
+                [leg.method, formatMoney(leg.amount, symbol: currencySymbol)],
               for (final line in t.lineItems ?? const <String>[]) ['Item', line],
             ],
           );
@@ -181,6 +183,30 @@ class _DetailBody extends ConsumerWidget {
             ],
           ),
         ),
+        // Bug fix — split-payment breakdown. "Paid with: Split" alone
+        // doesn't tell a CEO reviewing this sale later how much of it
+        // was actually cash-in-hand versus credit extended; each leg's
+        // own method and amount, formatted with this screen's own
+        // currencySymbol (RealMoneyRepositoryImpl.paymentBreakdown
+        // deliberately leaves amount unformatted for exactly this).
+        if (t.paymentBreakdown != null && t.paymentBreakdown!.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          FulusSectionHeader(title: 'Payment breakdown'),
+          FulusCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var i = 0; i < t.paymentBreakdown!.length; i++) ...[
+                  if (i > 0) const FulusListDivider(indented: false),
+                  _DetailRow(
+                    label: t.paymentBreakdown![i].method,
+                    value: formatMoney(t.paymentBreakdown![i].amount, symbol: currencySymbol),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
         if (t.lineItems != null && t.lineItems!.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
           FulusSectionHeader(title: 'Items'),

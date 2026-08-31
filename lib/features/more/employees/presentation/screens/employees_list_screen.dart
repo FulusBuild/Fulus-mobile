@@ -145,27 +145,33 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
         top: AppSpacing.lg,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Add team member', style: AppTypography.heading),
-          const SizedBox(height: AppSpacing.lg),
-          FulusTextField(label: 'Full name', controller: _nameController),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Role (e.g. Cashier)', controller: _roleController),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Phone (optional)', controller: _phoneController, keyboardType: TextInputType.phone),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Add',
-              loading: _saving,
-              onPressed: _saving ? null : _submit,
+      // Responsive UI audit — SingleChildScrollView added; same gap as
+      // DiscountSheet (see that file's comment): a direct
+      // showModalBottomSheet call, bare Column, three text fields whose
+      // keyboard will eat into the available height once focused.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Add team member', style: AppTypography.heading),
+            const SizedBox(height: AppSpacing.lg),
+            FulusTextField(label: 'Full name', controller: _nameController),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Role (e.g. Cashier)', controller: _roleController),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Phone (optional)', controller: _phoneController, keyboardType: TextInputType.phone),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(
+                label: 'Add',
+                loading: _saving,
+                onPressed: _saving ? null : _submit,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

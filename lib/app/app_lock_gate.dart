@@ -58,7 +58,28 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
     return Stack(
       children: [
         widget.child,
-        if (_locked) AppLockScreen(onUnlocked: () => setState(() => _locked = false)),
+        // Bug fix — AppLockScreen uses a real TextField (via
+        // FulusTextField) for PIN entry, and a TextField's EditableText
+        // needs an Overlay ancestor for its SelectionOverlay/IME
+        // machinery — not optional decoration, a hard requirement. This
+        // Stack sits outside MaterialApp.router's own Navigator/Overlay
+        // by construction (that's the whole point of using `builder:`
+        // here — see this class's own doc comment), so previously there
+        // was none. Symptom: enter a wrong PIN, and the field won't
+        // accept new input or let you clear it — Android's IME keeps
+        // sending updateEditingState calls into an EditableText whose
+        // Overlay lookup fails, corrupting its input connection until
+        // the app is fully restarted. Wrapping just this branch in its
+        // own [Overlay] gives it a real one without needing a second
+        // Navigator.
+        if (_locked)
+          Overlay(
+            initialEntries: [
+              OverlayEntry(
+                builder: (context) => AppLockScreen(onUnlocked: () => setState(() => _locked = false)),
+              ),
+            ],
+          ),
       ],
     );
   }

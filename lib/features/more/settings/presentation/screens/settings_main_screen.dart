@@ -406,50 +406,53 @@ class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
         top: AppSpacing.lg,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Change approval PIN', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Needs a connection this one time, to sync to the server.',
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (_error != null) ...[
-            Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+      // Responsive UI audit — SingleChildScrollView added; same gap as
+      // DiscountSheet.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Change approval PIN', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Needs a connection this one time, to sync to the server.',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (_error != null) ...[
+              Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            FulusTextField(
+              label: 'New PIN',
+              controller: _pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.backspace_outlined),
+                tooltip: 'Clear',
+                onPressed: _pinController.clear,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
+            FulusTextField(
+              label: 'Confirm PIN',
+              controller: _confirmController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.backspace_outlined),
+                tooltip: 'Clear',
+                onPressed: _confirmController.clear,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
+            ),
           ],
-          FulusTextField(
-            label: 'New PIN',
-            controller: _pinController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.backspace_outlined),
-              tooltip: 'Clear',
-              onPressed: _pinController.clear,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(
-            label: 'Confirm PIN',
-            controller: _confirmController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.backspace_outlined),
-              tooltip: 'Clear',
-              onPressed: _confirmController.clear,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
-          ),
-        ],
       ),
     );
   }
