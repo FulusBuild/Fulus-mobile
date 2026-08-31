@@ -353,6 +353,19 @@ class _ProductArea extends StatelessWidget {
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xxxl),
+      // Responsive UI audit — kept as a fixed-childAspectRatio GridView,
+      // unlike the stat-card grids this pass replaced (see
+      // FulusStatGrid's doc comment in shared/widgets/fulus_card.dart).
+      // The difference: this catalog is designed to scale to thousands
+      // of products (see _ProductTile's own cacheWidth comment below),
+      // built lazily via GridView.builder — an IntrinsicHeight-based
+      // grid would force every tile to be laid out just to measure a
+      // row, defeating that virtualization. Kept safe instead by
+      // bounding every text line in _ProductTile to one line with
+      // ellipsis (maxLines/overflow, added this pass) and letting the
+      // image area absorb slack via Expanded, so the fixed-ratio cell's
+      // height stays large enough for its content at any text scale
+      // instead of needing to be measured per-row.
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: AppSpacing.md,
@@ -455,15 +468,34 @@ class _ProductTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
+            // Responsive UI audit — maxLines/overflow added below. This
+            // tile sits in a fixed-`childAspectRatio` GridView cell (see
+            // that delegate's own note a few lines up for why that's
+            // safe to keep here, unlike the stat-card grids this audit
+            // replaced): the name above was already ellipsis-safe, but
+            // price and the low-stock/out-of-stock caption were plain
+            // Text with no line limit, so an unusually long formatted
+            // price, or the caption's number, could wrap to an extra
+            // line and push the fixed-height cell into overflow — the
+            // one gap in an otherwise-safe pattern.
             Text(
               formatMoney(product.sellingPrice, symbol: currencySymbol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
             ),
             if (_outOfStock)
-              Text('Out of stock', style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)))
+              Text(
+                'Out of stock',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)),
+              )
             else if (product.tracksStock && productWithStock.isLowStock)
               Text(
                 'Only ${productWithStock.currentStock} left',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: AppTypography.caption.copyWith(color: AppColors.warningOf(context)),
               ),
           ],

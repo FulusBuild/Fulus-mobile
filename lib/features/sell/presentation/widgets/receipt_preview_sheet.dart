@@ -339,7 +339,10 @@ class _AmountRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text(value, style: style),
+          // Responsive UI audit — Flexible+ellipsis on the value side.
+          Flexible(
+            child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: style),
+          ),
         ],
       ),
     );

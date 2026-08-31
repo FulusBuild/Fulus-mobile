@@ -22,6 +22,16 @@ import '../../application/stock_providers.dart';
 /// as e.g. "₦44000.00M" (44,000 million, never reduced further) rather
 /// than "₦44.0B" — visible on this exact screen in the reference
 /// screenshots. `formatMoney`'s compact form has a proper B tier.
+///
+/// Responsive UI audit — the 2-column `GridView.count(childAspectRatio:
+/// 1.7)` this used is exactly what produced this screen's "BOTTOM
+/// OVERFLOWED BY 23 PIXELS" report: an aspect ratio fixes each card's
+/// height from the grid's *width* alone, so a narrower device, a longer
+/// label wrapping to a second line, or larger system text all grow the
+/// card's real content past a cell height that never moves. Swapped for
+/// [FulusStatGrid] (shared/widgets/fulus_card.dart), which measures
+/// each row's height from its own cards instead of guessing it from
+/// width — see that widget's doc comment for the full reasoning.
 class StockOverviewStats extends StatelessWidget {
   const StockOverviewStats({
     super.key,
@@ -40,14 +50,8 @@ class StockOverviewStats extends StatelessWidget {
     final lowStockCount = products.where((p) => p.isLowStock).length;
     final outOfStock = outOfStockCount(products);
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.sm,
-      crossAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 1.7,
-      children: [
+    return FulusStatGrid(
+      cards: [
         FulusStatCard(
           label: 'Stock value',
           value: formatMoney(value, compact: true),

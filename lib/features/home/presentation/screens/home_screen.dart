@@ -656,19 +656,36 @@ class _NoticeRow extends StatelessWidget {
     if (selection.shown.length == 1) {
       return SizedBox(width: double.infinity, child: _noticeTile(context, selection.shown.first));
     }
+    // Responsive UI audit — this used to be a fixed `SizedBox(height:
+    // 128)` wrapping the horizontal ListView, the same "guess a height,
+    // hope the content fits it" pattern that produced Stock's "BOTTOM
+    // OVERFLOWED" report (see FulusStatGrid's doc comment in
+    // shared/widgets/fulus_card.dart): notice.label is data-driven, not
+    // a short fixed string, so it can legitimately wrap to a second
+    // line at 152dp wide, and 128dp had no margin left once it did — a
+    // wrapped label alone adds roughly one caption line (~21dp), which
+    // is most of how a 23px overflow happens in the first place.
+    // `selection.shown` is at most 3 tiles (one per notice type), so
+    // swapping the virtualized ListView for a plain scrollable Row costs
+    // nothing worth avoiding, and IntrinsicHeight is what lets the row's
+    // height come from the tallest tile's own content instead of a
+    // number picked in advance — exactly [FulusStatGrid]'s approach,
+    // applied here to a horizontal scroller instead of a wrapping grid.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 128,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: selection.shown.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (context, i) {
-              final notice = selection.shown[i];
-              return SizedBox(width: 152, child: _noticeTile(context, notice));
-            },
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < selection.shown.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.sm),
+                  SizedBox(width: 152, child: _noticeTile(context, selection.shown[i])),
+                ],
+              ],
+            ),
           ),
         ),
         if (selection.overflowCount > 0) ...[

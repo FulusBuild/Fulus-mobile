@@ -32,6 +32,10 @@ Future<bool> showFulusPermissionPrimer(
     builder: (dialogContext) => AlertDialog(
       backgroundColor: AppColors.surfaceOf(dialogContext),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      // Responsive UI audit — see showFulusConfirmDialog's own note
+      // below: caller-supplied [message] plus a small screen or larger
+      // system text can otherwise overflow rather than scroll.
+      scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,6 +81,14 @@ Future<bool> showFulusConfirmDialog(
   final result = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
+      // Responsive UI audit — off by default on AlertDialog; without
+      // it, [title] + [message] together are laid out at their natural
+      // height with no permission to give way, so a longer [message]
+      // (this is caller-supplied, specific copy per its own doc
+      // comment below — not guaranteed short) combined with a small
+      // screen or larger system text can overflow the dialog instead of
+      // scrolling within it.
+      scrollable: true,
       title: Text(title, style: AppTypography.heading),
       content: Text(message, style: AppTypography.body),
       // "Dialog default focus: Cancel/Text button sits visually

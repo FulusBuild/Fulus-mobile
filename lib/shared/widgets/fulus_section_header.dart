@@ -25,11 +25,21 @@ class FulusSectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+          // Responsive UI audit — Expanded+ellipsis added. This is a
+          // shared component with call sites across the app; most pass
+          // a short, fixed [title], but nothing stopped a future (or
+          // data-driven) longer one from overflowing against [action]
+          // with no way to give.
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+            ),
           ),
-          if (action != null)
+          if (action != null) ...[
+            const SizedBox(width: AppSpacing.sm),
             TextButton(
               onPressed: onActionTap,
               style: TextButton.styleFrom(
@@ -40,6 +50,7 @@ class FulusSectionHeader extends StatelessWidget {
               ),
               child: Text(action!, style: AppTypography.buttonLabel),
             ),
+          ],
         ],
       ),
     );

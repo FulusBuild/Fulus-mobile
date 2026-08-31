@@ -131,19 +131,31 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.counterpartyName,
-                      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      widget.counterpartyLabel,
-                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                  ],
+                // Responsive UI audit — Expanded+ellipsis added.
+                // counterpartyName is a customer/supplier's actual name,
+                // not fixed copy, so a long business name could
+                // previously push this Row past the available width
+                // (RIGHT OVERFLOWED) — the balance Text on the other
+                // side has no give, so the name is the side that needs
+                // to be able to shrink.
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.counterpartyName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        widget.counterpartyLabel,
+                        style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   formatMoney(widget.outstandingBalance, symbol: widget.currencySymbol),
                   style: AppTypography.heading.copyWith(

@@ -107,11 +107,21 @@ class _SupplierProfileBody extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('You owe', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-                  Text(
-                    formatMoney(supplier.outstandingBalance, symbol: currencySymbol),
-                    style: AppTypography.heading.copyWith(
-                      color: AppColors.textPrimaryOf(context),
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  // Responsive UI audit — Flexible+ellipsis added. The
+                  // label is fixed and short, but the balance is not
+                  // bounded (this app already anticipates values into
+                  // the billions elsewhere — see StockOverviewStats),
+                  // so it's the side that needs to be able to give.
+                  Flexible(
+                    child: Text(
+                      formatMoney(supplier.outstandingBalance, symbol: currencySymbol),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: AppTypography.heading.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                 ],

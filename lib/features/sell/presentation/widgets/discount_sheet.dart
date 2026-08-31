@@ -138,9 +138,15 @@ class _DiscountSheetState extends State<DiscountSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('New total', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-              Text(
-                formatMoney(resultingTotal, symbol: widget.currencySymbol),
-                style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
+              // Responsive UI audit — Flexible+ellipsis on the value side.
+              Flexible(
+                child: Text(
+                  formatMoney(resultingTotal, symbol: widget.currencySymbol),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),

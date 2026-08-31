@@ -402,7 +402,16 @@ class _Row extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: labelStyle),
-          Text(formatMoney(value, symbol: currencySymbol), style: valueStyle),
+          // Responsive UI audit — Flexible+ellipsis on the value side.
+          Flexible(
+            child: Text(
+              formatMoney(value, symbol: currencySymbol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: valueStyle,
+            ),
+          ),
         ],
       ),
     );

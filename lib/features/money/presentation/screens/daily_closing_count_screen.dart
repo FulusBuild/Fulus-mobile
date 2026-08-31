@@ -203,7 +203,17 @@ class _AmountRow extends StatelessWidget {
               color: AppColors.textSecondaryOf(context),
             ),
           ),
-          Text(formatMoney(value, symbol: symbol, showSign: showPlus || value < 0), style: style),
+          // Responsive UI audit — Flexible+ellipsis, same reasoning as
+          // every other fixed-label/money-value row in this pass.
+          Flexible(
+            child: Text(
+              formatMoney(value, symbol: symbol, showSign: showPlus || value < 0),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: style,
+            ),
+          ),
         ],
       ),
     );

@@ -258,7 +258,21 @@ class _DetailRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-          Text(value, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
+          // Responsive UI audit — Flexible+ellipsis added. label is
+          // always one of this screen's own fixed field names, but
+          // value isn't always short: two of this row's call sites pass
+          // counterpartyName (a customer/supplier's real name) and
+          // reference (free-text), either of which can be long enough
+          // to overflow against the label with no protection.
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );

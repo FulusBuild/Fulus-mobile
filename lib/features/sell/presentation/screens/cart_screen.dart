@@ -380,9 +380,15 @@ class _DiscountRow extends StatelessWidget {
               'Discount',
               style: AppTypography.body.copyWith(color: AppColors.primaryOf(context)),
             ),
-            Text(
-              hasDiscount ? '-${formatMoney(state.discount, symbol: state.currencySymbol)}' : 'Add',
-              style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
+            // Responsive UI audit — Flexible+ellipsis on the value side.
+            Flexible(
+              child: Text(
+                hasDiscount ? '-${formatMoney(state.discount, symbol: state.currencySymbol)}' : 'Add',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -415,7 +421,16 @@ class _TotalRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text(formatMoney(value, symbol: currencySymbol), style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+          // Responsive UI audit — Flexible+ellipsis on the value side.
+          Flexible(
+            child: Text(
+              formatMoney(value, symbol: currencySymbol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+            ),
+          ),
         ],
       ),
     );

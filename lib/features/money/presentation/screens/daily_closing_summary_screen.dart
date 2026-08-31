@@ -194,12 +194,20 @@ class _Row extends StatelessWidget {
               fontWeight: emphasize ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
-          Text(
-            formatMoney(value, symbol: symbol, showSign: value < 0),
-            style: AppTypography.body.copyWith(
-              color: AppColors.textPrimaryOf(context),
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
+          // Responsive UI audit — Flexible+ellipsis added; label here is
+          // one of this screen's own fixed strings, value is a money
+          // amount that isn't otherwise bounded.
+          Flexible(
+            child: Text(
+              formatMoney(value, symbol: symbol, showSign: value < 0),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ],

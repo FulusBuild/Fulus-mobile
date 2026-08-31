@@ -112,11 +112,19 @@ class _ProfileBody extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Outstanding balance', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-                  Text(
-                    formatMoney(customer.outstandingBalance, symbol: currencySymbol),
-                    style: AppTypography.heading.copyWith(
-                      color: AppColors.textPrimaryOf(context),
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  // Responsive UI audit — Flexible+ellipsis added, same
+                  // reasoning as supplier_profile_screen's identical row:
+                  // the label is fixed, the balance isn't bounded.
+                  Flexible(
+                    child: Text(
+                      formatMoney(customer.outstandingBalance, symbol: currencySymbol),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: AppTypography.heading.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                 ],

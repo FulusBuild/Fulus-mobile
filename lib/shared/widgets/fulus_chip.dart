@@ -6,6 +6,16 @@ import '../../core/theme/design_tokens.dart';
 /// "Never used for status or alerts — those stay in Warning/Error."
 /// Selected state never relies on color alone: fill + border + a
 /// leading checkmark together.
+///
+/// Responsive UI audit — sized by padding around [label] rather than a
+/// fixed `height: 36`. A fixed height and dynamic text (larger system
+/// font, a longer localized label) don't agree with each other: the
+/// container doesn't grow, so it either clips the text or paints it
+/// outside its own bounds. Padding lets the chip grow with its content
+/// instead. The padding below reproduces the old 36dp almost exactly at
+/// default text scale (`AppTypography.label`'s ~19.6dp line height plus
+/// [AppSpacing.sm] on each side ≈ 36dp) — same look normally, safe
+/// beyond it.
 class FulusChip extends StatelessWidget {
   const FulusChip({super.key, required this.label, required this.selected, required this.onTap});
 
@@ -20,8 +30,7 @@ class FulusChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? AppColors.selectedTintOf(context) : AppColors.surfaceAltOf(context),
@@ -49,19 +58,33 @@ class FulusChip extends StatelessWidget {
 /// A row of [FulusChip]s that scrolls horizontally rather than wraps —
 /// "wrapping pushes content below the fold unpredictably on a short
 /// screen" (5.2, Overflow).
+///
+/// Responsive UI audit — used to be a `SizedBox(height: 36)` around a
+/// horizontal [ListView]; now an [IntrinsicHeight] row inside a
+/// [SingleChildScrollView], so the row's height comes from the chips'
+/// own (now content-driven, see [FulusChip]) height instead of a second
+/// hardcoded number that would fall out of sync with it. Every call
+/// site passes a short, known set of filter chips — never a lazily
+/// loaded list — so giving up [ListView]'s virtualization here costs
+/// nothing.
 class FulusChipRow extends StatelessWidget {
   const FulusChipRow({super.key, required this.children});
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: children.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, i) => children[i],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.sm),
+              children[i],
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -99,9 +122,13 @@ class FulusStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _color(context);
+    // Responsive UI audit — padding instead of a fixed `height: 28`,
+    // same reasoning as FulusChip just above: AppTypography.label's
+    // ~19.6dp line height plus AppSpacing.xs on each side ≈ 28dp at
+    // default text scale, so this looks identical normally and only
+    // grows if the text actually needs to.
     return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),

@@ -176,9 +176,15 @@ class _PriceAndStockCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Price', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-              Text(
-                formatMoney(product.sellingPrice, symbol: currencySymbol),
-                style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+              // Responsive UI audit — Flexible+ellipsis on the value side.
+              Flexible(
+                child: Text(
+                  formatMoney(product.sellingPrice, symbol: currencySymbol),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+                ),
               ),
             ],
           ),
@@ -188,9 +194,14 @@ class _PriceAndStockCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Margin', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                Text(
-                  formatMoney(margin, symbol: currencySymbol),
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                Flexible(
+                  child: Text(
+                    formatMoney(margin, symbol: currencySymbol),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                  ),
                 ),
               ],
             ),
@@ -213,7 +224,18 @@ class _PriceAndStockCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-          Text(value, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
+          // Responsive UI audit — Flexible+ellipsis on the value side.
+          // Category is a user-defined name and SKU is user-entered —
+          // neither is bounded the way the fixed labels here are.
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+            ),
+          ),
         ],
       ),
     );

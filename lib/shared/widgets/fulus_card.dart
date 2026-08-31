@@ -109,15 +109,19 @@ class FulusStatCard extends StatelessWidget {
   /// site.
   final VoidCallback? onTap;
 
+  /// "A stat card that's too narrow to read its own number has stopped
+  /// being useful" — the 130dp floor from 5.17's Row-of-cards rule.
+  /// Named (rather than an inline literal) so [FulusStatGrid] can size
+  /// its columns from the same number this card enforces on itself,
+  /// instead of the two drifting apart.
+  static const minWidth = 130.0;
+
   @override
   Widget build(BuildContext context) {
     return FulusCard(
       onTap: onTap,
       child: ConstrainedBox(
-        // "A stat card that's too narrow to read its own number has
-        // stopped being useful" — the 130dp floor from 5.17's
-        // Row-of-cards rule, applied here as this card's own minimum.
-        constraints: const BoxConstraints(minWidth: 130),
+        constraints: const BoxConstraints(minWidth: minWidth),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -162,6 +166,90 @@ class FulusStatCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Responsive UI audit — new shared component. A responsive grid for a
+/// small, known-length set of same-family cards — in practice always
+/// [FulusStatCard]s. Replaces the `GridView.count(childAspectRatio:
+/// ...)` pattern that produced the "BOTTOM OVERFLOWED" reports on Stock
+/// and Home: an aspect ratio derives cell *height* purely from the
+/// width Flutter happened to hand the grid, with no regard for what the
+/// card inside actually needs — a longer label wrapping to a second
+/// line, or a larger system font size, both grow the card's real
+/// content height while the ratio-derived cell height stays exactly
+/// where it was. This grid never guesses a height: each row is
+/// measured via [IntrinsicHeight] and every card in it is stretched to
+/// match the tallest one ([CrossAxisAlignment.stretch]), so a row is
+/// always exactly as tall as its own content needs, on any device, at
+/// any text scale, in any language.
+///
+/// Column count comes from the width [LayoutBuilder] actually hands
+/// this widget divided by [minTileWidth] — never a device check — so
+/// the same grid naturally goes from 1 column on a narrow phone up
+/// through 2, 3, or 4 as real width allows, per the app-wide responsive
+/// grid rule. Capped at 4 and at [cards.length] itself, so a handful of
+/// cards on a very wide window still fill the row rather than sitting
+/// in a few real columns next to empty ones.
+///
+/// Built on [Row]+[IntrinsicHeight] rather than [GridView] on purpose:
+/// this is for a small, eagerly-built set of cards (a handful of
+/// stats), never a lazily-loaded list, so there's no virtualization
+/// benefit to give up, and a Row is the only one of the two that can
+/// size a row's height from its own children's content instead of
+/// requiring one supplied from outside.
+class FulusStatGrid extends StatelessWidget {
+  const FulusStatGrid({
+    super.key,
+    required this.cards,
+    this.minTileWidth = FulusStatCard.minWidth + AppSpacing.xl,
+    this.spacing = AppSpacing.sm,
+  });
+
+  /// Typically a list of [FulusStatCard]s.
+  final List<Widget> cards;
+
+  /// The narrowest a column may get before the grid drops to fewer
+  /// columns. Defaults to a bit above [FulusStatCard.minWidth] itself,
+  /// so a column change leaves each card comfortably above its own
+  /// "too narrow to read" floor rather than landing exactly on it.
+  final double minTileWidth;
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) {
+    if (cards.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Plain comparisons rather than num.clamp — clamp's return type is
+        // num even when called on an int, which would silently turn
+        // `columns` below into a num and break the int-typed loop that
+        // uses it as a step.
+        final availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : minTileWidth;
+        final rawColumns = (availableWidth / minTileWidth).floor();
+        final byWidth = rawColumns < 1 ? 1 : (rawColumns > 4 ? 4 : rawColumns);
+        final columns = byWidth < cards.length ? byWidth : cards.length;
+        final rows = <Widget>[];
+        for (var i = 0; i < cards.length; i += columns) {
+          if (rows.isNotEmpty) rows.add(SizedBox(height: spacing));
+          final rowCards = cards.skip(i).take(columns).toList();
+          rows.add(
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var j = 0; j < columns; j++) ...[
+                    if (j > 0) SizedBox(width: spacing),
+                    Expanded(child: j < rowCards.length ? rowCards[j] : const SizedBox.shrink()),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }
+        return Column(children: rows);
+      },
     );
   }
 }
