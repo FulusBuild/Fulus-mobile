@@ -453,11 +453,11 @@ class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
               child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
             ),
           ],
-      ),
-    );
+          ),
+        ),
+      );
+    }
   }
-}
-
 class _AppLockSheet extends ConsumerStatefulWidget {
   const _AppLockSheet();
 
