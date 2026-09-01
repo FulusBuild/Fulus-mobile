@@ -227,6 +227,7 @@ class SaleRepositoryImpl implements SaleRepository {
     required String locationId,
     required DateTime start,
     required DateTime end,
+    String? cashierUserId,
   }) async {
     // Both ends treated as full calendar days, matching
     // ReportsRepositoryImpl.getSalesReport's own end-of-day handling for
@@ -236,16 +237,21 @@ class SaleRepositoryImpl implements SaleRepository {
     final startOfDay = DateTime(start.year, start.month, start.day);
     final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
 
-    final rows = await (_db.select(_db.sales)
-          ..where(
-            (s) =>
-                s.locationId.equals(locationId) &
-                s.deletedAt.isNull() &
-                s.saleDate.isBiggerOrEqualValue(startOfDay) &
-                s.saleDate.isSmallerThanValue(endExclusive),
-          )
-          ..orderBy([(s) => OrderingTerm.desc(s.saleDate)]))
-        .get();
+    final query = _db.select(_db.sales)
+      ..where(
+        (s) =>
+            s.locationId.equals(locationId) &
+            s.deletedAt.isNull() &
+            s.saleDate.isBiggerOrEqualValue(startOfDay) &
+            s.saleDate.isSmallerThanValue(endExclusive),
+      )
+      ..orderBy([(s) => OrderingTerm.desc(s.saleDate)]);
+    // Employee data isolation — see this parameter's own doc comment on
+    // the interface.
+    if (cashierUserId != null) {
+      query.where((s) => s.cashierUserId.equals(cashierUserId));
+    }
+    final rows = await query.get();
 
     final sales = <Sale>[];
     for (final row in rows) {

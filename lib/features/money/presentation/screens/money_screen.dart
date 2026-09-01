@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/providers.dart' show dataRefreshSignalProvider;
+import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/auth_user.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../data/mock_money_repository.dart';
@@ -39,9 +41,19 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   void _load(ReportPeriod period) {
     final repo = ref.read(moneyRepositoryProvider);
     _builtForPeriod = period;
+    // Employee data isolation — the same `isOwner || canViewDashboardStats`
+    // "sees business-wide" check home_screen.dart's own showBusinessWide
+    // already uses for Home, applied here so Money agrees with it rather
+    // than defining its own separate notion of who sees everything.
+    final user = ref.read(sessionProvider);
+    final currentAuthUserId = user?.id ?? '';
+    final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
+    final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
     _balanceFuture = repo.getAvailableBalance();
-    _summaryFuture = repo.getSummary(period);
-    _recentFuture = repo.getTransactions(period).then((list) => list.take(5).toList());
+    _summaryFuture = repo.getSummary(period, currentAuthUserId: currentAuthUserId, canViewAllSales: canViewAllSales);
+    _recentFuture = repo
+        .getTransactions(period, currentAuthUserId: currentAuthUserId, canViewAllSales: canViewAllSales)
+        .then((list) => list.take(5).toList());
   }
 
   Future<void> _refresh() async {

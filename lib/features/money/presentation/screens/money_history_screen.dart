@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/export/export_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/auth_user.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../data/mock_money_repository.dart';
@@ -54,8 +56,17 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
     _builtForType = _typeFilter;
     _builtForCategory = _categoryFilter;
     _builtForQuery = _searchQuery;
+    // Employee data isolation — see money_screen.dart's identical block
+    // for the full reasoning; this is the same check, applied to the
+    // full history list rather than just the recent-5 preview.
+    final user = ref.read(sessionProvider);
+    final currentAuthUserId = user?.id ?? '';
+    final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
+    final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
     _future = repo.getTransactions(
       period,
+      currentAuthUserId: currentAuthUserId,
+      canViewAllSales: canViewAllSales,
       typeFilter: _typeFilter,
       category: _categoryFilter,
       searchQuery: _searchQuery,

@@ -106,9 +106,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // this parameter); every other caller of this method keeps the
     // default cap of 2.
     _noticesFuture = repo.getSecondaryNotices(max: 3);
-    _activityFuture = showBusinessWide
-        ? ref.read(moneyRepositoryProvider).getTransactions(_reportsEngine.resolvePeriod(ReportPeriodKind.today))
-        : Future.value(const <MoneyTransaction>[]);
+    _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
+      _reportsEngine.resolvePeriod(ReportPeriodKind.today),
+      currentAuthUserId: widget.currentAuthUserId,
+      canViewAllSales: showBusinessWide,
+    );
   }
 
   Future<void> _refresh() async {

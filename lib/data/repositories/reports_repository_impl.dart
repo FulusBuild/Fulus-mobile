@@ -25,10 +25,19 @@ class ReportsRepositoryImpl implements ReportsRepository {
   final ReportsEngine _engine;
 
   @override
-  Future<SalesReport> getSalesReport(ReportPeriod period) async {
-    final sales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
-        .get();
+  Future<SalesReport> getSalesReport(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
+    final query = _db.select(_db.sales)
+      ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end)));
+    // Employee data isolation — see this method's own interface doc
+    // comment.
+    if (!canViewAllSales) {
+      query.where((s) => s.cashierUserId.equals(currentAuthUserId));
+    }
+    final sales = await query.get();
 
     final saleIds = sales.map((s) => s.localId).toSet();
     // **Bug fix (void/refund audit):** a voided or refunded sale used to

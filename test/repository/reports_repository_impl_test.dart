@@ -352,6 +352,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       expect(report.transactions, hasLength(2));
@@ -385,6 +387,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       final record = report.transactions.single;
@@ -406,6 +410,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       expect(report.transactions.single.status, SaleRecordStatus.completed);
@@ -448,6 +454,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       final refunded = report.transactions.firstWhere((t) => t.saleLocalId == 'sale-refunded');
@@ -476,6 +484,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       expect(report.transactions.single.status, SaleRecordStatus.partiallyRefunded);
@@ -515,6 +525,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       // Before the fix: totalRevenue 1500, count 2 — the voided sale
@@ -553,6 +565,8 @@ void main() {
 
       final report = await repository.getSalesReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
       );
 
       expect(report.totalRevenue, 300); // 400 - 100 refunded

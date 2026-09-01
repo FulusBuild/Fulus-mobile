@@ -58,7 +58,11 @@ class MockMoneyRepository implements MoneyRepository {
   }
 
   @override
-  Future<MoneySummary> getSummary(ReportPeriod period) async {
+  Future<MoneySummary> getSummary(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
     await _delay();
     final inPeriod = _transactions.where((t) => _inPeriod(t, period)).toList();
 
@@ -134,6 +138,8 @@ class MockMoneyRepository implements MoneyRepository {
   @override
   Future<List<MoneyTransaction>> getTransactions(
     ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
     MoneyTransactionType? typeFilter,
     String? category,
     String? searchQuery,

@@ -108,35 +108,51 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   /// `_transactions` list — built fresh from all five real repositories
   /// on every call rather than cached, since Drift's own query engine
   /// (not this class) is this app's caching layer.
+  /// Employee data isolation: [cashierUserId] scopes the *sales* portion
+  /// of this range to one cashier when given (default: everyone's,
+  /// unchanged for every existing caller). Expenses, income records, and
+  /// repayments aren't included in that scoping — none of those
+  /// entities carry a "recorded by" user field in the current schema, so
+  /// there's nothing to filter them by; they remain business-wide
+  /// regardless of who's asking. [getSummary]/[getTransactions] are the
+  /// only callers that ever pass this; the cash-drawer reconciliation
+  /// call below (`computeExpectedCash`/`closeDrawer`'s "sinceOpen") is
+  /// deliberately left unscoped — a shared drawer's expected cash has to
+  /// include every sale that went through it, not just one cashier's,
+  /// or the reconciliation math comes out wrong.
   Future<List<MoneyTransaction>> _transactionsForRange(
     DateTime start,
-    DateTime end,
-  ) async {
+    DateTime end, {
+    String? cashierUserId,
+  }) async {
     final locationId = await _locationId;
 
     final sales = await _saleRepository.getSalesForPeriod(
       locationId: locationId,
       start: start,
       end: end,
+      cashierUserId: cashierUserId,
     );
-    final expenses = await _expenseRepository.getExpensesForPeriod(
-      locationId: locationId,
-      start: start,
-      end: end,
-    );
-    final incomeRecords = await _incomeRecordRepository.getIncomeRecordsForPeriod(
-      locationId: locationId,
-      start: start,
-      end: end,
-    );
-    final repayments = await _customerCreditRepository.getRepaymentsForPeriod(
-      start: start,
-      end: end,
-    );
-    final payments = await _supplierCreditRepository.getPaymentsForPeriod(
-      start: start,
-      end: end,
-    );
+    // Employee data isolation: none of these four carry a "recorded by"
+    // user field (checked — no schema support for it today), so there's
+    // no correct way to scope them to one cashier. Skipped entirely
+    // rather than shown unscoped: showing every expense/income/
+    // repayment/supplier-payment the whole business ever recorded to a
+    // cashier who's only supposed to see their own sales would defeat
+    // the actual point of this scoping, even if each individual row
+    // can't be pinned on anyone in particular.
+    final expenses = cashierUserId != null
+        ? const <Expense>[]
+        : await _expenseRepository.getExpensesForPeriod(locationId: locationId, start: start, end: end);
+    final incomeRecords = cashierUserId != null
+        ? const <IncomeRecord>[]
+        : await _incomeRecordRepository.getIncomeRecordsForPeriod(locationId: locationId, start: start, end: end);
+    final repayments = cashierUserId != null
+        ? const <CustomerLedgerEntry>[]
+        : await _customerCreditRepository.getRepaymentsForPeriod(start: start, end: end);
+    final payments = cashierUserId != null
+        ? const <SupplierLedgerEntry>[]
+        : await _supplierCreditRepository.getPaymentsForPeriod(start: start, end: end);
 
     // Resolved once per call, not once per row — watchExpenseCategories
     // is already a reactive Stream elsewhere in the app; `.first` here
@@ -438,8 +454,13 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   }
 
   @override
-  Future<MoneySummary> getSummary(ReportPeriod period) async {
-    final inPeriod = await _transactionsForRange(period.start, period.end);
+  Future<MoneySummary> getSummary(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
+    final cashierUserId = canViewAllSales ? null : currentAuthUserId;
+    final inPeriod = await _transactionsForRange(period.start, period.end, cashierUserId: cashierUserId);
 
     double sumWhere(bool Function(MoneyTransaction) test) =>
         inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
@@ -448,8 +469,11 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final moneyOut = sumWhere((t) => !t.isInflow);
 
     final previousPeriod = period.previous;
-    final previousTransactions =
-        await _transactionsForRange(previousPeriod.start, previousPeriod.end);
+    final previousTransactions = await _transactionsForRange(
+      previousPeriod.start,
+      previousPeriod.end,
+      cashierUserId: cashierUserId,
+    );
     final previousNet =
         previousTransactions.fold<double>(0, (sum, t) => sum + t.signedAmount);
 
@@ -467,11 +491,14 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   @override
   Future<List<MoneyTransaction>> getTransactions(
     ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
     MoneyTransactionType? typeFilter,
     String? category,
     String? searchQuery,
   }) async {
-    final inPeriod = await _transactionsForRange(period.start, period.end);
+    final cashierUserId = canViewAllSales ? null : currentAuthUserId;
+    final inPeriod = await _transactionsForRange(period.start, period.end, cashierUserId: cashierUserId);
     final query = searchQuery?.trim().toLowerCase();
     return inPeriod.where((t) {
       if (typeFilter != null && t.type != typeFilter) return false;

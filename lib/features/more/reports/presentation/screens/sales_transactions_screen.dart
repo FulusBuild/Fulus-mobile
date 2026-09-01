@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/formatting.dart';
+import '../../../../../domain/entities/auth_user.dart';
+import '../../../../../domain/entities/permission.dart';
 import '../../../../../domain/entities/report.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
@@ -26,10 +28,24 @@ class SalesTransactionsScreen extends ConsumerStatefulWidget {
 class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScreen> {
   late Future<SalesReport> _future;
 
+  // Employee data isolation — same "sees business-wide" check used
+  // throughout Home/Money; see money_screen.dart's identical block for
+  // the full reasoning.
+  Future<SalesReport> _fetch() {
+    final user = ref.read(sessionProvider);
+    final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
+    final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
+    return ref.read(reportsRepositoryProvider).getSalesReport(
+          widget.period,
+          currentAuthUserId: user?.id ?? '',
+          canViewAllSales: canViewAllSales,
+        );
+  }
+
   @override
   void initState() {
     super.initState();
-    _future = ref.read(reportsRepositoryProvider).getSalesReport(widget.period);
+    _future = _fetch();
   }
 
   @override
@@ -45,7 +61,7 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
             return FulusErrorState(
               message: "Couldn't load these transactions.",
               onRetry: () => setState(() {
-                _future = ref.read(reportsRepositoryProvider).getSalesReport(widget.period);
+                _future = _fetch();
               }),
             );
           }

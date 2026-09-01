@@ -16,12 +16,28 @@ abstract class MoneyRepository {
   /// changes, only when a new transaction is recorded.
   Future<double> getAvailableBalance();
 
-  Future<MoneySummary> getSummary(ReportPeriod period);
+  /// Employee data isolation: [currentAuthUserId] and [canViewAllSales]
+  /// scope every sale-derived figure here to one cashier when
+  /// [canViewAllSales] is false — see `_transactionsForRange`'s own doc
+  /// comment in `real_money_repository.dart` for exactly what is and
+  /// isn't included in that scoping (expenses/income/repayments/
+  /// supplier-payments have no user attribution to scope by, so they're
+  /// dropped rather than shown unscoped). Required, not optional-with-a-
+  /// default: a forgotten default here would mean silently showing
+  /// everyone's numbers to whoever's logged in, exactly the failure mode
+  /// this exists to prevent.
+  Future<MoneySummary> getSummary(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  });
 
   /// Reverse-chronological, matching every other history view in this
-  /// codebase's own convention.
+  /// codebase's own convention. See [getSummary] on the scoping params.
   Future<List<MoneyTransaction>> getTransactions(
     ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
     MoneyTransactionType? typeFilter,
 
     /// Only meaningful alongside `typeFilter: MoneyTransactionType.expense`

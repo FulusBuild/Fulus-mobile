@@ -45,9 +45,22 @@ class DashboardRepositoryImpl implements DashboardRepository {
     // rather than left as a pre-existing gap: it's a real correctness
     // bug in the exact query Roles & Permissions' Home-dashboard review
     // was checking, not a new one introduced by that work.
-    final todaySales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.deletedAt.isNull()))
-        .get();
+    // Bug fix (employee data isolation): currentAuthUserId was already
+    // a parameter here, and Permission.viewDashboardStats' own doc
+    // comment already states the intended policy — "an employee's Home
+    // is their own shift, full stop" (Decision 13) — but this query
+    // never actually applied it: every signed-in user saw the same
+    // whole-business today's-total regardless of who they were. Scoped
+    // to the caller's own sales unless they can see business-wide
+    // (owner, or granted viewDashboardStats — home_screen.dart's
+    // `showBusinessWide` computes the same thing for isOwner already;
+    // this just finally consults it for the query too).
+    final todaySalesQuery = _db.select(_db.sales)
+      ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.deletedAt.isNull());
+    if (!isOwner) {
+      todaySalesQuery.where((s) => s.cashierUserId.equals(currentAuthUserId));
+    }
+    final todaySales = await todaySalesQuery.get();
     final todayTotal = todaySales.fold<double>(0, (s, r) => s + r.total);
 
     double yesterdayTotal = 0;

@@ -187,6 +187,7 @@ void main() {
           locationId: any(named: 'locationId'),
           start: any(named: 'start'),
           end: any(named: 'end'),
+          cashierUserId: any(named: 'cashierUserId'),
         )).thenAnswer((_) async => [testSale]);
     when(() => expenseRepository.getExpensesForPeriod(
           locationId: any(named: 'locationId'),
@@ -216,7 +217,7 @@ void main() {
 
   group('getSummary', () {
     test('sums inflow across sales, other income, and repayments', () async {
-      final summary = await repository.getSummary(testPeriod);
+      final summary = await repository.getSummary(testPeriod, currentAuthUserId: 'u1', canViewAllSales: true);
 
       // 1000 (sale, cash-basis amountPaid) + 200 (manual income) + 150
       // (repayment) — NOT including the sale's full `total` twice over.
@@ -224,18 +225,18 @@ void main() {
     });
 
     test('sums outflow across expenses and supplier payments', () async {
-      final summary = await repository.getSummary(testPeriod);
+      final summary = await repository.getSummary(testPeriod, currentAuthUserId: 'u1', canViewAllSales: true);
 
       expect(summary.moneyOut, 400);
     });
 
     test('counts every transaction across all five sources', () async {
-      final summary = await repository.getSummary(testPeriod);
+      final summary = await repository.getSummary(testPeriod, currentAuthUserId: 'u1', canViewAllSales: true);
       expect(summary.transactionCount, 5);
     });
 
     test('breaks income down into sales/repayments/other, each correctly labeled', () async {
-      final summary = await repository.getSummary(testPeriod);
+      final summary = await repository.getSummary(testPeriod, currentAuthUserId: 'u1', canViewAllSales: true);
 
       final byLabel = {for (final row in summary.incomeBreakdown) row.label: row.amount};
       expect(byLabel['Sales income'], 1000);
@@ -245,7 +246,7 @@ void main() {
 
     test('breaks expenses down by category name, with supplier payments as their own row',
         () async {
-      final summary = await repository.getSummary(testPeriod);
+      final summary = await repository.getSummary(testPeriod, currentAuthUserId: 'u1', canViewAllSales: true);
 
       final byLabel = {for (final row in summary.expenseBreakdown) row.label: row.amount};
       expect(byLabel['Fuel & Transport'], 300);
@@ -257,6 +258,8 @@ void main() {
     test('filters by type', () async {
       final results = await repository.getTransactions(
         testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
         typeFilter: MoneyTransactionType.expense,
       );
 
@@ -265,14 +268,24 @@ void main() {
     });
 
     test('filters by search query across title/subtitle/counterparty/reference', () async {
-      final results = await repository.getTransactions(testPeriod, searchQuery: 'INV-001');
+      final results = await repository.getTransactions(
+        testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
+        searchQuery: 'INV-001',
+      );
 
       expect(results, hasLength(1));
       expect(results.single.type, MoneyTransactionType.saleIncome);
     });
 
     test('a search query matching nothing returns an empty list', () async {
-      final results = await repository.getTransactions(testPeriod, searchQuery: 'nonexistent');
+      final results = await repository.getTransactions(
+        testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
+        searchQuery: 'nonexistent',
+      );
       expect(results, isEmpty);
     });
   });
@@ -281,6 +294,8 @@ void main() {
     test('a sale/expense stored as lowercase "cash" displays as "Cash"', () async {
       final results = await repository.getTransactions(
         testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
         typeFilter: MoneyTransactionType.saleIncome,
       );
       expect(results.single.paymentMethod, 'Cash');
@@ -289,6 +304,8 @@ void main() {
     test('a supplier payment stored as "card" displays as "Card"', () async {
       final results = await repository.getTransactions(
         testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
         typeFilter: MoneyTransactionType.supplierPayment,
       );
       expect(results.single.paymentMethod, 'Card');

@@ -42,6 +42,13 @@ abstract class SaleRepository {
     required String locationId,
     required DateTime start,
     required DateTime end,
+
+    /// Employee data isolation: when set, only sales rung up by this
+    /// user come back — everyone else's are excluded, not merely
+    /// unlabeled. Null (the default, and every call site's existing
+    /// behavior) returns every sale in the period regardless of who
+    /// rang it up.
+    String? cashierUserId,
   });
 
   /// Reconciles a locally-created sale with the server's own identity

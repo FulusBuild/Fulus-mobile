@@ -6,7 +6,9 @@ import '../../../../../app/providers.dart';
 import '../../../../../core/export/export_metadata.dart';
 import '../../../../../core/export/export_service.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/finance_stats.dart';
+import '../../../../../domain/entities/permission.dart';
 import '../../../../../domain/entities/report.dart';
 import '../../../../../domain/usecases/reports_engine.dart';
 import '../../../../../shared/widgets/widgets.dart';
@@ -100,7 +102,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   void _loadAll() {
     final repo = ref.read(reportsRepositoryProvider);
     final period = _period;
-    _salesFuture = repo.getSalesReport(period);
+    // Employee data isolation — same "sees business-wide" check used
+    // throughout Home/Money; see money_screen.dart's identical block
+    // for the full reasoning. Only Sales is scoped here — see this
+    // pass's own summary for why Inventory/Customer/Finance/Employee
+    // aren't.
+    final user = ref.read(sessionProvider);
+    final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
+    final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
+    _salesFuture = repo.getSalesReport(period, currentAuthUserId: user?.id ?? '', canViewAllSales: canViewAllSales);
     _inventoryFuture = repo.getInventoryReport();
     _customersFuture = repo.getCustomerReport(period);
     _financeFuture = repo.getFinanceReport(period);
