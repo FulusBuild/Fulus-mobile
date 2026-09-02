@@ -42,6 +42,7 @@ class ReceiptData {
     this.notes,
     this.receiptFooter,
     required this.currencySymbol,
+    this.paymentBreakdown,
   });
 
   final String businessName;
@@ -86,6 +87,17 @@ class ReceiptData {
   /// note in receipt_engine.dart), matching receipt.ts's own division of
   /// responsibility between the data shape and the print-time formatter.
   final String currencySymbol;
+
+  /// Feature: the actual split-payment breakdown — e.g. Cash ₦3,000 +
+  /// Mobile Money ₦2,000 + Credit/Pay Later ₦4,000 against a ₦10,000
+  /// sale. Null/empty for an ordinary single-method sale, where
+  /// [paymentMethod] alone (already descriptive — "Cash", "Card") is
+  /// enough; only populated when the sale was actually a split payment,
+  /// where [paymentMethod] collapses to the unhelpful "Split" and this
+  /// is what a receipt actually needs to show instead. Each entry's
+  /// `method` is already display-formatted, matching [paymentMethod]'s
+  /// own convention.
+  final List<({String method, double amount})>? paymentBreakdown;
 
   /// total - amountPaid, floored at 0 — mirrors Sale.balance_due exactly
   /// (a computed backend @property, never a stored column, per

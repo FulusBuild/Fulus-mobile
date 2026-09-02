@@ -8,6 +8,7 @@ import 'package:fulus_mobile/domain/entities/report.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/supplier.dart';
 import 'package:fulus_mobile/domain/entities/supplier_ledger_entry.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/repositories/cash_drawer_shift_repository.dart';
 import 'package:fulus_mobile/domain/repositories/customer_credit_repository.dart';
 import 'package:fulus_mobile/domain/repositories/customer_repository.dart';
@@ -44,6 +45,8 @@ class MockSupplierRepository extends Mock implements SupplierRepository {}
 
 class MockProductRepository extends Mock implements ProductRepository {}
 
+class MockAuthRepository extends Mock implements AuthRepository {}
+
 class MockResolveActiveLocation extends Mock implements ResolveActiveLocation {}
 
 void main() {
@@ -57,6 +60,7 @@ void main() {
   late MockCustomerRepository customerRepository;
   late MockSupplierRepository supplierRepository;
   late MockProductRepository productRepository;
+  late MockAuthRepository authRepository;
   late MockResolveActiveLocation resolveActiveLocation;
   late RealMoneyRepositoryImpl repository;
 
@@ -166,6 +170,7 @@ void main() {
     customerRepository = MockCustomerRepository();
     supplierRepository = MockSupplierRepository();
     productRepository = MockProductRepository();
+    authRepository = MockAuthRepository();
     resolveActiveLocation = MockResolveActiveLocation();
 
     repository = RealMoneyRepositoryImpl(
@@ -179,6 +184,7 @@ void main() {
       customerRepository: customerRepository,
       supplierRepository: supplierRepository,
       productRepository: productRepository,
+      authRepository: authRepository,
       resolveActiveLocation: resolveActiveLocation,
     );
 

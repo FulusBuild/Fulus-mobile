@@ -9,6 +9,7 @@ import '../../../../domain/entities/customer_ledger_entry.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
+import '../widgets/customer_form_sheet.dart';
 
 /// Volume 7: "a running balance... and a full ledger underneath — the
 /// credit book made visible." Real data — `Customer`/
@@ -102,8 +103,29 @@ class _ProfileBody extends ConsumerWidget {
                         ),
                         if (customer.phone != null)
                           Text(customer.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                        // Feature (customer management): "Basic
+                        // information... Address. Other existing
+                        // customer information" — email/address were
+                        // captured (Customer already has both fields)
+                        // but never actually shown anywhere on this
+                        // screen.
+                        if (customer.email != null)
+                          Text(customer.email!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                        if (customer.address != null)
+                          Text(customer.address!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                       ],
                     ),
+                  ),
+                  // Feature (customer management): "no proper way to
+                  // edit existing customer information" — this is that
+                  // way.
+                  FulusIconButton(
+                    icon: Icons.edit_outlined,
+                    tooltip: 'Edit customer',
+                    onPressed: () async {
+                      final saved = await CustomerFormSheet.show(context, existing: customer);
+                      if (saved != null) onChanged();
+                    },
                   ),
                 ],
               ),

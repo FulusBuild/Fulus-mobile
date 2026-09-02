@@ -6,6 +6,7 @@ import '../../../domain/entities/income_record.dart';
 import '../../../domain/entities/report.dart';
 import '../../../domain/entities/sale.dart';
 import '../../../domain/entities/supplier_ledger_entry.dart';
+import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/cash_drawer_shift_repository.dart';
 import '../../../domain/repositories/customer_credit_repository.dart';
 import '../../../domain/repositories/customer_repository.dart';
@@ -67,6 +68,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     required CustomerRepository customerRepository,
     required SupplierRepository supplierRepository,
     required ProductRepository productRepository,
+    required AuthRepository authRepository,
     required ResolveActiveLocation resolveActiveLocation,
   })  : _saleRepository = saleRepository,
         _expenseRepository = expenseRepository,
@@ -78,6 +80,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         _customerRepository = customerRepository,
         _supplierRepository = supplierRepository,
         _productRepository = productRepository,
+        _authRepository = authRepository,
         _resolveActiveLocation = resolveActiveLocation;
 
   final SaleRepository _saleRepository;
@@ -90,6 +93,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   final CustomerRepository _customerRepository;
   final SupplierRepository _supplierRepository;
   final ProductRepository _productRepository;
+  final AuthRepository _authRepository;
   final ResolveActiveLocation _resolveActiveLocation;
 
   /// Wide enough to include everything a real business could have
@@ -207,6 +211,10 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       lineItems: descriptiveItems.isEmpty
           ? null
           : [for (final item in descriptiveItems) '${item.quantity} × ${item.description}'],
+      // Feature (transaction audit center): free to include even on the
+      // fast list path — sale.total is already loaded, no extra query
+      // needed, unlike lineItems/paymentBreakdown's detail-only cost.
+      saleTotal: sale.total,
     );
   }
 
@@ -250,6 +258,35 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       }
     }
 
+    // Feature (transaction audit center): customer name+phone. _fromSale
+    // never resolves counterpartyName for a sale at all (only expenses/
+    // repayments/etc. get one there) — this is the only place a sale's
+    // customer is looked up, matching the same detail-view-only cost
+    // tradeoff as everything else in this method.
+    String? customerName = base.counterpartyName;
+    String? customerPhone;
+    if (sale.customerId != null) {
+      final customer = await _customerRepository.getCustomerById(sale.customerId!);
+      customerName = customer?.name;
+      customerPhone = customer?.phone;
+    }
+
+    // Feature (transaction audit center): cashier name. listLocalIdentities
+    // returns every local identity on the device — deliberately small
+    // (AuthRepository's own doc comment: "a handful of local accounts at
+    // most") — rather than a single-user lookup that doesn't exist on
+    // this interface.
+    String? cashierName;
+    if (sale.cashierUserId != null) {
+      final identities = await _authRepository.listLocalIdentities();
+      for (final identity in identities) {
+        if (identity.id == sale.cashierUserId) {
+          cashierName = identity.fullName;
+          break;
+        }
+      }
+    }
+
     return MoneyTransaction(
       id: base.id,
       type: base.type,
@@ -259,12 +296,15 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       dateTime: base.dateTime,
       category: base.category,
       paymentMethod: base.paymentMethod,
-      counterpartyName: base.counterpartyName,
+      counterpartyName: customerName,
+      counterpartyPhone: customerPhone,
       reference: base.reference,
       note: base.note,
       lineItems: resolvedLineItems.isEmpty ? null : resolvedLineItems,
       receiptPhotoPath: base.receiptPhotoPath,
       paymentBreakdown: paymentBreakdown,
+      saleTotal: base.saleTotal,
+      cashierName: cashierName,
     );
   }
 

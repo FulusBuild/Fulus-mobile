@@ -8,6 +8,7 @@ import '../../../../core/export/export_service.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../sell/presentation/widgets/receipt_preview_sheet.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
@@ -39,8 +40,20 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
   @override
   void initState() {
     super.initState();
-    _future = widget.preloaded != null
-        ? Future.value(widget.preloaded)
+    // Bug fix (transaction audit center): a sale row always needs
+    // getTransactionById's enrichment — real item names, the
+    // split-payment breakdown, the sale total — none of which
+    // `preloaded` ever carries (it comes straight from a list row's own
+    // _fromSale, the fast/unenriched path; see that method's own doc
+    // comment on why the list stays cheap). Using `preloaded` as-is for
+    // a sale meant this screen's "Payment breakdown"/real item names
+    // were only ever reachable via a direct deep link, never from the
+    // list tap that's how anyone actually gets here. Every other
+    // transaction type has nothing to enrich, so it keeps the instant,
+    // no-loading-flash preloaded path unchanged.
+    final preloaded = widget.preloaded;
+    _future = (preloaded != null && preloaded.type != MoneyTransactionType.saleIncome)
+        ? Future.value(preloaded)
         : ref.read(moneyRepositoryProvider).getTransactionById(widget.transactionId);
   }
 
@@ -175,11 +188,39 @@ class _DetailBody extends ConsumerWidget {
               _DetailRow(label: 'Type', value: _typeLabel(t.type)),
               if (t.paymentMethod != null) const FulusListDivider(indented: false),
               if (t.paymentMethod != null) _DetailRow(label: 'Paid with', value: t.paymentMethod!),
-              if (t.counterpartyName != null) const FulusListDivider(indented: false),
-              if (t.counterpartyName != null)
+              if (t.type == MoneyTransactionType.saleIncome || t.counterpartyName != null)
+                const FulusListDivider(indented: false),
+              // Feature (transaction audit center): a sale always shows
+              // this row now, either way — "make that clear" when
+              // nothing's attached, per the request itself, rather than
+              // the row just silently not existing.
+              if (t.type == MoneyTransactionType.saleIncome)
+                _DetailRow(label: 'Customer', value: t.counterpartyName ?? 'No customer attached')
+              else if (t.counterpartyName != null)
                 _DetailRow(label: t.isInflow ? 'From' : 'Paid to', value: t.counterpartyName!),
+              // Feature (transaction audit center): only shown alongside
+              // an actual customer — phone isn't meaningful on its own,
+              // and RealMoneyRepositoryImpl only ever resolves one when
+              // counterpartyName also resolved.
+              if (t.counterpartyPhone != null) const FulusListDivider(indented: false),
+              if (t.counterpartyPhone != null) _DetailRow(label: 'Phone', value: t.counterpartyPhone!),
+              if (t.type == MoneyTransactionType.saleIncome) const FulusListDivider(indented: false),
+              // Feature (transaction audit center): who rang this up —
+              // "important for auditing, accountability, reviewing
+              // employee activity" per the request itself. Shown even
+              // when null (a sale from before Sales.cashierUserId
+              // existed, or nobody signed in) with an explicit
+              // "Not recorded" rather than the row silently vanishing,
+              // matching the Customer row's own "make that clear"
+              // treatment just above.
+              if (t.type == MoneyTransactionType.saleIncome)
+                _DetailRow(label: 'Cashier', value: t.cashierName ?? 'Not recorded'),
               if (t.reference != null) const FulusListDivider(indented: false),
-              if (t.reference != null) _DetailRow(label: 'Reference', value: t.reference!),
+              if (t.reference != null)
+                _DetailRow(
+                  label: t.type == MoneyTransactionType.saleIncome ? 'Receipt #' : 'Reference',
+                  value: t.reference!,
+                ),
             ],
           ),
         ),
@@ -203,6 +244,30 @@ class _DetailBody extends ConsumerWidget {
                     value: formatMoney(t.paymentBreakdown![i].amount, symbol: currencySymbol),
                   ),
                 ],
+              ],
+            ),
+          ),
+        ],
+        // Feature (transaction audit center): Total/Paid/Balance Due as
+        // three distinct figures — t.amount alone (Sale.amountPaid) is
+        // exactly why "the full ₦10,000 as paid" was possible to get
+        // wrong when part of it was credit; this section is the
+        // dedicated fix, not just the payment-breakdown one above.
+        if (t.type == MoneyTransactionType.saleIncome && t.saleTotal != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          FulusSectionHeader(title: 'Total & balance'),
+          FulusCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _DetailRow(label: 'Total', value: formatMoney(t.saleTotal!, symbol: currencySymbol)),
+                const FulusListDivider(indented: false),
+                _DetailRow(label: 'Amount paid', value: formatMoney(t.amount, symbol: currencySymbol)),
+                const FulusListDivider(indented: false),
+                _DetailRow(
+                  label: t.balanceDue > 0 ? 'Balance due' : 'Status',
+                  value: t.balanceDue > 0 ? formatMoney(t.balanceDue, symbol: currencySymbol) : 'Paid in full',
+                ),
               ],
             ),
           ),
@@ -240,14 +305,37 @@ class _DetailBody extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Share',
-              icon: Icons.ios_share,
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => _share(context, ref),
-            ),
+          child: Column(
+            children: [
+              // Feature (#4F / receipt reprint): reuses the exact same
+              // ReceiptPreviewSheet SaleSuccessScreen shows right after
+              // checkout (source of truth: ReceiptRepository.
+              // buildReceiptData, regenerated from the Sale record every
+              // time — never a second, separately-stored receipt
+              // representation), so "Transactions → select → Print
+              // Receipt" and the original post-sale print use the exact
+              // same code path, byte for byte.
+              if (t.type == MoneyTransactionType.saleIncome) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FulusButton(
+                    label: 'Print receipt',
+                    icon: Icons.print_outlined,
+                    onPressed: () => ReceiptPreviewSheet.show(context, t.id.substring('sale-'.length)),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: FulusButton(
+                  label: 'Share',
+                  icon: Icons.ios_share,
+                  variant: FulusButtonVariant.secondary,
+                  onPressed: () => _share(context, ref),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.xl),

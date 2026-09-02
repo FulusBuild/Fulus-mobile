@@ -37,6 +37,7 @@ final moneyRepositoryProvider = Provider<MoneyRepository>((ref) {
     customerRepository: ref.read(customerRepositoryProvider),
     supplierRepository: ref.read(supplierRepositoryProvider),
     productRepository: ref.read(productRepositoryProvider),
+    authRepository: ref.read(authRepositoryProvider),
     resolveActiveLocation: ref.read(resolveActiveLocationProvider),
   );
 });

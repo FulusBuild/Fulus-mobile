@@ -6,6 +6,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
+import '../widgets/customer_form_sheet.dart';
 
 /// Volume 7: "No tab of their own — customers live inside Money." Real
 /// data throughout — `CustomerRepository` needs no locationId and is
@@ -30,6 +31,11 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
       title: 'Customers',
       applyPadding: false,
       actions: [
+        FulusIconButton(
+          icon: Icons.person_add_alt_outlined,
+          tooltip: 'Add customer',
+          onPressed: () => CustomerFormSheet.show(context),
+        ),
         FulusIconButton(
           icon: Icons.archive_outlined,
           tooltip: 'Archived customers',

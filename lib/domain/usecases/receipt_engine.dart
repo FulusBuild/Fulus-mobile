@@ -60,7 +60,18 @@ class ReceiptEngine {
     if (data.changeDue > 0) {
       b.line(_padRow('Change given', money.format(data.changeDue)));
     }
-    if (data.paymentMethod != null) b.line('Payment: ${data.paymentMethod}');
+    if (data.paymentBreakdown != null && data.paymentBreakdown!.isNotEmpty) {
+      // Feature: split-payment receipt breakdown — see
+      // ReceiptData.paymentBreakdown's own doc comment. Each leg gets
+      // its own padded row, same style as the subtotal/discount/tax
+      // rows above, rather than the single unhelpful "Payment: split"
+      // line this replaces for exactly this case.
+      for (final leg in data.paymentBreakdown!) {
+        b.line(_padRow(leg.method, money.format(leg.amount)));
+      }
+    } else if (data.paymentMethod != null) {
+      b.line('Payment: ${data.paymentMethod}');
+    }
     if (data.cashierName != null) b.line('Cashier: ${data.cashierName}');
 
     b.feed(1).align(_Align.center).line(
@@ -133,7 +144,13 @@ class ReceiptEngine {
               // ── Invoice meta ────────────────────────────────────────
               _metaRow('Invoice Number:', data.invoiceNumber, grey, dark),
               _metaRow('Date:', _formatLongDate(data.saleDate), grey, dark),
-              _metaRow('Payment Method:', data.paymentMethod ?? '—', grey, dark),
+              if (data.paymentBreakdown != null && data.paymentBreakdown!.isNotEmpty)
+                // Feature: split-payment receipt breakdown — see
+                // ReceiptData.paymentBreakdown's own doc comment.
+                for (final leg in data.paymentBreakdown!)
+                  _metaRow('${leg.method}:', money.format(leg.amount), grey, dark)
+              else
+                _metaRow('Payment Method:', data.paymentMethod ?? '—', grey, dark),
               pw.Row(children: [
                 pw.SizedBox(
                   width: 45 * PdfPageFormat.mm,
@@ -213,6 +230,18 @@ class ReceiptEngine {
                       ),
                       child: _totalRow('TOTAL:', money.format(data.total), blue, blue, bold: true, fontSize: 12),
                     ),
+                    // Feature: split-payment receipt breakdown — see
+                    // ReceiptData.paymentBreakdown's own doc comment.
+                    // Placed here (between the total and the paid/
+                    // balance lines) rather than up in the invoice-meta
+                    // block's single "Payment Method:" row, so it reads
+                    // as the answer to "how was the total actually
+                    // covered" right where that question comes up.
+                    if (data.paymentBreakdown != null && data.paymentBreakdown!.isNotEmpty) ...[
+                      pw.SizedBox(height: 1 * PdfPageFormat.mm),
+                      for (final leg in data.paymentBreakdown!) _totalRow('${leg.method}:', money.format(leg.amount), grey, dark),
+                      pw.SizedBox(height: 1 * PdfPageFormat.mm),
+                    ],
                     _totalRow('Amount Paid:', money.format(data.amountPaid), grey, dark),
                     if (data.balanceDue > 0) _totalRow('Balance Due:', money.format(data.balanceDue), grey, red, bold: true),
                     if (data.changeDue > 0) _totalRow('Change Given:', money.format(data.changeDue), grey, dark, bold: true),

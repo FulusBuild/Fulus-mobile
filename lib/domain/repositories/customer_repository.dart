@@ -21,6 +21,16 @@ abstract class CustomerRepository {
 
   Future<Customer?> getCustomerById(String localId);
 
+  /// Feature (customer management): edits an existing customer's
+  /// details — name/phone/email/address/notes/creditLimit. Local-only,
+  /// same as [archiveCustomer]/[restoreCustomer] and for the identical
+  /// reason (CustomerSyncHandler only implements 'create' today, see
+  /// that class's own doc comment) — no sync task enqueued. [localId]
+  /// must already exist; throws if it doesn't rather than silently
+  /// creating a row, since a caller editing a customer always has one
+  /// in hand already (the profile screen it's editing from).
+  Future<Customer> updateCustomer(String localId, CustomerDraft draft);
+
   /// Soft delete: sets `deletedAt`, same convention as every other
   /// SyncableColumns table — [watchCustomers] already filters on it.
   /// Local-only, deliberately: [CustomerSyncHandler] only implements

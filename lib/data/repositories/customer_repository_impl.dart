@@ -47,6 +47,24 @@ class CustomerRepositoryImpl implements CustomerRepository {
   }
 
   @override
+  Future<Customer> updateCustomer(String localId, CustomerDraft draft) async {
+    final updated = draft.toCustomerEntity(localId: localId);
+    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+      CustomersCompanion(
+        name: Value(updated.name),
+        phone: Value(updated.phone),
+        email: Value(updated.email),
+        address: Value(updated.address),
+        notes: Value(updated.notes),
+        creditLimit: Value(updated.creditLimit),
+        loyaltyThreshold: Value(updated.loyaltyThreshold),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    return (await getCustomerById(localId))!;
+  }
+
+  @override
   Future<void> archiveCustomer(String localId) async {
     await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
       CustomersCompanion(

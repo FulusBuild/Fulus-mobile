@@ -79,6 +79,9 @@ class MoneyTransaction {
     this.lineItems,
     this.receiptPhotoPath,
     this.paymentBreakdown,
+    this.cashierName,
+    this.saleTotal,
+    this.counterpartyPhone,
   });
 
   final String id;
@@ -103,6 +106,15 @@ class MoneyTransaction {
 
   /// Customer or supplier name, when relevant.
   final String? counterpartyName;
+
+  /// Feature (transaction audit center): the customer's phone number,
+  /// alongside [counterpartyName] — same "only ever resolved for the
+  /// single-transaction detail view" cost tradeoff as [cashierName].
+  /// Only meaningful for a sale with a customer attached; null
+  /// otherwise (no customer, or a non-sale transaction type — a
+  /// supplier's own [counterpartyName] never gets a phone lookup here,
+  /// since nothing asked for one).
+  final String? counterpartyPhone;
 
   /// A receipt/invoice number, when relevant.
   final String? reference;
@@ -135,6 +147,49 @@ class MoneyTransaction {
   /// null for every non-split sale and for every other transaction
   /// type.
   final List<({String method, double amount})>? paymentBreakdown;
+
+  /// Feature (transaction audit center): who rang this up — a
+  /// `Sales.cashierUserId` lookup, only ever resolved for the
+  /// single-transaction detail view (same cost tradeoff as
+  /// [paymentBreakdown] and the name-resolved [lineItems] above). Null
+  /// for a sale made before that column existed, one with nobody
+  /// signed in, or any non-sale transaction type.
+  final String? cashierName;
+
+  /// Feature (transaction audit center): the sale's actual total,
+  /// distinct from [amount] (which is `Sale.amountPaid` — see this
+  /// class's own doc comment on why: cash-basis, not accrual). Without
+  /// this there's no way to show "Total / Paid / Balance Due" as three
+  /// distinct figures — [amount] alone can't tell a partially-paid sale
+  /// apart from a smaller sale that was paid in full. Null for any
+  /// non-sale transaction type, where "total vs. paid" isn't a
+  /// distinct concept in the first place.
+  final double? saleTotal;
+
+  /// `saleTotal - amount`, floored at 0 — mirrors `Sale.balanceDue`/
+  /// `ReceiptData.balanceDue` exactly. Always 0 when [saleTotal] is
+  /// null (a non-sale row, or a sale row from before detail-enrichment
+  /// populated it).
+  double get balanceDue {
+    final total = saleTotal;
+    if (total == null) return 0;
+    final due = total - amount;
+    return due > 0 ? due : 0;
+  }
+
+  /// paid | partial | unpaid — derived the same way
+  /// `ReceiptRepositoryImpl._derivePaymentStatus` derives it for a
+  /// receipt, so the two never disagree about the same sale. Always
+  /// "paid" when [saleTotal] is null, since every non-sale
+  /// [MoneyTransaction] (an expense, a manual income entry, a
+  /// repayment) is, by construction, never partially recorded.
+  String get paymentStatus {
+    final total = saleTotal;
+    if (total == null || total <= 0) return 'paid';
+    if (amount <= 0) return 'unpaid';
+    if (amount >= total) return 'paid';
+    return 'partial';
+  }
 
   bool get isInflow => type.isInflow;
 

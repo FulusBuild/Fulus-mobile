@@ -87,6 +87,19 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
 
     final notes = (sale.notes != null && sale.notes!.startsWith('[CANCELLED')) ? null : sale.notes;
 
+    // Feature: split-payment receipt breakdown — see
+    // ReceiptData.paymentBreakdown's own doc comment. Queried directly
+    // (this method already works with raw DB rows throughout, not
+    // domain entities) rather than through SaleRepository, matching
+    // this class's existing style.
+    List<({String method, double amount})>? paymentBreakdown;
+    if (sale.paymentMethod == 'split') {
+      final legs = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(saleId))).get();
+      if (legs.isNotEmpty) {
+        paymentBreakdown = [for (final leg in legs) (method: _displayPaymentMethod(leg.method), amount: leg.amount)];
+      }
+    }
+
     return ReceiptData(
       businessName: settings?.businessName ?? 'Business',
       businessAddress: settings?.address,
@@ -140,5 +153,29 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
     final path = p.join(receiptsDir.path, receipt.suggestedFileName);
     await File(path).writeAsBytes(receipt.bytes, flush: true);
     return path;
+  }
+
+  /// Same mapping as `RealMoneyRepositoryImpl._displayPaymentMethod`
+  /// (features/money/data/real_money_repository.dart) — kept as its own
+  /// small local copy rather than a shared import across those two
+  /// layers, but deliberately identical output, so a payment method
+  /// reads the same on the Money screen and on the receipt it came
+  /// from.
+  String _displayPaymentMethod(String storageKey) {
+    switch (storageKey) {
+      case 'cash':
+        return 'Cash';
+      case 'mobile_money':
+        return 'Mobile Money';
+      case 'card':
+        return 'Card';
+      case 'credit':
+        return 'Credit';
+      default:
+        return storageKey
+            .split('_')
+            .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+            .join(' ');
+    }
   }
 }

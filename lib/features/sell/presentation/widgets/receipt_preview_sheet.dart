@@ -295,7 +295,14 @@ class _ReceiptSlip extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
 
           // ── Payment ───────────────────────────────────────────────
-          if (data.paymentMethod != null)
+          // Feature: split-payment receipt breakdown — see
+          // ReceiptData.paymentBreakdown's own doc comment. Replaces the
+          // single "Payment: split" caption with one row per leg for
+          // exactly the case that caption couldn't explain.
+          if (data.paymentBreakdown != null && data.paymentBreakdown!.isNotEmpty)
+            for (final leg in data.paymentBreakdown!)
+              _AmountRow(label: leg.method, value: money.format(leg.amount), color: textPrimary)
+          else if (data.paymentMethod != null)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: Text('Payment: ${data.paymentMethod}', style: AppTypography.caption.copyWith(color: textSecondary)),
