@@ -125,6 +125,7 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
       notes: notes,
       receiptFooter: settings?.receiptFooter,
       currencySymbol: settings?.currencySymbol ?? '₦',
+      paymentBreakdown: paymentBreakdown,
     );
   }
 
