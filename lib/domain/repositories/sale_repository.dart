@@ -51,6 +51,26 @@ abstract class SaleRepository {
     String? cashierUserId,
   });
 
+  /// Every sale ever recorded for [customerId], most recent first — the
+  /// customer-scoped sibling of [getSalesForPeriod], added for the
+  /// customer profile's Purchase History (Volume 7). Deliberately NOT
+  /// scoped to a `locationId` and NOT period-scoped, unlike
+  /// [getSalesForPeriod]: `Customer`'s own doc comment carves out that
+  /// "a customer's identity, credit balance, and purchase history
+  /// belong to the whole business," so a customer who bought at two
+  /// different locations should see both here, and "history" means
+  /// everything on record, not one time window.
+  Future<List<Sale>> getSalesForCustomer({
+    required String customerId,
+
+    /// Employee data isolation, same contract as [getSalesForPeriod]'s
+    /// own [cashierUserId] above: when set, only sales this user
+    /// personally rang up for this customer come back. Null (the
+    /// default) returns every sale for this customer regardless of who
+    /// rang it up.
+    String? cashierUserId,
+  });
+
   /// Reconciles a locally-created sale with the server's own identity
   /// once the (not-yet-built) sync engine successfully pushes it —
   /// named here, not left implicit, because sales_api.dart's own

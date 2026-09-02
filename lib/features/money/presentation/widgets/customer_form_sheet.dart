@@ -39,6 +39,7 @@ class _CustomerFormSheetState extends ConsumerState<CustomerFormSheet> {
   late final _phoneController = TextEditingController(text: widget.existing?.phone ?? '');
   late final _emailController = TextEditingController(text: widget.existing?.email ?? '');
   late final _addressController = TextEditingController(text: widget.existing?.address ?? '');
+  late final _notesController = TextEditingController(text: widget.existing?.notes ?? '');
   bool _saving = false;
   String? _error;
 
@@ -48,6 +49,7 @@ class _CustomerFormSheetState extends ConsumerState<CustomerFormSheet> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -66,6 +68,22 @@ class _CustomerFormSheetState extends ConsumerState<CustomerFormSheet> {
       phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      // Bug fix (customer management): this form has no fields for
+      // creditLimit/loyaltyThreshold, so building the draft without
+      // them used to leave both null here — and
+      // CustomerRepositoryImpl.updateCustomer writes every
+      // CustomerDraft field as an explicit Value(...), null included,
+      // not just the ones a form actually changed. The net effect: any
+      // edit made through this sheet (even just fixing a typo in the
+      // phone number) silently erased a customer's existing credit
+      // limit and loyalty threshold. Carrying both through from
+      // [widget.existing] preserves whatever was already set — from a
+      // future import/sync path, since neither is editable here yet —
+      // instead of wiping it. No behavior change for a brand-new
+      // customer: widget.existing is null there too, same as before.
+      creditLimit: widget.existing?.creditLimit,
+      loyaltyThreshold: widget.existing?.loyaltyThreshold,
     );
     try {
       final repo = ref.read(customerRepositoryProvider);
@@ -101,6 +119,13 @@ class _CustomerFormSheetState extends ConsumerState<CustomerFormSheet> {
         ),
         const SizedBox(height: AppSpacing.sm),
         FulusTextField(label: 'Address (optional)', controller: _addressController),
+        const SizedBox(height: AppSpacing.sm),
+        // Feature (customer management gap-closure): Customer.notes has
+        // been modeled — and synced (see Customer.toCreateDto) — since
+        // this entity was first built, but had no field on this form to
+        // ever set it from. Same optional free-text treatment as
+        // address above, just multi-line.
+        FulusTextField(label: 'Notes (optional)', controller: _notesController, maxLines: 3),
         const SizedBox(height: AppSpacing.lg),
         SizedBox(
           width: double.infinity,

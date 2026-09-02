@@ -264,6 +264,34 @@ class SaleRepositoryImpl implements SaleRepository {
   }
 
   @override
+  Future<List<Sale>> getSalesForCustomer({
+    required String customerId,
+    String? cashierUserId,
+  }) async {
+    // Deliberately no locationId filter — see this method's own doc
+    // comment on the interface: a customer's purchase history is
+    // business-wide, same as Customer itself.
+    final query = _db.select(_db.sales)
+      ..where((s) => s.customerId.equals(customerId) & s.deletedAt.isNull())
+      ..orderBy([(s) => OrderingTerm.desc(s.saleDate)]);
+    // Employee data isolation — see this parameter's own doc comment on
+    // the interface.
+    if (cashierUserId != null) {
+      query.where((s) => s.cashierUserId.equals(cashierUserId));
+    }
+    final rows = await query.get();
+
+    final sales = <Sale>[];
+    for (final row in rows) {
+      final items = await (_db.select(_db.saleItems)
+            ..where((i) => i.saleLocalId.equals(row.localId)))
+          .get();
+      sales.add(row.toDomain(items));
+    }
+    return sales;
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,

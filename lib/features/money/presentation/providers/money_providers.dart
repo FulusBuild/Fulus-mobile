@@ -3,15 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart'; // for StateProvider — see app/providers.dart
 
 import '../../../../app/providers.dart';
+import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/customer_ledger_entry.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../domain/entities/supplier.dart';
 import '../../../../domain/entities/supplier_ledger_entry.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../data/money_repository.dart';
 import '../../data/real_money_repository.dart';
+import '../../domain/money_transaction.dart';
 
 /// A single [RealMoneyRepositoryImpl] instance for the whole app
 /// session — not `autoDispose`, deliberately, so it isn't rebuilt (and
@@ -108,6 +111,28 @@ final moneyCustomersProvider = StreamProvider<List<Customer>>((ref) {
 
 final moneyCustomerLedgerProvider = StreamProvider.family<List<CustomerLedgerEntry>, String>((ref, customerLocalId) {
   return ref.watch(customerCreditRepositoryProvider).watchLedger(customerLocalId);
+});
+
+/// The customer profile's Purchase History section — one-shot, not a
+/// Stream, matching [MoneyRepository.getTransactionsForCustomer]'s own
+/// Future-based shape (a fresh sale ringing up for this customer while
+/// their profile is open is not a case this screen needs to react to
+/// live). Employee data isolation copies the exact
+/// `isOwner || canViewDashboardStats` check `money_screen.dart`'s own
+/// `_load()` uses, so a cashier without that permission sees only the
+/// sales they personally rang up for this customer here too — the same
+/// scoping every other sales-list screen in Money already applies.
+final moneyCustomerPurchaseHistoryProvider =
+    FutureProvider.family<List<MoneyTransaction>, String>((ref, customerLocalId) async {
+  final user = ref.watch(sessionProvider);
+  final currentAuthUserId = user?.id ?? '';
+  final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+  final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
+  return ref.watch(moneyRepositoryProvider).getTransactionsForCustomer(
+        customerLocalId,
+        currentAuthUserId: currentAuthUserId,
+        canViewAllSales: canViewAllSales,
+      );
 });
 
 final moneySuppliersProvider = StreamProvider<List<Supplier>>((ref) {

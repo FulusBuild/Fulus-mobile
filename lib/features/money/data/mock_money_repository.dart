@@ -162,6 +162,22 @@ class MockMoneyRepository implements MoneyRepository {
   }
 
   @override
+  Future<List<MoneyTransaction>> getTransactionsForCustomer(
+    String customerId, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
+    await _delay();
+    // Generated mock sales carry a random display name
+    // (mock_money_data.dart's `counterpartyName`), not a stable
+    // Customer.localId to match [customerId] against — returning
+    // nothing here rather than fabricate a match against the wrong
+    // kind of value. Not reachable in practice: nothing constructs this
+    // class anymore (see this class's own doc comment).
+    return const <MoneyTransaction>[];
+  }
+
+  @override
   Future<MoneyTransaction?> getTransactionById(String id) async {
     await _delay();
     for (final t in _transactions) {

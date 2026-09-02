@@ -584,6 +584,34 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   }
 
   @override
+  Future<List<MoneyTransaction>> getTransactionsForCustomer(
+    String customerId, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
+    final cashierUserId = canViewAllSales ? null : currentAuthUserId;
+    final sales = await _saleRepository.getSalesForCustomer(
+      customerId: customerId,
+      cashierUserId: cashierUserId,
+    );
+    // Empty map, same reasoning as _fromSaleDetailed's own call just
+    // above: this method already knows exactly which customer it's
+    // building rows for (that's the whole point of the query), so
+    // there's no "which of several customers does this sale belong to"
+    // to resolve — counterpartyName isn't consumed by the Purchase
+    // History row UI this feeds, only title/subtitle/amount/saleTotal
+    // are.
+    final transactions = [for (final sale in sales) _fromSale(sale, const <String, String>{})];
+    // getSalesForCustomer already orders by saleDate desc; re-sorting
+    // here is redundant in the common case but costs nothing and keeps
+    // this method correct even if that ordering guarantee ever changes,
+    // matching _transactionsForRange's own belt-and-suspenders sort
+    // above.
+    transactions.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    return transactions;
+  }
+
+  @override
   Future<MoneyTransaction?> getTransactionById(String id) async {
     if (id.startsWith('sale-')) {
       final sale = await _saleRepository.getSaleByLocalId(id.substring('sale-'.length));

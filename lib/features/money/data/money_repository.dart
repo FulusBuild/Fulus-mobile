@@ -48,6 +48,21 @@ abstract class MoneyRepository {
     String? searchQuery,
   });
 
+  /// Every sale ever recorded for [customerId], most recent first — the
+  /// customer profile's Purchase History (Volume 7). Deliberately NOT
+  /// period-scoped (like [getAvailableBalance], not like [getSummary]/
+  /// [getTransactions] above) and NOT limited to whichever location
+  /// [getTransactions] resolves via `ResolveActiveLocation` — see
+  /// `SaleRepository.getSalesForCustomer`'s own doc comment for why:
+  /// a customer's purchase history is business-wide. Employee data
+  /// isolation: same [currentAuthUserId]/[canViewAllSales] contract as
+  /// [getSummary]/[getTransactions] above.
+  Future<List<MoneyTransaction>> getTransactionsForCustomer(
+    String customerId, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  });
+
   Future<MoneyTransaction?> getTransactionById(String id);
 
   Future<MoneyTransaction> recordIncome({

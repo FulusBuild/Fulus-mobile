@@ -7,6 +7,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/customer_ledger_entry.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
 import '../widgets/customer_form_sheet.dart';
@@ -113,6 +114,14 @@ class _ProfileBody extends ConsumerWidget {
                           Text(customer.email!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                         if (customer.address != null)
                           Text(customer.address!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                        // Feature (customer management gap-closure):
+                        // same "captured but never shown" gap as email/
+                        // address above — Customer.notes has carried a
+                        // free-text note since Customer was first
+                        // modeled, now genuinely settable too (see
+                        // CustomerFormSheet's Notes field).
+                        if (customer.notes != null && customer.notes!.isNotEmpty)
+                          Text(customer.notes!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                       ],
                     ),
                   ),
@@ -179,10 +188,63 @@ class _ProfileBody extends ConsumerWidget {
         const SizedBox(height: AppSpacing.lg),
         _ArchiveSection(customer: customer, onChanged: onChanged),
         const SizedBox(height: AppSpacing.lg),
+        FulusSectionHeader(title: 'Purchase history'),
+        _buildPurchaseHistorySection(context, ref),
+        const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Credit history'),
         _buildLedgerSection(ref),
         const SizedBox(height: AppSpacing.xl),
       ],
+    );
+  }
+
+  /// Feature (customer profile gap-closure): every past sale rung up
+  /// for this customer, most recent first — the "past transactions...
+  /// tappable through to transaction_detail_screen.dart" half of the
+  /// profile's history, distinct from the credit-only ledger below.
+  /// One-shot [FutureProvider], not the ledger's `StreamProvider` — see
+  /// [moneyCustomerPurchaseHistoryProvider]'s own doc comment for why.
+  Widget _buildPurchaseHistorySection(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(moneyCustomerPurchaseHistoryProvider(customer.localId));
+    return historyAsync.when(
+      loading: () => Column(children: List.generate(3, (_) => const FulusListRowSkeleton(hasLeading: false))),
+      error: (error, stack) => FulusErrorState(
+        message: "Couldn't load this customer's purchase history.",
+        onRetry: () => ref.invalidate(moneyCustomerPurchaseHistoryProvider(customer.localId)),
+      ),
+      data: (transactions) {
+        if (transactions.isEmpty) {
+          return const FulusEmptyState(
+            icon: Icons.point_of_sale_outlined,
+            headline: 'No purchases yet.',
+            body: 'Sales made to this customer will show up here.',
+          );
+        }
+        return FulusCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < transactions.length; i++) ...[
+                if (i > 0) const FulusListDivider(indented: false),
+                _PurchaseHistoryRow(
+                  transaction: transactions[i],
+                  currencySymbol: currencySymbol,
+                  // Same navigation call money_screen.dart's own
+                  // history list already uses — transaction_detail_
+                  // screen.dart accepts this exact preloaded
+                  // MoneyTransaction via `extra` and doesn't need a
+                  // re-fetch to render it.
+                  onTap: () => context.pushNamed(
+                    'moneyTransactionDetail',
+                    pathParameters: {'id': transactions[i].id},
+                    extra: transactions[i],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -314,6 +376,63 @@ class _LedgerRow extends StatelessWidget {
           color: isRepayment ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
         ),
       ),
+    );
+  }
+}
+
+/// Feature (customer profile gap-closure): a Purchase History row —
+/// date, receipt number, item summary, total, payment status, amount
+/// paid, and outstanding amount, per the original request. Total and
+/// status share the trailing slot the same way transaction_detail_
+/// screen.dart collapses "Balance due" and "Status: Paid in full" into
+/// one context-dependent line rather than always printing all four
+/// numbers, since for the common fully-paid sale that would just repeat
+/// the total twice for no reason.
+class _PurchaseHistoryRow extends StatelessWidget {
+  const _PurchaseHistoryRow({required this.transaction, required this.currencySymbol, required this.onTap});
+
+  final MoneyTransaction transaction;
+  final String currencySymbol;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = transaction;
+    final total = t.saleTotal ?? t.amount;
+    final due = t.balanceDue;
+    final hasSummary = t.subtitle != null && t.subtitle!.isNotEmpty;
+
+    return FulusListRow(
+      title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${formatRelativeDay(t.dateTime)} · ${formatTime(t.dateTime)}${hasSummary ? ' · ${t.subtitle}' : ''}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatMoney(total, symbol: currencySymbol),
+            style: AppTypography.body.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            due > 0
+                ? '${formatMoney(t.amount, symbol: currencySymbol)} paid · ${formatMoney(due, symbol: currencySymbol)} due'
+                : 'Paid in full',
+            style: AppTypography.caption.copyWith(
+              color: due > 0 ? AppColors.errorOf(context) : AppColors.textSecondaryOf(context),
+            ),
+          ),
+        ],
+      ),
+      onTap: onTap,
     );
   }
 }

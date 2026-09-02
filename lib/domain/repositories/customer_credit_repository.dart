@@ -7,14 +7,12 @@ import '../entities/customer_ledger_entry.dart';
 /// doc comments) that CustomerRepository's simple create/update/delete
 /// shape doesn't need to carry.
 abstract class CustomerCreditRepository {
-  /// **Not called by anything in this pass.** The seam Sales (not yet
-  /// reworked onto this real foundation) is expected to call when a
-  /// sale completes with `balanceDue > 0` for a selected customer — same
-  /// forward-built-ahead-of-its-caller status
-  /// `ProductRepository.recordSaleStockDeduction`-equivalent methods
-  /// have elsewhere in this codebase. Also updates
-  /// `Customers.outstandingBalance` — the two always change together,
-  /// in one transaction, never independently.
+  /// Called by `SaleRepositoryImpl._recordCreditSaleIfNeeded` whenever a
+  /// sale completes with `balanceDue > 0` for a selected customer (or,
+  /// with itemized `payments`, whenever a `'credit'`-method leg is
+  /// present) — verified directly against that call site, not assumed.
+  /// Also updates `Customers.outstandingBalance` — the two always
+  /// change together, in one transaction, never independently.
   Future<CustomerLedgerEntry> recordCreditSale({
     required String customerLocalId,
     required double amount,
@@ -41,8 +39,8 @@ abstract class CustomerCreditRepository {
     String? saleLocalId,
   });
 
-  /// **Not called by anything in this pass** — same forward-seam status
-  /// as [recordCreditSale], for the Returns workflow once it exists.
+  /// Called by ReturnRepositoryImpl's refund flow — verified directly
+  /// against that call site, not assumed.
   Future<CustomerLedgerEntry> recordRefundAdjustment({
     required String customerLocalId,
     required double amount,
