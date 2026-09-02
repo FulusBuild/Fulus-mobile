@@ -42,3 +42,33 @@ String? aggregatePaymentMethod(List<String> methods) {
   if (distinct.length == 1) return distinct.first;
   return 'split';
 }
+
+/// Bug fix (transaction audit center / "Paid in full" regression):
+/// what `Sale.amountPaid` should actually persist — every payment leg
+/// **except** a `'credit'` one. Credit extends the customer's balance
+/// (`SaleRepositoryImpl._recordCreditSaleIfNeeded`, which already sums
+/// the `'credit'`-method legs on its own, correctly, for exactly this
+/// reason) rather than putting money in the till at sale time; it's a
+/// promise, not cash collected.
+///
+/// Before this existed, `completeSale` summed every leg indiscriminately
+/// (the same naive shape `_recordCreditSaleIfNeeded`'s own doc comment
+/// already named and fixed one layer up: "Credit ₦50,000 + Mobile Money
+/// ₦197,250 against a ₦247,250 total makes amountPaid == total"). That
+/// made a split sale with a credit leg persist `Sale.amountPaid ==
+/// Sale.total`, so `Sale.balanceDue` (`total - amountPaid`) came out
+/// exactly 0 — even though the credit portion was only ever promised,
+/// not collected. Every reader of that one stored field inherited the
+/// same wrong picture: the transaction detail screen and printed
+/// receipt both showed "Paid in full" for a sale that still had money
+/// outstanding, `CashDrawerShiftRepositoryImpl.computeExpectedCash`
+/// counted the uncollected credit as if it were cash in the drawer, and
+/// `FinanceStatsRepositoryImpl`'s sales inflow overstated actual money
+/// received by the same amount — none of them had any way to know part
+/// of `amountPaid` was fictional, because the field itself was wrong at
+/// the source. This is the one place that source gets fixed, so every
+/// downstream reader is correct without having to know about credit at
+/// all.
+double computeCashAmountPaid(List<({String method, double amount})> payments) {
+  return payments.where((p) => p.method != 'credit').fold<double>(0.0, (sum, p) => sum + p.amount);
+}

@@ -67,4 +67,31 @@ void main() {
       expect(aggregatePaymentMethod(['cash', 'transfer']), 'split');
     });
   });
+
+  group('computeCashAmountPaid', () {
+    test('sums every leg when none of them are credit', () {
+      expect(
+        computeCashAmountPaid(const [(method: 'cash', amount: 2000), (method: 'transfer', amount: 3000)]),
+        5000,
+      );
+    });
+
+    test('zero when the only leg is credit', () {
+      expect(computeCashAmountPaid(const [(method: 'credit', amount: 5000)]), 0);
+    });
+
+    // Regression case: this is the exact split from the "Paid in full"
+    // bug — before the fix, this summed to 2500000 (the full total),
+    // not the 1000000 that was actually collected.
+    test('excludes a credit leg from a cash+credit split', () {
+      expect(
+        computeCashAmountPaid(const [(method: 'cash', amount: 1000000), (method: 'credit', amount: 1500000)]),
+        1000000,
+      );
+    });
+
+    test('empty payments is zero', () {
+      expect(computeCashAmountPaid(const []), 0);
+    });
+  });
 }

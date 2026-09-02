@@ -411,7 +411,13 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
         wholeCartDiscount: draft.wholeCartDiscount,
         lineDiscounts: items.map((i) => i.lineDiscount).toList(),
       );
-      final amountPaid = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
+      // Bug fix ("Paid in full" regression) — see computeCashAmountPaid's
+      // own doc comment in draft_cart_aggregation.dart for the full
+      // story: this used to sum every leg indiscriminately, which made
+      // a split sale with a credit leg persist as amountPaid == total.
+      final amountPaid = aggregation.computeCashAmountPaid(
+        payments.map((p) => (method: p.method, amount: p.amount)).toList(),
+      );
       final paymentMethod = aggregation.aggregatePaymentMethod(
         payments.map((p) => p.method).toList(),
       );

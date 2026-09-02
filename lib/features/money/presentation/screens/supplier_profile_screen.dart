@@ -9,6 +9,7 @@ import '../../../../domain/entities/supplier_ledger_entry.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
+import '../widgets/supplier_form_sheet.dart';
 
 /// Volume 8, Decision 26's supplier mirror of `customer_profile_screen
 /// .dart` — real data via `SupplierRepository`/`SupplierCreditRepository`.
@@ -97,8 +98,25 @@ class _SupplierProfileBody extends ConsumerWidget {
                         Text(supplier.name, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
                         if (supplier.phone != null)
                           Text(supplier.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                        if (supplier.email != null)
+                          Text(supplier.email!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                        if (supplier.address != null)
+                          Text(supplier.address!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                       ],
                     ),
+                  ),
+                  // Bug fix (suppliers gap-closure): same "no proper way
+                  // to edit" gap customer_profile_screen.dart's own
+                  // identical button already closed for customers —
+                  // updateSupplier existed on no call path at all until
+                  // this button and SupplierFormSheet.
+                  FulusIconButton(
+                    icon: Icons.edit_outlined,
+                    tooltip: 'Edit supplier',
+                    onPressed: () async {
+                      final saved = await SupplierFormSheet.show(context, existing: supplier);
+                      if (saved != null) onChanged();
+                    },
                   ),
                 ],
               ),

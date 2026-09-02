@@ -6,10 +6,18 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
+import '../widgets/supplier_form_sheet.dart';
 
 /// Volume 8, Decision 26: "A supplier's balance works exactly like the
 /// customer credit book, mirrored." Real data — `SupplierRepository`
 /// needs no locationId and is already fully implemented.
+///
+/// Bug fix (suppliers gap-closure): this screen never actually gave
+/// anyone a way to call that repository's `createSupplier` — no button
+/// anywhere opened a form, matching `CustomersListScreen`'s own "Add
+/// customer" action. That's why no supplier profile was ever reachable
+/// either: there was no way to create the supplier a profile would be
+/// for.
 class SuppliersListScreen extends ConsumerStatefulWidget {
   const SuppliersListScreen({super.key});
 
@@ -28,6 +36,13 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
     return FulusScreen(
       title: 'Suppliers',
       applyPadding: false,
+      actions: [
+        FulusIconButton(
+          icon: Icons.add_business_outlined,
+          tooltip: 'Add supplier',
+          onPressed: () => SupplierFormSheet.show(context),
+        ),
+      ],
       body: Column(
         children: [
           Padding(
@@ -58,11 +73,13 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
                 final filtered =
                     _query.isEmpty ? suppliers : suppliers.where((s) => s.name.toLowerCase().contains(_query)).toList();
                 if (suppliers.isEmpty) {
-                  return const SingleChildScrollView(
+                  return SingleChildScrollView(
                     child: FulusEmptyState(
                       icon: Icons.local_shipping_outlined,
                       headline: 'No suppliers yet.',
                       body: 'Suppliers you owe for stock bought on credit will show up here, with a running balance.',
+                      actionLabel: 'Add supplier',
+                      onAction: () => SupplierFormSheet.show(context),
                     ),
                   );
                 }

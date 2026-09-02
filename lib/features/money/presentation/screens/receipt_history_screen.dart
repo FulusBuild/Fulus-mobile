@@ -51,6 +51,14 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
 
   String _searchQuery = '';
   String _builtForQuery = '';
+  // Bug fix (Receipt History date filter): local, screen-only override
+  // of the all-time [_historyStart]/[DateTime.now()] span above — null
+  // means "no filter, show everything," same all-time default as
+  // before. Deliberately NOT the shared `moneyPeriodProvider` Money
+  // History and Cash Flow use — see this class's own doc comment for
+  // why this screen can't reuse that.
+  DateTimeRange? _dateRange;
+  DateTimeRange? _builtForDateRange;
   Timer? _debounce;
   late Future<List<MoneyTransaction>> _future;
 
@@ -70,11 +78,21 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
   void _load() {
     final repo = ref.read(moneyRepositoryProvider);
     _builtForQuery = _searchQuery;
+    _builtForDateRange = _dateRange;
     final user = ref.read(sessionProvider);
     final currentAuthUserId = user?.id ?? '';
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    final period = ReportPeriod(kind: ReportPeriodKind.custom, start: _historyStart, end: DateTime.now());
+    // [_dateRange] narrows the all-time span when set. `end` only needs
+    // to be a calendar date, not a precise timestamp —
+    // SaleRepositoryImpl.getSalesForPeriod already treats it as a full
+    // day (see that method's own "both ends treated as full calendar
+    // days" comment) and includes every sale recorded on it.
+    final period = ReportPeriod(
+      kind: ReportPeriodKind.custom,
+      start: _dateRange?.start ?? _historyStart,
+      end: _dateRange?.end ?? DateTime.now(),
+    );
     _future = repo.getTransactions(
       period,
       currentAuthUserId: currentAuthUserId,
@@ -96,6 +114,21 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
     });
   }
 
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: _historyStart,
+      lastDate: now,
+      initialDateRange: _dateRange ?? DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+    );
+    if (picked != null && mounted) {
+      setState(() => _dateRange = picked);
+    }
+  }
+
+  void _clearDateRange() => setState(() => _dateRange = null);
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -114,7 +147,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
         setState(_load);
       }
     });
-    if (_builtForQuery != _searchQuery) {
+    if (_builtForQuery != _searchQuery || _builtForDateRange != _dateRange) {
       _load();
     }
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
@@ -122,12 +155,35 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
     return FulusScreen(
       title: 'Receipt history',
       applyPadding: false,
+      actions: [
+        FulusIconButton(
+          icon: _dateRange == null ? Icons.calendar_month_outlined : Icons.event_available,
+          tooltip: _dateRange == null ? 'Filter by date' : 'Change date filter',
+          onPressed: _pickDateRange,
+        ),
+      ],
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
             child: FulusSearchField(hintText: 'Search receipts', onChanged: _onSearchChanged),
           ),
+          if (_dateRange != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FulusChip(
+                    label: '${formatRelativeDay(_dateRange!.start)} – ${formatRelativeDay(_dateRange!.end)}',
+                    selected: true,
+                    onTap: _pickDateRange,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  FulusIconButton(icon: Icons.close, tooltip: 'Clear date filter', onPressed: _clearDateRange),
+                ],
+              ),
+            ),
           Expanded(
             child: FutureBuilder<List<MoneyTransaction>>(
               future: _future,
@@ -155,7 +211,9 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
                       headline: 'No receipts found.',
                       body: _searchQuery.isNotEmpty
                           ? 'Try a different search term.'
-                          : 'Sales you record will show up here, ready to reprint any time.',
+                          : _dateRange != null
+                              ? 'No sales recorded in this date range.'
+                              : 'Sales you record will show up here, ready to reprint any time.',
                     ),
                   );
                 }

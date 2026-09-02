@@ -47,6 +47,24 @@ class SupplierRepositoryImpl implements SupplierRepository {
   }
 
   @override
+  Future<Supplier> updateSupplier(String localId, SupplierDraft draft) async {
+    await (_db.update(_db.suppliers)..where((s) => s.localId.equals(localId))).write(
+      SuppliersCompanion(
+        name: Value(draft.name),
+        phone: Value(draft.phone),
+        email: Value(draft.email),
+        address: Value(draft.address),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    final updated = await getSupplierById(localId);
+    if (updated == null) {
+      throw ArgumentError.value(localId, 'localId', 'no such supplier');
+    }
+    return updated;
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,

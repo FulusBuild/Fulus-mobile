@@ -1,10 +1,12 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
+import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
@@ -157,6 +159,65 @@ void main() {
 
       expect(sale.paymentMethod, 'split');
       expect(sale.amountPaid, 5000);
+    });
+
+    // Regression test: a split sale with a credit leg used to persist
+    // Sale.amountPaid as the sum of every leg, credit included — see
+    // computeCashAmountPaid's own doc comment in
+    // draft_cart_aggregation.dart for the full story. That made
+    // balanceDue come out 0 and the transaction detail screen /
+    // printed receipt show "Paid in full" for a sale that still had
+    // money outstanding.
+    test(
+        "a split cash+credit sale doesn't count the credit leg as "
+        'collected cash', () async {
+      final customerRepository = CustomerRepositoryImpl(db: db, syncQueue: SyncQueue(db));
+      final customer = await customerRepository.createCustomer(
+        const CustomerDraft(name: 'Sanni'),
+      );
+
+      final draft = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await draftCartRepository.addItem(
+        draftCartLocalId: draft.localId,
+        description: 'Item A',
+        quantity: 1,
+        unitPrice: 2500000,
+      );
+      await draftCartRepository.setCustomer(
+        draftCartLocalId: draft.localId,
+        customerLocalId: customer.localId,
+      );
+      await draftCartRepository.addPayment(
+        draftCartLocalId: draft.localId,
+        method: 'cash',
+        amount: 1000000,
+      );
+      await draftCartRepository.addPayment(
+        draftCartLocalId: draft.localId,
+        method: 'credit',
+        amount: 1500000,
+      );
+
+      final sale = await draftCartRepository.completeSale(draft.localId);
+
+      expect(sale.paymentMethod, 'split');
+      expect(
+        sale.amountPaid,
+        1000000,
+        reason: 'the credit leg was only ever promised, not collected — it '
+            'must not count as cash received',
+      );
+      expect(sale.balanceDue, 1500000);
+
+      final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
+      expect(
+        updatedCustomer!.outstandingBalance,
+        1500000,
+        reason: 'the credit ledger side was already correct before this fix '
+            '— this just confirms the fix to amountPaid did not disturb it',
+      );
     });
 
     test(
