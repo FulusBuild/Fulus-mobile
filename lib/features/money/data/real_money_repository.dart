@@ -166,8 +166,21 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
     final categoryNamesById = {for (final c in categories) c.localId: c.name};
 
+    // Bug fix (Receipt History gap-closure): `_fromSale` used to never
+    // resolve a sale's customer name at all — only `_fromSaleDetailed`
+    // did, via its own per-sale `getCustomerById` lookup, deliberately
+    // left list-path-only because doing that per sale here would be
+    // exactly the N+1-across-a-date-range cost that method's own doc
+    // comment already avoids for line items/payment breakdown. Customers
+    // is a small, business-wide table — same cost tradeoff already made
+    // for categoryNamesById just above, not a new N+1 — so one bulk read
+    // here is enough for a list row to show "who this sale was for"
+    // without paying a per-row lookup.
+    final customers = await _customerRepository.watchCustomers().first;
+    final customerNamesById = {for (final c in customers) c.localId: c.name};
+
     final transactions = <MoneyTransaction>[
-      for (final sale in sales) _fromSale(sale),
+      for (final sale in sales) _fromSale(sale, customerNamesById),
       for (final expense in expenses) _fromExpense(expense, categoryNamesById),
       for (final income in incomeRecords) _fromIncomeRecord(income),
     ];
@@ -182,7 +195,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     return transactions;
   }
 
-  MoneyTransaction _fromSale(Sale sale) {
+  MoneyTransaction _fromSale(Sale sale, Map<String, String> customerNamesById) {
     // Cash-basis, not accrual: amountPaid (what actually changed hands
     // at sale time), not total (what's owed). Same treatment
     // CashDrawerShiftRepositoryImpl.computeExpectedCash already gives
@@ -199,6 +212,13 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       amount: sale.amountPaid,
       dateTime: sale.saleDate,
       paymentMethod: _displayPaymentMethod(sale.paymentMethod),
+      // Bug fix (Receipt History gap-closure): resolved from the bulk
+      // [customerNamesById] map built once per call — see
+      // `_transactionsForRange`'s own comment just above where that map
+      // is built. Null for a walk-in sale with no customer attached, the
+      // same as every other field here that's simply absent rather than
+      // fabricated.
+      counterpartyName: sale.customerId != null ? customerNamesById[sale.customerId] : null,
       reference: sale.invoiceNumber,
       note: sale.notes,
       // Only populated from Quick Sale lines (the only SaleItem rows
@@ -234,7 +254,12 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   ///    exposes them via [MoneyTransaction.paymentBreakdown], instead
   ///    of only the collapsed "Split" label.
   Future<MoneyTransaction> _fromSaleDetailed(Sale sale) async {
-    final base = _fromSale(sale);
+    // Empty map, deliberately: `base.counterpartyName` below is only
+    // ever used as a fallback for the (rare) case a customerId doesn't
+    // resolve; the real resolution for this detail path is the direct
+    // `getCustomerById` lookup a few lines down, which needs no bulk map
+    // at all for a single sale.
+    final base = _fromSale(sale, const <String, String>{});
 
     final resolvedLineItems = <String>[];
     for (final item in sale.items) {
@@ -258,11 +283,15 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       }
     }
 
-    // Feature (transaction audit center): customer name+phone. _fromSale
-    // never resolves counterpartyName for a sale at all (only expenses/
-    // repayments/etc. get one there) — this is the only place a sale's
-    // customer is looked up, matching the same detail-view-only cost
-    // tradeoff as everything else in this method.
+    // Feature (transaction audit center): customer name+phone. `_fromSale`
+    // now resolves a customer *name* for the list feed too (Receipt
+    // History gap-closure — see that method's own comment), but only
+    // from a bulk-loaded map with no phone number attached; this is
+    // still the only place a sale's customer *phone* is looked up, and
+    // it re-resolves the name directly via `getCustomerById` rather than
+    // trusting `base.counterpartyName`, so a customer renamed after this
+    // call's own bulk read is never stale on the one screen that matters
+    // most for a single transaction.
     String? customerName = base.counterpartyName;
     String? customerPhone;
     if (sale.customerId != null) {

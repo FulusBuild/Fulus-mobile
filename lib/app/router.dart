@@ -27,6 +27,7 @@ import '../features/money/presentation/screens/daily_closing_summary_screen.dart
 import '../features/money/presentation/screens/money_history_screen.dart';
 import '../features/money/presentation/screens/money_screen.dart';
 import '../features/money/presentation/screens/pay_supplier_screen.dart';
+import '../features/money/presentation/screens/receipt_history_screen.dart';
 import '../features/money/presentation/screens/record_repayment_screen.dart';
 import '../features/money/presentation/screens/supplier_profile_screen.dart';
 import '../features/money/presentation/screens/suppliers_list_screen.dart';
@@ -356,6 +357,16 @@ final appRouter = GoRouter(
                       ],
                     ),
                   ],
+                ),
+                GoRoute(
+                  path: 'receipts',
+                  name: 'receiptHistory',
+                  // Feature (Receipt History): a dedicated, sales-only
+                  // browse-and-reprint screen — see that screen's own
+                  // doc comment for why it's a separate route from
+                  // `moneyHistory` rather than that screen with a type
+                  // filter pre-selected.
+                  builder: (context, state) => const ReceiptHistoryScreen(),
                 ),
                 GoRoute(
                   path: 'suppliers',

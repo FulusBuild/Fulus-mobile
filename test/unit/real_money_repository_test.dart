@@ -215,6 +215,14 @@ void main() {
         )).thenAnswer((_) async => [testPayment]);
     when(() => expenseCategoryRepository.watchExpenseCategories())
         .thenAnswer((_) => Stream.value([testCategory]));
+    // Bug fix (Receipt History gap-closure): `_transactionsForRange` now
+    // reads this unconditionally, the same way it already reads
+    // watchExpenseCategories() above — see that method's own doc
+    // comment. Every existing test below goes through this path, so
+    // without a stub here they'd all fail on an unstubbed call, not just
+    // whichever test actually cares about a sale's customer name.
+    when(() => customerRepository.watchCustomers())
+        .thenAnswer((_) => Stream.value([testCustomer]));
     when(() => customerRepository.getCustomerById('cust-1'))
         .thenAnswer((_) async => testCustomer);
     when(() => supplierRepository.getSupplierById('sup-1'))
@@ -293,6 +301,56 @@ void main() {
         searchQuery: 'nonexistent',
       );
       expect(results, isEmpty);
+    });
+
+    // Bug fix (Receipt History gap-closure): a sale's customer name used
+    // to never resolve on the list feed at all (only the single-
+    // transaction detail path did) — see _fromSale's own doc comment in
+    // real_money_repository.dart.
+    test('resolves a sale customer name from the bulk customer map', () async {
+      final saleWithCustomer = Sale(
+        localId: 'sale-2',
+        clientReference: 'sale-2',
+        locationId: 'loc-1',
+        customerId: 'cust-1',
+        invoiceNumber: 'INV-002',
+        saleDate: DateTime(2026, 7, 20),
+        subtotal: 500,
+        tax: 0,
+        discount: 0,
+        total: 500,
+        amountPaid: 500,
+        paymentMethod: 'cash',
+        items: const [],
+        createdAt: now,
+        updatedAt: now,
+      );
+      when(() => saleRepository.getSalesForPeriod(
+            locationId: any(named: 'locationId'),
+            start: any(named: 'start'),
+            end: any(named: 'end'),
+            cashierUserId: any(named: 'cashierUserId'),
+          )).thenAnswer((_) async => [saleWithCustomer]);
+
+      final results = await repository.getTransactions(
+        testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
+        typeFilter: MoneyTransactionType.saleIncome,
+      );
+
+      expect(results.single.counterpartyName, 'Ngozi Eze');
+    });
+
+    test('leaves a walk-in sale (no customerId) with no counterparty name', () async {
+      final results = await repository.getTransactions(
+        testPeriod,
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
+        typeFilter: MoneyTransactionType.saleIncome,
+      );
+
+      expect(results.single.counterpartyName, isNull);
     });
   });
 

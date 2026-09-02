@@ -116,6 +116,18 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         tooltip: 'Money history',
                         onPressed: () => context.pushNamed('moneyHistory'),
                       ),
+                      // Feature (Receipt History): a distinct icon (a
+                      // single receipt, vs. Money History's "long
+                      // receipt"/ledger glyph just above) for the
+                      // sales-only browse-and-reprint screen — see
+                      // ReceiptHistoryScreen's own doc comment for why
+                      // this is a separate screen rather than Money
+                      // History with a type filter pre-applied.
+                      FulusIconButton(
+                        icon: Icons.receipt_outlined,
+                        tooltip: 'Receipts',
+                        onPressed: () => context.pushNamed('receiptHistory'),
+                      ),
                     ],
                   ),
                 ],
