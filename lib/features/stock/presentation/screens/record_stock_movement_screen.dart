@@ -28,15 +28,18 @@ import '../widgets/stock_error_banner.dart';
 /// picking which product, via the same search+list pattern the main
 /// Stock screen already uses.
 ///
-/// Stock In has no cost-price or supplier field, unlike what Volume 6's
-/// prose describes ("optional cost price and supplier") — a real,
-/// checked gap: [StockInDraft] only carries `productLocalId, locationId,
-/// quantity, reason`, nothing else, so there's nowhere for those two
-/// values to actually go if this form collected them. A product's cost
-/// price is still editable — from [AddEditProductScreen], as a property
-/// of the product itself, which is where this form points a user who
-/// needs to change it, rather than silently dropping fields that looked
-/// right on paper but don't persist anywhere.
+/// Stock In's cost-price and supplier fields (Volume 6's prose:
+/// "optional cost price and supplier") update the [Product] itself via
+/// [ProductRepository.updateProduct] — not new [StockMovement] columns.
+/// [StockInDraft] and the real backend `StockInRequest` genuinely have
+/// no room for either (verified against the actual wire schema), so
+/// this deliberately doesn't invent fields that would silently fail to
+/// sync; it reuses the one place cost price and supplier already
+/// persist for real. Picking a supplier surfaces a "Paid now" / "On
+/// account" choice — on account calls
+/// [SupplierCreditRepository.recordStockPurchaseOnCredit], the same
+/// forward seam a credit sale calls on the customer side, using
+/// cost price × quantity as the amount owed.
 class RecordStockMovementScreen extends ConsumerStatefulWidget {
   const RecordStockMovementScreen({super.key, this.preselectedProduct});
 
@@ -53,10 +56,17 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
   final _searchController = TextEditingController();
   final _quantityController = TextEditingController();
   final _noteController = TextEditingController();
+  final _costPriceController = TextEditingController();
   String? _outReason;
   bool _submitting = false;
   String? _bannerMessage;
   String? _quantityError;
+
+  /// Stock In's optional "bought on credit" fields — only ever read in
+  /// the [StockMovementType.stockIn] branch of [_submit].
+  String? _supplierId;
+  bool _onAccount = false;
+  String? _creditError;
 
   static const _outReasons = ['Spoiled/Damaged', 'Personal use', 'Given away', 'Other'];
 
@@ -64,6 +74,15 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
   void initState() {
     super.initState();
     _product = widget.preselectedProduct;
+    if (_product != null) _seedFromProduct(_product!);
+  }
+
+  /// Cost price/supplier default to whatever's already on the product —
+  /// leaving them untouched on submit is then a genuine no-op, not a
+  /// silent reset (see [_recordCostAndCredit]).
+  void _seedFromProduct(Product product) {
+    _costPriceController.text = product.costPrice == 0 ? '' : product.costPrice.toStringAsFixed(2);
+    _supplierId = product.supplierId;
   }
 
   @override
@@ -71,6 +90,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
     _searchController.dispose();
     _quantityController.dispose();
     _noteController.dispose();
+    _costPriceController.dispose();
     super.dispose();
   }
 
@@ -85,6 +105,13 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
     if (_type == StockMovementType.stockOut && _outReason == null) {
       setState(() => _bannerMessage = 'Choose a reason for this stock out.');
       return;
+    }
+    if (_type == StockMovementType.stockIn && _supplierId != null && _onAccount) {
+      final cost = double.tryParse(_costPriceController.text.trim());
+      if (cost == null || cost <= 0) {
+        setState(() => _creditError = 'Enter a cost price so we know how much is owed.');
+        return;
+      }
     }
 
     final user = ref.read(sessionProvider);
@@ -109,6 +136,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
       _submitting = true;
       _bannerMessage = null;
       _quantityError = null;
+      _creditError = null;
     });
 
     try {
@@ -118,12 +146,13 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
 
       switch (_type) {
         case StockMovementType.stockIn:
-          await repo.recordStockIn(StockInDraft(
+          final movement = await repo.recordStockIn(StockInDraft(
             productLocalId: product.localId,
             locationId: locationId,
             quantity: quantity,
             reason: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
           ));
+          await _recordCostAndCredit(product: product, quantity: quantity, movement: movement);
           break;
         case StockMovementType.stockOut:
           await repo.recordStockOut(StockOutDraft(
@@ -181,6 +210,37 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
     }
   }
 
+  /// Cost price and supplier are [Product] fields, not [StockMovement]
+  /// ones (see this class's own doc comment) — so this writes to the
+  /// product, then, only if a supplier is picked and "On account" is
+  /// chosen, records what's owed against [movement] via
+  /// [SupplierCreditRepository.recordStockPurchaseOnCredit]. A cost
+  /// price left blank passes `null` through to
+  /// [ProductRepository.updateProduct], which treats that as "leave
+  /// alone" — never a silent reset to 0.
+  Future<void> _recordCostAndCredit({
+    required Product product,
+    required int quantity,
+    required StockMovement movement,
+  }) async {
+    final costPriceInput = double.tryParse(_costPriceController.text.trim());
+    final supplierChanged = _supplierId != null && _supplierId != product.supplierId;
+    if (costPriceInput != null || supplierChanged) {
+      await ref.read(productRepositoryProvider).updateProduct(
+            localId: product.localId,
+            costPrice: costPriceInput,
+            supplierId: supplierChanged ? _supplierId : null,
+          );
+    }
+    if (_supplierId != null && _onAccount) {
+      await ref.read(supplierCreditRepositoryProvider).recordStockPurchaseOnCredit(
+            supplierLocalId: _supplierId!,
+            amount: (costPriceInput ?? 0) * quantity,
+            stockMovementLocalId: movement.localId,
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
@@ -229,7 +289,10 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
                                 return FulusListRow(
                                   title: Text(item.product.name),
                                   subtitle: Text('${item.currentStock} ${item.product.unit} in stock'),
-                                  onTap: () => setState(() => _product = item.product),
+                                  onTap: () => setState(() {
+                                    _product = item.product;
+                                    _seedFromProduct(item.product);
+                                  }),
                                 );
                               },
                             ),
@@ -245,6 +308,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
   }
 
   Widget _buildForm(BuildContext context) {
+    final suppliersAsync = ref.watch(suppliersProvider);
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
@@ -279,6 +343,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
               onTap: () => setState(() {
                 _type = StockMovementType.stockIn;
                 _quantityError = null;
+                _creditError = null;
               }),
             ),
             FulusChip(
@@ -287,6 +352,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
               onTap: () => setState(() {
                 _type = StockMovementType.stockOut;
                 _quantityError = null;
+                _creditError = null;
               }),
             ),
             FulusChip(
@@ -295,6 +361,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
               onTap: () => setState(() {
                 _type = StockMovementType.adjustment;
                 _quantityError = null;
+                _creditError = null;
               }),
             ),
           ],
@@ -329,6 +396,66 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
                 ? 'Optional — e.g. which delivery this was.'
                 : "e.g. what the physical count found.",
           ),
+        if (_type == StockMovementType.stockIn) ...[
+          const SizedBox(height: AppSpacing.lg),
+          FulusTextField(
+            label: 'Cost price (optional)',
+            controller: _costPriceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            helperText: "Updates this product's cost price.",
+            errorText: _creditError,
+            onChanged: (_) {
+              if (_creditError != null) setState(() => _creditError = null);
+            },
+          ),
+          suppliersAsync.when(
+            data: (suppliers) => suppliers.isEmpty
+                ? const SizedBox.shrink()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppSpacing.lg),
+                      FulusDropdownField<String?>(
+                        label: 'Supplier (optional)',
+                        value: _supplierId,
+                        options: [
+                          const FulusDropdownOption(value: null, label: 'None'),
+                          for (final s in suppliers) FulusDropdownOption(value: s.localId, label: s.name),
+                        ],
+                        onChanged: (value) => setState(() {
+                          _supplierId = value;
+                          if (value == null) _onAccount = false;
+                        }),
+                      ),
+                      // "Paid now" vs "on account" only makes sense once a
+                      // supplier is actually picked — recordStockPurchaseOnCredit
+                      // needs one to attach the ledger entry to.
+                      if (_supplierId != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        FulusChipRow(
+                          children: [
+                            FulusChip(
+                              label: 'Paid now',
+                              selected: !_onAccount,
+                              onTap: () => setState(() {
+                                _onAccount = false;
+                                _creditError = null;
+                              }),
+                            ),
+                            FulusChip(
+                              label: 'On account',
+                              selected: _onAccount,
+                              onTap: () => setState(() => _onAccount = true),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+            loading: () => const SizedBox.shrink(),
+            error: (e, _) => const SizedBox.shrink(),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl),
         FulusButton(label: 'Save', loading: _submitting, onPressed: _submitting ? null : _submit),
       ],
