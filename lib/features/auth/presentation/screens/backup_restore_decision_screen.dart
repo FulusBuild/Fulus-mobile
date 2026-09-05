@@ -20,6 +20,17 @@ import 'get_started_screen.dart';
 /// might be a genuine reinstall into recreating the business from
 /// scratch.
 ///
+/// Also reachable directly from [GetStartedScreen]'s own "Restore from
+/// a backup" link — the case [AuthGateScreen]'s automatic check can
+/// never catch: a real uninstall/reinstall wipes this app's own backups
+/// folder along with everything else, so there is nothing for that
+/// check to find, ever, no matter what lives in it. This screen still
+/// works fine reached that way — `newest` is simply null, "Choose a
+/// backup file" is the only backup-shaped button, and [_startFresh]
+/// still leads to the same place — see the headline text above for the
+/// one line of copy that actually depends on which of the two ways in
+/// was used.
+///
 /// Two ways to restore, both ending at the same [_restore]:
 /// - **the detected backup itself** — the newest file this screen's own
 ///   `listBackups` call already found, one tap away.
@@ -93,7 +104,14 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
       _error = null;
     });
     try {
-      final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['db']);
+      // Same initialDirectory hint as BackupScreen's own picker call —
+      // see BackupRepository.backupDirectoryPath's doc comment.
+      final initialDirectory = await ref.read(backupRepositoryProvider).backupDirectoryPath();
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['db'],
+        initialDirectory: initialDirectory,
+      );
       if (result.isEmpty) {
         setState(() => _busy = false);
         return; // canceled
@@ -154,7 +172,22 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'We found backup data on this device.',
+                      // Reachable two ways now: AuthGateScreen routing
+                      // here because it auto-detected a backup
+                      // (newest != null, the original case this copy
+                      // was written for), or GetStartedScreen's own
+                      // "Restore from a backup" link — reachable
+                      // specifically when nothing was auto-detected
+                      // (see that screen's own doc comment on why:
+                      // Android wipes this app's own backup folder on
+                      // reinstall, so a genuine reinstall always lands
+                      // here with newest == null). "We found backup
+                      // data" would be false in the second case, so
+                      // this is conditional on which one actually
+                      // happened rather than assuming the first.
+                      newest != null
+                          ? 'We found backup data on this device.'
+                          : 'Restore from a backup file, or start fresh.',
                       textAlign: TextAlign.center,
                       style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                     ),
@@ -210,6 +243,7 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
       case 'imported':
         return 'Imported backup';
       case 'scheduled':
+      case 'auto':
         return 'Automatic backup';
       case 'pre_restore_safety':
         return 'Safety snapshot';

@@ -5,6 +5,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
+import 'backup_restore_decision_screen.dart';
 import 'owner_setup_screen.dart';
 
 /// Nice-to-have gap closure — Volume 3, "Install & Launch": "First
@@ -36,6 +37,23 @@ import 'owner_setup_screen.dart';
 /// than not offering it at all, per Volume 12's "never a dead end"
 /// production rule — see [AuthGateScreen]'s own doc comment for the
 /// same reasoning applied to sign-in.
+///
+/// **Restore-after-reinstall gap fix.** [AuthGateScreen] already routes
+/// straight to [BackupRestoreDecisionScreen] when it finds a backup
+/// sitting in this app's own folder — but that folder is exactly what
+/// Android deletes the moment the app is uninstalled (see
+/// BackupRepository.setDurableBackupFolder's own doc comment), so on a
+/// genuine reinstall that automatic check correctly finds nothing, and
+/// this screen was the only thing anyone in that position would ever
+/// see — with no way to reach the file-picker restore
+/// [BackupRestoreDecisionScreen] also offers, even though that part
+/// works fine with zero auto-detected backups (a person restoring from
+/// a durable safety folder, an exported file from Drive/email/WhatsApp,
+/// or an SD card has a real destination to pick from regardless). "Get
+/// started" stays the one unambiguous primary action per Volume 3;
+/// this is a secondary, lower-emphasis way out for the one person who
+/// shouldn't be funneled into it — someone who already has a business
+/// here and is not starting from nothing.
 class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
@@ -69,6 +87,19 @@ class GetStartedScreen extends ConsumerWidget {
                 if (!context.mounted) return;
                 Navigator.of(context).push<void>(
                   MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: FulusButton(
+              label: 'Restore from a backup',
+              variant: FulusButtonVariant.text,
+              onPressed: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const BackupRestoreDecisionScreen()),
                 );
               },
             ),

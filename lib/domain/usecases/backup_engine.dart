@@ -18,7 +18,7 @@ import '../entities/backup_record.dart';
 class BackupEngine {
   const BackupEngine();
 
-  static const _validLabels = {'manual', 'scheduled', 'pre_restore_safety', 'imported'};
+  static const _validLabels = {'manual', 'scheduled', 'pre_restore_safety', 'imported', 'auto'};
 
   /// BUG FIX (integration pass): this used to say "mirrors
   /// backup_service.create_backup's filename format exactly:
@@ -88,12 +88,22 @@ class BackupEngine {
   }
 
   /// mirrors _prune_old_backups exactly: only ever prunes files with
-  /// [label] == 'scheduled' (manual and pre_restore_safety backups are
-  /// never auto-deleted), keeping the [keep] most recent by timestamp
-  /// and returning the rest for deletion.
-  List<BackupMetadata> selectPruneCandidates(List<BackupMetadata> backups, {int keep = 14}) {
-    final scheduled = sortNewestFirst(backups.where((b) => b.label == 'scheduled').toList());
-    if (scheduled.length <= keep) return const [];
-    return scheduled.sublist(keep);
+  /// the given [label] (manual and pre_restore_safety backups are
+  /// never auto-deleted, since neither is ever passed here), keeping
+  /// the [keep] most recent by timestamp and returning the rest for
+  /// deletion. [label] defaults to 'scheduled' — [runScheduledBackup]'s
+  /// own long-standing behavior, so every existing call site is
+  /// unaffected. [runAutoBackup] is the other caller, passing 'auto'
+  /// with `keep: 1` so the always-current, activity-triggered backup
+  /// stays exactly one file on disk — same prune-after-create shape as
+  /// the scheduled flow, just with a keep count of 1 instead of many.
+  List<BackupMetadata> selectPruneCandidates(
+    List<BackupMetadata> backups, {
+    String label = 'scheduled',
+    int keep = 14,
+  }) {
+    final matching = sortNewestFirst(backups.where((b) => b.label == label).toList());
+    if (matching.length <= keep) return const [];
+    return matching.sublist(keep);
   }
 }

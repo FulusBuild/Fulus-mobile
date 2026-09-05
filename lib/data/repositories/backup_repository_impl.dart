@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 import '../../core/errors/module_failures.dart';
@@ -34,13 +35,48 @@ class BackupRepositoryImpl implements BackupRepository {
   final DatabaseLifecycle _lifecycle;
   final BackupEngine _engine;
 
+  /// Backup & Restore discoverability fix: this used to resolve under
+  /// [getApplicationDocumentsDirectory], which on Android is this
+  /// app's fully private internal storage — invisible to any file
+  /// manager and unreachable by Android's own document picker (the
+  /// exact mechanism [FilePicker.pickFiles] uses from the Backup &
+  /// Restore screen), which is exactly why "where did my backup go"
+  /// had no real answer before this. [getExternalStorageDirectory] is
+  /// still this app's own sandboxed folder — no runtime storage
+  /// permission needed on any Android version this app targets, since
+  /// it's the app-specific external directory, not shared storage —
+  /// but it lives on the shared /storage/emulated/0 volume a file
+  /// manager can actually browse to, and is what [backupDirectoryPath]
+  /// now surfaces on that screen so the location is never a mystery.
+  /// Falls back to the private documents directory only if external
+  /// storage is genuinely unavailable (no shared volume / a platform
+  /// other than Android) — still fully functional, just not as easy
+  /// to find, matching this getter's old behavior on every platform.
   Future<Directory> _backupDir() async {
-    final docs = await getApplicationDocumentsDirectory();
-    final dir = Directory(p.join(docs.path, 'backups'));
+    final external = await getExternalStorageDirectory();
+    final root = external ?? await getApplicationDocumentsDirectory();
+    final dir = Directory(p.join(root.path, 'backups'));
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
     return dir;
+  }
+
+  @override
+  Future<String> backupDirectoryPath() async => (await _backupDir()).path;
+
+  static const _durableFolderKey = 'fulus_backup_durable_folder';
+
+  @override
+  Future<String?> durableBackupFolder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_durableFolderKey);
+  }
+
+  @override
+  Future<void> setDurableBackupFolder(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_durableFolderKey, path);
   }
 
   @override
@@ -102,7 +138,7 @@ class BackupRepositoryImpl implements BackupRepository {
   /// prune rule, which filters by this same prefix match directly in
   /// [runScheduledBackup], not by round-tripping through this parse.
   String _labelFromFileName(String fileName) {
-    for (final label in const ['pre_restore_safety', 'scheduled', 'imported', 'manual']) {
+    for (final label in const ['pre_restore_safety', 'scheduled', 'imported', 'auto', 'manual']) {
       if (fileName.startsWith('fulus_${label}_') || fileName.startsWith('bms_${label}_')) {
         return label;
       }
@@ -184,6 +220,41 @@ class BackupRepositoryImpl implements BackupRepository {
       await deleteBackup(backup.fileName);
     }
     return result;
+  }
+
+  @override
+  Future<BackupResult> runAutoBackup() async {
+    final result = await createBackup(label: 'auto');
+    final all = await listBackups();
+    final toDelete = _engine.selectPruneCandidates(all, label: 'auto', keep: 1);
+    for (final backup in toDelete) {
+      await deleteBackup(backup.fileName);
+    }
+    await _mirrorToDurableFolder(result.metadata.fileName);
+    return result;
+  }
+
+  /// Best-effort, deliberately silent — the durable folder is a real
+  /// directory the person granted access to at some point in the
+  /// past, and Android can invalidate that grant behind the app's
+  /// back (folder moved or deleted, SD card removed, permissions
+  /// reset). None of that should ever affect the actual local backup
+  /// [runAutoBackup] just made, which is why this is a separate step
+  /// after that backup is already safely on disk, not something
+  /// [createBackup] itself does. One stable filename, not one per
+  /// timestamp, for the same reason the local 'auto' backup is kept
+  /// to exactly one file: a single copy that keeps itself current,
+  /// not an ever-growing pile the person has to clean up by hand.
+  Future<void> _mirrorToDurableFolder(String fileName) async {
+    try {
+      final folder = await durableBackupFolder();
+      if (folder == null) return;
+      final source = File(p.join((await _backupDir()).path, fileName));
+      if (!await source.exists()) return;
+      await source.copy(p.join(folder, 'fulus_backup_latest.db'));
+    } catch (_) {
+      // Silent — see doc comment above.
+    }
   }
 
   @override

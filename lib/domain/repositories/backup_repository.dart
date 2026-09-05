@@ -50,6 +50,50 @@ abstract class BackupRepository {
   /// prune-only-scheduled behavior exactly.
   Future<BackupResult> runScheduledBackup({int keep = 14});
 
+  /// Runs create + prune-to-one in one call — the activity-triggered
+  /// counterpart to [runScheduledBackup]. Labels the new snapshot
+  /// 'auto' and immediately deletes every OTHER 'auto'-labeled file
+  /// (`BackupEngine.selectPruneCandidates(..., label: 'auto', keep: 1)`),
+  /// so exactly one automatic backup ever exists in [backupDirectoryPath]
+  /// at a time. Also mirrors that snapshot into [durableBackupFolder],
+  /// best-effort, if one has been set — see that method's own doc
+  /// comment for why a second copy outside this app's own folder is
+  /// what actually makes an automatic backup survive a reinstall, not
+  /// this method's local half on its own. Cheap and safe to call
+  /// often: [createBackup]'s VACUUM INTO never blocks the live
+  /// database (see this repository's own implementation doc comment),
+  /// so the caller (an app-wide listener on whatever signals real user
+  /// activity) can call this after every burst of activity with
+  /// nothing more than an ordinary debounce.
+  Future<BackupResult> runAutoBackup();
+
+  /// The folder every backup in [listBackups] actually lives in, as a
+  /// real, absolute filesystem path — for display (so "where did my
+  /// backup go" has a literal on-screen answer) and so a file-picker
+  /// call can be pointed at it as a starting point. Creates the
+  /// directory if it doesn't exist yet, same as every other method
+  /// here that touches it.
+  Future<String> backupDirectoryPath();
+
+  /// The durable, user-picked folder outside this app's own sandbox
+  /// that [runAutoBackup] mirrors its latest snapshot into, if one has
+  /// been set — see [setDurableBackupFolder]'s own doc comment for why
+  /// this exists at all. Null until the person has picked one.
+  Future<String?> durableBackupFolder();
+
+  /// Remembers [path] — a real folder the person picked via Android's
+  /// own document-tree picker — as the mirror target every future
+  /// [runAutoBackup] copies its latest snapshot into, so a backup
+  /// taken today is still sitting there, outside this app's own
+  /// sandbox, even after an uninstall/reinstall. That's the one thing
+  /// nothing under [backupDirectoryPath] can ever promise: Android
+  /// deletes an app's own folders — internal AND external, whichever
+  /// this app is using — the moment the app itself is uninstalled, by
+  /// design, with no exception this app can opt out of. Persisted
+  /// locally (SharedPreferences), same as every other simple
+  /// device-local setting in this app (AppLockConfig, SyncConfig).
+  Future<void> setDurableBackupFolder(String path);
+
   /// Backup & Restore (schemaVersion 10): brings a file the user picked
   /// from anywhere on their device — a different app's export folder,
   /// an SD card, a cloud-sync app's local copy, a file received over

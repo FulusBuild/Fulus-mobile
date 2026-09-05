@@ -33,12 +33,15 @@ class BackupScreen extends ConsumerStatefulWidget {
 
 class _BackupScreenState extends ConsumerState<BackupScreen> {
   late Future<List<BackupMetadata>> _future;
+  late final Future<String> _dirFuture = ref.read(backupRepositoryProvider).backupDirectoryPath();
+  late Future<String?> _durableFolderFuture;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
     _future = ref.read(backupRepositoryProvider).listBackups();
+    _durableFolderFuture = ref.read(backupRepositoryProvider).durableBackupFolder();
   }
 
   void _reload() => setState(() {
@@ -98,6 +101,78 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Discoverability fix: "I don't know where it saves to" had
+          // no real answer before this — this is that answer, always
+          // visible rather than something the person has to go looking
+          // for. Also names the new activity-triggered auto-backup
+          // (BackupRepository.runAutoBackup, kicked off by
+          // AutoBackupGate) so its single, always-current file showing
+          // up in the list below isn't a mystery either.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+            child: FutureBuilder<String>(
+              future: _dirFuture,
+              builder: (context, snapshot) {
+                final path = snapshot.data;
+                return Text(
+                  path == null
+                      ? 'Fulus also backs itself up automatically as you use the app.'
+                      : 'Saved to $path — and automatically as you use the app.',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                );
+              },
+            ),
+          ),
+          // Reinstall-survival fix: everything above lives in this
+          // app's own folder, which Android deletes the moment the app
+          // is uninstalled — no exception, internal or external, this
+          // app's own permissions can opt out of. A folder the person
+          // picks themselves, outside that sandbox, is the only thing
+          // that actually survives — see
+          // BackupRepository.setDurableBackupFolder's own doc comment.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+            child: FutureBuilder<String?>(
+              future: _durableFolderFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                final folder = snapshot.data;
+                final set = folder != null;
+                return FulusCard(
+                  child: Row(
+                    children: [
+                      Icon(
+                        set ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+                        color: set ? AppColors.primaryOf(context) : AppColors.warningOf(context),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              set ? 'Safety folder set' : "Won't survive a reinstall yet",
+                              style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              set
+                                  ? folder
+                                  : 'Add a folder outside Fulus (like Downloads) so a backup is still there if you ever reinstall.',
+                              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _busy ? null : _chooseDurableFolder,
+                        child: Text(set ? 'Change' : 'Choose'),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           Expanded(
@@ -179,7 +254,17 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   /// same confirmation, not a lighter one just because the source is a
   /// picked file instead of one already in the list below.
   Future<void> _pickAndImport() async {
-    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['db']);
+    // Points the system document picker at this app's own backup
+    // folder as a starting point — see backupDirectoryPath's own doc
+    // comment. Best-effort: Android's picker treats this as a hint,
+    // not a guarantee, which is exactly why the folder is also shown
+    // permanently above rather than relying on this alone.
+    final initialDirectory = await ref.read(backupRepositoryProvider).backupDirectoryPath();
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['db'],
+      initialDirectory: initialDirectory,
+    );
     if (result.isEmpty || !mounted) return; // canceled
     final path = result.single.path;
     if (path == null) {
@@ -198,6 +283,50 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       final imported = await ref.read(backupRepositoryProvider).importBackupFile(path);
       await ref.read(backupRepositoryProvider).restoreBackup(imported.metadata.fileName);
     });
+  }
+
+  /// Android's own document-tree picker (ACTION_OPEN_DOCUMENT_TREE,
+  /// same [FilePicker] plugin as every other picker on this screen) —
+  /// asks the person to grant access to a real folder once; every
+  /// future [BackupRepository.runAutoBackup] then mirrors into it
+  /// silently, no picker, no further prompting. Downloads is the
+  /// obvious first suggestion for most people, but any folder outside
+  /// Fulus itself works — an SD card, a synced cloud folder, anywhere.
+  Future<void> _chooseDurableFolder() async {
+    final path = await FilePicker.getDirectoryPath();
+    if (path == null || !mounted) return; // canceled
+    await ref.read(backupRepositoryProvider).setDurableBackupFolder(path);
+    if (!mounted) return;
+    setState(() {
+      _durableFolderFuture = ref.read(backupRepositoryProvider).durableBackupFolder();
+    });
+    // Backfills the folder with today's most recent snapshot right
+    // away, rather than leaving it empty until the next activity
+    // signal fires — the person just proved intent by picking a
+    // folder; the safety copy should exist from that same moment, not
+    // from whenever they next make a sale.
+    await _runBusy(() => ref.read(backupRepositoryProvider).runAutoBackup());
+  }
+}
+
+/// Same mapping as BackupRestoreDecisionScreen's own `_labelDisplay` —
+/// kept in sync by hand rather than shared, since the two screens
+/// already had zero shared imports before this and a two-case switch
+/// isn't worth a new shared file over. 'auto' reads the same as
+/// 'scheduled' here too, for the same reason: both are backups the
+/// person didn't have to think about, which is the one thing this
+/// label is actually telling them.
+String _labelDisplay(String label) {
+  switch (label) {
+    case 'scheduled':
+    case 'auto':
+      return 'Automatic backup';
+    case 'imported':
+      return 'Imported backup';
+    case 'pre_restore_safety':
+      return 'Safety snapshot';
+    default:
+      return 'Manual backup';
   }
 }
 
@@ -227,7 +356,7 @@ class _BackupTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(backup.label, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
+                Text(_labelDisplay(backup.label), style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
                 Text(
                   '${formatRelativeDay(createdAt)} · ${formatTime(createdAt)} · $sizeKb KB',
                   style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
