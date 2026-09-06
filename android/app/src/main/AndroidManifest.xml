@@ -17,6 +17,18 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Backup & Restore: exportToDownloads' legacy fallback
+         (MainActivity.kt) on Android 8–9 (API 26–28), before scoped
+         storage existed — a direct file write to the public Downloads
+         folder needed this permission on those versions the same way
+         any other file write to shared storage did. maxSdkVersion="28"
+         caps it there deliberately: Android 10+ (API 29+) uses the
+         MediaStore API instead, which needs no permission at all for a
+         file the app created itself, so declaring this unconditionally
+         would only add scrutiny for a capability newer OS versions
+         don't use it for. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
     <!-- Stage 15: Device Services — Bluetooth receipt printers.
          Android 12 (API 31) replaced the old BLUETOOTH/BLUETOOTH_ADMIN
          pair with BLUETOOTH_SCAN/BLUETOOTH_CONNECT; both generations are

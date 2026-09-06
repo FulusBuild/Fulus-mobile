@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 import '../../core/errors/module_failures.dart';
@@ -65,19 +65,15 @@ class BackupRepositoryImpl implements BackupRepository {
   @override
   Future<String> backupDirectoryPath() async => (await _backupDir()).path;
 
-  static const _durableFolderKey = 'fulus_backup_durable_folder';
+  static const _exportChannel = MethodChannel('fulus/backup_export');
 
-  @override
-  Future<String?> durableBackupFolder() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_durableFolderKey);
-  }
-
-  @override
-  Future<void> setDurableBackupFolder(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_durableFolderKey, path);
-  }
+  /// Fixed, predictable — not queried from the native side — since
+  /// this is purely a display/hint value (the "Saved to" caption, the
+  /// file-picker's initialDirectory) and every call to
+  /// [exportToDownloads] writes to exactly this subfolder regardless;
+  /// see MainActivity.kt's own exportToDownloads for where this same
+  /// "Download/Fulus" convention actually gets enforced.
+  static const _downloadsDisplayPath = '/storage/emulated/0/Download/Fulus';
 
   @override
   Future<BackupResult> createBackup({String label = 'manual'}) async {
@@ -230,31 +226,39 @@ class BackupRepositoryImpl implements BackupRepository {
     for (final backup in toDelete) {
       await deleteBackup(backup.fileName);
     }
-    await _mirrorToDurableFolder(result.metadata.fileName);
+    try {
+      await exportToDownloads(result.metadata.fileName);
+    } catch (_) {
+      // Best-effort, deliberately silent — a failed export to
+      // Downloads should never affect the local backup this method
+      // just made successfully, which is why this call is wrapped
+      // here rather than inside exportToDownloads itself (that method
+      // throws on failure — see its own doc comment — so a future
+      // caller that DOES want to know can).
+    }
     return result;
   }
 
-  /// Best-effort, deliberately silent — the durable folder is a real
-  /// directory the person granted access to at some point in the
-  /// past, and Android can invalidate that grant behind the app's
-  /// back (folder moved or deleted, SD card removed, permissions
-  /// reset). None of that should ever affect the actual local backup
-  /// [runAutoBackup] just made, which is why this is a separate step
-  /// after that backup is already safely on disk, not something
-  /// [createBackup] itself does. One stable filename, not one per
-  /// timestamp, for the same reason the local 'auto' backup is kept
-  /// to exactly one file: a single copy that keeps itself current,
-  /// not an ever-growing pile the person has to clean up by hand.
-  Future<void> _mirrorToDurableFolder(String fileName) async {
-    try {
-      final folder = await durableBackupFolder();
-      if (folder == null) return;
-      final source = File(p.join((await _backupDir()).path, fileName));
-      if (!await source.exists()) return;
-      await source.copy(p.join(folder, 'fulus_backup_latest.db'));
-    } catch (_) {
-      // Silent — see doc comment above.
+  @override
+  Future<void> exportToDownloads(String sourceFileName) async {
+    final source = File(p.join((await _backupDir()).path, sourceFileName));
+    if (!await source.exists()) {
+      throw BackupException('Backup "$sourceFileName" not found.');
     }
+    await _exportChannel.invokeMethod<String>('exportToDownloads', {
+      'sourcePath': source.path,
+      // Single fixed name, not sourceFileName's own timestamped one —
+      // see this method's own doc comment on the interface for why:
+      // one file that keeps overwriting itself, matching the local
+      // 'auto' backup it mirrors.
+      'displayName': 'fulus_backup_latest.db',
+    });
+  }
+
+  @override
+  Future<String> initialRestoreDirectory() async {
+    if ((await listBackups()).isNotEmpty) return backupDirectoryPath();
+    return _downloadsDisplayPath;
   }
 
   @override

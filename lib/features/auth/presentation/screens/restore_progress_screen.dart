@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/location.dart';
 import '../../../../shared/widgets/widgets.dart';
-import 'get_started_screen.dart';
 import 'identity_picker_screen.dart';
 import 'owner_setup_screen.dart';
 
@@ -75,14 +75,17 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
     try {
       await ref.read(businessSettingsRepositoryProvider).clearLocalBusinessData();
       if (!mounted) return;
-      // pushAndRemoveUntil, not push — Start Fresh means this screen
-      // (and whatever launched it) is no longer a valid place to come
-      // back to; GetStartedScreen should be the new bottom of the
-      // stack, the same as a genuine first launch.
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const GetStartedScreen()),
-        (route) => false,
-      );
+      // Bug fix: this used to push a bare GetStartedScreen() here,
+      // orphaned from AuthGateScreen's own re-evaluation — see
+      // ScreenExit.closeScreenOr's own doc comment on the "phantom dead
+      // end" that produces the moment anything is pushed on top of it
+      // and later closed (exactly what OwnerSetupScreen's "Continue
+      // Setup" does next). context.go('/') routes back through
+      // go_router's own '/' route (AuthGateScreen, per router.dart),
+      // which re-runs stage detection from scratch and shows
+      // GetStartedScreen the same way a genuine first launch does —
+      // same fix as BackupRestoreDecisionScreen's own Start Fresh.
+      context.go('/');
     } finally {
       if (mounted) setState(() => _clearing = false);
     }

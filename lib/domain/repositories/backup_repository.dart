@@ -55,12 +55,13 @@ abstract class BackupRepository {
   /// 'auto' and immediately deletes every OTHER 'auto'-labeled file
   /// (`BackupEngine.selectPruneCandidates(..., label: 'auto', keep: 1)`),
   /// so exactly one automatic backup ever exists in [backupDirectoryPath]
-  /// at a time. Also mirrors that snapshot into [durableBackupFolder],
-  /// best-effort, if one has been set — see that method's own doc
-  /// comment for why a second copy outside this app's own folder is
-  /// what actually makes an automatic backup survive a reinstall, not
-  /// this method's local half on its own. Cheap and safe to call
-  /// often: [createBackup]'s VACUUM INTO never blocks the live
+  /// at a time. Also mirrors that snapshot into the public Downloads
+  /// folder, best-effort — see [exportToDownloads]'s own doc comment
+  /// for why a second copy outside this app's own folder, written
+  /// automatically rather than requiring the person to pick a location
+  /// first, is what actually makes an automatic backup survive a
+  /// reinstall, not this method's local half on its own. Cheap and safe
+  /// to call often: [createBackup]'s VACUUM INTO never blocks the live
   /// database (see this repository's own implementation doc comment),
   /// so the caller (an app-wide listener on whatever signals real user
   /// activity) can call this after every burst of activity with
@@ -75,24 +76,44 @@ abstract class BackupRepository {
   /// here that touches it.
   Future<String> backupDirectoryPath();
 
-  /// The durable, user-picked folder outside this app's own sandbox
-  /// that [runAutoBackup] mirrors its latest snapshot into, if one has
-  /// been set — see [setDurableBackupFolder]'s own doc comment for why
-  /// this exists at all. Null until the person has picked one.
-  Future<String?> durableBackupFolder();
+  /// Copies [sourceFileName] (a name already in [listBackups]) into the
+  /// device's public Downloads folder, under a "Fulus" subfolder, as a
+  /// single fixed-name file that each call overwrites — the "single
+  /// file that keeps itself current" promise every other automatic
+  /// backup in this app makes, not one more timestamped file piling up
+  /// where the person would have to clean it out themselves.
+  ///
+  /// This — not [backupDirectoryPath] — is what actually survives an
+  /// uninstall: Android deletes an app's own folders, internal AND
+  /// external alike, the moment the app itself is uninstalled, by
+  /// design, with no exception this app's own permissions can opt out
+  /// of (see that getter's own doc comment). Downloads is public,
+  /// shared storage — nothing about removing Fulus touches it.
+  ///
+  /// Implemented natively (MainActivity.kt, `fulus/backup_export`
+  /// channel): on Android 10+ (scoped storage) writing an app's own new
+  /// file into the public Downloads collection needs the MediaStore
+  /// API, not a plain file path — no `dart:io` call from this side can
+  /// do it. No picker, no permission prompt on Android 10+: creating a
+  /// new file of the app's own is allowed by default. Android 8–9
+  /// (below scoped storage) fall back to a direct file write gated on
+  /// `WRITE_EXTERNAL_STORAGE` (manifest-declared `maxSdkVersion="28"`,
+  /// since scoped storage makes it irrelevant above that). Best-effort
+  /// either way — see [runAutoBackup]'s own try/catch around this call
+  /// for what happens if it fails.
+  Future<void> exportToDownloads(String sourceFileName);
 
-  /// Remembers [path] — a real folder the person picked via Android's
-  /// own document-tree picker — as the mirror target every future
-  /// [runAutoBackup] copies its latest snapshot into, so a backup
-  /// taken today is still sitting there, outside this app's own
-  /// sandbox, even after an uninstall/reinstall. That's the one thing
-  /// nothing under [backupDirectoryPath] can ever promise: Android
-  /// deletes an app's own folders — internal AND external, whichever
-  /// this app is using — the moment the app itself is uninstalled, by
-  /// design, with no exception this app can opt out of. Persisted
-  /// locally (SharedPreferences), same as every other simple
-  /// device-local setting in this app (AppLockConfig, SyncConfig).
-  Future<void> setDurableBackupFolder(String path);
+  /// Best starting point for the "pick a backup file" picker —
+  /// prioritized by how likely it is to actually have something in it,
+  /// not just [backupDirectoryPath] unconditionally. That folder is
+  /// exactly what's empty right when this matters most: immediately
+  /// after a reinstall (see [exportToDownloads]'s own doc comment on
+  /// why). Falls back to [backupDirectoryPath] only if it genuinely has
+  /// something in it, and to a guess at the public Downloads/Fulus
+  /// folder [exportToDownloads] itself writes to as a last resort —
+  /// the one place, of these three, actually designed to still be
+  /// there after a reinstall.
+  Future<String> initialRestoreDirectory();
 
   /// Backup & Restore (schemaVersion 10): brings a file the user picked
   /// from anywhere on their device — a different app's export folder,

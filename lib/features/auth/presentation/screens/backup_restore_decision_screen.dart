@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/module_failures.dart';
@@ -8,7 +9,6 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/backup_record.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'auth_gate_screen.dart';
-import 'get_started_screen.dart';
 
 /// Shown by [AuthGateScreen] (via `resolveAuthGateStage` in
 /// core/onboarding/onboarding_routing.dart) for the state Backup &
@@ -52,8 +52,10 @@ import 'get_started_screen.dart';
 /// **Start Fresh** has nothing to wipe at this stage (unlike
 /// [RestoreProgressScreen]'s own Start Fresh) — no owner account and no
 /// business exist yet by construction of how this screen is even
-/// reached — so it's a plain navigation to [GetStartedScreen], not a
-/// destructive, confirm-gated action.
+/// reached — so it's a plain navigation, not a destructive,
+/// confirm-gated action. See [_startFresh]'s own doc comment for why
+/// that navigation is `context.go('/')` and not a pushed
+/// [GetStartedScreen] widget.
 class BackupRestoreDecisionScreen extends ConsumerStatefulWidget {
   const BackupRestoreDecisionScreen({super.key});
 
@@ -105,8 +107,8 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
     });
     try {
       // Same initialDirectory hint as BackupScreen's own picker call —
-      // see BackupRepository.backupDirectoryPath's doc comment.
-      final initialDirectory = await ref.read(backupRepositoryProvider).backupDirectoryPath();
+      // see BackupRepository.initialRestoreDirectory's doc comment.
+      final initialDirectory = await ref.read(backupRepositoryProvider).initialRestoreDirectory();
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['db'],
@@ -136,11 +138,24 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
     }
   }
 
+  /// Bug fix: this used to push a bare `GetStartedScreen()` widget via
+  /// the plain `Navigator` (`pushAndRemoveUntil`), which orphaned it
+  /// from [AuthGateScreen]'s own re-evaluation entirely — the next
+  /// screen pushed on top of it ([OwnerSetupScreen], from tapping "Get
+  /// started" on that orphaned screen) then had nowhere correct to
+  /// land on completion: [ScreenExit.closeScreenOr]'s plain-`Navigator`
+  /// pop revealed that same orphaned `GetStartedScreen` again instead
+  /// of the freshly signed-in app, no matter how setup actually
+  /// resolved — see that extension's own doc comment on exactly this
+  /// "phantom dead end" failure mode, which this was another instance
+  /// of. `context.go('/')` routes back through go_router's own '/'
+  /// route ([AuthGateScreen] itself, per router.dart) instead, which
+  /// re-runs its stage detection from scratch and shows
+  /// `GetStartedScreen` the same way a genuine first launch does — real
+  /// navigation history, not an orphan branch. [RestoreProgressScreen]'s
+  /// own Start Fresh had the identical bug, fixed the same way.
   void _startFresh() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const GetStartedScreen()),
-      (route) => false,
-    );
+    context.go('/');
   }
 
   @override
