@@ -103,6 +103,30 @@ abstract class BackupRepository {
   /// for what happens if it fails.
   Future<void> exportToDownloads(String sourceFileName);
 
+  /// The read counterpart to [exportToDownloads] — looks for the exact
+  /// file that method writes (Download/Fulus/fulus_backup_latest.db)
+  /// and, if it's there, copies it into a plain path this side can
+  /// read with ordinary `dart:io` calls, returning that path. Null if
+  /// nothing is there (a genuinely fresh device, or one that never had
+  /// an auto-backup run).
+  ///
+  /// This is what makes "detected automatically" actually true after a
+  /// real uninstall/reinstall, not just [listBackups] against a folder
+  /// that reinstall always empties (see that method's own doc comment,
+  /// and [exportToDownloads]'s, for why): implemented natively
+  /// (`fulus/backup_export` channel, same as [exportToDownloads]) via a
+  /// MediaStore query on Android 10+, because a plain filesystem path
+  /// can't see into another app's — or this app's own, post-reinstall —
+  /// entries in the shared Downloads collection. MediaStore tracks
+  /// ownership by package name, not by whether the app is currently
+  /// installed, which is exactly why this keeps working across a
+  /// reinstall the way [listBackups]'s own folder never could.
+  ///
+  /// The returned path is a fresh, one-off local copy, not yet one of
+  /// [listBackups]'s own managed files — hand it to [importBackupFile]
+  /// exactly like a file_picker result to actually bring it in.
+  Future<String?> findDurableBackup();
+
   /// Best starting point for the "pick a backup file" picker —
   /// prioritized by how likely it is to actually have something in it,
   /// not just [backupDirectoryPath] unconditionally. That folder is

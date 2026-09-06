@@ -256,6 +256,19 @@ class BackupRepositoryImpl implements BackupRepository {
   }
 
   @override
+  Future<String?> findDurableBackup() async {
+    try {
+      return await _exportChannel.invokeMethod<String>('findDurableBackup');
+    } on PlatformException {
+      // Best-effort, same reasoning as exportToDownloads' own caller in
+      // runAutoBackup: a failed lookup here should read as "nothing
+      // found," not surface a raw platform error on the Welcome Back
+      // screen — the file-picker fallback still works regardless.
+      return null;
+    }
+  }
+
+  @override
   Future<String> initialRestoreDirectory() async {
     if ((await listBackups()).isNotEmpty) return backupDirectoryPath();
     return _downloadsDisplayPath;

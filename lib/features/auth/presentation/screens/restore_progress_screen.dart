@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/location.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -93,87 +94,98 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FulusScreen(
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: FutureBuilder<(BusinessProfile?, List<Location>)>(
-              future: _detectedFuture,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Padding(
-                    padding: EdgeInsets.all(AppSpacing.xxl),
-                    child: FulusLoadingIndicator(),
-                  );
-                }
-                final (profile, locations) = snapshot.data!;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Welcome back',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'We found an existing business setup on this device.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    FulusCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _DetectedRow(
-                            label: 'Business',
-                            value: profile?.businessName ?? 'Unknown business',
-                          ),
-                          // Business type isn't stored anywhere in the
-                          // BusinessSettings table (it only ever feeds
-                          // one-time VAT defaults at creation, per
-                          // BusinessCategoryDefaults) — "if available"
-                          // is never true today, so it's correctly
-                          // absent here rather than showing a made-up
-                          // value.
-                          if (locations.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.sm),
-                            _DetectedRow(label: 'Location', value: locations.first.name),
-                          ],
-                        ],
+    // Same defensive guard as BackupRestoreDecisionScreen (see
+    // BackGuard's own doc comment): this screen is only ever rendered
+    // in place by AuthGateScreen, never pushed, so there's normally
+    // nothing local to pop here anyway — but a hardware back press
+    // still reaches go_router's own popRoute() first, and cheap
+    // insurance against the same _findCurrentNavigator crash class
+    // costs nothing on a screen that already has zero legitimate pops
+    // of its own to protect.
+    return BackGuard(
+      fallbackLocation: '/',
+      child: FulusScreen(
+        body: Center(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: FutureBuilder<(BusinessProfile?, List<Location>)>(
+                future: _detectedFuture,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.all(AppSpacing.xxl),
+                      child: FulusLoadingIndicator(),
+                    );
+                  }
+                  final (profile, locations) = snapshot.data!;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Welcome back',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    FulusButton(
-                      label: 'Continue Setup',
-                      onPressed: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => const OwnerSetupScreen(linkToExistingBusiness: true),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'We found an existing business setup on this device.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      FulusCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetectedRow(
+                              label: 'Business',
+                              value: profile?.businessName ?? 'Unknown business',
+                            ),
+                            // Business type isn't stored anywhere in the
+                            // BusinessSettings table (it only ever feeds
+                            // one-time VAT defaults at creation, per
+                            // BusinessCategoryDefaults) — "if available"
+                            // is never true today, so it's correctly
+                            // absent here rather than showing a made-up
+                            // value.
+                            if (locations.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              _DetectedRow(label: 'Location', value: locations.first.name),
+                            ],
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    FulusButton(
-                      label: 'Use Existing Business',
-                      variant: FulusButtonVariant.secondary,
-                      onPressed: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const IdentityPickerScreen()),
+                      const SizedBox(height: AppSpacing.xxl),
+                      FulusButton(
+                        label: 'Continue Setup',
+                        onPressed: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => const OwnerSetupScreen(linkToExistingBusiness: true),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    FulusButton(
-                      label: 'Start Fresh',
-                      variant: FulusButtonVariant.text,
-                      loading: _clearing,
-                      loadingLabel: 'Clearing',
-                      onPressed: _clearing ? null : () => _startFresh(profile),
-                    ),
-                  ],
-                );
-              },
+                      const SizedBox(height: AppSpacing.md),
+                      FulusButton(
+                        label: 'Use Existing Business',
+                        variant: FulusButtonVariant.secondary,
+                        onPressed: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(builder: (_) => const IdentityPickerScreen()),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FulusButton(
+                        label: 'Start Fresh',
+                        variant: FulusButtonVariant.text,
+                        loading: _clearing,
+                        loadingLabel: 'Clearing',
+                        onPressed: _clearing ? null : () => _startFresh(profile),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),

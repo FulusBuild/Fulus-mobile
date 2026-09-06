@@ -82,8 +82,23 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
     // "genuinely nothing local yet" — resolveAuthGateStage's own
     // deliberate check ordering means this answer is thrown away
     // otherwise, so there's no reason to hit the filesystem for it.
+    //
+    // Gap fix: this used to be listBackups() alone, which only ever
+    // finds something on a device that was never actually uninstalled
+    // (see that method's own doc comment) — the one case
+    // BackupRestoreDecisionScreen's copy already calls "the case
+    // AuthGateScreen's automatic check can never catch." A real
+    // reinstall used to always fall through to needsAccountCreation
+    // regardless of a durable Downloads backup sitting right there,
+    // leaving the person to notice and tap "Restore from a backup"
+    // themselves — findDurableBackup's own doc comment covers why it,
+    // unlike listBackups, actually survives that. Checked second and
+    // short-circuited the same way, since it costs a native round-trip
+    // this repository provider's own default in bootstrap.dart doesn't
+    // need to pay when the app's own folder already answered this.
+    final backupRepo = ref.read(backupRepositoryProvider);
     final hasDetectedBackup = !hasOwnerAccount && !businessConfigured
-        ? (await ref.read(backupRepositoryProvider).listBackups()).isNotEmpty
+        ? (await backupRepo.listBackups()).isNotEmpty || (await backupRepo.findDurableBackup()) != null
         : false;
     final stage = resolveAuthGateStage(
       hasOwnerAccount: hasOwnerAccount,

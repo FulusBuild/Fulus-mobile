@@ -14,12 +14,13 @@ import java.io.FileNotFoundException
 
 /**
  * `fulus/backup_export` — the native half of
- * BackupRepositoryImpl.exportToDownloads (see that method's own doc
- * comment in the Dart layer for why this needs to be native at all:
- * writing an app's own new file into the public Downloads collection
- * on Android 10+ goes through MediaStore, which has no `dart:io`
- * equivalent — there's no plain file path to hand a Flutter plugin
- * for a location the app doesn't already own).
+ * BackupRepositoryImpl.exportToDownloads and .findDurableBackup (see
+ * each method's own doc comment in the Dart layer for why both need
+ * to be native at all: writing to, or reading back from, an app's own
+ * entries in the public Downloads collection on Android 10+ goes
+ * through MediaStore, which has no `dart:io` equivalent — there's no
+ * plain file path to hand a Flutter plugin for a location the app
+ * doesn't already own).
  */
 class MainActivity : FlutterActivity() {
     private val backupExportChannel = "fulus/backup_export"
@@ -40,6 +41,13 @@ class MainActivity : FlutterActivity() {
                             result.success(exportToDownloads(sourcePath, displayName))
                         } catch (e: Exception) {
                             result.error("export_failed", e.message, null)
+                        }
+                    }
+                    "findDurableBackup" -> {
+                        try {
+                            result.success(findDurableBackup())
+                        } catch (e: Exception) {
+                            result.error("find_failed", e.message, null)
                         }
                     }
                     else -> result.notImplemented()
@@ -121,5 +129,71 @@ class MainActivity : FlutterActivity() {
             dest.outputStream().use { out -> input.copyTo(out) }
         }
         return dest.absolutePath
+    }
+
+    /**
+     * The read counterpart to [exportToDownloads]: looks up the exact
+     * Download/Fulus/fulus_backup_latest.db entry that method writes
+     * and, if it exists, copies it into this app's own external files
+     * directory (`getExternalFilesDir` — a plain, `dart:io`-readable
+     * path, no MediaStore involved on the read side) so the Dart layer
+     * can hand it straight to `BackupRepository.importBackupFile`
+     * exactly like a file_picker result, with zero new restore-side
+     * logic on that end.
+     *
+     * Genuinely reachable after a real uninstall/reinstall, unlike
+     * everything else this app owns: MediaStore tracks a file's owner
+     * by package name, not by whether that package happens to be
+     * installed right now — an entry this same package previously
+     * inserted into the Downloads collection stays queryable and
+     * readable by it again after a reinstall, the identical durability
+     * guarantee [exportToDownloads]'s own doc comment already leans on
+     * for the write side.
+     *
+     * Returns the copied-out path, or null if no such file exists — a
+     * genuinely fresh device, or one that never had an auto-backup
+     * run. Android 8–9 checks the legacy Download/Fulus folder
+     * directly instead, mirroring [exportToDownloads]'s own split.
+     */
+    private fun findDurableBackup(): String? {
+        val displayName = "fulus_backup_latest.db"
+        val relativePath = Environment.DIRECTORY_DOWNLOADS + File.separator + "Fulus" + File.separator
+        val destFile = File(applicationContext.getExternalFilesDir(null), "durable_backup_check.db")
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = applicationContext.contentResolver
+            val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+
+            val uri = resolver.query(
+                collection,
+                arrayOf(MediaStore.Downloads._ID),
+                "${MediaStore.Downloads.DISPLAY_NAME} = ? AND ${MediaStore.Downloads.RELATIVE_PATH} = ?",
+                arrayOf(displayName, relativePath),
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID))
+                    ContentUris.withAppendedId(collection, id)
+                } else {
+                    null
+                }
+            } ?: return null
+
+            resolver.openInputStream(uri)?.use { input ->
+                destFile.outputStream().use { out -> input.copyTo(out) }
+            } ?: return null
+            return destFile.absolutePath
+        }
+
+        @Suppress("DEPRECATION")
+        val legacyFile = File(
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Fulus"),
+            displayName,
+        )
+        if (!legacyFile.exists()) return null
+        FileInputStream(legacyFile).use { input ->
+            destFile.outputStream().use { out -> input.copyTo(out) }
+        }
+        return destFile.absolutePath
     }
 }

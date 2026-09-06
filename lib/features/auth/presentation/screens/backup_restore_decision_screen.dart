@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/module_failures.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/backup_record.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'auth_gate_screen.dart';
@@ -54,8 +58,19 @@ import 'auth_gate_screen.dart';
 /// business exist yet by construction of how this screen is even
 /// reached — so it's a plain navigation, not a destructive,
 /// confirm-gated action. See [_startFresh]'s own doc comment for why
-/// that navigation is `context.go('/')` and not a pushed
-/// [GetStartedScreen] widget.
+/// that navigation goes through [ScreenExit.closeScreenOr] and not a
+/// bare `context.go('/')`.
+///
+/// **Detection, take two.** [BackupRepository.listBackups] only ever
+/// sees this app's own sandboxed folder, which a real uninstall wipes
+/// along with everything else — so on a genuine reinstall, "detected
+/// automatically" used to mean nothing ever, no matter what backups a
+/// person actually had. [BackupRepository.findDurableBackup] closes
+/// that gap by reading back the one copy [BackupRepository.exportToDownloads]
+/// already writes somewhere a reinstall can't touch (public Downloads,
+/// via MediaStore) — checked here, and by [AuthGateScreen] itself, so
+/// this really is automatic now for anyone whose device ever ran an
+/// auto-backup, not just a better-labeled manual picker.
 class BackupRestoreDecisionScreen extends ConsumerStatefulWidget {
   const BackupRestoreDecisionScreen({super.key});
 
@@ -66,10 +81,45 @@ class BackupRestoreDecisionScreen extends ConsumerStatefulWidget {
 class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecisionScreen> {
   // Cached once, same reasoning as every other auth screen's own
   // late-final future (AuthGateScreen, RestoreProgressScreen).
-  late final Future<List<BackupMetadata>> _detectedFuture =
-      ref.read(backupRepositoryProvider).listBackups();
+  //
+  // Gap fix: this used to be `listBackups()` alone, which only ever
+  // checks this app's own sandboxed folder — exactly what a real
+  // uninstall/reinstall wipes (see the class doc comment above and
+  // BackupRepository.exportToDownloads' own doc comment). The one
+  // copy actually designed to survive that is the durable Downloads
+  // export [BackupRepository.findDurableBackup] reads back — checked
+  // here too, but only once [listBackups] itself comes back empty, to
+  // avoid a pointless extra native round-trip on the far more common
+  // path where this app's own folder already has something in it.
+  late final Future<({List<BackupMetadata> local, BackupMetadata? durable, String? durablePath})>
+      _detectedFuture = _detect();
+
   bool _busy = false;
   String? _error;
+
+  Future<({List<BackupMetadata> local, BackupMetadata? durable, String? durablePath})> _detect() async {
+    final repo = ref.read(backupRepositoryProvider);
+    final local = await repo.listBackups();
+    if (local.isNotEmpty) return (local: local, durable: null, durablePath: null);
+
+    final durablePath = await repo.findDurableBackup();
+    if (durablePath == null) return (local: local, durable: null, durablePath: null);
+
+    // findDurableBackup already copied this out to a plain,
+    // dart:io-readable path (see its own doc comment for why a
+    // MediaStore URI can't be stat'd directly) — reading it back here
+    // mirrors exactly what listBackups does for its own files, so the
+    // detected-backup card reads the same regardless of which source
+    // found it.
+    final stat = await File(durablePath).stat();
+    final durable = BackupMetadata(
+      fileName: p.basename(durablePath),
+      label: 'auto',
+      createdAt: stat.modified.toUtc(),
+      sizeBytes: stat.size,
+    );
+    return (local: local, durable: durable, durablePath: durablePath);
+  }
 
   Future<void> _restore(String fileName) async {
     setState(() {
@@ -96,6 +146,31 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
             : e is InvalidBackupFileName
                 ? 'That backup file looks invalid.'
                 : "Couldn't restore that backup.";
+      });
+    }
+  }
+
+  /// The one-tap counterpart to [_pickAndRestore] for a backup
+  /// [_detect] already found on its own — [path] is the plain local
+  /// copy [BackupRepository.findDurableBackup] made from the Downloads
+  /// export. Goes through the exact same [BackupRepository.importBackupFile]
+  /// validation and copy-in a manually picked file gets, then the same
+  /// [_restore] every other path here ends at — the person never sees
+  /// a difference beyond not having to open a file browser for it.
+  Future<void> _restoreDurable(String path) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final imported = await ref.read(backupRepositoryProvider).importBackupFile(path);
+      if (!mounted) return;
+      await _restore(imported.metadata.fileName);
+    } on Exception catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e is BackupException ? e.message : "Couldn't read that backup.";
       });
     }
   }
@@ -138,114 +213,147 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
     }
   }
 
-  /// Bug fix: this used to push a bare `GetStartedScreen()` widget via
-  /// the plain `Navigator` (`pushAndRemoveUntil`), which orphaned it
-  /// from [AuthGateScreen]'s own re-evaluation entirely — the next
-  /// screen pushed on top of it ([OwnerSetupScreen], from tapping "Get
-  /// started" on that orphaned screen) then had nowhere correct to
-  /// land on completion: [ScreenExit.closeScreenOr]'s plain-`Navigator`
-  /// pop revealed that same orphaned `GetStartedScreen` again instead
-  /// of the freshly signed-in app, no matter how setup actually
-  /// resolved — see that extension's own doc comment on exactly this
-  /// "phantom dead end" failure mode, which this was another instance
-  /// of. `context.go('/')` routes back through go_router's own '/'
-  /// route ([AuthGateScreen] itself, per router.dart) instead, which
-  /// re-runs its stage detection from scratch and shows
-  /// `GetStartedScreen` the same way a genuine first launch does — real
-  /// navigation history, not an orphan branch. [RestoreProgressScreen]'s
-  /// own Start Fresh had the identical bug, fixed the same way.
+  /// Bug fix (round 2): `context.go('/')` alone — the original fix
+  /// here — only ever updates go_router's own state at that location;
+  /// it never touches a plain `Navigator` stack. That's invisible when
+  /// this screen is reached the way [AuthGateScreen] reaches it (built
+  /// straight in place at `/`, nothing pushed) — `go('/')` and a
+  /// rebuild are all there is to undo. But this screen's *other* entry
+  /// point, [GetStartedScreen]'s own "Restore from a backup" link, is
+  /// a real `Navigator.push` — and `go('/')` from there just updates
+  /// the state sitting *underneath* that pushed screen, which stays on
+  /// top, fully visible, un-popped. Tapping "Start Fresh" from that
+  /// path did exactly nothing the person could see: the exact "phantom
+  /// dead end" [ScreenExit.closeScreenOr]'s own doc comment describes,
+  /// just reached from the opposite direction (an unpopped push, not
+  /// an unrunnable pop). `closeScreenOr` handles both of this screen's
+  /// entry points correctly by construction — pops the pushed instance
+  /// when there's a real `Navigator` entry to pop, falls back to
+  /// `go('/')` exactly as before when there isn't.
   void _startFresh() {
-    context.go('/');
+    context.closeScreenOr('/');
   }
 
   @override
   Widget build(BuildContext context) {
-    return FulusScreen(
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: FutureBuilder<List<BackupMetadata>>(
-              future: _detectedFuture,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Padding(
-                    padding: EdgeInsets.all(AppSpacing.xxl),
-                    child: FulusLoadingIndicator(),
-                  );
-                }
-                final backups = snapshot.data!;
-                final newest = backups.isEmpty ? null : backups.first;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Welcome back',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      // Reachable two ways now: AuthGateScreen routing
-                      // here because it auto-detected a backup
-                      // (newest != null, the original case this copy
-                      // was written for), or GetStartedScreen's own
-                      // "Restore from a backup" link — reachable
-                      // specifically when nothing was auto-detected
-                      // (see that screen's own doc comment on why:
-                      // Android wipes this app's own backup folder on
-                      // reinstall, so a genuine reinstall always lands
-                      // here with newest == null). "We found backup
-                      // data" would be false in the second case, so
-                      // this is conditional on which one actually
-                      // happened rather than assuming the first.
-                      newest != null
-                          ? 'We found backup data on this device.'
-                          : 'Restore from a backup file, or start fresh.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    if (newest != null)
-                      FulusCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _DetectedRow(label: 'Backup', value: _labelDisplay(newest.label)),
-                            const SizedBox(height: AppSpacing.sm),
-                            _DetectedRow(label: 'Created', value: _dateDisplay(newest.createdAt)),
-                          ],
+    // See BackGuard's own doc comment: this screen is reached both by
+    // a raw Navigator.push (GetStartedScreen's "Restore from a
+    // backup") and rendered in place with nothing pushed at all
+    // (AuthGateScreen auto-detecting a backup) — never through a real
+    // go_router route — so hardware back / gesture nav, and the pop
+    // notification Android redelivers when file_picker's document-
+    // picker Activity returns control here, both need the same guard
+    // _startFresh's own button now uses, or they crash inside
+    // go_router's delegate instead of just failing a button tap.
+    return BackGuard(
+      fallbackLocation: '/',
+      child: FulusScreen(
+        body: Center(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: FutureBuilder<({List<BackupMetadata> local, BackupMetadata? durable, String? durablePath})>(
+                future: _detectedFuture,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.all(AppSpacing.xxl),
+                      child: FulusLoadingIndicator(),
+                    );
+                  }
+                  final detected = snapshot.data!;
+                  final newest = detected.local.isEmpty ? null : detected.local.first;
+                  final durable = detected.durable;
+                  final durablePath = detected.durablePath;
+                  final somethingDetected = newest != null || durable != null;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Welcome back',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        // Reachable three ways now: AuthGateScreen
+                        // auto-detecting a backup in this app's own
+                        // folder (newest != null), AuthGateScreen (or
+                        // GetStartedScreen's link) finding nothing
+                        // local but a durable Downloads copy instead
+                        // (durable != null — see findDurableBackup's
+                        // own doc comment for why that one alone
+                        // survives a real reinstall), or genuinely
+                        // nothing at all, which only GetStartedScreen's
+                        // link can still reach a person from.
+                        newest != null
+                            ? 'We found backup data on this device.'
+                            : durable != null
+                                ? 'We found a backup saved to your Downloads folder.'
+                                : 'Restore from a backup file, or start fresh.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      if (newest != null)
+                        FulusCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _DetectedRow(label: 'Backup', value: _labelDisplay(newest.label)),
+                              const SizedBox(height: AppSpacing.sm),
+                              _DetectedRow(label: 'Created', value: _dateDisplay(newest.createdAt)),
+                            ],
+                          ),
+                        )
+                      else if (durable != null)
+                        FulusCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const _DetectedRow(label: 'Backup', value: 'Downloads/Fulus'),
+                              const SizedBox(height: AppSpacing.sm),
+                              _DetectedRow(label: 'Created', value: _dateDisplay(durable.createdAt)),
+                            ],
+                          ),
                         ),
-                      ),
-                    if (_error != null) ...[
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+                      ],
+                      const SizedBox(height: AppSpacing.xxl),
+                      if (newest != null)
+                        FulusButton(
+                          label: 'Restore from backup',
+                          loading: _busy,
+                          loadingLabel: 'Restoring',
+                          onPressed: _busy ? null : () => _restore(newest.fileName),
+                        )
+                      else if (durablePath != null)
+                        FulusButton(
+                          label: 'Restore backup',
+                          loading: _busy,
+                          loadingLabel: 'Restoring',
+                          onPressed: _busy ? null : () => _restoreDurable(durablePath),
+                        ),
                       const SizedBox(height: AppSpacing.md),
-                      Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
-                    ],
-                    const SizedBox(height: AppSpacing.xxl),
-                    if (newest != null)
                       FulusButton(
-                        label: 'Restore from backup',
-                        loading: _busy,
-                        loadingLabel: 'Restoring',
-                        onPressed: _busy ? null : () => _restore(newest.fileName),
+                        label: somethingDetected ? 'Choose a different file' : 'Choose a backup file',
+                        variant: somethingDetected ? FulusButtonVariant.secondary : FulusButtonVariant.primary,
+                        loading: _busy && !somethingDetected,
+                        onPressed: _busy ? null : _pickAndRestore,
                       ),
-                    const SizedBox(height: AppSpacing.md),
-                    FulusButton(
-                      label: newest == null ? 'Choose a backup file' : 'Choose a different file',
-                      variant: newest == null ? FulusButtonVariant.primary : FulusButtonVariant.secondary,
-                      loading: _busy && newest == null,
-                      onPressed: _busy ? null : _pickAndRestore,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    FulusButton(
-                      label: 'Start Fresh',
-                      variant: FulusButtonVariant.text,
-                      onPressed: _busy ? null : _startFresh,
-                    ),
-                  ],
-                );
-              },
+                      const SizedBox(height: AppSpacing.md),
+                      FulusButton(
+                        label: 'Start Fresh',
+                        variant: FulusButtonVariant.text,
+                        onPressed: _busy ? null : _startFresh,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
