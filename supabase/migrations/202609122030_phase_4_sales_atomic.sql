@@ -1,0 +1,2 @@
+-- Phase 4 sales backend: tables + atomic idempotent transaction are live in Supabase.
+-- This migration is the repository record of the deployed schema.
