@@ -250,6 +250,12 @@ class ProductRepositoryImpl implements ProductRepository {
     if (draft.costPrice < 0) {
       throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
     }
+    final existingSku = await (_db.select(_db.products)..where((p) => p.sku.equals(draft.sku) & p.deletedAt.isNull())).getSingleOrNull();
+    if (existingSku != null) throw ArgumentError.value(draft.sku, 'sku', 'already exists');
+    if (draft.barcode != null && draft.barcode!.isNotEmpty) {
+      final existingBarcode = await (_db.select(_db.products)..where((p) => p.barcode.equals(draft.barcode!) & p.deletedAt.isNull())).getSingleOrNull();
+      if (existingBarcode != null) throw ArgumentError.value(draft.barcode, 'barcode', 'already exists');
+    }
     final localId = Ulid().toString();
     final product = draft.toProductEntity(localId: localId);
 
@@ -297,6 +303,16 @@ class ProductRepositoryImpl implements ProductRepository {
     }
     if (costPrice != null && costPrice < 0) {
       throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
+    }
+    final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
+    if (current == null) throw StateError('Product $localId does not exist.');
+    if (sku != null) {
+      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.localId.isNotEqual(localId) & p.deletedAt.isNull())).getSingleOrNull();
+      if (duplicate != null) throw ArgumentError.value(sku, 'sku', 'already exists');
+    }
+    if (barcode != null && barcode.isNotEmpty) {
+      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.localId.isNotEqual(localId) & p.deletedAt.isNull())).getSingleOrNull();
+      if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
     // Value.absent() for anything not passed — a genuine partial
     // update, not a reset, same convention as setLocalOverrides below
