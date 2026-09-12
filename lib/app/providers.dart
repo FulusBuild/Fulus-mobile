@@ -424,7 +424,7 @@ final syncTriggersProvider = Provider<SyncTriggers>((ref) {
 /// this to show the toggle's current state and calls
 /// SyncConfig.setEnabled to flip it — see that class's own doc comment
 /// on why flipping it doesn't itself restart SyncTriggers.
-final syncConfigProvider = Provider<SyncConfig>((ref) {
+final syncConfigProvider = ChangeNotifierProvider<SyncConfig>((ref) {
   throw UnimplementedError(
     'syncConfigProvider must be overridden in bootstrap.dart.',
   );
