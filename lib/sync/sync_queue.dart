@@ -219,15 +219,18 @@ class SyncQueue {
   }
 
   Future<void> enqueue(SyncTask task) async {
-    final existing = await (_db.select(_db.syncQueueItems)
-          ..where((q) => q.entityType.equals(task.entityType))
-          ..where((q) => q.entityLocalId.equals(task.entityLocalId))
-          ..where((q) => q.operation.equals(task.operation))
-          ..limit(1))
-        .getSingleOrNull();
-    if (existing != null) return;
+    // Re-read the persisted row inside one transaction so concurrent
+    // repository writes cannot create duplicate queue entries.
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.syncQueueItems)
+            ..where((q) => q.entityType.equals(task.entityType))
+            ..where((q) => q.entityLocalId.equals(task.entityLocalId))
+            ..where((q) => q.operation.equals(task.operation))
+            ..limit(1))
+          .getSingleOrNull();
+      if (existing != null) return;
 
-    await _db.into(_db.syncQueueItems).insert(
+      await _db.into(_db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
             id: Ulid().toString(),
             entityType: task.entityType,
