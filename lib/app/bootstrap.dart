@@ -289,7 +289,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // `db`, so nothing else has to move to make room for it. See
   // customerCreditRepository's own original construction comment
   // further down for why it needs no syncQueue.
-  final customerCreditRepository = CustomerCreditRepositoryImpl(db: database);
+  final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
