@@ -76,7 +76,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
     customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
-    customerCreditRepository = CustomerCreditRepositoryImpl(db: db);
+    customerCreditRepository = CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db));
     repository = SaleRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
