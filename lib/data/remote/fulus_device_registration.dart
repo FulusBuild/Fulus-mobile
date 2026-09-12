@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../api_client.dart';
+import 'api_client.dart';
 
 class FulusDeviceRegistration {
   FulusDeviceRegistration({
