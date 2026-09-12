@@ -1,0 +1,4 @@
+-- Fulus Phase 4: remaining backend foundation (4K-4N)
+-- Deployed to Supabase during Phase 4 implementation.
+-- Contains: payments, returns/refunds, expenses, cash ledger,
+-- customer credit reversal, RLS, indexes, and idempotent RPC boundaries.
