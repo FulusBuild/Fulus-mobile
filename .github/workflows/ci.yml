@@ -450,11 +450,12 @@ jobs:
           echo "API_BASE_URL=$API_BASE_URL" >> "$GITHUB_OUTPUT"
 
       - name: Build release APK
+        env:
+          FULUS_APPLICATION_ID: ${{ steps.application.outputs.APPLICATION_ID }}
         run: |
           flutter build apk \
             --release \
-            --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}" \
-            --dart-define=FULUS_APPLICATION_ID="${{ steps.application.outputs.APPLICATION_ID }}"
+            --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}"
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
