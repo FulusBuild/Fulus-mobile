@@ -306,7 +306,13 @@ class ReturnRepositoryImpl implements ReturnRepository {
   @override
   Future<ReturnRequest> completeReturn(String returnLocalId) async {
     final row = await _requireReturnRow(returnLocalId);
-    if (_statusFromRow(row) != ReturnStatus.approved) {
+    final currentStatus = _statusFromRow(row);
+    // Completion is deliberately idempotent. A retry after a dropped
+    // response must not restore inventory or reverse customer credit twice.
+    if (currentStatus == ReturnStatus.completed) {
+      return getReturnById(returnLocalId).then((r) => r!);
+    }
+    if (currentStatus != ReturnStatus.approved) {
       throw StateError('This return must be approved before it can be completed.');
     }
     final sale = await (_db.select(_db.sales)
