@@ -1,6 +1,7 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:fulus_mobile/data/repositories/finance_stats_repository_impl.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
