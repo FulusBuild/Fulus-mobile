@@ -22,6 +22,11 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const url = new URL(req.url);
+  if (url.pathname.endsWith("/health") || url.searchParams.get("action") === "health") {
+    return json({ data: { service: "fulus-api", status: "ok", server_authoritative: true } });
+  }
+
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return json({ error: { code: "UNAUTHENTICATED", message: "Bearer token required" } }, 401);
