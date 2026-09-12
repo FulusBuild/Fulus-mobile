@@ -24,8 +24,8 @@ class FulusSyncApi {
     int limit = 100,
   }) async {
     try {
-      final response = await Dio(BaseOptions(baseUrl: _functionBaseUrl)).get(
-        '',
+      final response = await _client.dio.get(
+        _functionBaseUrl,
         queryParameters: {
           'business_id': businessId,
           'cursor': cursor,
@@ -50,8 +50,8 @@ class FulusSyncApi {
     Object? payload,
   }) async {
     try {
-      final response = await Dio(BaseOptions(baseUrl: _functionBaseUrl)).post(
-        '',
+      final response = await _client.dio.post(
+        _functionBaseUrl,
         data: {
           'business_id': businessId,
           'operation_type': operationType,
