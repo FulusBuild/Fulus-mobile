@@ -344,6 +344,24 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
+  Future<void> archiveProduct(String localId) async {
+    final now = DateTime.now();
+    final row = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
+    if (row == null) throw StateError('Product $localId does not exist.');
+    await _db.transaction(() async {
+      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(
+        ProductsCompanion(
+          deletedAt: Value(now),
+          isActive: const Value(false),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncStatus.pending),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+    });
+  }
+
+  @override
   Future<void> markSynced({required String localId, required String serverId}) async {
     await (_db.update(_db.products)..where((p) => p.localId.equals(localId)))
         .write(
