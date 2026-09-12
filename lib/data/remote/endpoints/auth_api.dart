@@ -84,6 +84,7 @@ class AuthApi {
       final data = response.data as Map<String, dynamic>;
       final session = ServerAuthSessionDto.fromJson(data);
       await _client.setServerAccessToken(session.accessToken);
+      await _client.persistServerRefreshToken(session.refreshToken);
       return session;
     } on DioException catch (e) {
       throw _client.mapError(e);
