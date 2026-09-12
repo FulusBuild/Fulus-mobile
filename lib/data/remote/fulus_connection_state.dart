@@ -91,10 +91,55 @@ class FulusConnectionState extends ChangeNotifier {
     );
   }
 
-  Future<StaffClaim> claimStaffInvite(String token) {
+  Future<StaffClaim> claimStaffInvite(String token) async {
     final api = _staffAccessApi;
     if (api == null) throw StateError('Fulus cloud staff access is unavailable.');
-    return api.claimInvite(token);
+    final claim = await api.claimInvite(token);
+    await refresh();
+    selectBusiness(claim.businessId);
+    return claim;
+  }
+
+  Future<bool> setStaffStatus({required String membershipId, required String status}) async {
+    final api = _staffAccessApi;
+    final businessId = _selectedBusinessId;
+    if (api == null || businessId == null) throw StateError('Fulus cloud staff access is unavailable.');
+    final changed = await api.setMemberStatus(businessId: businessId, membershipId: membershipId, status: status);
+    if (changed) await refresh();
+    return changed;
+  }
+
+  Future<bool> changeStaffRole({required String membershipId, required String roleId}) async {
+    final api = _staffAccessApi;
+    final businessId = _selectedBusinessId;
+    if (api == null || businessId == null) throw StateError('Fulus cloud staff access is unavailable.');
+    final changed = await api.changeMemberRole(businessId: businessId, membershipId: membershipId, roleId: roleId);
+    if (changed) await refresh();
+    return changed;
+  }
+
+  Future<bool> setStaffRolePermission({required String roleId, required String permissionId, required bool enabled}) async {
+    final api = _staffAccessApi;
+    final businessId = _selectedBusinessId;
+    if (api == null || businessId == null) throw StateError('Fulus cloud staff access is unavailable.');
+    return api.setRolePermission(businessId: businessId, roleId: roleId, permissionId: permissionId, enabled: enabled);
+  }
+
+  Future<List<FulusDevice>> listStaffDevices() async {
+    final api = _staffAccessApi;
+    final businessId = _selectedBusinessId;
+    if (api == null || businessId == null) throw StateError('Fulus cloud staff access is unavailable.');
+    return api.listDevices(businessId);
+  }
+
+  Future<bool> revokeStaffDevice(String deviceId) async {
+    final api = _staffAccessApi;
+    final businessId = _selectedBusinessId;
+    if (api == null || businessId == null) throw StateError('Fulus cloud staff access is unavailable.');
+    final revoked = await api.revokeDevice(businessId: businessId, deviceId: deviceId);
+    if (revoked && _registeredDevice?.id == deviceId) _registeredDevice = null;
+    notifyListeners();
+    return revoked;
   }
 
   void selectBusiness(String businessId) {
