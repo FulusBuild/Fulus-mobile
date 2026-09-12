@@ -74,6 +74,42 @@ Deno.serve(async (req: Request) => {
       }
       return json({ data: { ...data, server_authoritative: true } }, 201);
     }
+    if (raw.action === "sale_create") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const locationId = typeof raw.location_id === "string" ? raw.location_id : null;
+      const clientReference = typeof raw.client_reference === "string" ? raw.client_reference : null;
+      const items = Array.isArray(raw.items) ? raw.items : null;
+      if (!businessId || !locationId || !clientReference || !items || items.length === 0) {
+        return json({ error: { code: "INVALID_SALE", message: "business_id, location_id, client_reference and items are required" } }, 400);
+      }
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) {
+        return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      }
+      const { data: device, error: deviceError } = await admin.from("devices")
+        .select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
+      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+      const { data, error } = await admin.rpc("create_sale_atomic", {
+        target_business_id: businessId,
+        target_location_id: locationId,
+        target_customer_id: typeof raw.customer_id === "string" ? raw.customer_id : null,
+        target_client_reference: clientReference,
+        target_sale_date: typeof raw.sale_date === "string" ? raw.sale_date : new Date().toISOString(),
+        target_discount: Number(raw.discount ?? 0),
+        target_tax: Number(raw.tax ?? 0),
+        target_amount_paid: Number(raw.amount_paid ?? 0),
+        target_payment_method: typeof raw.payment_method === "string" ? raw.payment_method : null,
+        target_notes: typeof raw.notes === "string" ? raw.notes : null,
+        target_device_id: device.id,
+        target_items: items,
+      });
+      if (error) {
+        const status = error.code === "42501" ? 403 : error.code === "22013" ? 409 : 400;
+        return json({ error: { code: "SALE_CREATE_FAILED", message: error.message } }, status);
+      }
+      return json({ data }, data?.status === "already_applied" ? 200 : 201);
+    }
+
     if (raw.action === "inventory_adjust") {
       const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
       const productId = typeof raw.product_id === "string" ? raw.product_id : null;
