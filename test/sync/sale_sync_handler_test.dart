@@ -97,6 +97,13 @@ void main() {
     // Deliberately NO serverId on this product — several tests below
     // rely on that being the starting state; the one test that needs a
     // synced product sets serverId explicitly first.
+    await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+          productLocalId: productId,
+          locationLocalId: locationId,
+          currentStock: const Value(10),
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ));
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: productId,
