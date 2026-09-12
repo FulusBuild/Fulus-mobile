@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 
 import '../../data/local/database/database.dart';
 import '../../data/remote/endpoints/products_api.dart';
+import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/fulus_sync_api.dart';
 import '../../data/repositories/product_mapper.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../sync_handler.dart';
@@ -23,21 +25,27 @@ class ProductSyncHandler implements SyncHandler {
     required ProductsApi productsApi,
     required ProductRepository productRepository,
     required AppDatabase db,
+    required FulusSyncApi fulusSyncApi,
+    required FulusConnectionState fulusConnectionState,
   })  : _productsApi = productsApi,
         _productRepository = productRepository,
-        _db = db;
+        _db = db,
+        _fulusSyncApi = fulusSyncApi,
+        _fulusConnectionState = fulusConnectionState;
 
   final ProductsApi _productsApi;
   final ProductRepository _productRepository;
   final AppDatabase _db;
+  final FulusSyncApi _fulusSyncApi;
+  final FulusConnectionState _fulusConnectionState;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
     switch (item.operation) {
       case 'create':
-        await _syncCreate(item.entityLocalId);
+        await _syncCreate(item.entityLocalId, operationId: item.id);
       case 'update':
-        await _syncUpdate(item.entityLocalId);
+        await _syncUpdate(item.entityLocalId, operationId: item.id);
       default:
         throw StateError(
           'ProductSyncHandler does not support operation "${item.operation}".',
@@ -45,58 +53,75 @@ class ProductSyncHandler implements SyncHandler {
     }
   }
 
-  Future<void> _syncCreate(String localId) async {
+  Future<void> _syncCreate(String localId, {String? operationId}) async {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
-    final location = await _db.select(_db.locations).getSingleOrNull();
-    var initialStock = 0;
-    if (location != null) {
-      final stockLevel = await (_db.select(_db.productStockLevels)
-            ..where((s) =>
-                s.productLocalId.equals(localId) & s.locationLocalId.equals(location.localId)))
-          .getSingleOrNull();
-      initialStock = stockLevel?.currentStock ?? 0;
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || device == null || device.status != 'active') {
+      throw StateError('Fulus cloud authorization is required for product sync.');
     }
 
-    final response = await _productsApi.createProduct(
-      product.toCreateDto(initialStock: initialStock),
+    final payload = <String, dynamic>{
+      'local_id': localId,
+      'name': product.name,
+      'sku': product.sku,
+      'barcode': product.barcode,
+      'category_id': product.categoryId,
+      'supplier_id': product.supplierId,
+      'cost_price': product.costPrice,
+      'selling_price': product.sellingPrice,
+      'low_stock_threshold': product.lowStockThreshold,
+      'is_active': product.isActive,
+    };
+    final result = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'product.create',
+      operationId: operationId ?? localId,
+      deviceClientId: device.deviceClientId,
+      payload: payload,
     );
-    await _productRepository.markSynced(localId: localId, serverId: response.id);
-
-    // Reconcile back, same reasoning StockMovementSyncHandler already
-    // established: the server is the one source of truth for
-    // current_stock once this create has actually landed.
-    if (location != null) {
-      await _productRepository.reconcileStockLevel(
-        productLocalId: localId,
-        locationId: location.localId,
-        currentStock: response.currentStock,
-      );
+    final data = Map<String, dynamic>.from(result['data'] as Map);
+    final serverId = data['entity_id'] as String?;
+    if (serverId == null) {
+      throw StateError('Fulus product create returned no server entity ID.');
     }
+    await _productRepository.markSynced(localId: localId, serverId: serverId);
   }
 
-  Future<void> _syncUpdate(String localId) async {
+  Future<void> _syncUpdate(String localId, {String? operationId}) async {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
-    if (product.serverId == null) {
-      // Same ordering guarantee CashDrawerShiftSyncHandler's own
-      // create-before-close comment describes: this product's own
-      // 'create' task is always enqueued (and, under normal
-      // priority-ordered draining, processed) before any 'update' for
-      // it could be. Thrown rather than silently skipped so the sync
-      // engine's normal retry/backoff handles the ordering edge case,
-      // not this handler guessing at one.
+    final serverId = product.serverId;
+    if (serverId == null) {
       throw StateError(
         'Cannot sync a product update before its create has synced '
         '(no serverId yet for $localId).',
       );
     }
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || device == null || device.status != 'active') {
+      throw StateError('Fulus cloud authorization is required for product sync.');
+    }
 
-    final response = await _productsApi.updateProduct(
-      productId: product.serverId!,
-      dto: product.toUpdateDto(),
+    final payload = <String, dynamic>{
+      'server_id': serverId,
+      ...product.toUpdateDto().toJson(),
+    };
+    final result = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'product.update',
+      operationId: operationId ?? localId,
+      deviceClientId: device.deviceClientId,
+      payload: payload,
     );
-    await _productRepository.markSynced(localId: localId, serverId: response.id);
+    final data = Map<String, dynamic>.from(result['data'] as Map);
+    final returnedId = data['entity_id'] as String?;
+    if (returnedId != serverId) {
+      throw StateError('Fulus product update returned an unexpected entity ID.');
+    }
+    await _productRepository.markSynced(localId: localId, serverId: serverId);
   }
 
   Future<ProductRow> _requireProductRow(String localId) async {
