@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - backend/phase-1-catalog
+      - backend/phase-4-foundation-v2
 
   pull_request:
     branches:
