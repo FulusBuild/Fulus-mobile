@@ -56,6 +56,13 @@ class SyncTask {
         priority: SyncPriority.stockAndCustomerWrites,
       );
 
+  factory SyncTask.updateExpense(String localId) => SyncTask(
+        entityType: 'expense',
+        entityLocalId: localId,
+        operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   factory SyncTask.createExpense(String localId) => SyncTask(
         entityType: 'expense',
         entityLocalId: localId,
