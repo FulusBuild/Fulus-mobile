@@ -50,6 +50,33 @@ Deno.serve(async (req: Request) => {
     return json({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve memberships" } }, 500);
   }
 
+  if (req.method === "POST") {
+    let raw: Record<string, unknown>;
+    try { raw = await req.json(); } catch { return json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400); }
+    if (raw.action === "register_device") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const clientId = typeof raw.device_client_id === "string" ? raw.device_client_id : null;
+      if (!businessId || !clientId) return json({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "business_id and device_client_id are required" } }, 400);
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      const { data, error } = await admin.rpc("register_device", {
+        target_business_id: businessId, target_user_id: userId, target_device_client_id: clientId,
+        target_device_name: typeof raw.device_name === "string" ? raw.device_name : null,
+        target_platform: typeof raw.platform === "string" ? raw.platform : null,
+        target_app_version: typeof raw.app_version === "string" ? raw.app_version : null,
+      });
+      if (error) return json({ error: { code: "DEVICE_REGISTRATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+      return json({ data: { device: data, server_authoritative: true } }, 201);
+    }
+    if (raw.action === "revoke_device") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const deviceId = typeof raw.device_id === "string" ? raw.device_id : null;
+      if (!businessId || !deviceId) return json({ error: { code: "INVALID_DEVICE_REVOCATION", message: "business_id and device_id are required" } }, 400);
+      const { data, error } = await admin.rpc("revoke_device", { target_business_id: businessId, target_device_id: deviceId, target_user_id: userId });
+      if (error) return json({ error: { code: "DEVICE_REVOCATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+      return json({ data: { revoked: data, server_authoritative: true } });
+    }
+  }
+
   if (req.method === "GET") {
     const url = new URL(req.url);
     const businessId = url.searchParams.get("business_id");
