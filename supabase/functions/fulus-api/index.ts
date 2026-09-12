@@ -74,6 +74,39 @@ Deno.serve(async (req: Request) => {
       }
       return json({ data: { ...data, server_authoritative: true } }, 201);
     }
+    if (raw.action === "customer_create") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const name = typeof raw.name === "string" ? raw.name : null;
+      if (!businessId || !name?.trim()) return json({ error: { code: "INVALID_CUSTOMER", message: "business_id and name are required" } }, 400);
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      const { data, error } = await admin.rpc("create_customer", {
+        target_business_id: businessId, target_name: name, target_phone: typeof raw.phone === "string" ? raw.phone : null,
+        target_email: typeof raw.email === "string" ? raw.email : null, target_address: typeof raw.address === "string" ? raw.address : null,
+        target_credit_limit: Number(raw.credit_limit ?? 0),
+      });
+      if (error) return json({ error: { code: "CUSTOMER_CREATE_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+      return json({ data }, 201);
+    }
+
+    if (raw.action === "customer_repayment") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const customerId = typeof raw.customer_id === "string" ? raw.customer_id : null;
+      const operationId = typeof raw.operation_id === "string" ? raw.operation_id : null;
+      const amount = Number(raw.amount);
+      if (!businessId || !customerId || !operationId || !Number.isFinite(amount) || amount <= 0) return json({ error: { code: "INVALID_REPAYMENT", message: "business_id, customer_id, amount and operation_id are required" } }, 400);
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      const { data: device, error: deviceError } = await admin.from("devices").select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
+      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+      const { data, error } = await admin.rpc("record_customer_repayment", {
+        target_business_id: businessId, target_customer_id: customerId, target_amount: amount, target_operation_id: operationId,
+        target_payment_method: typeof raw.payment_method === "string" ? raw.payment_method : null,
+        target_note: typeof raw.note === "string" ? raw.note : null, target_device_id: device.id,
+      });
+      if (error) return json({ error: { code: "CUSTOMER_REPAYMENT_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+      return json({ data });
+    }
+
     if (raw.action === "sale_create") {
       const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
       const locationId = typeof raw.location_id === "string" ? raw.location_id : null;
