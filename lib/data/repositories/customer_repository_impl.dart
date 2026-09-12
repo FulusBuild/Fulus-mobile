@@ -23,9 +23,10 @@ class CustomerRepositoryImpl implements CustomerRepository {
     final localId = Ulid().toString();
     final customer = draft.toCustomerEntity(localId: localId);
 
-    await _db.into(_db.customers).insert(customer.toDriftCompanion());
-
-    await _syncQueue.enqueue(SyncTask.createCustomer(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.customers).insert(customer.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createCustomer(localId));
+    });
 
     return customer;
   }
@@ -58,9 +59,11 @@ class CustomerRepositoryImpl implements CustomerRepository {
         notes: Value(updated.notes),
         creditLimit: Value(updated.creditLimit),
         loyaltyThreshold: Value(updated.loyaltyThreshold),
+        syncStatus: const Value(SyncStatus.pending),
         updatedAt: Value(DateTime.now()),
       ),
     );
+    await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
     return (await getCustomerById(localId))!;
   }
 
@@ -69,9 +72,11 @@ class CustomerRepositoryImpl implements CustomerRepository {
     await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
       CustomersCompanion(
         deletedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncStatus.pending),
         updatedAt: Value(DateTime.now()),
       ),
     );
+    await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
   }
 
   @override
@@ -79,9 +84,11 @@ class CustomerRepositoryImpl implements CustomerRepository {
     await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
       CustomersCompanion(
         deletedAt: const Value(null),
+        syncStatus: const Value(SyncStatus.pending),
         updatedAt: Value(DateTime.now()),
       ),
     );
+    await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
   }
 
   @override
