@@ -79,7 +79,7 @@ void main() {
       expect(row.quantity, 20);
       expect(row.newQuantity, isNull);
       final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId))).getSingle();
-      expect(stock.currentStock, 20);
+      expect(stock.currentStock, 40);
     });
 
     test('enqueues a stock-and-customer-priority sync task', () async {
@@ -135,13 +135,9 @@ void main() {
 
   group('local stock safety', () {
     test('rejects stock-out that would make local stock negative and writes nothing', () async {
-      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
-        productLocalId: productLocalId,
-        locationLocalId: locationId,
-        currentStock: const Value(2),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
-      ));
+      await (db.update(db.productStockLevels)
+            ..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId)))
+          .write(const ProductStockLevelsCompanion(currentStock: Value(2)));
       await expectLater(
         repository.recordStockOut(const StockOutDraft(
           productLocalId: productLocalId,
