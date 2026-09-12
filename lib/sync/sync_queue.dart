@@ -66,6 +66,13 @@ class SyncTask {
   /// Same priority tier as createCustomer/createExpense — a category or
   /// supplier isn't money, but it's routine day-to-day catalog upkeep, not
   /// the photos-and-bulk-import lane either.
+  factory SyncTask.updateCategory(String localId) => SyncTask(
+        entityType: 'category',
+        entityLocalId: localId,
+        operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   factory SyncTask.createCategory(String localId) => SyncTask(
         entityType: 'category',
         entityLocalId: localId,
@@ -212,6 +219,14 @@ class SyncQueue {
   }
 
   Future<void> enqueue(SyncTask task) async {
+    final existing = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.entityType.equals(task.entityType))
+          ..where((q) => q.entityLocalId.equals(task.entityLocalId))
+          ..where((q) => q.operation.equals(task.operation))
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null) return;
+
     await _db.into(_db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
             id: Ulid().toString(),
