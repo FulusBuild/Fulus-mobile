@@ -56,6 +56,9 @@ class ProductSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
 
+    final stock = await (_db.select(_db.productStockLevels)
+          ..where((s) => s.productLocalId.equals(localId)))
+        .getSingleOrNull();
     final payload = <String, dynamic>{
       'local_id': localId,
       'name': product.name,
@@ -67,6 +70,7 @@ class ProductSyncHandler implements SyncHandler {
       'selling_price': product.sellingPrice,
       'low_stock_threshold': product.lowStockThreshold,
       'is_active': product.isActive,
+      'initial_stock': stock?.currentStock ?? 0,
     };
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
