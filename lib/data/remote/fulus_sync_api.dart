@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../api_client.dart';
+import 'api_client.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
 ///
