@@ -33,14 +33,17 @@ create table public.roles (
   is_system boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (business_id, name)
+  unique (business_id, name),
+  unique (business_id, id)
 );
 
 create table public.permissions (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   description text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (business_id, location_id)
+    references public.locations(business_id, id)
 );
 
 create table public.role_permissions (
@@ -53,7 +56,9 @@ create table public.business_memberships (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
-  role_id uuid not null references public.roles(id),
+  role_id uuid not null,
+  foreign key (business_id, role_id)
+    references public.roles(business_id, id),
   status text not null default 'active'
     check (status in ('invited', 'active', 'suspended', 'removed')),
   joined_at timestamptz,
@@ -73,19 +78,23 @@ create table public.locations (
     check (status in ('active', 'archived')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (business_id, code)
+  unique (business_id, code),
+  unique (business_id, id)
 );
 
 create table public.location_memberships (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
-  location_id uuid not null references public.locations(id) on delete cascade,
+  location_id uuid not null,
   user_id uuid not null references auth.users(id) on delete cascade,
   status text not null default 'active'
     check (status in ('active', 'suspended', 'removed')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (location_id, user_id)
+  unique (location_id, user_id),
+  foreign key (business_id, location_id)
+    references public.locations(business_id, id)
+    on delete cascade
 );
 
 create table public.devices (
@@ -107,7 +116,9 @@ create table public.devices (
 create table public.idempotency_keys (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
-  device_id uuid references public.devices(id),
+  device_id uuid,
+  foreign key (business_id, device_id)
+    references public.devices(business_id, id),
   user_id uuid references auth.users(id),
   key text not null,
   operation_type text not null,
@@ -122,7 +133,9 @@ create table public.idempotency_keys (
 create table public.sync_operations (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
-  device_id uuid not null references public.devices(id),
+  device_id uuid not null,
+  foreign key (business_id, device_id)
+    references public.devices(business_id, id),
   user_id uuid references auth.users(id),
   operation_id text not null,
   operation_type text not null,
@@ -156,7 +169,7 @@ create index sync_changes_business_entity_idx
 create table public.audit_events (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
-  location_id uuid references public.locations(id),
+  location_id uuid,
   actor_user_id uuid references auth.users(id),
   device_id uuid references public.devices(id),
   action text not null,
@@ -296,6 +309,39 @@ as $$
   );
 $$;
 
+-- Permission delegation helper. An administrator may only grant/revoke a
+-- permission that the administrator already possesses. This prevents a manager
+-- from escalating privileges beyond their own authorization scope.
+create or replace function public.can_manage_role_permission(
+  target_business_id uuid,
+  target_role_id uuid,
+  target_permission_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles actor_role on actor_role.id = bm.role_id
+    join public.role_permissions actor_rp on actor_rp.role_id = actor_role.id
+    where bm.business_id = target_business_id
+      and bm.user_id = auth.uid()
+      and bm.status = 'active'
+      and actor_role.name in ('owner', 'admin')
+      and actor_rp.permission_id = target_permission_id
+      and exists (
+        select 1
+        from public.roles target_role
+        where target_role.id = target_role_id
+          and target_role.business_id = target_business_id
+      )
+  );
+$;
+
 -- RLS is enabled on every exposed business table. Domain-specific tables in
 -- later migrations follow the same business/location isolation pattern.
 alter table public.businesses enable row level security;
@@ -368,14 +414,14 @@ using (
   exists (
     select 1 from public.roles r
     where r.id = role_permissions.role_id
-      and public.is_business_admin(r.business_id)
+      and public.can_manage_role_permission(r.business_id, role_permissions.role_id, role_permissions.permission_id)
   )
 )
 with check (
   exists (
     select 1 from public.roles r
     where r.id = role_permissions.role_id
-      and public.is_business_admin(r.business_id)
+      and public.can_manage_role_permission(r.business_id, role_permissions.role_id, role_permissions.permission_id)
   )
 );
 
