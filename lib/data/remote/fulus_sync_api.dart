@@ -31,7 +31,7 @@ class FulusSyncApi {
           'cursor': cursor,
           'limit': limit,
         },
-        options: Options(headers: _headers()),
+        options: Options(headers: _headers(deviceClientId: deviceClientId)),
       );
       return FulusSyncPullResponse.fromJson(
         Map<String, dynamic>.from(response.data as Map),
@@ -45,6 +45,7 @@ class FulusSyncApi {
     required String businessId,
     required String operationType,
     required String operationId,
+    required String deviceClientId,
     String? clientReference,
     Object? payload,
   }) async {
@@ -66,8 +67,9 @@ class FulusSyncApi {
     }
   }
 
-  Map<String, String> _headers() => {
+  Map<String, String> _headers({String? deviceClientId}) => {
         'content-type': 'application/json',
+        if (deviceClientId != null) 'x-fulus-device-id': deviceClientId,
         if (_client.serverAccessToken != null)
           'Authorization': 'Bearer ${_client.serverAccessToken}',
       };
