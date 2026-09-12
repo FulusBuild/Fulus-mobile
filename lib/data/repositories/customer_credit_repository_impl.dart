@@ -7,11 +7,15 @@ import '../../domain/repositories/customer_credit_repository.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 import 'customer_ledger_mapper.dart';
+import '../../sync/sync_queue.dart';
 
 class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
-  CustomerCreditRepositoryImpl({required AppDatabase db}) : _db = db;
+  CustomerCreditRepositoryImpl({required AppDatabase db, required SyncQueue syncQueue})
+      : _db = db,
+        _syncQueue = syncQueue;
 
   final AppDatabase _db;
+  final SyncQueue _syncQueue;
 
   Future<CustomerRow> _requireCustomer(String localId) async {
     final row = await (_db.select(_db.customers)
@@ -60,8 +64,9 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
       // sync already accounts for, not something with its own sync task.
       // See CustomerLedgerEntryType.creditSale's own doc comment.
       await _db.into(_db.customerLedgerEntries).insert(
-            entry.toDriftCompanion(syncStatus: SyncStatus.settled),
+            entry.toDriftCompanion(syncStatus: SyncStatus.pending),
           );
+      await _syncQueue.enqueue(SyncTask.recordCustomerRepayment(entry.localId));
       return entry;
     });
   }
