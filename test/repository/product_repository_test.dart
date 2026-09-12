@@ -705,4 +705,65 @@ void main() {
       expect(row.syncStatus, SyncStatus.settled);
     });
   });
+  group('catalog integrity', () {
+    Future<void> seedProduct(String id, {String sku = 'SKU-p1', String? barcode}) async {
+      await seedLocation();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: id,
+        name: 'Product $id',
+        sku: sku,
+        barcode: barcode == null ? const Value.absent() : Value(barcode),
+        costPrice: 5,
+        sellingPrice: 10,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+    }
+
+    test('rejects duplicate SKU on create without writing', () async {
+      await seedProduct('p1', sku: 'DUP-1');
+      await expectLater(
+        repository.createProduct(const ProductDraft(
+          name: 'Duplicate',
+          sku: 'DUP-1',
+          costPrice: 1,
+          sellingPrice: 2,
+          locationId: locationId,
+        )),
+        throwsArgumentError,
+      );
+      expect(await db.select(db.products).get(), hasLength(1));
+      expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    });
+
+    test('rejects duplicate barcode on create without writing', () async {
+      await seedProduct('p1', sku: 'SKU-1', barcode: '123');
+      await expectLater(
+        repository.createProduct(const ProductDraft(
+          name: 'Duplicate',
+          sku: 'SKU-2',
+          barcode: '123',
+          costPrice: 1,
+          sellingPrice: 2,
+          locationId: locationId,
+        )),
+        throwsArgumentError,
+      );
+      expect(await db.select(db.products).get(), hasLength(1));
+    });
+
+    test('archives a product locally and queues one update', () async {
+      await seedProduct('p1');
+      await repository.archiveProduct('p1');
+      final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+      expect(row.isActive, false);
+      expect(row.deletedAt, isNotNull);
+      expect(row.syncStatus, SyncStatus.pending);
+      final queued = await db.select(db.syncQueueItems).get();
+      expect(queued, hasLength(1));
+      expect(queued.single.operation, 'update');
+    });
+  });
+
 }
