@@ -74,6 +74,35 @@ Deno.serve(async (req: Request) => {
       }
       return json({ data: { ...data, server_authoritative: true } }, 201);
     }
+    if (raw.action === "inventory_adjust") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const productId = typeof raw.product_id === "string" ? raw.product_id : null;
+      const locationId = typeof raw.location_id === "string" ? raw.location_id : null;
+      const operationId = typeof raw.operation_id === "string" ? raw.operation_id : null;
+      const delta = Number(raw.quantity_delta);
+      const reason = typeof raw.reason === "string" ? raw.reason : null;
+      if (!businessId || !productId || !locationId || !operationId || !reason || !Number.isSafeInteger(delta) || delta === 0) {
+        return json({ error: { code: "INVALID_INVENTORY_ADJUSTMENT", message: "business_id, product_id, location_id, integer quantity_delta, reason and operation_id are required" } }, 400);
+      }
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) {
+        return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      }
+      const { data: device, error: deviceError } = await admin.from("devices")
+        .select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
+      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+      const { data, error } = await admin.rpc("apply_inventory_adjustment", {
+        target_business_id: businessId, target_product_id: productId, target_location_id: locationId,
+        target_quantity_delta: delta, target_reason: reason, target_operation_id: operationId,
+        target_device_id: device.id,
+      });
+      if (error) {
+        const status = error.code === "42501" ? 403 : error.code === "22013" ? 409 : 400;
+        return json({ error: { code: "INVENTORY_ADJUSTMENT_FAILED", message: error.message } }, status);
+      }
+      return json({ data }, data?.status === "already_applied" ? 200 : 201);
+    }
+
     if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(raw.action))) {
       const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
       const entity = typeof raw.entity === "string" ? raw.entity : null;
