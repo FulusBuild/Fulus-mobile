@@ -25,6 +25,12 @@ on:
           - debug
           - release
 
+      run_fulus_e2e:
+        description: "Run the live Fulus sync contract test (requires FULUS_E2E_* secrets)"
+        required: true
+        default: "false"
+        type: boolean
+
       api_base_url:
         description: "API base URL for release APK (leave empty to use repository variable)"
         required: false
@@ -177,7 +183,44 @@ jobs:
 
 
   # ============================================================
-  # 5. MANUAL DEBUG APK
+  # 6. OPT-IN FULUS LIVE CONTRACT TEST
+  # ============================================================
+
+  fulus_e2e:
+    name: Fulus live sync contract test
+
+    needs: test
+
+    if: github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Run Fulus sync E2E contract test
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_ACCESS_TOKEN: ${{ secrets.FULUS_E2E_ACCESS_TOKEN }}
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: dart run tool/fulus_sync_e2e.dart
+
+
+  # ============================================================
+  # 7. MANUAL DEBUG APK
   #
   # Runs ONLY when you choose:
   #
