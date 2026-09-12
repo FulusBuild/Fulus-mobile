@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import '../../data/local/database/database.dart';
-import '../../data/remote/endpoints/products_api.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../data/repositories/product_mapper.dart';
@@ -22,18 +21,15 @@ import '../sync_handler.dart';
 /// own doc comment for the fuller reasoning, unchanged here.
 class ProductSyncHandler implements SyncHandler {
   ProductSyncHandler({
-    required ProductsApi productsApi,
     required ProductRepository productRepository,
     required AppDatabase db,
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
-  })  : _productsApi = productsApi,
-        _productRepository = productRepository,
+  })  : _productRepository = productRepository,
         _db = db,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState;
 
-  final ProductsApi _productsApi;
   final ProductRepository _productRepository;
   final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
