@@ -23,9 +23,10 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
     final localId = Ulid().toString();
     final record = draft.toIncomeRecordEntity(localId: localId);
 
-    await _db.into(_db.incomeRecords).insert(record.toDriftCompanion());
-
-    await _syncQueue.enqueue(SyncTask.createIncomeRecord(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.incomeRecords).insert(record.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createIncomeRecord(localId));
+    });
 
     return record;
   }

@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:ulid/ulid.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env_config.dart';
+import '../core/config/supabase_config.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
 import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
@@ -13,6 +18,11 @@ import '../data/local/database/app_database_lifecycle.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
+import '../data/remote/fulus_business_context.dart';
+import '../data/remote/fulus_connection_state.dart';
+import '../data/remote/fulus_device_registration.dart';
+import '../data/remote/fulus_sync_api.dart';
+import '../data/remote/fulus_staff_access_api.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
@@ -163,7 +173,65 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onSessionExpired: () async {},
   );
 
+  final fulusFunctionBaseUrl = '${SupabaseConfig.url}/functions/v1/fulus-api';
+  final fulusBusinessContext = FulusBusinessContext(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final fulusDeviceRegistration = FulusDeviceRegistration(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final fulusSyncApi = FulusSyncApi(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final fulusStaffAccessApi = FulusStaffAccessApi(
+    client: apiClient,
+    functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api',
+  );
+  final fulusConnectionState = FulusConnectionState(
+    businessContext: fulusBusinessContext,
+    deviceRegistration: fulusDeviceRegistration,
+    staffAccessApi: fulusStaffAccessApi,
+  );
+
   final authApi = AuthApi(apiClient);
+
+  // Optional cloud session restore is deliberately fire-and-forget: a cold
+  // start must never wait on the network or make local Fulus unavailable.
+  // If a refresh token exists, the session is restored in the background;
+  // if it does not, nothing happens.
+  unawaited(() async {
+    final session = await authApi.restoreServerSession(
+      supabaseUrl: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
+    if (session == null) return;
+    try {
+      await fulusConnectionState.refresh();
+      final active = fulusConnectionState.membershipContext?.memberships
+              .where((m) => m.status == 'active')
+              .toList(growable: false) ??
+          const [];
+      if (active.length != 1) return;
+      fulusConnectionState.selectBusiness(active.first.businessId);
+      final deviceClientId = await secureStorage.ensureDeviceClientId(
+        Ulid().toString(),
+      );
+      final package = await PackageInfo.fromPlatform();
+      await fulusConnectionState.registerDevice(
+        deviceClientId: deviceClientId,
+        deviceName: 'Fulus Mobile',
+        platform: Platform.operatingSystem,
+        appVersion: package.version,
+      );
+    } catch (_) {
+      // Cloud restoration is optional. Local startup and local POS work
+      // must never fail because membership/device registration is offline,
+      // revoked, pending, or otherwise temporarily unavailable.
+    }
+  }());
 
   // Constructed before AuthRepositoryImpl on purpose: AuthRepositoryImpl
   // depends on AuditRepository (to log login/logout/account-creation
@@ -227,7 +295,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // `db`, so nothing else has to move to make room for it. See
   // customerCreditRepository's own original construction comment
   // further down for why it needs no syncQueue.
-  final customerCreditRepository = CustomerCreditRepositoryImpl(db: database);
+  final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(
     db: database,
     syncQueue: syncQueue,
@@ -401,6 +469,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // exactly why this would otherwise be a construction-order cycle).
   final saleSyncHandler = SaleSyncHandler(
     db: database,
+    fulusSyncApi: fulusSyncApi,
+    fulusConnectionState: fulusConnectionState,
     salesApi: salesApi,
     saleRepository: saleRepository,
   );
@@ -449,8 +519,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // Phase 0 completion pass.
   final productSyncHandler = ProductSyncHandler(
     db: database,
-    productsApi: productsApi,
     productRepository: productRepository,
+    fulusSyncApi: fulusSyncApi,
+    fulusConnectionState: fulusConnectionState,
   );
   final syncEngine = SyncEngine(
     db: database,
@@ -580,9 +651,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       resolveActiveLocationProvider.overrideWithValue(resolveActiveLocation),
       businessSettingsApiProvider.overrideWithValue(businessSettingsApi),
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
+      fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
+      fulusConnectionStateProvider.overrideWith((ref) => fulusConnectionState),
+      fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
-      syncConfigProvider.overrideWithValue(syncConfig),
+      syncConfigProvider.overrideWith((ref) => syncConfig),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       // Onboarding polish
       onboardingStateProvider.overrideWithValue(onboardingState),

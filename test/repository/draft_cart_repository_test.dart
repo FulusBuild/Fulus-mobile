@@ -79,7 +79,7 @@ void main() {
       db: db,
       syncQueue: syncQueue,
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     draftCartRepository = DraftCartRepositoryImpl(
       db: db,

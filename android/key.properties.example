@@ -1,0 +1,6 @@
+# Copy to android/key.properties for local release builds.
+# Never commit real signing credentials.
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=CHANGE_ME
+storeFile=../app/fulus-release.jks

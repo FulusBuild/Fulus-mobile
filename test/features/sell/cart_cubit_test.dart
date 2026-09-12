@@ -164,7 +164,7 @@ void main() {
       db: db,
       syncQueue: syncQueue,
       authRepository: authRepository,
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     final draftCartRepository = DraftCartRepositoryImpl(
       db: db,

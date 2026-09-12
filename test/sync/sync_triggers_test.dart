@@ -94,6 +94,53 @@ void main() {
     });
   });
 
+  group('Stage 16 — runtime toggle', () {
+    test('enabling sync after start activates triggers immediately', () async {
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+      await triggers.start();
+      await config.setEnabled(true);
+
+      await untilCalled(() => syncEngine.runOnce());
+      verify(() => connectivity.checkConnectivity()).called(1);
+      verify(() => syncEngine.runOnce()).called(1);
+    });
+
+    test('disabling sync after start stops connectivity listening', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.none]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+      await triggers.start();
+      await config.setEnabled(false);
+
+      // A second explicit trigger must be a no-op once disabled.
+      await triggers.notifyEnqueued();
+      verify(() => connectivity.checkConnectivity()).called(1);
+    });
+  });
+
   group('Stage 16 — sync enabled', () {
     test('start() checks connectivity and runs the engine when online', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});

@@ -23,9 +23,10 @@ class CategoryRepositoryImpl implements CategoryRepository {
     final localId = Ulid().toString();
     final category = draft.toCategoryEntity(localId: localId);
 
-    await _db.into(_db.categories).insert(category.toDriftCompanion());
-
-    await _syncQueue.enqueue(SyncTask.createCategory(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.categories).insert(category.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createCategory(localId));
+    });
 
     return category;
   }
@@ -44,6 +45,38 @@ class CategoryRepositoryImpl implements CategoryRepository {
           ..where((c) => c.localId.equals(localId)))
         .getSingleOrNull();
     return row?.toDomain();
+  }
+
+  @override
+  Future<void> updateCategory({required String localId, String? name, String? description}) async {
+    if (name != null && name.trim().isEmpty) {
+      throw ArgumentError.value(name, 'name', 'must not be empty');
+    }
+    final row = await (_db.select(_db.categories)..where((c) => c.localId.equals(localId))).getSingleOrNull();
+    if (row == null) throw StateError('Category $localId does not exist.');
+    await (_db.update(_db.categories)..where((c) => c.localId.equals(localId))).write(
+      CategoriesCompanion(
+        name: name == null ? const Value.absent() : Value(name.trim()),
+        description: description == null ? const Value.absent() : Value(description),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncStatus.pending),
+      ),
+    );
+    await _syncQueue.enqueue(SyncTask.updateCategory(localId));
+  }
+
+  @override
+  Future<void> archiveCategory(String localId) async {
+    final row = await (_db.select(_db.categories)..where((c) => c.localId.equals(localId))).getSingleOrNull();
+    if (row == null) throw StateError('Category $localId does not exist.');
+    await (_db.update(_db.categories)..where((c) => c.localId.equals(localId))).write(
+      CategoriesCompanion(
+        deletedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncStatus.pending),
+      ),
+    );
+    await _syncQueue.enqueue(SyncTask.updateCategory(localId));
   }
 
   @override

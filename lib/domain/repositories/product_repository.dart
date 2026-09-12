@@ -86,6 +86,8 @@ abstract class ProductRepository {
   /// Called by ProductSyncHandler once a locally-created or -edited
   /// product has reached the server — same role as every other
   /// repository's markSynced.
+  Future<void> archiveProduct(String localId);
+
   Future<void> markSynced({required String localId, required String serverId});
 
   /// Pulls the current catalog and stock levels from the backend and

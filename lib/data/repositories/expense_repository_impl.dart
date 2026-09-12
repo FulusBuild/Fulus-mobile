@@ -27,9 +27,10 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     final localId = Ulid().toString();
     final expense = draft.toExpenseEntity(localId: localId);
 
-    await _db.into(_db.expenses).insert(expense.toDriftCompanion());
-
-    await _syncQueue.enqueue(SyncTask.createExpense(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.expenses).insert(expense.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createExpense(localId));
+    });
 
     return expense;
   }
@@ -73,17 +74,20 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     }
 
     final now = DateTime.now();
-    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
-      ExpensesCompanion(
-        description: Value(description),
-        amount: Value(amount),
-        categoryId: Value(categoryId),
-        expenseDate: Value(expenseDate),
-        paymentMethod: Value(paymentMethod),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncStatus.pending),
-      ),
-    );
+    await _db.transaction(() async {
+      await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
+        ExpensesCompanion(
+          description: Value(description),
+          amount: Value(amount),
+          categoryId: Value(categoryId),
+          expenseDate: Value(expenseDate),
+          paymentMethod: Value(paymentMethod),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncStatus.pending),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateExpense(localId));
+    });
 
     // Never throws (see AuditRepository.log's own doc comment) — an
     // audit-write failure must never turn a successful edit into a
@@ -159,8 +163,10 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
         .write(
       ExpensesCompanion(
         receiptPhotoPath: Value(photoPath),
+        syncStatus: const Value(SyncStatus.pending),
         updatedAt: Value(DateTime.now()),
       ),
     );
+    await _syncQueue.enqueue(SyncTask.updateExpense(localId));
   }
 }

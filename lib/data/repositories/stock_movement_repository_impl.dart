@@ -26,8 +26,33 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   /// (each *Draft's own toStockMovementEntity), which is why this takes
   /// an already-built entity rather than a draft.
   Future<StockMovement> _record(StockMovement movement) async {
-    await _db.into(_db.stockMovements).insert(movement.toDriftCompanion());
-    await _syncQueue.enqueue(SyncTask.recordStockMovement(movement.localId));
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.productStockLevels)
+            ..where((row) => row.productLocalId.equals(movement.productLocalId))
+            ..where((row) => row.locationLocalId.equals(movement.locationId)))
+          .getSingleOrNull();
+      final currentStock = current?.currentStock ?? 0;
+      final nextStock = switch (movement.movementType) {
+        StockMovementType.stockIn => currentStock + movement.quantity!,
+        StockMovementType.stockOut => currentStock - movement.quantity!,
+        StockMovementType.adjustment => movement.newQuantity!,
+        _ => throw StateError('Unsupported local stock movement type: ${movement.movementType}'),
+      };
+      if (nextStock < 0) {
+        throw StateError('Insufficient stock for product ${movement.productLocalId}.');
+      }
+      await _db.into(_db.productStockLevels).insertOnConflictUpdate(
+            ProductStockLevelsCompanion.insert(
+              productLocalId: movement.productLocalId,
+              locationLocalId: movement.locationId,
+              currentStock: Value(nextStock),
+              updatedAt: DateTime.now(),
+              syncStatus: SyncStatus.pending,
+            ),
+          );
+      await _db.into(_db.stockMovements).insert(movement.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.recordStockMovement(movement.localId));
+    });
     return movement;
   }
 

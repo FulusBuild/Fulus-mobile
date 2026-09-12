@@ -18,7 +18,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     final syncQueue = SyncQueue(db);
     customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
-    creditRepository = CustomerCreditRepositoryImpl(db: db);
+    creditRepository = CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db));
 
     // CustomerLedgerEntries.saleLocalId is a real FK against
     // sales(local_id) — every test in this file links its ledger

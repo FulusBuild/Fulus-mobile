@@ -13,6 +13,9 @@ import '../core/security/app_lock_config.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
+import '../data/remote/fulus_business_context.dart';
+import '../data/remote/fulus_connection_state.dart';
+import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
@@ -400,6 +403,25 @@ final cashDrawerShiftRepositoryProvider =
   );
 });
 
+final fulusBusinessContextProvider = Provider<FulusBusinessContext>((ref) {
+  throw UnimplementedError(
+    'fulusBusinessContextProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final fulusConnectionStateProvider =
+    ChangeNotifierProvider<FulusConnectionState>((ref) {
+  throw UnimplementedError(
+    'fulusConnectionStateProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final fulusSyncApiProvider = Provider<FulusSyncApi>((ref) {
+  throw UnimplementedError(
+    'fulusSyncApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   throw UnimplementedError(
     'syncEngineProvider must be overridden in bootstrap.dart.',
@@ -424,7 +446,7 @@ final syncTriggersProvider = Provider<SyncTriggers>((ref) {
 /// this to show the toggle's current state and calls
 /// SyncConfig.setEnabled to flip it — see that class's own doc comment
 /// on why flipping it doesn't itself restart SyncTriggers.
-final syncConfigProvider = Provider<SyncConfig>((ref) {
+final syncConfigProvider = ChangeNotifierProvider<SyncConfig>((ref) {
   throw UnimplementedError(
     'syncConfigProvider must be overridden in bootstrap.dart.',
   );

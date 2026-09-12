@@ -209,19 +209,20 @@ class ReturnRepositoryImpl implements ReturnRepository {
       updatedAt: now,
     );
 
+    // Persist the return and its outbox entry together. A local return
+    // must never exist without a durable sync intent.
     await _db.transaction(() async {
       await _db.into(_db.returnRequests).insert(returnRequest.toDriftCompanion());
       for (final item in returnItems) {
         await _db.into(_db.returnItems).insert(item.toDriftCompanion());
       }
+      await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
     });
 
     // Same "no clientReference, a retry can create a genuine duplicate"
     // status as Categories/Suppliers — enqueued anyway, same reasoning:
     // the alternative (never syncing) is worse than a rare, honestly-
     // documented duplicate-on-retry risk.
-    await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
-
     return returnRequest;
   }
 
@@ -305,7 +306,13 @@ class ReturnRepositoryImpl implements ReturnRepository {
   @override
   Future<ReturnRequest> completeReturn(String returnLocalId) async {
     final row = await _requireReturnRow(returnLocalId);
-    if (_statusFromRow(row) != ReturnStatus.approved) {
+    final currentStatus = _statusFromRow(row);
+    // Completion is deliberately idempotent. A retry after a dropped
+    // response must not restore inventory or reverse customer credit twice.
+    if (currentStatus == ReturnStatus.completed) {
+      return getReturnById(returnLocalId).then((r) => r!);
+    }
+    if (currentStatus != ReturnStatus.approved) {
       throw StateError('This return must be approved before it can be completed.');
     }
     final sale = await (_db.select(_db.sales)

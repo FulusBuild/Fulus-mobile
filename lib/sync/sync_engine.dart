@@ -30,11 +30,13 @@ class SyncEngine {
     RetryPolicy retryPolicy = const RetryPolicy(),
     ConflictResolver conflictResolver = const ConflictResolver(),
     DiagnosticLogger? diagnosticLogger,
+    Future<bool> Function()? canSync,
   })  : _db = db,
         _handlersByEntityType = handlersByEntityType,
         _retryPolicy = retryPolicy,
         _conflictResolver = conflictResolver,
-        _diagnosticLogger = diagnosticLogger;
+        _diagnosticLogger = diagnosticLogger,
+        _canSync = canSync;
 
   final AppDatabase _db;
   final Map<String, SyncHandler> _handlersByEntityType;
@@ -53,6 +55,11 @@ class SyncEngine {
   /// touches a platform channel, exactly as before.
   final DiagnosticLogger? _diagnosticLogger;
 
+  /// Optional cloud authorization gate. A null gate preserves the existing
+  /// local-only/test behavior; when supplied, a false result leaves the
+  /// durable queue untouched and simply skips this run.
+  final Future<bool> Function()? _canSync;
+
   /// Architecture Section 8 names this as "a bounded number" without
   /// specifying the exact count — 5 chosen here as a reasonable default
   /// for a foundation phase; Section 8 doesn't require a specific value,
@@ -60,6 +67,7 @@ class SyncEngine {
   final int maxAttemptsBeforeAttentionNeeded;
 
   bool _isRunning = false;
+  Future<void>? _activeRun;
 
   /// Drains the queue once. Safe to call from multiple trigger sources
   /// close together (connectivity-regained and app-foregrounded firing
@@ -73,7 +81,22 @@ class SyncEngine {
   /// that have already crossed [maxAttemptsBeforeAttentionNeeded] are
   /// excluded from this run; when true, every pending item is eligible
   /// again, on the chance whatever made it fail has since changed.
-  Future<void> runOnce({bool manual = false}) async {
+  Future<void> runOnce({bool manual = false}) {
+    final active = _activeRun;
+    if (active != null) return active;
+
+    final run = _runOnce(manual: manual);
+    late Future<void> tracked;
+    tracked = run.whenComplete(() {
+      if (identical(_activeRun, tracked)) {
+        _activeRun = null;
+      }
+    });
+    _activeRun = tracked;
+    return tracked;
+  }
+
+  Future<void> _runOnce({required bool manual}) async {
     if (_isRunning) return;
     _isRunning = true;
     try {
@@ -84,6 +107,8 @@ class SyncEngine {
   }
 
   Future<void> _drainQueue({required bool manual}) async {
+    final canSync = _canSync;
+    if (canSync != null && !await canSync()) return;
     // Priority lanes first, oldest-first within each lane — Section 8
     // states both rules ("oldest-first ordering by default" and three
     // priority lanes) without saying explicitly which wins; ordering by

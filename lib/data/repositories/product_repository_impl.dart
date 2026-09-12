@@ -250,10 +250,17 @@ class ProductRepositoryImpl implements ProductRepository {
     if (draft.costPrice < 0) {
       throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
     }
+    final existingSku = await (_db.select(_db.products)..where((p) => p.sku.equals(draft.sku) & p.deletedAt.isNull())).getSingleOrNull();
+    if (existingSku != null) throw ArgumentError.value(draft.sku, 'sku', 'already exists');
+    if (draft.barcode != null && draft.barcode!.isNotEmpty) {
+      final existingBarcode = await (_db.select(_db.products)..where((p) => p.barcode.equals(draft.barcode!) & p.deletedAt.isNull())).getSingleOrNull();
+      if (existingBarcode != null) throw ArgumentError.value(draft.barcode, 'barcode', 'already exists');
+    }
     final localId = Ulid().toString();
     final product = draft.toProductEntity(localId: localId);
 
-    await _db.into(_db.products).insert(product.toDriftCompanion());
+    await _db.transaction(() async {
+      await _db.into(_db.products).insert(product.toDriftCompanion());
 
     // Always seeded, even when initialStock is 0 — a deliberate zero
     // (this product has none yet) is a different, more useful fact than
@@ -269,7 +276,8 @@ class ProductRepositoryImpl implements ProductRepository {
       currentStock: draft.initialStock,
     );
 
-    await _syncQueue.enqueue(SyncTask.createProduct(localId));
+      await _syncQueue.enqueue(SyncTask.createProduct(localId));
+    });
 
     return product;
   }
@@ -298,6 +306,16 @@ class ProductRepositoryImpl implements ProductRepository {
     if (costPrice != null && costPrice < 0) {
       throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
     }
+    final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
+    if (current == null) throw StateError('Product $localId does not exist.');
+    if (sku != null) {
+      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
+      if (duplicate != null) throw ArgumentError.value(sku, 'sku', 'already exists');
+    }
+    if (barcode != null && barcode.isNotEmpty) {
+      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
+      if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
+    }
     // Value.absent() for anything not passed — a genuine partial
     // update, not a reset, same convention as setLocalOverrides below
     // and as the backend's own PATCH (exclude_unset=True, verified
@@ -319,7 +337,30 @@ class ProductRepositoryImpl implements ProductRepository {
       ),
     );
 
+    // Collapse repeated edits into the same durable queue item. The
+    // handler reads the current persisted row at drain time, so one
+    // queued update is sufficient even if several edits happened while
+    // offline. This also prevents an edit storm from producing redundant
+    // server operations.
     await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+  }
+
+  @override
+  Future<void> archiveProduct(String localId) async {
+    final now = DateTime.now();
+    final row = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
+    if (row == null) throw StateError('Product $localId does not exist.');
+    await _db.transaction(() async {
+      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(
+        ProductsCompanion(
+          deletedAt: Value(now),
+          isActive: const Value(false),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncStatus.pending),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+    });
   }
 
   @override

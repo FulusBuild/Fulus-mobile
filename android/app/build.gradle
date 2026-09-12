@@ -6,6 +6,12 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     // No company domain is stated anywhere in this repo (no README, no
     // docs, no existing platform folder, nothing in code/comments/commit
@@ -52,7 +58,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.fulus_mobile"
+        applicationId = System.getenv("FULUS_APPLICATION_ID") ?: "com.example.fulus_mobile"
         // Android 8.0 (API 26) is the architecture document's stated
         // floor (see pubspec.yaml's own environment comment) — an
         // explicit override of Flutter's own lower default
@@ -63,14 +69,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add a real signing config before shipping a release
-            // build. Signed with the debug key for now so `flutter build
-            // apk --debug` (this checkpoint's target) and `flutter build
-            // apk --release` both succeed without requiring a keystore
-            // that doesn't exist yet.
-            signingConfig = signingConfigs.debug
+            // Production artifacts must never be signed with the debug key.
+            // CI/local release builds require android/key.properties.
+            if (!keystorePropertiesFile.exists()) {
+                throw new GradleException(
+                    "Release signing is not configured. Provide android/key.properties from key.properties.example."
+                )
+            }
+            signingConfig = signingConfigs.release
         }
     }
 }

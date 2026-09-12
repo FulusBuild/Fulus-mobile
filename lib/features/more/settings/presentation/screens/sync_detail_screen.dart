@@ -90,7 +90,7 @@ class SyncDetailScreen extends ConsumerWidget {
     showFulusSnackbar(
       context,
       message: value
-          ? 'Sync enabled. Restart Fulus for this to take effect.'
+          ? 'Sync enabled. Pending data will sync when a server connection is available.'
           : 'Sync disabled. Data already queued will stay queued until you turn this back on.',
     );
   }

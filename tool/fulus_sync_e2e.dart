@@ -38,6 +38,7 @@ Future<void> main() async {
   final operationId = 'e2e-create-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
+  var cleanedUp = false;
 
   try {
     final createPayload = {
@@ -110,10 +111,11 @@ Future<void> main() async {
       payload: {'server_id': serverId},
     );
     _expect2xx(delete, 'cleanup product.delete');
+    cleanedUp = true;
 
     stdout.writeln('PASS: cleanup');
   } finally {
-    if (serverId != null) {
+    if (serverId != null && !cleanedUp) {
       try {
         final cleanup = await _submit(
           dio,

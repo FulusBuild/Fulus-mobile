@@ -1,12 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stage 16 — Sync Layer Repositioning.
 ///
 /// The single, persisted answer to "is the sync extension switched on
-/// right now" — every other change in this stage exists to make this
-/// class's [isEnabled] the ONE place that question gets decided, rather
-/// than something inferred separately (and inconsistently) at each call
-/// site that might otherwise reach for the network.
+/// right now". The class is also reactive so the long-lived sync trigger
+/// service can respond immediately when Settings changes the value.
 ///
 /// Default is `false`. This is not a placeholder waiting to be flipped
 /// before release — it's the deliberate reading of HANDOVER's own
@@ -36,7 +35,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// sensitive "is background sync switched on" actually is, given
 /// SecureStorage's own doc comment on why that treatment is reserved for
 /// the refresh token and PIN verifiers specifically.
-class SyncConfig {
+class SyncConfig extends ChangeNotifier {
   SyncConfig({required SharedPreferences preferences})
       : _preferences = preferences;
 
@@ -78,6 +77,9 @@ class SyncConfig {
   /// solved by, say, this setter reaching sideways into a running
   /// SyncTriggers instance it has no reference to and was never meant
   /// to own.
-  Future<void> setEnabled(bool value) =>
-      _preferences.setBool(_isEnabledKey, value);
+  Future<void> setEnabled(bool value) async {
+    if (isEnabled == value) return;
+    await _preferences.setBool(_isEnabledKey, value);
+    notifyListeners();
+  }
 }

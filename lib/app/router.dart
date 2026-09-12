@@ -45,6 +45,7 @@ import '../features/more/settings/presentation/screens/backup_screen.dart';
 import '../features/more/settings/presentation/screens/manage_locations_screen.dart';
 import '../features/more/settings/presentation/screens/printer_pairing_screen.dart';
 import '../features/more/settings/presentation/screens/settings_main_screen.dart';
+import '../features/more/settings/presentation/screens/fulus_cloud_connection_screen.dart';
 import '../features/more/settings/presentation/screens/sync_detail_screen.dart';
 import '../features/onboarding/presentation/screens/add_first_product_screen.dart';
 import '../features/onboarding/presentation/screens/essential_settings_screen.dart';
@@ -481,6 +482,11 @@ final appRouter = GoRouter(
                   name: 'moreSettings',
                   builder: (context, state) => const SettingsMainScreen(),
                   routes: [
+                    GoRoute(
+                      path: 'cloud',
+                      name: 'moreSettingsCloud',
+                      builder: (context, state) => const FulusCloudConnectionScreen(),
+                    ),
                     GoRoute(
                       path: 'printers',
                       name: 'moreSettingsPrinters',

@@ -1,0 +1,5 @@
+-- Phase 6 RPC actor hardening. Staff mutations are callable only through the
+-- authenticated Edge Function, which verifies the JWT and supplies actor_user_id.
+-- The functions themselves remain SECURITY DEFINER so their transaction can
+-- atomically update membership/device/audit rows.
+-- See the live migration history for the full function bodies.

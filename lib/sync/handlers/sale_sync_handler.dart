@@ -1,144 +1,154 @@
 import '../../data/local/database/database.dart';
 import '../../data/remote/endpoints/sales_api.dart';
+import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../sync_handler.dart';
 
-/// The only SyncHandler that exists in this checkpoint — matches the
-/// only SyncTask factory that exists (SyncTask.createSale) and the only
-/// repository built so far (SaleRepository). Registered into SyncEngine
-/// under entityType 'sale' in bootstrap.dart.
 class SaleSyncHandler implements SyncHandler {
   SaleSyncHandler({
     required AppDatabase db,
-    required SalesApi salesApi,
+    FulusSyncApi? fulusSyncApi,
+    FulusConnectionState? fulusConnectionState,
     required SaleRepository saleRepository,
+    SalesApi? salesApi,
   })  : _db = db,
-        _salesApi = salesApi,
-        _saleRepository = saleRepository;
+        _fulusSyncApi = fulusSyncApi,
+        _fulusConnectionState = fulusConnectionState,
+        _saleRepository = saleRepository,
+        _salesApi = salesApi;
 
   final AppDatabase _db;
-  final SalesApi _salesApi;
+  final FulusSyncApi? _fulusSyncApi;
+  final FulusConnectionState? _fulusConnectionState;
   final SaleRepository _saleRepository;
+  final SalesApi? _salesApi;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
     if (item.operation != 'create') {
-      // No caller in this codebase enqueues 'update'/'delete' for
-      // 'sale' today — SyncTask.createSale is the only factory that
-      // exists. Kept as an explicit, honest failure rather than
-      // silently doing nothing if this is ever somehow reached.
-      throw StateError(
-        'SaleSyncHandler does not support operation "${item.operation}" '
-        'yet — only "create" is implemented.',
-      );
+      throw StateError('SaleSyncHandler supports only create.');
     }
-
     final sale = await _saleRepository.getSaleByLocalId(item.entityLocalId);
     if (sale == null) {
-      throw StateError(
-        'No local sale found for ${item.entityLocalId} — the queue item '
-        'outlived its own row.',
-      );
+      throw StateError('No local sale found for ${item.entityLocalId}.');
     }
 
-    final dto = await _buildCreateDto(sale);
+    // Validate referenced customers before selecting either cloud or legacy
+    // transport. A sale cannot sync until its customer has a server identity;
+    // otherwise the legacy path would reach the API with an unresolved local ID.
+    if (sale.customerId != null) {
+      await _resolveCustomerServerId(sale);
+    }
 
-    final response = await _salesApi.createSale(
-      dto: dto,
+    final businessId = _fulusConnectionState?.selectedBusinessId;
+    final device = _fulusConnectionState?.registeredDevice;
+    if (_fulusSyncApi != null && businessId != null && device?.status == 'active') {
+      final customerId = await _resolveCustomerServerId(sale);
+      final items = await _resolveItems(sale);
+      final result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'sale.create',
+        operationId: item.id,
+        clientReference: sale.clientReference,
+        deviceClientId: device!.deviceClientId,
+        payload: {
+          'business_id': businessId,
+          'location_id': sale.locationId,
+          'customer_id': customerId,
+          'client_reference': sale.clientReference,
+          'sale_date': sale.saleDate.toIso8601String(),
+          'discount': sale.discount,
+          'tax': sale.tax,
+          'amount_paid': sale.amountPaid,
+          'payment_method': sale.paymentMethod,
+          'notes': sale.notes,
+          'items': items,
+        },
+      );
+      final data = Map<String, dynamic>.from(result['data'] as Map);
+      final serverId = data['entity_id'] as String?;
+      if (serverId == null) {
+        throw StateError('Fulus sale sync returned no server entity ID.');
+      }
+      await _saleRepository.markSynced(
+        localId: sale.localId,
+        serverId: serverId,
+        invoiceNumber: data['invoice_number'] as String? ?? sale.clientReference,
+      );
+      return;
+    }
+
+    final salesApi = _salesApi;
+    if (salesApi == null) {
+      throw StateError('Fulus cloud authorization is required for sale sync.');
+    }
+    final items = await _resolveItems(sale);
+    final synced = await salesApi.createSale(
+      dto: SaleCreateDto(
+        clientReference: sale.clientReference,
+        locationId: sale.locationId,
+        customerId: sale.customerId,
+        saleDate: sale.saleDate,
+        discount: sale.discount,
+        tax: sale.tax,
+        amountPaid: sale.amountPaid,
+        paymentMethod: sale.paymentMethod,
+        notes: sale.notes,
+        items: items
+            .map((item) => SaleItemCreateDto(
+                  productId: item['product_id'] as String,
+                  quantity: item['quantity'] as int,
+                  unitPrice: (item['unit_price'] as num).toDouble(),
+                ))
+            .toList(growable: false),
+      ),
       locationLocalId: sale.locationId,
     );
-
-    // response.serverId and .invoiceNumber are non-null in practice —
-    // SalesApi's own _toDomain always populates both directly from a
-    // real server response (verified directly in sales_api.dart) — the
-    // `!` here reflects that guarantee, not an unchecked assumption.
+    final syncedServerId = synced.serverId;
+    if (syncedServerId == null) {
+      throw StateError('Sales API returned no server ID for synced sale.');
+    }
     await _saleRepository.markSynced(
       localId: sale.localId,
-      serverId: response.serverId!,
-      invoiceNumber: response.invoiceNumber!,
+      serverId: syncedServerId,
+      invoiceNumber: synced.invoiceNumber ?? sale.clientReference,
     );
   }
 
-  /// Builds the wire-format DTO from the local Sale — and this is
-  /// where a real, currently-unresolved gap surfaces: SaleItemCreateDto
-  /// needs each product's SERVER id (backend/app/schemas/sale.py's
-  /// SaleItemCreate.product_id), not its local ULID, and SaleCreateDto
-  /// needs the customer's server id the same way. Neither Product nor
-  /// Customer has its own repository or serverId-reconciliation built
-  /// yet in this phase (Architecture Section 4: "one repository
-  /// interface per domain concept" — only SaleRepository exists so
-  /// far) — there is currently no mechanism by which a product or
-  /// customer row would even HAVE a serverId populated, since neither
-  /// is created or pulled-down through the mobile app yet.
-  ///
-  /// Rather than silently sending the local ULID as if it were a
-  /// server id (which would either 422 confusingly or, worse, silently
-  /// corrupt data if the backend ever happened to accept an arbitrary
-  /// string there), this throws a clear, specific error naming exactly
-  /// which product/customer is missing a serverId. SyncEngine's
-  /// catch-all treats this the same as a network failure (retry-
-  /// eligible, counts toward the attempts threshold) — a deliberate
-  /// choice, not an oversight: the gap is real but temporary (it
-  /// disappears once Product/Customer sync exists), so treating it as
-  /// "try again later" rather than an immediate, permanent
-  /// attentionNeeded is the more honest framing of what's actually
-  /// going on, even though today nothing will make it succeed sooner.
-  Future<SaleCreateDto> _buildCreateDto(Sale sale) async {
-    String? customerServerId;
-    if (sale.customerId != null) {
-      final customer = await (_db.select(_db.customers)
-            ..where((c) => c.localId.equals(sale.customerId!)))
-          .getSingleOrNull();
-      customerServerId = customer?.serverId;
-      if (customerServerId == null) {
-        throw StateError(
-          'Customer ${sale.customerId} has no serverId yet — customer '
-          'sync is not built in this phase, so this sale cannot be '
-          'created server-side until that exists.',
-        );
-      }
+  Future<String?> _resolveCustomerServerId(Sale sale) async {
+    if (sale.customerId == null) return null;
+    final customer = await (_db.select(_db.customers)
+          ..where((c) => c.localId.equals(sale.customerId!)))
+        .getSingleOrNull();
+    final serverId = customer?.serverId;
+    if (serverId == null) {
+      throw StateError('Customer ${sale.customerId} has no serverId yet.');
     }
+    return serverId;
+  }
 
-    final items = <SaleItemCreateDto>[];
-    for (final item in sale.items) {
-      final productLocalId = item.productLocalId;
-      if (productLocalId == null) {
-        throw StateError(
-          'Sale item has no productLocalId (a Quick Sale line) — this '
-          'sale should have been marked attentionNeeded at creation '
-          'instead of reaching sync.',
-        );
+  Future<List<Map<String, dynamic>>> _resolveItems(Sale sale) async {
+    final items = <Map<String, dynamic>>[];
+    for (final line in sale.items) {
+      final localProductId = line.productLocalId;
+      if (localProductId == null) {
+        throw StateError('Sale item has no productLocalId.');
       }
       final product = await (_db.select(_db.products)
-            ..where((p) => p.localId.equals(productLocalId)))
+            ..where((p) => p.localId.equals(localProductId)))
           .getSingleOrNull();
-      final productServerId = product?.serverId;
-      if (productServerId == null) {
-        throw StateError(
-          'Product $productLocalId has no serverId yet — product '
-          'sync is not built in this phase, so this sale cannot be '
-          'created server-side until that exists.',
-        );
+      final productId = product?.serverId;
+      if (productId == null) {
+        throw StateError('Product $localProductId has no serverId yet.');
       }
-      items.add(SaleItemCreateDto(
-        productId: productServerId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      ));
+      items.add({
+        'product_id': productId,
+        'quantity': line.quantity,
+        'unit_price': line.unitPrice,
+      });
     }
-
-    return SaleCreateDto(
-      items: items,
-      customerId: customerServerId,
-      locationId: sale.locationId,
-      discount: sale.discount,
-      tax: sale.tax,
-      amountPaid: sale.amountPaid,
-      paymentMethod: sale.paymentMethod,
-      notes: sale.notes,
-      clientReference: sale.clientReference,
-      saleDate: sale.saleDate,
-    );
+    return items;
   }
 }

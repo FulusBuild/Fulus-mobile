@@ -115,6 +115,17 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   ),
                 const SizedBox(height: AppSpacing.lg),
               ],
+              if (isOwner) ...[
+                FulusSectionHeader(title: 'Cloud'),
+                FulusListRow(
+                  leading: const Icon(Icons.cloud_outlined),
+                  title: const Text('Fulus Cloud'),
+                  subtitle: const Text('Connect this business for server-authoritative sync'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.pushNamed('moreSettingsCloud'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               FulusSectionHeader(title: 'Security'),
               FulusListRow(
                 leading: const Icon(Icons.password_outlined),

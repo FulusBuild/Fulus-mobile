@@ -13,5 +13,9 @@ abstract class CategoryRepository {
 
   Future<Category?> getCategoryById(String localId);
 
+  Future<void> updateCategory({required String localId, String? name, String? description});
+
+  Future<void> archiveCategory(String localId);
+
   Future<void> markSynced({required String localId, required String serverId});
 }

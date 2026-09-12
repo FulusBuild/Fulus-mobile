@@ -76,7 +76,7 @@ void main() {
       db: db,
       syncQueue: SyncQueue(db),
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     handler = SaleSyncHandler(
       db: db,
@@ -109,6 +109,13 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
+    await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+          productLocalId: productId,
+          locationLocalId: locationId,
+          currentStock: const Value(10),
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ));
   });
 
   tearDown(() async {

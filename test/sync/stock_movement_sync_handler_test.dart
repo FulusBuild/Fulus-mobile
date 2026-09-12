@@ -105,6 +105,13 @@ void main() {
             syncStatus: SyncStatus.settled,
             serverId: const Value(productServerId),
           ));
+      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+            productLocalId: productLocalId,
+            locationLocalId: locationId,
+            currentStock: const Value(20),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
     });
 
     test('stockIn: calls the stock-in endpoint with the product serverId and marks settled', () async {

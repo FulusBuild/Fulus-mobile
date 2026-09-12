@@ -42,10 +42,24 @@ class SyncTask {
         priority: SyncPriority.salesAndPayments,
       );
 
+  factory SyncTask.updateCustomer(String localId) => SyncTask(
+        entityType: 'customer',
+        entityLocalId: localId,
+        operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   factory SyncTask.createCustomer(String localId) => SyncTask(
         entityType: 'customer',
         entityLocalId: localId,
         operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
+  factory SyncTask.updateExpense(String localId) => SyncTask(
+        entityType: 'expense',
+        entityLocalId: localId,
+        operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
 
@@ -66,6 +80,13 @@ class SyncTask {
   /// Same priority tier as createCustomer/createExpense — a category or
   /// supplier isn't money, but it's routine day-to-day catalog upkeep, not
   /// the photos-and-bulk-import lane either.
+  factory SyncTask.updateCategory(String localId) => SyncTask(
+        entityType: 'category',
+        entityLocalId: localId,
+        operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+
   factory SyncTask.createCategory(String localId) => SyncTask(
         entityType: 'category',
         entityLocalId: localId,
@@ -138,6 +159,13 @@ class SyncTask {
   /// already use, just with a three-way branch instead of a single call.
   /// Inventing three sync-queue-level operation strings for this would
   /// duplicate a distinction the entity itself already carries.
+  factory SyncTask.recordCustomerRepayment(String localId) => SyncTask(
+        entityType: 'customer_ledger',
+        entityLocalId: localId,
+        operation: 'repayment',
+        priority: SyncPriority.salesAndPayments,
+      );
+
   factory SyncTask.recordStockMovement(String localId) => SyncTask(
         entityType: 'stock_movement',
         entityLocalId: localId,
@@ -212,7 +240,18 @@ class SyncQueue {
   }
 
   Future<void> enqueue(SyncTask task) async {
-    await _db.into(_db.syncQueueItems).insert(
+    // Re-read the persisted row inside one transaction so concurrent
+    // repository writes cannot create duplicate queue entries.
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.syncQueueItems)
+            ..where((q) => q.entityType.equals(task.entityType))
+            ..where((q) => q.entityLocalId.equals(task.entityLocalId))
+            ..where((q) => q.operation.equals(task.operation))
+            ..limit(1))
+          .getSingleOrNull();
+      if (existing != null) return;
+
+      await _db.into(_db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
             id: Ulid().toString(),
             entityType: task.entityType,
@@ -222,6 +261,7 @@ class SyncQueue {
             enqueuedAt: DateTime.now(),
           ),
         );
+    });
 
     // Deliberately NOT awaited: enqueue() must still return immediately
     // regardless of whether a sync attempt is already running or how

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
@@ -229,6 +231,28 @@ void main() {
     expect(remaining, hasLength(1));
     expect(remaining.single.entityLocalId, 'orphan');
     expect(remaining.single.lastError, contains('No sync handler registered'));
+  });
+
+  test('concurrent triggers share one in-flight drain', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    await seedItem(id: 'q1', entityLocalId: 'slow', enqueuedAt: DateTime.now());
+
+    final handler = _ScriptedHandler((_) async {
+      started.complete();
+      await release.future;
+    });
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    final first = engine.runOnce();
+    await started.future;
+    final second = engine.runOnce();
+    expect(identical(first, second), isTrue);
+
+    release.complete();
+    await Future.wait([first, second]);
+    expect(handler.attemptedIds, ['slow']);
+    expect(await allQueueItems(), isEmpty);
   });
 
   group('retry backoff', () {

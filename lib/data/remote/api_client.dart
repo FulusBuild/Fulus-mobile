@@ -65,6 +65,7 @@ class ApiClient {
   final Dio dio;
   final SecureStorage _secureStorage;
   late final _AuthInterceptor _authInterceptor;
+  String? _serverAccessToken;
 
   /// STALE COMMENT CORRECTED (self-audit pass, after Stage 4): this used
   /// to say AuthRepositoryImpl calls this right after a successful login
@@ -75,7 +76,32 @@ class ApiClient {
   /// exactly what it says; there's just currently nothing left in the
   /// app that calls it. See this class's own doc comment for the full
   /// picture of what that means for the interceptor as a whole.
-  void setAccessToken(String? token) => _authInterceptor.setAccessToken(token);
+  void setAccessToken(String? token) {
+    _authInterceptor.setAccessToken(token);
+    _serverAccessToken = token;
+  }
+
+  /// Server-session helpers used only by the optional connection layer.
+  /// Access tokens remain memory-only; refresh tokens remain in Keystore-backed storage.
+  Future<void> setServerAccessToken(String token) async {
+    _authInterceptor.setAccessToken(token);
+    _serverAccessToken = token;
+    final refreshToken = await _secureStorage.getRefreshToken();
+    if (refreshToken == null) {
+      // The caller will persist the newly issued refresh token explicitly
+      // through persistServerRefreshToken below.
+    }
+  }
+
+  Future<void> persistServerRefreshToken(String token) =>
+      _secureStorage.setRefreshToken(token);
+
+  String? get serverAccessToken => _serverAccessToken;
+
+  Future<String?> secureRefreshToken() => _secureStorage.getRefreshToken();
+
+  Future<void> clearServerRefreshToken() =>
+      _secureStorage.deleteRefreshToken();
 
   /// Rewires what happens when a refresh genuinely fails mid-session —
   /// a setter, not only a constructor parameter, for the same reason as
@@ -88,6 +114,11 @@ class ApiClient {
   /// graph exists.
   void setOnSessionExpired(Future<void> Function() callback) =>
       _authInterceptor.setOnSessionExpired(callback);
+
+  /// Sets the stable device identifier used by the dedicated Fulus API to
+  /// authorize this installation for sync. The value itself is not a secret;
+  /// it is an installation identifier and is stored in secure storage so it
+  /// survives app restarts without being coupled to the local PIN identity.
 
   /// Converts whatever Dio produced into a real Failure, following
   /// Architecture Section 5's table exhaustively. Called explicitly by
@@ -264,12 +295,26 @@ class _AuthInterceptor extends Interceptor {
   void setOnSessionExpired(Future<void> Function() callback) =>
       _onSessionExpired = callback;
 
-  @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+  Future<void> _attachHeaders(RequestOptions options) async {
     if (_accessToken != null) {
       options.headers['Authorization'] = 'Bearer $_accessToken';
     }
-    handler.next(options);
+    final deviceClientId = await _secureStorage.getDeviceClientId();
+    if (deviceClientId != null && deviceClientId.isNotEmpty) {
+      options.headers['x-fulus-device-id'] = deviceClientId;
+    }
+  }
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    try {
+      await _attachHeaders(options);
+      handler.next(options);
+    } catch (_) {
+      // Secure-storage failure must never make local Fulus unusable.
+      // The server will return the appropriate authentication/device error.
+      handler.next(options);
+    }
   }
 
   @override

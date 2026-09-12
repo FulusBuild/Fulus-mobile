@@ -1,3 +1,5 @@
+import '../../sync/sync_queue.dart';
+
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
@@ -9,7 +11,7 @@ import '../local/database/tables.dart';
 import 'customer_ledger_mapper.dart';
 
 class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
-  CustomerCreditRepositoryImpl({required AppDatabase db}) : _db = db;
+  CustomerCreditRepositoryImpl({required AppDatabase db, SyncQueue? syncQueue}) : _db = db;
 
   final AppDatabase _db;
 

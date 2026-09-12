@@ -6,7 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../../../app/providers.dart';
-import '../../../../../core/config/supabase_config.dart';
+import 'package:fulus_mobile/core/config/supabase_config.dart';
 import '../../../../../core/errors/failure.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
@@ -103,7 +103,7 @@ class _FulusCloudConnectionScreenState
   Future<void> _registerDevice(dynamic connection) async {
     final storage = ref.read(secureStorageProvider);
     final deviceId =
-        await storage.ensureDeviceClientId(ULID.random().toString());
+        await storage.ensureDeviceClientId(Ulid().toString());
     final package = await PackageInfo.fromPlatform();
 
     await connection.registerDevice(

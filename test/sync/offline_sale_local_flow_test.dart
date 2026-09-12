@@ -166,6 +166,14 @@ void main() {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
         .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
+    await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+      productLocalId: productId,
+      locationLocalId: locationId,
+      currentStock: const Value(10),
+      updatedAt: DateTime.now(),
+      syncStatus: SyncStatus.settled,
+    ));
+
     // ── Phase 2: create a sale "while offline" ───────────────────────
     // "Offline" here means exactly what it means in the real app: the
     // write happens locally and returns without anything ever
@@ -177,7 +185,7 @@ void main() {
       db: db,
       syncQueue: syncQueue1,
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
 
     final item = SaleItem(
@@ -248,7 +256,7 @@ void main() {
       db: db,
       syncQueue: syncQueue2,
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     final handler = SaleSyncHandler(
       db: db,
