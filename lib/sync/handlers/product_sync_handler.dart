@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
