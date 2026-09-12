@@ -85,7 +85,7 @@ class SaleSyncHandler implements SyncHandler {
     await _saleRepository.markSynced(
       localId: sale.localId,
       serverId: serverId,
-      invoiceNumber: data['invoice_number'] as String?,
+      invoiceNumber: data['invoice_number'] as String? ?? sale.clientReference,
     );
   }
 }
