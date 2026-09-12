@@ -592,7 +592,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
-      syncConfigProvider.overrideWithValue(syncConfig),
+      syncConfigProvider.overrideWith((ref) => syncConfig),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       // Onboarding polish
       onboardingStateProvider.overrideWithValue(onboardingState),
