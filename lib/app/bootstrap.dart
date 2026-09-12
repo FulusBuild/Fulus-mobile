@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env_config.dart';
+import '../core/config/supabase_config.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
 import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
@@ -164,6 +165,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
 
   final authApi = AuthApi(apiClient);
+
+  // Optional cloud session restore is deliberately fire-and-forget: a cold
+  // start must never wait on the network or make local Fulus unavailable.
+  // If a refresh token exists, the session is restored in the background;
+  // if it does not, nothing happens.
+  unawaited(authApi.restoreServerSession(
+    supabaseUrl: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.publishableKey,
+  ));
 
   // Constructed before AuthRepositoryImpl on purpose: AuthRepositoryImpl
   // depends on AuditRepository (to log login/logout/account-creation
