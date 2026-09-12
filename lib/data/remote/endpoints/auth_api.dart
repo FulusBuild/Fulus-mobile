@@ -123,10 +123,12 @@ class AuthApi {
     required String deviceName,
     required String platform,
     required String appVersion,
+    required String functionBaseUrl,
+    required String publishableKey,
   }) async {
     try {
-      final response = await _client.dio.post(
-        '/functions/v1/fulus-api',
+      final response = await Dio(BaseOptions(baseUrl: functionBaseUrl)).post(
+        '',
         data: {
           'action': 'register_device',
           'business_id': businessId,
@@ -135,6 +137,11 @@ class AuthApi {
           'platform': platform,
           'app_version': appVersion,
         },
+        options: Options(headers: {
+          'apikey': publishableKey,
+          'Authorization': 'Bearer ${_client.serverAccessToken}',
+          'content-type': 'application/json',
+        }),
       );
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
