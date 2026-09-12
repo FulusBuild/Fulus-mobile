@@ -620,6 +620,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
       fulusConnectionStateProvider.overrideWithValue(fulusConnectionState),
+      fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
       syncConfigProvider.overrideWith((ref) => syncConfig),
