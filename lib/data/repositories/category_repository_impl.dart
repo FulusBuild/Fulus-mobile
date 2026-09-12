@@ -23,9 +23,10 @@ class CategoryRepositoryImpl implements CategoryRepository {
     final localId = Ulid().toString();
     final category = draft.toCategoryEntity(localId: localId);
 
-    await _db.into(_db.categories).insert(category.toDriftCompanion());
-
-    await _syncQueue.enqueue(SyncTask.createCategory(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.categories).insert(category.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createCategory(localId));
+    });
 
     return category;
   }
@@ -61,6 +62,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
         syncStatus: const Value(SyncStatus.pending),
       ),
     );
+    await _syncQueue.enqueue(SyncTask.updateCategory(localId));
   }
 
   @override
@@ -74,6 +76,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
         syncStatus: const Value(SyncStatus.pending),
       ),
     );
+    await _syncQueue.enqueue(SyncTask.updateCategory(localId));
   }
 
   @override
