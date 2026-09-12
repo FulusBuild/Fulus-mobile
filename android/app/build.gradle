@@ -58,7 +58,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.fulus_mobile"
+        applicationId = System.getenv("FULUS_APPLICATION_ID") ?: "com.example.fulus_mobile"
         // Android 8.0 (API 26) is the architecture document's stated
         // floor (see pubspec.yaml's own environment comment) — an
         // explicit override of Flutter's own lower default
