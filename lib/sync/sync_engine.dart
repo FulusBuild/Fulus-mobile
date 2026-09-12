@@ -30,11 +30,13 @@ class SyncEngine {
     RetryPolicy retryPolicy = const RetryPolicy(),
     ConflictResolver conflictResolver = const ConflictResolver(),
     DiagnosticLogger? diagnosticLogger,
+    Future<bool> Function()? canSync,
   })  : _db = db,
         _handlersByEntityType = handlersByEntityType,
         _retryPolicy = retryPolicy,
         _conflictResolver = conflictResolver,
-        _diagnosticLogger = diagnosticLogger;
+        _diagnosticLogger = diagnosticLogger,
+        _canSync = canSync;
 
   final AppDatabase _db;
   final Map<String, SyncHandler> _handlersByEntityType;
@@ -52,6 +54,11 @@ class SyncEngine {
   /// this class constructible in a plain `dart test` context that never
   /// touches a platform channel, exactly as before.
   final DiagnosticLogger? _diagnosticLogger;
+
+  /// Optional cloud authorization gate. A null gate preserves the existing
+  /// local-only/test behavior; when supplied, a false result leaves the
+  /// durable queue untouched and simply skips this run.
+  final Future<bool> Function()? _canSync;
 
   /// Architecture Section 8 names this as "a bounded number" without
   /// specifying the exact count — 5 chosen here as a reasonable default
@@ -84,6 +91,8 @@ class SyncEngine {
   }
 
   Future<void> _drainQueue({required bool manual}) async {
+    final canSync = _canSync;
+    if (canSync != null && !await canSync()) return;
     // Priority lanes first, oldest-first within each lane — Section 8
     // states both rules ("oldest-first ordering by default" and three
     // priority lanes) without saying explicitly which wins; ordering by
