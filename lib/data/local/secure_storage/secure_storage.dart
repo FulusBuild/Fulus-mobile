@@ -54,6 +54,13 @@ class SecureStorage {
   Future<void> setDeviceClientId(String id) =>
       _storage.write(key: _deviceClientIdKey, value: id);
 
+  Future<String> ensureDeviceClientId(String id) async {
+    final existing = await getDeviceClientId();
+    if (existing != null && existing.isNotEmpty) return existing;
+    await setDeviceClientId(id);
+    return id;
+  }
+
   Future<String?> getDeviceClientId() =>
       _storage.read(key: _deviceClientIdKey);
 
