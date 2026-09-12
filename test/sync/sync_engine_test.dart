@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
