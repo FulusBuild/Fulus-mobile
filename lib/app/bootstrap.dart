@@ -266,8 +266,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     authRepository: authRepository,
     customerCreditRepository: customerCreditRepository,
     diagnosticLogger: diagnosticLogger,
-    canSync: () async => fulusConnectionState.isConnected &&
-        fulusConnectionState.isDeviceAuthorized,
   );
   final customerRepository = CustomerRepositoryImpl(
     db: database,
@@ -328,8 +326,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     productRepository: productRepository,
     saleRepository: saleRepository,
     diagnosticLogger: diagnosticLogger,
-    canSync: () async => fulusConnectionState.isConnected &&
-        fulusConnectionState.isDeviceAuthorized,
   );
   final returnRepository = ReturnRepositoryImpl(
     db: database,
@@ -618,7 +614,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       businessSettingsApiProvider.overrideWithValue(businessSettingsApi),
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
-      fulusConnectionStateProvider.overrideWithValue(fulusConnectionState),
+      fulusConnectionStateProvider.overrideWith((ref) => fulusConnectionState),
       fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
