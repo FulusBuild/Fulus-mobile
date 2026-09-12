@@ -22,6 +22,7 @@ import '../data/remote/fulus_business_context.dart';
 import '../data/remote/fulus_connection_state.dart';
 import '../data/remote/fulus_device_registration.dart';
 import '../data/remote/fulus_sync_api.dart';
+import '../data/remote/fulus_staff_access_api.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
