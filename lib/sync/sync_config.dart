@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stage 16 — Sync Layer Repositioning.
@@ -36,7 +37,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// sensitive "is background sync switched on" actually is, given
 /// SecureStorage's own doc comment on why that treatment is reserved for
 /// the refresh token and PIN verifiers specifically.
-class SyncConfig {
+class SyncConfig extends ChangeNotifier {
   SyncConfig({required SharedPreferences preferences})
       : _preferences = preferences;
 
@@ -78,6 +79,9 @@ class SyncConfig {
   /// solved by, say, this setter reaching sideways into a running
   /// SyncTriggers instance it has no reference to and was never meant
   /// to own.
-  Future<void> setEnabled(bool value) =>
-      _preferences.setBool(_isEnabledKey, value);
+  Future<void> setEnabled(bool value) async {
+    if (isEnabled == value) return;
+    await _preferences.setBool(_isEnabledKey, value);
+    notifyListeners();
+  }
 }
