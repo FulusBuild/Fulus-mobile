@@ -166,6 +166,14 @@ void main() {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
         .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
+    await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+      productLocalId: productId,
+      locationLocalId: locationId,
+      currentStock: const Value(10),
+      updatedAt: DateTime.now(),
+      syncStatus: SyncStatus.settled,
+    ));
+
     // ── Phase 2: create a sale "while offline" ───────────────────────
     // "Offline" here means exactly what it means in the real app: the
     // write happens locally and returns without anything ever
