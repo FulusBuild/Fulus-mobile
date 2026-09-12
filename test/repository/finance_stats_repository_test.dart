@@ -14,7 +14,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     repository = FinanceStatsRepositoryImpl(
       db: db,
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
   });
 
