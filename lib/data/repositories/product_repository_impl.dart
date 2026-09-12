@@ -307,11 +307,11 @@ class ProductRepositoryImpl implements ProductRepository {
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
     if (current == null) throw StateError('Product $localId does not exist.');
     if (sku != null) {
-      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.localId.isNotEqual(localId) & p.deletedAt.isNull())).getSingleOrNull();
+      final duplicate = await (_db.select(_db.products)..where((p) => p.sku.equals(sku) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(sku, 'sku', 'already exists');
     }
     if (barcode != null && barcode.isNotEmpty) {
-      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.localId.isNotEqual(localId) & p.deletedAt.isNull())).getSingleOrNull();
+      final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
     // Value.absent() for anything not passed — a genuine partial
