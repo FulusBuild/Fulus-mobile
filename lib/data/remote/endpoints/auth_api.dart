@@ -63,4 +63,69 @@ class AuthApi {
       throw _client.mapError(e);
     }
   }
+
+  /// Optional cloud connection. Local PIN authentication is never involved;
+  /// the caller supplies a portable credential only for this connection hop.
+  /// The password is sent directly to Supabase Auth over TLS and is never
+  /// persisted by Fulus. Only the refresh token is retained in secure storage.
+  Future<ServerAuthSessionDto> connectServer({
+    required String email,
+    required String password,
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
+    try {
+      final response = await authClient.post(
+        '/auth/v1/token?grant_type=password',
+        data: {'email': email, 'password': password},
+        options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}),
+      );
+      final data = response.data as Map<String, dynamic>;
+      final session = ServerAuthSessionDto.fromJson(data);
+      await _client.setServerAccessToken(session.accessToken);
+      return session;
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
+  /// Restores an optional server session using only the secure refresh token.
+  /// If none exists, the app remains fully local and this returns null.
+  Future<ServerAuthSessionDto?> restoreServerSession({
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final refreshToken = await _client.secureRefreshToken();
+    if (refreshToken == null) return null;
+    final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
+    try {
+      final response = await authClient.post(
+        '/auth/v1/token?grant_type=refresh_token',
+        data: {'refresh_token': refreshToken},
+        options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}),
+      );
+      final session = ServerAuthSessionDto.fromJson(response.data as Map<String, dynamic>);
+      await _client.setServerAccessToken(session.accessToken);
+      return session;
+    } on DioException {
+      await _client.clearServerRefreshToken();
+      _client.setAccessToken(null);
+      return null;
+    }
+  }
+}
+
+class ServerAuthSessionDto {
+  const ServerAuthSessionDto({required this.accessToken, required this.refreshToken, required this.userId});
+  final String accessToken;
+  final String refreshToken;
+  final String userId;
+
+  factory ServerAuthSessionDto.fromJson(Map<String, dynamic> json) => ServerAuthSessionDto(
+    accessToken: json['access_token'] as String,
+    refreshToken: json['refresh_token'] as String,
+    userId: (json['user'] as Map<String, dynamic>)['id'] as String,
+  );
+}
 }
