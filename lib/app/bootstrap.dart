@@ -185,9 +185,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     client: apiClient,
     functionBaseUrl: fulusFunctionBaseUrl,
   );
+  final fulusStaffAccessApi = FulusStaffAccessApi(
+    client: apiClient,
+    functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api',
+  );
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
+    staffAccessApi: fulusStaffAccessApi,
   );
 
   final authApi = AuthApi(apiClient);
