@@ -158,22 +158,85 @@ class BackupRepositoryImpl implements BackupRepository {
       safetyFileName = safety.metadata.fileName;
     }
 
+    // Stage the replacement beside the live database first. A direct
+    // copy over the live path is not crash-safe: if the process or device
+    // dies halfway through, the database can be left truncated/corrupt.
+    // Same-directory rename is atomic on the filesystem, so the live
+    // database is never exposed to a partially copied backup.
+    final restoreStamp = DateTime.now().microsecondsSinceEpoch;
+    final stagedPath = '$dbPath.restore-$restoreStamp.tmp';
+    final previousPath = '$dbPath.restore-$restoreStamp.previous';
+    final staged = File(stagedPath);
+    final previous = File(previousPath);
+    await backupPath == dbPath
+        ? Future<void>.value()
+        : File(backupPath).copy(stagedPath);
+
+    // Validate the staged database before taking the live database offline.
+    // integrity_check catches truncated/corrupt SQLite files early and
+    // leaves the running database untouched when validation fails.
+    final stagedDb = sqlite3.sqlite3.open(stagedPath, mode: sqlite3.OpenMode.readOnly);
+    try {
+      final result = stagedDb.select('PRAGMA integrity_check');
+      if (result.isEmpty || result.first.values.first.toString().toLowerCase() != 'ok') {
+        throw const BackupException('Backup failed SQLite integrity validation.');
+      }
+    } finally {
+      stagedDb.close();
+    }
+
+    var installed = false;
     await _lifecycle.closeForMaintenance();
     try {
-      await File(backupPath).copy(dbPath);
-      // A stale -wal/-shm from the connection that was just closed
-      // could otherwise be replayed against the just-restored main
-      // file, applying writes that predate the backup and silently
-      // defeating the whole point of restoring it.
+      final live = File(dbPath);
+      if (await live.exists()) {
+        await live.rename(previousPath);
+      }
+      try {
+        await staged.rename(dbPath);
+        installed = true;
+      } catch (_) {
+        // The replacement never became live; put the previous database
+        // back before surfacing the failure.
+        if (await previous.exists() && !await live.exists()) {
+          await previous.rename(dbPath);
+        }
+        rethrow;
+      }
+
+      // A stale -wal/-shm from the connection that was just closed could
+      // otherwise be replayed against the restored main file, applying
+      // writes that predate the backup and defeating the restore.
       for (final suffix in ['-wal', '-shm']) {
         final sidecar = File('$dbPath$suffix');
         if (await sidecar.exists()) await sidecar.delete();
       }
     } finally {
-      // Always reopen, even if the copy above failed, so the app is
-      // never left with no working database connection at all.
-      await _lifecycle.reopenAfterMaintenance();
+      // Always attempt to reopen. If installation succeeded but reopening
+      // fails, roll back to the known-good previous database and try once
+      // more; this turns an interrupted restore into a recoverable state
+      // instead of leaving the app pointing at an unusable file.
+      try {
+        await _lifecycle.reopenAfterMaintenance();
+      } catch (_) {
+        if (installed && await previous.exists()) {
+          await _lifecycle.closeForMaintenance();
+          final live = File(dbPath);
+          if (await live.exists()) await live.delete();
+          await previous.rename(dbPath);
+          await _lifecycle.reopenAfterMaintenance();
+          installed = false;
+          rethrow;
+        }
+        rethrow;
+      }
     }
+
+    // The old live file is now redundant because the explicit
+    // pre-restore safety snapshot already exists. Delete only after the
+    // new database has been successfully reopened.
+    if (await previous.exists()) await previous.delete();
+    if (await staged.exists()) await staged.delete();
 
     return RestoreResult(
       restoredFrom: fileName,
