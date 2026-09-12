@@ -114,7 +114,7 @@ void main() {
         hasLoginPin: true,
       ),
     );
-    final customerCreditRepository = CustomerCreditRepositoryImpl(db: db);
+    final customerCreditRepository = CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db));
     customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
     saleRepository = SaleRepositoryImpl(
       db: db,
