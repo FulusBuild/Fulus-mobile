@@ -86,12 +86,13 @@ class SyncEngine {
     if (active != null) return active;
 
     final run = _runOnce(manual: manual);
-    _activeRun = run;
-    return run.whenComplete(() {
-      if (identical(_activeRun, run)) {
+    final tracked = run.whenComplete(() {
+      if (identical(_activeRun, tracked)) {
         _activeRun = null;
       }
     });
+    _activeRun = tracked;
+    return tracked;
   }
 
   Future<void> _runOnce({required bool manual}) async {
