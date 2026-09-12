@@ -54,6 +54,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _started = false;
+  Future<void>? _connectivityRun;
 
   /// Starts listening. Called once from bootstrap.dart — Section 8:
   /// "a single, always-available background service... never
@@ -156,7 +157,19 @@ class SyncTriggers with WidgetsBindingObserver {
     await _runIfOnline();
   }
 
-  Future<void> _runIfOnline() async {
+  Future<void> _runIfOnline() {
+    final active = _connectivityRun;
+    if (active != null) return active;
+    final run = _runIfOnlineOnce();
+    _connectivityRun = run;
+    return run.whenComplete(() {
+      if (identical(_connectivityRun, run)) {
+        _connectivityRun = null;
+      }
+    });
+  }
+
+  Future<void> _runIfOnlineOnce() async {
     if (!_syncConfig.isEnabled) return;
 
     // connectivity_plus 6.0.4 is a post-6.0 breaking-change release:
