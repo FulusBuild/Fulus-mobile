@@ -69,6 +69,8 @@ void main() {
       expect(row.movementType, 'in');
       expect(row.quantity, 20);
       expect(row.newQuantity, isNull);
+      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId))).getSingle();
+      expect(stock.currentStock, 20);
     });
 
     test('enqueues a stock-and-customer-priority sync task', () async {
@@ -117,6 +119,31 @@ void main() {
       expect(result.newQuantity, 42);
       expect(result.quantity, isNull);
       expect(result.reason, 'Recount');
+      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId))).getSingle();
+      expect(stock.currentStock, 42);
+    });
+  });
+
+  group('local stock safety', () {
+    test('rejects stock-out that would make local stock negative and writes nothing', () async {
+      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+        productLocalId: productLocalId,
+        locationLocalId: locationId,
+        currentStock: const Value(2),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await expectLater(
+        repository.recordStockOut(const StockOutDraft(
+          productLocalId: productLocalId,
+          locationId: locationId,
+          quantity: 3,
+        )),
+        throwsStateError,
+      );
+      expect(await db.select(db.stockMovements).get(), isEmpty);
+      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId))).getSingle();
+      expect(stock.currentStock, 2);
     });
   });
 
