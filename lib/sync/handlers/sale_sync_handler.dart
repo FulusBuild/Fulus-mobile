@@ -99,9 +99,13 @@ class SaleSyncHandler implements SyncHandler {
       ),
       locationLocalId: sale.locationId,
     );
+    final syncedServerId = synced.serverId;
+    if (syncedServerId == null) {
+      throw StateError('Sales API returned no server ID for synced sale.');
+    }
     await _saleRepository.markSynced(
       localId: sale.localId,
-      serverId: synced.serverId!,
+      serverId: syncedServerId,
       invoiceNumber: synced.invoiceNumber,
     );
   }
