@@ -231,6 +231,28 @@ void main() {
     expect(remaining.single.lastError, contains('No sync handler registered'));
   });
 
+  test('concurrent triggers share one in-flight drain', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    await seedItem(id: 'q1', entityLocalId: 'slow', enqueuedAt: DateTime.now());
+
+    final handler = _ScriptedHandler((_) async {
+      started.complete();
+      await release.future;
+    });
+    final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    final first = engine.runOnce();
+    await started.future;
+    final second = engine.runOnce();
+    expect(identical(first, second), isTrue);
+
+    release.complete();
+    await Future.wait([first, second]);
+    expect(handler.attemptedIds, ['slow']);
+    expect(await allQueueItems(), isEmpty);
+  });
+
   group('retry backoff', () {
     test('an item that failed moments ago is skipped on an automatic run', () async {
       final now = DateTime.now();
