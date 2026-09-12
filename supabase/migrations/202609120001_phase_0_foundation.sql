@@ -324,8 +324,23 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles actor_role on actor_role.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = auth.uid()
+      and bm.status = 'active'
+      and actor_role.name = 'owner'
+      and exists (
+        select 1
+        from public.roles target_role
+        where target_role.id = target_role_id
+          and target_role.business_id = target_business_id
+      )
+  )
+  or exists (
     select 1
     from public.business_memberships bm
     join public.roles actor_role on actor_role.id = bm.role_id
@@ -333,7 +348,7 @@ as $
     where bm.business_id = target_business_id
       and bm.user_id = auth.uid()
       and bm.status = 'active'
-      and actor_role.name in ('owner', 'admin')
+      and actor_role.name = 'admin'
       and actor_rp.permission_id = target_permission_id
       and exists (
         select 1
@@ -342,7 +357,7 @@ as $
           and target_role.business_id = target_business_id
       )
   );
-$;
+$$;
 
 -- RLS is enabled on every exposed business table. Domain-specific tables in
 -- later migrations follow the same business/location isolation pattern.
