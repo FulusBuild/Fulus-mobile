@@ -1,0 +1,1 @@
+revoke execute on function public.is_business_owner(uuid) from public,anon,authenticated;
