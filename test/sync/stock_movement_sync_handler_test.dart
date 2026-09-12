@@ -94,13 +94,6 @@ void main() {
 
   group('with a product that has a serverId', () {
     setUp(() async {
-      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
-            productLocalId: productLocalId,
-            locationLocalId: locationId,
-            currentStock: const Value(20),
-            updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
-          ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: productLocalId,
             name: 'USB-C Cable',
@@ -111,6 +104,13 @@ void main() {
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
             serverId: const Value(productServerId),
+          ));
+      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+            productLocalId: productLocalId,
+            locationLocalId: locationId,
+            currentStock: const Value(20),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
           ));
     });
 
