@@ -261,6 +261,7 @@ class SyncQueue {
             enqueuedAt: DateTime.now(),
           ),
         );
+    });
 
     // Deliberately NOT awaited: enqueue() must still return immediately
     // regardless of whether a sync attempt is already running or how
