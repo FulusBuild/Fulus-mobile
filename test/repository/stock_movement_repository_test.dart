@@ -5,7 +5,7 @@ import 'package:fulus_mobile/domain/entities/stock_movement.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 
 void main() {
   late AppDatabase db;
@@ -70,7 +70,7 @@ void main() {
       expect(row.movementType, 'in');
       expect(row.quantity, 20);
       expect(row.newQuantity, isNull);
-      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId).and(s.locationLocalId.equals(locationId)))).getSingle();
+      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalIdExpression.and([s.productLocalId.equals(productLocalId), s.locationLocalId.equals(locationId)]))).getSingle();
       expect(stock.currentStock, 20);
     });
 
@@ -120,7 +120,7 @@ void main() {
       expect(result.newQuantity, 42);
       expect(result.quantity, isNull);
       expect(result.reason, 'Recount');
-      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId).and(s.locationLocalId.equals(locationId)))).getSingle();
+      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalIdExpression.and([s.productLocalId.equals(productLocalId), s.locationLocalId.equals(locationId)]))).getSingle();
       expect(stock.currentStock, 42);
     });
   });
@@ -143,7 +143,7 @@ void main() {
         throwsStateError,
       );
       expect(await db.select(db.stockMovements).get(), isEmpty);
-      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId).and(s.locationLocalId.equals(locationId)))).getSingle();
+      final stock = await (db.select(db.productStockLevels)..where((s) => s.productLocalIdExpression.and([s.productLocalId.equals(productLocalId), s.locationLocalId.equals(locationId)]))).getSingle();
       expect(stock.currentStock, 2);
     });
   });
