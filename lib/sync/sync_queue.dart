@@ -159,6 +159,13 @@ class SyncTask {
   /// already use, just with a three-way branch instead of a single call.
   /// Inventing three sync-queue-level operation strings for this would
   /// duplicate a distinction the entity itself already carries.
+  factory SyncTask.recordCustomerRepayment(String localId) => SyncTask(
+        entityType: 'customer_ledger',
+        entityLocalId: localId,
+        operation: 'repayment',
+        priority: SyncPriority.salesAndPayments,
+      );
+
   factory SyncTask.recordStockMovement(String localId) => SyncTask(
         entityType: 'stock_movement',
         entityLocalId: localId,
