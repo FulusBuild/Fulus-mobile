@@ -86,7 +86,8 @@ class SyncEngine {
     if (active != null) return active;
 
     final run = _runOnce(manual: manual);
-    final tracked = run.whenComplete(() {
+    late Future<void> tracked;
+    tracked = run.whenComplete(() {
       if (identical(_activeRun, tracked)) {
         _activeRun = null;
       }
