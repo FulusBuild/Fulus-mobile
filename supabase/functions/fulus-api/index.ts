@@ -74,6 +74,42 @@ Deno.serve(async (req: Request) => {
       }
       return json({ data: { ...data, server_authoritative: true } }, 201);
     }
+    if (raw.action === "sale_payment" || raw.action === "return_create" || raw.action === "expense_create") {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const operationId = typeof raw.operation_id === "string" ? raw.operation_id : null;
+      if (!businessId || !operationId) return json({ error: { code: "INVALID_FINANCE_OPERATION", message: "business_id and operation_id are required" } }, 400);
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      const { data: device, error: deviceError } = await admin.from("devices").select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
+      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+      let data; let error;
+      if (raw.action === "sale_payment") {
+        ({ data, error } = await admin.rpc("record_sale_payment", {
+          target_business_id: businessId, target_sale_id: raw.sale_id, target_amount: Number(raw.amount),
+          target_operation_id: operationId, target_payment_method: typeof raw.payment_method === "string" ? raw.payment_method : "cash",
+          target_device_id: device.id,
+        }));
+      } else if (raw.action === "return_create") {
+        ({ data, error } = await admin.rpc("create_return_atomic", {
+          target_business_id: businessId, target_sale_id: raw.sale_id, target_client_reference: operationId,
+          target_reason: typeof raw.reason === "string" ? raw.reason : "Customer return", target_refund_amount: Number(raw.refund_amount ?? 0),
+          target_device_id: device.id, target_items: Array.isArray(raw.items) ? raw.items : [],
+        }));
+      } else {
+        ({ data, error } = await admin.rpc("record_expense", {
+          target_business_id: businessId, target_location_id: raw.location_id, target_amount: Number(raw.amount),
+          target_category: typeof raw.category === "string" ? raw.category : "general",
+          target_description: typeof raw.description === "string" ? raw.description : null,
+          target_operation_id: operationId, target_device_id: device.id,
+        }));
+      }
+      if (error) {
+        const status = error.code === "42501" ? 403 : error.code === "22013" ? 409 : 400;
+        return json({ error: { code: "FINANCE_OPERATION_FAILED", message: error.message } }, status);
+      }
+      return json({ data }, data?.status === "already_applied" ? 200 : 201);
+    }
+
     if (raw.action === "customer_create") {
       const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
       const name = typeof raw.name === "string" ? raw.name : null;
