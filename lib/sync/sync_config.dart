@@ -4,10 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Stage 16 — Sync Layer Repositioning.
 ///
 /// The single, persisted answer to "is the sync extension switched on
-/// right now" — every other change in this stage exists to make this
-/// class's [isEnabled] the ONE place that question gets decided, rather
-/// than something inferred separately (and inconsistently) at each call
-/// site that might otherwise reach for the network.
+/// right now". The class is also reactive so the long-lived sync trigger
+/// service can respond immediately when Settings changes the value.
 ///
 /// Default is `false`. This is not a placeholder waiting to be flipped
 /// before release — it's the deliberate reading of HANDOVER's own
