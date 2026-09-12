@@ -35,6 +35,13 @@ class SaleSyncHandler implements SyncHandler {
       throw StateError('No local sale found for ${item.entityLocalId}.');
     }
 
+    // Validate referenced customers before selecting either cloud or legacy
+    // transport. A sale cannot sync until its customer has a server identity;
+    // otherwise the legacy path would reach the API with an unresolved local ID.
+    if (sale.customerId != null) {
+      await _resolveCustomerServerId(sale);
+    }
+
     final businessId = _fulusConnectionState?.selectedBusinessId;
     final device = _fulusConnectionState?.registeredDevice;
     if (_fulusSyncApi != null && businessId != null && device?.status == 'active') {
