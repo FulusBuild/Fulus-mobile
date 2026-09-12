@@ -53,6 +53,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final SyncStatusNotifier _syncStatusNotifier;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
+  bool _started = false;
 
   /// Starts listening. Called once from bootstrap.dart — Section 8:
   /// "a single, always-available background service... never
@@ -69,27 +70,39 @@ class SyncTriggers with WidgetsBindingObserver {
   /// synchronization" (this stage's own rule) — nothing related to sync
   /// is running at all, not just "running harmlessly."
   Future<void> start() async {
+    if (_started) return;
+    _started = true;
+    _syncConfig.addListener(_onConfigChanged);
     if (!_syncConfig.isEnabled) return;
+    await _activate();
+  }
 
+  Future<void> _activate() async {
+    if (_subscription != null) return;
     WidgetsBinding.instance.addObserver(this);
-
-    // connectivity_plus has a known real gap: onConnectivityChanged
-    // doesn't reliably emit an initial event on every platform/starting
-    // state (most notably when the starting state is genuinely `none`).
-    // Checking explicitly here, rather than trusting the stream's first
-    // emission, covers the case this checkpoint's own exit criterion
-    // describes: the app launches already back online with items
-    // queued from a previous offline session.
     await _runIfOnline();
-
+    if (!_syncConfig.isEnabled || _subscription != null) return;
     _subscription = _connectivity.onConnectivityChanged.listen((_) {
       unawaited(_runIfOnline());
     });
   }
 
   void dispose() {
+    _syncConfig.removeListener(_onConfigChanged);
     WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
+    _subscription = null;
+    _started = false;
+  }
+
+  void _onConfigChanged() {
+    if (_syncConfig.isEnabled) {
+      unawaited(_activate());
+    } else {
+      WidgetsBinding.instance.removeObserver(this);
+      _subscription?.cancel();
+      _subscription = null;
+    }
   }
 
   /// Section 8's app-foreground trigger — a necessary backup to the
