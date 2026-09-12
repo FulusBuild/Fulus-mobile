@@ -67,6 +67,7 @@ class SyncEngine {
   final int maxAttemptsBeforeAttentionNeeded;
 
   bool _isRunning = false;
+  Future<void>? _activeRun;
 
   /// Drains the queue once. Safe to call from multiple trigger sources
   /// close together (connectivity-regained and app-foregrounded firing
@@ -80,7 +81,20 @@ class SyncEngine {
   /// that have already crossed [maxAttemptsBeforeAttentionNeeded] are
   /// excluded from this run; when true, every pending item is eligible
   /// again, on the chance whatever made it fail has since changed.
-  Future<void> runOnce({bool manual = false}) async {
+  Future<void> runOnce({bool manual = false}) {
+    final active = _activeRun;
+    if (active != null) return active;
+
+    final run = _runOnce(manual: manual);
+    _activeRun = run;
+    return run.whenComplete(() {
+      if (identical(_activeRun, run)) {
+        _activeRun = null;
+      }
+    });
+  }
+
+  Future<void> _runOnce({required bool manual}) async {
     if (_isRunning) return;
     _isRunning = true;
     try {
