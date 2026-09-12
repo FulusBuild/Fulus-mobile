@@ -77,6 +77,25 @@ class ApiClient {
   /// picture of what that means for the interceptor as a whole.
   void setAccessToken(String? token) => _authInterceptor.setAccessToken(token);
 
+  /// Server-session helpers used only by the optional connection layer.
+  /// Access tokens remain memory-only; refresh tokens remain in Keystore-backed storage.
+  Future<void> setServerAccessToken(String token) async {
+    _authInterceptor.setAccessToken(token);
+    final refreshToken = await _secureStorage.getRefreshToken();
+    if (refreshToken == null) {
+      // The caller will persist the newly issued refresh token explicitly
+      // through persistServerRefreshToken below.
+    }
+  }
+
+  Future<void> persistServerRefreshToken(String token) =>
+      _secureStorage.setRefreshToken(token);
+
+  Future<String?> secureRefreshToken() => _secureStorage.getRefreshToken();
+
+  Future<void> clearServerRefreshToken() =>
+      _secureStorage.deleteRefreshToken();
+
   /// Rewires what happens when a refresh genuinely fails mid-session —
   /// a setter, not only a constructor parameter, for the same reason as
   /// SyncQueue.setOnEnqueued (sync_queue.dart): the real callback
