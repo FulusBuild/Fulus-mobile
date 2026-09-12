@@ -209,19 +209,20 @@ class ReturnRepositoryImpl implements ReturnRepository {
       updatedAt: now,
     );
 
+    // Persist the return and its outbox entry together. A local return
+    // must never exist without a durable sync intent.
     await _db.transaction(() async {
       await _db.into(_db.returnRequests).insert(returnRequest.toDriftCompanion());
       for (final item in returnItems) {
         await _db.into(_db.returnItems).insert(item.toDriftCompanion());
       }
+      await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
     });
 
     // Same "no clientReference, a retry can create a genuine duplicate"
     // status as Categories/Suppliers — enqueued anyway, same reasoning:
     // the alternative (never syncing) is worse than a rare, honestly-
     // documented duplicate-on-retry risk.
-    await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
-
     return returnRequest;
   }
 
