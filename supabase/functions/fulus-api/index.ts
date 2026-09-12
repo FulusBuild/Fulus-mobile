@@ -74,6 +74,96 @@ Deno.serve(async (req: Request) => {
       }
       return json({ data: { ...data, server_authoritative: true } }, 201);
     }
+    if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(raw.action))) {
+      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
+      const entity = typeof raw.entity === "string" ? raw.entity : null;
+      if (!businessId || !entity || !["products", "categories", "suppliers"].includes(entity)) {
+        return json({ error: { code: "INVALID_CATALOG_REQUEST", message: "business_id and a supported entity are required" } }, 400);
+      }
+      if (!(memberships ?? []).some((m) => m.business_id === businessId)) {
+        return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+      }
+      const permission = raw.action === "catalog_list" ? "catalog.read" : "catalog.manage";
+      const { data: permitted, error: permissionError } = await admin.rpc("user_has_permission", {
+        target_business_id: businessId,
+        target_user_id: userId,
+        target_permission: permission,
+      });
+      if (permissionError) {
+        return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
+      }
+      if (!permitted) {
+        return json({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
+      }
+
+      const table = entity;
+      if (raw.action === "catalog_list") {
+        const limit = Math.min(Math.max(Number(raw.limit ?? 100), 1), 500);
+        const { data, error } = await admin.from(table)
+          .select("*")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .order("updated_at", { ascending: false })
+          .limit(limit);
+        if (error) return json({ error: { code: "CATALOG_READ_FAILED", message: "Unable to read catalog" } }, 500);
+        return json({ data: { entity, items: data ?? [], server_authoritative: true } });
+      }
+
+      const itemId = typeof raw.id === "string" ? raw.id : null;
+      if (raw.action === "catalog_delete") {
+        if (!itemId) return json({ error: { code: "INVALID_CATALOG_DELETE", message: "id is required" } }, 400);
+        const { data, error } = await admin.from(table)
+          .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", itemId)
+          .eq("business_id", businessId)
+          .select("*")
+          .maybeSingle();
+        if (error) return json({ error: { code: "CATALOG_DELETE_FAILED", message: "Unable to delete catalog item" } }, 500);
+        if (!data) return json({ error: { code: "NOT_FOUND", message: "Catalog item not found" } }, 404);
+        return json({ data: { entity, item: data, server_authoritative: true } });
+      }
+
+      const input = (raw.item && typeof raw.item === "object") ? raw.item as Record<string, unknown> : {};
+      const allowedFields: Record<string, string[]> = {
+        categories: ["name", "description"],
+        suppliers: ["name", "phone", "email", "address"],
+        products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"],
+      };
+      const row: Record<string, unknown> = { business_id: businessId };
+      for (const field of allowedFields[entity]) {
+        if (field in input) row[field] = input[field];
+      }
+      if (entity === "categories" || entity === "suppliers" || entity === "products") {
+        if (typeof row.name !== "string" || row.name.trim().length < 1) {
+          return json({ error: { code: "INVALID_CATALOG_ITEM", message: "name is required" } }, 400);
+        }
+        row.name = row.name.trim();
+      }
+      if (entity === "products") {
+        if (typeof row.sku !== "string" || row.sku.trim().length < 1) {
+          return json({ error: { code: "INVALID_PRODUCT", message: "sku is required" } }, 400);
+        }
+        row.sku = row.sku.trim();
+        for (const fk of ["category_id", "supplier_id"]) {
+          if (row[fk] != null) {
+            const { data: parent, error: parentError } = await admin.from(fk === "category_id" ? "categories" : "suppliers")
+              .select("id").eq("id", row[fk]).eq("business_id", businessId).maybeSingle();
+            if (parentError) return json({ error: { code: "CATALOG_VALIDATION_FAILED", message: "Unable to validate catalog relationship" } }, 500);
+            if (!parent) return json({ error: { code: "INVALID_CATALOG_RELATION", message: fk + " belongs to another business or does not exist" } }, 400);
+          }
+        }
+      }
+      let query;
+      if (itemId) {
+        query = admin.from(table).update(row).eq("id", itemId).eq("business_id", businessId).select("*").maybeSingle();
+      } else {
+        query = admin.from(table).insert(row).select("*").single();
+      }
+      const { data, error } = await query;
+      if (error) return json({ error: { code: "CATALOG_WRITE_FAILED", message: "Unable to save catalog item" } }, 400);
+      return json({ data: { entity, item: data, server_authoritative: true } }, itemId ? 200 : 201);
+    }
+
     if (raw.action === "register_device") {
       const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
       const clientId = typeof raw.device_client_id === "string" ? raw.device_client_id : null;
