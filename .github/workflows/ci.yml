@@ -384,6 +384,47 @@ jobs:
           dart run build_runner build \
             --delete-conflicting-outputs
 
+      - name: Configure release signing
+        env:
+          KEYSTORE_B64: ${{ secrets.FULUS_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.FULUS_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FULUS_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FULUS_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for value in KEYSTORE_B64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!value}" ]; then
+              echo "::error::Missing required Android release signing secret: $value"
+              exit 1
+            fi
+          done
+          echo "$KEYSTORE_B64" | base64 --decode > android/app/fulus-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=fulus-release.jks
+          EOF
+          chmod 600 android/key.properties android/app/fulus-release.jks
+
+      - name: Resolve application ID
+        id: application
+        env:
+          APPLICATION_ID: ${{ vars.FULUS_APPLICATION_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$APPLICATION_ID" ]; then
+            echo "::error::FULUS_APPLICATION_ID repository variable is not configured."
+            exit 1
+          fi
+          case "$APPLICATION_ID" in
+            com.example.*)
+              echo "::error::FULUS_APPLICATION_ID must not use the placeholder com.example namespace."
+              exit 1
+              ;;
+          esac
+          echo "APPLICATION_ID=$APPLICATION_ID" >> "$GITHUB_OUTPUT"
+
       - name: Resolve API base URL
         id: api
         env:
@@ -412,7 +453,8 @@ jobs:
         run: |
           flutter build apk \
             --release \
-            --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}"
+            --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}" \
+            --dart-define=FULUS_APPLICATION_ID="${{ steps.application.outputs.APPLICATION_ID }}"
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
