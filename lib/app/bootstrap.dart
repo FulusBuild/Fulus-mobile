@@ -463,6 +463,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // exactly why this would otherwise be a construction-order cycle).
   final saleSyncHandler = SaleSyncHandler(
     db: database,
+    fulusSyncApi: fulusSyncApi,
+    fulusConnectionState: fulusConnectionState,
     salesApi: salesApi,
     saleRepository: saleRepository,
   );
