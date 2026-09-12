@@ -58,6 +58,22 @@ Deno.serve(async (req: Request) => {
   if (req.method === "POST") {
     let raw: Record<string, unknown>;
     try { raw = await req.json(); } catch { return json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400); }
+    if (raw.action === "create_business") {
+      const name = typeof raw.name === "string" ? raw.name : null;
+      if (!name || name.trim().length < 2) {
+        return json({ error: { code: "INVALID_BUSINESS", message: "Business name must be at least 2 characters" } }, 400);
+      }
+      const { data, error } = await admin.rpc("create_business_for_user", {
+        target_name: name,
+        target_currency_code: typeof raw.currency_code === "string" ? raw.currency_code : "NGN",
+        target_timezone: typeof raw.timezone === "string" ? raw.timezone : "Africa/Lagos",
+        target_location_name: typeof raw.location_name === "string" ? raw.location_name : "Main",
+      });
+      if (error) {
+        return json({ error: { code: "BUSINESS_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+      }
+      return json({ data: { ...data, server_authoritative: true } }, 201);
+    }
     if (raw.action === "register_device") {
       const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
       const clientId = typeof raw.device_client_id === "string" ? raw.device_client_id : null;
