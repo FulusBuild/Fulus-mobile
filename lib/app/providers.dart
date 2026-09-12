@@ -413,6 +413,12 @@ final fulusConnectionStateProvider =
   );
 });
 
+final fulusSyncApiProvider = Provider<FulusSyncApi>((ref) {
+  throw UnimplementedError(
+    'fulusSyncApiProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   throw UnimplementedError(
     'syncEngineProvider must be overridden in bootstrap.dart.',
