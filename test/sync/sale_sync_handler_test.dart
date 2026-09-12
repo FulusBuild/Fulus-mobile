@@ -76,7 +76,7 @@ void main() {
       db: db,
       syncQueue: SyncQueue(db),
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     handler = SaleSyncHandler(
       db: db,
