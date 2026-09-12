@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:ulid/ulid.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -192,10 +196,36 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // start must never wait on the network or make local Fulus unavailable.
   // If a refresh token exists, the session is restored in the background;
   // if it does not, nothing happens.
-  unawaited(authApi.restoreServerSession(
-    supabaseUrl: SupabaseConfig.url,
-    publishableKey: SupabaseConfig.publishableKey,
-  ));
+  unawaited(() async {
+    final session = await authApi.restoreServerSession(
+      supabaseUrl: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
+    if (session == null) return;
+    try {
+      await fulusConnectionState.refresh();
+      final active = fulusConnectionState.membershipContext?.memberships
+              .where((m) => m.status == 'active')
+              .toList(growable: false) ??
+          const [];
+      if (active.length != 1) return;
+      fulusConnectionState.selectBusiness(active.first.businessId);
+      final deviceClientId = await secureStorage.ensureDeviceClientId(
+        Ulid().toString(),
+      );
+      final package = await PackageInfo.fromPlatform();
+      await fulusConnectionState.registerDevice(
+        deviceClientId: deviceClientId,
+        deviceName: 'Fulus Mobile',
+        platform: Platform.operatingSystem,
+        appVersion: package.version,
+      );
+    } catch (_) {
+      // Cloud restoration is optional. Local startup and local POS work
+      // must never fail because membership/device registration is offline,
+      // revoked, pending, or otherwise temporarily unavailable.
+    }
+  }());
 
   // Constructed before AuthRepositoryImpl on purpose: AuthRepositoryImpl
   // depends on AuditRepository (to log login/logout/account-creation
