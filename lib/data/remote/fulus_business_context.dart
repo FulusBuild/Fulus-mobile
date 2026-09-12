@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../api_client.dart';
+import 'api_client.dart';
 
 /// Resolves the server memberships available to the currently connected
 /// Supabase user and persists only the selected business ID locally.
