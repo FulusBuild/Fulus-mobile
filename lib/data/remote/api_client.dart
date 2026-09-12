@@ -65,6 +65,7 @@ class ApiClient {
   final Dio dio;
   final SecureStorage _secureStorage;
   late final _AuthInterceptor _authInterceptor;
+  String? _serverAccessToken;
 
   /// STALE COMMENT CORRECTED (self-audit pass, after Stage 4): this used
   /// to say AuthRepositoryImpl calls this right after a successful login
@@ -81,6 +82,8 @@ class ApiClient {
   /// Access tokens remain memory-only; refresh tokens remain in Keystore-backed storage.
   Future<void> setServerAccessToken(String token) async {
     _authInterceptor.setAccessToken(token);
+    _serverAccessToken = token;
+    _serverAccessToken = token;
     final refreshToken = await _secureStorage.getRefreshToken();
     if (refreshToken == null) {
       // The caller will persist the newly issued refresh token explicitly
@@ -90,6 +93,8 @@ class ApiClient {
 
   Future<void> persistServerRefreshToken(String token) =>
       _secureStorage.setRefreshToken(token);
+
+  String? get serverAccessToken => _serverAccessToken;
 
   Future<String?> secureRefreshToken() => _secureStorage.getRefreshToken();
 
