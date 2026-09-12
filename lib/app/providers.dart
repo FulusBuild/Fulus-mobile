@@ -400,6 +400,19 @@ final cashDrawerShiftRepositoryProvider =
   );
 });
 
+final fulusBusinessContextProvider = Provider<FulusBusinessContext>((ref) {
+  throw UnimplementedError(
+    'fulusBusinessContextProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final fulusConnectionStateProvider =
+    ChangeNotifierProvider<FulusConnectionState>((ref) {
+  throw UnimplementedError(
+    'fulusConnectionStateProvider must be overridden in bootstrap.dart.',
+  );
+});
+
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   throw UnimplementedError(
     'syncEngineProvider must be overridden in bootstrap.dart.',
