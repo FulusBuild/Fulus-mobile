@@ -17,6 +17,7 @@ import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
 import '../data/remote/fulus_connection_state.dart';
 import '../data/remote/fulus_device_registration.dart';
+import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
@@ -173,6 +174,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     functionBaseUrl: fulusFunctionBaseUrl,
   );
   final fulusDeviceRegistration = FulusDeviceRegistration(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final fulusSyncApi = FulusSyncApi(
     client: apiClient,
     functionBaseUrl: fulusFunctionBaseUrl,
   );
@@ -480,6 +485,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     db: database,
     productsApi: productsApi,
     productRepository: productRepository,
+    fulusSyncApi: fulusSyncApi,
+    fulusConnectionState: fulusConnectionState,
   );
   final syncEngine = SyncEngine(
     db: database,
