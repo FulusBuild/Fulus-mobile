@@ -109,69 +109,31 @@ Deno.serve(async (req: Request) => {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  const { data: existing, error: existingError } = await admin
-    .from("idempotency_keys")
-    .select("operation_type, request_hash, response_status, response_body, completed_at")
-    .eq("business_id", body.business_id)
-    .eq("key", body.operation_id)
-    .maybeSingle();
-
-  if (existingError) {
-    return json({ error: { code: "IDEMPOTENCY_LOOKUP_FAILED", message: "Unable to inspect command idempotency" } }, 500);
-  }
-
-  if (existing) {
-    if (existing.operation_type !== body.operation_type || existing.request_hash !== requestHash) {
-      return json({ error: { code: "IDEMPOTENCY_CONFLICT", message: "Operation id was already used with a different request" } }, 409);
-    }
-    if (existing.completed_at && existing.response_body) {
-      return json(existing.response_body, existing.response_status ?? 200);
-    }
-  }
-
-  const { data: operation, error: operationError } = await admin
-    .from("sync_operations")
-    .insert({
-      business_id: body.business_id,
-      device_id: device.id,
-      user_id: userId,
-      operation_id: body.operation_id,
-      operation_type: body.operation_type,
-      client_reference: body.client_reference ?? null,
-      status: "received",
-    })
-    .select("id")
-    .single();
-
-  if (operationError) {
-    return json({ error: { code: "OPERATION_RECORD_FAILED", message: "Unable to record sync operation" } }, 500);
-  }
-
-  const response = {
-    data: {
-      accepted: true,
-      operation_id: body.operation_id,
-      server_operation_id: operation.id,
-      status: "received",
-      server_authoritative: true,
+  const { data: result, error: commandError } = await admin.rpc(
+    "accept_sync_operation",
+    {
+      target_business_id: body.business_id,
+      target_device_id: device.id,
+      target_user_id: userId,
+      target_operation_id: body.operation_id,
+      target_operation_type: body.operation_type,
+      target_client_reference: body.client_reference ?? null,
+      target_request_hash: requestHash,
     },
-  };
+  );
 
-  const { error: idemError } = await admin.from("idempotency_keys").upsert({
-    business_id: body.business_id,
-    device_id: device.id,
-    user_id: userId,
-    key: body.operation_id,
-    operation_type: body.operation_type,
-    request_hash: requestHash,
-    response_status: 202,
-    response_body: response,
-    completed_at: new Date().toISOString(),
-  }, { onConflict: "business_id,key" });
-
-  if (idemError) {
-    return json({ error: { code: "IDEMPOTENCY_RECORD_FAILED", message: "Unable to finalize command idempotency" } }, 500);
+  if (commandError || !result) {
+    return json({
+      error: {
+        code: "COMMAND_ACCEPTANCE_FAILED",
+        message: "Unable to accept sync operation",
+      },
+    }, 500);
   }
 
-  return json(response, 202);
+  if (result.error) {
+    return json({ error: result.error }, result.status_code ?? 500);
+  }
+
+  return json(result.response, result.status_code ?? 202);
 });
