@@ -108,7 +108,8 @@ create table public.devices (
   last_seen_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (business_id, device_client_id)
+  unique (business_id, device_client_id),
+  unique (business_id, id)
 );
 
 create table public.idempotency_keys (
