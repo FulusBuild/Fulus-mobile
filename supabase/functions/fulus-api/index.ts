@@ -51,11 +51,69 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method === "GET") {
-    return json({
-      data: {
+    const url = new URL(req.url);
+    const businessId = url.searchParams.get("business_id");
+    const cursorRaw = url.searchParams.get("cursor") ?? "0";
+    const limitRaw = url.searchParams.get("limit") ?? "100";
+
+    if (!businessId) {
+      return json({ data: {
         user_id: userId,
         memberships: memberships ?? [],
         device_client_id: deviceClientId,
+        server_authoritative: true,
+      }});
+    }
+
+    const membership = (memberships ?? []).find((m) => m.business_id === businessId);
+    if (!membership) {
+      return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+    }
+
+    if (!deviceClientId) {
+      return json({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for sync" } }, 400);
+    }
+
+    const { data: device, error: deviceError } = await admin
+      .from("devices")
+      .select("id, status")
+      .eq("business_id", businessId)
+      .eq("device_client_id", deviceClientId)
+      .maybeSingle();
+
+    if (deviceError) {
+      return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+    }
+    if (!device || device.status !== "active") {
+      return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+    }
+
+    const cursor = Number(cursorRaw);
+    const requestedLimit = Number(limitRaw);
+    if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 500) {
+      return json({ error: { code: "INVALID_SYNC_CURSOR", message: "cursor must be a non-negative integer and limit must be between 1 and 500" } }, 400);
+    }
+
+    const { data: changes, error: changesError } = await admin
+      .from("sync_changes")
+      .select("sequence, entity_type, entity_id, operation, payload, created_at")
+      .eq("business_id", businessId)
+      .gt("sequence", cursor)
+      .order("sequence", { ascending: true })
+      .limit(requestedLimit);
+
+    if (changesError) {
+      return json({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
+    }
+
+    const rows = changes ?? [];
+    const nextCursor = rows.length ? Number(rows[rows.length - 1].sequence) : cursor;
+    return json({
+      data: {
+        changes: rows,
+        cursor,
+        next_cursor: nextCursor,
+        has_more: rows.length === requestedLimit,
         server_authoritative: true,
       },
     });
