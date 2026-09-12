@@ -319,6 +319,11 @@ class ProductRepositoryImpl implements ProductRepository {
       ),
     );
 
+    // Collapse repeated edits into the same durable queue item. The
+    // handler reads the current persisted row at drain time, so one
+    // queued update is sufficient even if several edits happened while
+    // offline. This also prevents an edit storm from producing redundant
+    // server operations.
     await _syncQueue.enqueue(SyncTask.updateProduct(localId));
   }
 
