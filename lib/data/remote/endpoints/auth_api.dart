@@ -116,6 +116,31 @@ class AuthApi {
       return null;
     }
   }
+
+  Future<Map<String, dynamic>> registerCloudDevice({
+    required String businessId,
+    required String deviceClientId,
+    required String deviceName,
+    required String platform,
+    required String appVersion,
+  }) async {
+    try {
+      final response = await _client.dio.post(
+        '/functions/v1/fulus-api',
+        data: {
+          'action': 'register_device',
+          'business_id': businessId,
+          'device_client_id': deviceClientId,
+          'device_name': deviceName,
+          'platform': platform,
+          'app_version': appVersion,
+        },
+      );
+      return Map<String, dynamic>.from(response.data as Map);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
 }
 
 class ServerAuthSessionDto {
