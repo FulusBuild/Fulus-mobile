@@ -14,6 +14,9 @@ import '../data/local/database/app_database_lifecycle.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
+import '../data/remote/fulus_business_context.dart';
+import '../data/remote/fulus_connection_state.dart';
+import '../data/remote/fulus_device_registration.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
@@ -164,6 +167,20 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onSessionExpired: () async {},
   );
 
+  final fulusFunctionBaseUrl = '${SupabaseConfig.url}/functions/v1/fulus-api';
+  final fulusBusinessContext = FulusBusinessContext(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final fulusDeviceRegistration = FulusDeviceRegistration(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final fulusConnectionState = FulusConnectionState(
+    businessContext: fulusBusinessContext,
+    deviceRegistration: fulusDeviceRegistration,
+  );
+
   final authApi = AuthApi(apiClient);
 
   // Optional cloud session restore is deliberately fire-and-forget: a cold
@@ -244,6 +261,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     authRepository: authRepository,
     customerCreditRepository: customerCreditRepository,
     diagnosticLogger: diagnosticLogger,
+    canSync: () async => fulusConnectionState.isConnected &&
+        fulusConnectionState.isDeviceAuthorized,
   );
   final customerRepository = CustomerRepositoryImpl(
     db: database,
@@ -590,6 +609,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       resolveActiveLocationProvider.overrideWithValue(resolveActiveLocation),
       businessSettingsApiProvider.overrideWithValue(businessSettingsApi),
       businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
+      fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
+      fulusConnectionStateProvider.overrideWithValue(fulusConnectionState),
       syncEngineProvider.overrideWithValue(syncEngine),
       syncTriggersProvider.overrideWithValue(syncTriggers),
       syncConfigProvider.overrideWith((ref) => syncConfig),
