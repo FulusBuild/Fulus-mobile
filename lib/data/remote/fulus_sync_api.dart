@@ -31,7 +31,7 @@ class FulusSyncApi {
           'cursor': cursor,
           'limit': limit,
         },
-        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+        options: Options(headers: _headers()),
       );
       return FulusSyncPullResponse.fromJson(
         Map<String, dynamic>.from(response.data as Map),
@@ -59,7 +59,7 @@ class FulusSyncApi {
           if (clientReference != null) 'client_reference': clientReference,
           'payload': payload,
         },
-        options: Options(headers: _headers()),
+        options: Options(headers: _headers(deviceClientId: deviceClientId)),
       );
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
