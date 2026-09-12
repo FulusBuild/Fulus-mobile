@@ -177,7 +177,7 @@ void main() {
       db: db,
       syncQueue: syncQueue1,
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
 
     final item = SaleItem(
@@ -248,7 +248,7 @@ void main() {
       db: db,
       syncQueue: syncQueue2,
       authRepository: _FakeAuthRepository(),
-      customerCreditRepository: CustomerCreditRepositoryImpl(db: db),
+      customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     final handler = SaleSyncHandler(
       db: db,
