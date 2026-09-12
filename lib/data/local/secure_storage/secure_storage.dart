@@ -40,6 +40,7 @@ class SecureStorage {
 
   static const _refreshTokenKey = 'fulus_refresh_token';
   static const _approvalPinVerifiersKey = 'fulus_approval_pin_verifiers';
+  static const _deviceClientIdKey = 'fulus_device_client_id';
 
   // --- Refresh token (Architecture Section 6) ---
   //
@@ -49,6 +50,15 @@ class SecureStorage {
 
   Future<void> setRefreshToken(String token) =>
       _storage.write(key: _refreshTokenKey, value: token);
+
+  Future<void> setDeviceClientId(String id) =>
+      _storage.write(key: _deviceClientIdKey, value: id);
+
+  Future<String?> getDeviceClientId() =>
+      _storage.read(key: _deviceClientIdKey);
+
+  Future<void> deleteDeviceClientId() =>
+      _storage.delete(key: _deviceClientIdKey);
 
   Future<String?> getRefreshToken() => _storage.read(key: _refreshTokenKey);
 
