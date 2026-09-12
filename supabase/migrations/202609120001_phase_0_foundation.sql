@@ -41,9 +41,7 @@ create table public.permissions (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   description text,
-  created_at timestamptz not null default now(),
-  foreign key (business_id, location_id)
-    references public.locations(business_id, id)
+  created_at timestamptz not null default now()
 );
 
 create table public.role_permissions (
@@ -171,13 +169,17 @@ create table public.audit_events (
   business_id uuid not null references public.businesses(id) on delete cascade,
   location_id uuid,
   actor_user_id uuid references auth.users(id),
-  device_id uuid references public.devices(id),
+  device_id uuid,
+  foreign key (business_id, device_id)
+    references public.devices(business_id, id),
   action text not null,
   entity_type text,
   entity_id uuid,
   reason text,
   metadata jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (business_id, location_id)
+    references public.locations(business_id, id)
 );
 
 create index audit_events_business_created_idx
