@@ -42,7 +42,7 @@ void main() {
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
           syncStatus: SyncStatus.settled,
-        ))
+        ));
     await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
           productLocalId: productLocalId,
           locationLocalId: locationId,
