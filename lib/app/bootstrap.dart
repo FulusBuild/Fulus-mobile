@@ -485,7 +485,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // Phase 0 completion pass.
   final productSyncHandler = ProductSyncHandler(
     db: database,
-    productsApi: productsApi,
     productRepository: productRepository,
     fulusSyncApi: fulusSyncApi,
     fulusConnectionState: fulusConnectionState,
