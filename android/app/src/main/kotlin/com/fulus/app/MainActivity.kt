@@ -1,4 +1,4 @@
-package com.example.fulus_mobile
+package com.fulus.app
 
 import android.content.ContentUris
 import android.content.ContentValues

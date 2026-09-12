@@ -7,6 +7,7 @@ on:
       - develop
       - backend/phase-1-catalog
       - backend/phase-4-foundation-v2
+      - phase-9-production-hardening
 
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
       - develop
       - backend/phase-1-catalog
       - backend/phase-4-foundation-v2
+      - phase-9-production-hardening
 
   workflow_dispatch:
     inputs:
@@ -403,7 +405,7 @@ jobs:
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEY_PASSWORD
           keyAlias=$KEY_ALIAS
-          storeFile=fulus-release.jks
+          storeFile=../app/fulus-release.jks
           EOF
           chmod 600 android/key.properties android/app/fulus-release.jks
 
