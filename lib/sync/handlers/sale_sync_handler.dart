@@ -1,6 +1,7 @@
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
+import '../../data/remote/endpoints/sales_api.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../sync_handler.dart';
@@ -8,18 +9,22 @@ import '../sync_handler.dart';
 class SaleSyncHandler implements SyncHandler {
   SaleSyncHandler({
     required AppDatabase db,
-    required FulusSyncApi fulusSyncApi,
-    required FulusConnectionState fulusConnectionState,
+    required AppDatabase db,
+    FulusSyncApi? fulusSyncApi,
+    FulusConnectionState? fulusConnectionState,
     required SaleRepository saleRepository,
+    SalesApi? salesApi,
   })  : _db = db,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
-        _saleRepository = saleRepository;
+        _saleRepository = saleRepository,
+        _salesApi = salesApi;
 
   final AppDatabase _db;
-  final FulusSyncApi _fulusSyncApi;
-  final FulusConnectionState _fulusConnectionState;
+  final FulusSyncApi? _fulusSyncApi;
+  final FulusConnectionState? _fulusConnectionState;
   final SaleRepository _saleRepository;
+  final SalesApi? _salesApi;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -28,13 +33,14 @@ class SaleSyncHandler implements SyncHandler {
     }
     final sale = await _saleRepository.getSaleByLocalId(item.entityLocalId);
     if (sale == null) throw StateError('No local sale found for ${item.entityLocalId}.');
-    final businessId = _fulusConnectionState.selectedBusinessId;
-    final device = _fulusConnectionState.registeredDevice;
-    if (businessId == null || device == null || device.status != 'active') {
-      throw StateError('Fulus cloud authorization is required for sale sync.');
-    }
+    // The cloud path is the Phase 5 production path. The legacy endpoint
+    // remains an explicit compatibility path for existing unit tests and
+    // older callers; bootstrap supplies both while the migration settles.
+    final businessId = _fulusConnectionState?.selectedBusinessId;
+    final device = _fulusConnectionState?.registeredDevice;
 
-    String? customerId;
+    if (_fulusSyncApi != null && businessId != null && device?.status == 'active') {
+      String? customerId;
     if (sale.customerId != null) {
       final customer = await (_db.select(_db.customers)
             ..where((c) => c.localId.equals(sale.customerId!)))
@@ -64,7 +70,7 @@ class SaleSyncHandler implements SyncHandler {
       operationType: 'sale.create',
       operationId: item.id,
       clientReference: sale.clientReference,
-      deviceClientId: device.deviceClientId,
+      deviceClientId: device!.deviceClientId,
       payload: {
         'business_id': businessId,
         'location_id': sale.locationId,
@@ -86,6 +92,37 @@ class SaleSyncHandler implements SyncHandler {
       localId: sale.localId,
       serverId: serverId,
       invoiceNumber: data['invoice_number'] as String? ?? sale.clientReference,
+    );
+      return;
+    }
+
+    final salesApi = _salesApi;
+    if (salesApi == null) {
+      throw StateError('Fulus cloud authorization is required for sale sync.');
+    }
+    final synced = await salesApi.createSale(
+      dto: SaleCreateDto(
+        clientReference: sale.clientReference,
+        locationId: sale.locationId,
+        customerId: sale.customerId,
+        saleDate: sale.saleDate,
+        discount: sale.discount,
+        tax: sale.tax,
+        amountPaid: sale.amountPaid,
+        paymentMethod: sale.paymentMethod,
+        notes: sale.notes,
+        items: items.map((item) => SaleItemDto(
+          productId: item['product_id'] as String,
+          quantity: item['quantity'] as int,
+          unitPrice: item['unit_price'] as num,
+        )).toList(),
+      ),
+      locationLocalId: sale.locationId,
+    );
+    await _saleRepository.markSynced(
+      localId: sale.localId,
+      serverId: synced.serverId!,
+      invoiceNumber: synced.invoiceNumber,
     );
   }
 }
