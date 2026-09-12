@@ -168,9 +168,7 @@ class BackupRepositoryImpl implements BackupRepository {
     final previousPath = '$dbPath.restore-$restoreStamp.previous';
     final staged = File(stagedPath);
     final previous = File(previousPath);
-    await backupPath == dbPath
-        ? Future<void>.value()
-        : File(backupPath).copy(stagedPath);
+    await File(backupPath).copy(stagedPath);
 
     // Validate the staged database before taking the live database offline.
     // integrity_check catches truncated/corrupt SQLite files early and
