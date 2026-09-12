@@ -108,6 +108,7 @@ class AuthApi {
       );
       final session = ServerAuthSessionDto.fromJson(response.data as Map<String, dynamic>);
       await _client.setServerAccessToken(session.accessToken);
+      await _client.persistServerRefreshToken(session.refreshToken);
       return session;
     } on DioException {
       await _client.clearServerRefreshToken();
@@ -128,5 +129,4 @@ class ServerAuthSessionDto {
     refreshToken: json['refresh_token'] as String,
     userId: (json['user'] as Map<String, dynamic>)['id'] as String,
   );
-}
 }
