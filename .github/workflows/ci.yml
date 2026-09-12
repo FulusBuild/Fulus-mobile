@@ -5,11 +5,13 @@ on:
     branches:
       - main
       - develop
+      - backend/phase-1-catalog
 
   pull_request:
     branches:
       - main
       - develop
+      - backend/phase-1-catalog
 
   workflow_dispatch:
     inputs:
