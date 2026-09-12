@@ -13,18 +13,11 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    // No company domain is stated anywhere in this repo (no README, no
-    // docs, no existing platform folder, nothing in code/comments/commit
-    // history) to base a real reverse-domain applicationId on. Rather
-    // than invent one, this uses Flutter's own standard placeholder org
-    // — the same "com.example" `flutter create` uses when no --org is
-    // given — combined with the pubspec package name. Rename this (and
-    // the matching applicationId below, and the Kotlin package
-    // declaration/directory at app/src/main/kotlin/com/example/fulus_mobile/)
-    // to your real domain before any Play Store submission — Google
-    // rejects com.example.* applicationIds at publish time, though it
-    // builds and installs fine for this checkpoint's debug APK.
-    namespace = "com.example.fulus_mobile"
+    // Production application identity is supplied by CI via
+    // FULUS_APPLICATION_ID. Keep the native namespace aligned with the
+    // production package so generated/compiled Android components use the
+    // same stable identity as the release artifact.
+    namespace = "com.fulus.app"
     // compileSdk/ndkVersion are pinned explicitly rather than deferred
     // to Flutter's own recommended defaults (flutter.compileSdkVersion/
     // flutter.ndkVersion): several plugins now require higher versions
@@ -58,7 +51,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = System.getenv("FULUS_APPLICATION_ID") ?: "com.example.fulus_mobile"
+        applicationId = System.getenv("FULUS_APPLICATION_ID") ?: "com.fulus.app"
         // Android 8.0 (API 26) is the architecture document's stated
         // floor (see pubspec.yaml's own environment comment) — an
         // explicit override of Flutter's own lower default
