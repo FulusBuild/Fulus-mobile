@@ -84,8 +84,9 @@ class FulusConnectionState extends ChangeNotifier {
   }
 
   void disconnect() {
-    if (_selectedBusinessId == null) return;
+    if (_selectedBusinessId == null && _registeredDevice == null) return;
     _selectedBusinessId = null;
+    _registeredDevice = null;
     notifyListeners();
   }
 }
