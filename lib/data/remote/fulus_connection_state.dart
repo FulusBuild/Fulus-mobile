@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'fulus_business_context.dart';
 import 'fulus_device_registration.dart';
+import 'fulus_staff_access_api.dart';
 
 /// Reactive connection state for the optional Fulus cloud backend.
 ///
@@ -11,11 +12,14 @@ class FulusConnectionState extends ChangeNotifier {
   FulusConnectionState({
     required FulusBusinessContext businessContext,
     required FulusDeviceRegistration deviceRegistration,
+    FulusStaffAccessApi? staffAccessApi,
   })  : _businessContext = businessContext,
-        _deviceRegistration = deviceRegistration;
+        _deviceRegistration = deviceRegistration,
+        _staffAccessApi = staffAccessApi;
 
   final FulusBusinessContext _businessContext;
   final FulusDeviceRegistration _deviceRegistration;
+  final FulusStaffAccessApi? _staffAccessApi;
   FulusRegisteredDevice? _registeredDevice;
   FulusMembershipContext? _membershipContext;
   String? _selectedBusinessId;
@@ -67,6 +71,30 @@ class FulusConnectionState extends ChangeNotifier {
     _registeredDevice = device;
     notifyListeners();
     return device;
+  }
+
+  Future<StaffInvite> createStaffInvite({
+    required String roleId,
+    String? email,
+    int expiresHours = 24,
+  }) async {
+    final api = _staffAccessApi;
+    final businessId = _selectedBusinessId;
+    if (api == null || businessId == null) {
+      throw StateError('Fulus cloud staff access is unavailable.');
+    }
+    return api.createInvite(
+      businessId: businessId,
+      roleId: roleId,
+      email: email,
+      expiresHours: expiresHours,
+    );
+  }
+
+  Future<StaffClaim> claimStaffInvite(String token) {
+    final api = _staffAccessApi;
+    if (api == null) throw StateError('Fulus cloud staff access is unavailable.');
+    return api.claimInvite(token);
   }
 
   void selectBusiness(String businessId) {
