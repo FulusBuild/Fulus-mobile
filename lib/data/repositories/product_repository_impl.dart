@@ -259,7 +259,8 @@ class ProductRepositoryImpl implements ProductRepository {
     final localId = Ulid().toString();
     final product = draft.toProductEntity(localId: localId);
 
-    await _db.into(_db.products).insert(product.toDriftCompanion());
+    await _db.transaction(() async {
+      await _db.into(_db.products).insert(product.toDriftCompanion());
 
     // Always seeded, even when initialStock is 0 — a deliberate zero
     // (this product has none yet) is a different, more useful fact than
@@ -275,7 +276,8 @@ class ProductRepositoryImpl implements ProductRepository {
       currentStock: draft.initialStock,
     );
 
-    await _syncQueue.enqueue(SyncTask.createProduct(localId));
+      await _syncQueue.enqueue(SyncTask.createProduct(localId));
+    });
 
     return product;
   }
