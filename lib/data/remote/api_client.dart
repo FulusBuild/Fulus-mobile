@@ -295,7 +295,6 @@ class _AuthInterceptor extends Interceptor {
   void setOnSessionExpired(Future<void> Function() callback) =>
       _onSessionExpired = callback;
 
-  @override
   Future<void> _attachHeaders(RequestOptions options) async {
     if (_accessToken != null) {
       options.headers['Authorization'] = 'Bearer $_accessToken';
