@@ -349,12 +349,16 @@ class SaleRepositoryImpl implements SaleRepository {
           .getSingleOrNull();
 
       if (stockRow == null) {
-        // No stock row exists yet for this product at this location.
-        // Skipping rather than fabricating one with a negative count —
-        // seeding initial stock levels is real, undone work belonging
-        // to Phase 2's actual inventory feature (Volume 6), not
-        // something this sale-creation path should invent a value for.
-        continue;
+        throw StateError(
+          'No stock record exists for product $productLocalId at location $locationId.',
+        );
+      }
+
+      final newStock = stockRow.currentStock - item.quantity;
+      if (newStock < 0) {
+        throw StateError(
+          'Insufficient stock for product $productLocalId.',
+        );
       }
 
       await (_db.update(_db.productStockLevels)
@@ -365,7 +369,7 @@ class SaleRepositoryImpl implements SaleRepository {
             ))
           .write(
         ProductStockLevelsCompanion(
-          currentStock: Value(stockRow.currentStock - item.quantity),
+          currentStock: Value(newStock),
           updatedAt: Value(DateTime.now()),
         ),
       );
