@@ -26,8 +26,10 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   /// (each *Draft's own toStockMovementEntity), which is why this takes
   /// an already-built entity rather than a draft.
   Future<StockMovement> _record(StockMovement movement) async {
-    await _db.into(_db.stockMovements).insert(movement.toDriftCompanion());
-    await _syncQueue.enqueue(SyncTask.recordStockMovement(movement.localId));
+    await _db.transaction(() async {
+      await _db.into(_db.stockMovements).insert(movement.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.recordStockMovement(movement.localId));
+    });
     return movement;
   }
 
