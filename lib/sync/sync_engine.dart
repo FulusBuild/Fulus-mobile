@@ -110,6 +110,13 @@ class SyncEngine {
           maxAttemptsBeforeAttentionNeeded,
         ),
       );
+      query.where(
+        (q) =>
+            q.lastAttemptedAt.isNull() |
+            q.lastAttemptedAt.isSmallerThanValue(
+              now.subtract(const Duration(days: 3650)),
+            ),
+      );
     }
 
     final items = await query.get();
