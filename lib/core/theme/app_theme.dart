@@ -4,10 +4,10 @@ import 'design_tokens.dart';
 
 /// Product-wide Material foundation for Fulus.
 ///
-/// The visual hierarchy is intentionally quiet: deep navy owns primary
-/// actions, neutral surfaces carry most content, and semantic colours are
-/// reserved for status. The goal is a consumer-grade interface rather than
-/// a card-heavy admin dashboard.
+/// Fulus has one interaction colour: blue. White carries the canvas and
+/// primary surfaces, while black carries typography and neutral iconography.
+/// Semantic states deliberately reuse this same visual language instead of
+/// introducing additional status colours.
 class AppTheme {
   AppTheme._();
 
@@ -17,8 +17,8 @@ class AppTheme {
       brightness: Brightness.light,
       primary: AppColors.primary,
       onPrimary: AppColors.neutral0,
-      secondary: AppColors.accent,
-      onSecondary: AppColors.brand,
+      secondary: AppColors.primary,
+      onSecondary: AppColors.neutral0,
       error: AppColors.error,
       onError: AppColors.neutral0,
       surface: AppColors.surfaceLight,
@@ -34,7 +34,7 @@ class AppTheme {
       textTheme: _textTheme(AppColors.textPrimaryLight, AppColors.textSecondaryLight),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.textPrimaryLight, AppColors.borderLight),
-      textButtonTheme: _textButtonTheme(AppColors.textPrimaryLight),
+      textButtonTheme: _textButtonTheme(AppColors.primary),
       cardTheme: _cardTheme(AppColors.surfaceLight),
       inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.primary),
       appBarTheme: _appBarTheme(AppColors.backgroundLight, AppColors.textPrimaryLight),
@@ -52,8 +52,8 @@ class AppTheme {
       brightness: Brightness.dark,
       primary: AppColors.darkPrimary,
       onPrimary: AppColors.darkOnPrimary,
-      secondary: AppColors.accent,
-      onSecondary: AppColors.brand,
+      secondary: AppColors.darkPrimary,
+      onSecondary: AppColors.darkOnPrimary,
       error: AppColors.darkError,
       onError: AppColors.darkErrorOn,
       surface: AppColors.surfaceDark,
@@ -69,7 +69,7 @@ class AppTheme {
       textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.darkTextPrimary, AppColors.borderDark),
-      textButtonTheme: _textButtonTheme(AppColors.darkTextPrimary),
+      textButtonTheme: _textButtonTheme(AppColors.darkPrimary),
       cardTheme: _cardTheme(AppColors.surfaceDark),
       inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkPrimary),
       appBarTheme: _appBarTheme(AppColors.backgroundDark, AppColors.darkTextPrimary),
