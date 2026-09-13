@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,9 +71,9 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
           children: [
             const Text('This locks this drawer session. You can still view and export the closing summary afterward.'),
             const SizedBox(height: AppSpacing.lg),
-            _ConfirmRow(label: 'Expected', value: preview.expectedCash),
-            _ConfirmRow(label: 'Counted', value: counted),
-            _ConfirmRow(label: difference == 0 ? 'Difference' : difference > 0 ? 'Over' : 'Short', value: difference.abs()),
+            _ConfirmRow(label: 'Expected', value: preview.expectedCash, symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
+            _ConfirmRow(label: 'Counted', value: counted, symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
+            _ConfirmRow(label: difference == 0 ? 'Difference' : difference > 0 ? 'Over' : 'Short', value: difference.abs(), symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
           ],
         ),
         actions: [
@@ -168,13 +166,13 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
 }
 
 class _ConfirmRow extends StatelessWidget {
-  const _ConfirmRow({required this.label, required this.value});
+  const _ConfirmRow({required this.label, required this.value, required this.symbol});
   final String label;
   final double value;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
-    final symbol = '₦';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
