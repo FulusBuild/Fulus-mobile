@@ -94,7 +94,7 @@ class DashboardEngine {
     // The product contract is intentionally stricter than the method's
     // convenience parameter: a caller may ask for fewer than two, but
     // never more than two. Negative values also degrade safely to zero.
-    final effectiveMax = max.clamp(0, 2);
+    final effectiveMax = max.clamp(0, 2).toInt();
     if (meaningful.length <= effectiveMax) {
       return SecondaryNoticeSelection(shown: meaningful, overflowCount: 0);
     }
