@@ -485,7 +485,7 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: 'cloud',
                       name: 'moreSettingsCloud',
-                      builder: (context, state) => const FulusCloudConnectionScreen(),
+                      builder: (context, state) => FulusCloudConnectionScreen(resumeAfterVerification: state.uri.queryParameters['verified'] == '1'),
                     ),
                     GoRoute(
                       path: 'printers',
