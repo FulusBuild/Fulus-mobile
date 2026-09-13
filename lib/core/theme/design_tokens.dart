@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Fulus visual tokens. The interface uses a warm, high-contrast action
-/// colour with quieter neutral surfaces, generous corners, and consistent
-/// motion so every feature reads as one modern product.
+/// Fulus visual tokens. Deep navy is the product's primary action/brand
+/// colour; orange is reserved for small moments of emphasis and commerce
+/// cues rather than filling every primary control.
 class AppColors {
   AppColors._();
 
-  static const primary = Color(0xFFFF9900);
+  static const primary = Color(0xFF131921);
   static const brand = Color(0xFF131921);
   static const brandDark = Color(0xFF0B1116);
   static const brandLight = Color(0xFFEAEDED);
+  static const accent = Color(0xFFFF9900);
   static const accentLight = Color(0xFFFFF3E0);
   static const clay = Color(0xFFA8492E);
   static const clayLight = Color(0xFFF4DDD3);
@@ -37,9 +38,9 @@ class AppColors {
   static const darkWarningOn = Color(0xFF17120A);
   static const darkError = Color(0xFFE18A70);
   static const darkErrorOn = Color(0xFF200C07);
-  static const darkPrimary = Color(0xFFFFAD33);
-  static const darkPrimaryStrong = Color(0xFFFFBF5C);
-  static const darkOnPrimary = Color(0xFF131A22);
+  static const darkPrimary = Color(0xFFDCE7F3);
+  static const darkPrimaryStrong = Color(0xFFEAF2FA);
+  static const darkOnPrimary = Color(0xFF101820);
   static const darkInfo = Color(0xFF7EA5C9);
   static const darkSuccess = Color(0xFF63C49B);
   static const darkSuccessOn = Color(0xFF071B12);
@@ -59,16 +60,18 @@ class AppColors {
   static const neutral800 = Color(0xFF1F2830);
   static const neutral900 = Color(0xFF131A22);
 
-  static const primary50 = accentLight;
-  static const primary100 = Color(0xFFFFE0B2);
-  static const primary200 = Color(0xFFFFCC80);
-  static const primary300 = Color(0xFFFFB74D);
-  static const primary400 = Color(0xFFFFA726);
+  // Legacy primary ramp names remain for existing call sites, but now map to
+  // the navy system. Orange lives in [accent]/[accentLight].
+  static const primary50 = Color(0xFFF1F4F7);
+  static const primary100 = Color(0xFFE2E8EE);
+  static const primary200 = Color(0xFFC5D0DA);
+  static const primary300 = Color(0xFFA7B8C7);
+  static const primary400 = Color(0xFF7F95A8);
   static const primary500 = primary;
-  static const primary600 = Color(0xFFE68A00);
-  static const primary700 = Color(0xFFB86E00);
-  static const primary800 = Color(0xFF8A5200);
-  static const primary900 = Color(0xFF5C3700);
+  static const primary600 = Color(0xFF0E141B);
+  static const primary700 = Color(0xFF0B1116);
+  static const primary800 = Color(0xFF081018);
+  static const primary900 = Color(0xFF050B10);
 
   static const secondary50 = Color(0xFFF4F5F6);
   static const secondary100 = Color(0xFFEAEDED);
@@ -94,7 +97,8 @@ class AppColors {
 
   static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
   static Color primaryOf(BuildContext context) => isDark(context) ? darkPrimary : primary;
-  static Color onPrimaryOf(BuildContext context) => isDark(context) ? darkOnPrimary : brand;
+  static Color onPrimaryOf(BuildContext context) => isDark(context) ? darkOnPrimary : neutral0;
+  static Color accentOf(BuildContext context) => accent;
   static Color successOf(BuildContext context) => isDark(context) ? darkSuccess : success;
   static Color successOnOf(BuildContext context) => isDark(context) ? darkSuccessOn : neutral0;
   static Color warningOf(BuildContext context) => isDark(context) ? darkWarning : warning;
@@ -137,8 +141,6 @@ class AppSpacing {
   static const xxxl = 48.0;
 }
 
-/// Modern, friendly geometry used consistently across cards, inputs, chips,
-/// dialogs, sheets and buttons.
 class AppRadius {
   AppRadius._();
   static const sm = 10.0;
@@ -200,5 +202,5 @@ const double kMinimumContrastRatio = 4.5;
 class AppGradients {
   AppGradients._();
   static LinearGradient heroOf(BuildContext context) => LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: AppColors.isDark(context) ? [AppColors.brandDark, AppColors.brand] : [AppColors.brand, AppColors.textPrimaryLight]);
-  static LinearGradient successOf(BuildContext context) => LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: AppColors.isDark(context) ? [AppColors.surfaceDark, AppColors.brandDark] : [AppColors.accentLight, AppColors.surfaceLight]);
+  static LinearGradient successOf(BuildContext context) => LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: AppColors.isDark(context) ? [AppColors.surfaceDark, AppColors.brandDark] : [AppColors.successLight, AppColors.surfaceLight]);
 }
