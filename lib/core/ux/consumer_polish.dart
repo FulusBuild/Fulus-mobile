@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/design_tokens.dart';
 
@@ -78,7 +79,9 @@ class _FulusPressableState extends State<FulusPressable> {
           setState(() {});
         },
         child: MouseRegion(
-          cursor: widget.onPressed == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
+          cursor: widget.onPressed == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onPressed == null ? null : _activate,
