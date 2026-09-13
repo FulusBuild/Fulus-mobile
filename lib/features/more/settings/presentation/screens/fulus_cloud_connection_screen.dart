@@ -116,6 +116,7 @@ class _FulusCloudConnectionScreenState
       await ref.read(authApiProvider).createCloudBusiness(
         name: name,
         functionBaseUrl: SupabaseConfig.functionBaseUrl,
+        businessProvisionFunctionUrl: SupabaseConfig.businessProvisionFunctionUrl,
         publishableKey: SupabaseConfig.publishableKey,
       );
       final connection = ref.read(fulusConnectionStateProvider);
@@ -170,7 +171,8 @@ class _FulusCloudConnectionScreenState
 
       if (active.isEmpty) {
         throw StateError(
-          'This cloud account has no active Fulus business membership.',
+          'This cloud account has no active Fulus business membership. '
+          'Use “Create account & set up business” to finish setup.',
         );
       }
 
@@ -207,8 +209,7 @@ class _FulusCloudConnectionScreenState
 
   Future<void> _registerDevice(dynamic connection) async {
     final storage = ref.read(secureStorageProvider);
-    final deviceId =
-        await storage.ensureDeviceClientId(Ulid().toString());
+    final deviceId = await storage.ensureDeviceClientId(Ulid().toString());
     final package = await PackageInfo.fromPlatform();
 
     await connection.registerDevice(
@@ -259,8 +260,7 @@ class _FulusCloudConnectionScreenState
             .where((m) => m.status == 'active')
             .toList(growable: false) ??
         const [];
-    final connected =
-        connection.isConnected && connection.isDeviceAuthorized;
+    final connected = connection.isConnected && connection.isDeviceAuthorized;
 
     return FulusScreen(
       title: 'Fulus Cloud',
@@ -279,8 +279,7 @@ class _FulusCloudConnectionScreenState
                 Text(
                   connected
                       ? 'This device is authorized to sync the selected business.'
-                      : 'Your local Fulus account and data work without this connection. '
-                          'Connect only when you want server-authoritative sync.',
+                      : 'Your local Fulus account and data work without this connection. Connect only when you want server-authoritative sync.',
                 ),
               ],
             ),
@@ -316,9 +315,7 @@ class _FulusCloudConnectionScreenState
                   if (_error != null) ...[
                     Text(
                       _error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -363,18 +360,13 @@ class _FulusCloudConnectionScreenState
                   title: Text(membership.businessId),
                   subtitle: Text(membership.roleId ?? 'Active membership'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: _busy
-                      ? null
-                      : () => _selectBusiness(membership.businessId),
+                  onTap: _busy ? null : () => _selectBusiness(membership.businessId),
                 ),
             ],
           ],
           if (_error != null && connected) ...[
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
         ],
       ),
