@@ -65,9 +65,10 @@ class AuthApi {
     await _client.persistServerRefreshToken(refreshToken);
   }
 
-  Future<Map<String, dynamic>> createCloudBusiness({required String name, required String functionBaseUrl, required String publishableKey, String currencyCode = 'NGN', String timezone = 'Africa/Lagos', String locationName = 'Main'}) async {
+  Future<Map<String, dynamic>> createCloudBusiness({required String name, required String functionBaseUrl, required String publishableKey, String currencyCode = 'NGN', String timezone = 'Africa/Lagos', String locationName = 'Main', String? businessProvisionFunctionUrl}) async {
     try {
-      final response = await Dio(BaseOptions(baseUrl: functionBaseUrl)).post('', data: {'action': 'create_business', 'name': name, 'currency_code': currencyCode, 'timezone': timezone, 'location_name': locationName}, options: Options(headers: {'apikey': publishableKey, 'Authorization': 'Bearer ${_client.serverAccessToken}', 'content-type': 'application/json'}));
+      final endpoint = businessProvisionFunctionUrl ?? functionBaseUrl;
+      final response = await Dio(BaseOptions(baseUrl: endpoint)).post('', data: {'name': name, 'currency_code': currencyCode, 'timezone': timezone, 'location_name': locationName}, options: Options(headers: {'apikey': publishableKey, 'Authorization': 'Bearer ${_client.serverAccessToken}', 'content-type': 'application/json'}));
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) { throw _client.mapError(e); }
   }
