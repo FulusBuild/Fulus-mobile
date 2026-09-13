@@ -77,7 +77,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
   // opened — `late final` (not a plain getter) so this screen instance
   // can't flip which variant is showing mid-view on some unrelated
   // rebuild.
-  late final bool _isFirstSale = !ref.read(onboardingStateProvider).hasCelebratedFirstSale;
+  late final bool _isFirstSale = !ref.read(onboardingStateProvider).hasCelebratedFirstSale();
 
   @override
   void initState() {
