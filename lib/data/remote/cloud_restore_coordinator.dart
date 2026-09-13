@@ -29,8 +29,6 @@ class CloudRestoreCoordinator {
         ownerCloudUserId: null,
       );
 
-      // These writes are nested inside the same outer transaction as the
-      // destructive import. Any failure rolls back the complete local restore.
       await _db.delete(_db.businessSettings).go();
       await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
       await _normalizeOwner(
@@ -61,11 +59,21 @@ class CloudRestoreCoordinator {
         : null;
     final fullName = profileName?.isNotEmpty == true ? profileName! : 'Owner';
 
+    final membership = snapshot['membership'];
+    final cloudRole = membership is Map
+        ? membership['role_name']?.toString().toLowerCase()
+        : null;
+    // The local auth model has no `admin` role. Map a cloud administrator to
+    // the least-privileged local management role and preserve their explicit
+    // cloud-derived UserPermissions instead of silently upgrading them to the
+    // structurally unrestricted local owner role.
+    final localRole = cloudRole == 'admin' ? AuthRole.manager : AuthRole.owner;
+
     final owner = await (_db.select(_db.users)
           ..where((u) => u.localId.equals(ownerCloudUserId)))
         .getSingleOrNull();
     if (owner == null) {
-      throw StateError('Restore did not create the cloud owner identity.');
+      throw StateError('Restore did not create the cloud account identity.');
     }
 
     await (_db.update(_db.users)
@@ -74,14 +82,15 @@ class CloudRestoreCoordinator {
       UsersCompanion(
         email: Value(ownerEmail),
         fullName: Value(fullName),
-        role: const Value(AuthRole.owner),
+        role: Value(localRole),
         isActive: const Value(true),
         updatedAt: Value(DateTime.now()),
       ),
     );
 
     // The generic staff importer creates an Employee row for every cloud
-    // membership. The owner is a local identity, not an employee.
+    // membership. The authenticated restoring account is represented by the
+    // local session instead, so remove its synthetic employee row.
     await (_db.delete(_db.employees)
           ..where((e) => e.authUserId.equals(ownerCloudUserId)))
         .go();
