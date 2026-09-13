@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// Fulus visual tokens, aligned to the Wholesale Plastic editorial system.
-/// Functional UI stays high-contrast and touch-friendly; the visual language
-/// is typography-led, quiet, and rule-based rather than dashboard-heavy.
+/// Fulus visual tokens. The interface uses a warm, high-contrast action
+/// colour with quieter neutral surfaces, generous corners, and consistent
+/// motion so every feature reads as one modern product.
 class AppColors {
   AppColors._();
 
-  // Website source of truth.
-  static const primary = Color(0xFFFF9900); // accent / primary action
+  static const primary = Color(0xFFFF9900);
   static const brand = Color(0xFF131921);
   static const brandDark = Color(0xFF0B1116);
   static const brandLight = Color(0xFFEAEDED);
@@ -15,13 +14,9 @@ class AppColors {
   static const clay = Color(0xFFA8492E);
   static const clayLight = Color(0xFFF4DDD3);
   static const ochre = Color(0xFFC98200);
-  static const ochreLight = Color(0xFFFFF0D6);
 
-  // Functional green is deliberately semantic, not brand-primary. The
-  // companion site uses #087443 for the cart success interaction.
   static const success = Color(0xFF087443);
   static const successLight = Color(0xFFE3F2EC);
-
   static const warning = ochre;
   static const error = clay;
   static const info = Color(0xFF2E5C8A);
@@ -29,10 +24,10 @@ class AppColors {
   static const textPrimaryLight = Color(0xFF131A22);
   static const textSecondaryLight = Color(0xFF48515B);
   static const mutedLight = Color(0xFF66717C);
-  static const borderLight = Color(0xFFD5DBE0);
-  static const backgroundLight = Color(0xFFFFFFFF);
+  static const borderLight = Color(0xFFD9DEE3);
+  static const backgroundLight = Color(0xFFF7F8F9);
   static const surfaceLight = Color(0xFFFFFFFF);
-  static const surfaceAltLight = Color(0xFFEAEDED);
+  static const surfaceAltLight = Color(0xFFEFF1F3);
 
   static const backgroundDark = Color(0xFF0B1116);
   static const surfaceDark = Color(0xFF131921);
@@ -52,7 +47,6 @@ class AppColors {
   static const darkTextSecondary = Color(0xFFC0C7CD);
   static const darkMuted = Color(0xFF9DA7AF);
 
-  // Neutral ramps used by shared components.
   static const neutral0 = Color(0xFFFFFFFF);
   static const neutral50 = Color(0xFFF7F8F9);
   static const neutral100 = Color(0xFFEAEDED);
@@ -65,7 +59,6 @@ class AppColors {
   static const neutral800 = Color(0xFF1F2830);
   static const neutral900 = Color(0xFF131A22);
 
-  // Primary ramp aliases retained for existing gradient/chip call sites.
   static const primary50 = accentLight;
   static const primary100 = Color(0xFFFFE0B2);
   static const primary200 = Color(0xFFFFCC80);
@@ -116,58 +109,21 @@ class AppColors {
   static Color textPrimaryOf(BuildContext context) => isDark(context) ? darkTextPrimary : textPrimaryLight;
   static Color textSecondaryOf(BuildContext context) => isDark(context) ? darkTextSecondary : textSecondaryLight;
   static Color mutedOf(BuildContext context) => isDark(context) ? darkMuted : mutedLight;
-  static Color selectedTintOf(BuildContext context) =>
-      isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
+  static Color selectedTintOf(BuildContext context) => isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
 }
 
 class AppTypography {
   AppTypography._();
-
-  // Fraunces is the display face used by the companion website. Georgia is
-  // the deliberate offline-safe fallback when the font is not bundled.
-  static const display = TextStyle(
-    fontFamily: 'Fraunces',
-    fontFamilyFallback: ['Georgia', 'serif'],
-    fontSize: 36,
-    fontWeight: FontWeight.w700,
-    height: 1.08,
-    letterSpacing: -0.7,
-  );
-  static const title = TextStyle(
-    fontFamily: 'Fraunces',
-    fontFamilyFallback: ['Georgia', 'serif'],
-    fontSize: 28,
-    fontWeight: FontWeight.w700,
-    height: 1.12,
-    letterSpacing: -0.4,
-  );
-  static const heading = TextStyle(
-    fontFamily: 'Fraunces',
-    fontFamilyFallback: ['Georgia', 'serif'],
-    fontSize: 22,
-    fontWeight: FontWeight.w600,
-    height: 1.18,
-  );
-  static const subheading = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    height: 1.3,
-  );
+  static const display = TextStyle(fontFamily: 'Fraunces', fontFamilyFallback: ['Georgia', 'serif'], fontSize: 36, fontWeight: FontWeight.w700, height: 1.08, letterSpacing: -0.7);
+  static const title = TextStyle(fontFamily: 'Fraunces', fontFamilyFallback: ['Georgia', 'serif'], fontSize: 28, fontWeight: FontWeight.w700, height: 1.12, letterSpacing: -0.4);
+  static const heading = TextStyle(fontFamily: 'Fraunces', fontFamilyFallback: ['Georgia', 'serif'], fontSize: 22, fontWeight: FontWeight.w600, height: 1.18);
+  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3);
   static const bodyLarge = TextStyle(fontSize: 18, height: 1.55);
   static const body = TextStyle(fontSize: 16, height: 1.55);
   static const caption = TextStyle(fontSize: 14, height: 1.5);
   static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.35, letterSpacing: 0.7);
   static const buttonLabel = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.2, letterSpacing: 0.1);
-
-  // Space Mono is the companion website's data face. Use this for prices,
-  // totals, quantities and IDs where numeric alignment matters.
-  static const mono = TextStyle(
-    fontFamily: 'Space Mono',
-    fontFamilyFallback: ['monospace'],
-    fontSize: 16,
-    height: 1.25,
-    fontFeatures: [FontFeature.tabularFigures()],
-  );
+  static const mono = TextStyle(fontFamily: 'Space Mono', fontFamilyFallback: ['monospace'], fontSize: 16, height: 1.25, fontFeatures: [FontFeature.tabularFigures()]);
 }
 
 class AppSpacing {
@@ -181,12 +137,14 @@ class AppSpacing {
   static const xxxl = 48.0;
 }
 
+/// Modern, friendly geometry used consistently across cards, inputs, chips,
+/// dialogs, sheets and buttons.
 class AppRadius {
   AppRadius._();
-  static const sm = 4.0;
-  static const md = 6.0;
-  static const lg = 8.0;
-  static const xl = 14.0;
+  static const sm = 10.0;
+  static const md = 14.0;
+  static const lg = 18.0;
+  static const xl = 24.0;
   static const pill = 999.0;
 }
 
@@ -194,17 +152,11 @@ class AppElevation {
   AppElevation._();
   static const cardLight = [
     BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x0F1B1B17)),
-    BoxShadow(offset: Offset(0, 1), blurRadius: 1, color: Color(0x0A1B1B17)),
+    BoxShadow(offset: Offset(0, 5), blurRadius: 18, color: Color(0x101B1B17)),
   ];
-  static const liftLight = [
-    BoxShadow(offset: Offset(0, 12), blurRadius: 28, color: Color(0x381B1B17)),
-  ];
-  static const cardDark = [
-    BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x55000000)),
-  ];
-  static const liftDark = [
-    BoxShadow(offset: Offset(0, 12), blurRadius: 28, color: Color(0x88000000)),
-  ];
+  static const liftLight = [BoxShadow(offset: Offset(0, 12), blurRadius: 28, color: Color(0x381B1B17))];
+  static const cardDark = [BoxShadow(offset: Offset(0, 1), blurRadius: 3, color: Color(0x66000000))];
+  static const liftDark = [BoxShadow(offset: Offset(0, 12), blurRadius: 28, color: Color(0x88000000))];
   static List<BoxShadow> cardOf(BuildContext context) => isDark(context) ? cardDark : cardLight;
   static List<BoxShadow> liftOf(BuildContext context) => isDark(context) ? liftDark : liftLight;
   static bool isDark(BuildContext context) => AppColors.isDark(context);
@@ -247,22 +199,6 @@ const double kMinimumContrastRatio = 4.5;
 
 class AppGradients {
   AppGradients._();
-  static LinearGradient heroOf(BuildContext context) {
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: AppColors.isDark(context)
-          ? [AppColors.brandDark, AppColors.brand]
-          : [AppColors.brand, AppColors.textPrimaryLight],
-    );
-  }
-  static LinearGradient successOf(BuildContext context) {
-    return LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: AppColors.isDark(context)
-          ? [AppColors.surfaceDark, AppColors.brandDark]
-          : [AppColors.accentLight, AppColors.surfaceLight],
-    );
-  }
+  static LinearGradient heroOf(BuildContext context) => LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: AppColors.isDark(context) ? [AppColors.brandDark, AppColors.brand] : [AppColors.brand, AppColors.textPrimaryLight]);
+  static LinearGradient successOf(BuildContext context) => LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: AppColors.isDark(context) ? [AppColors.surfaceDark, AppColors.brandDark] : [AppColors.accentLight, AppColors.surfaceLight]);
 }
