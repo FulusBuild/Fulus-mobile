@@ -12,26 +12,16 @@ import '../../../../shared/widgets/widgets.dart';
 import '../widgets/auth_error_banner.dart';
 
 /// The first-run setup is intentionally local-first and minimal.
-///
-/// A new owner only needs to provide their name and business name. Fulus
-/// supplies sensible defaults for the other configuration values so a
-/// non-technical shop owner can start selling immediately. Cloud, printers,
-/// locations and advanced configuration remain available later.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
   const OwnerSetupScreen({
     super.key,
     this.startAtBusinessStep = false,
     this.resumingOwner,
     this.linkToExistingBusiness = false,
-  })  : assert(
-          !startAtBusinessStep || resumingOwner != null,
-          'resumingOwner is required when starting at the business step.',
-        ),
-        assert(
-          !(startAtBusinessStep && linkToExistingBusiness),
-          'startAtBusinessStep and linkToExistingBusiness are mutually '
-          'exclusive recovery paths.',
-        );
+  })  : assert(!startAtBusinessStep || resumingOwner != null,
+            'resumingOwner is required when starting at the business step.'),
+        assert(!(startAtBusinessStep && linkToExistingBusiness),
+            'startAtBusinessStep and linkToExistingBusiness are mutually exclusive recovery paths.');
 
   final bool startAtBusinessStep;
   final AuthUser? resumingOwner;
@@ -97,9 +87,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     final businessName = _businessNameController.text.trim();
     final errors = <String, String>{};
 
-    if (_needsOwnerName && fullName.isEmpty) {
-      errors['fullName'] = 'Enter your name.';
-    }
+    if (_needsOwnerName && fullName.isEmpty) errors['fullName'] = 'Enter your name.';
     if (_needsBusiness) {
       if (businessName.isEmpty) {
         errors['businessName'] = "What's your business called?";
@@ -149,8 +137,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       }
 
       if (!mounted) return;
-      // A new business goes straight to the lightweight first-run handoff.
-      // Optional walkthrough steps are never allowed to block the first sale.
       if (widget.startAtBusinessStep || widget.linkToExistingBusiness) {
         context.closeScreenOr('/');
       } else {
@@ -176,9 +162,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_checkingExisting) {
-      return const FulusScreen(body: FulusLoadingIndicator());
-    }
+    if (_checkingExisting) return const FulusScreen(body: FulusLoadingIndicator());
     if (_alreadyConfigured) return _buildAlreadySetUp(context);
 
     final title = !_needsBusiness
@@ -197,10 +181,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    title,
-                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-                  ),
+                  Text(title, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     _needsOwnerName
@@ -218,6 +199,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                       label: 'Your name',
                       controller: _fullNameController,
                       errorText: _fieldErrors['fullName'],
+                      textInputAction: _needsBusiness ? TextInputAction.next : TextInputAction.done,
+                      autofocus: true,
                       onChanged: (_) => _clearErrors(),
                     ),
                     if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
@@ -227,6 +210,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                       label: 'Business name',
                       controller: _businessNameController,
                       errorText: _fieldErrors['businessName'],
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _submit(),
                       onChanged: (_) => _clearErrors(),
                     ),
                   const SizedBox(height: AppSpacing.xl),
@@ -258,11 +243,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               children: [
                 Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context), size: AppIconSize.hero),
                 const SizedBox(height: AppSpacing.lg),
-                Text(
-                  "You're all set",
-                  textAlign: TextAlign.center,
-                  style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-                ),
+                Text("You're all set", textAlign: TextAlign.center, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'This business is already set up on this device.',
