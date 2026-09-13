@@ -22,7 +22,7 @@ void main() {
     );
 
     final semantics = tester.getSemantics(find.byType(FulusPressable));
-    expect(semantics.hasFlag(SemanticsFlag.isButton), isTrue);
+    expect(semantics.flagsCollection.isButton, isTrue);
     expect(semantics.label, 'Test action');
 
     await tester.tap(find.text('Do it'));
