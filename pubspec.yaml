@@ -1,1 +1,209 @@
-app_links: ^6.4.1
+name: fulus_mobile
+description: Fulus Mobile — offline-first business management for Android.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  # Floor raised from 3.3.0 to 3.10.0 alongside the Diagnostic & Crash
+  # Logging System addition below: package_info_plus 10.2.1 and
+  # device_info_plus 13.2.0 both declare a real minimum Dart SDK of
+  # 3.10 (checked directly against their pub.dev listings), so leaving
+  # this file's own stated floor at 3.3.0 would have been inaccurate —
+  # pub's resolver would reject 3.3-3.9 anyway once those two packages
+  # were added, whatever this line claimed. Safe to raise: every other
+  # dependency already declared here targets a floor at or below 3.3.0,
+  # so nothing else in this file needed a compatibility check against
+  # the new number.
+  # Android 8.0 (API 26) is the architecture document's stated floor.
+  # Flutter 3.19+ / Dart 3.3+ still supports minSdkVersion 26 in
+  # android/app/build.gradle (set explicitly there, not implied by this
+  # file) — the SDK constraint here is about the Dart language version
+  # used, not the Android API floor, which is a separate, explicit
+  # setting covered in Phase 1's Android project files.
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- State management (Architecture Section 2) ---
+  # Riverpod is the app-wide default. flutter_bloc is present ONLY for
+  # the cart Cubit — a deliberate, narrow, justified exception (Section 2),
+  # not the start of a second state-management pattern elsewhere.
+  flutter_riverpod: ^3.3.2
+  riverpod_annotation: ^4.0.3
+  flutter_bloc: ^8.1.5
+
+  # --- Routing ---
+  go_router: ^14.2.0
+
+  # --- Local database (Architecture Section 3) ---
+  drift: ^2.18.0
+  sqlite3_flutter_libs: ^0.6.0+eol
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+  # --- Networking (Architecture Section 5) ---
+  dio: ^5.5.0+1
+  app_links: ^6.4.1
+  connectivity_plus: ^6.0.4
+
+  # --- Secure storage (Architecture Section 11) ---
+  flutter_secure_storage: ^10.1.0
+
+  # --- Background sync (Architecture Section 8) ---
+  # Bumped from 0.5.2 to 0.10.9 (current stable) after Flutter 3.44.9's CI
+  # runner started failing assembleDebug: 0.5.2's Android implementation
+  # (BackgroundWorker.kt / WorkmanagerPlugin.kt) still referenced the v1
+  # embedding compatibility shim (ShimPluginRegistry, PluginRegistrantCallback,
+  # Registrar) that Flutter removed outright in 3.29.0, so it no longer
+  # compiles on any Flutter version at or above that. The package dropped
+  # v1-embedding support itself back at 0.6.0; nothing before that is usable
+  # here regardless of what else changed since. Went straight to latest
+  # rather than the minimum 0.6.0 fix: 0.10.9 is the actively maintained
+  # release, and since nothing in lib/ actually calls the Workmanager API
+  # yet (declared for the still-pending background sync work, not wired up),
+  # none of the intervening breaking changes — the 0.8.0 federated-plugin
+  # split (workmanager_android/workmanager_apple, pulled in automatically
+  # via this same version line) or the 0.8.0 enum renames — have any call
+  # site here to migrate.
+  workmanager: ^0.10.9
+
+  # --- IDs, equality, immutability ---
+  # ULID for local_id generation — Architecture Section 3 is explicit this
+  # must fit in Sale.client_reference's 64-char backend column; ULID (26
+  # chars, Crockford Base32) does, comfortably, and sorts lexicographically
+  # by creation time, which UUID v4 does not — a real, deliberate reason
+  # to prefer it over uuid here, not an arbitrary pick.
+  ulid: ^2.0.1
+  equatable: ^2.0.5
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+
+  # --- Password/PIN hashing (Architecture Section 6 — the offline
+  # approval PIN, hashed on-device, never the raw value persisted;
+  # Architecture Section 11 — Argon2id for both the login password and
+  # the approval PIN) ---
+  #
+  # Was dargon2_flutter (FFI binding to the Argon2 reference C library)
+  # until the bugreport in this session's first message confirmed it
+  # unusable on Android: dargon2_flutter_mobile's own native lib loader
+  # throws "dlopen failed: library 'libargon2-arm.so' not found" on
+  # startup, which is a real, still-open, ~2-year-unaddressed upstream
+  # bug (github.com/tmthecoder/dargon2/issues/26) — not a packaging
+  # mistake in this project's own Android config, which has no
+  # abiFilters or other ABI restriction that would explain a missing
+  # native lib. (The same upstream repo also has issue #27, open since
+  # Sep 2025, for a *second*, unrelated Dart-3.0+ incompatibility — this
+  # plugin is unmaintained on any current toolchain, not just flaky on
+  # this one device.) cryptography's Argon2id is pure Dart — no native
+  # library to package per-ABI at all, so this whole bug class doesn't
+  # apply to it — and is still genuinely Argon2id, not a weaker
+  # algorithm swapped in to dodge the real problem. crypto itself
+  # (below) was already unused throughout lib/ before this change; kept
+  # here since cryptography depends on it transitively anyway.
+  cryptography: ^2.9.0
+  crypto: ^3.0.5
+
+  cupertino_icons: ^1.0.8
+
+  # --- Stage 10 (Backup): direct sqlite3 access for VACUUM INTO, per
+  # backup_repository_impl.dart's own header comment on why that's
+  # preferred over Drift's own backup API for this specific operation ---
+  sqlite3: ^3.5.2
+
+  # --- Stage 9 (Receipts) / Stage 10 (Backup): PDF receipts and sharing
+  # either a receipt or a backup file via the Android Share Sheet ---
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+  # MERGE NOTE: two independent sessions (Stages 9-12, Stages 13-17) each
+  # added share_plus without visibility into the other — 9-12 pinned
+  # ^7.2.2 specifically for Share.shareXFiles(List<XFile>, {text}), which
+  # its own comment already flagged as "stable across several major
+  # versions" and worth confirming against whatever ends up merged;
+  # 13-17 added ^10.1.2 for CSV export sharing. Resolved here in favor of
+  # the newer constraint (10.1.2) rather than splitting the difference,
+  # since 9-12's own note already anticipated this exact case and named
+  # Share.shareXFiles as the specific method to re-check — that's a
+  # concrete, cheap verification (one method call, in
+  # backup_repository_impl.dart's share step) rather than a genuine
+  # unknown. Flagging clearly rather than silently picking one: verify
+  # Share.shareXFiles(List<XFile>, {text}) still exists on 10.1.2 before
+  # shipping — if it was removed in favor of
+  # SharePlus.instance.share(ShareParams(...)) as 9-12's own comment
+  # speculated it might be, that one call site needs updating.
+  share_plus: ^13.0.0
+
+  # --- Stage 13 (Notifications) ---
+  flutter_local_notifications: ^18.0.1
+
+  # --- Stage 14 (Search/Export): CSV export; PDF export reuses `pdf`/
+  # `printing` above rather than a separate package ---
+  # (no additional package beyond pdf/printing/share_plus above)
+
+  # File picking for bulk-import's file-based flow (BulkImportScreen).
+  # Deliberately on the 11.x line, not 12.x: file_picker 12 changed
+  # pickFiles() to return List<PlatformFile> directly instead of
+  # FilePickerResult?, and the code here (and this constraint) is
+  # written against 11's API.
+  file_picker: ^12.0.0
+
+  # --- Stage 15 (Device Services) ---
+  mobile_scanner: ^6.0.2
+  camera: ^0.11.0+2
+  permission_handler: ^11.3.1
+  print_bluetooth_thermal: ^1.1.1
+  flutter_usb_printer: ^0.1.0+1
+
+  # --- Stage 16 (Sync Layer Repositioning): SyncConfig's on-device
+  # enabled/disabled flag persists here, not Drift — a device-local
+  # setting with no business-data shape of its own ---
+  shared_preferences: ^2.3.3
+
+  # --- Diagnostic & Crash Logging System: app version/build number and
+  # device/OS facts attached to every captured DiagnosticEvent (see
+  # core/diagnostics/models/device_context.dart) — no existing mechanism
+  # in this app tracked either before this. Versions verified directly
+  # against pub.dev at the time this was written (10.2.1 / 13.2.0, both
+  # published mid-2026); reasonable to bump further with a plain
+  # `flutter pub upgrade` later, same as any other dependency here ---
+  package_info_plus: ^10.2.1
+  device_info_plus: ^13.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # --- Code generation ---
+  build_runner: ^2.4.11
+  riverpod_generator: ^4.0.4
+  drift_dev: ^2.18.0
+  freezed: ^3.2.6-dev.1
+  json_serializable: ^6.8.0
+
+  # --- Lint ---
+  flutter_lints: ^4.0.0
+
+  # --- Testing (Architecture Section 13) ---
+  mocktail: ^1.0.4
+  # No separate integration_test package added in this phase — Section
+  # 13's integration-test layer (real Drift-backed repository tests, no
+  # mocks) uses flutter_test's own test() against a real sqlite3 database
+  # opened in a temp directory, which needs no additional dependency
+  # beyond what's already listed above. Added explicitly if/when a
+  # genuine on-device integration_test need arises, not preemptively.
+
+flutter:
+  uses-material-design: true
+  # Nice-to-have gap closure — Volume 3's "Install & Launch" ("the icon
+  # and name must read clearly") is the first real in-app use of
+  # assets/branding/ — previously declared nowhere in this file (the
+  # comment this replaces was accurate at the time: nothing had used a
+  # bundled asset yet). Only the branding folder is declared, not
+  # design/fulus-logo-assets/ alongside it — that folder is app-icon/
+  # favicon source material for the Play Store listing and build
+  # tooling, not something any screen loads via `Image.asset` at
+  # runtime.
+  assets:
+    - assets/branding/
