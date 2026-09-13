@@ -35,7 +35,7 @@ class _FulusCloudConnectionScreenState
   @override
   void initState() {
     super.initState();
-    final name = initialBusinessName?.trim();
+    final name = widget.initialBusinessName?.trim();
     if (name != null && name.isNotEmpty) _businessController.text = name;
   }
 
