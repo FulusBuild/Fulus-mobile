@@ -10,7 +10,7 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
-import '../../../../data/remote/cloud_restore_importer.dart';
+import '../../../../data/remote/cloud_restore_coordinator.dart';
 import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../shared/widgets/widgets.dart';
 
@@ -88,26 +88,39 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         throw StateError('Restore snapshot did not contain the authenticated owner identity.');
       }
 
+      // Fetch all non-transactional remote dependencies before changing local
+      // business data. A settings outage therefore cannot leave a destructive
+      // restore half-completed.
+      setState(() => _status = 'Preparing business settings…');
+      final settings = await ref.read(businessSettingsApiProvider).getBusinessProfile();
+
+      // Register the physical installation before the destructive local
+      // transaction. If registration fails, the local database remains
+      // untouched. If the later import fails, the registered device is safe
+      // to reuse on the next attempt.
+      setState(() => _status = 'Registering this device…');
+      await _registerDevice(connection);
+
       setState(() => _status = 'Restoring your business data…');
-      final result = await CloudRestoreImporter(ref.read(databaseProvider)).importSnapshot(
-        snapshot,
+      final result = await CloudRestoreCoordinator(ref.read(databaseProvider)).restore(
+        snapshot: snapshot,
         ownerCloudUserId: ownerCloudUserId,
+        ownerEmail: email,
+        settings: settings,
       );
       if (result.totalRows == 0) {
         throw StateError('The cloud business has no restorable business data.');
       }
 
-      await ref.read(businessSettingsRepositoryProvider).syncFromServer();
-
-      final profile = snapshot['profile'];
-      final profileName = profile is Map ? profile['full_name']?.toString().trim() : null;
-      final owner = await ref.read(authRepositoryProvider).createFirstOwner(
-            fullName: profileName?.isNotEmpty == true ? profileName! : _displayNameFromEmail(email),
-          );
+      // The coordinator creates the local session inside the final owner
+      // normalization transaction. Reload it through the repository so the
+      // repository's in-memory current-user state and the database session
+      // agree before the app continues.
+      final owner = await ref.read(authRepositoryProvider).restoreSession();
+      if (owner == null || owner.id != ownerCloudUserId || !owner.isActive) {
+        throw StateError('Restore completed without a valid local owner session.');
+      }
       ref.read(sessionProvider.notifier).state = owner;
-
-      setState(() => _status = 'Registering this device…');
-      await _registerDevice(connection);
 
       if (!mounted) return;
       showFulusSnackbar(
@@ -144,18 +157,6 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       platform: Platform.operatingSystem,
       appVersion: package.version,
     );
-  }
-
-  String _displayNameFromEmail(String email) {
-    final localPart = email.split('@').first.trim();
-    if (localPart.isEmpty) return 'Owner';
-    final words = localPart
-        .replaceAll(RegExp(r'[._-]+'), ' ')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
-        .toList(growable: false);
-    return words.isEmpty ? 'Owner' : words.join(' ');
   }
 
   @override
