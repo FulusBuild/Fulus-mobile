@@ -78,7 +78,11 @@ class AuthApi {
     try {
       final response = await authClient.post(
         '/auth/v1/token?grant_type=password',
-        data: {'email': email, 'password': password},
+        data: {
+          'email': email,
+          'password': password,
+          'options': {'email_redirect_to': 'fulus://auth/callback'},
+        },
         options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}),
       );
       final data = response.data as Map<String, dynamic>;
@@ -131,6 +135,47 @@ class AuthApi {
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
+  }
+
+  /// Completes a Supabase email-confirmation redirect delivered to the Fulus app.
+  /// Supabase places the access/refresh tokens in the URL fragment after
+  /// verification. We persist the refresh token and immediately rotate it
+  /// through the normal refresh endpoint so the rest of the app uses the
+  /// same session path as every other cloud connection.
+  Future<ServerAuthSessionDto?> restoreServerSessionFromCallback({
+    required Uri uri,
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final params = <String, String>{};
+    final fragment = uri.fragment;
+    if (fragment.isNotEmpty) {
+      for (final part in fragment.split('&')) {
+        final pair = part.split('=');
+        if (pair.length == 2) {
+          params[Uri.decodeComponent(pair.first)] = Uri.decodeComponent(pair.sublist(1).join('='));
+        }
+      }
+    }
+    final errorCode = params['error_code'] ?? uri.queryParameters['error_code'];
+    if (errorCode != null && errorCode.isNotEmpty) {
+      throw StateError(
+        params['error_description'] ?? uri.queryParameters['error_description'] ?? 'Email verification failed.',
+      );
+    }
+    final refreshToken = params['refresh_token'] ?? uri.queryParameters['refresh_token'];
+    final accessToken = params['access_token'] ?? uri.queryParameters['access_token'];
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw StateError('This verification link is invalid or has expired. Request a new email and try again.');
+    }
+    if (accessToken != null && accessToken.isNotEmpty) {
+      await _client.setServerAccessToken(accessToken);
+    }
+    await _client.persistServerRefreshToken(refreshToken);
+    return restoreServerSession(
+      supabaseUrl: supabaseUrl,
+      publishableKey: publishableKey,
+    );
   }
 
   /// Restores an optional server session using only the secure refresh token.
