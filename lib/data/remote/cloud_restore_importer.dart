@@ -453,10 +453,9 @@ class CloudRestoreImporter {
   Future<void> _insertValues(String table, Map<String, Object?> values) async {
     final columns = values.keys.toList(growable: false);
     final placeholders = List.filled(columns.length, '?').join(', ');
-    final variables = columns.map((column) => _variable(values[column])).toList(growable: false);
     await _db.customStatement(
       'INSERT INTO ${_quoteIdentifier(table)} (${columns.map(_quoteIdentifier).join(', ')}) VALUES ($placeholders)',
-      variables,
+      values.values.toList(growable: false),
     );
   }
 
@@ -486,14 +485,6 @@ class CloudRestoreImporter {
       if (value is num) return value.toDouble();
     }
     return value.toString();
-  }
-
-  Variable<Object> _variable(Object? value) {
-    if (value == null) return Variable<String>(null);
-    if (value is int) return Variable<int>(value);
-    if (value is double) return Variable<double>(value);
-    if (value is num) return Variable<double>(value.toDouble());
-    return Variable<String>(value.toString());
   }
 
   DateTime _dateOrNow(Object? value, DateTime fallback) {
