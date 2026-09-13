@@ -8,7 +8,7 @@ void main() {
 
   test('employee Home never receives business attention actions', () {
     final result = engine.prioritize(
-      isOwner: false,
+      canViewDashboardStats: false,
       dayStatus: ShopDayStatus.open,
       notices: const [
         SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
@@ -18,9 +18,24 @@ void main() {
     expect(result, isEmpty);
   });
 
+  test('manager with dashboard permission receives business attention actions', () {
+    final result = engine.prioritize(
+      canViewDashboardStats: true,
+      dayStatus: ShopDayStatus.open,
+      notices: const [
+        SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 2),
+      ],
+      hasTodayActivity: false,
+    );
+    expect(result.map((item) => item.kind), [
+      HomeAttentionKind.lowStock,
+      HomeAttentionKind.startSelling,
+    ]);
+  });
+
   test('low stock is prioritized before credit and start selling', () {
     final result = engine.prioritize(
-      isOwner: true,
+      canViewDashboardStats: true,
       dayStatus: ShopDayStatus.open,
       notices: const [
         SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 12000),
@@ -38,7 +53,7 @@ void main() {
 
   test('not yet opened produces Open Shop instead of a fake sales action', () {
     final result = engine.prioritize(
-      isOwner: true,
+      canViewDashboardStats: true,
       dayStatus: ShopDayStatus.notYetOpened,
       notices: const [],
       hasTodayActivity: false,
@@ -48,7 +63,7 @@ void main() {
 
   test('closed day does not suggest reopening or starting a sale', () {
     final result = engine.prioritize(
-      isOwner: true,
+      canViewDashboardStats: true,
       dayStatus: ShopDayStatus.closed,
       notices: const [],
       hasTodayActivity: false,
@@ -58,7 +73,7 @@ void main() {
 
   test('attention list stays deliberately small', () {
     final result = engine.prioritize(
-      isOwner: true,
+      canViewDashboardStats: true,
       dayStatus: ShopDayStatus.open,
       notices: const [
         SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 4),
