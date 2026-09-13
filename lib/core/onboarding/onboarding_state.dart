@@ -122,16 +122,18 @@ class OnboardingState {
   /// Called on entering a step and on finishing the walkthrough alike —
   /// [OnboardingStep.completion] is a real step here, not a separate
   /// method.
-  Future<void> advanceWalkthroughTo(OnboardingStep step) =>
-      _preferences.setString(_walkthroughStepKey, step.name);
+  Future<void> advanceWalkthroughTo(OnboardingStep step, {String? businessId}) =>
+      _preferences.setString(_scoped(_walkthroughStepKey, businessId), step.name);
 
   /// Marks an optional step as explicitly skipped, so resuming the
   /// walkthrough doesn't re-offer it — see [OnboardingStep.isSkippable]
   /// for which steps this applies to.
-  Future<void> skipWalkthroughStep(OnboardingStep step) async {
-    final updated = walkthroughSkippedSteps..add(step);
+  Future<void> skipWalkthroughStep(OnboardingStep step, {String? businessId}) async {
+    final names = _preferences.getStringList(_scoped(_walkthroughSkippedKey, businessId)) ?? const <String>[];
+    final byName = OnboardingStep.values.asNameMap();
+    final updated = names.map((name) => byName[name]).whereType<OnboardingStep>().toSet()..add(step);
     await _preferences.setStringList(
-      _walkthroughSkippedKey,
+      _scoped(_walkthroughSkippedKey, businessId),
       updated.map((s) => s.name).toList(),
     );
   }
@@ -144,8 +146,8 @@ class OnboardingState {
   /// comment) can't get shown in place of the actual first one.
   String? get walkthroughFirstSaleId => _preferences.getString(_walkthroughFirstSaleIdKey);
 
-  Future<void> recordWalkthroughFirstSale(String saleId) =>
-      _preferences.setString(_walkthroughFirstSaleIdKey, saleId);
+  Future<void> recordWalkthroughFirstSale(String saleId, {String? businessId}) =>
+      _preferences.setString(_scoped(_walkthroughFirstSaleIdKey, businessId), saleId);
 }
 
 /// The walkthrough's resume points. Coarser than the phases a person
