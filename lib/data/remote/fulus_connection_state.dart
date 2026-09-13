@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'fulus_business_context.dart';
@@ -142,6 +143,15 @@ class FulusConnectionState extends ChangeNotifier {
     return revoked;
   }
 
+  Future<void> _syncOnboardingBusiness(String? businessId) async {
+    try {
+      final state = await OnboardingState.load();
+      await state.setActiveBusinessId(businessId);
+    } catch (_) {
+      // Cloud selection must never block local POS operation.
+    }
+  }
+
   void selectBusiness(String businessId) {
     final allowed = _membershipContext?.memberships.any(
           (m) => m.businessId == businessId && m.status == 'active',
@@ -153,6 +163,7 @@ class FulusConnectionState extends ChangeNotifier {
     if (_selectedBusinessId == businessId) return;
     _selectedBusinessId = businessId;
     _registeredDevice = null;
+    unawaited(_syncOnboardingBusiness(businessId));
     notifyListeners();
   }
 
@@ -160,6 +171,7 @@ class FulusConnectionState extends ChangeNotifier {
     if (_selectedBusinessId == null && _registeredDevice == null) return;
     _selectedBusinessId = null;
     _registeredDevice = null;
+    unawaited(_syncOnboardingBusiness(null));
     notifyListeners();
   }
 }
