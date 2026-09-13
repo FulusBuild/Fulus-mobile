@@ -455,7 +455,7 @@ class CloudRestoreImporter {
     final variables = columns.map((column) => _variable(values[column])).toList(growable: false);
     await _db.customStatement(
       'INSERT INTO ${_quoteIdentifier(table)} (${columns.map(_quoteIdentifier).join(', ')}) VALUES ($placeholders)',
-      variables: variables,
+      variables,
     );
   }
 
@@ -487,8 +487,8 @@ class CloudRestoreImporter {
     return value.toString();
   }
 
-  Variable _variable(Object? value) {
-    if (value == null) return Variable<Object?>(null);
+  Variable<Object> _variable(Object? value) {
+    if (value == null) return Variable<String>(null);
     if (value is int) return Variable<int>(value);
     if (value is double) return Variable<double>(value);
     if (value is num) return Variable<double>(value.toDouble());
