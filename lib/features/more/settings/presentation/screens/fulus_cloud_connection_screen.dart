@@ -29,6 +29,7 @@ class _FulusCloudConnectionScreenState
   final _businessController = TextEditingController();
   bool _busy = false;
   bool _creatingAccount = false;
+  bool _awaitingVerification = false;
   String? _error;
 
   @override
@@ -71,7 +72,8 @@ class _FulusCloudConnectionScreenState
       if (result.session != null) {
         await _provisionBusiness();
       } else {
-        showFulusSnackbar(context, message: 'Account created. Check your email to verify it, then return here to finish setup.');
+        if (mounted) setState(() => _awaitingVerification = true);
+        showFulusSnackbar(context, message: 'Check your email to verify your account, then tap “I’ve verified my email”.');
       }
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
@@ -79,6 +81,27 @@ class _FulusCloudConnectionScreenState
       if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
     } finally {
       if (mounted) setState(() { _busy = false; _creatingAccount = false; });
+    }
+  }
+
+  Future<void> _checkVerification() async {
+    setState(() { _busy = true; _error = null; });
+    try {
+      final session = await ref.read(authApiProvider).restoreServerSession(
+        supabaseUrl: SupabaseConfig.url,
+        publishableKey: SupabaseConfig.publishableKey,
+      );
+      if (session == null) {
+        throw StateError('Your email is not verified yet. Open the verification email and try again.');
+      }
+      if (mounted) {
+        setState(() => _awaitingVerification = false);
+        await _provisionBusiness();
+      }
+    } on Failure catch (failure) {
+      if (mounted) setState(() { _busy = false; _error = failure.message; });
+    } catch (error) {
+      if (mounted) setState(() { _busy = false; _error = error.toString().replaceFirst('Bad state: ', ''); });
     }
   }
 
@@ -298,6 +321,17 @@ class _FulusCloudConnectionScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
+                  ],
+                  if (_awaitingVerification) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: FulusButton(
+                        label: 'I’ve verified my email',
+                        loading: _busy,
+                        onPressed: _busy ? null : _checkVerification,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                   ],
                   SizedBox(
                     width: double.infinity,
