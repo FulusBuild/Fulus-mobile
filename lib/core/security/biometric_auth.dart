@@ -25,12 +25,9 @@ class BiometricAuth {
     try {
       return await _localAuth.authenticate(
         localizedReason: 'Use your fingerprint to unlock Fulus',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-          useErrorDialogs: true,
-          sensitiveTransaction: true,
-        ),
+        biometricOnly: true,
+        sensitiveTransaction: true,
+        persistAcrossBackgrounding: true,
       );
     } catch (_) {
       return false;
