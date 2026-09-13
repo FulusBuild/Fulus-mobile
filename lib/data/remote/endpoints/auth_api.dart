@@ -91,7 +91,7 @@ class AuthApi {
     }
   }
 
-  /// Creates a Fulus Cloud account using Supabase Auth.
+  /// Accepts the Supabase confirmation callback delivered to the mobile app.\n  Future<void> handleAuthCallback(Uri uri) async {\n    if (uri.scheme != 'fulus' || uri.host != 'auth' || uri.path != '/callback') return;\n    if (uri.fragment.isEmpty) return;\n    final params = Uri.splitQueryString(uri.fragment);\n    final error = params['error_code'] ?? params['error'];\n    if (error != null) throw StateError(params['error_description'] ?? 'Email verification failed.');\n    final accessToken = params['access_token'];\n    final refreshToken = params['refresh_token'];\n    if (accessToken == null || refreshToken == null) throw StateError('Email verification completed, but the session could not be restored.');\n    await _client.setServerAccessToken(accessToken);\n    await _client.persistServerRefreshToken(refreshToken);\n  }\n\n  /// Creates a Fulus Cloud account using Supabase Auth.
   /// Returns a session when email confirmation is disabled; otherwise the
   /// returned user is unconfirmed and the UI can ask the user to verify.
   Future<ServerSignUpResult> signUpServer({
@@ -103,7 +103,7 @@ class AuthApi {
     final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
     try {
       final response = await authClient.post(
-        '/auth/v1/signup',
+        '/auth/v1/signup?redirect_to=fulus%3A%2F%2Fauth%2Fcallback',
         data: {'email': email, 'password': password},
         options: Options(headers: {
           'apikey': publishableKey,
