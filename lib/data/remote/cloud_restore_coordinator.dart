@@ -9,7 +9,7 @@ import 'cloud_restore_importer.dart';
 /// existing transactional data importer.
 ///
 /// The importer owns the destructive business-data transaction. This
-/// coordinator ensures the cloud settings are available before local mutation,
+/// coordinator ensures cloud settings are available before local mutation,
 /// imports the owner identity so owner-referenced rows satisfy local FKs, and
 /// creates the local session only after the import has verified integrity.
 class CloudRestoreCoordinator {
@@ -31,21 +31,36 @@ class CloudRestoreCoordinator {
     await _replaceSettings(settings);
 
     try {
-      // Import the authenticated identity too. The previous flow skipped it
-      // and created the owner afterward, which could leave sales/audit rows
-      // pointing at a user that did not exist during FK verification.
-      final result = await CloudRestoreImporter(_db).importSnapshot(
-        snapshot,
-        ownerCloudUserId: null,
-      );
+      // The legacy importer clears Users before parent business rows. With
+      // real FK enforcement that ordering can reject a populated reinstall
+      // (sales/audit/session rows can reference Users). Temporarily suspend
+      // SQLite's immediate FK enforcement only for that destructive/import
+      // transaction; the importer runs PRAGMA foreign_key_check before its
+      // transaction commits, so no invalid final state can be accepted.
+      await _setForeignKeys(false);
+      try {
+        // Import the authenticated identity too. The previous flow skipped it
+        // and created the owner afterward, which could leave sales/audit rows
+        // pointing at a user that did not exist during FK verification.
+        final result = await CloudRestoreImporter(_db).importSnapshot(
+          snapshot,
+          ownerCloudUserId: null,
+        );
 
-      await _normalizeOwner(
-        ownerCloudUserId: ownerCloudUserId,
-        ownerEmail: ownerEmail,
-        snapshot: snapshot,
-      );
+        await _setForeignKeys(true);
 
-      return result;
+        await _normalizeOwner(
+          ownerCloudUserId: ownerCloudUserId,
+          ownerEmail: ownerEmail,
+          snapshot: snapshot,
+        );
+
+        return result;
+      } finally {
+        // PRAGMA changes are connection-scoped. Always restore enforcement,
+        // including when import throws before reaching the explicit ON above.
+        await _setForeignKeys(true);
+      }
     } catch (_) {
       // CloudRestoreImporter is itself transactional. Restore the settings
       // row as the compensating operation for the small pre-import settings
@@ -53,6 +68,10 @@ class CloudRestoreCoordinator {
       await _restorePreviousSettings(previousSettings);
       rethrow;
     }
+  }
+
+  Future<void> _setForeignKeys(bool enabled) async {
+    await _db.customStatement('PRAGMA foreign_keys = ${enabled ? 'ON' : 'OFF'}');
   }
 
   Future<void> _replaceSettings(BusinessSettingsResponseDto settings) async {
