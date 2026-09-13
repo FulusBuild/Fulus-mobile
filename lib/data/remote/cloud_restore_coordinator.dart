@@ -6,13 +6,12 @@ import '../local/database/database.dart';
 import '../repositories/business_settings_mapper.dart';
 import 'cloud_restore_importer.dart';
 
-/// Coordinates the parts of reinstall recovery that must happen around the
-/// existing transactional data importer.
+/// Coordinates reinstall recovery around the importer's transactional restore.
 ///
-/// The importer owns the destructive business-data transaction. This
-/// coordinator ensures cloud settings are available before local mutation,
-/// imports the owner identity so owner-referenced rows satisfy local FKs, and
-/// creates the local session only after the import has verified integrity.
+/// The coordinator deliberately keeps the entire local restore inside one
+/// outer Drift transaction. The importer uses an inner transaction/savepoint;
+/// settings and owner/session reconstruction are then committed only when the
+/// outer transaction commits successfully.
 class CloudRestoreCoordinator {
   CloudRestoreCoordinator(this._db);
 
@@ -24,81 +23,30 @@ class CloudRestoreCoordinator {
     required String ownerEmail,
     required BusinessSettingsResponseDto settings,
   }) async {
-    final previousSettings =
-        await (_db.select(_db.businessSettings)).getSingleOrNull();
+    return _db.transaction(() async {
+      final result = await CloudRestoreImporter(_db).importSnapshot(
+        snapshot,
+        ownerCloudUserId: null,
+      );
 
-    // The caller fetched this before entering the destructive phase. Persist
-    // it now so a settings outage cannot occur halfway through the restore.
-    await _replaceSettings(settings);
-
-    try {
-      // The existing importer clears Users before parent business rows. With
-      // real FK enforcement that ordering can reject a populated reinstall
-      // (sales/audit/session rows can reference Users). Temporarily suspend
-      // SQLite's immediate FK enforcement only for that destructive/import
-      // transaction; the importer runs PRAGMA foreign_key_check before its
-      // transaction commits, so no invalid final state can be accepted.
-      await _setForeignKeys(false);
-      try {
-        // Import the authenticated identity too. The previous flow skipped it
-        // and created the owner afterward, which could leave sales/audit rows
-        // pointing at a user that did not exist during FK verification.
-        final result = await CloudRestoreImporter(_db).importSnapshot(
-          snapshot,
-          ownerCloudUserId: null,
-        );
-
-        await _normalizeOwner(
-          ownerCloudUserId: ownerCloudUserId,
-          ownerEmail: ownerEmail,
-          snapshot: snapshot,
-        );
-
-        return result;
-      } finally {
-        // PRAGMA changes are connection-scoped. Always restore enforcement,
-        // including when import throws before reaching the explicit ON above.
-        await _setForeignKeys(true);
-      }
-    } catch (_) {
-      // CloudRestoreImporter is itself transactional. Restore the settings
-      // row as the compensating operation for the small pre-import settings
-      // transaction so a failed restore does not strand onboarding state.
-      await _restorePreviousSettings(previousSettings);
-      rethrow;
-    }
-  }
-
-  Future<void> _setForeignKeys(bool enabled) async {
-    await _db.customStatement('PRAGMA foreign_keys = ${enabled ? 'ON' : 'OFF'}');
-  }
-
-  Future<void> _replaceSettings(BusinessSettingsResponseDto settings) async {
-    await _db.transaction(() async {
+      // These writes are nested inside the same outer transaction as the
+      // destructive import. Any failure rolls back the complete local restore.
       await _db.delete(_db.businessSettings).go();
       await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
-    });
-  }
+      await _normalizeOwner(
+        ownerCloudUserId: ownerCloudUserId,
+        ownerEmail: ownerEmail,
+        snapshot: snapshot,
+      );
 
-  Future<void> _restorePreviousSettings(BusinessSettingRow? previous) async {
-    await _db.transaction(() async {
-      await _db.delete(_db.businessSettings).go();
-      if (previous == null) return;
-      await _db.into(_db.businessSettings).insert(
-            BusinessSettingsCompanion.insert(
-              id: previous.id,
-              businessName: previous.businessName,
-              address: Value(previous.address),
-              phone: Value(previous.phone),
-              email: Value(previous.email),
-              tin: Value(previous.tin),
-              currencySymbol: Value(previous.currencySymbol),
-              vatEnabled: previous.vatEnabled,
-              vatRate: previous.vatRate,
-              receiptFooter: Value(previous.receiptFooter),
-              updatedAt: previous.updatedAt,
-            ),
-          );
+      final fkViolations = await _db.customSelect('PRAGMA foreign_key_check').get();
+      if (fkViolations.isNotEmpty) {
+        throw StateError(
+          'Restore verification failed: ${fkViolations.length} foreign-key violations were detected.',
+        );
+      }
+
+      return result;
     });
   }
 
@@ -113,41 +61,38 @@ class CloudRestoreCoordinator {
         : null;
     final fullName = profileName?.isNotEmpty == true ? profileName! : 'Owner';
 
-    await _db.transaction(() async {
-      final owner = await (_db.select(_db.users)
-            ..where((u) => u.localId.equals(ownerCloudUserId)))
-          .getSingleOrNull();
-      if (owner == null) {
-        throw StateError('Restore did not create the cloud owner identity.');
-      }
+    final owner = await (_db.select(_db.users)
+          ..where((u) => u.localId.equals(ownerCloudUserId)))
+        .getSingleOrNull();
+    if (owner == null) {
+      throw StateError('Restore did not create the cloud owner identity.');
+    }
 
-      await (_db.update(_db.users)
-            ..where((u) => u.localId.equals(ownerCloudUserId)))
-          .write(
-        UsersCompanion(
-          email: Value(ownerEmail),
-          fullName: Value(fullName),
-          role: const Value(AuthRole.owner),
-          isActive: const Value(true),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
+    await (_db.update(_db.users)
+          ..where((u) => u.localId.equals(ownerCloudUserId)))
+        .write(
+      UsersCompanion(
+        email: Value(ownerEmail),
+        fullName: Value(fullName),
+        role: const Value(AuthRole.owner),
+        isActive: const Value(true),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
 
-      // The generic staff importer creates an Employee row for every cloud
-      // membership. The owner is a local identity, not an employee, so remove
-      // that synthetic employee row before exposing the restored session.
-      await (_db.delete(_db.employees)
-            ..where((e) => e.authUserId.equals(ownerCloudUserId)))
-          .go();
+    // The generic staff importer creates an Employee row for every cloud
+    // membership. The owner is a local identity, not an employee.
+    await (_db.delete(_db.employees)
+          ..where((e) => e.authUserId.equals(ownerCloudUserId)))
+        .go();
 
-      await _db.delete(_db.sessions).go();
-      await _db.into(_db.sessions).insert(
-            SessionsCompanion.insert(
-              id: 'current',
-              userId: ownerCloudUserId,
-              activeLocationId: const Value(null),
-            ),
-          );
-    });
+    await _db.delete(_db.sessions).go();
+    await _db.into(_db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: ownerCloudUserId,
+        activeLocationId: const Value(null),
+      ),
+    );
   }
 }
