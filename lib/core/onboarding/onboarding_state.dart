@@ -71,9 +71,13 @@ class OnboardingState {
   /// inline, in `build`/`initState`, the same way [_ShellGate] already
   /// reads [SyncConfig]-shaped state elsewhere — no `FutureBuilder`
   /// needed just for this.
-  bool hasSeenFirstRunPrompt({String? businessId}) => _preferences.getBool(_scoped(_firstRunPromptSeenKey, businessId)) ?? true;
+  bool get hasSeenFirstRunPrompt => hasSeenFirstRunPromptFor();
 
-  bool hasCelebratedFirstSale({String? businessId}) => _preferences.getBool(_scoped(_firstSaleCelebratedKey, businessId)) ?? true;
+  bool hasSeenFirstRunPromptFor({String? businessId}) => _preferences.getBool(_scoped(_firstRunPromptSeenKey, businessId)) ?? true;
+
+  bool get hasCelebratedFirstSale => hasCelebratedFirstSaleFor();
+
+  bool hasCelebratedFirstSaleFor({String? businessId}) => _preferences.getBool(_scoped(_firstSaleCelebratedKey, businessId)) ?? true;
 
   /// Called exactly once, by [OwnerSetupScreen._submitBusiness], right
   /// after [BusinessSettingsRepository.createBusiness] succeeds — the
