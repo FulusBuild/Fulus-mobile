@@ -46,8 +46,11 @@ on:
 env:
   FLUTTER_VERSION: "3.44.9"
 
+# A branch push and its pull-request run must share the same group. Otherwise
+# github.ref differs (refs/heads/... vs refs/pull/.../merge), allowing both
+# runs to execute even though they validate the same branch state.
 concurrency:
-  group: fulus-mobile-ci-${{ github.workflow }}-${{ github.ref }}
+  group: fulus-mobile-ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
