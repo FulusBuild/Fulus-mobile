@@ -1,0 +1,104 @@
+name: Harden restore atomicity
+
+on:
+  push:
+    branches:
+      - phase-11-cloud-restore-on-reinstall
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Harden restore transaction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          importer = Path('lib/data/remote/cloud_restore_importer.dart')
+          s = importer.read_text()
+          s = s.replace(
+              "    String? ownerCloudUserId,\n  }) async {",
+              "    String? ownerCloudUserId,\n    Future<void> Function()? onBeforeCommit,\n  }) async {",
+              1,
+          )
+          s = s.replace(
+              "      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n",
+              "      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n      if (onBeforeCommit != null) await onBeforeCommit();\n      await _verifyForeignKeys();\n",
+              1,
+          )
+          # Make the importer safe even when called directly with SQLite FK enforcement on.
+          old = "    'sessions',\n    'users',\n    'return_items',"
+          new = "    'sessions',\n    'return_items',"
+          s = s.replace(old, new, 1)
+          marker = "    'audit_logs',\n  ];"
+          s = s.replace(marker, "    'audit_logs',\n    'users',\n  ];", 1)
+          importer.write_text(s)
+
+          coordinator = Path('lib/data/remote/cloud_restore_coordinator.dart')
+          c = coordinator.read_text()
+          start = c.index('  Future<CloudRestoreResult> restore({')
+          end = c.index('\n  Future<void> _normalizeOwner({', start)
+          new_restore = '''  Future<CloudRestoreResult> restore({
+    required Map<String, dynamic> snapshot,
+    required String ownerCloudUserId,
+    required String ownerEmail,
+    required BusinessSettingsResponseDto settings,
+  }) async {
+    return CloudRestoreImporter(_db).importSnapshot(
+      snapshot,
+      ownerCloudUserId: null,
+      onBeforeCommit: () async {
+        // These writes execute inside the importer's transaction. If either
+        // settings or owner/session reconstruction fails, the entire restore
+        // rolls back together with the business data.
+        await _db.delete(_db.businessSettings).go();
+        await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
+        await _normalizeOwner(
+          ownerCloudUserId: ownerCloudUserId,
+          ownerEmail: ownerEmail,
+          snapshot: snapshot,
+        );
+      },
+    );
+  }
+'''
+          c = c[:start] + new_restore + c[end:]
+          # Remove the old nested transaction from owner normalization so it is
+          # guaranteed to participate in the importer's outer transaction.
+          c = c.replace("    await _db.transaction(() async {\n      final owner =", "    final owner =", 1)
+          old_end = '''      await _db.into(_db.sessions).insert(
+            SessionsCompanion.insert(
+              id: 'current',
+              userId: ownerCloudUserId,
+              activeLocationId: const Value(null),
+            ),
+          );
+    });
+'''
+          new_end = '''    await _db.into(_db.sessions).insert(
+          SessionsCompanion.insert(
+            id: 'current',
+            userId: ownerCloudUserId,
+            activeLocationId: const Value(null),
+          ),
+        );
+'''
+          if old_end not in c:
+              raise SystemExit('owner transaction block shape changed; aborting')
+          c = c.replace(old_end, new_end, 1)
+          # Remove obsolete compensation/settings helpers and their old comments.
+          a = c.index('  Future<void> _replaceSettings(')
+          b = c.index('  Future<void> _normalizeOwner(', a)
+          c = c[:a] + c[b:]
+          coordinator.write_text(c)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/data/remote/cloud_restore_importer.dart lib/data/remote/cloud_restore_coordinator.dart
+          git commit -m 'fix(restore): make settings and owner writes atomic'
+          git push
