@@ -29,7 +29,8 @@ class QuickSaleSheet extends StatefulWidget {
 class _QuickSaleSheetState extends State<QuickSaleSheet> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
-  String? _error;
+  String? _nameError;
+  String? _priceError;
   bool _saving = false;
 
   @override
@@ -50,13 +51,23 @@ class _QuickSaleSheetState extends State<QuickSaleSheet> {
           style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
         ),
         const SizedBox(height: AppSpacing.lg),
-        FulusTextField(label: 'What are you selling?', controller: _nameController),
+        FulusTextField(
+          label: 'What are you selling?',
+          controller: _nameController,
+          errorText: _nameError,
+          onChanged: (_) {
+            if (_nameError != null) setState(() => _nameError = null);
+          },
+        ),
         const SizedBox(height: AppSpacing.md),
         FulusTextField(
           label: 'Price',
           controller: _priceController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          errorText: _error,
+          errorText: _priceError,
+          onChanged: (_) {
+            if (_priceError != null) setState(() => _priceError = null);
+          },
         ),
         const SizedBox(height: AppSpacing.lg),
         FulusButton(label: 'Add to Cart', loading: _saving, onPressed: _submit),
@@ -67,22 +78,30 @@ class _QuickSaleSheetState extends State<QuickSaleSheet> {
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     final price = double.tryParse(_priceController.text.trim());
-    if (name.isEmpty || price == null || price <= 0) {
-      setState(() => _error = 'Enter what you\'re selling and a price greater than 0.');
+    final nameError = name.isEmpty ? 'Enter what you\'re selling.' : null;
+    final priceError = price == null || price <= 0 ? 'Enter a price greater than 0.' : null;
+
+    if (nameError != null || priceError != null) {
+      setState(() {
+        _nameError = nameError;
+        _priceError = priceError;
+      });
       return;
     }
+
     setState(() {
       _saving = true;
-      _error = null;
+      _nameError = null;
+      _priceError = null;
     });
     try {
-      await context.read<CartCubit>().addQuickSaleItem(description: name, unitPrice: price);
+      await context.read<CartCubit>().addQuickSaleItem(description: name, unitPrice: price!);
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = "Couldn't add that item.";
+          _priceError = "Couldn't add that item.";
         });
       }
     }

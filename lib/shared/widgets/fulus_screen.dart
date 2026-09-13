@@ -2,20 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// The standard page container every screen should build on — the
-/// foundation brief's "Page/screen containers" item. Wraps [Scaffold] +
-/// [SafeArea] + the app's standard screen padding, and resolves
-/// background color for the active theme via [AppColors.backgroundOf]
-/// so a screen doesn't need to hardcode `AppColors.backgroundLight` the
-/// way Home and Employees do today (see design_tokens.dart's
-/// brightness-accessor comment for why those two screens are a known,
-/// out-of-scope-for-this-phase gap this widget doesn't repeat).
+/// Shared page composition for secondary and detail screens.
 ///
-/// Set [applyPadding] to false for screens that build their own
-/// [ListView]/[CustomScrollView] wanting edge-to-edge content (so this
-/// doesn't double-pad); [FulusScreen] itself does not scroll — it just
-/// supplies the Scaffold, SafeArea, and padding around whatever [body]
-/// is.
+/// The layout is intentionally editorial rather than dashboard-like:
+/// navigation sits above a strong serif title, supporting context is quiet,
+/// actions live at the edge of the header, and a single hairline separates
+/// navigation from content. This gives every feature screen a recognizable
+/// Fulus rhythm without forcing feature code to duplicate chrome.
 class FulusScreen extends StatelessWidget {
   const FulusScreen({
     super.key,
@@ -30,76 +23,125 @@ class FulusScreen extends StatelessWidget {
     this.applyPadding = true,
   });
 
-  /// Page title shown in the app bar. If null, no [AppBar] is built —
-  /// use this for screens that render their own custom header (e.g. a
-  /// hero card standing in for a title, as Home's does).
   final String? title;
-
-  /// Redesign pass addition — a small secondary line under [title]
-  /// (e.g. a count, a date range). Purely additive; every existing
-  /// call site leaves this unset and renders exactly as before.
   final String? subtitle;
   final List<Widget>? actions;
-
-  /// Redesign pass addition — overrides the default back button when
-  /// set. Unset (the common case) preserves Flutter's own automatic
-  /// back/close button.
   final Widget? leading;
   final Widget body;
   final Widget? floatingActionButton;
-
-  /// Redesign pass addition — purely additive passthrough to
-  /// [Scaffold.bottomNavigationBar].
   final Widget? bottomNavigationBar;
-
-  /// Applied around [body] when [applyPadding] is true. Defaults to
-  /// [AppSpacing.lg] on all sides, matching Home's existing screen
-  /// padding.
   final EdgeInsets padding;
-
-  /// Set false when [body] manages its own padding per-section (e.g. a
-  /// list that wants edge-to-edge dividers with padding only on text).
   final bool applyPadding;
 
   @override
   Widget build(BuildContext context) {
+    final hasHeader = title != null;
+    final canPop = Navigator.of(context).canPop();
+    final content = applyPadding
+        ? Padding(padding: padding, child: body)
+        : body;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
-      appBar: title == null
-          ? null
-          : AppBar(
-              backgroundColor: AppColors.backgroundOf(context),
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              // A hairline only appears once content actually scrolls
-              // under the bar — "resting" elevation stays flat per
-              // AppElevation's own two-level system; this is Material
-              // 3's own scroll-aware affordance, not a third bespoke
-              // elevation tier.
-              scrolledUnderElevation: 0.5,
-              shadowColor: AppColors.borderOf(context),
-              leading: leading,
-              titleSpacing: leading == null ? null : 0,
-              title: subtitle == null
-                  ? Text(title!, style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)))
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(title!, style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-                        Text(subtitle!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                      ],
-                    ),
-              actions: actions,
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: AppColors.borderOf(context)),
-              ),
-            ),
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
       body: SafeArea(
-        child: applyPadding ? Padding(padding: padding, child: body) : body,
+        child: Column(
+          children: [
+            if (hasHeader)
+              _EditorialPageHeader(
+                title: title!,
+                subtitle: subtitle,
+                actions: actions,
+                leading: leading,
+                showBack: canPop && leading == null,
+              ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 960),
+                  child: content,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorialPageHeader extends StatelessWidget {
+  const _EditorialPageHeader({
+    required this.title,
+    required this.subtitle,
+    required this.actions,
+    required this.leading,
+    required this.showBack,
+  });
+
+  final String title;
+  final String? subtitle;
+  final List<Widget>? actions;
+  final Widget? leading;
+  final bool showBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.backgroundOf(context),
+        border: Border(bottom: BorderSide(color: AppColors.borderOf(context))),
+      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (leading != null || showBack)
+            SizedBox(
+              width: AppTouchTarget.minimum,
+              height: AppTouchTarget.minimum,
+              child: leading ?? const BackButton(),
+            ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.heading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.mutedOf(context),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (actions != null)
+            ...actions!.map(
+              (action) => Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
+                child: action,
+              ),
+            ),
+        ],
       ),
     );
   }

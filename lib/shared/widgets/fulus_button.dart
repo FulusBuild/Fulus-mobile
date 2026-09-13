@@ -2,29 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Button variant — Volume 5.1's five kinds, minus the two Icon
-/// variants (their own widget, [FulusIconButton], since their layout
-/// is a circle rather than a label pill).
 enum FulusButtonVariant { primary, secondary, destructive, text }
 
-/// The button kinds from Component Library 5.1, collapsed into one
-/// widget parameterized by [variant] rather than one widget per kind —
-/// per the foundation brief's rule against feature-specific
-/// reimplementations. Height floors at [AppTouchTarget.minimum] (48dp,
-/// "never smaller, even for a compact button" per the Bible) via the
-/// button themes already set in [AppTheme] — this widget doesn't repeat
-/// that sizing itself, it relies on it, so a future change to the
-/// height floor happens in exactly one place.
-///
-/// Wrap in `SizedBox(width: double.infinity, ...)` at the call site for
-/// a full-width button — this widget doesn't force a width itself,
-/// matching how buttons are already used in Home's own hero button.
-///
-/// Two rules this widget can't enforce on its own, but the Bible
-/// states: "One Primary per screen," and "Destructive always confirms"
-/// — see `fulus_dialogs.dart`'s `showFulusConfirmDialog` for the
-/// confirm step a Destructive button's `onPressed` should await before
-/// its actual destructive logic runs.
+/// Shared action primitive. Orange is reserved for the decisive primary
+/// action; secondary and text actions use editorial ink so a screen does not
+/// become saturated with accent color. Touch targets remain 48dp minimum.
 class FulusButton extends StatelessWidget {
   const FulusButton({
     super.key,
@@ -37,10 +19,6 @@ class FulusButton extends StatelessWidget {
   });
 
   final String label;
-
-  /// Present-tense label shown while [loading] is true — "Processing",
-  /// never the original label struck through (5.1, Loading row).
-  /// Defaults to "Loading" if not given.
   final String? loadingLabel;
   final VoidCallback? onPressed;
   final FulusButtonVariant variant;
@@ -68,8 +46,8 @@ class FulusButton extends StatelessWidget {
         return OutlinedButton(
           onPressed: disabled ? null : onPressed,
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primaryOf(context),
-            side: BorderSide(color: AppColors.primaryOf(context)),
+            foregroundColor: AppColors.textPrimaryOf(context),
+            side: BorderSide(color: AppColors.borderOf(context)),
           ),
           child: child,
         );
@@ -88,8 +66,8 @@ class FulusButton extends StatelessWidget {
         return TextButton(
           onPressed: disabled ? null : onPressed,
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.primaryOf(context),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            foregroundColor: AppColors.textPrimaryOf(context),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           ),
           child: child,
         );
@@ -133,16 +111,12 @@ class FulusButton extends StatelessWidget {
         return AppColors.errorOnOf(context);
       case FulusButtonVariant.secondary:
       case FulusButtonVariant.text:
-        return AppColors.primaryOf(context);
+        return AppColors.textPrimaryOf(context);
     }
   }
 }
 
-/// Icon button — Bible 5.1's "Icon (outlined)" and "Icon (filled)"
-/// variants. Always a real 48×48dp tap target even though the glyph
-/// itself renders smaller — the extra padding is real space, not a
-/// visual illusion, so screen readers and fat-finger taps both get the
-/// full target (Accessibility, Touch target row).
+/// Icon actions retain the full 48dp hit area while keeping the glyph quiet.
 class FulusIconButton extends StatelessWidget {
   const FulusIconButton({
     super.key,

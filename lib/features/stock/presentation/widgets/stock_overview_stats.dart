@@ -9,9 +9,13 @@ import '../../application/stock_providers.dart';
 /// "What do I have? How much is it worth? What is running low?" — the
 /// task's own three questions, answered in one glanceable row before
 /// anything else on the Stock screen. Four [FulusStatCard]s (5.17):
-/// Stock Value, Products, Low Stock, Out of Stock. Low Stock and Out of
-/// Stock are tappable — they're really shortcuts into the same product
-/// list below with a filter pre-applied, not just numbers to look at.
+/// Stock Value, Low Stock, Out of Stock, Products. The two risk states
+/// are tappable — they're really shortcuts into the same product list
+/// below with a filter pre-applied, not just numbers to look at.
+///
+/// The order is deliberate: value first, then the two inventory-health
+/// exceptions, then total catalogue size. A shopkeeper scanning Stock
+/// should see what needs attention before a descriptive count.
 ///
 /// Redesign pass — was a hand-rolled `_compact()` + `_TappableStat`
 /// wrapper; both are now shared, reusable pieces instead: compacting
@@ -58,11 +62,6 @@ class StockOverviewStats extends StatelessWidget {
           icon: Icons.payments_outlined,
         ),
         FulusStatCard(
-          label: 'Products',
-          value: '${products.length}',
-          icon: Icons.inventory_2_outlined,
-        ),
-        FulusStatCard(
           label: 'Low stock',
           value: '$lowStockCount',
           icon: Icons.trending_down,
@@ -75,6 +74,11 @@ class StockOverviewStats extends StatelessWidget {
           icon: Icons.remove_shopping_cart_outlined,
           valueColor: outOfStock > 0 ? AppColors.errorOf(context) : null,
           onTap: onTapOutOfStock,
+        ),
+        FulusStatCard(
+          label: 'Products',
+          value: '${products.length}',
+          icon: Icons.inventory_2_outlined,
         ),
       ],
     );

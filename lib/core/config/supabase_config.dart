@@ -19,4 +19,9 @@ class SupabaseConfig {
     'FULUS_FUNCTION_BASE_URL',
     defaultValue: 'https://bejcuvoxemwomcatgyxz.supabase.co/functions/v1/fulus-api',
   );
+
+  static const String businessProvisionFunctionUrl = String.fromEnvironment(
+    'FULUS_BUSINESS_PROVISION_FUNCTION_URL',
+    defaultValue: 'https://bejcuvoxemwomcatgyxz.supabase.co/functions/v1/fulus-provision-business',
+  );
 }
