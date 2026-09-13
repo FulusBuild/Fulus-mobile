@@ -35,13 +35,16 @@ class HomeAttentionEngine {
 
     final credit = _first(meaningful, SecondaryNoticeType.pendingCredit);
     if (credit != null) {
-      result.add(HomeAttention(
+      result.add(const HomeAttention(
         kind: HomeAttentionKind.credit,
-        label: 'Follow up ${credit.value} credit',
+        label: 'Review credit',
         priority: 1,
       ));
     }
 
+    // The next operational action always beats a technical sync reminder.
+    // Sync is useful context, but it should not displace "Open shop" or
+    // "Start selling" from the three-item attention budget.
     switch (dayStatus) {
       case ShopDayStatus.notYetOpened:
         result.add(const HomeAttention(
@@ -63,6 +66,15 @@ class HomeAttentionEngine {
         break;
     }
 
+    final unsynced = _first(meaningful, SecondaryNoticeType.unsyncedItems);
+    if (unsynced != null) {
+      result.add(HomeAttention(
+        kind: HomeAttentionKind.unsyncedItems,
+        label: unsynced.value == 1 ? 'Sync 1 item' : 'Sync ${unsynced.value} items',
+        priority: 3,
+      ));
+    }
+
     result.sort((a, b) => a.priority.compareTo(b.priority));
     return result.take(3).toList(growable: false);
   }
@@ -78,7 +90,7 @@ class HomeAttentionEngine {
   }
 }
 
-enum HomeAttentionKind { lowStock, credit, openShop, startSelling }
+enum HomeAttentionKind { lowStock, credit, openShop, startSelling, unsyncedItems }
 
 class HomeAttention {
   const HomeAttention({
