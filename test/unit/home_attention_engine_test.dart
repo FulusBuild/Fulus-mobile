@@ -71,6 +71,36 @@ void main() {
     expect(result, isEmpty);
   });
 
+  test('sync reminder is below the next operational action', () {
+    final result = engine.prioritize(
+      canViewDashboardStats: true,
+      dayStatus: ShopDayStatus.open,
+      notices: const [
+        SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 7),
+      ],
+      hasTodayActivity: false,
+    );
+
+    expect(result.map((item) => item.kind), [
+      HomeAttentionKind.startSelling,
+      HomeAttentionKind.unsyncedItems,
+    ]);
+  });
+
+  test('singular sync and credit copy stays consumer-friendly', () {
+    final result = engine.prioritize(
+      canViewDashboardStats: true,
+      dayStatus: ShopDayStatus.closed,
+      notices: const [
+        SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 1),
+        SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 1),
+      ],
+      hasTodayActivity: true,
+    );
+
+    expect(result.map((item) => item.label), ['Review credit', 'Sync 1 item']);
+  });
+
   test('attention list stays deliberately small', () {
     final result = engine.prioritize(
       canViewDashboardStats: true,
@@ -83,5 +113,10 @@ void main() {
       hasTodayActivity: false,
     );
     expect(result.length, lessThanOrEqualTo(3));
+    expect(result.map((item) => item.kind), [
+      HomeAttentionKind.lowStock,
+      HomeAttentionKind.credit,
+      HomeAttentionKind.startSelling,
+    ]);
   });
 }
