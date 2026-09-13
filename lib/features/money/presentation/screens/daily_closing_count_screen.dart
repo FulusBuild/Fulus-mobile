@@ -10,9 +10,6 @@ import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
 import '../widgets/opening_float_sheet.dart';
 
-/// Volume 8's Daily Closing, screen one — "expected, counted,
-/// difference — never an interrogation." Reached from Home's Close
-/// Shop action.
 class DailyClosingCountScreen extends ConsumerStatefulWidget {
   const DailyClosingCountScreen({super.key});
 
@@ -49,11 +46,7 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
 
   Future<void> _openDrawer() async {
     final opened = await showOpeningFloatSheet(context);
-    if (opened && mounted) {
-      setState(() {
-        _future = _load();
-      });
-    }
+    if (opened && mounted) setState(() => _future = _load());
   }
 
   Future<void> _closeDay() async {
@@ -62,18 +55,41 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
       showFulusSnackbar(context, message: 'Enter how much cash was actually counted.');
       return;
     }
+
+    final data = await _future;
+    if (!mounted || data.preview == null) return;
+    final preview = data.preview!;
+    final difference = counted - preview.expectedCash;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Close the day?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This locks this drawer session. You can still view and export the closing summary afterward.'),
+            const SizedBox(height: AppSpacing.lg),
+            _ConfirmRow(label: 'Expected', value: preview.expectedCash, symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
+            _ConfirmRow(label: 'Counted', value: counted, symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
+            _ConfirmRow(label: difference == 0 ? 'Difference' : difference > 0 ? 'Over' : 'Short', value: difference.abs(), symbol: ref.read(moneyCurrencySymbolProvider).value ?? '₦'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Keep open')),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Close day')),
+        ],
+      ),
+    ) ?? false;
+    if (!confirmed || !mounted) return;
+
     setState(() => _submitting = true);
     try {
       final summary = await ref.read(moneyRepositoryProvider).closeDrawer(
             countedCash: counted,
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
           );
-      // Gap fix: Home's hero used to keep showing "open" after this —
-      // see dataRefreshSignalProvider's own doc comment in
-      // app/providers.dart. Bumped here, the moment the close is
-      // actually committed, not on the Summary screen after — Home
-      // should already be caught up by the time anyone backs out to it,
-      // whether or not they view the summary all the way through.
       ref.read(dataRefreshSignalProvider.notifier).state++;
       if (!mounted) return;
       context.pushReplacementNamed('moneyDailyClosingSummary', extra: summary);
@@ -87,23 +103,15 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
   @override
   Widget build(BuildContext context) {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
-
     return FulusScreen(
       title: 'Close the day',
       body: FutureBuilder<({MoneyDrawerSession? session, MoneyExpectedCashPreview? preview})>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return FulusErrorState(
-              message: "Couldn't load the drawer.",
-              onRetry: () => setState(() {
-                _future = _load();
-              }),
-            );
+            return FulusErrorState(message: "Couldn't load the drawer.", onRetry: () => setState(() => _future = _load()));
           }
-          if (!snapshot.hasData) {
-            return const Center(child: FulusLoadingIndicator());
-          }
+          if (!snapshot.hasData) return const Center(child: FulusLoadingIndicator());
           final data = snapshot.data!;
           if (data.session == null) {
             return FulusEmptyState(
@@ -117,7 +125,6 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
           final preview = data.preview!;
           final counted = double.tryParse(_countedController.text.replaceAll(',', '').trim());
           final difference = counted == null ? null : counted - preview.expectedCash;
-
           return ListView(
             children: [
               FulusSectionHeader(title: 'Expected cash'),
@@ -127,16 +134,8 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
                     _AmountRow(label: 'Opening float', value: preview.openingFloat, symbol: currencySymbol),
                     _AmountRow(label: 'Cash sales', value: preview.cashSales, symbol: currencySymbol, showPlus: true),
                     _AmountRow(label: 'Cash expenses', value: -preview.cashExpenses, symbol: currencySymbol),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                      child: Divider(height: 1),
-                    ),
-                    _AmountRow(
-                      label: 'Expected total',
-                      value: preview.expectedCash,
-                      symbol: currencySymbol,
-                      emphasize: true,
-                    ),
+                    const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.sm), child: Divider(height: 1)),
+                    _AmountRow(label: 'Expected total', value: preview.expectedCash, symbol: currencySymbol, emphasize: true),
                   ],
                 ),
               ),
@@ -147,10 +146,7 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 hintText: '0.00',
                 onChanged: (_) => setState(() {}),
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.lg),
-                  child: Align(widthFactor: 1, child: Text(currencySymbol)),
-                ),
+                suffixIcon: Padding(padding: const EdgeInsets.only(right: AppSpacing.lg), child: Align(widthFactor: 1, child: Text(currencySymbol))),
               ),
               if (difference != null) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -159,10 +155,7 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
               const SizedBox(height: AppSpacing.lg),
               FulusTextField(label: 'Note (optional)', controller: _noteController, maxLines: 3),
               const SizedBox(height: AppSpacing.xl),
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(label: 'Close day', loading: _submitting, onPressed: _submitting ? null : _closeDay),
-              ),
+              SizedBox(width: double.infinity, child: FulusButton(label: 'Close day', loading: _submitting, onPressed: _submitting ? null : _closeDay)),
               const SizedBox(height: AppSpacing.lg),
             ],
           );
@@ -172,15 +165,37 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
   }
 }
 
-class _AmountRow extends StatelessWidget {
-  const _AmountRow({
-    required this.label,
-    required this.value,
-    required this.symbol,
-    this.showPlus = false,
-    this.emphasize = false,
-  });
+class _ConfirmRow extends StatelessWidget {
+  const _ConfirmRow({required this.label, required this.value, required this.symbol});
+  final String label;
+  final double value;
+  final String symbol;
 
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+          Flexible(
+            child: Text(
+              formatMoney(value, symbol: symbol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmountRow extends StatelessWidget {
+  const _AmountRow({required this.label, required this.value, required this.symbol, this.showPlus = false, this.emphasize = false});
   final String label;
   final double value;
   final String symbol;
@@ -197,23 +212,8 @@ class _AmountRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: (emphasize ? AppTypography.subheading : AppTypography.body).copyWith(
-              color: AppColors.textSecondaryOf(context),
-            ),
-          ),
-          // Responsive UI audit — Flexible+ellipsis, same reasoning as
-          // every other fixed-label/money-value row in this pass.
-          Flexible(
-            child: Text(
-              formatMoney(value, symbol: symbol, showSign: showPlus || value < 0),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: style,
-            ),
-          ),
+          Text(label, style: (emphasize ? AppTypography.subheading : AppTypography.body).copyWith(color: AppColors.textSecondaryOf(context))),
+          Flexible(child: Text(formatMoney(value, symbol: symbol, showSign: showPlus || value < 0), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: style)),
         ],
       ),
     );
@@ -229,26 +229,12 @@ class _DifferencePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final matches = difference == 0;
     final color = matches ? AppColors.primaryOf(context) : AppColors.warningOf(context);
-    final label = matches
-        ? 'Matches exactly'
-        : difference > 0
-            ? '${formatMoney(difference, symbol: symbol)} more than expected'
-            : '${formatMoney(-difference, symbol: symbol)} short';
-
+    final label = matches ? 'Matches exactly' : difference > 0 ? '${formatMoney(difference, symbol: symbol)} more than expected' : '${formatMoney(-difference, symbol: symbol)} short';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Row(
-        children: [
-          Icon(matches ? Icons.check_circle_outline : Icons.info_outline, size: AppIconSize.compact, color: color),
-          const SizedBox(width: AppSpacing.sm),
-          Text(label, style: AppTypography.body.copyWith(color: color, fontWeight: FontWeight.w600)),
-        ],
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.sm)),
+      child: Row(children: [Icon(matches ? Icons.check_circle_outline : Icons.info_outline, size: AppIconSize.compact, color: color), const SizedBox(width: AppSpacing.sm), Flexible(child: Text(label, style: AppTypography.body.copyWith(color: color, fontWeight: FontWeight.w600)))]),
     );
   }
 }
