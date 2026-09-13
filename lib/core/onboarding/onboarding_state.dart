@@ -104,12 +104,12 @@ class OnboardingState {
   static const _walkthroughFirstSaleIdKey = 'fulus_onboarding_walkthrough_first_sale_id';
 
   OnboardingStep? walkthroughStepFor({String? businessId}) {
-    final name = _preferences.getString(_scoped(_walkthroughStepKey, null));
+    final name = _preferences.getString(_scoped(_walkthroughStepKey, businessId));
     if (name == null) return null;
     return OnboardingStep.values.asNameMap()[name];
   }
 
-  bool get walkthroughNotStarted => walkthroughStep == null;
+  bool walkthroughNotStartedFor({String? businessId}) => walkthroughStepFor(businessId: businessId) == null;
 
   bool walkthroughCompletedFor({String? businessId}) => walkthroughStepFor(businessId: businessId) == OnboardingStep.completion;
 
@@ -144,7 +144,7 @@ class OnboardingState {
   /// before the owner ever opens that screen (nothing blocks them from
   /// using the real app in the meantime — see that step's own doc
   /// comment) can't get shown in place of the actual first one.
-  String? get walkthroughFirstSaleId => _preferences.getString(_walkthroughFirstSaleIdKey);
+  String? walkthroughFirstSaleIdFor({String? businessId}) => _preferences.getString(_scoped(_walkthroughFirstSaleIdKey, businessId));
 
   Future<void> recordWalkthroughFirstSale(String saleId, {String? businessId}) =>
       _preferences.setString(_scoped(_walkthroughFirstSaleIdKey, businessId), saleId);
