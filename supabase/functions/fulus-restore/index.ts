@@ -14,9 +14,9 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
 
 const directBusinessTables = [
   "locations", "location_memberships", "products", "categories", "suppliers",
-  "customers", "inventory_movements", "expenses", "income_records",
-  "returns", "devices", "audit_events", "cash_ledger", "tax_remittances",
-  "staff_invites", "roles",
+  "customers", "sales", "inventory_movements", "expenses", "income_records",
+  "expense_categories", "returns", "devices", "audit_events", "cash_ledger",
+  "tax_remittances", "cash_drawer_shifts", "staff_invites", "roles",
 ];
 
 async function allRows(table: string, businessId: string) {
@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: {
     "access-control-allow-origin": "*",
     "access-control-allow-headers": "authorization, content-type",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-methods": "POST, OPTIONS",
   }});
   if (req.method !== "POST") return json({ error: { code: "METHOD_NOT_ALLOWED" } }, 405);
 
@@ -66,19 +66,24 @@ Deno.serve(async (req: Request) => {
   if (!businessId) return json({ error: { code: "BUSINESS_REQUIRED", message: "business_id is required" } }, 400);
 
   const { data: membership, error: membershipError } = await admin.from("business_memberships")
-    .select("business_id, user_id, role_id, status, joined_at, created_at, updated_at")
+    .select("business_id, user_id, role_id, status, joined_at, created_at, updated_at, roles(name)")
     .eq("business_id", businessId).eq("user_id", userData.user.id).eq("status", "active").maybeSingle();
   if (membershipError) return json({ error: { code: "MEMBERSHIP_LOOKUP_FAILED" } }, 500);
   if (!membership) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+
+  const roleName = String((membership.roles as { name?: string } | null)?.name ?? "");
+  if (roleName !== "owner" && roleName !== "admin") {
+    return json({ error: { code: "RESTORE_NOT_ALLOWED", message: "Only a business owner or administrator can restore a Fulus installation" } }, 403);
+  }
 
   const { data: business, error: businessError } = await admin.from("businesses").select("*").eq("id", businessId).maybeSingle();
   if (businessError || !business) return json({ error: { code: "BUSINESS_NOT_FOUND" } }, 404);
 
   try {
     const snapshot: Record<string, unknown> = {
-      version: 1,
+      version: 2,
       business,
-      membership,
+      membership: { ...membership, roles: undefined },
       profile: null,
       businesses: [business],
     };
@@ -93,31 +98,30 @@ Deno.serve(async (req: Request) => {
     const sales = snapshot.sales as Record<string, unknown>[];
     const returns = snapshot.returns as Record<string, unknown>[];
     const roles = snapshot.roles as Record<string, unknown>[];
+    const suppliers = snapshot.suppliers as Record<string, unknown>[];
 
     snapshot.product_stock_levels = await rowsIn("product_stock_levels", "product_id", products.map((r) => String(r.id)));
     snapshot.sale_items = await rowsIn("sale_items", "sale_id", sales.map((r) => String(r.id)));
     snapshot.sale_payments = await rowsIn("sale_payments", "sale_id", sales.map((r) => String(r.id)));
     snapshot.return_items = await rowsIn("return_items", "return_id", returns.map((r) => String(r.id)));
     snapshot.customer_ledger_entries = await rowsIn("customer_ledger_entries", "customer_id", customers.map((r) => String(r.id)));
-    const suppliers = snapshot.suppliers as Record<string, unknown>[];
     snapshot.supplier_ledger_entries = await rowsIn("supplier_ledger_entries", "supplier_id", suppliers.map((r) => String(r.id)));
     snapshot.role_permissions = await rowsIn("role_permissions", "role_id", roles.map((r) => String(r.id)));
     snapshot.business_memberships = await allRows("business_memberships", businessId);
 
-    const { data: memberships } = await admin.from("business_memberships").select("user_id, role_id, status, joined_at, created_at, updated_at").eq("business_id", businessId);
+    const { data: memberships } = await admin.from("business_memberships")
+      .select("user_id, role_id, status, joined_at, created_at, updated_at")
+      .eq("business_id", businessId);
     const userIds = [...new Set((memberships ?? []).map((m) => m.user_id).filter(Boolean))];
     if (userIds.length) {
       const { data: profiles } = await admin.from("profiles").select("*").in("id", userIds);
       snapshot.profiles = profiles ?? [];
     } else snapshot.profiles = [];
 
-    // A local Employee row is not a cloud table today. The memberships/profiles
-    // above are the authoritative cloud identities; the mobile restore layer
-    // reconstructs lightweight local employee identities from them.
     snapshot.local_restore_notes = {
-      non_cloud_local_tables: ["app_notifications", "paired_printers", "diagnostic_events", "sync_queue_items"],
+      non_cloud_local_tables: ["app_notifications", "paired_printers", "diagnostic_events", "sync_queue_items", "draft_carts", "draft_cart_items", "draft_cart_payments"],
       employee_source: "business_memberships + profiles",
-      version: 1,
+      version: 2,
     };
 
     return json({ data: snapshot });
