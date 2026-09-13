@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 /// neutral space and typography rather than coloured containers.
 class AppColors {
   AppColors._();
-
   static const primary = Color(0xFF131921);
   static const brand = Color(0xFF131921);
   static const brandDark = Color(0xFF0B1116);
@@ -17,13 +16,11 @@ class AppColors {
   static const clay = Color(0xFFA8492E);
   static const clayLight = Color(0xFFF4DDD3);
   static const ochre = Color(0xFFC98200);
-
   static const success = Color(0xFF087443);
   static const successLight = Color(0xFFE3F2EC);
   static const warning = ochre;
   static const error = clay;
   static const info = Color(0xFF2E5C8A);
-
   static const textPrimaryLight = Color(0xFF131A22);
   static const textSecondaryLight = Color(0xFF48515B);
   static const mutedLight = Color(0xFF66717C);
@@ -31,7 +28,6 @@ class AppColors {
   static const backgroundLight = Color(0xFFF7F8F9);
   static const surfaceLight = Color(0xFFFFFFFF);
   static const surfaceAltLight = Color(0xFFF0F2F4);
-
   static const backgroundDark = Color(0xFF0B1116);
   static const surfaceDark = Color(0xFF131921);
   static const surfaceAltDark = Color(0xFF1D252D);
@@ -49,7 +45,6 @@ class AppColors {
   static const darkTextPrimary = Color(0xFFF5F6F7);
   static const darkTextSecondary = Color(0xFFC0C7CD);
   static const darkMuted = Color(0xFF9DA7AF);
-
   static const neutral0 = Color(0xFFFFFFFF);
   static const neutral50 = Color(0xFFF7F8F9);
   static const neutral100 = Color(0xFFEAEDED);
@@ -61,7 +56,6 @@ class AppColors {
   static const neutral700 = Color(0xFF303A43);
   static const neutral800 = Color(0xFF1F2830);
   static const neutral900 = Color(0xFF131A22);
-
   static const primary50 = Color(0xFFF1F4F7);
   static const primary100 = Color(0xFFE2E8EE);
   static const primary200 = Color(0xFFC5D0DA);
@@ -72,7 +66,6 @@ class AppColors {
   static const primary700 = Color(0xFF0B1116);
   static const primary800 = Color(0xFF081018);
   static const primary900 = Color(0xFF050B10);
-
   static const secondary50 = Color(0xFFF4F5F6);
   static const secondary100 = Color(0xFFEAEDED);
   static const secondary200 = Color(0xFFD5DBE0);
@@ -83,7 +76,6 @@ class AppColors {
   static const secondary700 = Color(0xFF2A333B);
   static const secondary800 = Color(0xFF202830);
   static const secondary900 = brandDark;
-
   static const info50 = Color(0xFFF0F5F9);
   static const info100 = Color(0xFFDCE8F1);
   static const info200 = Color(0xFFBDD0E0);
@@ -94,7 +86,6 @@ class AppColors {
   static const info700 = Color(0xFF1B3B59);
   static const info800 = Color(0xFF142D44);
   static const info900 = Color(0xFF0E1F2E);
-
   static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
   static Color primaryOf(BuildContext context) => isDark(context) ? darkPrimary : primary;
   static Color onPrimaryOf(BuildContext context) => isDark(context) ? darkOnPrimary : neutral0;
@@ -118,18 +109,14 @@ class AppColors {
 
 class AppTypography {
   AppTypography._();
-
-  // System-style sans typography keeps Fulus contemporary and highly
-  // scannable. The previous editorial serif treatment made operational
-  // screens feel like a publication rather than a modern mobile product.
   static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w800, height: 1.08, letterSpacing: -1.0);
   static const title = TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.12, letterSpacing: -0.6);
-  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w750, height: 1.18, letterSpacing: -0.3);
-  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w650, height: 1.3, letterSpacing: -0.1);
+  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.18, letterSpacing: -0.3);
+  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.1);
   static const bodyLarge = TextStyle(fontSize: 18, height: 1.5);
   static const body = TextStyle(fontSize: 16, height: 1.5);
   static const caption = TextStyle(fontSize: 14, height: 1.45);
-  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w650, height: 1.3, letterSpacing: 0.2);
+  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: 0.2);
   static const buttonLabel = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.2, letterSpacing: 0.1);
   static const mono = TextStyle(fontFamily: 'Space Mono', fontFamilyFallback: ['monospace'], fontSize: 16, height: 1.25, fontFeatures: [FontFeature.tabularFigures()]);
 }
