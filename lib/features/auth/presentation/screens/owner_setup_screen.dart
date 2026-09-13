@@ -10,6 +10,7 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/auth_error_banner.dart';
+import '../../more/settings/presentation/screens/fulus_cloud_connection_screen.dart';
 
 /// The Owner Journey's first step — Volume 3: "create business →
 /// (optional setup) → first sale → celebration," now genuinely one
@@ -284,7 +285,22 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       // the two pushed cases that leaves this screen stuck on top,
       // looking like the tap did nothing (see ScreenExit's doc comment
       // for the full mechanism). closeScreenOr handles all three.
-      context.closeScreenOr('/');
+      if (!mounted) return;
+      // New installs get a simple optional cloud step immediately after
+      // local setup. The local business is already usable offline; this
+      // screen handles account creation, cloud business provisioning and
+      // device authorization without exposing those concepts earlier.
+      if (widget.startAtBusinessStep || widget.linkToExistingBusiness) {
+        context.closeScreenOr('/');
+      } else {
+        Navigator.of(context).pushReplacement<void>(
+          MaterialPageRoute(
+            builder: (_) => FulusCloudConnectionScreen(
+              initialBusinessName: businessName,
+            ),
+          ),
+        );
+      }
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
       if (await _isFullyConfiguredAlready()) {
