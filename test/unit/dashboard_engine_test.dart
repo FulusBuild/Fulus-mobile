@@ -37,7 +37,7 @@ void main() {
         shiftOrTodayTotal: 3000,
         shiftOrTodaySalesCount: 2,
         dayStatus: ShopDayStatus.open,
-        now: DateTime(2026, 7, 30, 14, 0), // 2pm
+        now: DateTime(2026, 7, 30, 14, 0),
         typicalClosingHour: 20,
       );
       expect(state, isA<OpenHero>());
@@ -50,7 +50,7 @@ void main() {
         shiftOrTodayTotal: 3000,
         shiftOrTodaySalesCount: 2,
         dayStatus: ShopDayStatus.open,
-        now: DateTime(2026, 7, 30, 20, 30), // 8:30pm
+        now: DateTime(2026, 7, 30, 20, 30),
         typicalClosingHour: 20,
       );
       expect((state as OpenHero).closeShopEmphasized, isTrue);
@@ -77,6 +77,25 @@ void main() {
       ]);
       expect(selection.shown.length, 2);
       expect(selection.overflowCount, 1);
+    });
+
+    test('a caller cannot raise the product cap above two', () {
+      final selection = engine.selectSecondaryNotices([
+        const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
+        const SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 12000),
+        const SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 3),
+      ], max: 3);
+      expect(selection.shown.length, 2);
+      expect(selection.overflowCount, 1);
+    });
+
+    test('a zero notice budget renders none and reports meaningful overflow', () {
+      final selection = engine.selectSecondaryNotices([
+        const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
+        const SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 500),
+      ], max: 0);
+      expect(selection.shown, isEmpty);
+      expect(selection.overflowCount, 2);
     });
 
     test('orders by priority: low stock, then pending credit, then unsynced', () {

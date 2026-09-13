@@ -61,9 +61,6 @@ class DashboardEngine {
           todayTotal: shiftOrTodayTotal,
           todaySalesCount: shiftOrTodaySalesCount,
           closeShopEmphasized: hour >= typicalClosingHour,
-          // Redesign pass — see OpenHero's own doc comment: these were
-          // already being computed and passed into this method for
-          // every owner call, just never forwarded past this switch.
           yesterdayTotal: yesterdayTotal,
           yesterdaySalesCount: yesterdaySalesCount,
         );
@@ -72,12 +69,15 @@ class DashboardEngine {
 
   /// Decision 12's hard cap: Home ever shows at most two notices at
   /// once, the two most operationally urgent, with a plain count of
-  /// however many more genuinely exist — never a silent drop and never
-  /// an unbounded list. Priority order (most to least urgent): low
-  /// stock (blocks selling), pending credit (money already owed isn't
-  /// growing further but needs chasing), unsynced items (a technical
-  /// state, lowest urgency to a shop owner). Within the same type,
-  /// higher [SecondaryNotice.value] sorts first.
+  /// however many more genuinely exist. The cap is enforced here even
+  /// when a caller requests a larger value, so presentation code cannot
+  /// accidentally turn an operational summary into a dashboard wall of
+  /// alerts.
+  ///
+  /// Priority order (most to least urgent): low stock (blocks selling),
+  /// pending credit (money already owed needs chasing), unsynced items
+  /// (technical state, lowest urgency). Within the same type, higher
+  /// [SecondaryNotice.value] sorts first.
   SecondaryNoticeSelection selectSecondaryNotices(List<SecondaryNotice> candidates, {int max = 2}) {
     const priority = {
       SecondaryNoticeType.lowStock: 0,
@@ -90,12 +90,17 @@ class DashboardEngine {
         if (byType != 0) return byType;
         return b.value.compareTo(a.value);
       });
-    if (meaningful.length <= max) {
+
+    // The product contract is intentionally stricter than the method's
+    // convenience parameter: a caller may ask for fewer than two, but
+    // never more than two. Negative values also degrade safely to zero.
+    final effectiveMax = max.clamp(0, 2).toInt();
+    if (meaningful.length <= effectiveMax) {
       return SecondaryNoticeSelection(shown: meaningful, overflowCount: 0);
     }
     return SecondaryNoticeSelection(
-      shown: meaningful.sublist(0, max),
-      overflowCount: meaningful.length - max,
+      shown: meaningful.sublist(0, effectiveMax),
+      overflowCount: meaningful.length - effectiveMax,
     );
   }
 }
