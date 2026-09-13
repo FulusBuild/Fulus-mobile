@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/business_settings.dart';
 import '../local/database/database.dart';
+import '../repositories/business_settings_mapper.dart';
 import 'cloud_restore_importer.dart';
 
 /// Coordinates the parts of reinstall recovery that must happen around the
@@ -31,7 +32,7 @@ class CloudRestoreCoordinator {
     await _replaceSettings(settings);
 
     try {
-      // The legacy importer clears Users before parent business rows. With
+      // The existing importer clears Users before parent business rows. With
       // real FK enforcement that ordering can reject a populated reinstall
       // (sales/audit/session rows can reference Users). Temporarily suspend
       // SQLite's immediate FK enforcement only for that destructive/import
@@ -46,8 +47,6 @@ class CloudRestoreCoordinator {
           snapshot,
           ownerCloudUserId: null,
         );
-
-        await _setForeignKeys(true);
 
         await _normalizeOwner(
           ownerCloudUserId: ownerCloudUserId,
