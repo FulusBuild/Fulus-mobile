@@ -36,7 +36,15 @@ class AuthApi {
   Future<ServerSignUpResult> signUpServer({required String email, required String password, required String supabaseUrl, required String publishableKey}) async {
     final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
     try {
-      final response = await authClient.post('/auth/v1/signup', data: {'email': email, 'password': password, 'redirect_to': emailVerificationRedirect}, options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}));
+      // Supabase Auth expects the email redirect to be supplied as the
+      // signup request's redirect_to query parameter. Keeping it in the JSON
+      // body is ignored by GoTrue, which makes Auth fall back to SITE_URL.
+      final response = await authClient.post(
+        '/auth/v1/signup',
+        queryParameters: {'redirect_to': emailVerificationRedirect},
+        data: {'email': email, 'password': password},
+        options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}),
+      );
       final data = Map<String, dynamic>.from(response.data as Map);
       final accessToken = data['access_token'] as String?;
       final refreshToken = data['refresh_token'] as String?;
