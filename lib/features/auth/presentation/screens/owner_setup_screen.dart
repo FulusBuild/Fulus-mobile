@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
@@ -10,8 +11,13 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/auth_error_banner.dart';
-import '../../../more/settings/presentation/screens/fulus_cloud_connection_screen.dart';
 
+/// The first-run setup is intentionally local-first and minimal.
+///
+/// A new owner only needs to provide their name and business name. Fulus
+/// supplies sensible defaults for the other configuration values so a
+/// non-technical shop owner can start selling immediately. Cloud, printers,
+/// locations and other configuration remain available later from Settings.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
   const OwnerSetupScreen({
     super.key,
@@ -39,8 +45,6 @@ class OwnerSetupScreen extends ConsumerStatefulWidget {
 class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   final _fullNameController = TextEditingController();
   final _businessNameController = TextEditingController();
-  BusinessCategory _category = BusinessCategory.retailShop;
-  String _currencySymbol = '₦';
 
   bool _submitting = false;
   String? _bannerMessage;
@@ -50,23 +54,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
 
   bool get _needsOwnerName => !widget.startAtBusinessStep;
   bool get _needsBusiness => !widget.linkToExistingBusiness;
-
-  static const List<FulusDropdownOption<String>> _currencyOptions = [
-    FulusDropdownOption(value: '₦', label: '₦ Naira'),
-    FulusDropdownOption(value: r'$', label: r'$ Dollar'),
-    FulusDropdownOption(value: '€', label: '€ Euro'),
-    FulusDropdownOption(value: '£', label: '£ Pound'),
-    FulusDropdownOption(value: 'GH₵', label: 'GH₵ Cedi'),
-    FulusDropdownOption(value: 'R', label: 'R Rand'),
-  ];
-
-  static const _categoryLabels = {
-    BusinessCategory.retailShop: 'Retail Shop',
-    BusinessCategory.restaurantOrFood: 'Restaurant/Food',
-    BusinessCategory.pharmacy: 'Pharmacy',
-    BusinessCategory.salonOrServices: 'Salon/Services',
-    BusinessCategory.other: 'Other',
-  };
 
   @override
   void initState() {
@@ -112,7 +99,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     final errors = <String, String>{};
 
     if (_needsOwnerName && fullName.isEmpty) {
-      errors['fullName'] = 'Enter your full name.';
+      errors['fullName'] = 'Enter your name.';
     }
     if (_needsBusiness) {
       if (businessName.isEmpty) {
@@ -143,10 +130,12 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       }
 
       if (_needsBusiness) {
+        // Nigeria-first defaults: retail, Naira and the Lagos timezone.
+        // Advanced business configuration is intentionally deferred to Settings.
         await ref.read(businessSettingsRepositoryProvider).createBusiness(
               businessName: businessName,
-              category: _category,
-              currencySymbol: _currencySymbol,
+              category: BusinessCategory.retailShop,
+              currencySymbol: '₦',
             );
         if (!mounted) return;
         try {
@@ -172,16 +161,12 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       }
 
       if (!mounted) return;
+      // Cloud is deliberately not part of first-run setup. The local
+      // business is usable immediately; Cloud can be connected later.
       if (widget.startAtBusinessStep || widget.linkToExistingBusiness) {
         context.closeScreenOr('/');
       } else {
-        Navigator.of(context).pushReplacement<void, void>(
-          MaterialPageRoute<void>(
-            builder: (_) => FulusCloudConnectionScreen(
-              initialBusinessName: businessName,
-            ),
-          ),
-        );
+        context.go('/');
       }
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
@@ -206,20 +191,13 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     if (_checkingExisting) {
       return const FulusScreen(body: Center(child: CircularProgressIndicator()));
     }
-    if (_alreadyConfigured) {
-      return _buildAlreadySetUp(context);
-    }
+    if (_alreadyConfigured) return _buildAlreadySetUp(context);
 
     final title = !_needsBusiness
         ? 'Finish setting up'
         : !_needsOwnerName
             ? 'Tell us about your business'
             : "Let's get started";
-    final subtitle = !_needsBusiness
-        ? null
-        : !_needsOwnerName
-            ? null
-            : 'Just your name and your business — that\'s it.';
 
     return FulusScreen(
       body: Center(
@@ -235,14 +213,14 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                   textAlign: TextAlign.center,
                   style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                  ),
-                ],
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _needsOwnerName
+                      ? 'Just your name and your business — that’s it.'
+                      : 'Just your business name — the rest can wait.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                ),
                 const SizedBox(height: AppSpacing.xxl),
                 if (_bannerMessage != null) ...[
                   AuthErrorBanner(message: _bannerMessage!),
@@ -257,7 +235,13 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                   ),
                   if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
                 ],
-                if (_needsBusiness) _buildBusinessFields(context),
+                if (_needsBusiness)
+                  FulusTextField(
+                    label: 'Business name',
+                    controller: _businessNameController,
+                    errorText: _fieldErrors['businessName'],
+                    onChanged: (_) => _clearErrors(),
+                  ),
                 const SizedBox(height: AppSpacing.xl),
                 FulusButton(
                   label: !_needsBusiness ? 'Finish' : 'Get started',
@@ -283,11 +267,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  color: AppColors.primaryOf(context),
-                  size: AppIconSize.hero,
-                ),
+                Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context), size: AppIconSize.hero),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   "You're all set",
@@ -306,74 +286,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildBusinessFields(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FulusTextField(
-          label: 'Business name',
-          controller: _businessNameController,
-          errorText: _fieldErrors['businessName'],
-          onChanged: (_) => _clearErrors(),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        FulusSectionHeader(title: 'Business type'),
-        for (final category in BusinessCategory.values) ...[
-          _CategoryOption(
-            label: _categoryLabels[category]!,
-            selected: _category == category,
-            onTap: () => setState(() => _category = category),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          child: Text(
-            BusinessCategoryDefaults.forCategory(_category).guidance,
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        FulusDropdownField<String>(
-          label: 'Currency',
-          options: _currencyOptions,
-          value: _currencySymbol,
-          onChanged: (value) => setState(() => _currencySymbol = value),
-        ),
-      ],
-    );
-  }
-}
-
-class _CategoryOption extends StatelessWidget {
-  const _CategoryOption({required this.label, required this.selected, required this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTypography.body.copyWith(
-                color: selected ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-          if (selected) Icon(Icons.check_circle, color: AppColors.primaryOf(context), size: AppIconSize.compact),
-        ],
       ),
     );
   }
