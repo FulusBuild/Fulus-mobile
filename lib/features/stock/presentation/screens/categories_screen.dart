@@ -6,15 +6,6 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../shared/widgets/widgets.dart';
 
-/// Gap fix: nothing anywhere in the app could create a category before
-/// this — Add/Edit Product could only *select* one of whatever already
-/// existed. `CategoryRepository` (createCategory, watchCategories) had
-/// no caller anywhere.
-///
-/// List + create only, honestly — CategoryRepository has no update or
-/// delete/archive method at all (checked directly; not a UI omission,
-/// there's nothing to call). Renaming or removing a category is a real
-/// remaining gap this screen doesn't claim to close.
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
 
@@ -23,13 +14,6 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
-  // Perf/correctness: created once here rather than inline in
-  // StreamBuilder's `stream:` parameter — the same fix
-  // sell_screen.dart already applies to this exact repository call.
-  // Constructing it in build() instead would tear down and recreate
-  // the underlying watch query (and briefly drop back to "no data")
-  // on every rebuild of this screen, not just when categories
-  // actually change.
   late final Stream<List<Category>> _categoriesStream =
       ref.read(categoryRepositoryProvider).watchCategories();
 
@@ -41,9 +25,15 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       body: StreamBuilder<List<Category>>(
         stream: _categoriesStream,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const FulusLoadingIndicator();
+          if (snapshot.hasError) {
+            return FulusErrorState(
+              message: "Couldn't load categories.",
+              reassurance: 'Your products are still safe on this device.',
+              onRetry: () => setState(() {}),
+            );
           }
+          if (!snapshot.hasData) return const FulusLoadingIndicator();
+
           final categories = snapshot.data!;
           if (categories.isEmpty) {
             return FulusEmptyState(
@@ -66,12 +56,22 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                   children: [
                     Text(
                       category.name,
-                      style: AppTypography.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimaryOf(context),
+                      ),
                     ),
                     if (category.description != null && category.description!.isNotEmpty)
-                      Text(
-                        category.description!,
-                        style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          category.description!,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                        ),
                       ),
                   ],
                 ),
@@ -82,6 +82,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openAddSheet(context),
+        tooltip: 'Add category',
         child: const Icon(Icons.add),
       ),
     );
@@ -130,15 +131,19 @@ class _AddCategorySheetState extends ConsumerState<_AddCategorySheet> {
       await ref.read(categoryRepositoryProvider).createCategory(
             CategoryDraft(
               name: name,
-              description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+              description: _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
             ),
           );
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
-      if (mounted) setState(() {
-        _saving = false;
-        _error = "Couldn't save this category. Please try again.";
-      });
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = "Couldn't save this category. Please try again.";
+        });
+      }
     }
   }
 
