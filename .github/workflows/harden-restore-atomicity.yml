@@ -10,40 +10,29 @@ permissions:
 
 jobs:
   harden:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Harden restore transaction
+        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          importer = Path('lib/data/remote/cloud_restore_importer.dart')
-          s = importer.read_text()
-          s = s.replace(
-              "    String? ownerCloudUserId,\n  }) async {",
-              "    String? ownerCloudUserId,\n    Future<void> Function()? onBeforeCommit,\n  }) async {",
-              1,
-          )
-          s = s.replace(
-              "      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n",
-              "      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n      if (onBeforeCommit != null) await onBeforeCommit();\n      await _verifyForeignKeys();\n",
-              1,
-          )
-          # Make the importer safe even when called directly with SQLite FK enforcement on.
-          old = "    'sessions',\n    'users',\n    'return_items',"
-          new = "    'sessions',\n    'return_items',"
-          s = s.replace(old, new, 1)
-          marker = "    'audit_logs',\n  ];"
-          s = s.replace(marker, "    'audit_logs',\n    'users',\n  ];", 1)
-          importer.write_text(s)
+          p = Path('lib/data/remote/cloud_restore_importer.dart')
+          s = p.read_text()
+          s = s.replace("    String? ownerCloudUserId,\n  }) async {", "    String? ownerCloudUserId,\n    Future<void> Function()? onBeforeCommit,\n  }) async {", 1)
+          s = s.replace("      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n", "      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n      if (onBeforeCommit != null) await onBeforeCommit();\n      await _verifyForeignKeys();\n", 1)
+          s = s.replace("    'sessions',\n    'users',\n    'return_items',", "    'sessions',\n    'return_items',", 1)
+          s = s.replace("    'audit_logs',\n  ];", "    'audit_logs',\n    'users',\n  ];", 1)
+          p.write_text(s)
 
-          coordinator = Path('lib/data/remote/cloud_restore_coordinator.dart')
-          c = coordinator.read_text()
-          start = c.index('  Future<CloudRestoreResult> restore({')
-          end = c.index('\n  Future<void> _normalizeOwner({', start)
-          new_restore = '''  Future<CloudRestoreResult> restore({
+          p = Path('lib/data/remote/cloud_restore_coordinator.dart')
+          s = p.read_text()
+          start = s.index('  Future<CloudRestoreResult> restore({')
+          end = s.index('  Future<void> _normalizeOwner({', start)
+          restore = '''  Future<CloudRestoreResult> restore({
     required Map<String, dynamic> snapshot,
     required String ownerCloudUserId,
     required String ownerEmail,
@@ -53,9 +42,6 @@ jobs:
       snapshot,
       ownerCloudUserId: null,
       onBeforeCommit: () async {
-        // These writes execute inside the importer's transaction. If either
-        // settings or owner/session reconstruction fails, the entire restore
-        // rolls back together with the business data.
         await _db.delete(_db.businessSettings).go();
         await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
         await _normalizeOwner(
@@ -66,12 +52,11 @@ jobs:
       },
     );
   }
+
 '''
-          c = c[:start] + new_restore + c[end:]
-          # Remove the old nested transaction from owner normalization so it is
-          # guaranteed to participate in the importer's outer transaction.
-          c = c.replace("    await _db.transaction(() async {\n      final owner =", "    final owner =", 1)
-          old_end = '''      await _db.into(_db.sessions).insert(
+          s = s[:start] + restore + s[end:]
+          s = s.replace("    await _db.transaction(() async {\n      final owner =", "    final owner =", 1)
+          old_end = """      await _db.into(_db.sessions).insert(
             SessionsCompanion.insert(
               id: 'current',
               userId: ownerCloudUserId,
@@ -79,26 +64,29 @@ jobs:
             ),
           );
     });
-'''
-          new_end = '''    await _db.into(_db.sessions).insert(
+"""
+          new_end = """    await _db.into(_db.sessions).insert(
           SessionsCompanion.insert(
             id: 'current',
             userId: ownerCloudUserId,
             activeLocationId: const Value(null),
           ),
         );
-'''
-          if old_end not in c:
-              raise SystemExit('owner transaction block shape changed; aborting')
-          c = c.replace(old_end, new_end, 1)
-          # Remove obsolete compensation/settings helpers and their old comments.
-          a = c.index('  Future<void> _replaceSettings(')
-          b = c.index('  Future<void> _normalizeOwner(', a)
-          c = c[:a] + c[b:]
-          coordinator.write_text(c)
+"""
+          if old_end not in s:
+              raise SystemExit('owner transaction block not found')
+          s = s.replace(old_end, new_end, 1)
+          a = s.index('  Future<void> _replaceSettings(')
+          b = s.index('  Future<void> _normalizeOwner(', a)
+          s = s[:a] + s[b:]
+          p.write_text(s)
           PY
+          git add lib/data/remote/cloud_restore_importer.dart lib/data/remote/cloud_restore_coordinator.dart
+          if git diff --cached --quiet; then
+            echo 'No restore hardening changes required.'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/data/remote/cloud_restore_importer.dart lib/data/remote/cloud_restore_coordinator.dart
           git commit -m 'fix(restore): make settings and owner writes atomic'
           git push
