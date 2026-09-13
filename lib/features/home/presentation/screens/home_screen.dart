@@ -95,16 +95,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _load() {
     final repo = ref.read(dashboardRepositoryProvider);
-    // See widget.canViewDashboardStats' own doc comment — a Manager
-    // granted that permission gets the same business-wide hero (not
-    // just their own shift) an Owner always does, not only the extra
-    // sections below it.
     final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
     _heroFuture = repo.getHeroState(currentAuthUserId: widget.currentAuthUserId, isOwner: showBusinessWide);
-    // Redesign pass — max: 3 so Home's notice row can show all three
-    // categories at once (see dashboard_repository.dart's own doc on
-    // this parameter); every other caller of this method keeps the
-    // default cap of 2.
     _noticesFuture = repo.getSecondaryNotices(max: 3);
     _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
       _reportsEngine.resolvePeriod(ReportPeriodKind.today),
@@ -118,14 +110,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await Future.wait([_heroFuture, _noticesFuture, _activityFuture]);
   }
 
+  void _retryHomeData() {
+    if (!mounted) return;
+    setState(_load);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Gap fix — see this class's header comment. Any bump of this
-    // signal (Open Shop below, or Daily Closing elsewhere) means the
-    // real data behind the hero has changed, so re-fetch. `ref.listen`
-    // rather than `ref.watch` deliberately: this screen still owns its
-    // own Future/setState fetch cycle (unchanged from before), this
-    // just triggers that same cycle from a second place.
     ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
       if (previous != null && previous != next) setState(_load);
     });
@@ -144,8 +135,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               FutureBuilder<HomeHeroState>(
                 future: _heroFuture,
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const _HeroSkeleton();
+                  }
+                  if (snapshot.hasError) {
+                    return FulusErrorState(
+                      message: "Couldn't load today's summary.",
+                      reassurance: 'Your sales are still safe on this device.',
+                      onRetry: _retryHomeData,
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return FulusEmptyState(
+                      headline: 'Nothing to show yet',
+                      body: 'Your sales summary will appear here when there is data to show.',
+                      icon: Icons.storefront_outlined,
+                    );
                   }
                   return _HeroCard(state: snapshot.data!, currencySymbol: currencySymbol);
                 },
@@ -155,6 +160,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 FutureBuilder<SecondaryNoticeSelection>(
                   future: _noticesFuture,
                   builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const _NoticeSkeleton();
+                    }
+                    if (snapshot.hasError) {
+                      return FulusErrorState(
+                        message: "Couldn't load business alerts.",
+                        reassurance: 'Your business data is still safe on this device.',
+                        onRetry: _retryHomeData,
+                      );
+                    }
                     final selection = snapshot.data;
                     if (selection == null || selection.shown.isEmpty) return const SizedBox.shrink();
                     return _NoticeRow(selection: selection, currencySymbol: currencySymbol);
@@ -166,22 +181,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 FulusSectionHeader(
                   title: 'Recent activity',
                   action: 'See all',
-                  // pushNamed, not goNamed — 'moneyHistory' is nested
-                  // inside the Money branch, same reasoning as
-                  // _QuickActionRow's own Add stock/Add expense/Reports
-                  // (see that class's comment): `go`-ing there straight
-                  // from Home, a different branch, makes
-                  // StatefulShellRoute build Money's own root screen
-                  // first to establish the branch, then navigate
-                  // deeper — the flash to one screen before landing on
-                  // the right one.
                   onActionTap: () => context.pushNamed('moneyHistory'),
                 ),
                 FutureBuilder<List<MoneyTransaction>>(
                   future: _activityFuture,
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]);
+                    }
+                    if (snapshot.hasError) {
+                      return FulusErrorState(
+                        message: "Couldn't load recent activity.",
+                        reassurance: 'Your sales and money records are still safe on this device.',
+                        onRetry: _retryHomeData,
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return FulusEmptyState(
+                        headline: 'No activity yet today',
+                        body: 'Sales, stock, and expenses you record will show up here.',
+                        icon: Icons.receipt_long_outlined,
+                      );
                     }
                     final transactions = snapshot.data!;
                     if (transactions.isEmpty) {
@@ -224,19 +244,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-/// Business name, a "Good morning"-style greeting, an initials avatar,
-/// Business name, a "Good morning"-style greeting, and an initials
-/// avatar — the header the reference design calls for. Its own widget
-/// (rather than inline in `build`) purely to keep
-/// `_HomeScreenState.build` scannable.
-///
-/// Deliberately does NOT duplicate a sync-status pill here — that was
-/// this pass's first draft, and it was wrong: `app_shell.dart`'s own
-/// `_SyncStatusIndicator` already renders the identical [SyncStatus] as
-/// an icon in the same top-right corner, on every screen including this
-/// one, so a second "Sync off" pill right underneath it was reporting
-/// the same fact twice in the same glance. No other screen in this app
-/// duplicates that indicator; Home shouldn't either.
 class _GreetingHeader extends ConsumerWidget {
   const _GreetingHeader();
 
@@ -248,17 +255,6 @@ class _GreetingHeader extends ConsumerWidget {
     final greeting = greetingForHour(DateTime.now().hour);
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
-    // Gap fix: this header used to be owner-only (Employees never saw
-    // it, or anything else identifying who was signed in), and nothing
-    // in the app gave an Employee session a way back to the owner's
-    // account short of uninstalling — Settings has the actual Log out
-    // action, but Money/More (where Settings lives) are both owner-only
-    // branches an Employee session can't reach at all (app_shell.dart's
-    // own doc comment). The switch-account button below is that access
-    // point, on the one screen every session can always reach. An Owner
-    // still sees the business name as the headline (unchanged from
-    // before); an Employee sees their own name instead — more useful on
-    // a shared device than a business name they already know.
     final avatarName = isOwner ? (businessName.isEmpty ? '?' : businessName) : user.fullName;
     final headline = isOwner ? (businessName.isEmpty ? 'Fulus' : businessName) : user.fullName;
 
@@ -306,10 +302,7 @@ class _GreetingHeader extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (user != null) ...[
-              Text(
-                'Signed in as',
-                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(sheetContext)),
-              ),
+              Text('Signed in as', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(sheetContext))),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 '${user.fullName} · ${_roleLabel(user.role)}',
@@ -332,21 +325,12 @@ class _GreetingHeader extends ConsumerWidget {
   }
 
   Future<void> _switchAccount(BuildContext sheetContext, WidgetRef ref) async {
-    // Same "clears the local session, _ShellGate watches sessionProvider
-    // and swaps back to AuthGateScreen's 'Who's this?' picker on its
-    // own" mechanism as Settings' own Log out — see that action's own
-    // comment (settings_main_screen.dart) for why nothing further is
-    // needed after these two lines.
     Navigator.of(sheetContext).pop();
     await ref.read(authRepositoryProvider).logout();
     ref.read(sessionProvider.notifier).state = null;
   }
 }
 
-/// Plain display text for this "signed in as" sheet — Roles &
-/// Permissions (schemaVersion 10) grew [AuthRole] past a straight
-/// owner/employee binary, so the old inline `? 'Owner' : 'Employee'`
-/// ternary silently mislabeled a Manager or Cashier login as "Employee".
 String _roleLabel(AuthRole role) {
   switch (role) {
     case AuthRole.owner:
@@ -360,11 +344,6 @@ String _roleLabel(AuthRole role) {
   }
 }
 
-/// Business-wide profile stream, scoped to this screen — mirrors
-/// `money_providers.dart`'s own `moneyCurrencySymbolProvider` (same
-/// underlying `businessSettingsRepositoryProvider.watchSettings()`
-/// call); kept local rather than promoted to a shared provider since
-/// Home is the only place currently reading the business name itself.
 final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) {
   return ref.watch(businessSettingsRepositoryProvider).watchSettings();
 });
@@ -397,6 +376,21 @@ class _HeroSkeleton extends StatelessWidget {
   }
 }
 
+class _NoticeSkeleton extends StatelessWidget {
+  const _NoticeSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(child: FulusSkeletonBox(height: 92)),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: FulusSkeletonBox(height: 92)),
+      ],
+    );
+  }
+}
+
 class _HeroCard extends ConsumerWidget {
   const _HeroCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
@@ -404,50 +398,13 @@ class _HeroCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Redesign pass — one explicit label per state rather than the
-    // earlier "label · statusLabel" concatenation, which produced a
-    // literal "TODAY (CLOSED) · CLOSED" for the closed state (both
-    // halves said the same thing) — caught on-device after this pass
-    // first shipped. Each state now owns its full top-line wording
-    // directly, so there's no combination step left to go wrong.
     final (topLabel, amount, count, emphasizeAction) = switch (state) {
-      NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => (
-          'Yesterday',
-          yesterdayTotal,
-          yesterdaySalesCount,
-          false,
-        ),
-      OpenHero(:final todayTotal, :final todaySalesCount, :final closeShopEmphasized) => (
-          'Today · Open',
-          todayTotal,
-          todaySalesCount,
-          closeShopEmphasized,
-        ),
-      ClosedHero(:final finalTotal, :final finalSalesCount) => (
-          'Today · Closed',
-          finalTotal,
-          finalSalesCount,
-          false,
-        ),
-      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => (
-          'Your shift',
-          shiftTotal,
-          shiftSalesCount,
-          false,
-        ),
+      NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => ('Yesterday', yesterdayTotal, yesterdaySalesCount, false),
+      OpenHero(:final todayTotal, :final todaySalesCount, :final closeShopEmphasized) => ('Today · Open', todayTotal, todaySalesCount, closeShopEmphasized),
+      ClosedHero(:final finalTotal, :final finalSalesCount) => ('Today · Closed', finalTotal, finalSalesCount, false),
+      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => ('Your shift', shiftTotal, shiftSalesCount, false),
     };
 
-    // Redesign pass — only rendered for OpenHero, and only once a real
-    // yesterday baseline exists (never "0% vs yesterday" from a missing
-    // comparison — see OpenHero.yesterdayTotal's own doc comment).
-    //
-    // `if (state case OpenHero(...))` rather than `if (state is
-    // OpenHero) { state.yesterdayTotal }` deliberately — [state] is a
-    // public field here, and Dart only promotes private fields (or
-    // locals) after an `is` check, so the `is`-then-access form fails
-    // to compile with "getter isn't defined for HomeHeroState". Pattern
-    // matching destructures directly and sidesteps promotion entirely
-    // — same mechanism the switch above already uses.
     String? trendLabel;
     bool trendUp = true;
     if (state case OpenHero(:final todayTotal, :final yesterdayTotal) when yesterdayTotal > 0) {
@@ -502,11 +459,7 @@ class _HeroCard extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            trendUp ? Icons.arrow_upward : Icons.arrow_downward,
-                            size: AppIconSize.dense,
-                            color: AppColors.onPrimaryOf(context),
-                          ),
+                          Icon(trendUp ? Icons.arrow_upward : Icons.arrow_downward, size: AppIconSize.dense, color: AppColors.onPrimaryOf(context)),
                           const SizedBox(width: 2),
                           Text(
                             trendLabel,
@@ -538,33 +491,15 @@ class _HeroCard extends ConsumerWidget {
                     final opened = await showOpeningFloatSheet(context);
                     if (opened && context.mounted) {
                       showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
-                      // Gap fix — see HomeScreen's header comment. Opening
-                      // the drawer changes exactly what this hero should
-                      // show (NotYetOpened → Open); without this, Home kept
-                      // showing "Ready to open?" until the next manual
-                      // pull-to-refresh.
                       ref.read(dataRefreshSignalProvider.notifier).state++;
                     }
                   },
                 ),
               ] else if (state is OpenHero) ...[
                 const SizedBox(height: AppSpacing.lg),
-                // Bug fix (UX audit): this used to be gated behind
-                // `emphasizeAction`, so for the entire middle of a normal
-                // business day — OpenHero with closeShopEmphasized false,
-                // the state Home spends most of its life in — no Close
-                // Shop button rendered at all, and nothing else on this
-                // screen reaches Daily Closing either. Close Shop should
-                // read as "available the entire time, just visually
-                // stronger near closing," not "appears near closing."
-                // `emphasized` below is still what carries that visual
-                // distinction; only reachability changed here.
                 _HeroButton(
                   label: 'Close Shop',
                   emphasized: emphasizeAction,
-                  // pushNamed — see _QuickActionRow's own comment on the
-                  // same reasoning; 'moneyDailyClosingCount' is nested
-                  // inside the Money branch, not its root.
                   onTap: () => context.pushNamed('moneyDailyClosingCount'),
                 ),
               ],
@@ -580,13 +515,6 @@ class _HeroButton extends StatelessWidget {
   const _HeroButton({required this.label, required this.onTap, this.emphasized = true});
   final String label;
   final VoidCallback onTap;
-
-  /// Bug fix (UX audit) — Close Shop now renders throughout OpenHero,
-  /// not just when emphasized, so it needs a visual weight below its
-  /// original solid-fill treatment for the ordinary case, reserving that
-  /// original look for when it's genuinely emphasized (near closing, or
-  /// Open Shop, which is always the one action on its own screen and
-  /// stays solid via this parameter's default).
   final bool emphasized;
 
   @override
@@ -635,13 +563,6 @@ class _HeroButtonLabel extends StatelessWidget {
   }
 }
 
-/// Redesign pass — replaces the old single-column bordered-box list
-/// with a horizontal row of [FulusStatCard]s (the same widget Money and
-/// Stock already use for their own overview numbers, per that widget's
-/// own doc comment anticipating "any future dashboard summary"), one
-/// per [SecondaryNotice]. Tapping a tile routes to wherever that notice
-/// is actionable — Stock for low stock, the Credit Book for pending
-/// credit, Sync detail for unsynced items.
 class _NoticeRow extends StatelessWidget {
   const _NoticeRow({required this.selection, required this.currencySymbol});
   final SecondaryNoticeSelection selection;
@@ -649,30 +570,9 @@ class _NoticeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Redesign pass — a lone notice (the common case: usually only one
-    // of low-stock/pending-credit/unsynced is actually nonzero at a
-    // time) now fills the row instead of sitting in a 152dp-wide card
-    // inside a horizontal scroller built for two or three, which left
-    // the rest of the row visibly empty (seen on-device with just the
-    // "Unsynced" tile).
     if (selection.shown.length == 1) {
       return SizedBox(width: double.infinity, child: _noticeTile(context, selection.shown.first));
     }
-    // Responsive UI audit — this used to be a fixed `SizedBox(height:
-    // 128)` wrapping the horizontal ListView, the same "guess a height,
-    // hope the content fits it" pattern that produced Stock's "BOTTOM
-    // OVERFLOWED" report (see FulusStatGrid's doc comment in
-    // shared/widgets/fulus_card.dart): notice.label is data-driven, not
-    // a short fixed string, so it can legitimately wrap to a second
-    // line at 152dp wide, and 128dp had no margin left once it did — a
-    // wrapped label alone adds roughly one caption line (~21dp), which
-    // is most of how a 23px overflow happens in the first place.
-    // `selection.shown` is at most 3 tiles (one per notice type), so
-    // swapping the virtualized ListView for a plain scrollable Row costs
-    // nothing worth avoiding, and IntrinsicHeight is what lets the row's
-    // height come from the tallest tile's own content instead of a
-    // number picked in advance — exactly [FulusStatGrid]'s approach,
-    // applied here to a horizontal scroller instead of a wrapping grid.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -717,8 +617,6 @@ class _NoticeRow extends StatelessWidget {
           value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true),
           icon: Icons.request_page_outlined,
           valueColor: AppColors.infoOf(context),
-          // pushNamed — same reasoning as this row's other two fixes
-          // above; 'moneyCustomers' is nested inside the Money branch.
           onTap: () => context.pushNamed('moneyCustomers'),
         );
       case SecondaryNoticeType.unsyncedItems:
@@ -733,10 +631,6 @@ class _NoticeRow extends StatelessWidget {
   }
 }
 
-/// Sell / Add stock / Add expense / Reports — the reference design's
-/// shortcut row. Deliberately just navigation, no numbers, so it reads
-/// as a different kind of thing than [_NoticeRow]'s stat tiles right
-/// above it (see [FulusQuickAction]'s own doc comment).
 class _QuickActionRow extends StatelessWidget {
   const _QuickActionRow();
 
@@ -755,25 +649,6 @@ class _QuickActionRow extends StatelessWidget {
           child: FulusQuickAction(
             icon: Icons.inventory_2_outlined,
             label: 'Add stock',
-            // pushNamed, not goNamed — Sell above is the root of its
-            // own shell branch, so `go` switches straight to it with
-            // nothing else involved. This one and the two below are
-            // *nested* routes inside a branch (Stock/Money/More) Home
-            // hasn't necessarily visited yet this session — `go`-ing
-            // straight to a deep route makes StatefulShellRoute build
-            // that branch's own root screen first to establish it,
-            // then navigate deeper, which is the flash to one screen
-            // before landing on the right one. `push` opens the target
-            // directly above the shell instead, skipping all of that.
-            //
-            // Bug report: this used to open Record Stock Movement
-            // ('stockRecordMovement' — pick an existing product, then
-            // adjust its quantity), but confirmed against what "Add
-            // stock" was actually expected to do here — create a new
-            // product — that's 'stockAddProduct', not this. Record
-            // Stock Movement is still reachable from the Stock tab
-            // itself for the "adjust an existing product's quantity"
-            // case.
             onTap: () => context.pushNamed('stockAddProduct'),
           ),
         ),
