@@ -44,7 +44,9 @@ class _SellScreenState extends ConsumerState<SellScreen> {
             ),
           );
         }
-        if (!snapshot.hasData) return const FulusScreen(title: 'Sell', body: FulusLoadingIndicator());
+        if (!snapshot.hasData) {
+          return const FulusScreen(title: 'Sell', body: FulusLoadingIndicator());
+        }
         return BlocProvider(
           create: (_) => CartCubit(
             draftCartRepository: ref.read(draftCartRepositoryProvider),
@@ -80,11 +82,20 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
     super.dispose();
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _selectedCategoryId = null;
+    });
+  }
+
   Future<void> _scanAndAdd(BuildContext context) async {
     final barcode = await BarcodeScanScreen.scan(context, title: 'Scan a product');
     if (barcode == null || !context.mounted) return;
     final cartState = context.read<CartCubit>().state;
     if (cartState is! CartLoaded) return;
+
     ProductWithStock? match;
     for (final entry in cartState.catalog.values) {
       if (entry.product.barcode == barcode) {
@@ -92,14 +103,21 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
         break;
       }
     }
+
     if (match == null) {
-      showFulusSnackbar(context, message: 'No product found with that barcode.', actionLabel: 'Quick Sale', onAction: () => QuickSaleSheet.show(context));
+      showFulusSnackbar(
+        context,
+        message: 'No product found with that barcode.',
+        actionLabel: 'Quick Sale',
+        onAction: () => QuickSaleSheet.show(context),
+      );
       return;
     }
+
     try {
       await context.read<CartCubit>().addProduct(match.product.localId);
       if (context.mounted) {
-        showFulusSnackbar(context, message: '${match.product.name} added', duration: const Duration(milliseconds: 900));
+        showFulusSnackbar(context, message: '${match.product.name} added');
       }
     } on StateError catch (e) {
       if (context.mounted) showFulusSnackbar(context, message: e.message);
@@ -112,9 +130,21 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
       title: 'Sell',
       applyPadding: false,
       actions: [
-        FulusIconButton(icon: Icons.qr_code_scanner_outlined, tooltip: 'Scan a barcode', onPressed: () => _scanAndAdd(context)),
-        FulusIconButton(icon: Icons.assignment_return_outlined, tooltip: 'Refund a sale', onPressed: () => context.pushNamed('sellRefundSearch')),
-        FulusIconButton(icon: Icons.storefront_outlined, tooltip: 'Quick Sale', onPressed: () => QuickSaleSheet.show(context)),
+        FulusIconButton(
+          icon: Icons.qr_code_scanner_outlined,
+          tooltip: 'Scan a barcode',
+          onPressed: () => _scanAndAdd(context),
+        ),
+        FulusIconButton(
+          icon: Icons.assignment_return_outlined,
+          tooltip: 'Refund a sale',
+          onPressed: () => context.pushNamed('sellRefundSearch'),
+        ),
+        FulusIconButton(
+          icon: Icons.storefront_outlined,
+          tooltip: 'Quick Sale',
+          onPressed: () => QuickSaleSheet.show(context),
+        ),
       ],
       body: Column(
         children: [
@@ -133,11 +163,21 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
               if (categories.isEmpty) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
-                child: FulusChipRow(children: [
-                  FulusChip(label: 'All', selected: _selectedCategoryId == null, onTap: () => setState(() => _selectedCategoryId = null)),
-                  for (final category in categories)
-                    FulusChip(label: category.name, selected: _selectedCategoryId == category.localId, onTap: () => setState(() => _selectedCategoryId = category.localId)),
-                ]),
+                child: FulusChipRow(
+                  children: [
+                    FulusChip(
+                      label: 'All',
+                      selected: _selectedCategoryId == null,
+                      onTap: () => setState(() => _selectedCategoryId = null),
+                    ),
+                    for (final category in categories)
+                      FulusChip(
+                        label: category.name,
+                        selected: _selectedCategoryId == category.localId,
+                        onTap: () => setState(() => _selectedCategoryId = category.localId),
+                      ),
+                  ],
+                ),
               );
             },
           ),
@@ -145,20 +185,38 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
             child: BlocSelector<CartCubit, CartState, _ProductAreaState>(
               selector: (state) => switch (state) {
                 CartFailure(:final message) => (errorMessage: message, catalogSlice: null),
-                CartLoaded state => (errorMessage: null, catalogSlice: (catalog: state.catalog, catalogLoaded: state.catalogLoaded, currencySymbol: state.currencySymbol)),
+                CartLoaded state => (
+                    errorMessage: null,
+                    catalogSlice: (
+                      catalog: state.catalog,
+                      catalogLoaded: state.catalogLoaded,
+                      currencySymbol: state.currencySymbol,
+                    ),
+                  ),
                 _ => (errorMessage: null, catalogSlice: null),
               },
               builder: (context, result) {
-                if (result.errorMessage != null) return FulusErrorState(message: result.errorMessage!);
+                if (result.errorMessage != null) {
+                  return FulusErrorState(message: result.errorMessage!);
+                }
                 final slice = result.catalogSlice;
                 if (slice == null) return const FulusLoadingIndicator();
-                return _ProductArea(catalog: slice.catalog, catalogLoaded: slice.catalogLoaded, currencySymbol: slice.currencySymbol, query: _query, categoryId: _selectedCategoryId);
+                return _ProductArea(
+                  catalog: slice.catalog,
+                  catalogLoaded: slice.catalogLoaded,
+                  currencySymbol: slice.currencySymbol,
+                  query: _query,
+                  categoryId: _selectedCategoryId,
+                  onClearSearch: _clearSearch,
+                );
               },
             ),
           ),
           BlocBuilder<CartCubit, CartState>(
             builder: (context, cartState) {
-              if (cartState is CartLoaded && cartState.items.isNotEmpty) return _CartSummaryBar(state: cartState);
+              if (cartState is CartLoaded && cartState.items.isNotEmpty) {
+                return _CartSummaryBar(state: cartState);
+              }
               return const SizedBox.shrink();
             },
           ),
@@ -168,29 +226,54 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
   }
 }
 
-typedef _CatalogSlice = ({Map<String, ProductWithStock> catalog, bool catalogLoaded, String currencySymbol});
+typedef _CatalogSlice = ({
+  Map<String, ProductWithStock> catalog,
+  bool catalogLoaded,
+  String currencySymbol,
+});
 typedef _ProductAreaState = ({String? errorMessage, _CatalogSlice? catalogSlice});
 
 class _ProductArea extends StatelessWidget {
-  const _ProductArea({required this.catalog, required this.catalogLoaded, required this.currencySymbol, required this.query, required this.categoryId});
+  const _ProductArea({
+    required this.catalog,
+    required this.catalogLoaded,
+    required this.currencySymbol,
+    required this.query,
+    required this.categoryId,
+    required this.onClearSearch,
+  });
+
   final Map<String, ProductWithStock> catalog;
   final bool catalogLoaded;
   final String currencySymbol;
   final String query;
   final String? categoryId;
+  final VoidCallback onClearSearch;
 
   @override
   Widget build(BuildContext context) {
     if (!catalogLoaded) {
       return GridView.builder(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: AppSpacing.md, crossAxisSpacing: AppSpacing.md, childAspectRatio: 0.82),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: AppSpacing.md,
+          crossAxisSpacing: AppSpacing.md,
+          childAspectRatio: 0.82,
+        ),
         itemCount: 6,
         itemBuilder: (context, i) => const FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
       );
     }
+
     if (catalog.isEmpty) {
-      return FulusEmptyState(headline: 'No products yet', body: "Add products from Stock once it's set up, or use Quick Sale for anything you're selling today.", icon: Icons.storefront_outlined, actionLabel: 'Quick Sale', onAction: () => QuickSaleSheet.show(context));
+      return FulusEmptyState(
+        headline: 'No products yet',
+        body: "Add products from Stock once it's set up, or use Quick Sale for anything you're selling today.",
+        icon: Icons.storefront_outlined,
+        actionLabel: 'Quick Sale',
+        onAction: () => QuickSaleSheet.show(context),
+      );
     }
 
     final normalizedQuery = query.trim().toLowerCase();
@@ -198,38 +281,44 @@ class _ProductArea extends StatelessWidget {
       final product = p.product;
       if (categoryId != null && product.categoryId != categoryId) return false;
       if (normalizedQuery.isEmpty) return true;
-      return product.name.toLowerCase().contains(normalizedQuery) || product.sku.toLowerCase().contains(normalizedQuery) || (product.barcode?.toLowerCase().contains(normalizedQuery) ?? false);
-    }).toList()..sort((a, b) => a.product.name.compareTo(b.product.name));
+      return product.name.toLowerCase().contains(normalizedQuery) ||
+          product.sku.toLowerCase().contains(normalizedQuery) ||
+          (product.barcode?.toLowerCase().contains(normalizedQuery) ?? false);
+    }).toList()
+      ..sort((a, b) => a.product.name.compareTo(b.product.name));
 
     if (products.isEmpty) {
-      return FulusEmptyState(headline: 'No matches', body: normalizedQuery.isEmpty ? 'No products in this category yet.' : 'Nothing matches "$query" — try a different search, or use Quick Sale.', icon: Icons.search_off, actionLabel: 'Clear search', onAction: () {
-        _clearSearch(context);
-      });
+      return FulusEmptyState(
+        headline: 'No matches',
+        body: normalizedQuery.isEmpty
+            ? 'No products in this category yet.'
+            : 'Nothing matches "$query" — try a different search, or use Quick Sale.',
+        icon: Icons.search_off,
+        actionLabel: 'Clear search',
+        onAction: onClearSearch,
+      );
     }
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xxxl),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: AppSpacing.md, crossAxisSpacing: AppSpacing.md, childAspectRatio: 0.82),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: AppSpacing.md,
+        crossAxisSpacing: AppSpacing.md,
+        childAspectRatio: 0.82,
+      ),
       itemCount: products.length,
-      itemBuilder: (context, i) => _ProductTile(productWithStock: products[i], currencySymbol: currencySymbol),
+      itemBuilder: (context, i) => _ProductTile(
+        productWithStock: products[i],
+        currencySymbol: currencySymbol,
+      ),
     );
-  }
-
-  void _clearSearch(BuildContext context) {
-    // The callback lives below the search field, so clear the parent
-    // controller through the nearest state rather than introducing a
-    // second source of truth for the query.
-    final state = context.findAncestorStateOfType<_SellScreenBodyState>();
-    state?._searchController.clear();
-    state?.setState(() {
-      state._query = '';
-      state._selectedCategoryId = null;
-    });
   }
 }
 
 class _ProductTile extends StatelessWidget {
   const _ProductTile({required this.productWithStock, required this.currencySymbol});
+
   final ProductWithStock productWithStock;
   final String currencySymbol;
 
@@ -250,22 +339,66 @@ class _ProductTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 child: Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                  decoration: BoxDecoration(
+                    color: AppColors.selectedTintOf(context),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
                   alignment: Alignment.center,
                   child: product.photoPath == null
-                      ? Icon(Icons.inventory_2_outlined, size: AppIconSize.emphasis, color: AppColors.primaryOf(context).withValues(alpha: 0.55))
-                      : Image.file(File(product.photoPath!), width: double.infinity, height: double.infinity, fit: BoxFit.cover, cacheWidth: 300, errorBuilder: (context, error, stackTrace) => Icon(Icons.inventory_2_outlined, size: AppIconSize.emphasis, color: AppColors.primaryOf(context).withValues(alpha: 0.55))),
+                      ? Icon(
+                          Icons.inventory_2_outlined,
+                          size: AppIconSize.emphasis,
+                          color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+                        )
+                      : Image.file(
+                          File(product.photoPath!),
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          cacheWidth: 300,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.inventory_2_outlined,
+                            size: AppIconSize.emphasis,
+                            color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+                          ),
+                        ),
                 ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
+            Text(
+              product.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(formatMoney(product.sellingPrice, symbol: currencySymbol), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600)),
+            Text(
+              formatMoney(product.sellingPrice, symbol: currencySymbol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                color: AppColors.primaryOf(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             if (_outOfStock)
-              Text('Out of stock', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)))
+              Text(
+                'Out of stock',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)),
+              )
             else if (product.tracksStock && productWithStock.isLowStock)
-              Text('Only ${productWithStock.currentStock} left', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.warningOf(context))),
+              Text(
+                'Only ${productWithStock.currentStock} left',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption.copyWith(color: AppColors.warningOf(context)),
+              ),
           ],
         ),
       ),
@@ -287,6 +420,7 @@ class _ProductTile extends StatelessWidget {
 
 class _CartSummaryBar extends StatelessWidget {
   const _CartSummaryBar({required this.state});
+
   final CartLoaded state;
 
   @override
@@ -295,7 +429,10 @@ class _CartSummaryBar extends StatelessWidget {
       top: false,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        decoration: BoxDecoration(color: AppColors.surfaceOf(context), boxShadow: AppElevation.liftOf(context)),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          boxShadow: AppElevation.liftOf(context),
+        ),
         child: SizedBox(
           height: AppTouchTarget.minimum,
           child: Material(
@@ -305,7 +442,14 @@ class _CartSummaryBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.md),
               onTap: () {
                 final cubit = context.read<CartCubit>();
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen())));
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: cubit,
+                      child: const CartScreen(),
+                    ),
+                  ),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -313,8 +457,22 @@ class _CartSummaryBar extends StatelessWidget {
                   children: [
                     FulusBadge(count: state.itemCount),
                     const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: Text(state.itemCount == 1 ? 'View Cart · 1 item' : 'View Cart · ${state.itemCount} items', style: AppTypography.buttonLabel.copyWith(color: AppColors.onPrimaryOf(context)))),
-                    Text(formatMoney(state.total, symbol: state.currencySymbol), style: AppTypography.buttonLabel.copyWith(color: AppColors.onPrimaryOf(context))),
+                    Expanded(
+                      child: Text(
+                        state.itemCount == 1
+                            ? 'View Cart · 1 item'
+                            : 'View Cart · ${state.itemCount} items',
+                        style: AppTypography.buttonLabel.copyWith(
+                          color: AppColors.onPrimaryOf(context),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatMoney(state.total, symbol: state.currencySymbol),
+                      style: AppTypography.buttonLabel.copyWith(
+                        color: AppColors.onPrimaryOf(context),
+                      ),
+                    ),
                   ],
                 ),
               ),
