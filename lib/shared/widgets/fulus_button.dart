@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 enum FulusButtonVariant { primary, secondary, destructive, text }
 
@@ -28,13 +29,19 @@ class FulusButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onPressed == null || loading;
+    final action = disabled
+        ? null
+        : () {
+            FulusHaptics.selection();
+            onPressed!();
+          };
     final child = _buildChild(context);
-    final minimumSize = const Size(48, 48);
+    const minimumSize = Size(48, 48);
 
     switch (variant) {
       case FulusButtonVariant.primary:
         return ElevatedButton(
-          onPressed: disabled ? null : onPressed,
+          onPressed: action,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryOf(context),
             foregroundColor: AppColors.onPrimaryOf(context),
@@ -47,7 +54,7 @@ class FulusButton extends StatelessWidget {
         );
       case FulusButtonVariant.secondary:
         return OutlinedButton(
-          onPressed: disabled ? null : onPressed,
+          onPressed: action,
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.textPrimaryOf(context),
             side: BorderSide(color: AppColors.borderOf(context)),
@@ -57,7 +64,7 @@ class FulusButton extends StatelessWidget {
         );
       case FulusButtonVariant.destructive:
         return ElevatedButton(
-          onPressed: disabled ? null : onPressed,
+          onPressed: action,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.errorOf(context),
             foregroundColor: AppColors.errorOnOf(context),
@@ -70,7 +77,7 @@ class FulusButton extends StatelessWidget {
         );
       case FulusButtonVariant.text:
         return TextButton(
-          onPressed: disabled ? null : onPressed,
+          onPressed: action,
           style: TextButton.styleFrom(
             foregroundColor: AppColors.primaryOf(context),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -83,8 +90,10 @@ class FulusButton extends StatelessWidget {
 
   Widget _buildChild(BuildContext context) {
     if (loading) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
         children: [
           SizedBox(
             width: AppIconSize.compact,
@@ -94,18 +103,18 @@ class FulusButton extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation(_foregroundColor(context)),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
           Text(loadingLabel ?? 'Loading'),
         ],
       );
     }
-    if (icon == null) return Text(label);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    if (icon == null) return Text(label, textAlign: TextAlign.center);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.sm,
       children: [
         Icon(icon, size: AppIconSize.compact),
-        const SizedBox(width: AppSpacing.sm),
-        Text(label),
+        Text(label, textAlign: TextAlign.center),
       ],
     );
   }
@@ -140,9 +149,15 @@ class FulusIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final action = onPressed == null
+        ? null
+        : () {
+            FulusHaptics.selection();
+            onPressed!();
+          };
     final button = filled
         ? IconButton.filled(
-            onPressed: onPressed,
+            onPressed: action,
             icon: Icon(icon),
             style: IconButton.styleFrom(
               backgroundColor: AppColors.primaryOf(context),
@@ -151,7 +166,7 @@ class FulusIconButton extends StatelessWidget {
             ),
           )
         : IconButton(
-            onPressed: onPressed,
+            onPressed: action,
             icon: Icon(icon),
             style: IconButton.styleFrom(
               foregroundColor: AppColors.textPrimaryOf(context),
