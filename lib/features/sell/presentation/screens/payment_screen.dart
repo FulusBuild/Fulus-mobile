@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/business_engine/customer_credit_engine.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/theme/design_tokens.dart' as tokens;
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
