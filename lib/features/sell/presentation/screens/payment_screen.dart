@@ -65,53 +65,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
         final splitActive = _splitPayment || cartState.payments.isNotEmpty;
         final willCompleteInOneTap = !canComplete && !splitActive && _method != 'credit' && cartState.payments.isEmpty && enteredAmount != null && enteredAmount >= cartState.remaining - 0.004;
 
-        return FulusScreen(
-          title: 'Payment',
-          body: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _AmountDueHeader(state: cartState),
-              const SizedBox(height: AppSpacing.xl),
-              Text(splitActive ? 'Split payment' : 'Payment method', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
-              const SizedBox(height: AppSpacing.sm),
-              if (!splitActive)
-                for (final method in _paymentMethods)
-                  if (method.key != 'credit' || creditEnabled)
-                    Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: _PaymentMethodTile(icon: _iconForMethod(method.key), label: method.label, selected: _method == method.key, onTap: () => setState(() => _method = method.key))),
-              if (splitActive) ...[
-                Text('Choose how to pay the remaining amount.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
-                  for (final method in _paymentMethods)
-                    if (method.key != 'credit' || creditEnabled)
-                      ChoiceChip(label: Text(method.label), avatar: Icon(_iconForMethod(method.key), size: AppIconSize.compact), selected: _method == method.key, onSelected: (_) => setState(() => _method = method.key)),
-                ]),
-              ],
-              if (!creditEnabled) Padding(padding: const EdgeInsets.only(top: AppSpacing.xs), child: Text('Select a customer in Cart to sell on credit.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)))),
-              if (!canComplete) ...[
-                const SizedBox(height: AppSpacing.lg),
-                FulusTextField(label: 'Amount received', controller: _amountController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                const SizedBox(height: AppSpacing.xs),
-                Text(_method == 'cash' ? 'Enter the cash received. Paying more than the balance shows the change due.' : 'Enter the amount paid. The remaining balance updates after each payment.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-              ],
-              if (cartState.payments.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.lg),
-                Text('Payments recorded', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
-                for (final payment in cartState.payments)
-                  FulusListRow(title: Text(_labelFor(payment.method)), trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(formatMoney(payment.amount, symbol: cartState.currencySymbol), style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontFeatures: const [FontFeature.tabularFigures()])),
-                    IconButton(icon: const Icon(Icons.close), tooltip: 'Remove payment', onPressed: () => context.read<CartCubit>().removePayment(payment.localId)),
-                  ])),
-              ],
-              if (!splitActive && !canComplete) ...[
-                const SizedBox(height: AppSpacing.md),
-                TextButton.icon(onPressed: () => setState(() => _splitPayment = true), icon: const Icon(Icons.call_split_outlined), label: const Text('Split payment')),
-              ],
-              const SizedBox(height: AppSpacing.xl),
-              FulusButton(label: canComplete || willCompleteInOneTap ? 'Complete Sale' : (_method == 'credit' ? 'Put Remaining on Account' : 'Add Payment'), loading: canComplete ? cartState.submitting : _adding, onPressed: canComplete ? () => _completeSale(context) : () => _addPayment(context, cartState)),
-              const SizedBox(height: AppSpacing.lg),
+        return FulusScreen(title: 'Payment', body: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _AmountDueHeader(state: cartState),
+          const SizedBox(height: AppSpacing.xl),
+          Text(splitActive ? 'Split payment' : 'Payment method', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
+          const SizedBox(height: AppSpacing.sm),
+          if (!splitActive)
+            for (final method in _paymentMethods)
+              if (method.key != 'credit' || creditEnabled)
+                Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: _PaymentMethodTile(icon: _iconForMethod(method.key), label: method.label, selected: _method == method.key, onTap: () => setState(() => _method = method.key))),
+          if (splitActive) ...[
+            Text('Choose how to pay the remaining amount.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
+              for (final method in _paymentMethods)
+                if (method.key != 'credit' || creditEnabled)
+                  ChoiceChip(label: Text(method.label), avatar: Icon(_iconForMethod(method.key), size: AppIconSize.compact), selected: _method == method.key, onSelected: (_) => setState(() => _method = method.key)),
             ]),
-          ),
-        );
+          ],
+          if (!creditEnabled) Padding(padding: const EdgeInsets.only(top: AppSpacing.xs), child: Text('Select a customer in Cart to sell on credit.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)))),
+          if (!canComplete) ...[
+            const SizedBox(height: AppSpacing.lg),
+            FulusTextField(label: 'Amount received', controller: _amountController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(_method == 'cash' ? 'Enter the cash received. Paying more than the balance shows the change due.' : 'Enter the amount paid. The remaining balance updates after each payment.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+          ],
+          if (cartState.payments.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Text('Payments recorded', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
+            for (final payment in cartState.payments)
+              FulusListRow(title: Text(_labelFor(payment.method)), trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(formatMoney(payment.amount, symbol: cartState.currencySymbol), style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontFeatures: const [FontFeature.tabularFigures()])),
+                IconButton(icon: const Icon(Icons.close), tooltip: 'Remove payment', onPressed: () => context.read<CartCubit>().removePayment(payment.localId)),
+              ])),
+          ],
+          if (!splitActive && !canComplete) ...[
+            const SizedBox(height: AppSpacing.md),
+            TextButton.icon(onPressed: () => setState(() => _splitPayment = true), icon: const Icon(Icons.call_split_outlined), label: const Text('Split payment')),
+          ],
+          const SizedBox(height: AppSpacing.xl),
+          FulusButton(label: canComplete || willCompleteInOneTap ? 'Complete Sale' : (_method == 'credit' ? 'Put Remaining on Account' : 'Add Payment'), loading: canComplete ? cartState.submitting : _adding, onPressed: canComplete ? () => _completeSale(context) : () => _addPayment(context, cartState)),
+          const SizedBox(height: AppSpacing.lg),
+        ])));
       },
     );
   }
@@ -127,11 +122,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (customer == null) { showFulusSnackbar(context, message: 'Select a customer before using credit.'); return; }
       final overage = checkCreditLimitWarning(currentBalance: customer.outstandingBalance, proposedAdditionalCredit: amount, creditLimit: customer.creditLimit);
       if (overage != null && context.mounted) {
-        final proceed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
-          title: const Text('Over credit limit'),
-          content: Text('This would put ${customer.name} ${formatMoney(overage, symbol: state.currencySymbol)} over their ${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. Continue anyway?'),
-          actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Continue'))],
-        ));
+        final proceed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Over credit limit'), content: Text('This would put ${customer.name} ${formatMoney(overage, symbol: state.currencySymbol)} over their ${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. Continue anyway?'), actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Continue')),
+        ]));
         if (proceed != true || !context.mounted) return;
       }
     }
