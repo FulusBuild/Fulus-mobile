@@ -103,7 +103,7 @@ class OnboardingState {
   static const _walkthroughSkippedKey = 'fulus_onboarding_walkthrough_skipped_steps';
   static const _walkthroughFirstSaleIdKey = 'fulus_onboarding_walkthrough_first_sale_id';
 
-  OnboardingStep? get walkthroughStep {
+  OnboardingStep? walkthroughStepFor({String? businessId}) {
     final name = _preferences.getString(_scoped(_walkthroughStepKey, null));
     if (name == null) return null;
     return OnboardingStep.values.asNameMap()[name];
@@ -111,10 +111,10 @@ class OnboardingState {
 
   bool get walkthroughNotStarted => walkthroughStep == null;
 
-  bool get walkthroughCompleted => walkthroughStep == OnboardingStep.completion;
+  bool walkthroughCompletedFor({String? businessId}) => walkthroughStepFor(businessId: businessId) == OnboardingStep.completion;
 
-  Set<OnboardingStep> get walkthroughSkippedSteps {
-    final names = _preferences.getStringList(_walkthroughSkippedKey) ?? const <String>[];
+  Set<OnboardingStep> walkthroughSkippedStepsFor({String? businessId}) {
+    final names = _preferences.getStringList(_scoped(_walkthroughSkippedKey, businessId)) ?? const <String>[];
     final byName = OnboardingStep.values.asNameMap();
     return names.map((name) => byName[name]).whereType<OnboardingStep>().toSet();
   }
