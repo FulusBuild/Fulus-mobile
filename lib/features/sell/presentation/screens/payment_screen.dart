@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/business_engine/customer_credit_engine.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/design_tokens.dart' as tokens;
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
@@ -122,10 +123,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (customer == null) { showFulusSnackbar(context, message: 'Select a customer before using credit.'); return; }
       final overage = checkCreditLimitWarning(currentBalance: customer.outstandingBalance, proposedAdditionalCredit: amount, creditLimit: customer.creditLimit);
       if (overage != null && context.mounted) {
-        final proceed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Over credit limit'), content: Text('This would put ${customer.name} ${formatMoney(overage, symbol: state.currencySymbol)} over their ${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. Continue anyway?'), actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Continue')),
-        ]));
+        final proceed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Over credit limit'), content: Text('This would put ${customer.name} ${formatMoney(overage, symbol: state.currencySymbol)} over their ${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. Continue anyway?'), actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Continue'))]));
         if (proceed != true || !context.mounted) return;
       }
     }
@@ -140,9 +138,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (after is CartLoaded && after.remaining > 0.004) setState(() => _splitPayment = true);
     } on StateError catch (e) {
       if (context.mounted) showFulusSnackbar(context, message: e.message);
-    } catch (_) {
-      if (context.mounted) showFulusSnackbar(context, message: "Couldn't record that payment.");
-    } finally { if (mounted) setState(() => _adding = false); }
+    } catch (_) { if (context.mounted) showFulusSnackbar(context, message: "Couldn't record that payment."); }
+    finally { if (mounted) setState(() => _adding = false); }
   }
 
   Future<void> _completeSale(BuildContext context) async {
