@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 /// Fulus visual tokens, aligned to the Wholesale Plastic editorial system.
@@ -16,6 +18,11 @@ class AppColors {
   static const clayLight = Color(0xFFF4DDD3);
   static const ochre = Color(0xFFC98200);
   static const ochreLight = Color(0xFFFFF0D6);
+
+  // Functional green is deliberately semantic, not brand-primary. The
+  // companion site uses #087443 for the cart success interaction.
+  static const success = Color(0xFF087443);
+  static const successLight = Color(0xFFE3F2EC);
 
   static const warning = ochre;
   static const error = clay;
@@ -41,6 +48,8 @@ class AppColors {
   static const darkPrimaryStrong = Color(0xFFFFBF5C);
   static const darkOnPrimary = Color(0xFF131A22);
   static const darkInfo = Color(0xFF7EA5C9);
+  static const darkSuccess = Color(0xFF63C49B);
+  static const darkSuccessOn = Color(0xFF071B12);
   static const darkTextPrimary = Color(0xFFF5F6F7);
   static const darkTextSecondary = Color(0xFFC0C7CD);
   static const darkMuted = Color(0xFF9DA7AF);
@@ -95,6 +104,8 @@ class AppColors {
   static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
   static Color primaryOf(BuildContext context) => isDark(context) ? darkPrimary : primary;
   static Color onPrimaryOf(BuildContext context) => isDark(context) ? darkOnPrimary : brand;
+  static Color successOf(BuildContext context) => isDark(context) ? darkSuccess : success;
+  static Color successOnOf(BuildContext context) => isDark(context) ? darkSuccessOn : neutral0;
   static Color warningOf(BuildContext context) => isDark(context) ? darkWarning : warning;
   static Color warningOnOf(BuildContext context) => isDark(context) ? darkWarningOn : brand;
   static Color errorOf(BuildContext context) => isDark(context) ? darkError : error;
