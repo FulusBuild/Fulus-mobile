@@ -4,9 +4,9 @@ import '../../core/theme/design_tokens.dart';
 
 enum FulusButtonVariant { primary, secondary, destructive, text }
 
-/// Shared action primitive. Orange is reserved for the decisive primary
-/// action; secondary and text actions use editorial ink so a screen does not
-/// become saturated with accent color. Touch targets remain 48dp minimum.
+/// Shared action primitive. Blue is the only interaction colour; white and
+/// black provide the neutral foundation. Buttons keep a strong primary
+/// hierarchy, clear pressed feedback, and 48dp minimum touch targets.
 class FulusButton extends StatelessWidget {
   const FulusButton({
     super.key,
@@ -29,6 +29,7 @@ class FulusButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final disabled = onPressed == null || loading;
     final child = _buildChild(context);
+    final minimumSize = const Size(48, 48);
 
     switch (variant) {
       case FulusButtonVariant.primary:
@@ -39,6 +40,8 @@ class FulusButton extends StatelessWidget {
             foregroundColor: AppColors.onPrimaryOf(context),
             disabledBackgroundColor: AppColors.primaryOf(context).withValues(alpha: AppOpacity.disabled),
             disabledForegroundColor: AppColors.onPrimaryOf(context).withValues(alpha: AppOpacity.disabled),
+            minimumSize: minimumSize,
+            elevation: 0,
           ),
           child: child,
         );
@@ -48,6 +51,7 @@ class FulusButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.textPrimaryOf(context),
             side: BorderSide(color: AppColors.borderOf(context)),
+            minimumSize: minimumSize,
           ),
           child: child,
         );
@@ -59,6 +63,8 @@ class FulusButton extends StatelessWidget {
             foregroundColor: AppColors.errorOnOf(context),
             disabledBackgroundColor: AppColors.errorOf(context).withValues(alpha: AppOpacity.disabled),
             disabledForegroundColor: AppColors.errorOnOf(context).withValues(alpha: AppOpacity.disabled),
+            minimumSize: minimumSize,
+            elevation: 0,
           ),
           child: child,
         );
@@ -66,8 +72,9 @@ class FulusButton extends StatelessWidget {
         return TextButton(
           onPressed: disabled ? null : onPressed,
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.textPrimaryOf(context),
+            foregroundColor: AppColors.primaryOf(context),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            minimumSize: minimumSize,
           ),
           child: child,
         );
@@ -111,7 +118,7 @@ class FulusButton extends StatelessWidget {
         return AppColors.errorOnOf(context);
       case FulusButtonVariant.secondary:
       case FulusButtonVariant.text:
-        return AppColors.textPrimaryOf(context);
+        return AppColors.primaryOf(context);
     }
   }
 }

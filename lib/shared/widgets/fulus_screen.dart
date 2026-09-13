@@ -4,11 +4,9 @@ import '../../core/theme/design_tokens.dart';
 
 /// Shared page composition for secondary and detail screens.
 ///
-/// The layout is intentionally editorial rather than dashboard-like:
-/// navigation sits above a strong serif title, supporting context is quiet,
-/// actions live at the edge of the header, and a single hairline separates
-/// navigation from content. This gives every feature screen a recognizable
-/// Fulus rhythm without forcing feature code to duplicate chrome.
+/// Fulus uses a calm canvas rather than a dashboard of containers. Headers
+/// stay compact, actions remain reachable, and content keeps the context of
+/// the current task instead of feeling like a separate admin page.
 class FulusScreen extends StatelessWidget {
   const FulusScreen({
     super.key,
@@ -37,9 +35,7 @@ class FulusScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasHeader = title != null;
     final canPop = Navigator.of(context).canPop();
-    final content = applyPadding
-        ? Padding(padding: padding, child: body)
-        : body;
+    final content = applyPadding ? Padding(padding: padding, child: body) : body;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
@@ -49,7 +45,7 @@ class FulusScreen extends StatelessWidget {
         child: Column(
           children: [
             if (hasHeader)
-              _EditorialPageHeader(
+              _PageHeader(
                 title: title!,
                 subtitle: subtitle,
                 actions: actions,
@@ -72,8 +68,8 @@ class FulusScreen extends StatelessWidget {
   }
 }
 
-class _EditorialPageHeader extends StatelessWidget {
-  const _EditorialPageHeader({
+class _PageHeader extends StatelessWidget {
+  const _PageHeader({
     required this.title,
     required this.subtitle,
     required this.actions,
@@ -89,12 +85,8 @@ class _EditorialPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.backgroundOf(context),
-        border: Border(bottom: BorderSide(color: AppColors.borderOf(context))),
-      ),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -106,7 +98,7 @@ class _EditorialPageHeader extends StatelessWidget {
             ),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
+              padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : AppSpacing.sm),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

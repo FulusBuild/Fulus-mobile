@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/security/biometric_auth.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 
-/// Volume 11 / visual bible Batch 6's "App Lock Unlock" screen. Shown
-/// by [AppLockGate] as a full-screen overlay above everything else —
-/// not a routed screen, since it needs to appear regardless of
-/// wherever go_router's own stack currently is, including mid-flow in
-/// something like Checkout.
+/// Full-screen app lock. PIN remains the offline fallback; device biometrics
+/// are a convenience layer backed entirely by Android/iOS system auth.
 class AppLockScreen extends ConsumerStatefulWidget {
   const AppLockScreen({super.key, required this.onUnlocked});
   final VoidCallback onUnlocked;
@@ -20,13 +18,47 @@ class AppLockScreen extends ConsumerStatefulWidget {
 
 class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   final _pinController = TextEditingController();
+  final _biometricAuth = BiometricAuth();
   String? _error;
   bool _checking = false;
+  bool _biometricAvailable = false;
+  bool _biometricAttempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareBiometric());
+  }
 
   @override
   void dispose() {
     _pinController.dispose();
     super.dispose();
+  }
+
+  Future<void> _prepareBiometric() async {
+    final available = await _biometricAuth.isAvailable();
+    if (!mounted) return;
+    setState(() => _biometricAvailable = available);
+    if (available && !_biometricAttempted) {
+      _biometricAttempted = true;
+      await _unlockWithBiometric();
+    }
+  }
+
+  Future<void> _unlockWithBiometric() async {
+    if (_checking) return;
+    setState(() {
+      _checking = true;
+      _error = null;
+    });
+    final authenticated = await _biometricAuth.authenticate();
+    if (!mounted) return;
+    if (authenticated) {
+      widget.onUnlocked();
+      return;
+    }
+    setState(() => _checking = false);
   }
 
   Future<void> _unlock() async {
@@ -56,69 +88,98 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
       color: AppColors.backgroundOf(context),
       child: SafeArea(
         child: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 88,
-                  height: 88,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AppColors.selectedTintOf(context), shape: BoxShape.circle),
-                  child: Icon(Icons.lock_outline, size: AppIconSize.emphasis, color: AppColors.primaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Fulus is locked',
-                  style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Enter your PIN to continue.',
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FulusTextField(
-                  label: 'PIN',
-                  controller: _pinController,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  errorText: _error,
-                  onChanged: (_) {
-                    if (_error != null) setState(() => _error = null);
-                  },
-                  // Some Android keyboards don't reliably send backspace
-                  // to a TextInputType.number + obscureText field (a
-                  // known Flutter/IME quirk, not something app code
-                  // controls) — this gives a guaranteed way to clear a
-                  // wrong PIN regardless of that.
-                  //
-                  // No `tooltip:` here deliberately — IconButton wraps
-                  // itself in a Tooltip whenever one's given, and Tooltip
-                  // needs an Overlay ancestor to render into. This
-                  // screen doesn't have one: AppLockGate shows it as a
-                  // Stack sibling *outside* MaterialApp's own Navigator/
-                  // Overlay, specifically so it can appear over any
-                  // route (see that file's own doc comment) — which is
-                  // exactly what made a tooltip here throw "No Overlay
-                  // widget found". Semantics gives the same screen-reader
-                  // label without needing one.
-                  suffixIcon: Semantics(
-                    label: 'Clear',
-                    button: true,
-                    child: IconButton(
-                      icon: const Icon(Icons.backspace_outlined),
-                      onPressed: _pinController.clear,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 280),
+                    width: 96,
+                    height: 96,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.selectedTintOf(context),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _biometricAvailable ? Icons.fingerprint_rounded : Icons.lock_outline_rounded,
+                      size: 48,
+                      color: AppColors.primaryOf(context),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: FulusButton(label: 'Unlock', loading: _checking, onPressed: _checking ? null : _unlock),
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    'Welcome back',
+                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _biometricAvailable
+                        ? 'Unlock Fulus with your fingerprint or PIN.'
+                        : 'Enter your PIN to continue.',
+                    style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  if (_biometricAvailable) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: FulusButton(
+                        label: 'Use fingerprint',
+                        icon: Icons.fingerprint_rounded,
+                        loading: _checking,
+                        onPressed: _checking ? null : _unlockWithBiometric,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          child: Text(
+                            'or use PIN',
+                            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                          ),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  FulusTextField(
+                    label: 'PIN',
+                    controller: _pinController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    errorText: _error,
+                    onChanged: (_) {
+                      if (_error != null) setState(() => _error = null);
+                    },
+                    suffixIcon: Semantics(
+                      label: 'Clear',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.backspace_outlined),
+                        onPressed: _pinController.clear,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(
+                      label: 'Unlock',
+                      loading: _checking && !_biometricAvailable,
+                      onPressed: _checking ? null : _unlock,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

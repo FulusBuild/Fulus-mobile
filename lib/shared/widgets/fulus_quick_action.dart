@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Compact action shortcut. The icon sits on a quiet editorial rule rather
-/// than inside a saturated card, so a group of actions reads as navigation,
-/// not another dashboard panel.
+/// Compact shortcut inspired by modern mobile navigation: a quiet icon
+/// treatment, strong label hierarchy and a generous touch target. It reads
+/// as a way to move through the product, not as a collection of mini cards.
 class FulusQuickAction extends StatelessWidget {
   const FulusQuickAction({super.key, required this.icon, required this.label, required this.onTap});
 
@@ -14,6 +14,7 @@ class FulusQuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
     return Semantics(
       button: true,
       label: label,
@@ -25,20 +26,16 @@ class FulusQuickAction extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: AppTouchTarget.minimum,
-                height: AppTouchTarget.minimum,
+              AnimatedContainer(
+                duration: AppMotion.fast,
+                width: 48,
+                height: 48,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceOf(context),
-                  border: Border.all(color: AppColors.borderOf(context)),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  color: AppColors.isDark(context) ? AppColors.surfaceAltDark : AppColors.neutral100,
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  size: AppIconSize.base,
-                  color: AppColors.textPrimaryOf(context),
-                ),
+                child: Icon(icon, size: AppIconSize.base, color: primary),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(

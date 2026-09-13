@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
@@ -9,44 +10,10 @@ import '../../../../shared/widgets/widgets.dart';
 import '../../../onboarding/presentation/screens/transaction_verification_screen.dart';
 import '../widgets/receipt_preview_sheet.dart';
 
-/// Volume 5: "The instant payment is confirmed, the sale is done —
-/// printing or sharing a receipt is what happens next, not a condition
-/// of completion." This screen IS that instant — the sale already
-/// exists by the time it's shown — and [ReceiptPreviewSheet] (already
-/// built) is the receipt step, reused as-is rather than a second
-/// receipt flow invented for this screen.
-///
-/// Reached via `Navigator.pushReplacement` from `PaymentScreen` (see
-/// that screen's own `_completeSale`), so Payment is already gone from
-/// the stack by the time this shows — the ordinary system/gesture back
-/// action from here lands on Cart, now showing empty (the same
-/// completed sale cleared it), not on a stale Payment screen for a sale
-/// that's already done. No extra back-button handling needed for that.
-///
-/// Nice-to-have gap closure — Volume 3's "Success Celebration": "A
-/// short, warm, restrained confirmation... 'That's your first sale on
-/// [Fulus]. Nice work.' with the completed receipt shown underneath,
-/// and a single next action." [_isFirstSale] decides, once, whether
-/// this build shows that variant or the ordinary one every sale after
-/// it already shows — see [OnboardingState.hasCelebratedFirstSale]'s
-/// doc comment for why the flag this reads defaults to "already
-/// celebrated" for every business except one just created in this same
-/// session.
-///
-/// The receipt itself is embedded directly ([ReceiptPreviewSheet] used
-/// inline, not behind the "View Receipt" tap it's normally behind) to
-/// satisfy "shown underneath" literally — deliberately reusing that
-/// widget completely unmodified rather than duplicating its layout or
-/// its data-loading `FutureBuilder`, which also means this screen
-/// inherits, rather than fixes, that widget's own known rendering gap
-/// (raw total, no line items) — a separate, already-flagged piece of
-/// work, not something this pass touches.
-///
-/// Also carries Volume 3's third contextual-permission moment
-/// ("Notifications... when they finish their first sale") — primed and
-/// requested from [_continue] rather than the instant this screen
-/// appears, so the primer dialog doesn't compete with the celebration
-/// copy for attention; it fires as the owner is already moving on.
+/// The sale is already committed before this screen appears. This screen
+/// confirms the result, keeps receipt actions close at hand, and makes the
+/// ordinary repeat-sale path return directly to Sell rather than dumping the
+/// cashier at the app root.
 class SaleSuccessScreen extends ConsumerStatefulWidget {
   const SaleSuccessScreen({
     super.key,
@@ -56,15 +23,6 @@ class SaleSuccessScreen extends ConsumerStatefulWidget {
   });
 
   final String saleId;
-
-  /// Bug fix (business-logic audit): no "change due" concept existed
-  /// anywhere in this app before this — `PaymentScreen`'s cash flow lets
-  /// a customer overpay (perfectly normal — handing over a larger note
-  /// than the total) with nothing telling the cashier how much to hand
-  /// back. Passed in directly from `Sale.changeDue` at the moment the
-  /// sale completes in `PaymentScreen._completeSale`, rather than this
-  /// screen re-fetching a `Sale` it doesn't otherwise need, just to read
-  /// one field back off it.
   final double changeDue;
   final String currencySymbol;
 
@@ -73,20 +31,12 @@ class SaleSuccessScreen extends ConsumerStatefulWidget {
 }
 
 class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
-  // Decided once, from the value as it stood the instant this screen
-  // opened — `late final` (not a plain getter) so this screen instance
-  // can't flip which variant is showing mid-view on some unrelated
-  // rebuild.
   late final bool _isFirstSale = !ref.read(onboardingStateProvider).hasCelebratedFirstSale;
 
   @override
   void initState() {
     super.initState();
     if (_isFirstSale) {
-      // Fire-and-forget, same as ResolveActiveLocation's best-effort
-      // calls in OwnerSetupScreen — nothing on this screen depends on
-      // the write finishing; a rare failure here just means this
-      // one-time moment quietly doesn't repeat, not a broken sale.
       ref.read(onboardingStateProvider).markFirstSaleCelebrated();
     }
   }
@@ -101,12 +51,6 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
             "We'll ask to send notifications next — this lets us tell you if a blocked payment finishes going through, or if something needs your attention.",
       );
       if (proceed) await notifications.ensurePermission();
-      // Only relevant when the guided walkthrough is actually running
-      // — a pre-existing install celebrating an ordinary first sale
-      // (no GetStartedScreen involved) has walkthroughStep null, and
-      // this is a no-op for it, same guard shape as
-      // OwnerSetupScreen._submitBusiness uses for its own
-      // walkthrough-advance call.
       try {
         final onboardingState = ref.read(onboardingStateProvider);
         if (onboardingState.walkthroughStep == OnboardingStep.firstSale) {
@@ -117,16 +61,17 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
           }
         }
       } catch (_) {
-        // Deliberately swallowed — best-effort, same as
-        // markFirstSaleCelebrated above; a rare failure here just means
-        // this one-time transition quietly doesn't happen, not a
-        // broken sale.
+        // The sale is already complete; walkthrough bookkeeping is best effort.
       }
+      if (!context.mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => TransactionVerificationScreen(saleId: widget.saleId)),
+      );
+      return;
     }
+
     if (!context.mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => TransactionVerificationScreen(saleId: widget.saleId)),
-    );
+    context.goNamed('sell');
   }
 
   @override
@@ -137,10 +82,6 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Redesign pass — a soft celebratory panel behind the
-            // checkmark rather than it floating on plain background;
-            // still "restrained" (Volume 3) — a tint, not a full-bleed
-            // banner or confetti.
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
@@ -155,8 +96,15 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                     width: 72,
                     height: 72,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(color: AppColors.primaryOf(context), shape: BoxShape.circle),
-                    child: Icon(Icons.check, color: AppColors.onPrimaryOf(context), size: AppIconSize.emphasis),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryOf(context),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check,
+                      color: AppColors.onPrimaryOf(context),
+                      size: AppIconSize.emphasis,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
@@ -174,7 +122,10 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                   if (widget.changeDue > 0) ...[
                     const SizedBox(height: AppSpacing.lg),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceOf(context),
                         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -199,24 +150,13 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            // UX fix: this used to only embed the receipt (and its
-            // Print/Share buttons) inline for the first-ever sale,
-            // hiding them behind an extra "View Receipt" tap for every
-            // sale after it — i.e. almost every sale a business ever
-            // records. Volume 5 asks for print, share, and skip as
-            // "three equally-weighted options... on the same screen,"
-            // none behind a tap — now true for every sale, not just the
-            // first. The first-sale/ordinary distinction stays only in
-            // the copy above and which action `_continue` runs.
             ReceiptPreviewSheet(saleId: widget.saleId),
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
               child: FulusButton(
                 label: _isFirstSale ? 'View what changed' : 'New Sale',
-                onPressed: () => _isFirstSale
-                    ? _continue(context)
-                    : Navigator.of(context).popUntil((route) => route.isFirst),
+                onPressed: () => _continue(context),
               ),
             ),
           ],
