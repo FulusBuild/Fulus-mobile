@@ -12,7 +12,7 @@ class AppTheme {
       seedColor: AppColors.primary,
       brightness: Brightness.light,
       primary: AppColors.primary,
-      onPrimary: AppColors.onPrimaryOf(_themeContext),
+      onPrimary: AppColors.brand,
       error: AppColors.error,
       surface: AppColors.surfaceLight,
     );
@@ -24,9 +24,9 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.backgroundLight,
       textTheme: _textTheme(AppColors.textPrimaryLight, AppColors.textSecondaryLight),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
-      outlinedButtonTheme: _outlinedButtonTheme(colorScheme),
-      cardTheme: _cardTheme(),
-      inputDecorationTheme: _inputDecorationTheme(),
+      outlinedButtonTheme: _outlinedButtonTheme(AppColors.textPrimaryLight, AppColors.borderLight),
+      cardTheme: _cardTheme(AppColors.surfaceLight, AppColors.borderLight),
+      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.brand),
       appBarTheme: _appBarTheme(AppColors.backgroundLight, AppColors.textPrimaryLight),
       dividerTheme: DividerThemeData(color: AppColors.borderLight, thickness: 1),
       pageTransitionsTheme: _pageTransitionsTheme,
@@ -51,16 +51,14 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.backgroundDark,
       textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
-      outlinedButtonTheme: _outlinedButtonTheme(colorScheme),
-      cardTheme: _cardTheme(),
-      inputDecorationTheme: _inputDecorationTheme(),
+      outlinedButtonTheme: _outlinedButtonTheme(AppColors.darkTextPrimary, AppColors.borderDark),
+      cardTheme: _cardTheme(AppColors.surfaceDark, AppColors.borderDark),
+      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkTextPrimary),
       appBarTheme: _appBarTheme(AppColors.backgroundDark, AppColors.darkTextPrimary),
       dividerTheme: DividerThemeData(color: AppColors.borderDark, thickness: 1),
       pageTransitionsTheme: _pageTransitionsTheme,
     );
   }
-
-  static const _themeContext = _ThemeContext();
 
   static TextTheme _textTheme(Color primaryText, Color secondaryText) {
     return TextTheme(
@@ -84,35 +82,31 @@ class AppTheme {
         minimumSize: const Size.fromHeight(AppTouchTarget.minimum),
         textStyle: AppTypography.buttonLabel,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       ),
     );
   }
 
-  static OutlinedButtonThemeData _outlinedButtonTheme(ColorScheme scheme) {
+  static OutlinedButtonThemeData _outlinedButtonTheme(Color foreground, Color border) {
     return OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: scheme.onSurface,
+        foregroundColor: foreground,
         minimumSize: const Size.fromHeight(AppTouchTarget.minimum),
         textStyle: AppTypography.buttonLabel,
-        side: BorderSide(color: AppColors.borderOf(_themeContext)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
+        side: BorderSide(color: border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       ),
     );
   }
 
-  static CardThemeData _cardTheme() {
+  static CardThemeData _cardTheme(Color surface, Color border) {
     return CardThemeData(
-      color: AppColors.surfaceLight,
+      color: surface,
       elevation: 0,
       margin: const EdgeInsets.all(AppSpacing.sm),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: AppColors.borderLight),
+        side: BorderSide(color: border),
       ),
     );
   }
@@ -129,43 +123,28 @@ class AppTheme {
     );
   }
 
-  static InputDecorationTheme _inputDecorationTheme() {
+  static InputDecorationTheme _inputDecorationTheme(Color surface, Color border, Color focus) {
     return InputDecorationTheme(
       floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
-      fillColor: AppColors.surfaceLight,
+      fillColor: surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: BorderSide(color: AppColors.borderLight),
+        borderSide: BorderSide(color: border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: BorderSide(color: AppColors.borderLight),
+        borderSide: BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        borderSide: BorderSide(color: AppColors.brand, width: 2),
+        borderSide: BorderSide(color: focus, width: 2),
       ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
     );
   }
 
   static const _pageTransitionsTheme = PageTransitionsTheme(
-    builders: {
-      TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-    },
+    builders: {TargetPlatform.android: FadeUpwardsPageTransitionsBuilder()},
   );
-}
-
-// ThemeData is assembled without a BuildContext. This tiny object exists only
-// so brightness-aware token helpers can still be called from static theme
-// construction without introducing context-dependent branches in feature UI.
-class _ThemeContext extends BuildContext {
-  const _ThemeContext();
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
