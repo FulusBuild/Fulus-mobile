@@ -3,17 +3,16 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 
 /// Shared content surface. Fulus should not feel like a dashboard made from
-/// dozens of bordered boxes, so the default card is deliberately quiet:
-/// white surface, soft depth, generous spacing. Use [outlined] only when a
-/// boundary is genuinely useful for comprehension.
+/// dozens of bordered boxes. Cards are quiet containers; use [outlined] only
+/// when a boundary genuinely improves comprehension.
 class FulusCard extends StatelessWidget {
   const FulusCard({
     super.key,
     required this.child,
     this.onTap,
-    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
     this.outlined = false,
-    this.elevated = true,
+    this.elevated = false,
   });
 
   final Widget child;
