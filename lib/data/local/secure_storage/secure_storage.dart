@@ -41,6 +41,7 @@ class SecureStorage {
   static const _refreshTokenKey = 'fulus_refresh_token';
   static const _approvalPinVerifiersKey = 'fulus_approval_pin_verifiers';
   static const _deviceClientIdKey = 'fulus_device_client_id';
+  static const _pendingCloudBusinessNameKey = 'fulus_pending_cloud_business_name';
 
   // --- Refresh token (Architecture Section 6) ---
   //
@@ -50,6 +51,15 @@ class SecureStorage {
 
   Future<void> setRefreshToken(String token) =>
       _storage.write(key: _refreshTokenKey, value: token);
+
+  Future<void> setPendingCloudBusinessName(String name) =>
+      _storage.write(key: _pendingCloudBusinessNameKey, value: name);
+
+  Future<String?> getPendingCloudBusinessName() =>
+      _storage.read(key: _pendingCloudBusinessNameKey);
+
+  Future<void> deletePendingCloudBusinessName() =>
+      _storage.delete(key: _pendingCloudBusinessNameKey);
 
   Future<void> setDeviceClientId(String id) =>
       _storage.write(key: _deviceClientIdKey, value: id);
