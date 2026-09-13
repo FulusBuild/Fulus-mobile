@@ -11,9 +11,9 @@ import 'owner_setup_screen.dart';
 
 /// First-launch entry point for a device with no local owner/business yet.
 ///
-/// The first decision stays deliberately small: create a local business,
-/// recover an existing Fulus account, or restore a backup. No network is
-/// required to start working.
+/// The first decision stays deliberately small: start a local business or
+/// recover existing data. The primary path gets the user's attention; the
+/// recovery paths stay available without competing with it.
 class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
@@ -29,48 +29,34 @@ class GetStartedScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl),
-                    decoration: BoxDecoration(
-                      color: AppColors.brand,
-                      borderRadius: BorderRadius.circular(AppRadius.xl),
-                      boxShadow: AppElevation.liftOf(context),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: AppColors.neutral0.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                          ),
-                          child: ColorFiltered(
-                            colorFilter: const ColorFilter.mode(AppColors.neutral0, BlendMode.srcIn),
-                            child: Image.asset('assets/branding/fulus_mark_transparent.png'),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xxxl),
-                        Text(
-                          'Fulus',
-                          style: AppTypography.display.copyWith(color: AppColors.neutral0),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Run your business. Simply.',
-                          style: AppTypography.title.copyWith(color: AppColors.neutral0),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Sales, stock, and money — ready when you are, even without internet.',
-                          style: AppTypography.body.copyWith(color: AppColors.darkTextSecondary),
-                        ),
-                      ],
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryOf(context),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: ColorFiltered(
+                        colorFilter: const ColorFilter.mode(AppColors.neutral0, BlendMode.srcIn),
+                        child: Image.asset('assets/branding/fulus_mark_transparent.png'),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: AppSpacing.xxl),
+                  Text(
+                    'Run your business. Simply.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Sales, stock, and money — ready when you are, even without internet.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
                   FulusButton(
                     label: 'Create my business',
                     icon: Icons.arrow_forward_rounded,
@@ -84,25 +70,26 @@ class GetStartedScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusButton(
-                    label: 'I already use Fulus',
-                    variant: FulusButtonVariant.secondary,
-                    onPressed: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
-                      );
-                    },
+                  const SizedBox(height: AppSpacing.md),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
+                        );
+                      },
+                      child: const Text('I already use Fulus'),
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusButton(
-                    label: 'Restore a backup',
-                    variant: FulusButtonVariant.text,
-                    onPressed: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const BackupRestoreDecisionScreen()),
-                      );
-                    },
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute(builder: (_) => const BackupRestoreDecisionScreen()),
+                        );
+                      },
+                      child: const Text('Restore a backup'),
+                    ),
                   ),
                 ],
               ),
