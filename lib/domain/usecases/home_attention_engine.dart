@@ -10,12 +10,16 @@ class HomeAttentionEngine {
   const HomeAttentionEngine();
 
   List<HomeAttention> prioritize({
-    required bool isOwner,
+    required bool canViewDashboardStats,
     required ShopDayStatus dayStatus,
     required List<SecondaryNotice> notices,
     required bool hasTodayActivity,
   }) {
-    if (!isOwner) return const [];
+    // Business-wide attention is permission-scoped, not role-name-scoped.
+    // Owners normally have this permission, but Managers may be granted it
+    // too. Cashiers/employees without it must never receive business-wide
+    // operational actions on Home.
+    if (!canViewDashboardStats) return const [];
 
     final result = <HomeAttention>[];
     final meaningful = notices.where((notice) => notice.value != 0).toList();
