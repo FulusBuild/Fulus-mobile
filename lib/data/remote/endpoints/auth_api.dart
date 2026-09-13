@@ -7,24 +7,19 @@ class AuthApi {
   AuthApi(this._client);
 
   static const emailVerificationRedirect = 'fulus://auth/callback';
-
   final ApiClient _client;
 
   Future<void> setApprovalPin({required String pinHash, required String pinSalt}) async {
     try {
       await _client.dio.post('/api/auth/approval-pin', data: SetApprovalPinRequestDto(pinHash: pinHash, pinSalt: pinSalt).toJson());
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
+    } on DioException catch (e) { throw _client.mapError(e); }
   }
 
   Future<List<ApprovalHashEntryDto>> getApprovalHashes() async {
     try {
       final response = await _client.dio.get('/api/auth/approval-hashes');
       return ApprovalHashesResponseDto.fromJson(response.data as Map<String, dynamic>).hashes;
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
+    } on DioException catch (e) { throw _client.mapError(e); }
   }
 
   Future<ServerAuthSessionDto> connectServer({required String email, required String password, required String supabaseUrl, required String publishableKey}) async {
@@ -35,9 +30,7 @@ class AuthApi {
       await _client.setServerAccessToken(session.accessToken);
       await _client.persistServerRefreshToken(session.refreshToken);
       return session;
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
+    } on DioException catch (e) { throw _client.mapError(e); }
   }
 
   Future<ServerSignUpResult> signUpServer({required String email, required String password, required String supabaseUrl, required String publishableKey}) async {
@@ -55,27 +48,27 @@ class AuthApi {
         return ServerSignUpResult(session: session, emailConfirmed: user['email_confirmed_at'] != null);
       }
       return ServerSignUpResult(session: null, emailConfirmed: user?['email_confirmed_at'] != null);
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
+    } on DioException catch (e) { throw _client.mapError(e); }
+  }
+
+  Future<void> acceptEmailVerificationTokens({required String accessToken, required String refreshToken}) async {
+    if (accessToken.isEmpty || refreshToken.isEmpty) throw StateError('The verification link did not contain a complete session.');
+    await _client.setServerAccessToken(accessToken);
+    await _client.persistServerRefreshToken(refreshToken);
   }
 
   Future<Map<String, dynamic>> createCloudBusiness({required String name, required String functionBaseUrl, required String publishableKey, String currencyCode = 'NGN', String timezone = 'Africa/Lagos', String locationName = 'Main'}) async {
     try {
       final response = await Dio(BaseOptions(baseUrl: functionBaseUrl)).post('', data: {'action': 'create_business', 'name': name, 'currency_code': currencyCode, 'timezone': timezone, 'location_name': locationName}, options: Options(headers: {'apikey': publishableKey, 'Authorization': 'Bearer ${_client.serverAccessToken}', 'content-type': 'application/json'}));
       return Map<String, dynamic>.from(response.data as Map);
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
+    } on DioException catch (e) { throw _client.mapError(e); }
   }
 
   Future<Map<String, dynamic>> registerCloudDevice({required String businessId, required String deviceClientId, required String deviceName, required String platform, required String appVersion, required String functionBaseUrl, required String publishableKey}) async {
     try {
       final response = await Dio(BaseOptions(baseUrl: functionBaseUrl)).post('', data: {'action': 'register_device', 'business_id': businessId, 'device_client_id': deviceClientId, 'device_name': deviceName, 'platform': platform, 'app_version': appVersion}, options: Options(headers: {'apikey': publishableKey, 'Authorization': 'Bearer ${_client.serverAccessToken}', 'content-type': 'application/json'}));
       return Map<String, dynamic>.from(response.data as Map);
-    } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
+    } on DioException catch (e) { throw _client.mapError(e); }
   }
 
   Future<ServerAuthSessionDto?> restoreServerSession({required String supabaseUrl, required String publishableKey}) async {
