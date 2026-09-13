@@ -42,6 +42,25 @@ class OnboardingState {
 
   final SharedPreferences _preferences;
 
+  String _scoped(String base, String? businessId) {
+    final resolved = businessId?.trim().isNotEmpty == true
+        ? businessId!.trim()
+        : _preferences.getString(_activeBusinessIdKey);
+    return resolved == null || resolved.isEmpty ? base : '$base:$resolved';
+  }
+
+  static const _activeBusinessIdKey = 'fulus_onboarding_active_business_id';
+
+  /// Keeps legacy callers business-aware without requiring every screen to
+  /// thread a business ID through its widget tree.
+  Future<void> setActiveBusinessId(String? businessId) async {
+    if (businessId == null || businessId.isEmpty) {
+      await _preferences.remove(_activeBusinessIdKey);
+    } else {
+      await _preferences.setString(_activeBusinessIdKey, businessId);
+    }
+  }
+
   static const _firstRunPromptSeenKey = 'fulus_onboarding_first_run_prompt_seen';
   static const _firstSaleCelebratedKey = 'fulus_onboarding_first_sale_celebrated';
 
@@ -52,9 +71,13 @@ class OnboardingState {
   /// inline, in `build`/`initState`, the same way [_ShellGate] already
   /// reads [SyncConfig]-shaped state elsewhere — no `FutureBuilder`
   /// needed just for this.
-  bool get hasSeenFirstRunPrompt => _preferences.getBool(_firstRunPromptSeenKey) ?? true;
+  bool get hasSeenFirstRunPrompt => hasSeenFirstRunPromptFor();
 
-  bool get hasCelebratedFirstSale => _preferences.getBool(_firstSaleCelebratedKey) ?? true;
+  bool hasSeenFirstRunPromptFor({String? businessId}) => _preferences.getBool(_scoped(_firstRunPromptSeenKey, businessId)) ?? true;
+
+  bool get hasCelebratedFirstSale => hasCelebratedFirstSaleFor();
+
+  bool hasCelebratedFirstSaleFor({String? businessId}) => _preferences.getBool(_scoped(_firstSaleCelebratedKey, businessId)) ?? true;
 
   /// Called exactly once, by [OwnerSetupScreen._submitBusiness], right
   /// after [BusinessSettingsRepository.createBusiness] succeeds — the
@@ -64,9 +87,9 @@ class OnboardingState {
   /// (Volume 3's "create business → (optional setup) → first sale →
   /// celebration"), so there's no real scenario where one should arm
   /// without the other.
-  Future<void> armFirstRun() async {
-    await _preferences.setBool(_firstRunPromptSeenKey, false);
-    await _preferences.setBool(_firstSaleCelebratedKey, false);
+  Future<void> armFirstRun({String? businessId}) async {
+    await _preferences.setBool(_scoped(_firstRunPromptSeenKey, businessId), false);
+    await _preferences.setBool(_scoped(_firstSaleCelebratedKey, businessId), false);
   }
 
   /// [FirstRunSetupScreen] calls this the moment the owner acts on ANY
@@ -74,14 +97,14 @@ class OnboardingState {
   /// blocks progress to First Sale," which this reads as "shown once,
   /// regardless of what's chosen," not "shown until acted on
   /// successfully."
-  Future<void> markFirstRunPromptSeen() => _preferences.setBool(_firstRunPromptSeenKey, true);
+  Future<void> markFirstRunPromptSeen({String? businessId}) => _preferences.setBool(_scoped(_firstRunPromptSeenKey, businessId), true);
 
   /// [SaleSuccessScreen] calls this once, the moment it decides to
   /// render the celebration variant — not conditioned on the owner
   /// actually tapping anything further, so backing out mid-celebration
   /// still consumes the one-time moment rather than showing it again on
   /// a second sale.
-  Future<void> markFirstSaleCelebrated() => _preferences.setBool(_firstSaleCelebratedKey, true);
+  Future<void> markFirstSaleCelebrated({String? businessId}) => _preferences.setBool(_scoped(_firstSaleCelebratedKey, businessId), true);
 
   // --- Guided walkthrough ---
   //
@@ -101,18 +124,28 @@ class OnboardingState {
   static const _walkthroughSkippedKey = 'fulus_onboarding_walkthrough_skipped_steps';
   static const _walkthroughFirstSaleIdKey = 'fulus_onboarding_walkthrough_first_sale_id';
 
-  OnboardingStep? get walkthroughStep {
-    final name = _preferences.getString(_walkthroughStepKey);
+  /// Backward-compatible global accessor for legacy callers. New business-aware
+  /// callers should use [walkthroughStepFor].
+  OnboardingStep? get walkthroughStep => walkthroughStepFor();
+
+  OnboardingStep? walkthroughStepFor({String? businessId}) {
+    final name = _preferences.getString(_scoped(_walkthroughStepKey, businessId));
     if (name == null) return null;
     return OnboardingStep.values.asNameMap()[name];
   }
 
-  bool get walkthroughNotStarted => walkthroughStep == null;
+  bool get walkthroughNotStarted => walkthroughStepFor() == null;
 
-  bool get walkthroughCompleted => walkthroughStep == OnboardingStep.completion;
+  bool walkthroughNotStartedFor({String? businessId}) => walkthroughStepFor(businessId: businessId) == null;
 
-  Set<OnboardingStep> get walkthroughSkippedSteps {
-    final names = _preferences.getStringList(_walkthroughSkippedKey) ?? const <String>[];
+  bool get walkthroughCompleted => walkthroughStepFor() == OnboardingStep.completion;
+
+  bool walkthroughCompletedFor({String? businessId}) => walkthroughStepFor(businessId: businessId) == OnboardingStep.completion;
+
+  Set<OnboardingStep> get walkthroughSkippedSteps => walkthroughSkippedStepsFor();
+
+  Set<OnboardingStep> walkthroughSkippedStepsFor({String? businessId}) {
+    final names = _preferences.getStringList(_scoped(_walkthroughSkippedKey, businessId)) ?? const <String>[];
     final byName = OnboardingStep.values.asNameMap();
     return names.map((name) => byName[name]).whereType<OnboardingStep>().toSet();
   }
@@ -120,16 +153,18 @@ class OnboardingState {
   /// Called on entering a step and on finishing the walkthrough alike —
   /// [OnboardingStep.completion] is a real step here, not a separate
   /// method.
-  Future<void> advanceWalkthroughTo(OnboardingStep step) =>
-      _preferences.setString(_walkthroughStepKey, step.name);
+  Future<void> advanceWalkthroughTo(OnboardingStep step, {String? businessId}) =>
+      _preferences.setString(_scoped(_walkthroughStepKey, businessId), step.name);
 
   /// Marks an optional step as explicitly skipped, so resuming the
   /// walkthrough doesn't re-offer it — see [OnboardingStep.isSkippable]
   /// for which steps this applies to.
-  Future<void> skipWalkthroughStep(OnboardingStep step) async {
-    final updated = walkthroughSkippedSteps..add(step);
+  Future<void> skipWalkthroughStep(OnboardingStep step, {String? businessId}) async {
+    final names = _preferences.getStringList(_scoped(_walkthroughSkippedKey, businessId)) ?? const <String>[];
+    final byName = OnboardingStep.values.asNameMap();
+    final updated = names.map((name) => byName[name]).whereType<OnboardingStep>().toSet()..add(step);
     await _preferences.setStringList(
-      _walkthroughSkippedKey,
+      _scoped(_walkthroughSkippedKey, businessId),
       updated.map((s) => s.name).toList(),
     );
   }
@@ -140,10 +175,12 @@ class OnboardingState {
   /// before the owner ever opens that screen (nothing blocks them from
   /// using the real app in the meantime — see that step's own doc
   /// comment) can't get shown in place of the actual first one.
-  String? get walkthroughFirstSaleId => _preferences.getString(_walkthroughFirstSaleIdKey);
+  String? get walkthroughFirstSaleId => walkthroughFirstSaleIdFor();
 
-  Future<void> recordWalkthroughFirstSale(String saleId) =>
-      _preferences.setString(_walkthroughFirstSaleIdKey, saleId);
+  String? walkthroughFirstSaleIdFor({String? businessId}) => _preferences.getString(_scoped(_walkthroughFirstSaleIdKey, businessId));
+
+  Future<void> recordWalkthroughFirstSale(String saleId, {String? businessId}) =>
+      _preferences.setString(_scoped(_walkthroughFirstSaleIdKey, businessId), saleId);
 }
 
 /// The walkthrough's resume points. Coarser than the phases a person
