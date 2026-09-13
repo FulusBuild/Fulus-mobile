@@ -7,8 +7,6 @@ import '../theme/design_tokens.dart';
 class FulusHaptics {
   FulusHaptics._();
 
-  static void tap() => Feedback.forTap;
-
   static void selection() => HapticFeedback.selectionClick();
 
   static void confirm() => HapticFeedback.lightImpact();
@@ -16,20 +14,18 @@ class FulusHaptics {
   static void error() => HapticFeedback.heavyImpact();
 }
 
-/// A press target with a restrained scale response and semantic button role.
-/// The animation is automatically removed when the user disables animations.
+/// A press target with a restrained scale response, semantic button role and
+/// keyboard activation. Animation is removed when reduced motion is enabled.
 class FulusPressable extends StatefulWidget {
   const FulusPressable({
     super.key,
     required this.child,
     required this.onPressed,
-    this.borderRadius,
     this.semanticsLabel,
   });
 
   final Widget child;
   final VoidCallback? onPressed;
-  final BorderRadius? borderRadius;
   final String? semanticsLabel;
 
   @override
@@ -61,23 +57,38 @@ class _FulusPressableState extends State<FulusPressable> {
       child: widget.child,
     );
 
-    final button = MouseRegion(
-      cursor: widget.onPressed == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onPressed == null ? null : _activate,
-        onTapDown: widget.onPressed == null ? null : (_) => _setPressed(true),
-        onTapUp: widget.onPressed == null ? null : (_) => _setPressed(false),
-        onTapCancel: widget.onPressed == null ? null : () => _setPressed(false),
-        child: content,
-      ),
-    );
-
     return Semantics(
       button: true,
       enabled: widget.onPressed != null,
       label: widget.semanticsLabel,
-      child: button,
+      child: FocusableActionDetector(
+        enabled: widget.onPressed != null,
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) {
+            _activate();
+            return null;
+          }),
+        },
+        onShowFocusHighlight: (focused) {
+          if (!mounted || !focused) return;
+          setState(() {});
+        },
+        child: MouseRegion(
+          cursor: widget.onPressed == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onPressed == null ? null : _activate,
+            onTapDown: widget.onPressed == null ? null : (_) => _setPressed(true),
+            onTapUp: widget.onPressed == null ? null : (_) => _setPressed(false),
+            onTapCancel: widget.onPressed == null ? null : () => _setPressed(false),
+            child: content,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -92,7 +103,7 @@ double fulusHorizontalInset(BuildContext context) {
 }
 
 /// Phase 7's single place for motion-aware durations. Feature code can keep
-/// its intended duration while respecting Android/iOS reduced-motion settings.
+/// its intended duration while respecting system reduced-motion settings.
 Duration fulusMotionDuration(BuildContext context, Duration duration) {
   return MediaQuery.disableAnimationsOf(context) ? Duration.zero : duration;
 }
