@@ -89,6 +89,15 @@ void main() {
       expect(selection.overflowCount, 1);
     });
 
+    test('a zero notice budget renders none and reports meaningful overflow', () {
+      final selection = engine.selectSecondaryNotices([
+        const SecondaryNotice(type: SecondaryNoticeType.lowStock, label: 'Low stock', value: 5),
+        const SecondaryNotice(type: SecondaryNoticeType.pendingCredit, label: 'Credit', value: 500),
+      ], max: 0);
+      expect(selection.shown, isEmpty);
+      expect(selection.overflowCount, 2);
+    });
+
     test('orders by priority: low stock, then pending credit, then unsynced', () {
       final selection = engine.selectSecondaryNotices([
         const SecondaryNotice(type: SecondaryNoticeType.unsyncedItems, label: 'Unsynced', value: 3),
