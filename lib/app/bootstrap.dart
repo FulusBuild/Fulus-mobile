@@ -572,6 +572,20 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
+  // Cloud session/device restoration runs asynchronously during startup.
+  // If it completes after the sync trigger service has already drained the
+  // queue, the newly-authorized Fulus cloud transport must get a fresh run;
+  // otherwise queued sales can remain stuck until another external trigger.
+  void onFulusConnectionChanged() {
+    if (syncConfig.isEnabled && fulusConnectionState.isDeviceAuthorized) {
+      unawaited(syncEngine.runOnce(manual: true));
+    }
+  }
+  fulusConnectionState.addListener(onFulusConnectionChanged);
+  if (fulusConnectionState.isDeviceAuthorized && syncConfig.isEnabled) {
+    unawaited(syncEngine.runOnce(manual: true));
+  }
+
   // --- Device Services ---
   final printerRepository = PrinterRepositoryImpl(db: database);
   final receiptPrinterService = ReceiptPrinterService(
