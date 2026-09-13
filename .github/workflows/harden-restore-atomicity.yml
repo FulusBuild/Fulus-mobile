@@ -1,4 +1,4 @@
-name: Harden restore atomicity
+name: Harden restore deletion order
 
 on:
   push:
@@ -14,68 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply restore atomicity changes
+      - name: Fix restore deletion order
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path('lib/data/remote/cloud_restore_importer.dart')
-          s = p.read_text()
-          assert "String? ownerCloudUserId,\n  }) async {" in s
-          s = s.replace("String? ownerCloudUserId,\n  }) async {", "String? ownerCloudUserId,\n    Future<void> Function()? onBeforeCommit,\n  }) async {", 1)
-          assert "await _verifyForeignKeys();\n    });" in s
-          s = s.replace("await _verifyForeignKeys();\n    });", "await _verifyForeignKeys();\n      if (onBeforeCommit != null) await onBeforeCommit();\n      await _verifyForeignKeys();\n    });", 1)
-          s = s.replace("    'sessions',\n    'users',\n    'return_items',", "    'sessions',\n    'return_items',", 1)
-          assert "    'audit_logs',\n  ];" in s
-          s = s.replace("    'audit_logs',\n  ];", "    'audit_logs',\n    'users',\n  ];", 1)
-          p.write_text(s)
-
-          p = Path('lib/data/remote/cloud_restore_coordinator.dart')
-          s = p.read_text()
-          pattern = r"  Future<CloudRestoreResult> restore\(\{.*?\n  \}\n\n  Future<void> _setForeignKeys"
-          replacement = '''  Future<CloudRestoreResult> restore({
-    required Map<String, dynamic> snapshot,
-    required String ownerCloudUserId,
-    required String ownerEmail,
-    required BusinessSettingsResponseDto settings,
-  }) async {
-    return CloudRestoreImporter(_db).importSnapshot(
-      snapshot,
-      ownerCloudUserId: null,
-      onBeforeCommit: () async {
-        await _db.delete(_db.businessSettings).go();
-        await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
-        await _normalizeOwner(
-          ownerCloudUserId: ownerCloudUserId,
-          ownerEmail: ownerEmail,
-          snapshot: snapshot,
-        );
-      },
-    );
-  }
-
-  Future<void> _setForeignKeys'''
-          s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
-          assert n == 1
-          # Remove obsolete FK/settings compensation helpers.
-          s, n = re.subn(r"  Future<void> _setForeignKeys.*?\n  Future<void> _normalizeOwner", "  Future<void> _normalizeOwner", s, count=1, flags=re.S)
-          assert n == 1
-          # Remove nested transaction wrapper from owner normalization.
-          s = s.replace("    await _db.transaction(() async {\n      final owner =", "    final owner =", 1)
-          s = s.replace("      await (_db.update(_db.users)", "    await (_db.update(_db.users)", 1)
-          s = s.replace("      await (_db.delete(_db.employees)", "    await (_db.delete(_db.employees)", 1)
-          s = s.replace("      await _db.delete(_db.sessions).go();", "    await _db.delete(_db.sessions).go();", 1)
-          s = s.replace("      await _db.into(_db.sessions).insert(\n            SessionsCompanion.insert(", "    await _db.into(_db.sessions).insert(\n          SessionsCompanion.insert(", 1)
-          s = s.replace("              id: 'current',", "            id: 'current',", 1)
-          s = s.replace("              userId: ownerCloudUserId,", "            userId: ownerCloudUserId,", 1)
-          s = s.replace("              activeLocationId: const Value(null),", "            activeLocationId: const Value(null),", 1)
-          s = s.replace("            ),\n          );\n    });", "          ),\n        );", 1)
-          p.write_text(s)
-          PY
+          sed -i "/^[[:space:]]*'users',[[:space:]]*$/d" lib/data/remote/cloud_restore_importer.dart
+          sed -i "/^[[:space:]]*'audit_logs',[[:space:]]*$/a\\    'users'," lib/data/remote/cloud_restore_importer.dart
           git diff --check
-          git add lib/data/remote/cloud_restore_importer.dart lib/data/remote/cloud_restore_coordinator.dart
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(restore): make settings and owner writes atomic'
+          git add lib/data/remote/cloud_restore_importer.dart
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix(restore): delete users after dependent records'
           git push
