@@ -27,7 +27,7 @@ void main() {
 
   group('DailyClosingSummary', () {
     test('derives total sales and drawer difference', () {
-      const summary = DailyClosingSummary(
+      final summary = DailyClosingSummary(
         closedAt: DateTime(2026, 9, 13, 20),
         salesByMethod: {
           'Cash': 50000,
@@ -46,7 +46,7 @@ void main() {
     });
 
     test('a matching count has zero difference', () {
-      const summary = DailyClosingSummary(
+      final summary = DailyClosingSummary(
         closedAt: DateTime(2026, 9, 13, 20),
         salesByMethod: {'Cash': 50000},
         expensesTotal: 0,
