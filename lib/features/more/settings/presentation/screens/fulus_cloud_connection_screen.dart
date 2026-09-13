@@ -62,6 +62,7 @@ class _FulusCloudConnectionScreenState
     });
 
     try {
+      await ref.read(secureStorageProvider).setPendingCloudBusinessName(_businessController.text.trim());
       final result = await ref.read(authApiProvider).signUpServer(
             email: email,
             password: password,
@@ -127,6 +128,7 @@ class _FulusCloudConnectionScreenState
         await _registerDevice(connection);
       }
       if (mounted) {
+        await ref.read(secureStorageProvider).deletePendingCloudBusinessName();
         showFulusSnackbar(context, message: 'You’re ready. Fulus Cloud is connected.');
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
