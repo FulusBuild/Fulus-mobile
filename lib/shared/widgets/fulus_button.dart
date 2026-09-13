@@ -4,9 +4,10 @@ import '../../core/theme/design_tokens.dart';
 
 enum FulusButtonVariant { primary, secondary, destructive, text }
 
-/// Shared action primitive. Orange is reserved for the decisive primary
-/// action; secondary and text actions use editorial ink so a screen does not
-/// become saturated with accent color. Touch targets remain 48dp minimum.
+/// Shared action primitive. Blue is the only interaction colour; white and
+/// black provide the neutral foundation. Secondary and text actions stay
+/// quiet so a screen does not become saturated with colour. Touch targets
+/// remain 48dp minimum.
 class FulusButton extends StatelessWidget {
   const FulusButton({
     super.key,
@@ -66,7 +67,7 @@ class FulusButton extends StatelessWidget {
         return TextButton(
           onPressed: disabled ? null : onPressed,
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.textPrimaryOf(context),
+            foregroundColor: AppColors.primaryOf(context),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           ),
           child: child,
@@ -111,7 +112,7 @@ class FulusButton extends StatelessWidget {
         return AppColors.errorOnOf(context);
       case FulusButtonVariant.secondary:
       case FulusButtonVariant.text:
-        return AppColors.textPrimaryOf(context);
+        return AppColors.primaryOf(context);
     }
   }
 }
