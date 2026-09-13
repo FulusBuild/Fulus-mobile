@@ -2,15 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Redesign pass addition — an icon-in-tint square with a label
-/// underneath, for a row of navigation shortcuts (Home's Sell/Add
-/// stock/Add expense/Reports row). Deliberately its own widget rather
-/// than a repurposed [FulusStatCard]: a stat card shows a *number*
-/// (5.17's own words, "one glanceable, labeled number"); this shows an
-/// *action*. Conflating the two would make Home's stat row and action
-/// row visually indistinguishable, which defeats the point of having
-/// both. Full 48dp touch target honored via the tappable square itself
-/// plus label, not just the icon glyph.
+/// Compact action shortcut. The icon sits on a quiet editorial rule rather
+/// than inside a saturated card, so a group of actions reads as navigation,
+/// not another dashboard panel.
 class FulusQuickAction extends StatelessWidget {
   const FulusQuickAction({super.key, required this.icon, required this.label, required this.onTap});
 
@@ -20,33 +14,42 @@ class FulusQuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: AppTouchTarget.minimum,
-              height: AppTouchTarget.minimum,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.selectedTintOf(context),
-                borderRadius: BorderRadius.circular(AppRadius.md),
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: AppTouchTarget.minimum,
+                height: AppTouchTarget.minimum,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceOf(context),
+                  border: Border.all(color: AppColors.borderOf(context)),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(
+                  icon,
+                  size: AppIconSize.base,
+                  color: AppColors.textPrimaryOf(context),
+                ),
               ),
-              child: Icon(icon, size: AppIconSize.base, color: AppColors.primaryOf(context)),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(color: AppColors.textPrimaryOf(context)),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context)),
+              ),
+            ],
+          ),
         ),
       ),
     );
