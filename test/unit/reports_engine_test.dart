@@ -13,14 +13,13 @@ void main() {
     });
 
     test('thisWeek starts on Monday', () {
-      // 2026-07-30 is a Thursday.
       final period = engine.resolvePeriod(ReportPeriodKind.thisWeek, now: DateTime(2026, 7, 30));
-      expect(period.start, DateTime(2026, 7, 27)); // Monday
+      expect(period.start, DateTime(2026, 7, 27));
       expect(period.end, DateTime(2026, 7, 30));
     });
 
     test('thisWeek on a Monday starts on itself', () {
-      final period = engine.resolvePeriod(ReportPeriodKind.thisWeek, now: DateTime(2026, 8, 3)); // a Monday
+      final period = engine.resolvePeriod(ReportPeriodKind.thisWeek, now: DateTime(2026, 8, 3));
       expect(period.start, DateTime(2026, 8, 3));
     });
 
@@ -46,18 +45,62 @@ void main() {
   });
 
   group('ReportPeriod.previous', () {
-    test('a 7-day period\'s previous is the 7 days immediately before it', () {
+    test('a 7-day period previous is the 7 days immediately before it', () {
       final period = ReportPeriod(kind: ReportPeriodKind.thisWeek, start: DateTime(2026, 7, 27), end: DateTime(2026, 8, 2));
       final prev = period.previous;
       expect(prev.end, DateTime(2026, 7, 26));
       expect(prev.start, DateTime(2026, 7, 20));
     });
 
-    test('a single-day period\'s previous is the single day before it', () {
+    test('a single-day period previous is the single day before it', () {
       final period = ReportPeriod(kind: ReportPeriodKind.today, start: DateTime(2026, 7, 30), end: DateTime(2026, 7, 30));
       final prev = period.previous;
       expect(prev.start, DateTime(2026, 7, 29));
       expect(prev.end, DateTime(2026, 7, 29));
+    });
+  });
+
+  group('salesInsights', () {
+    test('describes recorded facts without forecasting', () {
+      final insights = engine.salesInsights(
+        byPaymentMethod: const [
+          SalesByPaymentMethod(method: 'Cash', total: 900, count: 3),
+          SalesByPaymentMethod(method: 'Card', total: 100, count: 1),
+        ],
+        byHour: const [SalesByHour(hour: 14, total: 1000, count: 4)],
+        topProducts: const [TopProduct(productId: 'p1', productName: 'Rice', quantitySold: 4, revenue: 1000)],
+      );
+      expect(insights.map((i) => i.text).join(' '), contains('Most sales were paid by Cash'));
+      expect(insights.map((i) => i.text).join(' '), contains('busiest hour was 2pm-3pm'));
+      expect(insights.map((i) => i.text).join(' '), contains('Rice was your top-selling product'));
+      expect(insights.every((i) => !i.text.toLowerCase().contains('will')),
+          isTrue);
+    });
+  });
+
+  group('inventoryInsights', () {
+    test('reports only observed inventory conditions', () {
+      final insights = engine.inventoryInsights(
+        lowStockCount: 2,
+        outOfStockCount: 1,
+        notSoldInThirtyDaysCount: 3,
+      );
+      expect(insights.map((i) => i.text).join(' '), contains('1 product out of stock'));
+      expect(insights.map((i) => i.text).join(' '), contains('2 products running low'));
+      expect(insights.map((i) => i.text).join(' '), contains('3 products haven\'t sold'));
+    });
+  });
+
+  group('customerInsights', () {
+    test('surfaces new customers, top customer, and outstanding credit', () {
+      final insights = engine.customerInsights(
+        newCustomersThisPeriod: 2,
+        totalOutstandingCredit: 500,
+        topCustomers: const [TopCustomer(customerId: 'c1', customerName: 'Amina', totalSpend: 1200)],
+      );
+      expect(insights.map((i) => i.text).join(' '), contains('2 new customers'));
+      expect(insights.map((i) => i.text).join(' '), contains('Amina was your top customer'));
+      expect(insights.map((i) => i.text).join(' '), contains('outstanding customer credit'));
     });
   });
 
