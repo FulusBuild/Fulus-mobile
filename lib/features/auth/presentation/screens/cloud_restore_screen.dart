@@ -15,11 +15,6 @@ import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Restores a Fulus installation from the user's single Fulus Cloud business.
-///
-/// Fulus Cloud deliberately uses a one-account/one-business relationship:
-/// one cloud identity owns exactly one business. Recovery is therefore
-/// deterministic: authenticate, resolve the one business, fetch one coherent
-/// snapshot, import it transactionally, verify it, then enter the app.
 class CloudRestoreScreen extends ConsumerStatefulWidget {
   const CloudRestoreScreen({super.key});
 
@@ -73,14 +68,10 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
           const [];
 
       if (active.isEmpty) {
-        throw StateError(
-          'This cloud account is not linked to an active Fulus business.',
-        );
+        throw StateError('This cloud account is not linked to an active Fulus business.');
       }
       if (active.length > 1) {
-        throw StateError(
-          'This cloud account has multiple business memberships. Please contact Fulus support.',
-        );
+        throw StateError('This cloud account has multiple business memberships. Please contact Fulus support.');
       }
 
       final businessId = active.single.businessId;
@@ -90,29 +81,28 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       final snapshot = await CloudRestoreApi(ref.read(apiClientProvider))
           .fetchSnapshot(businessId: businessId);
 
+      final ownerCloudUserId = (snapshot['membership'] is Map)
+          ? (snapshot['membership'] as Map)['user_id']?.toString()
+          : null;
+      if (ownerCloudUserId == null || ownerCloudUserId.isEmpty) {
+        throw StateError('Restore snapshot did not contain the authenticated owner identity.');
+      }
+
       setState(() => _status = 'Restoring your business data…');
-      final result = await CloudRestoreImporter(ref.read(databaseProvider))
-          .importSnapshot(snapshot);
+      final result = await CloudRestoreImporter(ref.read(databaseProvider)).importSnapshot(
+        snapshot,
+        ownerCloudUserId: ownerCloudUserId,
+      );
       if (result.totalRows == 0) {
         throw StateError('The cloud business has no restorable business data.');
       }
 
-      // Business settings is a singleton local table and has its own
-      // repository-level mapping, so keep that established path rather than
-      // forcing the generic importer to understand its special shape.
       await ref.read(businessSettingsRepositoryProvider).syncFromServer();
 
-      // The local owner is this device's authentication identity. The cloud
-      // account remains the server identity. Prefer the cloud profile name;
-      // email-derived text is only the fallback when the profile is absent.
       final profile = snapshot['profile'];
-      final profileName = profile is Map
-          ? profile['full_name']?.toString().trim()
-          : null;
+      final profileName = profile is Map ? profile['full_name']?.toString().trim() : null;
       final owner = await ref.read(authRepositoryProvider).createFirstOwner(
-            fullName: profileName?.isNotEmpty == true
-                ? profileName!
-                : _displayNameFromEmail(email),
+            fullName: profileName?.isNotEmpty == true ? profileName! : _displayNameFromEmail(email),
           );
       ref.read(sessionProvider.notifier).state = owner;
 
@@ -184,17 +174,13 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                   Text(
                     'Welcome back',
                     textAlign: TextAlign.center,
-                    style: AppTypography.display.copyWith(
-                      color: AppColors.textPrimaryOf(context),
-                    ),
+                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Sign in to Fulus Cloud and restore your business to this device.',
                     textAlign: TextAlign.center,
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: AppColors.textSecondaryOf(context),
-                    ),
+                    style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                   FulusCard(
@@ -215,22 +201,10 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                           enabled: !_busy,
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          _status,
-                          textAlign: TextAlign.center,
-                          style: AppTypography.body.copyWith(
-                            color: AppColors.textSecondaryOf(context),
-                          ),
-                        ),
+                        Text(_status, textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
                         if (_error != null) ...[
                           const SizedBox(height: AppSpacing.md),
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                          ),
+                          Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                         ],
                         const SizedBox(height: AppSpacing.lg),
                         FulusButton(
@@ -245,9 +219,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                   Text(
                     'One Fulus Cloud account is linked to one business. Your business can be restored on another device by signing in with the same account.',
                     textAlign: TextAlign.center,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textSecondaryOf(context),
-                    ),
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
                 ],
               ),
