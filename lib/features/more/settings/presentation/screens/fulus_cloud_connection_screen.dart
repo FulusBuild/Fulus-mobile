@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ulid/ulid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../app/providers.dart';
 import 'package:fulus_mobile/core/config/supabase_config.dart';
@@ -13,9 +15,14 @@ import '../../../../../shared/widgets/widgets.dart';
 /// Optional cloud-account linking. Local PIN authentication and local
 /// business data remain usable when this connection is absent.
 class FulusCloudConnectionScreen extends ConsumerStatefulWidget {
-  const FulusCloudConnectionScreen({super.key, this.initialBusinessName});
+  const FulusCloudConnectionScreen({
+    super.key,
+    this.initialBusinessName,
+    this.resumeAfterVerification = false,
+  });
 
   final String? initialBusinessName;
+  final bool resumeAfterVerification;
 
   @override
   ConsumerState<FulusCloudConnectionScreen> createState() =>
@@ -36,7 +43,34 @@ class _FulusCloudConnectionScreenState
   void initState() {
     super.initState();
     final name = widget.initialBusinessName?.trim();
-    if (name != null && name.isNotEmpty) _businessController.text = name;
+    if (name != null && name.isNotEmpty) {
+      _businessController.text = name;
+      unawaited(_savePendingBusinessName(name));
+    } else {
+      unawaited(_restorePendingBusinessName());
+    }
+    if (widget.resumeAfterVerification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkVerification());
+    }
+  }
+
+  Future<void> _savePendingBusinessName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fulus_pending_business_name', name);
+  }
+
+  Future<void> _restorePendingBusinessName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted || _businessController.text.trim().isNotEmpty) return;
+    final name = prefs.getString('fulus_pending_business_name');
+    if (name != null && name.trim().isNotEmpty) {
+      setState(() => _businessController.text = name.trim());
+    }
+  }
+
+  Future<void> _clearPendingBusinessName() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('fulus_pending_business_name');
   }
 
   @override
@@ -62,6 +96,7 @@ class _FulusCloudConnectionScreenState
     });
 
     try {
+      await _savePendingBusinessName(_businessController.text.trim());
       final result = await ref.read(authApiProvider).signUpServer(
             email: email,
             password: password,
@@ -126,6 +161,7 @@ class _FulusCloudConnectionScreenState
         connection.selectBusiness(active.first.businessId);
         await _registerDevice(connection);
       }
+      await _clearPendingBusinessName();
       if (mounted) {
         showFulusSnackbar(context, message: 'You’re ready. Fulus Cloud is connected.');
         Navigator.of(context).popUntil((route) => route.isFirst);

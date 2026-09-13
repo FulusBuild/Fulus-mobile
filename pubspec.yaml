@@ -45,6 +45,7 @@ dependencies:
 
   # --- Networking (Architecture Section 5) ---
   dio: ^5.5.0+1
+  app_links: ^6.4.1
   connectivity_plus: ^6.0.4
 
   # --- Secure storage (Architecture Section 11) ---
