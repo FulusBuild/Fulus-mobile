@@ -14,6 +14,7 @@ class AppTheme {
       primary: AppColors.primary,
       onPrimary: AppColors.brand,
       error: AppColors.error,
+      onError: AppColors.neutral0,
       surface: AppColors.surfaceLight,
     );
 
@@ -21,14 +22,19 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['system-ui', 'sans-serif'],
       scaffoldBackgroundColor: AppColors.backgroundLight,
       textTheme: _textTheme(AppColors.textPrimaryLight, AppColors.textSecondaryLight),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.textPrimaryLight, AppColors.borderLight),
+      textButtonTheme: _textButtonTheme(AppColors.textPrimaryLight),
       cardTheme: _cardTheme(AppColors.surfaceLight, AppColors.borderLight),
       inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.brand),
       appBarTheme: _appBarTheme(AppColors.backgroundLight, AppColors.textPrimaryLight),
-      dividerTheme: DividerThemeData(color: AppColors.borderLight, thickness: 1),
+      dividerTheme: const DividerThemeData(color: AppColors.borderLight, thickness: 1, space: 1),
+      chipTheme: _chipTheme(colorScheme, AppColors.borderLight),
+      listTileTheme: _listTileTheme(AppColors.textPrimaryLight),
       pageTransitionsTheme: _pageTransitionsTheme,
     );
   }
@@ -48,14 +54,19 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['system-ui', 'sans-serif'],
       scaffoldBackgroundColor: AppColors.backgroundDark,
       textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.darkTextPrimary, AppColors.borderDark),
+      textButtonTheme: _textButtonTheme(AppColors.darkTextPrimary),
       cardTheme: _cardTheme(AppColors.surfaceDark, AppColors.borderDark),
       inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkTextPrimary),
       appBarTheme: _appBarTheme(AppColors.backgroundDark, AppColors.darkTextPrimary),
-      dividerTheme: DividerThemeData(color: AppColors.borderDark, thickness: 1),
+      dividerTheme: const DividerThemeData(color: AppColors.borderDark, thickness: 1, space: 1),
+      chipTheme: _chipTheme(colorScheme, AppColors.borderDark),
+      listTileTheme: _listTileTheme(AppColors.darkTextPrimary),
       pageTransitionsTheme: _pageTransitionsTheme,
     );
   }
@@ -63,6 +74,7 @@ class AppTheme {
   static TextTheme _textTheme(Color primaryText, Color secondaryText) {
     return TextTheme(
       displayLarge: AppTypography.display.copyWith(color: primaryText),
+      displayMedium: AppTypography.title.copyWith(color: primaryText),
       titleLarge: AppTypography.title.copyWith(color: primaryText),
       headlineMedium: AppTypography.heading.copyWith(color: primaryText),
       titleMedium: AppTypography.subheading.copyWith(color: primaryText),
@@ -82,6 +94,7 @@ class AppTheme {
         minimumSize: const Size.fromHeight(AppTouchTarget.minimum),
         textStyle: AppTypography.buttonLabel,
         elevation: 0,
+        shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       ),
     );
@@ -99,15 +112,47 @@ class AppTheme {
     );
   }
 
+  static TextButtonThemeData _textButtonTheme(Color foreground) {
+    return TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: foreground,
+        minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
+        textStyle: AppTypography.buttonLabel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+      ),
+    );
+  }
+
   static CardThemeData _cardTheme(Color surface, Color border) {
     return CardThemeData(
       color: surface,
       elevation: 0,
-      margin: const EdgeInsets.all(AppSpacing.sm),
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         side: BorderSide(color: border),
       ),
+    );
+  }
+
+  static ChipThemeData _chipTheme(ColorScheme scheme, Color border) {
+    return ChipThemeData(
+      backgroundColor: scheme.surface,
+      selectedColor: scheme.primary.withValues(alpha: 0.12),
+      disabledColor: scheme.surface.withValues(alpha: 0.5),
+      side: BorderSide(color: border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+      labelStyle: AppTypography.label.copyWith(color: scheme.onSurface),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+    );
+  }
+
+  static ListTileThemeData _listTileTheme(Color foreground) {
+    return ListTileThemeData(
+      textColor: foreground,
+      iconColor: foreground,
+      minVerticalPadding: AppSpacing.sm,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
     );
   }
 
@@ -128,6 +173,8 @@ class AppTheme {
       floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
       fillColor: surface,
+      labelStyle: AppTypography.label.copyWith(color: AppColors.mutedLight),
+      hintStyle: AppTypography.body.copyWith(color: AppColors.mutedLight),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
         borderSide: BorderSide(color: border),
@@ -139,6 +186,14 @@ class AppTheme {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
         borderSide: BorderSide(color: focus, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderSide: BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderSide: BorderSide(color: AppColors.error, width: 2),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
     );
