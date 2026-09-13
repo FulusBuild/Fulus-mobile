@@ -31,6 +31,11 @@ The Money area is the shop owner's financial workspace. It must answer three que
 - Expected cash is calculated as opening float + cash sales - cash expenses.
 - Closing requires an actual counted cash amount.
 - Difference is shown before the close is committed.
+- Difference and closing data are persisted locally before any network sync is attempted.
+- Closing is transactional: concurrent close attempts cannot overwrite one another.
+- A closed shift cannot be closed again.
+- Closing records `closingSummaryLocked` so downstream flows have an explicit immutable closing event to respect.
+- Opening and closing sync tasks use the financial-priority queue and can wait for connectivity.
 - Closing refreshes Home/Money immediately and produces a closing summary.
 - Cash-drawer calculations are covered by unit tests so later UI/repository changes cannot silently alter the accounting rule.
 
@@ -42,4 +47,4 @@ The Money area is the shop owner's financial workspace. It must answer three que
 
 ## Current pass
 
-This pass adds regression coverage around the drawer calculation contract and records the Money acceptance criteria as a durable implementation target. The next implementation increment should prioritize the irreversible-action UX around day closing and then complete end-to-end offline mutation/sync verification for income, expense, repayment and supplier payment.
+This pass hardens the drawer lifecycle: opening/closing is concurrency-safe, invalid closing cash is rejected without mutating the active shift, closing notes and the locked state are persisted, and both create/close sync tasks are verified in the local queue. The next implementation increment should prioritize the irreversible-action UX around day closing and then complete end-to-end offline mutation/sync verification for income, expense, repayment and supplier payment.
