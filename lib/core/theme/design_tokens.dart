@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 /// Fulus visual tokens, aligned to the Wholesale Plastic editorial system.
