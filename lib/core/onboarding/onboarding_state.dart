@@ -42,6 +42,8 @@ class OnboardingState {
 
   final SharedPreferences _preferences;
 
+  String _scoped(String base, String? businessId) => businessId == null || businessId.isEmpty ? base : '$base:$businessId';
+
   static const _firstRunPromptSeenKey = 'fulus_onboarding_first_run_prompt_seen';
   static const _firstSaleCelebratedKey = 'fulus_onboarding_first_sale_celebrated';
 
@@ -52,9 +54,9 @@ class OnboardingState {
   /// inline, in `build`/`initState`, the same way [_ShellGate] already
   /// reads [SyncConfig]-shaped state elsewhere — no `FutureBuilder`
   /// needed just for this.
-  bool get hasSeenFirstRunPrompt => _preferences.getBool(_firstRunPromptSeenKey) ?? true;
+  bool hasSeenFirstRunPrompt({String? businessId}) => _preferences.getBool(_scoped(_firstRunPromptSeenKey, businessId)) ?? true;
 
-  bool get hasCelebratedFirstSale => _preferences.getBool(_firstSaleCelebratedKey) ?? true;
+  bool hasCelebratedFirstSale({String? businessId}) => _preferences.getBool(_scoped(_firstSaleCelebratedKey, businessId)) ?? true;
 
   /// Called exactly once, by [OwnerSetupScreen._submitBusiness], right
   /// after [BusinessSettingsRepository.createBusiness] succeeds — the
@@ -64,9 +66,9 @@ class OnboardingState {
   /// (Volume 3's "create business → (optional setup) → first sale →
   /// celebration"), so there's no real scenario where one should arm
   /// without the other.
-  Future<void> armFirstRun() async {
-    await _preferences.setBool(_firstRunPromptSeenKey, false);
-    await _preferences.setBool(_firstSaleCelebratedKey, false);
+  Future<void> armFirstRun({String? businessId}) async {
+    await _preferences.setBool(_scoped(_firstRunPromptSeenKey, businessId), false);
+    await _preferences.setBool(_scoped(_firstSaleCelebratedKey, businessId), false);
   }
 
   /// [FirstRunSetupScreen] calls this the moment the owner acts on ANY
@@ -74,14 +76,14 @@ class OnboardingState {
   /// blocks progress to First Sale," which this reads as "shown once,
   /// regardless of what's chosen," not "shown until acted on
   /// successfully."
-  Future<void> markFirstRunPromptSeen() => _preferences.setBool(_firstRunPromptSeenKey, true);
+  Future<void> markFirstRunPromptSeen({String? businessId}) => _preferences.setBool(_scoped(_firstRunPromptSeenKey, businessId), true);
 
   /// [SaleSuccessScreen] calls this once, the moment it decides to
   /// render the celebration variant — not conditioned on the owner
   /// actually tapping anything further, so backing out mid-celebration
   /// still consumes the one-time moment rather than showing it again on
   /// a second sale.
-  Future<void> markFirstSaleCelebrated() => _preferences.setBool(_firstSaleCelebratedKey, true);
+  Future<void> markFirstSaleCelebrated({String? businessId}) => _preferences.setBool(_scoped(_firstSaleCelebratedKey, businessId), true);
 
   // --- Guided walkthrough ---
   //
@@ -102,7 +104,7 @@ class OnboardingState {
   static const _walkthroughFirstSaleIdKey = 'fulus_onboarding_walkthrough_first_sale_id';
 
   OnboardingStep? get walkthroughStep {
-    final name = _preferences.getString(_walkthroughStepKey);
+    final name = _preferences.getString(_scoped(_walkthroughStepKey, null));
     if (name == null) return null;
     return OnboardingStep.values.asNameMap()[name];
   }
