@@ -11,91 +11,105 @@ import 'owner_setup_screen.dart';
 
 /// First-launch entry point for a device with no local owner/business yet.
 ///
-/// New installations can start locally without a network, while returning
-/// users who have an existing Fulus Cloud account have an explicit recovery
-/// path before they are asked to create a second local business.
+/// The first decision stays deliberately small: create a local business,
+/// recover an existing Fulus account, or restore a backup. No network is
+/// required to start working.
 class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FulusScreen(
-      body: Column(
-        children: [
-          const Spacer(flex: 3),
-          _Mark(),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            'Fulus',
-            style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Sales, stock, and money — run your shop from your pocket.',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-          const Spacer(flex: 4),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Get started',
-              onPressed: () async {
-                final onboardingState = ref.read(onboardingStateProvider);
-                await onboardingState.advanceWalkthroughTo(OnboardingStep.businessSetup);
-                ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.businessSetup;
-                if (!context.mounted) return;
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
-                );
-              },
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl),
+                    decoration: BoxDecoration(
+                      color: AppColors.brand,
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                      boxShadow: AppElevation.liftOf(context),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.neutral0.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                          ),
+                          child: ColorFiltered(
+                            colorFilter: const ColorFilter.mode(AppColors.neutral0, BlendMode.srcIn),
+                            child: Image.asset('assets/branding/fulus_mark_transparent.png'),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxxl),
+                        Text(
+                          'Fulus',
+                          style: AppTypography.display.copyWith(color: AppColors.neutral0),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Run your business. Simply.',
+                          style: AppTypography.title.copyWith(color: AppColors.neutral0),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Sales, stock, and money — ready when you are, even without internet.',
+                          style: AppTypography.body.copyWith(color: AppColors.darkTextSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  FulusButton(
+                    label: 'Create my business',
+                    icon: Icons.arrow_forward_rounded,
+                    onPressed: () async {
+                      final onboardingState = ref.read(onboardingStateProvider);
+                      await onboardingState.advanceWalkthroughTo(OnboardingStep.businessSetup);
+                      ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.businessSetup;
+                      if (!context.mounted) return;
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusButton(
+                    label: 'I already use Fulus',
+                    variant: FulusButtonVariant.secondary,
+                    onPressed: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusButton(
+                    label: 'Restore a backup',
+                    variant: FulusButtonVariant.text,
+                    onPressed: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const BackupRestoreDecisionScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'I already have a Fulus account',
-              variant: FulusButtonVariant.secondary,
-              onPressed: () {
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Restore from a backup',
-              variant: FulusButtonVariant.text,
-              onPressed: () {
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute(builder: (_) => const BackupRestoreDecisionScreen()),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
+        ),
       ),
-    );
-  }
-}
-
-class _Mark extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 96,
-      height: 96,
-      decoration: BoxDecoration(
-        color: AppColors.primaryOf(context),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Image.asset('assets/branding/fulus_mark_transparent.png'),
     );
   }
 }
