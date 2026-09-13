@@ -43,10 +43,12 @@ Deno.serve(async (req: Request) => {
   });
 
   if (error) {
-    const message = error.message ?? "Unable to build restore snapshot";
-    if (message.includes("not an active member")) return json({ error: { code: "FORBIDDEN", message } }, 403);
-    if (message.includes("Only a business owner")) return json({ error: { code: "RESTORE_NOT_ALLOWED", message } }, 403);
-    if (message.includes("Business not found")) return json({ error: { code: "BUSINESS_NOT_FOUND", message } }, 404);
+    if (error.code === "42501") {
+      return json({ error: { code: "RESTORE_NOT_ALLOWED", message: "You are not authorized to restore this business." } }, 403);
+    }
+    if (error.code === "P0002") {
+      return json({ error: { code: "BUSINESS_NOT_FOUND", message: "Business not found." } }, 404);
+    }
 
     // Do not return raw Postgres/Supabase errors to the client: they can
     // disclose table/function details. Keep the useful detail server-side.
