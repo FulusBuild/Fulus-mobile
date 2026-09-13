@@ -13,15 +13,9 @@ import '../widgets/auth_error_banner.dart';
 
 /// The first-run setup is intentionally local-first and minimal.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
-  const OwnerSetupScreen({
-    super.key,
-    this.startAtBusinessStep = false,
-    this.resumingOwner,
-    this.linkToExistingBusiness = false,
-  })  : assert(!startAtBusinessStep || resumingOwner != null,
-            'resumingOwner is required when starting at the business step.'),
-        assert(!(startAtBusinessStep && linkToExistingBusiness),
-            'startAtBusinessStep and linkToExistingBusiness are mutually exclusive recovery paths.');
+  const OwnerSetupScreen({super.key, this.startAtBusinessStep = false, this.resumingOwner, this.linkToExistingBusiness = false})
+      : assert(!startAtBusinessStep || resumingOwner != null, 'resumingOwner is required when starting at the business step.'),
+        assert(!(startAtBusinessStep && linkToExistingBusiness), 'startAtBusinessStep and linkToExistingBusiness are mutually exclusive recovery paths.');
 
   final bool startAtBusinessStep;
   final AuthUser? resumingOwner;
@@ -34,7 +28,6 @@ class OwnerSetupScreen extends ConsumerStatefulWidget {
 class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   final _fullNameController = TextEditingController();
   final _businessNameController = TextEditingController();
-
   bool _submitting = false;
   String? _bannerMessage;
   Map<String, String> _fieldErrors = {};
@@ -45,17 +38,9 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   bool get _needsBusiness => !widget.linkToExistingBusiness;
 
   @override
-  void initState() {
-    super.initState();
-    _checkIfAlreadyConfigured();
-  }
-
+  void initState() { super.initState(); _checkIfAlreadyConfigured(); }
   @override
-  void dispose() {
-    _fullNameController.dispose();
-    _businessNameController.dispose();
-    super.dispose();
-  }
+  void dispose() { _fullNameController.dispose(); _businessNameController.dispose(); super.dispose(); }
 
   Future<bool> _isFullyConfiguredAlready() async {
     final hasOwner = await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
@@ -67,18 +52,12 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   Future<void> _checkIfAlreadyConfigured() async {
     final already = await _isFullyConfiguredAlready();
     if (!mounted) return;
-    setState(() {
-      _alreadyConfigured = already;
-      _checkingExisting = false;
-    });
+    setState(() { _alreadyConfigured = already; _checkingExisting = false; });
   }
 
   void _clearErrors() {
     if (_bannerMessage != null || _fieldErrors.isNotEmpty) {
-      setState(() {
-        _bannerMessage = null;
-        _fieldErrors = {};
-      });
+      setState(() { _bannerMessage = null; _fieldErrors = {}; });
     }
   }
 
@@ -86,91 +65,44 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     final fullName = _fullNameController.text.trim();
     final businessName = _businessNameController.text.trim();
     final errors = <String, String>{};
-
     if (_needsOwnerName && fullName.isEmpty) errors['fullName'] = 'Enter your name.';
     if (_needsBusiness) {
-      if (businessName.isEmpty) {
-        errors['businessName'] = "What's your business called?";
-      } else if (businessName.length > 150) {
-        errors['businessName'] = 'Keep this under 150 characters.';
-      }
+      if (businessName.isEmpty) errors['businessName'] = "What's your business called?";
+      else if (businessName.length > 150) errors['businessName'] = 'Keep this under 150 characters.';
     }
-    if (errors.isNotEmpty) {
-      setState(() => _fieldErrors = errors);
-      return;
-    }
-
-    setState(() {
-      _submitting = true;
-      _bannerMessage = null;
-      _fieldErrors = {};
-    });
-
+    if (errors.isNotEmpty) { setState(() => _fieldErrors = errors); return; }
+    setState(() { _submitting = true; _bannerMessage = null; _fieldErrors = {}; });
     try {
       AuthUser owner;
       if (_needsOwnerName) {
         owner = await ref.read(authRepositoryProvider).createFirstOwner(fullName: fullName);
         if (!mounted) return;
         ref.read(sessionProvider.notifier).state = owner;
-      } else {
-        owner = widget.resumingOwner!;
-      }
-
+      } else { owner = widget.resumingOwner!; }
       if (_needsBusiness) {
-        await ref.read(businessSettingsRepositoryProvider).createBusiness(
-              businessName: businessName,
-              category: BusinessCategory.retailShop,
-              currencySymbol: '₦',
-            );
+        await ref.read(businessSettingsRepositoryProvider).createBusiness(businessName: businessName, category: BusinessCategory.retailShop, currencySymbol: '₦');
         if (!mounted) return;
-        try {
-          await ref.read(resolveActiveLocationProvider).call();
-        } catch (_) {}
+        try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
         if (!mounted) return;
-        try {
-          await ref.read(onboardingStateProvider).armFirstRun();
-        } catch (_) {}
+        try { await ref.read(onboardingStateProvider).armFirstRun(); } catch (_) {}
       } else {
-        try {
-          await ref.read(resolveActiveLocationProvider).call();
-        } catch (_) {}
+        try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
       }
-
       if (!mounted) return;
-      if (widget.startAtBusinessStep || widget.linkToExistingBusiness) {
-        context.closeScreenOr('/');
-      } else {
-        context.go('/');
-      }
+      if (widget.startAtBusinessStep || widget.linkToExistingBusiness) context.closeScreenOr('/'); else context.go('/');
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
-      if (await _isFullyConfiguredAlready()) {
-        setState(() => _alreadyConfigured = true);
-      } else {
-        setState(() => _bannerMessage = f.message);
-      }
-    } on ValidationFailure catch (v) {
-      if (!mounted) return;
-      setState(() => _fieldErrors = v.fieldErrors);
-    } on Failure catch (f) {
-      if (!mounted) return;
-      setState(() => _bannerMessage = f.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
+      if (await _isFullyConfiguredAlready()) setState(() => _alreadyConfigured = true); else setState(() => _bannerMessage = f.message);
+    } on ValidationFailure catch (v) { if (mounted) setState(() => _fieldErrors = v.fieldErrors); }
+    on Failure catch (f) { if (mounted) setState(() => _bannerMessage = f.message); }
+    finally { if (mounted) setState(() => _submitting = false); }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_checkingExisting) return const FulusScreen(body: FulusLoadingIndicator());
     if (_alreadyConfigured) return _buildAlreadySetUp(context);
-
-    final title = !_needsBusiness
-        ? 'Finish setting up'
-        : !_needsOwnerName
-            ? 'Tell us about your business'
-            : "Let's get started";
-
+    final title = !_needsBusiness ? 'Finish setting up' : !_needsOwnerName ? 'Tell us about your business' : "Let's get started";
     return FulusScreen(
       body: SafeArea(
         child: Center(
@@ -183,44 +115,16 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                 children: [
                   Text(title, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
                   const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    _needsOwnerName
-                        ? 'Your name and your business. Nothing else is required.'
-                        : 'Just your business name. You can configure the rest later.',
-                    style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
-                  ),
+                  Text(_needsOwnerName ? 'Your name and your business. Nothing else is required.' : 'Just your business name. You can configure the rest later.', style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context))),
                   const SizedBox(height: AppSpacing.xxl),
-                  if (_bannerMessage != null) ...[
-                    AuthErrorBanner(message: _bannerMessage!),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
+                  if (_bannerMessage != null) ...[AuthErrorBanner(message: _bannerMessage!), const SizedBox(height: AppSpacing.lg)],
                   if (_needsOwnerName) ...[
-                    FulusTextField(
-                      label: 'Your name',
-                      controller: _fullNameController,
-                      errorText: _fieldErrors['fullName'],
-                      textInputAction: _needsBusiness ? TextInputAction.next : TextInputAction.done,
-                      autofocus: true,
-                      onChanged: (_) => _clearErrors(),
-                    ),
+                    FulusTextField(label: 'Your name', controller: _fullNameController, errorText: _fieldErrors['fullName'], onChanged: (_) => _clearErrors()),
                     if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
                   ],
-                  if (_needsBusiness)
-                    FulusTextField(
-                      label: 'Business name',
-                      controller: _businessNameController,
-                      errorText: _fieldErrors['businessName'],
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _submit(),
-                      onChanged: (_) => _clearErrors(),
-                    ),
+                  if (_needsBusiness) FulusTextField(label: 'Business name', controller: _businessNameController, errorText: _fieldErrors['businessName'], onChanged: (_) => _clearErrors()),
                   const SizedBox(height: AppSpacing.xl),
-                  FulusButton(
-                    label: !_needsBusiness ? 'Finish' : 'Create my business',
-                    icon: Icons.arrow_forward_rounded,
-                    loading: _submitting,
-                    onPressed: _submitting ? null : _submit,
-                  ),
+                  FulusButton(label: !_needsBusiness ? 'Finish' : 'Create my business', icon: Icons.arrow_forward_rounded, loading: _submitting, onPressed: _submitting ? null : _submit),
                 ],
               ),
             ),
@@ -245,11 +149,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 Text("You're all set", textAlign: TextAlign.center, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'This business is already set up on this device.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
+                Text('This business is already set up on this device.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
                 const SizedBox(height: AppSpacing.xl),
                 FulusButton(label: 'Continue', onPressed: () => context.closeScreenOr('/')),
               ],
