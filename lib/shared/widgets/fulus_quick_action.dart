@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 
 /// Compact shortcut inspired by modern mobile navigation: a quiet icon
-/// treatment, strong label hierarchy and a generous touch target. It should
-/// read as a way to move through the product, not as a collection of mini
-/// cards.
+/// treatment, strong label hierarchy and a generous touch target. It reads
+/// as a way to move through the product, not as a collection of mini cards.
 class FulusQuickAction extends StatelessWidget {
   const FulusQuickAction({super.key, required this.icon, required this.label, required this.onTap});
 
@@ -21,7 +20,7 @@ class FulusQuickAction extends StatelessWidget {
       label: label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
           child: Column(
@@ -29,12 +28,12 @@ class FulusQuickAction extends StatelessWidget {
             children: [
               AnimatedContainer(
                 duration: AppMotion.fast,
-                width: 52,
-                height: 52,
+                width: 48,
+                height: 48,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceAltOf(context),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  color: AppColors.isDark(context) ? AppColors.surfaceAltDark : AppColors.neutral100,
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: AppIconSize.base, color: primary),
               ),
