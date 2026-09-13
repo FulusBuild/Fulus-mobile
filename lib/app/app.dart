@@ -1,7 +1,12 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
+import 'providers.dart';
 import 'app_lock_gate.dart';
 import 'auto_backup_gate.dart';
 import 'router.dart';
@@ -17,11 +22,40 @@ import 'router.dart';
 /// as the honest default for now: follow the device's own setting,
 /// which is a real, correct behavior on its own, not a placeholder
 /// standing in for something broken.
-class FulusApp extends ConsumerWidget {
+class FulusApp extends ConsumerStatefulWidget {
   const FulusApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FulusApp> createState() => _FulusAppState();
+}
+
+class _FulusAppState extends ConsumerState<FulusApp> {
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _linkSubscription = AppLinks().uriLinkStream.listen(_handleDeepLink);
+  }
+
+  Future<void> _handleDeepLink(Uri uri) async {
+    if (uri.scheme != 'fulus' || uri.host != 'auth' || uri.path != '/callback') return;
+    try {
+      await ref.read(authApiProvider).handleAuthCallback(uri);
+      appRouter.go('/more/settings/cloud?verified=1');
+    } catch (_) {
+      appRouter.go('/more/settings/cloud?verified=0');
+    }
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Fulus',
       debugShowCheckedModeBanner: false,
