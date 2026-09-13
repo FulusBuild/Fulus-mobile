@@ -50,21 +50,87 @@ class FulusSyncApi {
     Object? payload,
   }) async {
     try {
+      final rawPayload = payload is Map
+          ? Map<String, dynamic>.from(payload)
+          : <String, dynamic>{};
+      final body = <String, dynamic>{
+        'business_id': businessId,
+        'operation_type': operationType,
+        'operation_id': operationId,
+        if (clientReference != null) 'client_reference': clientReference,
+        'payload': payload,
+      };
+
+      // The deployed Fulus API exposes the authoritative sale command as
+      // `action: sale_create`. Keep the sync handler's operation contract
+      // unchanged and adapt it here so the response can still be normalized
+      // to the handler's expected entity_id shape.
+      if (operationType == 'sale.create') {
+        body
+          ..remove('operation_type')
+          ..remove('payload')
+          ..addAll(rawPayload)
+          ..['action'] = 'sale_create';
+      }
+
+      // Catalog writes use the API's permission-checked catalog endpoint.
+      // This also avoids the legacy seven-argument accept_sync_operation
+      // overload, which cannot carry the payload needed by catalog writes.
+      if (operationType.startsWith('product.')) {
+        final operation = operationType.substring('product.'.length);
+        body
+          ..remove('operation_type')
+          ..remove('payload')
+          ..['action'] = operation == 'delete' ? 'catalog_delete' : 'catalog_upsert'
+          ..['entity'] = 'products';
+        if (operation == 'delete') {
+          body['id'] = rawPayload['server_id'];
+        } else {
+          body['item'] = rawPayload;
+          if (operation == 'update') {
+            body['id'] = rawPayload['server_id'];
+          }
+        }
+      }
+
       final response = await _client.dio.post(
         _functionBaseUrl,
-        data: {
-          'business_id': businessId,
-          'operation_type': operationType,
-          'operation_id': operationId,
-          if (clientReference != null) 'client_reference': clientReference,
-          'payload': payload,
-        },
+        data: body,
         options: Options(headers: _headers(deviceClientId: deviceClientId)),
       );
-      return Map<String, dynamic>.from(response.data as Map);
+
+      final result = Map<String, dynamic>.from(response.data as Map);
+      return _normalizeOperationResponse(
+        result,
+        operationType: operationType,
+      );
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
+  }
+
+  Map<String, dynamic> _normalizeOperationResponse(
+    Map<String, dynamic> result, {
+    required String operationType,
+  }) {
+    final rawData = result['data'];
+    if (rawData is! Map) return result;
+
+    final data = Map<String, dynamic>.from(rawData);
+    if (operationType == 'sale.create' && data['sale_id'] != null) {
+      result['data'] = {
+        ...data,
+        'entity_id': data['sale_id'],
+      };
+    } else if (operationType.startsWith('product.') && data['item'] is Map) {
+      final item = Map<String, dynamic>.from(data['item'] as Map);
+      result['data'] = {
+        ...data,
+        'entity_id': item['id'],
+        'entity': item,
+      };
+    }
+    return result;
   }
 
   Map<String, String> _headers({String? deviceClientId}) => {
