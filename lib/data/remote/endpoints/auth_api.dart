@@ -159,6 +159,36 @@ class AuthApi {
     }
   }
 
+  Future<Map<String, dynamic>> createCloudBusiness({
+    required String name,
+    required String functionBaseUrl,
+    required String publishableKey,
+    String currencyCode = 'NGN',
+    String timezone = 'Africa/Lagos',
+    String locationName = 'Main',
+  }) async {
+    try {
+      final response = await Dio(BaseOptions(baseUrl: functionBaseUrl)).post(
+        '',
+        data: {
+          'action': 'create_business',
+          'name': name,
+          'currency_code': currencyCode,
+          'timezone': timezone,
+          'location_name': locationName,
+        },
+        options: Options(headers: {
+          'apikey': publishableKey,
+          'Authorization': 'Bearer ${_client.serverAccessToken}',
+          'content-type': 'application/json',
+        }),
+      );
+      return Map<String, dynamic>.from(response.data as Map);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
   Future<Map<String, dynamic>> registerCloudDevice({
     required String businessId,
     required String deviceClientId,
@@ -204,8 +234,9 @@ class ServerAuthSessionDto {
     userId: (json['user'] as Map<String, dynamic>)['id'] as String,
   );
 }
-\nclass ServerSignUpResult {
+
+class ServerSignUpResult {
   const ServerSignUpResult({required this.session, required this.emailConfirmed});
   final ServerAuthSessionDto? session;
   final bool emailConfirmed;
-}\n
+}
