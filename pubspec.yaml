@@ -20,7 +20,7 @@ dependencies:
   dio: ^5.5.0+1
   connectivity_plus: ^6.0.4
   flutter_secure_storage: ^10.1.0
-  local_auth: ^2.3.0
+  local_auth: ^3.0.2
   workmanager: ^0.10.9
   ulid: ^2.0.1
   equatable: ^2.0.5
