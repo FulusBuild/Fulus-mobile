@@ -1,0 +1,35 @@
+name: Fix restore importer types
+
+on:
+  push:
+    branches:
+      - phase-11-cloud-restore-on-reinstall
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix Drift variable typing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/data/remote/cloud_restore_importer.dart')
+          s = p.read_text()
+          s = s.replace('      variables: variables,\n', '      variables,\n')
+          s = s.replace('  Variable _variable(Object? value) {\n', '  Variable<Object> _variable(Object? value) {\n')
+          s = s.replace('Variable<Object?>(null)', 'Variable<String>(null)')
+          p.write_text(s)
+          PY
+          if git diff --quiet -- lib/data/remote/cloud_restore_importer.dart; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/data/remote/cloud_restore_importer.dart
+          git commit -m 'fix(restore): correct Drift variable typing'
+          git push
