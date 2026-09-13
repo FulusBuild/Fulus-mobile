@@ -9,14 +9,12 @@ class FulusHaptics {
   FulusHaptics._();
 
   static void selection() => HapticFeedback.selectionClick();
-
   static void confirm() => HapticFeedback.lightImpact();
-
   static void error() => HapticFeedback.heavyImpact();
 }
 
-/// A press target with a restrained scale response, semantic button role and
-/// keyboard activation. Animation is removed when reduced motion is enabled.
+/// A press target with restrained visual/tactile feedback, keyboard activation,
+/// a visible focus treatment and a guaranteed 48dp hit area.
 class FulusPressable extends StatefulWidget {
   const FulusPressable({
     super.key,
@@ -35,6 +33,7 @@ class FulusPressable extends StatefulWidget {
 
 class _FulusPressableState extends State<FulusPressable> {
   bool _pressed = false;
+  bool _focused = false;
 
   void _setPressed(bool value) {
     if (widget.onPressed == null || !mounted) return;
@@ -51,6 +50,7 @@ class _FulusPressableState extends State<FulusPressable> {
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final scale = reduceMotion || !_pressed ? 1.0 : 0.97;
+    final primary = AppColors.primaryOf(context);
     final content = AnimatedScale(
       scale: scale,
       duration: reduceMotion ? Duration.zero : AppMotion.fast,
@@ -75,20 +75,30 @@ class _FulusPressableState extends State<FulusPressable> {
           }),
         },
         onShowFocusHighlight: (focused) {
-          if (!mounted || !focused) return;
-          setState(() {});
+          if (!mounted) return;
+          setState(() => _focused = focused);
         },
         child: MouseRegion(
-          cursor: widget.onPressed == null
-              ? SystemMouseCursors.basic
-              : SystemMouseCursors.click,
+          cursor: widget.onPressed == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onPressed == null ? null : _activate,
             onTapDown: widget.onPressed == null ? null : (_) => _setPressed(true),
             onTapUp: widget.onPressed == null ? null : (_) => _setPressed(false),
             onTapCancel: widget.onPressed == null ? null : () => _setPressed(false),
-            child: content,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: AppTouchTarget.minimum, minHeight: AppTouchTarget.minimum),
+              child: AnimatedContainer(
+                duration: reduceMotion ? Duration.zero : AppMotion.fast,
+                decoration: _focused
+                    ? BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: primary, width: 2),
+                      )
+                    : null,
+                child: content,
+              ),
+            ),
           ),
         ),
       ),
@@ -96,8 +106,6 @@ class _FulusPressableState extends State<FulusPressable> {
   }
 }
 
-/// Returns a compact horizontal inset that remains usable on narrow phones
-/// while avoiding oversized gutters on tablets and desktop-sized windows.
 double fulusHorizontalInset(BuildContext context) {
   final width = MediaQuery.sizeOf(context).width;
   if (width < 360) return AppSpacing.md;
@@ -105,8 +113,6 @@ double fulusHorizontalInset(BuildContext context) {
   return AppSpacing.xl;
 }
 
-/// Phase 7's single place for motion-aware durations. Feature code can keep
-/// its intended duration while respecting system reduced-motion settings.
 Duration fulusMotionDuration(BuildContext context, Duration duration) {
   return MediaQuery.disableAnimationsOf(context) ? Duration.zero : duration;
 }
