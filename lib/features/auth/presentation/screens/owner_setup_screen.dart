@@ -10,73 +10,8 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/auth_error_banner.dart';
+import '../../../more/settings/presentation/screens/fulus_cloud_connection_screen.dart';
 
-/// The Owner Journey's first step — Volume 3: "create business →
-/// (optional setup) → first sale → celebration," now genuinely one
-/// combined form rather than a two-step wizard. Onboarding-
-/// simplification pass: a real, portable credential (username, email,
-/// password) only earns its cost for a future cross-device sync
-/// feature that doesn't exist yet — see AuthRepository's own doc
-/// comment. Locally, this screen only ever needs to ask for a name.
-/// Everything after — printer setup, first product, first sale, the
-/// success celebration — stays explicitly optional/deferred, reachable
-/// later, never blocking this screen, same as before this pass.
-///
-/// Two real local calls when both are needed —
-/// [AuthRepository.createFirstOwner] then
-/// [BusinessSettingsRepository.createBusiness] — but now behind a
-/// single submit, not two separate ones: there's no partial identity
-/// worth showing a "Next" button for anymore once the credential fields
-/// are gone. Still sequential, not simultaneous: the owner identity
-/// commits before the business call even starts, so a business-name
-/// validation issue never risks re-creating an account that already
-/// exists (createFirstOwner is one-shot — see its own doc comment).
-///
-/// DEAD-END FIX: the pre-simplification version of this screen would
-/// let someone fill in the whole business form and only discover, on
-/// "Finish," that a business already existed on this device — a banner
-/// next to a Finish button that would fail exactly the same way again.
-/// This version checks upfront (`_checkIfAlreadyConfigured`, run in
-/// initState before any form renders) and, on the same failure surfacing
-/// mid-submit anyway (a genuine race, not the common case), routes to
-/// the same "you're already set up, tap Continue" recovery state
-/// instead of re-showing a doomed form — see [_isFullyConfiguredAlready].
-///
-/// Volume 3 also specifies business type "pre-configures sensible
-/// tax/VAT defaults" and currency "defaulted from the phone's SIM/
-/// locale, changeable with one tap." The tax-default mechanism
-/// ([BusinessCategoryDefaults]) carries real, sourced per-category
-/// numbers; this screen surfaces its `guidance` string under the
-/// category list so the default doesn't look arbitrary. SIM/locale
-/// currency detection needs a package this project doesn't have (`intl`
-/// isn't a dependency) — this defaults to ₦ instead, the currency every
-/// persona and example in the Bible itself uses, and stays changeable
-/// with one tap via [FulusDropdownField].
-///
-/// [startAtBusinessStep] / [resumingOwner]: the interrupted-setup
-/// recovery path — router.dart's `_ShellGate` resumes here directly
-/// (business fields only, owner's name already known) for a signed-in
-/// owner whose business was never configured (app killed between the
-/// two calls in an earlier session). [resumingOwner] must be supplied
-/// whenever [startAtBusinessStep] is true, since there's no name field
-/// in this run to have produced it. The name "startAtBusinessStep" is
-/// carried over unchanged from before this pass even though "step"
-/// undersells it now — it was never worth the churn of renaming across
-/// every call site for a purely cosmetic reason.
-///
-/// [linkToExistingBusiness]: the other interrupted-setup recovery path
-/// — [RestoreProgressScreen]'s "Continue Setup" choice, for the mirror
-/// case [resolveAuthGateStage] (core/onboarding/onboarding_routing.dart)
-/// exists to catch: local business data survives with no matching
-/// owner account. Here it's the owner identity that still needs
-/// creating and the business call that must NOT run — see
-/// [BusinessSettingsRepository.createBusiness]'s own doc comment: it
-/// "rejects a second business unconditionally." No business form, no
-/// [OnboardingState.armFirstRun] (this isn't a new business, so the
-/// onboarding flags are left exactly as they already stand), straight
-/// to a signed-in session. Mutually exclusive with [startAtBusinessStep]
-/// — one recovers a business missing its owner, the other an owner
-/// missing its business.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
   const OwnerSetupScreen({
     super.key,
@@ -90,7 +25,7 @@ class OwnerSetupScreen extends ConsumerStatefulWidget {
         assert(
           !(startAtBusinessStep && linkToExistingBusiness),
           'startAtBusinessStep and linkToExistingBusiness are mutually '
-          'exclusive recovery paths — see this class\'s own doc comment.',
+          'exclusive recovery paths.',
         );
 
   final bool startAtBusinessStep;
@@ -110,8 +45,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   bool _submitting = false;
   String? _bannerMessage;
   Map<String, String> _fieldErrors = {};
-
-  // See this class's DEAD-END FIX doc comment above.
   bool _checkingExisting = true;
   bool _alreadyConfigured = false;
 
@@ -148,14 +81,10 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     super.dispose();
   }
 
-  /// True if this device already has everything this screen was about
-  /// to create — the check the DEAD-END FIX doc comment above describes,
-  /// run both proactively (initState, before any form renders) and
-  /// reactively (a BusinessRuleFailure caught mid-submit).
   Future<bool> _isFullyConfiguredAlready() async {
     final hasOwner = await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
     if (!hasOwner) return false;
-    if (!_needsBusiness) return true; // linkToExistingBusiness: business already existed by definition
+    if (!_needsBusiness) return true;
     return ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
   }
 
@@ -180,8 +109,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   Future<void> _submit() async {
     final fullName = _fullNameController.text.trim();
     final businessName = _businessNameController.text.trim();
-
     final errors = <String, String>{};
+
     if (_needsOwnerName && fullName.isEmpty) {
       errors['fullName'] = 'Enter your full name.';
     }
@@ -202,14 +131,12 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       _bannerMessage = null;
       _fieldErrors = {};
     });
+
     try {
       AuthUser owner;
       if (_needsOwnerName) {
         owner = await ref.read(authRepositoryProvider).createFirstOwner(fullName: fullName);
         if (!mounted) return;
-        // Signs them in immediately — needed even when _needsBusiness is
-        // false (linkToExistingBusiness), since nothing else on that
-        // path sets the session.
         ref.read(sessionProvider.notifier).state = owner;
       } else {
         owner = widget.resumingOwner!;
@@ -222,31 +149,14 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               currencySymbol: _currencySymbol,
             );
         if (!mounted) return;
-        // Silently seeds this business's one default location (Decision
-        // 21: "created silently at onboarding, no location UI ever
-        // surfacing") — best-effort: ResolveActiveLocation is idempotent
-        // and safe to re-run, so a failure here just means the same
-        // resolution happens lazily on first use instead.
         try {
           await ref.read(resolveActiveLocationProvider).call();
-        } catch (_) {
-          // Deliberately swallowed — see comment above.
-        }
+        } catch (_) {}
         if (!mounted) return;
-        // Nice-to-have gap closure, Volume 3's onboarding polish — the
-        // one moment the app can say "this business is new" with
-        // certainty (business creation happens exactly once, right
-        // above). Best-effort for the same reason as the location seed.
         try {
           await ref.read(onboardingStateProvider).armFirstRun();
-        } catch (_) {
-          // Deliberately swallowed — see comment above.
-        }
+        } catch (_) {}
         if (!mounted) return;
-        // Only relevant when the guided walkthrough is actually running
-        // (this screen reached via GetStartedScreen); a pre-existing
-        // install resuming the business call here never armed it in the
-        // first place, so walkthroughStep is null and this is a no-op.
         try {
           final onboardingState = ref.read(onboardingStateProvider);
           final step = onboardingState.walkthroughStep;
@@ -254,44 +164,28 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
             await onboardingState.advanceWalkthroughTo(OnboardingStep.essentialSettings);
             ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.essentialSettings;
           }
-        } catch (_) {
-          // Deliberately swallowed — see comment above.
-        }
+        } catch (_) {}
       } else {
-        // linkToExistingBusiness — best-effort location seed only, same
-        // reasoning as above; a business restored this way already has
-        // its own location(s) from before, so this is just the same
-        // safety net, not expected to actually do anything here.
         try {
           await ref.read(resolveActiveLocationProvider).call();
-        } catch (_) {
-          // Deliberately swallowed — see comment above.
-        }
+        } catch (_) {}
       }
 
       if (!mounted) return;
-      // Explicit re-navigation rather than relying on sessionProvider
-      // alone having triggered it — the startAtBusinessStep case never
-      // touches sessionProvider in this method at all (owner was
-      // already signed in before this screen ever showed), so nothing
-      // here is guaranteed to make the router re-check on its own.
-      //
-      // FIX (onboarding audit): this screen is shown three different
-      // ways — pushed from GetStartedScreen, pushed from
-      // RestoreProgressScreen's "Continue Setup", or rendered directly
-      // in place by _ShellGate's own resumeBusinessSetup stage. A bare
-      // `context.go('/')` only ever updates go_router's own state; for
-      // the two pushed cases that leaves this screen stuck on top,
-      // looking like the tap did nothing (see ScreenExit's doc comment
-      // for the full mechanism). closeScreenOr handles all three.
-      context.closeScreenOr('/');
+      if (widget.startAtBusinessStep || widget.linkToExistingBusiness) {
+        context.closeScreenOr('/');
+      } else {
+        Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute<void>(
+            builder: (_) => FulusCloudConnectionScreen(
+              initialBusinessName: businessName,
+            ),
+          ),
+        );
+      }
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
       if (await _isFullyConfiguredAlready()) {
-        // See this class's DEAD-END FIX doc comment — a genuine race
-        // rather than the common case, but handled the same way as the
-        // proactive initState check: a real way forward, not a banner
-        // next to a button that will fail the same way again.
         setState(() => _alreadyConfigured = true);
       } else {
         setState(() => _bannerMessage = f.message);
@@ -407,11 +301,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                // FIX (onboarding audit): same reason as _submit's own
-                // exit above — closeScreenOr instead of a bare
-                // context.go('/') so this button actually dismisses the
-                // screen when it was reached via a push, instead of
-                // becoming a dead end that needed a force-close.
                 FulusButton(label: 'Continue', onPressed: () => context.closeScreenOr('/')),
               ],
             ),
@@ -460,13 +349,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   }
 }
 
-/// Volume 3's "short tappable list" for business type — a vertical list
-/// of five named options rather than [FulusChip]s: chips (5.2) suit
-/// compact filters, but these labels ("Restaurant/Food," "Salon/
-/// Services") and the fact that exactly one is always selected read
-/// more naturally as a list the way [FulusDropdownField]'s own
-/// bottom-sheet variant renders options — this reuses that same
-/// selected-row visual language directly.
 class _CategoryOption extends StatelessWidget {
   const _CategoryOption({required this.label, required this.selected, required this.onTap});
 
