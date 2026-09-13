@@ -138,6 +138,8 @@ class OnboardingState {
 
   bool walkthroughCompletedFor({String? businessId}) => walkthroughStepFor(businessId: businessId) == OnboardingStep.completion;
 
+  Set<OnboardingStep> get walkthroughSkippedSteps => walkthroughSkippedStepsFor();
+
   Set<OnboardingStep> walkthroughSkippedStepsFor({String? businessId}) {
     final names = _preferences.getStringList(_scoped(_walkthroughSkippedKey, businessId)) ?? const <String>[];
     final byName = OnboardingStep.values.asNameMap();
