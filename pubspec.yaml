@@ -36,6 +36,7 @@ dependencies:
 
   # --- Routing ---
   go_router: ^14.2.0
+  app_links: ^7.2.1
 
   # --- Local database (Architecture Section 3) ---
   drift: ^2.18.0
