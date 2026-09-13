@@ -42,7 +42,24 @@ class OnboardingState {
 
   final SharedPreferences _preferences;
 
-  String _scoped(String base, String? businessId) => businessId == null || businessId.isEmpty ? base : '$base:$businessId';
+  String _scoped(String base, String? businessId) {
+    final resolved = businessId?.trim().isNotEmpty == true
+        ? businessId!.trim()
+        : _preferences.getString(_activeBusinessIdKey);
+    return resolved == null || resolved.isEmpty ? base : '$base:$resolved';
+  }
+
+  static const _activeBusinessIdKey = 'fulus_onboarding_active_business_id';
+
+  /// Keeps legacy callers business-aware without requiring every screen to
+  /// thread a business ID through its widget tree.
+  Future<void> setActiveBusinessId(String? businessId) async {
+    if (businessId == null || businessId.isEmpty) {
+      await _preferences.remove(_activeBusinessIdKey);
+    } else {
+      await _preferences.setString(_activeBusinessIdKey, businessId);
+    }
+  }
 
   static const _firstRunPromptSeenKey = 'fulus_onboarding_first_run_prompt_seen';
   static const _firstSaleCelebratedKey = 'fulus_onboarding_first_sale_celebrated';
