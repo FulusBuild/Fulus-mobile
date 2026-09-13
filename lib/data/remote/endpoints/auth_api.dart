@@ -204,4 +204,8 @@ class ServerAuthSessionDto {
     userId: (json['user'] as Map<String, dynamic>)['id'] as String,
   );
 }
-\nclass ServerSignUpResult {\n  const ServerSignUpResult({required this.session, required this.emailConfirmed});\n  final ServerAuthSessionDto? session;\n  final bool emailConfirmed;\n}\n
+\nclass ServerSignUpResult {
+  const ServerSignUpResult({required this.session, required this.emailConfirmed});
+  final ServerAuthSessionDto? session;
+  final bool emailConfirmed;
+}\n
