@@ -10,83 +10,177 @@ permissions:
 
 jobs:
   harden:
-    if: ${{ github.actor != 'github-actions[bot]' }}
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Harden restore transaction
-        shell: bash
+      - name: Apply restore atomicity patch
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('lib/data/remote/cloud_restore_importer.dart')
-          s = p.read_text()
-          s = s.replace("    String? ownerCloudUserId,\n  }) async {", "    String? ownerCloudUserId,\n    Future<void> Function()? onBeforeCommit,\n  }) async {", 1)
-          s = s.replace("      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n", "      await _verifyCounts(expectedCounts, importedCounts);\n      await _verifyForeignKeys();\n      if (onBeforeCommit != null) await onBeforeCommit();\n      await _verifyForeignKeys();\n", 1)
-          s = s.replace("    'sessions',\n    'users',\n    'return_items',", "    'sessions',\n    'return_items',", 1)
-          s = s.replace("    'audit_logs',\n  ];", "    'audit_logs',\n    'users',\n  ];", 1)
-          p.write_text(s)
-
-          p = Path('lib/data/remote/cloud_restore_coordinator.dart')
-          s = p.read_text()
-          start = s.index('  Future<CloudRestoreResult> restore({')
-          end = s.index('  Future<void> _normalizeOwner({', start)
-          restore = '''  Future<CloudRestoreResult> restore({
-    required Map<String, dynamic> snapshot,
-    required String ownerCloudUserId,
-    required String ownerEmail,
-    required BusinessSettingsResponseDto settings,
-  }) async {
-    return CloudRestoreImporter(_db).importSnapshot(
-      snapshot,
-      ownerCloudUserId: null,
-      onBeforeCommit: () async {
-        await _db.delete(_db.businessSettings).go();
-        await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
-        await _normalizeOwner(
-          ownerCloudUserId: ownerCloudUserId,
-          ownerEmail: ownerEmail,
-          snapshot: snapshot,
-        );
-      },
-    );
-  }
-
-'''
-          s = s[:start] + restore + s[end:]
-          s = s.replace("    await _db.transaction(() async {\n      final owner =", "    final owner =", 1)
-          old_end = """      await _db.into(_db.sessions).insert(
-            SessionsCompanion.insert(
-              id: 'current',
-              userId: ownerCloudUserId,
-              activeLocationId: const Value(null),
-            ),
-          );
-    });
-"""
-          new_end = """    await _db.into(_db.sessions).insert(
-          SessionsCompanion.insert(
-            id: 'current',
-            userId: ownerCloudUserId,
-            activeLocationId: const Value(null),
-          ),
-        );
-"""
-          if old_end not in s:
-              raise SystemExit('owner transaction block not found')
-          s = s.replace(old_end, new_end, 1)
-          a = s.index('  Future<void> _replaceSettings(')
-          b = s.index('  Future<void> _normalizeOwner(', a)
-          s = s[:a] + s[b:]
-          p.write_text(s)
-          PY
-          git add lib/data/remote/cloud_restore_importer.dart lib/data/remote/cloud_restore_coordinator.dart
-          if git diff --cached --quiet; then
-            echo 'No restore hardening changes required.'
-            exit 0
-          fi
+          git apply <<'PATCH'
+          diff --git a/lib/data/remote/cloud_restore_importer.dart b/lib/data/remote/cloud_restore_importer.dart
+          --- a/lib/data/remote/cloud_restore_importer.dart
+          +++ b/lib/data/remote/cloud_restore_importer.dart
+          @@
+           Future<CloudRestoreResult> importSnapshot(
+             Map<String, dynamic> snapshot, {
+             String? ownerCloudUserId,
+          +  Future<void> Function()? onBeforeCommit,
+           }) async {
+          @@
+                 await _verifyCounts(expectedCounts, importedCounts);
+                 await _verifyForeignKeys();
+          +      if (onBeforeCommit != null) await onBeforeCommit();
+          +      await _verifyForeignKeys();
+               });
+          @@
+               'employees',
+               'sessions',
+          -    'users',
+               'return_items',
+          @@
+               'locations',
+               'audit_logs',
+          +    'users',
+             ];
+          diff --git a/lib/data/remote/cloud_restore_coordinator.dart b/lib/data/remote/cloud_restore_coordinator.dart
+          --- a/lib/data/remote/cloud_restore_coordinator.dart
+          +++ b/lib/data/remote/cloud_restore_coordinator.dart
+          @@
+             required String ownerCloudUserId,
+             required String ownerEmail,
+             required BusinessSettingsResponseDto settings,
+           }) async {
+          -    final previousSettings =
+          -        await (_db.select(_db.businessSettings)).getSingleOrNull();
+          -
+          -    // The caller fetched this before entering the destructive phase. Persist
+          -    // it now so a settings outage cannot occur halfway through the restore.
+          -    await _replaceSettings(settings);
+          -
+          -    try {
+          -      // The existing importer clears Users before parent business rows. With
+          -      // real FK enforcement that ordering can reject a populated reinstall
+          -      // (sales/audit/session rows can reference Users). Temporarily suspend
+          -      // SQLite's immediate FK enforcement only for that destructive/import
+          -      // transaction; the importer runs PRAGMA foreign_key_check before its
+          -      // transaction commits, so no invalid final state can be accepted.
+          -      await _setForeignKeys(false);
+          -      try {
+          -        // Import the authenticated identity too. The previous flow skipped it
+          -        // and created the owner afterward, which could leave sales/audit rows
+          -        // pointing at a user that did not exist during FK verification.
+          -        final result = await CloudRestoreImporter(_db).importSnapshot(
+          -          snapshot,
+          -          ownerCloudUserId: null,
+          -        );
+          -
+          -        await _normalizeOwner(
+          -          ownerCloudUserId: ownerCloudUserId,
+          -          ownerEmail: ownerEmail,
+          -          snapshot: snapshot,
+          -        );
+          -
+          -        return result;
+          -      } finally {
+          -        // PRAGMA changes are connection-scoped. Always restore enforcement,
+          -        // including when import throws before reaching the explicit ON above.
+          -        await _setForeignKeys(true);
+          -      }
+          -    } catch (_) {
+          -      // CloudRestoreImporter is itself transactional. Restore the settings
+          -      // row as the compensating operation for the small pre-import settings
+          -      // transaction so a failed restore does not strand onboarding state.
+          -      await _restorePreviousSettings(previousSettings);
+          -      rethrow;
+          -    }
+          +    return CloudRestoreImporter(_db).importSnapshot(
+          +      snapshot,
+          +      ownerCloudUserId: null,
+          +      onBeforeCommit: () async {
+          +        await _db.delete(_db.businessSettings).go();
+          +        await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
+          +        await _normalizeOwner(
+          +          ownerCloudUserId: ownerCloudUserId,
+          +          ownerEmail: ownerEmail,
+          +          snapshot: snapshot,
+          +        );
+          +      },
+          +    );
+           }
+          @@
+          -  Future<void> _setForeignKeys(bool enabled) async {
+          -    await _db.customStatement('PRAGMA foreign_keys = ${enabled ? 'ON' : 'OFF'}');
+          -  }
+          -
+          -  Future<void> _replaceSettings(BusinessSettingsResponseDto settings) async {
+          -    await _db.transaction(() async {
+          -      await _db.delete(_db.businessSettings).go();
+          -      await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
+          -    });
+          -  }
+          -
+          -  Future<void> _restorePreviousSettings(BusinessSettingRow? previous) async {
+          -    await _db.transaction(() async {
+          -      await _db.delete(_db.businessSettings).go();
+          -      if (previous == null) return;
+          -      await _db.into(_db.businessSettings).insert(
+          -            BusinessSettingsCompanion.insert(
+          -              id: previous.id,
+          -              businessName: previous.businessName,
+          -              address: Value(previous.address),
+          -              phone: Value(previous.phone),
+          -              email: Value(previous.email),
+          -              tin: Value(previous.tin),
+          -              currencySymbol: Value(previous.currencySymbol),
+          -              vatEnabled: previous.vatEnabled,
+          -              vatRate: previous.vatRate,
+          -              receiptFooter: Value(previous.receiptFooter),
+          -              updatedAt: previous.updatedAt,
+          -            ),
+          -          );
+          -    });
+          -  }
+          -
+             Future<void> _normalizeOwner({
+          @@
+          -    await _db.transaction(() async {
+          -      final owner = await (_db.select(_db.users)
+          +    final owner = await (_db.select(_db.users)
+                   ..where((u) => u.localId.equals(ownerCloudUserId)))
+                 .getSingleOrNull();
+          @@
+          -      await (_db.update(_db.users)
+          +    await (_db.update(_db.users)
+                   ..where((u) => u.localId.equals(ownerCloudUserId)))
+                 .write(
+          @@
+          -      await (_db.delete(_db.employees)
+          +    await (_db.delete(_db.employees)
+                   ..where((e) => e.authUserId.equals(ownerCloudUserId)))
+                 .go();
+          
+          -      await _db.delete(_db.sessions).go();
+          -      await _db.into(_db.sessions).insert(
+          -            SessionsCompanion.insert(
+          -              id: 'current',
+          -              userId: ownerCloudUserId,
+          -              activeLocationId: const Value(null),
+          -            ),
+          -          );
+          -    });
+          +    await _db.delete(_db.sessions).go();
+          +    await _db.into(_db.sessions).insert(
+          +          SessionsCompanion.insert(
+          +            id: 'current',
+          +            userId: ownerCloudUserId,
+          +            activeLocationId: const Value(null),
+          +          ),
+          +        );
+             }
+          PATCH
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/data/remote/cloud_restore_importer.dart lib/data/remote/cloud_restore_coordinator.dart
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m 'fix(restore): make settings and owner writes atomic'
           git push
