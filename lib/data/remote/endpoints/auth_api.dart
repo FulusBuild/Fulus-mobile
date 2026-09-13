@@ -78,11 +78,7 @@ class AuthApi {
     try {
       final response = await authClient.post(
         '/auth/v1/token?grant_type=password',
-        data: {
-          'email': email,
-          'password': password,
-          'options': {'email_redirect_to': 'fulus://auth/callback'},
-        },
+        data: {'email': email, 'password': password},
         options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}),
       );
       final data = response.data as Map<String, dynamic>;
@@ -108,7 +104,11 @@ class AuthApi {
     try {
       final response = await authClient.post(
         '/auth/v1/signup',
-        data: {'email': email, 'password': password},
+        data: {
+          'email': email,
+          'password': password,
+          'options': {'email_redirect_to': 'fulus://auth/callback'},
+        },
         options: Options(headers: {
           'apikey': publishableKey,
           'content-type': 'application/json',
