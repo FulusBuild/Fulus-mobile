@@ -17,7 +17,7 @@ import '../widgets/auth_error_banner.dart';
 /// A new owner only needs to provide their name and business name. Fulus
 /// supplies sensible defaults for the other configuration values so a
 /// non-technical shop owner can start selling immediately. Cloud, printers,
-/// locations and other configuration remain available later from Settings.
+/// locations and advanced configuration remain available later.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
   const OwnerSetupScreen({
     super.key,
@@ -130,8 +130,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       }
 
       if (_needsBusiness) {
-        // Nigeria-first defaults: retail, Naira and the Lagos timezone.
-        // Advanced business configuration is intentionally deferred to Settings.
         await ref.read(businessSettingsRepositoryProvider).createBusiness(
               businessName: businessName,
               category: BusinessCategory.retailShop,
@@ -145,15 +143,6 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         try {
           await ref.read(onboardingStateProvider).armFirstRun();
         } catch (_) {}
-        if (!mounted) return;
-        try {
-          final onboardingState = ref.read(onboardingStateProvider);
-          final step = onboardingState.walkthroughStep;
-          if (step == OnboardingStep.businessSetup || step == OnboardingStep.welcome) {
-            await onboardingState.advanceWalkthroughTo(OnboardingStep.essentialSettings);
-            ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.essentialSettings;
-          }
-        } catch (_) {}
       } else {
         try {
           await ref.read(resolveActiveLocationProvider).call();
@@ -161,8 +150,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       }
 
       if (!mounted) return;
-      // Cloud is deliberately not part of first-run setup. The local
-      // business is usable immediately; Cloud can be connected later.
+      // A new business goes straight to the lightweight first-run handoff.
+      // Optional walkthrough steps are never allowed to block the first sale.
       if (widget.startAtBusinessStep || widget.linkToExistingBusiness) {
         context.closeScreenOr('/');
       } else {
@@ -189,7 +178,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_checkingExisting) {
-      return const FulusScreen(body: Center(child: CircularProgressIndicator()));
+      return const FulusScreen(body: FulusLoadingIndicator());
     }
     if (_alreadyConfigured) return _buildAlreadySetUp(context);
 
@@ -200,55 +189,56 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
             : "Let's get started";
 
     return FulusScreen(
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _needsOwnerName
-                      ? 'Just your name and your business — that’s it.'
-                      : 'Just your business name — the rest can wait.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                if (_bannerMessage != null) ...[
-                  AuthErrorBanner(message: _bannerMessage!),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-                if (_needsOwnerName) ...[
-                  FulusTextField(
-                    label: 'Your name',
-                    controller: _fullNameController,
-                    errorText: _fieldErrors['fullName'],
-                    onChanged: (_) => _clearErrors(),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
                   ),
-                  if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
-                ],
-                if (_needsBusiness)
-                  FulusTextField(
-                    label: 'Business name',
-                    controller: _businessNameController,
-                    errorText: _fieldErrors['businessName'],
-                    onChanged: (_) => _clearErrors(),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    _needsOwnerName
+                        ? 'Your name and your business. Nothing else is required.'
+                        : 'Just your business name. You can configure the rest later.',
+                    style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
-                const SizedBox(height: AppSpacing.xl),
-                FulusButton(
-                  label: !_needsBusiness ? 'Finish' : 'Get started',
-                  loading: _submitting,
-                  onPressed: _submitting ? null : _submit,
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.xxl),
+                  if (_bannerMessage != null) ...[
+                    AuthErrorBanner(message: _bannerMessage!),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  if (_needsOwnerName) ...[
+                    FulusTextField(
+                      label: 'Your name',
+                      controller: _fullNameController,
+                      errorText: _fieldErrors['fullName'],
+                      onChanged: (_) => _clearErrors(),
+                    ),
+                    if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
+                  ],
+                  if (_needsBusiness)
+                    FulusTextField(
+                      label: 'Business name',
+                      controller: _businessNameController,
+                      errorText: _fieldErrors['businessName'],
+                      onChanged: (_) => _clearErrors(),
+                    ),
+                  const SizedBox(height: AppSpacing.xl),
+                  FulusButton(
+                    label: !_needsBusiness ? 'Finish' : 'Create my business',
+                    icon: Icons.arrow_forward_rounded,
+                    loading: _submitting,
+                    onPressed: _submitting ? null : _submit,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
