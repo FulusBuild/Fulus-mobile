@@ -46,7 +46,6 @@ class CloudRestoreImporter {
     'user_permissions',
     'employees',
     'sessions',
-    'users',
     'return_items',
     'sale_payments',
     'sale_items',
@@ -67,6 +66,7 @@ class CloudRestoreImporter {
     'products',
     'locations',
     'audit_logs',
+    'users',
   ];
 
   static const _importOrder = <String>[
@@ -90,6 +90,7 @@ class CloudRestoreImporter {
     'return_requests',
     'return_items',
     'audit_logs',
+    'users',
   ];
 
   Future<CloudRestoreResult> importSnapshot(
