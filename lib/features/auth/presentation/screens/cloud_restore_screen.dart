@@ -9,6 +9,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/screen_exit.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Restores a Fulus installation from an existing Fulus Cloud account.
@@ -108,10 +109,16 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // fresh local database. Failure here must not erase the successfully
       // restored business identity; the normal sync layer can retry them.
       setState(() => _status = 'Restoring products and locations…');
-      await Future.wait([
-        ref.read(locationRepositoryProvider).syncFromServer(),
-        ref.read(productRepositoryProvider).syncFromServer(),
-      ]);
+      try {
+        await ref.read(locationRepositoryProvider).syncFromServer();
+      } catch (_) {
+        // Business identity is already restored; location sync can retry.
+      }
+      try {
+        await ref.read(productRepositoryProvider).syncFromServer();
+      } catch (_) {
+        // Business identity is already restored; product sync can retry.
+      }
 
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Your Fulus business has been restored.');
