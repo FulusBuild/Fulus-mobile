@@ -10,14 +10,16 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
+import '../../../../data/remote/cloud_restore_importer.dart';
+import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Restores a Fulus installation from the user's single Fulus Cloud business.
 ///
 /// Fulus Cloud deliberately uses a one-account/one-business relationship:
-/// one cloud identity owns exactly one business. This keeps reinstall
-/// recovery deterministic — sign in, resolve the one active membership,
-/// restore that business, and continue.
+/// one cloud identity owns exactly one business. Recovery is therefore
+/// deterministic: authenticate, resolve the one business, fetch one coherent
+/// snapshot, import it transactionally, verify it, then enter the app.
 class CloudRestoreScreen extends ConsumerStatefulWidget {
   const CloudRestoreScreen({super.key});
 
@@ -76,9 +78,6 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         );
       }
       if (active.length > 1) {
-        // Defensive guard for legacy/corrupt server state. New business
-        // creation is now protected by the one-account/one-business
-        // database constraint, so this should never occur normally.
         throw StateError(
           'This cloud account has multiple business memberships. Please contact Fulus support.',
         );
@@ -87,37 +86,44 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       final businessId = active.single.businessId;
       connection.selectBusiness(businessId);
 
-      setState(() => _status = 'Restoring your business…');
+      setState(() => _status = 'Downloading your business data…');
+      final snapshot = await CloudRestoreApi(ref.read(apiClientProvider))
+          .fetchSnapshot(businessId: businessId);
+
+      setState(() => _status = 'Restoring your business data…');
+      final result = await CloudRestoreImporter(ref.read(databaseProvider))
+          .importSnapshot(snapshot);
+      if (result.totalRows == 0) {
+        throw StateError('The cloud business has no restorable business data.');
+      }
+
+      // Business settings is a singleton local table and has its own
+      // repository-level mapping, so keep that established path rather than
+      // forcing the generic importer to understand its special shape.
       await ref.read(businessSettingsRepositoryProvider).syncFromServer();
 
-      // The local owner is the device's authentication identity. The cloud
-      // account remains the server identity. We deliberately create this
-      // only after the business profile exists.
+      // The local owner is this device's authentication identity. The cloud
+      // account remains the server identity. Prefer the cloud profile name;
+      // email-derived text is only the fallback when the profile is absent.
+      final profile = snapshot['profile'];
+      final profileName = profile is Map
+          ? profile['full_name']?.toString().trim()
+          : null;
       final owner = await ref.read(authRepositoryProvider).createFirstOwner(
-            fullName: _displayNameFromEmail(email),
+            fullName: profileName?.isNotEmpty == true
+                ? profileName!
+                : _displayNameFromEmail(email),
           );
       ref.read(sessionProvider.notifier).state = owner;
 
       setState(() => _status = 'Registering this device…');
       await _registerDevice(connection);
 
-      // These are the currently available pull paths that can populate a
-      // fresh local database. Failure here must not erase the successfully
-      // restored business identity; the normal sync layer can retry them.
-      setState(() => _status = 'Restoring products and locations…');
-      try {
-        await ref.read(locationRepositoryProvider).syncFromServer();
-      } catch (_) {
-        // Business identity is already restored; location sync can retry.
-      }
-      try {
-        await ref.read(productRepositoryProvider).syncFromServer();
-      } catch (_) {
-        // Business identity is already restored; product sync can retry.
-      }
-
       if (!mounted) return;
-      showFulusSnackbar(context, message: 'Your Fulus business has been restored.');
+      showFulusSnackbar(
+        context,
+        message: 'Your Fulus business has been restored (${result.totalRows} records).',
+      );
       context.closeScreenOr('/');
     } on Failure catch (failure) {
       if (mounted) {
