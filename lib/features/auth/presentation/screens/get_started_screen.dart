@@ -95,7 +95,7 @@ class GetStartedScreen extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: FulusButton(
-              label: 'I already have Fulus',
+              label: 'Restore from a backup',
               variant: FulusButtonVariant.text,
               onPressed: () {
                 Navigator.of(context).push<void>(
