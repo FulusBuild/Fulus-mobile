@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// Compact shortcut inspired by modern mobile navigation: a quiet icon
 /// treatment, strong label hierarchy and a generous touch target. It reads
@@ -18,16 +19,16 @@ class FulusQuickAction extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+      child: FulusPressable(
+        onPressed: onTap,
+        semanticsLabel: label,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
-                duration: AppMotion.fast,
+                duration: fulusMotionDuration(context, AppMotion.fast),
                 width: 48,
                 height: 48,
                 alignment: Alignment.center,
@@ -41,8 +42,8 @@ class FulusQuickAction extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 3,
+                overflow: TextOverflow.visible,
                 style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context)),
               ),
             ],
