@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+import '../../core/onboarding/onboarding_state.dart';
 import 'fulus_business_context.dart';
 import 'fulus_device_registration.dart';
 import 'fulus_staff_access_api.dart';
