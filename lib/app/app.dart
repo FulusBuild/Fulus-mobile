@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
+import '../features/auth/presentation/widgets/auth_deep_link_gate.dart';
 import 'app_lock_gate.dart';
 import 'auto_backup_gate.dart';
 import 'router.dart';
@@ -33,7 +34,7 @@ class FulusApp extends ConsumerWidget {
       // builder hook rather than living in the route tree itself, so it
       // overlays regardless of where go_router's stack currently is.
       builder: (context, child) =>
-          AutoBackupGate(child: AppLockGate(child: child ?? const SizedBox.shrink())),
+          AuthDeepLinkGate(child: AutoBackupGate(child: AppLockGate(child: child ?? const SizedBox.shrink()))),
     );
   }
 }
