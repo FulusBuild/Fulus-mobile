@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Quiet, branded skeleton primitive. It uses a soft pulse rather than a
-/// noisy shimmer so loading feels intentional and the eventual content does
-/// not appear to jump in from a different visual language.
+/// Quiet, branded skeleton primitive. Content-shaped placeholders preserve
+/// layout while data loads, avoiding large blank or dark blocks that can be
+/// mistaken for broken UI.
 class FulusSkeletonBox extends StatefulWidget {
   const FulusSkeletonBox({super.key, this.width, this.height, this.borderRadius});
-
   final double? width;
   final double? height;
   final BorderRadius? borderRadius;
@@ -17,13 +16,8 @@ class FulusSkeletonBox extends StatefulWidget {
 }
 
 class _FulusSkeletonBoxState extends State<FulusSkeletonBox> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1050),
-  )..repeat(reverse: true);
-  late final Animation<double> _opacity = Tween(begin: 0.38, end: 0.82).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic),
-  );
+  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1050))..repeat(reverse: true);
+  late final Animation<double> _opacity = Tween(begin: 0.42, end: 0.78).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic));
 
   @override
   void dispose() {
@@ -34,18 +28,14 @@ class _FulusSkeletonBoxState extends State<FulusSkeletonBox> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final base = AppColors.surfaceAltOf(context);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Container(width: widget.width, height: widget.height, decoration: BoxDecoration(color: base, borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm)));
+    }
     return AnimatedBuilder(
       animation: _opacity,
       builder: (context, child) => Opacity(
         opacity: _opacity.value,
-        child: Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            color: base,
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm),
-          ),
-        ),
+        child: Container(width: widget.width, height: widget.height, decoration: BoxDecoration(color: base, borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm))),
       ),
     );
   }
@@ -59,26 +49,17 @@ class FulusListRowSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
       child: Row(
         children: [
           if (hasLeading) ...[
-            FulusSkeletonBox(width: 40, height: 40, borderRadius: BorderRadius.circular(AppRadius.sm)),
+            FulusSkeletonBox(width: 40, height: 40, borderRadius: BorderRadius.circular(AppRadius.pill)),
             const SizedBox(width: AppSpacing.md),
           ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const FulusSkeletonBox(width: 160, height: 14),
-                if (hasSubtitle) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  const FulusSkeletonBox(width: 100, height: 12),
-                ],
-              ],
-            ),
-          ),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            const FulusSkeletonBox(width: 160, height: 14),
+            if (hasSubtitle) ...[const SizedBox(height: AppSpacing.xs), const FulusSkeletonBox(width: 100, height: 12)],
+          ])),
         ],
       ),
     );
@@ -87,55 +68,42 @@ class FulusListRowSkeleton extends StatelessWidget {
 
 class FulusCardSkeleton extends StatelessWidget {
   const FulusCardSkeleton({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: FulusSkeletonBox(borderRadius: BorderRadius.circular(AppRadius.md)),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const FulusSkeletonBox(width: 100, height: 14),
-          const SizedBox(height: AppSpacing.xs),
-          const FulusSkeletonBox(width: 60, height: 12),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        AspectRatio(aspectRatio: 1, child: FulusSkeletonBox(borderRadius: BorderRadius.circular(AppRadius.lg))),
+        const SizedBox(height: AppSpacing.sm),
+        const FulusSkeletonBox(width: 100, height: 14),
+        const SizedBox(height: AppSpacing.xs),
+        const FulusSkeletonBox(width: 60, height: 12),
+      ]),
     );
   }
 }
 
 class FulusStatCardSkeleton extends StatelessWidget {
   const FulusStatCardSkeleton({super.key});
-
   @override
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FulusSkeletonBox(width: 80, height: 12),
-          SizedBox(height: AppSpacing.sm),
-          FulusSkeletonBox(width: 70, height: 22),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        FulusSkeletonBox(width: 80, height: 12),
+        SizedBox(height: AppSpacing.sm),
+        FulusSkeletonBox(width: 70, height: 22),
+      ]),
     );
   }
 }
 
-/// Prevents fast screens from flashing a loading treatment for a frame or
-/// two. When a load really takes time, the skeleton fades in instead of
-/// appearing as a hard cut.
+/// Keeps the final layout reserved while delaying visibility long enough to
+/// avoid a flash for fast local reads. Unlike the old implementation this
+/// does not collapse to an empty box, so the page cannot jump when loading
+/// starts or ends.
 class FulusDelayedSkeleton extends StatefulWidget {
   const FulusDelayedSkeleton({super.key, required this.skeleton, this.threshold = const Duration(milliseconds: 280)});
-
   final Widget skeleton;
   final Duration threshold;
 
@@ -156,16 +124,17 @@ class _FulusDelayedSkeletonState extends State<FulusDelayedSkeleton> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      child: _show ? KeyedSubtree(key: const ValueKey('skeleton'), child: widget.skeleton) : const SizedBox(key: ValueKey('empty')),
+    return AnimatedOpacity(
+      opacity: _show || MediaQuery.disableAnimationsOf(context) ? 1 : 0,
+      duration: AppMotion.fast,
+      child: widget.skeleton,
     );
   }
 }
 
 /// Branded indeterminate loading treatment for screens where a skeleton does
-/// not make sense. The mark and progress ring give the wait a clear Fulus
-/// identity instead of the generic standalone Material spinner.
+/// not make sense. The animation is subtle and respects system motion
+/// preferences.
 class FulusLoadingIndicator extends StatefulWidget {
   const FulusLoadingIndicator({super.key, this.label = 'Loading'});
   final String label;
@@ -175,10 +144,7 @@ class FulusLoadingIndicator extends StatefulWidget {
 }
 
 class _FulusLoadingIndicatorState extends State<FulusLoadingIndicator> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1300),
-  )..repeat();
+  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
 
   @override
   void dispose() {
@@ -188,37 +154,25 @@ class _FulusLoadingIndicatorState extends State<FulusLoadingIndicator> with Sing
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) => Transform.rotate(
-              angle: _controller.value * 6.283185307,
-              child: child,
-            ),
-            child: Container(
-              width: 56,
-              height: 56,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppColors.selectedTintOf(context),
-                shape: BoxShape.circle,
-              ),
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: AppColors.primaryOf(context),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            widget.label,
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-        ],
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 56,
+          height: 56,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(color: AppColors.selectedTintOf(context), shape: BoxShape.circle),
+          child: reduceMotion
+              ? CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryOf(context))
+              : AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) => Transform.rotate(angle: _controller.value * 6.283185307, child: child),
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryOf(context)),
+                ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(widget.label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+      ]),
     );
   }
 }
