@@ -24,14 +24,84 @@ class _FulusCloudConnectionScreenState
     extends ConsumerState<FulusCloudConnectionScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _businessController = TextEditingController();
   bool _busy = false;
+  bool _creatingAccount = false;
   String? _error;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _businessController.dispose();
     super.dispose();
+  }
+
+  Future<void> _createAccount() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.length < 8) {
+      setState(() => _error = 'Enter an email and a password of at least 8 characters.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _creatingAccount = true;
+      _error = null;
+    });
+
+    try {
+      final result = await ref.read(authApiProvider).signUpServer(
+            email: email,
+            password: password,
+            supabaseUrl: SupabaseConfig.url,
+            publishableKey: SupabaseConfig.publishableKey,
+          );
+      if (!mounted) return;
+      if (result.session != null) {
+        await _provisionBusiness();
+      } else {
+        showFulusSnackbar(context, message: 'Account created. Check your email to verify it, then return here to finish setup.');
+      }
+    } on Failure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() { _busy = false; _creatingAccount = false; });
+    }
+  }
+
+  Future<void> _provisionBusiness() async {
+    final name = _businessController.text.trim();
+    if (name.length < 2) {
+      setState(() => _error = 'Enter your business name.');
+      return;
+    }
+    setState(() { _busy = true; _error = null; });
+    try {
+      await ref.read(authApiProvider).createCloudBusiness(
+        name: name,
+        functionBaseUrl: SupabaseConfig.functionBaseUrl,
+        publishableKey: SupabaseConfig.publishableKey,
+      );
+      final connection = ref.read(fulusConnectionStateProvider);
+      await connection.refresh();
+      final active = connection.membershipContext?.memberships
+          .where((m) => m.status == 'active').toList(growable: false) ?? const [];
+      if (active.length == 1) {
+        connection.selectBusiness(active.first.businessId);
+        await _registerDevice(connection);
+      }
+      if (mounted) showFulusSnackbar(context, message: 'Your business is ready. This device is connected.');
+    } on Failure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _connect() async {
@@ -198,6 +268,11 @@ class _FulusCloudConnectionScreenState
                   ),
                   const SizedBox(height: 12),
                   FulusTextField(
+                    label: 'Business name (for a new account)',
+                    controller: _businessController,
+                  ),
+                  const SizedBox(height: 12),
+                  FulusTextField(
                     label: 'Cloud account password',
                     controller: _passwordController,
                     obscureText: true,
@@ -216,8 +291,18 @@ class _FulusCloudConnectionScreenState
                     width: double.infinity,
                     child: FulusButton(
                       label: 'Connect to Fulus Cloud',
-                      loading: _busy,
+                      loading: _busy && !_creatingAccount,
                       onPressed: _busy ? null : _connect,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(
+                      label: 'Create account & set up business',
+                      variant: FulusButtonVariant.secondary,
+                      loading: _busy && _creatingAccount,
+                      onPressed: _busy ? null : _createAccount,
                     ),
                   ),
                 ],

@@ -91,6 +91,48 @@ class AuthApi {
     }
   }
 
+  /// Creates a Fulus Cloud account using Supabase Auth.
+  /// Returns a session when email confirmation is disabled; otherwise the
+  /// returned user is unconfirmed and the UI can ask the user to verify.
+  Future<ServerSignUpResult> signUpServer({
+    required String email,
+    required String password,
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
+    try {
+      final response = await authClient.post(
+        '/auth/v1/signup',
+        data: {'email': email, 'password': password},
+        options: Options(headers: {
+          'apikey': publishableKey,
+          'content-type': 'application/json',
+        }),
+      );
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final accessToken = data['access_token'] as String?;
+      final refreshToken = data['refresh_token'] as String?;
+      final user = data['user'] as Map<String, dynamic>?;
+      if (accessToken != null && refreshToken != null && user != null) {
+        final session = ServerAuthSessionDto(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          userId: user['id'] as String,
+        );
+        await _client.setServerAccessToken(session.accessToken);
+        await _client.persistServerRefreshToken(session.refreshToken);
+        return ServerSignUpResult(session: session, emailConfirmed: user['email_confirmed_at'] != null);
+      }
+      return ServerSignUpResult(
+        session: null,
+        emailConfirmed: user?['email_confirmed_at'] != null,
+      );
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
   /// Restores an optional server session using only the secure refresh token.
   /// If none exists, the app remains fully local and this returns null.
   Future<ServerAuthSessionDto?> restoreServerSession({
@@ -114,6 +156,36 @@ class AuthApi {
       await _client.clearServerRefreshToken();
       _client.setAccessToken(null);
       return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> createCloudBusiness({
+    required String name,
+    required String functionBaseUrl,
+    required String publishableKey,
+    String currencyCode = 'NGN',
+    String timezone = 'Africa/Lagos',
+    String locationName = 'Main',
+  }) async {
+    try {
+      final response = await Dio(BaseOptions(baseUrl: functionBaseUrl)).post(
+        '',
+        data: {
+          'action': 'create_business',
+          'name': name,
+          'currency_code': currencyCode,
+          'timezone': timezone,
+          'location_name': locationName,
+        },
+        options: Options(headers: {
+          'apikey': publishableKey,
+          'Authorization': 'Bearer ${_client.serverAccessToken}',
+          'content-type': 'application/json',
+        }),
+      );
+      return Map<String, dynamic>.from(response.data as Map);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
     }
   }
 
@@ -161,4 +233,10 @@ class ServerAuthSessionDto {
     refreshToken: json['refresh_token'] as String,
     userId: (json['user'] as Map<String, dynamic>)['id'] as String,
   );
+}
+
+class ServerSignUpResult {
+  const ServerSignUpResult({required this.session, required this.emailConfirmed});
+  final ServerAuthSessionDto? session;
+  final bool emailConfirmed;
 }
