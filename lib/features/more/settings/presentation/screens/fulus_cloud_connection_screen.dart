@@ -13,7 +13,9 @@ import '../../../../../shared/widgets/widgets.dart';
 /// Optional cloud-account linking. Local PIN authentication and local
 /// business data remain usable when this connection is absent.
 class FulusCloudConnectionScreen extends ConsumerStatefulWidget {
-  const FulusCloudConnectionScreen({super.key});
+  const FulusCloudConnectionScreen({super.key, this.initialBusinessName});
+
+  final String? initialBusinessName;
 
   @override
   ConsumerState<FulusCloudConnectionScreen> createState() =>
@@ -28,6 +30,13 @@ class _FulusCloudConnectionScreenState
   bool _busy = false;
   bool _creatingAccount = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final name = initialBusinessName?.trim();
+    if (name != null && name.isNotEmpty) _businessController.text = name;
+  }
 
   @override
   void dispose() {
@@ -94,7 +103,10 @@ class _FulusCloudConnectionScreenState
         connection.selectBusiness(active.first.businessId);
         await _registerDevice(connection);
       }
-      if (mounted) showFulusSnackbar(context, message: 'Your business is ready. This device is connected.');
+      if (mounted) {
+        showFulusSnackbar(context, message: 'You’re ready. Fulus Cloud is connected.');
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } catch (error) {
