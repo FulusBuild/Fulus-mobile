@@ -277,8 +277,8 @@ class CloudRestoreImporter {
       'role': 'employee',
       'is_active': 1,
       'failed_login_attempts': 0,
-      'created_at': now.microsecondsSinceEpoch,
-      'updated_at': now.microsecondsSinceEpoch,
+      'created_at': now.millisecondsSinceEpoch,
+      'updated_at': now.millisecondsSinceEpoch,
     };
     await _insertValues('users', values);
   }
@@ -302,8 +302,8 @@ class CloudRestoreImporter {
       'email': email,
       'location_id': locationId,
       'is_active': isActive ? 1 : 0,
-      'created_at': createdAt.microsecondsSinceEpoch,
-      'updated_at': updatedAt.microsecondsSinceEpoch,
+      'created_at': createdAt.millisecondsSinceEpoch,
+      'updated_at': updatedAt.millisecondsSinceEpoch,
     };
     await _insertValues('employees', values);
   }
@@ -316,7 +316,7 @@ class CloudRestoreImporter {
     await _insertValues('user_permissions', {
       'user_id': userId,
       'permission': permission.name,
-      'granted_at': grantedAt.microsecondsSinceEpoch,
+      'granted_at': grantedAt.millisecondsSinceEpoch,
     });
   }
 
@@ -433,10 +433,10 @@ class CloudRestoreImporter {
       values['sync_status'] = 'settled';
     }
     if (info.has('created_at') && !values.containsKey('created_at')) {
-      values['created_at'] = DateTime.now().microsecondsSinceEpoch;
+      values['created_at'] = DateTime.now().millisecondsSinceEpoch;
     }
     if (info.has('updated_at') && !values.containsKey('updated_at')) {
-      values['updated_at'] = values['created_at'] ?? DateTime.now().microsecondsSinceEpoch;
+      values['updated_at'] = values['created_at'] ?? DateTime.now().millisecondsSinceEpoch;
     }
 
     final missing = info.columns
@@ -478,7 +478,7 @@ class CloudRestoreImporter {
         final parsed = int.tryParse(value);
         if (parsed != null) return parsed;
         final date = DateTime.tryParse(value);
-        if (date != null) return date.microsecondsSinceEpoch;
+        if (date != null) return date.millisecondsSinceEpoch;
       }
     }
     if (sqliteType.contains('REAL') || sqliteType.contains('DOUBLE') || sqliteType.contains('FLOAT')) {
