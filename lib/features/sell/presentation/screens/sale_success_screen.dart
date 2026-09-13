@@ -89,7 +89,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
           children: [
             TweenAnimationBuilder<double>(
               tween: Tween(begin: reduceMotion ? 1 : 0.94, end: 1),
-              duration: fulusMotionDuration(context, AppMotion.normal),
+              duration: fulusMotionDuration(context, AppMotion.standard),
               curve: Curves.easeOutCubic,
               builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
               child: Container(
@@ -104,7 +104,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                   children: [
                     TweenAnimationBuilder<double>(
                       tween: Tween(begin: reduceMotion ? 1 : 0.7, end: 1),
-                      duration: fulusMotionDuration(context, AppMotion.normal),
+                      duration: fulusMotionDuration(context, AppMotion.standard),
                       curve: Curves.easeOutBack,
                       builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
                       child: Container(
