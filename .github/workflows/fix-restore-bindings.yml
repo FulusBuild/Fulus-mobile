@@ -1,0 +1,41 @@
+name: fix restore bindings
+on:
+  push:
+    branches:
+      - phase-11-cloud-restore-on-reinstall
+    paths-ignore:
+      - .github/workflows/fix-restore-bindings.yml
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: phase-11-cloud-restore-on-reinstall
+      - name: Fix customStatement bindings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/data/remote/cloud_restore_importer.dart')
+          s = p.read_text()
+          old = '''    final variables = columns.map((column) => _variable(values[column])).toList(growable: false);\n    await _db.customStatement(\n      'INSERT INTO ${_quoteIdentifier(table)} (${columns.map(_quoteIdentifier).join(', ')}) VALUES ($placeholders)',\n      variables,\n    );'''
+          new = '''    await _db.customStatement(\n      'INSERT INTO ${_quoteIdentifier(table)} (${columns.map(_quoteIdentifier).join(', ')}) VALUES ($placeholders)',\n      values.values.toList(growable: false),\n    );'''
+          if old not in s:
+              raise SystemExit('expected binding block not found')
+          s = s.replace(old, new, 1)
+          start = s.find('\n  Variable<Object> _variable(Object? value) {')
+          if start != -1:
+              end = s.find('\n  DateTime _dateOrNow', start)
+              if end == -1:
+                  raise SystemExit('variable helper end not found')
+              s = s[:start] + s[end:]
+          p.write_text(s)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib/data/remote/cloud_restore_importer.dart
+          git commit -m "fix(restore): bind raw SQLite values in importer" || exit 0
+          git push origin phase-11-cloud-restore-on-reinstall
