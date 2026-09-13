@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// Quiet, branded skeleton primitive. Content-shaped placeholders preserve
 /// layout while data loads, avoiding large blank or dark blocks that can be
@@ -16,8 +17,23 @@ class FulusSkeletonBox extends StatefulWidget {
 }
 
 class _FulusSkeletonBoxState extends State<FulusSkeletonBox> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1050))..repeat(reverse: true);
-  late final Animation<double> _opacity = Tween(begin: 0.42, end: 0.78).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic));
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1050),
+  );
+  late final Animation<double> _opacity = Tween(begin: 0.42, end: 0.78).animate(
+    CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -29,13 +45,27 @@ class _FulusSkeletonBoxState extends State<FulusSkeletonBox> with SingleTickerPr
   Widget build(BuildContext context) {
     final base = AppColors.surfaceAltOf(context);
     if (MediaQuery.disableAnimationsOf(context)) {
-      return Container(width: widget.width, height: widget.height, decoration: BoxDecoration(color: base, borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm)));
+      return Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: base,
+          borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm),
+        ),
+      );
     }
     return AnimatedBuilder(
       animation: _opacity,
       builder: (context, child) => Opacity(
         opacity: _opacity.value,
-        child: Container(width: widget.width, height: widget.height, decoration: BoxDecoration(color: base, borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm))),
+        child: Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            color: base,
+            borderRadius: widget.borderRadius ?? BorderRadius.circular(AppRadius.sm),
+          ),
+        ),
       ),
     );
   }
@@ -56,10 +86,19 @@ class FulusListRowSkeleton extends StatelessWidget {
             FulusSkeletonBox(width: 40, height: 40, borderRadius: BorderRadius.circular(AppRadius.pill)),
             const SizedBox(width: AppSpacing.md),
           ],
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            const FulusSkeletonBox(width: 160, height: 14),
-            if (hasSubtitle) ...[const SizedBox(height: AppSpacing.xs), const FulusSkeletonBox(width: 100, height: 12)],
-          ])),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const FulusSkeletonBox(width: 160, height: 14),
+                if (hasSubtitle) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  const FulusSkeletonBox(width: 100, height: 12),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -72,13 +111,20 @@ class FulusCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        AspectRatio(aspectRatio: 1, child: FulusSkeletonBox(borderRadius: BorderRadius.circular(AppRadius.lg))),
-        const SizedBox(height: AppSpacing.sm),
-        const FulusSkeletonBox(width: 100, height: 14),
-        const SizedBox(height: AppSpacing.xs),
-        const FulusSkeletonBox(width: 60, height: 12),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: FulusSkeletonBox(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const FulusSkeletonBox(width: 100, height: 14),
+          const SizedBox(height: AppSpacing.xs),
+          const FulusSkeletonBox(width: 60, height: 12),
+        ],
+      ),
     );
   }
 }
@@ -89,11 +135,15 @@ class FulusStatCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.all(AppSpacing.md),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        FulusSkeletonBox(width: 80, height: 12),
-        SizedBox(height: AppSpacing.sm),
-        FulusSkeletonBox(width: 70, height: 22),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FulusSkeletonBox(width: 80, height: 12),
+          SizedBox(height: AppSpacing.sm),
+          FulusSkeletonBox(width: 70, height: 22),
+        ],
+      ),
     );
   }
 }
@@ -126,7 +176,7 @@ class _FulusDelayedSkeletonState extends State<FulusDelayedSkeleton> {
   Widget build(BuildContext context) {
     return AnimatedOpacity(
       opacity: _show || MediaQuery.disableAnimationsOf(context) ? 1 : 0,
-      duration: AppMotion.fast,
+      duration: fulusMotionDuration(context, AppMotion.fast),
       child: widget.skeleton,
     );
   }
@@ -144,7 +194,20 @@ class FulusLoadingIndicator extends StatefulWidget {
 }
 
 class _FulusLoadingIndicatorState extends State<FulusLoadingIndicator> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -156,23 +219,35 @@ class _FulusLoadingIndicatorState extends State<FulusLoadingIndicator> with Sing
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 56,
-          height: 56,
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: AppColors.selectedTintOf(context), shape: BoxShape.circle),
-          child: reduceMotion
-              ? CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryOf(context))
-              : AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) => Transform.rotate(angle: _controller.value * 6.283185307, child: child),
-                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryOf(context)),
-                ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(widget.label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.selectedTintOf(context),
+              shape: BoxShape.circle,
+            ),
+            child: reduceMotion
+                ? CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryOf(context))
+                : AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) => Transform.rotate(
+                      angle: _controller.value * 6.283185307,
+                      child: child,
+                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryOf(context)),
+                  ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            widget.label,
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+        ],
+      ),
     );
   }
 }
