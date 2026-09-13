@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,8 +41,9 @@ class _FulusAppState extends ConsumerState<FulusApp> {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: appRouter,
-      builder: (context, child) =>
-          AutoBackupGate(child: AppLockGate(child: child ?? const SizedBox.shrink())),
+      builder: (context, child) => AutoBackupGate(
+        child: AppLockGate(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }
