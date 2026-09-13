@@ -12,6 +12,7 @@ import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/screens/barcode_scan_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../../core/ux/consumer_polish.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/quick_sale_sheet.dart';
@@ -117,9 +118,21 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
     try {
       await context.read<CartCubit>().addProduct(match.product.localId);
       if (context.mounted) {
+        FulusHaptics.selection();
         showFulusSnackbar(context, message: '${match.product.name} added');
       }
     } on StateError catch (e) {
+      FulusHaptics.error();
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
+    }
+  }
+
+  Future<void> _addProduct(BuildContext context, ProductWithStock product) async {
+    try {
+      await context.read<CartCubit>().addProduct(product.product.localId);
+      if (context.mounted) FulusHaptics.selection();
+    } on StateError catch (e) {
+      FulusHaptics.error();
       if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
   }
@@ -153,6 +166,7 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
             child: FulusSearchField(
               controller: _searchController,
               hintText: 'Search products…',
+              autofocus: true,
               onChanged: (value) => setState(() => _query = value),
             ),
           ),
@@ -208,6 +222,7 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
                   query: _query,
                   categoryId: _selectedCategoryId,
                   onClearSearch: _clearSearch,
+                  onAddProduct: (product) => _addProduct(context, product),
                 );
               },
             ),
@@ -241,6 +256,7 @@ class _ProductArea extends StatelessWidget {
     required this.query,
     required this.categoryId,
     required this.onClearSearch,
+    required this.onAddProduct,
   });
 
   final Map<String, ProductWithStock> catalog;
@@ -249,6 +265,7 @@ class _ProductArea extends StatelessWidget {
   final String query;
   final String? categoryId;
   final VoidCallback onClearSearch;
+  final Future<void> Function(ProductWithStock product) onAddProduct;
 
   @override
   Widget build(BuildContext context) {
@@ -311,16 +328,18 @@ class _ProductArea extends StatelessWidget {
       itemBuilder: (context, i) => _ProductTile(
         productWithStock: products[i],
         currencySymbol: currencySymbol,
+        onAdd: onAddProduct,
       ),
     );
   }
 }
 
 class _ProductTile extends StatelessWidget {
-  const _ProductTile({required this.productWithStock, required this.currencySymbol});
+  const _ProductTile({required this.productWithStock, required this.currencySymbol, required this.onAdd});
 
   final ProductWithStock productWithStock;
   final String currencySymbol;
+  final Future<void> Function(ProductWithStock product) onAdd;
 
   bool get _outOfStock => productWithStock.product.tracksStock && productWithStock.currentStock <= 0;
 
@@ -329,92 +348,83 @@ class _ProductTile extends StatelessWidget {
     final product = productWithStock.product;
     return Opacity(
       opacity: _outOfStock ? AppOpacity.disabled : 1.0,
-      child: FulusCard(
-        onTap: () => _handleTap(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.selectedTintOf(context),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  alignment: Alignment.center,
-                  child: product.photoPath == null
-                      ? Icon(
-                          Icons.inventory_2_outlined,
-                          size: AppIconSize.emphasis,
-                          color: AppColors.primaryOf(context).withValues(alpha: 0.55),
-                        )
-                      : Image.file(
-                          File(product.photoPath!),
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          cacheWidth: 300,
-                          errorBuilder: (context, error, stackTrace) => Icon(
+      child: FulusPressable(
+        semanticsLabel: _outOfStock ? '${product.name}, out of stock' : 'Add ${product.name} to sale',
+        onPressed: _outOfStock ? null : () => onAdd(productWithStock),
+        child: FulusCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.selectedTintOf(context),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    alignment: Alignment.center,
+                    child: product.photoPath == null
+                        ? Icon(
                             Icons.inventory_2_outlined,
                             size: AppIconSize.emphasis,
                             color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+                          )
+                        : Image.file(
+                            File(product.photoPath!),
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            cacheWidth: 300,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.inventory_2_outlined,
+                              size: AppIconSize.emphasis,
+                              color: AppColors.primaryOf(context).withValues(alpha: 0.55),
+                            ),
                           ),
-                        ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              product.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textPrimaryOf(context),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              formatMoney(product.sellingPrice, symbol: currencySymbol),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: AppColors.primaryOf(context),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (_outOfStock)
+              const SizedBox(height: AppSpacing.sm),
               Text(
-                'Out of stock',
+                product.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                formatMoney(product.sellingPrice, symbol: currencySymbol),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)),
-              )
-            else if (product.tracksStock && productWithStock.isLowStock)
-              Text(
-                'Only ${productWithStock.currentStock} left',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption.copyWith(color: AppColors.warningOf(context)),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.primaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-          ],
+              if (_outOfStock)
+                Text(
+                  'Out of stock',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)),
+                )
+              else if (product.tracksStock && productWithStock.isLowStock)
+                Text(
+                  'Only ${productWithStock.currentStock} left',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(color: AppColors.warningOf(context)),
+                ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  Future<void> _handleTap(BuildContext context) async {
-    if (_outOfStock) {
-      showFulusSnackbar(context, message: '${productWithStock.product.name} is out of stock.');
-      return;
-    }
-    try {
-      await context.read<CartCubit>().addProduct(productWithStock.product.localId);
-    } on StateError catch (e) {
-      if (context.mounted) showFulusSnackbar(context, message: e.message);
-    }
   }
 }
 
@@ -438,9 +448,9 @@ class _CartSummaryBar extends StatelessWidget {
           child: Material(
             color: AppColors.primaryOf(context),
             borderRadius: BorderRadius.circular(AppRadius.md),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              onTap: () {
+            child: FulusPressable(
+              semanticsLabel: 'View cart, ${state.itemCount} ${state.itemCount == 1 ? 'item' : 'items'}',
+              onPressed: () {
                 final cubit = context.read<CartCubit>();
                 Navigator.of(context).push(
                   MaterialPageRoute(

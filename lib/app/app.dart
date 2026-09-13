@@ -41,8 +41,11 @@ class _FulusAppState extends ConsumerState<FulusApp> {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: appRouter,
-      builder: (context, child) => AutoBackupGate(
-        child: AppLockGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: AutoBackupGate(
+          child: AppLockGate(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -44,7 +45,12 @@ class CartScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: EdgeInsets.fromLTRB(
+                    fulusHorizontalInset(context),
+                    AppSpacing.lg,
+                    fulusHorizontalInset(context),
+                    AppSpacing.lg,
+                  ),
                   itemCount: cartState.items.length,
                   separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, i) => _CartLineTile(
@@ -162,6 +168,7 @@ class _CartLineTile extends StatelessWidget {
   void _remove(BuildContext context) {
     final cubit = context.read<CartCubit>();
     cubit.removeItem(item.localId);
+    FulusHaptics.selection();
     showFulusSnackbar(
       context,
       message: 'Removed ${item.description}',
@@ -183,28 +190,33 @@ class _QuantityStepper extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _StepButton(icon: Icons.remove, onTap: () => cubit.decrementItem(item)),
-        InkWell(
-          onTap: () => _editQuantity(context, cubit),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${item.quantity}',
-                  style: AppTypography.body.copyWith(
-                    color: AppColors.textPrimaryOf(context),
-                    fontWeight: FontWeight.w600,
+        _StepButton(icon: Icons.remove, semanticsLabel: 'Decrease ${item.description}', onTap: () => cubit.decrementItem(item)),
+        FulusPressable(
+          semanticsLabel: 'Edit quantity for ${item.description}',
+          onPressed: () => _editQuantity(context, cubit),
+          child: SizedBox(
+            height: AppTouchTarget.minimum,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${item.quantity}',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                if (unit != null)
-                  Text(unit!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-              ],
+                  if (unit != null)
+                    Text(unit!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                ],
+              ),
             ),
           ),
         ),
-        _StepButton(icon: Icons.add, onTap: () => _increment(context, cubit)),
+        _StepButton(icon: Icons.add, semanticsLabel: 'Increase ${item.description}', onTap: () => _increment(context, cubit)),
       ],
     );
   }
@@ -212,7 +224,9 @@ class _QuantityStepper extends StatelessWidget {
   Future<void> _increment(BuildContext context, CartCubit cubit) async {
     try {
       await cubit.incrementItem(item);
+      FulusHaptics.selection();
     } on StateError catch (e) {
+      FulusHaptics.error();
       if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
   }
@@ -245,25 +259,28 @@ class _QuantityStepper extends StatelessWidget {
     if (result == null || !context.mounted) return;
     try {
       await cubit.setItemQuantity(item, result);
+      FulusHaptics.selection();
     } on StateError catch (e) {
+      FulusHaptics.error();
       if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
   }
 }
 
 class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
+  const _StepButton({required this.icon, required this.onTap, required this.semanticsLabel});
   final IconData icon;
   final VoidCallback onTap;
+  final String semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
+    return FulusPressable(
+      semanticsLabel: semanticsLabel,
+      onPressed: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: AppTouchTarget.minimum,
+        height: AppTouchTarget.minimum,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.surfaceAltOf(context),
@@ -283,7 +300,7 @@ class _CustomerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: fulusHorizontalInset(context)),
       child: FulusListRow(
         leading: Icon(Icons.person_outline, color: AppColors.textSecondaryOf(context)),
         title: Text(customer?.name ?? 'Add a customer (optional)'),
@@ -305,7 +322,7 @@ class _TotalsFooter extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(fulusHorizontalInset(context)),
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
           boxShadow: AppElevation.liftOf(context),
@@ -348,8 +365,9 @@ class _DiscountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasDiscount = state.discount > 0;
-    return InkWell(
-      onTap: () => DiscountSheet.show(
+    return FulusPressable(
+      semanticsLabel: 'Discount for this sale',
+      onPressed: () => DiscountSheet.show(
         context,
         title: 'Discount on this sale',
         baseAmount: state.subtotal,
