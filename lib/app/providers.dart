@@ -624,7 +624,7 @@ final onboardingStateProvider = Provider<OnboardingState>((ref) {
 /// just [FirstRunSetupScreen]) writes here too, right after its
 /// `OnboardingState` call succeeds.
 final firstRunPromptSeenProvider = StateProvider<bool>((ref) {
-  return ref.watch(onboardingStateProvider).hasSeenFirstRunPrompt();
+  return ref.watch(onboardingStateProvider).hasSeenFirstRunPrompt;
 });
 
 /// Reactive mirror of [OnboardingState.walkthroughStep] — same shape,
