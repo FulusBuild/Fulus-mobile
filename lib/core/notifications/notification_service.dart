@@ -4,25 +4,10 @@ import 'package:ulid/ulid.dart';
 import '../../domain/entities/app_notification.dart';
 import '../../domain/repositories/notification_repository.dart';
 
-/// Stage 13 — Notifications.
-///
 /// The single entry point for showing an OS-level notification. Every
-/// call also writes an [AppNotification] to [NotificationRepository] —
-/// callers get both the interruptive OS notification AND the
-/// non-interruptive in-app history entry from one call, rather than
-/// needing to remember to do both themselves (the same "one call, the
-/// obvious side effect happens too" shape AuthRepositoryImpl's
-/// _persistSession already uses internally for sessions).
-///
-/// Deliberately exposes exactly two public methods —
-/// [notifyStuckSync] and [notifyBlockedPaymentCompleted] — matching
-/// Volume 12 Decision 43's own "exactly two situations" precisely,
-/// rather than a generic `notify(title, body)` a future caller could
-/// use to reintroduce the "notify on everything" pattern Decision 43
-/// deliberately rejected. Adding a third real situation later means
-/// adding a third named method here (and a third AppNotificationType),
-/// a conscious, visible change — not a new call site quietly reusing a
-/// generic one.
+/// call also writes an [AppNotification] to [NotificationRepository].
+/// Sync notifications are intentionally rare: only a persistent sync
+/// problem is surfaced because normal offline operation is expected.
 class NotificationService {
   NotificationService({
     required NotificationRepository notificationRepository,
@@ -33,16 +18,6 @@ class NotificationService {
   final NotificationRepository _notificationRepository;
   final FlutterLocalNotificationsPlugin _plugin;
 
-  /// Two channels, not one — Android's own notification-settings screen
-  /// lets an owner control each channel independently, and these two
-  /// situations genuinely differ in urgency (a completed payment is good
-  /// news worth a sound; a stuck sync is a "when you get a chance" nudge,
-  /// not urgent enough to disturb someone the same way — Volume 12's own
-  /// "gentle nudge" phrasing for this one specifically). Splitting them
-  /// gives an owner who wants payment confirmations but not sync nudges
-  /// (or vice versa) a real, standard OS-level way to say so, rather
-  /// than an all-or-nothing app-level toggle this stage would have to
-  /// build itself.
   static const _paymentChannel = AndroidNotificationChannel(
     'fulus_payment_completed',
     'Payment confirmations',
@@ -60,15 +35,6 @@ class NotificationService {
 
   bool _initialized = false;
 
-  /// Idempotent, and deliberately NOT called from bootstrap.dart —
-  /// unlike SyncTriggers.start() or similar one-time setup, channel
-  /// creation has no reason to happen before this service is first
-  /// actually used. [notifyStuckSync] and
-  /// [notifyBlockedPaymentCompleted] both call this themselves as their
-  /// first line, so bootstrap.dart doesn't need to (and requesting the
-  /// POST_NOTIFICATIONS runtime permission — [_ensurePermission] — is
-  /// kept separate from this method entirely, for the contextual-timing
-  /// reason explained on that method).
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -85,17 +51,6 @@ class NotificationService {
     _initialized = true;
   }
 
-  /// Nice-to-have gap closure — Volume 3's onboarding permission-primer
-  /// list names notifications specifically, timed to "when they finish
-  /// their first sale," which is neither of this class's two existing
-  /// situations. Rather than fabricate a notification just to trigger
-  /// the OS permission dialog early, this is a thin public seam onto
-  /// the same two private steps [notifyStuckSync] and
-  /// [notifyBlockedPaymentCompleted] already run lazily on their own
-  /// first call — no notification is shown, no [AppNotification] is
-  /// recorded, so this doesn't add a third "situation" in Decision 43's
-  /// sense, only an earlier moment to ask the one real question this
-  /// class ever asks the OS.
   Future<bool> ensurePermission() async {
     await initialize();
     return _ensurePermission();
@@ -109,19 +64,18 @@ class NotificationService {
     return granted ?? false;
   }
 
-  /// Volume 12: "pending data that's stayed unsynced for an unusually
-  /// long time despite the device showing as online." Called from
-  /// sync/sync_status_notifier.dart, which already owns the "has this
-  /// actually been stuck long enough, and have I already said so once"
-  /// judgment — this method's only job is showing it and logging it.
+  /// A persistent sync problem is a gentle heads-up, not an indication
+  /// that local work was lost. Automatic retries continue in the
+  /// background; the notification deliberately gives no technical action
+  /// the owner needs to perform.
   Future<void> notifyStuckSync({required int attentionCount}) async {
     await initialize();
     if (!await _ensurePermission()) return;
 
-    final title = 'Sync needs a moment';
+    final title = 'Cloud backup is taking longer than usual';
     final body = attentionCount == 1
-        ? "1 item hasn't synced yet — check your connection, or try Sync Now."
-        : "$attentionCount items haven't synced yet — check your connection, or try Sync Now.";
+        ? 'Your work is safe on this device. Fulus will keep trying automatically.'
+        : '$attentionCount items are taking longer than usual. Your work is safe on this device and Fulus will keep trying automatically.';
 
     await _show(
       channel: _syncChannel,
@@ -131,14 +85,6 @@ class NotificationService {
     );
   }
 
-  /// Volume 12: "a Card or Mobile Money payment that was blocked offline
-  /// (Volume 5, Decision 17) finally completing once connectivity
-  /// returns." [saleId] is the local Sale this payment belongs to —
-  /// intentionally the only entity-specific parameter, with the
-  /// caller (future Sales/Payments retry logic, Stage 7 — not this
-  /// stage) responsible for its own amount/currency formatting rather
-  /// than this service reaching into BusinessSettingsRepository itself
-  /// to guess at it.
   Future<void> notifyBlockedPaymentCompleted({
     required String saleId,
     required String amountDisplay,
