@@ -60,11 +60,9 @@ class _FulusCloudConnectionScreenState
           );
       if (!mounted) return;
       if (result.session != null) {
-        final connection = ref.read(fulusConnectionStateProvider);
-        await connection.refresh();
-        showFulusSnackbar(context, message: 'Account created. Finish your business setup to get started.');
+        await _provisionBusiness();
       } else {
-        showFulusSnackbar(context, message: 'Account created. Check your email to verify it, then connect here.');
+        showFulusSnackbar(context, message: 'Account created. Check your email to verify it, then return here to finish setup.');
       }
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
