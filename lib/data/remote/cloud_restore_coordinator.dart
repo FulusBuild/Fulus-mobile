@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/business_settings.dart';
 import '../local/database/database.dart';
 import 'cloud_restore_importer.dart';
@@ -7,11 +8,10 @@ import 'cloud_restore_importer.dart';
 /// Coordinates the parts of reinstall recovery that must happen around the
 /// existing transactional data importer.
 ///
-/// The importer intentionally owns the destructive business-data transaction.
-/// This coordinator makes sure the two pieces it needs in order to satisfy
-/// local foreign keys (the owner identity) and onboarding (business settings)
-/// exist before the import, while restoring the previous settings if the
-/// destructive import fails.
+/// The importer owns the destructive business-data transaction. This
+/// coordinator ensures the cloud settings are available before local mutation,
+/// imports the owner identity so owner-referenced rows satisfy local FKs, and
+/// creates the local session only after the import has verified integrity.
 class CloudRestoreCoordinator {
   CloudRestoreCoordinator(this._db);
 
@@ -26,18 +26,14 @@ class CloudRestoreCoordinator {
     final previousSettings =
         await (_db.select(_db.businessSettings)).getSingleOrNull();
 
-    // Settings are fetched by the caller before this method is entered, so a
-    // network failure cannot leave the local database half-restored. Write the
-    // server copy before the destructive import and compensate if import
-    // fails; the import itself remains the authoritative atomic boundary.
+    // The caller fetched this before entering the destructive phase. Persist
+    // it now so a settings outage cannot occur halfway through the restore.
     await _replaceSettings(settings);
 
     try {
-      // The existing importer historically skipped the owner because the
-      // screen created the owner after import. That breaks FK-backed rows
-      // (e.g. sales.cashier_user_id and audit actors) during verification.
-      // Import the authenticated identity too; it is normalized to owner
-      // immediately below.
+      // Import the authenticated identity too. The previous flow skipped it
+      // and created the owner afterward, which could leave sales/audit rows
+      // pointing at a user that did not exist during FK verification.
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: null,
@@ -51,6 +47,9 @@ class CloudRestoreCoordinator {
 
       return result;
     } catch (_) {
+      // CloudRestoreImporter is itself transactional. Restore the settings
+      // row as the compensating operation for the small pre-import settings
+      // transaction so a failed restore does not strand onboarding state.
       await _restorePreviousSettings(previousSettings);
       rethrow;
     }
@@ -116,9 +115,9 @@ class CloudRestoreCoordinator {
         ),
       );
 
-      // The generic staff importer creates an Employee row for every
-      // membership so that all cloud identities have a local representation.
-      // The owner is an identity, not an employee; remove that synthetic row.
+      // The generic staff importer creates an Employee row for every cloud
+      // membership. The owner is a local identity, not an employee, so remove
+      // that synthetic employee row before exposing the restored session.
       await (_db.delete(_db.employees)
             ..where((e) => e.authUserId.equals(ownerCloudUserId)))
           .go();
