@@ -13,6 +13,7 @@ import '../domain/entities/permission.dart';
 import '../domain/entities/product.dart';
 import '../domain/entities/supplier.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
+import '../features/auth/presentation/screens/auth_callback_screen.dart';
 import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/money/domain/cash_drawer_state.dart';
@@ -171,6 +172,17 @@ final appRouter = GoRouter(
     return '/';
   },
   routes: [
+    GoRoute(
+      path: '/auth/callback',
+      name: 'authCallback',
+      builder: (context, state) {
+        final uri = state.extra;
+        if (uri is! Uri) {
+          return const AuthGateScreen();
+        }
+        return AuthCallbackScreen(uri: uri);
+      },
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) => _ShellGate(navigationShell: navigationShell),
       branches: [
@@ -485,7 +497,9 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: 'cloud',
                       name: 'moreSettingsCloud',
-                      builder: (context, state) => const FulusCloudConnectionScreen(),
+                      builder: (context, state) => FulusCloudConnectionScreen(
+                        initialBusinessName: state.extra is String ? state.extra as String : null,
+                      ),
                     ),
                     GoRoute(
                       path: 'printers',
