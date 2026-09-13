@@ -6,108 +6,66 @@ import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../../sync/sync_status.dart';
 
-/// Gap fix — Volume 12's Sync Detail screen didn't exist at all; the
-/// full sync engine (retry policy, conflict resolver, sync queue,
-/// SyncStatusNotifier) was built with nothing in the UI ever reading
-/// it. Reached by tapping the persistent indicator (see app_shell.dart's
-/// `_SyncStatusIndicator`) or from Settings.
+/// A simple, human-readable view of automatic cloud backup.
+///
+/// Sync is intentionally not presented as a feature the owner needs to
+/// operate. Fulus saves locally first and handles cloud synchronization in
+/// the background whenever Cloud is connected and the device is online.
 class SyncDetailScreen extends ConsumerWidget {
   const SyncDetailScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final syncConfig = ref.watch(syncConfigProvider);
     final statusAsync = ref.watch(_syncDetailStatusProvider);
 
     return FulusScreen(
       title: 'Sync & backup',
       body: ListView(
         children: [
-          FulusSectionHeader(title: 'Status'),
+          FulusSectionHeader(title: 'Your data'),
           statusAsync.when(
-            data: (status) => _StatusCard(status: status, syncEnabled: syncConfig.isEnabled),
+            data: (status) => _StatusCard(status: status),
             loading: () => const FulusLoadingIndicator(),
             error: (_, __) => FulusErrorState(
-              message: "Couldn't read sync status.",
+              message: "Couldn't read backup status.",
               onRetry: () => ref.invalidate(_syncDetailStatusProvider),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          if (syncConfig.isEnabled && statusAsync.value?.kind != SyncStatusKind.disabled) ...[
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: 'Sync now',
-                onPressed: () => _syncNow(context, ref),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-          FulusSectionHeader(title: 'Settings'),
           FulusCard(
-            child: SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              value: syncConfig.isEnabled,
-              onChanged: (value) => _setEnabled(context, ref, value),
-              title: Text('Sync enabled', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
-              subtitle: Text(
-                'Fulus works fully offline either way — this only controls whether '
-                'your data also backs up to sync once you\'re online.',
-                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-              ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: AppColors.textSecondaryOf(context),
+                  size: AppIconSize.compact,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Fulus always saves your work on this device first. When Fulus Cloud is connected, backup and sync happen automatically in the background.',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-
-  Future<void> _syncNow(BuildContext context, WidgetRef ref) async {
-    try {
-      await ref.read(syncTriggersProvider).syncNow();
-      ref.invalidate(_syncDetailStatusProvider);
-      if (context.mounted) showFulusSnackbar(context, message: 'Sync started.');
-    } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't reach the server right now — this will keep retrying.");
-      }
-    }
-  }
-
-  Future<void> _setEnabled(BuildContext context, WidgetRef ref, bool value) async {
-    await ref.read(syncConfigProvider).setEnabled(value);
-    // syncConfigProvider itself is a fixed value from bootstrap.dart
-    // (invalidating it is a no-op) — but SyncStatusNotifier.watch()
-    // only checks SyncConfig.isEnabled at the moment a subscriber
-    // (re-)subscribes, not reactively within an already-open stream.
-    // Invalidating this forces that re-subscription, which is what
-    // actually picks up the flip — and rebuilds this whole widget in
-    // the process, which is what picks up the new isEnabled value
-    // everywhere else on this screen (the Sync Now button, the switch
-    // itself) in the same pass.
-    ref.invalidate(_syncDetailStatusProvider);
-    if (!context.mounted) return;
-    showFulusSnackbar(
-      context,
-      message: value
-          ? 'Sync enabled. Pending data will sync when a server connection is available.'
-          : 'Sync disabled. Data already queued will stay queued until you turn this back on.',
-    );
-  }
 }
 
-/// [syncStatusNotifierProvider] exposes a Stream; wrapped as a
-/// StreamProvider here rather than watched with a raw StreamBuilder so
-/// this screen can `ref.invalidate` it the same way it invalidates
-/// everything else after Sync Now / the enable toggle.
 final _syncDetailStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
   return ref.watch(syncStatusNotifierProvider).watch();
 });
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.status, required this.syncEnabled});
+  const _StatusCard({required this.status});
   final SyncStatus status;
-  final bool syncEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -115,33 +73,32 @@ class _StatusCard extends StatelessWidget {
       SyncStatusKind.disabled => (
           Icons.cloud_off_outlined,
           AppColors.textSecondaryOf(context),
-          'Sync is off',
-          'Turn it on below to back your data up once you\'re online. Nothing here is required — Fulus works fully offline.',
+          'Cloud backup is off',
+          'Your work is still safe on this device. Connect Fulus Cloud to back it up and use it across devices.',
         ),
       SyncStatusKind.settled => (
           Icons.cloud_done_outlined,
           AppColors.primaryOf(context),
-          'Everything is synced',
-          'All your data is backed up.',
+          'Everything is backed up',
+          'Nothing needs your attention.',
         ),
       SyncStatusKind.pending => (
           Icons.cloud_upload_outlined,
           AppColors.textSecondaryOf(context),
-          '${status.pendingCount} item${status.pendingCount == 1 ? '' : 's'} waiting to sync',
-          'Nothing recorded is at risk — this will send the moment you\'re back online.',
+          'Backup will continue automatically',
+          'Your work is safe on this device and will be sent when a connection is available.',
         ),
       SyncStatusKind.syncing => (
           Icons.sync,
           AppColors.primaryOf(context),
-          'Syncing now',
-          '${status.pendingCount} item${status.pendingCount == 1 ? '' : 's'} being sent.',
+          'Backing up now',
+          'Fulus is sending your saved work in the background.',
         ),
       SyncStatusKind.attentionNeeded => (
           Icons.warning_amber_outlined,
           AppColors.warningOf(context),
-          '${status.attentionCount} item${status.attentionCount == 1 ? '' : 's'} need attention',
-          'These have failed to sync several times in a row. Your data is safe on this '
-              'device — try Sync now, or check your connection.',
+          'Some backup is taking longer than usual',
+          'Your work is safe on this device. Fulus will keep trying automatically. If this continues, check your internet connection.',
         ),
     };
 
@@ -154,9 +111,19 @@ class _StatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(headline, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
+                Text(
+                  headline,
+                  style: AppTypography.subheading.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(body, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                Text(
+                  body,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                  ),
+                ),
               ],
             ),
           ),
