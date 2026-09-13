@@ -6,54 +6,14 @@ import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'backup_restore_decision_screen.dart';
+import 'cloud_restore_screen.dart';
 import 'owner_setup_screen.dart';
 
-/// Nice-to-have gap closure — Volume 3, "Install & Launch": "First
-/// launch goes straight to a single, unambiguous 'Get started' action —
-/// no login form, no blank splash screen waiting on a network call."
+/// First-launch entry point for a device with no local owner/business yet.
 ///
-/// Before this screen existed, [AuthGateScreen] built [OwnerSetupScreen]
-/// directly the moment it confirmed no owner account exists on the
-/// device — a correct decision (no login form shown to someone who has
-/// nothing to log into yet) but not what the Bible actually specifies
-/// for the very first thing a new install shows: a two-field form
-/// (business name, "Owner name / username / password") rather than one
-/// unambiguous action to tap. This screen is that one action, standing
-/// in front of [OwnerSetupScreen] rather than replacing it — everything
-/// [OwnerSetupScreen] already does (account, then business, resumable
-/// if interrupted) is untouched.
-///
-/// Purely static — no repository read, no `FutureBuilder`, nothing
-/// awaited before the first frame — matching "Target: interactive in
-/// under 3 seconds on a 2GB-RAM device" as directly as a single stateless
-/// widget can.
-///
-/// The Employee half of Volume 3's Install & Launch ("Kwame's first
-/// launch starts with 'I have a code' instead of 'Get started'") is
-/// deliberately not built here — that path depends on the employee
-/// cross-device invite/QR flow, which PROGRESS.md already tracks
-/// separately as its own not-yet-started nice-to-have. Adding an "I have
-/// a code" button with nothing on the other end of it would be worse
-/// than not offering it at all, per Volume 12's "never a dead end"
-/// production rule — see [AuthGateScreen]'s own doc comment for the
-/// same reasoning applied to sign-in.
-///
-/// **Restore-after-reinstall gap fix.** [AuthGateScreen] already routes
-/// straight to [BackupRestoreDecisionScreen] when it finds a backup
-/// sitting in this app's own folder — but that folder is exactly what
-/// Android deletes the moment the app is uninstalled (see
-/// BackupRepository.setDurableBackupFolder's own doc comment), so on a
-/// genuine reinstall that automatic check correctly finds nothing, and
-/// this screen was the only thing anyone in that position would ever
-/// see — with no way to reach the file-picker restore
-/// [BackupRestoreDecisionScreen] also offers, even though that part
-/// works fine with zero auto-detected backups (a person restoring from
-/// a durable safety folder, an exported file from Drive/email/WhatsApp,
-/// or an SD card has a real destination to pick from regardless). "Get
-/// started" stays the one unambiguous primary action per Volume 3;
-/// this is a secondary, lower-emphasis way out for the one person who
-/// shouldn't be funneled into it — someone who already has a business
-/// here and is not starting from nothing.
+/// New installations can start locally without a network, while returning
+/// users who have an existing Fulus Cloud account have an explicit recovery
+/// path before they are asked to create a second local business.
 class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
@@ -95,6 +55,19 @@ class GetStartedScreen extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: FulusButton(
+              label: 'I already have a Fulus account',
+              variant: FulusButtonVariant.secondary,
+              onPressed: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SizedBox(
+            width: double.infinity,
+            child: FulusButton(
               label: 'Restore from a backup',
               variant: FulusButtonVariant.text,
               onPressed: () {
@@ -111,12 +84,6 @@ class GetStartedScreen extends ConsumerWidget {
   }
 }
 
-/// The real Fulus mark (assets/branding/fulus_mark_transparent.png),
-/// composed on a rounded [AppColors.primaryOf] tile the same way the
-/// master logo file itself pairs the mark with the brand teal — used
-/// here rather than a generic launcher-style icon, since Volume 3 opens
-/// this exact step with "The Play Store listing and app icon carry the
-/// entire first impression... the icon and name must read clearly."
 class _Mark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
