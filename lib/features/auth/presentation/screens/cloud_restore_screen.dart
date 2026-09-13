@@ -12,18 +12,12 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
 import '../../../../shared/widgets/widgets.dart';
 
-/// Restores a Fulus installation from an existing Fulus Cloud account.
+/// Restores a Fulus installation from the user's single Fulus Cloud business.
 ///
-/// A fresh install has no local owner/business rows, so the normal local
-/// onboarding gate cannot identify a returning customer. This screen makes
-/// the cloud account the recovery identity: authenticate, resolve the user's
-/// active business membership, recreate the local business profile, create a
-/// local owner identity, and register this installation for future sync.
-///
-/// The restore intentionally does not require the general sync toggle to be
-/// enabled. Reinstall recovery is an explicit user action, so the minimum
-/// cloud bootstrap is performed immediately; catalog/location pulls are best
-/// effort and can be completed later by the normal sync layer.
+/// Fulus Cloud deliberately uses a one-account/one-business relationship:
+/// one cloud identity owns exactly one business. This keeps reinstall
+/// recovery deterministic — sign in, resolve the one active membership,
+/// restore that business, and continue.
 class CloudRestoreScreen extends ConsumerStatefulWidget {
   const CloudRestoreScreen({super.key});
 
@@ -78,12 +72,15 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
       if (active.isEmpty) {
         throw StateError(
-          'This cloud account has no active Fulus business membership.',
+          'This cloud account is not linked to an active Fulus business.',
         );
       }
       if (active.length > 1) {
+        // Defensive guard for legacy/corrupt server state. New business
+        // creation is now protected by the one-account/one-business
+        // database constraint, so this should never occur normally.
         throw StateError(
-          'This account has more than one business. Sign in from Fulus Cloud to choose which business to restore.',
+          'This cloud account has multiple business memberships. Please contact Fulus support.',
         );
       }
 
@@ -95,8 +92,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
       // The local owner is the device's authentication identity. The cloud
       // account remains the server identity. We deliberately create this
-      // only after the business profile exists, so an interrupted restore
-      // never leaves a signed-in local owner with no business.
+      // only after the business profile exists.
       final owner = await ref.read(authRepositoryProvider).createFirstOwner(
             fullName: _displayNameFromEmail(email),
           );
@@ -241,7 +237,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'Your local data stays on this device. Cloud restore recreates the business profile here and brings down the cloud data currently supported by sync.',
+                    'One Fulus Cloud account is linked to one business. Your business can be restored on another device by signing in with the same account.',
                     textAlign: TextAlign.center,
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textSecondaryOf(context),
