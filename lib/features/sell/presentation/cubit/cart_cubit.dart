@@ -15,35 +15,6 @@ import '../../../../domain/repositories/draft_cart_repository.dart';
 import '../../../../domain/repositories/product_repository.dart';
 import 'cart_state.dart';
 
-/// The Sell screen's cart Cubit — pubspec.yaml's own dependency comment
-/// names this exact file as flutter_bloc's one deliberate, narrow
-/// exception to the app-wide Riverpod default (Architecture Section 2):
-/// "a deliberate, narrow, justified exception... not the start of a
-/// second state-management pattern elsewhere." `sale_draft.dart` and
-/// `tables.dart` both point here as "Section 2's cart Cubit — not yet
-/// built in this phase" before this pass.
-///
-/// Owns no cart data of its own — every mutation goes straight through
-/// [DraftCartRepository], which is the actual source of truth (Decision
-/// 14: the draft cart survives an app restart, not just a screen
-/// change). This Cubit's job is combining that repository's three
-/// separate streams (draft/items/payments) with a resolved [Customer],
-/// the live product catalog (for stock-aware add/increment), and the
-/// business's tax settings into one [CartState] the UI renders, and
-/// translating simple UI actions (tap a product, +/-, swipe to remove,
-/// pick a customer, take a payment) into the corresponding repository
-/// calls — validation errors are thrown as [StateError] for the calling
-/// widget to catch and show via `showFulusSnackbar`, the same
-/// throws-on-bad-input convention [DraftCartRepository]'s own
-/// implementation already uses.
-///
-/// One instance is created per Sell-tab session (see `sell_screen.dart`)
-/// and lives for as long as that tab's navigation branch does — a sale
-/// completing does not recreate it; `DraftCartRepositoryImpl.
-/// completeSale` clears the same draft-cart row rather than deleting
-/// it, so this Cubit's own subscriptions simply observe that row go
-/// back to empty and the Sell screen is ready for the next sale with no
-/// extra wiring.
 class CartCubit extends Cubit<CartState> {
   CartCubit({
     required DraftCartRepository draftCartRepository,
@@ -67,15 +38,6 @@ class CartCubit extends Cubit<CartState> {
   final CustomerRepository _customerRepository;
   final BusinessSettingsRepository _businessSettingsRepository;
   final String _locationId;
-
-  /// Optional, same reasoning as every other diagnosticLogger field
-  /// added in this pass. Used only for breadcrumbs here — one CartCubit
-  /// instance is one Sell-tab session (this class's own header comment),
-  /// which is exactly the granularity "Recent activity" on a later sale
-  /// failure benefits from: not just what
-  /// DraftCartRepositoryImpl.completeSale itself did, but what the
-  /// cashier was doing in the cart in the run-up to tapping Complete
-  /// Sale.
   final DiagnosticLogger? _diagnosticLogger;
 
   late final String _draftCartId;
@@ -93,13 +55,6 @@ class CartCubit extends Cubit<CartState> {
   String? _resolvedCustomerId;
   BusinessProfile? _profile;
   final Map<String, ProductWithStock> _catalog = {};
-  // Perf: rebuilt only when the catalog stream below actually fires —
-  // not on every _emitLoaded() call. Map.unmodifiable() performs a
-  // full O(n) copy of its argument (dart:core), so recomputing it on
-  // every draft/items/payments/settings emission was copying the
-  // entire product catalog on every cart tap, not just on real catalog
-  // changes. This snapshot is computed once per real catalog change
-  // and referenced from then on.
   Map<String, ProductWithStock> _catalogSnapshot = const {};
   bool _catalogLoaded = false;
   bool _submitting = false;
@@ -112,9 +67,6 @@ class CartCubit extends Cubit<CartState> {
       _draftCartId = draft.localId;
       _resolvedCustomerId = draft.customerLocalId;
       if (draft.customerLocalId != null) {
-        // Fire-and-forget — _emitLoaded() below already has enough to
-        // show a first frame; the resolved name fills in the moment
-        // this returns.
         unawaited(_resolveCustomer(draft.customerLocalId));
       }
 
@@ -164,8 +116,6 @@ class CartCubit extends Cubit<CartState> {
       return;
     }
     final customer = await _customerRepository.getCustomerById(customerLocalId);
-    // Only apply if still current — a fast second change shouldn't be
-    // clobbered by a slower earlier lookup's response arriving late.
     if (_resolvedCustomerId == customerLocalId) {
       _customer = customer;
       _emitLoaded();
@@ -174,13 +124,6 @@ class CartCubit extends Cubit<CartState> {
 
   double get _subtotal => _items.fold(0.0, (sum, i) => sum + i.lineTotal);
 
-  /// Volume 5, Checkout & Payment: "Tax is calculated automatically
-  /// from the business-type default... always shown as its own visible
-  /// line." [DraftCart.tax] exists precisely so a caller can supply
-  /// this already-computed figure (see that field's own doc comment);
-  /// this is that caller. Guarded against a redundant write so every
-  /// item/settings change doesn't trigger a write-then-rewatch loop
-  /// once the figure already matches.
   Future<void> _applyTax() async {
     final profile = _profile;
     final draft = _draft;
@@ -207,20 +150,6 @@ class CartCubit extends Cubit<CartState> {
     ));
   }
 
-  // ---------------------------------------------------------------
-  // Product selection / cart mutation
-  // ---------------------------------------------------------------
-
-  /// Adds one unit of the catalog product identified by
-  /// [productLocalId] — merges into an existing line for the same
-  /// product rather than creating a duplicate one, matching how a real
-  /// till behaves when the same item is scanned/tapped twice. Throws
-  /// [StateError] if the product can no longer be found, is inactive,
-  /// or (when [Product.tracksStock] is on) already has every unit of
-  /// live stock committed to this cart — task's "prevent selling more
-  /// than available stock," enforced here rather than only by disabling
-  /// the tile, so a fast double-tap can't race past a check the UI
-  /// already ran once.
   Future<void> addProduct(String productLocalId) async {
     final current = state;
     if (current is! CartLoaded) return;
@@ -234,8 +163,7 @@ class CartCubit extends Cubit<CartState> {
     if (productWithStock.product.tracksStock && alreadyInCart >= productWithStock.currentStock) {
       throw StateError('Only ${productWithStock.currentStock} in stock.');
     }
-    final existingLine =
-        current.items.where((i) => i.productLocalId == productLocalId).toList();
+    final existingLine = current.items.where((i) => i.productLocalId == productLocalId).toList();
     if (existingLine.isNotEmpty) {
       final line = existingLine.first;
       await _draftCartRepository.updateItemQuantity(
@@ -257,7 +185,6 @@ class CartCubit extends Cubit<CartState> {
     );
   }
 
-  /// Volume 5's Quick Sale — "for anything not in the catalog at all."
   Future<void> addQuickSaleItem({required String description, required double unitPrice}) async {
     if (description.trim().isEmpty) {
       throw StateError('Enter what you\'re selling.');
@@ -304,10 +231,6 @@ class CartCubit extends Cubit<CartState> {
     _diagnosticLogger?.breadcrumb('Cart quantity changed', category: DiagnosticCategory.sales);
   }
 
-  /// Backs the Bible's "tap-to-type entry for bulk amounts." Throws
-  /// [StateError] for a non-positive quantity or one past live stock —
-  /// task's "Invalid quantity" state is this throw, caught and shown by
-  /// the calling dialog.
   Future<void> setItemQuantity(DraftCartItem item, int quantity) async {
     if (quantity <= 0) {
       throw StateError('Enter a whole number greater than 0.');
@@ -330,14 +253,6 @@ class CartCubit extends Cubit<CartState> {
     _diagnosticLogger?.breadcrumb('Item removed from cart', category: DiagnosticCategory.sales);
   }
 
-  /// Gap fix: the aggregation this feeds (CartState.discount,
-  /// cart_state.dart) already correctly combined whole-cart and
-  /// per-line discounts — this repository method already existed too —
-  /// but nothing in features/sell/ ever called it, so there was no way
-  /// to actually set a line discount from Sell. Mirrors
-  /// [setItemQuantity]'s validation shape: throw with a message the
-  /// calling sheet can surface directly, rather than let a negative or
-  /// over-100%-of-line-total discount silently produce a negative line.
   Future<void> updateItemDiscount(DraftCartItem item, double lineDiscount) async {
     if (lineDiscount < 0) {
       throw StateError('Discount can\'t be negative.');
@@ -351,9 +266,6 @@ class CartCubit extends Cubit<CartState> {
     );
   }
 
-  /// Same gap as [updateItemDiscount], for the whole-cart figure
-  /// instead of one line — Volume 5: "A discount action sits near the
-  /// total... applying either to the whole sale or one line."
   Future<void> setWholeCartDiscount(double discount) async {
     final current = state;
     if (current is! CartLoaded) return;
@@ -369,12 +281,6 @@ class CartCubit extends Cubit<CartState> {
     );
   }
 
-  /// Re-adds a just-removed line exactly as it was — the Bible's
-  /// "Undo" toast after a swipe-to-remove. Preserves the original
-  /// [DraftCartItem.unitPrice] explicitly (rather than letting
-  /// [addProduct]/`addItem` re-resolve it from the product's current
-  /// price) so an Undo can never silently change the price the cashier
-  /// already saw.
   Future<void> restoreItem(DraftCartItem item) async {
     await _draftCartRepository.addItem(
       draftCartLocalId: _draftCartId,
@@ -385,10 +291,6 @@ class CartCubit extends Cubit<CartState> {
       lineDiscount: item.lineDiscount,
     );
   }
-
-  // ---------------------------------------------------------------
-  // Customer
-  // ---------------------------------------------------------------
 
   Future<void> setCustomer(Customer? customer) async {
     _resolvedCustomerId = customer?.localId;
@@ -401,8 +303,6 @@ class CartCubit extends Cubit<CartState> {
     _diagnosticLogger?.breadcrumb('Customer selected', category: DiagnosticCategory.sales);
   }
 
-  /// Volume 5: "a new customer can be added inline with just a name,
-  /// without leaving Sell."
   Future<Customer> createAndSetWalkInCustomer(String name) async {
     if (name.trim().isEmpty) {
       throw StateError('Enter a name.');
@@ -412,13 +312,31 @@ class CartCubit extends Cubit<CartState> {
     return customer;
   }
 
-  // ---------------------------------------------------------------
-  // Payment / checkout
-  // ---------------------------------------------------------------
-
+  // Payment is validated here as well as in the UI so a race, stale UI, or
+  // another caller cannot record an impossible payment. Cash may exceed the
+  // remaining balance because the difference becomes change; digital methods
+  // and credit must never silently overpay.
   Future<void> addPayment(String method, double amount) async {
+    const supportedMethods = {'cash', 'mobile_money', 'card', 'credit'};
+    if (!supportedMethods.contains(method)) {
+      throw StateError('Choose a valid payment method.');
+    }
     if (amount <= 0) {
       throw StateError('Enter an amount greater than 0.');
+    }
+    final current = state;
+    if (current is! CartLoaded) {
+      throw StateError('Cart is not ready yet.');
+    }
+    final remaining = current.remaining;
+    if (remaining <= 0.004) {
+      throw StateError('This sale is already fully paid.');
+    }
+    if (method == 'credit' && current.customer == null) {
+      throw StateError('Select a customer before using credit.');
+    }
+    if (method != 'cash' && amount > remaining + 0.004) {
+      throw StateError('That amount is more than the remaining balance.');
     }
     await _draftCartRepository.addPayment(
       draftCartLocalId: _draftCartId,
@@ -436,15 +354,19 @@ class CartCubit extends Cubit<CartState> {
     await _draftCartRepository.removePayment(paymentLocalId);
   }
 
-  /// The bridge to a real, synced [Sale] — see
-  /// `DraftCartRepository.completeSale`'s own doc comment for what this
-  /// aggregates. Leaves the draft cart untouched on failure (the
-  /// repository only clears it after `SaleRepository.createSale`
-  /// actually succeeds), so a failed sale never loses the cart — task's
-  /// "Sale completion failure" state — and the caller can simply retry.
   Future<Sale> completeSale() async {
-    if (state is! CartLoaded) {
+    final current = state;
+    if (current is! CartLoaded) {
       throw StateError('Cart is not ready yet.');
+    }
+    if (current.items.isEmpty) {
+      throw StateError('Add at least one item before completing the sale.');
+    }
+    if (current.remaining > 0.004) {
+      throw StateError('Collect the remaining balance before completing the sale.');
+    }
+    if (_submitting) {
+      throw StateError('Sale is already being completed.');
     }
     _submitting = true;
     _emitLoaded();
