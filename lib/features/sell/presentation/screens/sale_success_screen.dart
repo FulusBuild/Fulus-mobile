@@ -6,6 +6,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../../core/ux/consumer_polish.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../onboarding/presentation/screens/transaction_verification_screen.dart';
 import '../widgets/receipt_preview_sheet.dart';
@@ -39,6 +40,9 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
     if (_isFirstSale) {
       ref.read(onboardingStateProvider).markFirstSaleCelebrated();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FulusHaptics.confirm();
+    });
   }
 
   Future<void> _continue(BuildContext context) async {
@@ -76,77 +80,90 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return FulusScreen(
       title: 'Sale Complete',
       body: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-              decoration: BoxDecoration(
-                gradient: AppGradients.successOf(context),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryOf(context),
-                      shape: BoxShape.circle,
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: reduceMotion ? 1 : 0.94, end: 1),
+              duration: fulusMotionDuration(context, AppMotion.normal),
+              curve: Curves.easeOutCubic,
+              builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                decoration: BoxDecoration(
+                  gradient: AppGradients.successOf(context),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: reduceMotion ? 1 : 0.7, end: 1),
+                      duration: fulusMotionDuration(context, AppMotion.normal),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryOf(context),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          color: AppColors.onPrimaryOf(context),
+                          size: AppIconSize.emphasis,
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.check,
-                      color: AppColors.onPrimaryOf(context),
-                      size: AppIconSize.emphasis,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    _isFirstSale ? "That's your first sale on Fulus." : 'Sale complete',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
-                  ),
-                  if (_isFirstSale) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Nice work.',
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                  ],
-                  if (widget.changeDue > 0) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.md,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceOf(context),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        boxShadow: AppElevation.cardOf(context),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Change due',
-                            style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            formatMoney(widget.changeDue, symbol: widget.currencySymbol),
-                            style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context)),
-                          ),
-                        ],
-                      ),
+                    Text(
+                      _isFirstSale ? "That's your first sale on Fulus." : 'Sale complete',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
                     ),
+                    if (_isFirstSale) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Nice work.',
+                        style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                      ),
+                    ],
+                    if (widget.changeDue > 0) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.md,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceOf(context),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          boxShadow: AppElevation.cardOf(context),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Change due',
+                              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              formatMoney(widget.changeDue, symbol: widget.currencySymbol),
+                              style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
