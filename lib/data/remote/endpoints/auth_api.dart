@@ -36,9 +36,6 @@ class AuthApi {
   Future<ServerSignUpResult> signUpServer({required String email, required String password, required String supabaseUrl, required String publishableKey}) async {
     final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
     try {
-      // Supabase Auth expects the email redirect to be supplied as the
-      // signup request's redirect_to query parameter. Keeping it in the JSON
-      // body is ignored by GoTrue, which makes Auth fall back to SITE_URL.
       final response = await authClient.post(
         '/auth/v1/signup',
         queryParameters: {'redirect_to': emailVerificationRedirect},
@@ -56,6 +53,18 @@ class AuthApi {
         return ServerSignUpResult(session: session, emailConfirmed: user['email_confirmed_at'] != null);
       }
       return ServerSignUpResult(session: null, emailConfirmed: user?['email_confirmed_at'] != null);
+    } on DioException catch (e) { throw _client.mapError(e); }
+  }
+
+  Future<void> resendSignupVerification({required String email, required String supabaseUrl, required String publishableKey}) async {
+    final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
+    try {
+      await authClient.post(
+        '/auth/v1/resend',
+        queryParameters: {'type': 'signup'},
+        data: {'email': email, 'options': {'email_redirect_to': emailVerificationRedirect}},
+        options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}),
+      );
     } on DioException catch (e) { throw _client.mapError(e); }
   }
 
