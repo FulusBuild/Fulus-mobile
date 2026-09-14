@@ -19,7 +19,7 @@ class CategorySyncHandler implements SyncHandler {
 
   @override
   Future<void> sync(SyncQueueItem item) async {
-    if (item.operation != 'create') {
+    if (item.operation != 'create' && item.operation != 'update') {
       throw StateError(
         'CategorySyncHandler does not support operation "${item.operation}".',
       );
@@ -38,20 +38,27 @@ class CategorySyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for category sync.');
     }
 
+    final isDelete = item.operation == 'update' && category.deletedAt != null;
+    final operationType = isDelete
+        ? 'category.delete'
+        : 'category.${item.operation}';
+    final payload = <String, dynamic>{
+      'name': category.name,
+      'description': category.description,
+      if (category.serverId != null) 'server_id': category.serverId,
+    };
+
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
-      operationType: 'category.create',
+      operationType: operationType,
       operationId: item.id,
       deviceClientId: device.deviceClientId,
-      payload: {
-        'name': category.name,
-        'description': category.description,
-      },
+      payload: isDelete ? {'server_id': category.serverId} : payload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
-    final serverId = data['entity_id'] as String?;
+    final serverId = (data['entity_id'] as String?) ?? category.serverId;
     if (serverId == null) {
-      throw StateError('Fulus category create returned no server entity ID.');
+      throw StateError('Fulus category sync returned no server entity ID.');
     }
 
     await _categoryRepository.markSynced(
