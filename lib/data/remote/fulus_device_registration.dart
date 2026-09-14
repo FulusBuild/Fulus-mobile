@@ -20,8 +20,8 @@ class FulusDeviceRegistration {
     String? appVersion,
   }) async {
     try {
-      final response = await Dio(BaseOptions(baseUrl: _functionBaseUrl)).post(
-        '',
+      final response = await _client.dio.post(
+        _functionBaseUrl,
         data: {
           'action': 'register_device',
           'business_id': businessId,
