@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The launcher uses the real Fulus mark as its foreground. Keep the
-         adaptive-icon background neutral so the old flat green/teal square
-         cannot overpower or visually replace the actual brand mark. -->
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Use the canonical Fulus app blue behind the original Fulus mark.
+         The logo artwork itself is kept unchanged. -->
+    <color name="ic_launcher_background">#2563EB</color>
 </resources>
