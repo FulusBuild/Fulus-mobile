@@ -35,9 +35,9 @@ class SaleSyncHandler implements SyncHandler {
       throw StateError('No local sale found for ${item.entityLocalId}.');
     }
 
-    // Validate referenced customers before selecting either cloud or legacy
-    // transport. A sale cannot sync until its customer has a server identity;
-    // otherwise the legacy path would reach the API with an unresolved local ID.
+    // A sale references catalog/customer records by server ID in the cloud
+    // payload. Those records may themselves still be queued. Defer the sale
+    // instead of counting a dependency wait as a failed backup attempt.
     if (sale.customerId != null) {
       await _resolveCustomerServerId(sale);
     }
@@ -82,7 +82,7 @@ class SaleSyncHandler implements SyncHandler {
 
     final salesApi = _salesApi;
     if (salesApi == null) {
-      throw StateError('Fulus cloud authorization is required for sale sync.');
+      throw SyncDependencyDeferred('Fulus cloud authorization is required for sale sync.');
     }
     final items = await _resolveItems(sale);
     final synced = await salesApi.createSale(
@@ -124,7 +124,9 @@ class SaleSyncHandler implements SyncHandler {
         .getSingleOrNull();
     final serverId = customer?.serverId;
     if (serverId == null) {
-      throw StateError('Customer ${sale.customerId} has no serverId yet.');
+      throw SyncDependencyDeferred(
+        'Customer ${sale.customerId} is still waiting for cloud backup.',
+      );
     }
     return serverId;
   }
@@ -141,7 +143,9 @@ class SaleSyncHandler implements SyncHandler {
           .getSingleOrNull();
       final productId = product?.serverId;
       if (productId == null) {
-        throw StateError('Product $localProductId has no serverId yet.');
+        throw SyncDependencyDeferred(
+          'Product $localProductId is still waiting for cloud backup.',
+        );
       }
       items.add({
         'product_id': productId,
