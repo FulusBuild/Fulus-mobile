@@ -21,6 +21,18 @@ class BiometricAuth {
     }
   }
 
+  /// Returns the enrolled biometric types. An empty list means either that
+  /// the device has no enrolled biometric or the platform could not expose
+  /// its biometric state.
+  Future<List<BiometricType>> getAvailableBiometrics() async {
+    try {
+      if (!await _localAuth.isDeviceSupported()) return const [];
+      return await _localAuth.getAvailableBiometrics();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<bool> authenticate() async {
     try {
       return await _localAuth.authenticate(
