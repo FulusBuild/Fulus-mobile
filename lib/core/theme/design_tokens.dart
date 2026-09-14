@@ -1,32 +1,26 @@
 import 'package:flutter/material.dart';
 
-/// Fulus visual tokens.
-///
-/// Fulus uses one brand colour and a neutral foundation: blue for brand and
-/// interaction, white for surfaces, and black for typography/icons. Status
-/// states use hierarchy, copy and iconography rather than introducing new
-/// colours. This keeps the product recognisable and visually calm.
+/// Fulus visual tokens: blue for actions, neutral surfaces, and semantic
+/// colours only where they communicate a meaningful state.
 class AppColors {
   AppColors._();
-
-  // Brand palette: blue + white + black.
   static const primary = Color(0xFF2563EB);
   static const brand = primary;
   static const brandDark = Color(0xFF1D4ED8);
   static const brandLight = Color(0xFFEFF4FF);
-
-  // Semantic states intentionally stay inside the core palette.
   static const accent = primary;
   static const accentLight = brandLight;
-  static const clay = Color(0xFF111111);
-  static const clayLight = Color(0xFFF4F4F4);
-  static const ochre = Color(0xFF111111);
-  static const success = Color(0xFF111111);
-  static const successLight = Color(0xFFF4F4F4);
-  static const warning = Color(0xFF111111);
-  static const error = Color(0xFF111111);
+  static const clay = Color(0xFF92400E);
+  static const clayLight = Color(0xFFFFF7ED);
+  static const ochre = Color(0xFFB45309);
+  static const success = Color(0xFF15803D);
+  static const successLight = Color(0xFFF0FDF4);
+  static const warning = Color(0xFFB45309);
+  static const warningLight = Color(0xFFFFFBEB);
+  static const error = Color(0xFFB91C1C);
+  static const errorLight = Color(0xFFFEF2F2);
   static const info = primary;
-
+  static const infoLight = brandLight;
   static const textPrimaryLight = Color(0xFF111111);
   static const textSecondaryLight = Color(0xFF4B4B4B);
   static const mutedLight = Color(0xFF6B6B6B);
@@ -34,26 +28,23 @@ class AppColors {
   static const backgroundLight = Color(0xFFFFFFFF);
   static const surfaceLight = Color(0xFFFFFFFF);
   static const surfaceAltLight = Color(0xFFF7F8FA);
-
-  // Dark mode remains monochrome + blue; no additional brand colours.
   static const backgroundDark = Color(0xFF000000);
   static const surfaceDark = Color(0xFF111111);
   static const surfaceAltDark = Color(0xFF1A1A1A);
   static const borderDark = Color(0xFF303030);
-  static const darkWarning = Color(0xFFFFFFFF);
-  static const darkWarningOn = Color(0xFF000000);
-  static const darkError = Color(0xFFFFFFFF);
-  static const darkErrorOn = Color(0xFF000000);
+  static const darkWarning = Color(0xFFFBBF24);
+  static const darkWarningOn = Color(0xFF111111);
+  static const darkError = Color(0xFFF87171);
+  static const darkErrorOn = Color(0xFF111111);
   static const darkPrimary = Color(0xFF60A5FA);
   static const darkPrimaryStrong = Color(0xFF93C5FD);
   static const darkOnPrimary = Color(0xFF000000);
   static const darkInfo = Color(0xFF60A5FA);
-  static const darkSuccess = Color(0xFFFFFFFF);
-  static const darkSuccessOn = Color(0xFF000000);
+  static const darkSuccess = Color(0xFF4ADE80);
+  static const darkSuccessOn = Color(0xFF111111);
   static const darkTextPrimary = Color(0xFFFFFFFF);
   static const darkTextSecondary = Color(0xFFD1D5DB);
   static const darkMuted = Color(0xFF9CA3AF);
-
   static const neutral0 = Color(0xFFFFFFFF);
   static const neutral50 = Color(0xFFF9FAFB);
   static const neutral100 = Color(0xFFF3F4F6);
@@ -65,7 +56,6 @@ class AppColors {
   static const neutral700 = Color(0xFF374151);
   static const neutral800 = Color(0xFF1F2937);
   static const neutral900 = Color(0xFF111111);
-
   static const primary50 = Color(0xFFEFF4FF);
   static const primary100 = Color(0xFFDBEAFE);
   static const primary200 = Color(0xFFBFDBFE);
@@ -76,7 +66,6 @@ class AppColors {
   static const primary700 = Color(0xFF1E40AF);
   static const primary800 = Color(0xFF1E3A8A);
   static const primary900 = Color(0xFF172554);
-
   static const secondary50 = Color(0xFFF9FAFB);
   static const secondary100 = Color(0xFFF3F4F6);
   static const secondary200 = Color(0xFFE5E7EB);
@@ -87,7 +76,6 @@ class AppColors {
   static const secondary700 = Color(0xFF1F2937);
   static const secondary800 = Color(0xFF111111);
   static const secondary900 = Color(0xFF000000);
-
   static const info50 = primary50;
   static const info100 = primary100;
   static const info200 = primary200;
@@ -156,10 +144,7 @@ class AppRadius {
 
 class AppElevation {
   AppElevation._();
-  static const cardLight = [
-    BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x0A000000)),
-    BoxShadow(offset: Offset(0, 4), blurRadius: 14, color: Color(0x08000000)),
-  ];
+  static const cardLight = [BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x0A000000)), BoxShadow(offset: Offset(0, 4), blurRadius: 14, color: Color(0x08000000))];
   static const liftLight = [BoxShadow(offset: Offset(0, 10), blurRadius: 26, color: Color(0x18000000))];
   static const cardDark = [BoxShadow(offset: Offset(0, 2), blurRadius: 6, color: Color(0x55000000))];
   static const liftDark = [BoxShadow(offset: Offset(0, 10), blurRadius: 26, color: Color(0x77000000))];
@@ -205,13 +190,10 @@ const double kMinimumContrastRatio = 4.5;
 
 class AppGradients {
   AppGradients._();
-
-  static LinearGradient heroOf(BuildContext context) => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: AppColors.isDark(context) ? [AppColors.brandDark, AppColors.primary700] : [AppColors.primary, AppColors.primary600],
-      );
-
+  static LinearGradient heroOf(BuildContext context) {
+    final color = AppColors.isDark(context) ? AppColors.brandDark : AppColors.primary;
+    return LinearGradient(colors: [color, color]);
+  }
   static LinearGradient successOf(BuildContext context) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
