@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App primary teal — matches lib/core/theme/design_tokens.dart's
-         AppColors.primary (0xFF0E6B5C). Originally this was the logo
-         pack's own navy (#093051); recolored on explicit follow-up
-         request so the launcher icon's background and the native splash
-         screen (drawable/launch_background.xml) match the in-app brand
-         color instead of clashing with it. All PNG assets that contained
-         navy (fulus_logo_master.png, the 5 legacy square ic_launcher.png
-         files, and the 5 composited ic_launcher_round.png files) were
-         recolored the same way — only the flat navy fill shifted; the F
-         glyph's red/tan/white facets were untouched, since they were the
-         only colors flagged as clashing. -->
-    <color name="ic_launcher_background">#0E6B5C</color>
+    <!-- The launcher uses the real Fulus mark as its foreground. Keep the
+         adaptive-icon background neutral so the old flat green/teal square
+         cannot overpower or visually replace the actual brand mark. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>
