@@ -462,11 +462,25 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
       _saving = true;
       _error = null;
     });
-    final config = await ref.read(appLockConfigProvider.future);
-    await config.setPin(pin);
-    if (mounted) {
-      Navigator.of(context).pop();
-      showFulusSnackbar(context, message: 'App Lock turned on.');
+    try {
+      final config = await ref.read(appLockConfigProvider.future);
+      await config.setPin(pin);
+      final biometricAvailable = await _biometricAuth.isAvailable();
+      if (!mounted) return;
+      setState(() {
+        _active = true;
+        _biometricEnabled = false;
+        _biometricAvailable = biometricAvailable;
+        _saving = false;
+      });
+      if (!biometricAvailable) {
+        showFulusSnackbar(context, message: 'App Lock is on. No fingerprint or face unlock is available on this device.');
+      }
+    } catch (_) {
+      if (mounted) setState(() {
+        _saving = false;
+        _error = 'Couldn\'t turn on App Lock. Please try again.';
+      });
     }
   }
 
@@ -545,6 +559,18 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (_active) ...[
+                  if (!_biometricEnabled && _biometricAvailable) ...[
+                    Text(
+                      'Protect Fulus with your fingerprint or face',
+                      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'You can unlock faster with the biometric method already set up on your phone. Your fingerprint or face data stays on your device.',
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: _biometricEnabled,
@@ -556,6 +582,15 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(
+                      label: 'Done',
+                      loading: _saving,
+                      onPressed: _saving || _biometricSaving ? null : () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   SizedBox(
                     width: double.infinity,
                     child: FulusButton(
