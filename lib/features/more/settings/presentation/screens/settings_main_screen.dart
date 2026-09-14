@@ -4,42 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/failure.dart';
+import '../../../../../core/security/biometric_auth.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/business_settings.dart';
 import '../../../../../domain/entities/permission.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
-/// Gap fix — the More screen's own header comment called this out by
-/// name: "settings beyond Backup, and a proper Volume 9-11 layout, are
-/// still genuinely undone work." This is that work: Business info
-/// (BusinessSettingsRepository.updateSettings already existed with no
-/// caller — see that repository's own header comment), and a real home
-/// for Printers, Sync & Backup, Locations, and Security, replacing the
-/// literal on-screen "Not yet built" text.
-///
-/// Language/Theme/Accessibility (also named in Volume 11) is
-/// deliberately not attempted here — MaterialApp.router's themeMode is
-/// hardcoded to ThemeMode.system with its own comment explaining no
-/// provider exists for it yet, and building one is a separate, real
-/// feature, not a Settings-hub wiring task like everything else on this
-/// screen.
-///
-/// Roles & Permissions (schemaVersion 10): this hub is reachable by a
-/// non-owner login now (router.dart's `_permissionsForMoreRoute` lets
-/// either `Permission.manageSettings` or `Permission.manageBackup`
-/// through the door), so Business/Printers/Sync/Locations gate
-/// themselves on the former and Backup on the latter — deliberately
-/// independent grants, not one implying the other, same reasoning
-/// Permission.manageBackup's own doc comment gives. Change approval
-/// PIN, App lock, and Log out stay visible to anyone who reaches this
-/// screen at all: those are about the signed-in login's own device
-/// security, not business configuration, so gating them the same way
-/// would block a Manager from managing their own PIN for no reason
-/// tied to what either permission is actually about.
+// Security settings: App Lock is device-local. Fingerprint verification is
+// delegated to the OS; Fulus never stores biometric data.
 class SettingsMainScreen extends ConsumerStatefulWidget {
   const SettingsMainScreen({super.key});
-
   @override
   ConsumerState<SettingsMainScreen> createState() => _SettingsMainScreenState();
 }
@@ -54,174 +29,92 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
     final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
     final canManageBackup = isOwner || permissions.contains(Permission.manageBackup);
-
     return FulusScreen(
       title: 'Settings',
       body: FutureBuilder<BusinessProfile?>(
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
-            return FulusErrorState(
-              message: "Couldn't load business settings.",
-              onRetry: () => setState(() {
-                _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
-              }),
-            );
+            return FulusErrorState(message: "Couldn't load business settings.", onRetry: () => setState(() { _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first; }));
           }
-          if (!snap.hasData) {
-            return const FulusLoadingIndicator();
-          }
+          if (!snap.hasData) return const FulusLoadingIndicator();
           final profile = snap.data;
-          return ListView(
-            children: [
-              if (canManageSettings) ...[
-                FulusSectionHeader(title: 'Business'),
-                if (profile != null) _BusinessInfoForm(profile: profile),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (canManageSettings || canManageBackup) ...[
-                FulusSectionHeader(title: 'Devices & data'),
-                if (canManageSettings) ...[
-                  FulusListRow(
-                    leading: const Icon(Icons.print_outlined),
-                    title: const Text('Printers'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSettingsPrinters'),
-                  ),
-                  const FulusListDivider(indented: false),
-                  FulusListRow(
-                    leading: const Icon(Icons.sync_outlined),
-                    title: const Text('Sync'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSyncDetail'),
-                  ),
-                  const FulusListDivider(indented: false),
-                ],
-                if (canManageBackup) ...[
-                  FulusListRow(
-                    leading: const Icon(Icons.backup_outlined),
-                    title: const Text('Backup'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSettingsBackup'),
-                  ),
-                  const FulusListDivider(indented: false),
-                ],
-                if (canManageSettings)
-                  FulusListRow(
-                    leading: const Icon(Icons.storefront_outlined),
-                    title: const Text('Locations'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSettingsLocations'),
-                  ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (isOwner) ...[
-                FulusSectionHeader(title: 'Cloud'),
-                FulusListRow(
-                  leading: const Icon(Icons.cloud_outlined),
-                  title: const Text('Fulus Cloud'),
-                  subtitle: const Text('Connect this business for server-authoritative sync'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.pushNamed('moreSettingsCloud'),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              FulusSectionHeader(title: 'Security'),
-              FulusListRow(
-                leading: const Icon(Icons.password_outlined),
-                title: const Text('Change approval PIN'),
-                subtitle: const Text('Needed to approve discounts, refunds, and stock adjustments'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _openChangePinSheet(context),
-              ),
-              const FulusListDivider(indented: false),
-              const _AppLockStatusRow(),
+          return ListView(children: [
+            if (canManageSettings) ...[
+              FulusSectionHeader(title: 'Business'),
+              if (profile != null) _BusinessInfoForm(profile: profile),
               const SizedBox(height: AppSpacing.lg),
-              FulusSectionHeader(title: 'Account'),
-              // Gap fix: AuthRepository.logout() was fully implemented
-              // (see its own doc comment) but had no caller anywhere in
-              // the UI — sessionProvider's own doc comment even names
-              // this exact spot as the one that still needed to write
-              // to it. _ShellGate (router.dart) watches sessionProvider
-              // and swaps back to AuthGateScreen the moment it goes
-              // null, so nothing further is needed here beyond that.
-              FulusListRow(
-                leading: const Icon(Icons.logout),
-                title: const Text('Log out'),
-                subtitle: const Text('Your data on this device stays put — sign back in any time.'),
-                onTap: () => _logout(context, ref),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
             ],
-          );
+            if (canManageSettings || canManageBackup) ...[
+              FulusSectionHeader(title: 'Devices & data'),
+              if (canManageSettings) ...[
+                FulusListRow(leading: const Icon(Icons.print_outlined), title: const Text('Printers'), trailing: const Icon(Icons.chevron_right), onTap: () => context.pushNamed('moreSettingsPrinters')),
+                const FulusListDivider(indented: false),
+                FulusListRow(leading: const Icon(Icons.sync_outlined), title: const Text('Sync'), trailing: const Icon(Icons.chevron_right), onTap: () => context.pushNamed('moreSyncDetail')),
+                const FulusListDivider(indented: false),
+              ],
+              if (canManageBackup) ...[
+                FulusListRow(leading: const Icon(Icons.backup_outlined), title: const Text('Backup'), trailing: const Icon(Icons.chevron_right), onTap: () => context.pushNamed('moreSettingsBackup')),
+                const FulusListDivider(indented: false),
+              ],
+              if (canManageSettings) FulusListRow(leading: const Icon(Icons.storefront_outlined), title: const Text('Locations'), trailing: const Icon(Icons.chevron_right), onTap: () => context.pushNamed('moreSettingsLocations')),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+            if (isOwner) ...[
+              FulusSectionHeader(title: 'Cloud'),
+              FulusListRow(leading: const Icon(Icons.cloud_outlined), title: const Text('Fulus Cloud'), subtitle: const Text('Connect this business for server-authoritative sync'), trailing: const Icon(Icons.chevron_right), onTap: () => context.pushNamed('moreSettingsCloud')),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+            FulusSectionHeader(title: 'Security'),
+            FulusListRow(leading: const Icon(Icons.password_outlined), title: const Text('Change approval PIN'), subtitle: const Text('Needed to approve discounts, refunds, and stock adjustments'), trailing: const Icon(Icons.chevron_right), onTap: () => _openChangePinSheet(context)),
+            const FulusListDivider(indented: false),
+            const _AppLockStatusRow(),
+            const SizedBox(height: AppSpacing.lg),
+            FulusSectionHeader(title: 'Account'),
+            FulusListRow(leading: const Icon(Icons.logout), title: const Text('Log out'), subtitle: const Text('Your data on this device stays put — sign back in any time.'), onTap: () => _logout(context, ref)),
+            const SizedBox(height: AppSpacing.xxl),
+          ]);
         },
       ),
     );
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showFulusConfirmDialog(
-      context,
-      title: 'Log out?',
-      message: "You'll need your PIN to sign back in on this device.",
-      confirmLabel: 'Log out',
-    );
+    final confirmed = await showFulusConfirmDialog(context, title: 'Log out?', message: "You'll need your PIN to sign back in on this device.", confirmLabel: 'Log out');
     if (!confirmed || !context.mounted) return;
     await ref.read(authRepositoryProvider).logout();
     ref.read(sessionProvider.notifier).state = null;
   }
-
-  void _openChangePinSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const _ChangePinSheet(),
-    );
-  }
+  void _openChangePinSheet(BuildContext context) => showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const _ChangePinSheet());
 }
 
-/// Own StatefulWidget rather than inline Consumer+FutureBuilder in the
-/// parent's build() — a Future built directly inside build() is a new
-/// Future on every rebuild, resetting this back to a loading flash each
-/// time (reports_screen.dart's own header comment covers the same
-/// pattern in more depth). Cached once here in initState instead, and
-/// re-cached only when the sheet below actually changes something.
 class _AppLockStatusRow extends ConsumerStatefulWidget {
   const _AppLockStatusRow();
-
   @override
   ConsumerState<_AppLockStatusRow> createState() => _AppLockStatusRowState();
 }
-
 class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
-  Future<bool>? _future;
-
-  Future<bool> _load() async {
+  Future<List<bool>>? _future;
+  Future<List<bool>> _load() async {
     final config = await ref.read(appLockConfigProvider.future);
-    return config.isActive();
+    return [await config.isActive(), await config.isBiometricEnabled()];
   }
-
   @override
   Widget build(BuildContext context) {
     _future ??= _load();
-    return FutureBuilder<bool>(
+    return FutureBuilder<List<bool>>(
       future: _future,
       builder: (context, snap) {
-        final active = snap.data ?? false;
+        final active = snap.data?[0] ?? false;
+        final biometric = snap.data?[1] ?? false;
         return FulusListRow(
           leading: const Icon(Icons.lock_outline),
           title: const Text('App Lock'),
-          subtitle: Text(active ? 'On — a PIN is required to open Fulus' : 'Off'),
+          subtitle: Text(active ? (biometric ? 'On — fingerprint enabled' : 'On — PIN required') : 'Off'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () async {
-            await showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => const _AppLockSheet(),
-            );
-            setState(() {
-              _future = _load();
-            });
+            await showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const _AppLockSheet());
+            if (mounted) setState(() => _future = _load());
           },
         );
       },
@@ -229,14 +122,94 @@ class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
   }
 }
 
+class _AppLockSheet extends ConsumerStatefulWidget {
+  const _AppLockSheet();
+  @override ConsumerState<_AppLockSheet> createState() => _AppLockSheetState();
+}
+class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
+  final _pinController = TextEditingController();
+  final _confirmController = TextEditingController();
+  final _biometricAuth = BiometricAuth();
+  bool _active = false;
+  bool _biometric = false;
+  bool _biometricAvailable = false;
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final config = await ref.read(appLockConfigProvider.future);
+    final active = await config.isActive();
+    final biometric = await config.isBiometricEnabled();
+    final available = active && await _biometricAuth.isAvailable();
+    if (mounted) setState(() { _active = active; _biometric = biometric; _biometricAvailable = available; _loading = false; });
+  }
+  @override void dispose() { _pinController.dispose(); _confirmController.dispose(); super.dispose(); }
+  Future<void> _toggleBiometric(bool value) async {
+    final config = await ref.read(appLockConfigProvider.future);
+    if (!value) {
+      await config.setBiometricEnabled(false);
+      if (mounted) setState(() => _biometric = false);
+      return;
+    }
+    final available = await _biometricAuth.isAvailable();
+    if (!available) {
+      if (mounted) setState(() => _error = 'Set up a fingerprint or face unlock on your phone first.');
+      return;
+    }
+    final authenticated = await _biometricAuth.authenticate();
+    if (!authenticated) return;
+    await config.setBiometricEnabled(true);
+    if (mounted) setState(() { _biometric = true; _error = null; });
+  }
+  Future<void> _turnOff() async {
+    setState(() => _saving = true);
+    final config = await ref.read(appLockConfigProvider.future);
+    await config.removePin();
+    if (mounted) { Navigator.of(context).pop(); showFulusSnackbar(context, message: 'App Lock turned off.'); }
+  }
+  Future<void> _setPin() async {
+    final pin = _pinController.text.trim();
+    if (pin.length < 4) { setState(() => _error = 'Use at least 4 digits.'); return; }
+    if (pin != _confirmController.text.trim()) { setState(() => _error = "PINs don't match."); return; }
+    setState(() { _saving = true; _error = null; });
+    final config = await ref.read(appLockConfigProvider.future);
+    await config.setPin(pin);
+    if (mounted) { Navigator.of(context).pop(); showFulusSnackbar(context, message: 'App Lock turned on.'); }
+  }
+  @override Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg),
+      child: _loading ? const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.xl), child: Center(child: CircularProgressIndicator())) : SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('App Lock', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+          const SizedBox(height: AppSpacing.xs),
+          Text('Protect Fulus when you leave the app. Your PIN is stored securely on this device.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+          const SizedBox(height: AppSpacing.md),
+          if (_active) ...[
+            SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, secondary: const Icon(Icons.fingerprint), title: const Text('Use fingerprint'), subtitle: Text(_biometricAvailable ? 'Unlock faster with your phone\'s biometric' : 'Set up fingerprint or face unlock on your phone first.'), value: _biometric, onChanged: _saving ? null : _toggleBiometric),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(width: double.infinity, child: FulusButton(label: 'Turn off App Lock', variant: FulusButtonVariant.secondary, loading: _saving, onPressed: _saving ? null : _turnOff)),
+          ] else ...[
+            if (_error != null) ...[Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), const SizedBox(height: AppSpacing.sm)],
+            FulusTextField(label: 'New PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, suffixIcon: IconButton(icon: const Icon(Icons.backspace_outlined), tooltip: 'Clear', onPressed: _pinController.clear)),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, suffixIcon: IconButton(icon: const Icon(Icons.backspace_outlined), tooltip: 'Clear', onPressed: _confirmController.clear)),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(width: double.infinity, child: FulusButton(label: 'Turn on App Lock', loading: _saving, onPressed: _saving ? null : _setPin)),
+          ],
+          if (_active && _error != null) ...[const SizedBox(height: AppSpacing.sm), Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context)))],
+        ]),
+      ),
+    );
+  }
+}
+
 class _BusinessInfoForm extends ConsumerStatefulWidget {
   const _BusinessInfoForm({required this.profile});
   final BusinessProfile profile;
-
-  @override
-  ConsumerState<_BusinessInfoForm> createState() => _BusinessInfoFormState();
+  @override ConsumerState<_BusinessInfoForm> createState() => _BusinessInfoFormState();
 }
-
 class _BusinessInfoFormState extends ConsumerState<_BusinessInfoForm> {
   late final _nameController = TextEditingController(text: widget.profile.businessName);
   late final _addressController = TextEditingController(text: widget.profile.address ?? '');
@@ -246,370 +219,16 @@ class _BusinessInfoFormState extends ConsumerState<_BusinessInfoForm> {
   late final _currencyController = TextEditingController(text: widget.profile.currencySymbol);
   late final _vatRateController = TextEditingController(text: widget.profile.vatRate.toString());
   late bool _vatEnabled = widget.profile.vatEnabled;
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _addressController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _tinController.dispose();
-    _currencyController.dispose();
-    _vatRateController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref.read(businessSettingsRepositoryProvider).updateSettings(
-            businessName: _nameController.text.trim(),
-            address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-            phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-            tin: _tinController.text.trim().isEmpty ? null : _tinController.text.trim(),
-            vatEnabled: _vatEnabled,
-            vatRate: double.tryParse(_vatRateController.text.trim()) ?? widget.profile.vatRate,
-            currencySymbol: _currencyController.text.trim().isEmpty ? widget.profile.currencySymbol : _currencyController.text.trim(),
-            receiptFooter: widget.profile.receiptFooter,
-          );
-      if (mounted) {
-        showFulusSnackbar(context, message: 'Saved.');
-        setState(() => _saving = false);
-      }
-    } on Failure catch (f) {
-      if (mounted) setState(() {
-        _saving = false;
-        _error = f.message;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_error != null) ...[
-            Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          FulusTextField(label: 'Business name', controller: _nameController),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Address', controller: _addressController),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Phone', controller: _phoneController, keyboardType: TextInputType.phone),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Email', controller: _emailController, keyboardType: TextInputType.emailAddress),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Tax ID (TIN)', controller: _tinController),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Currency symbol', controller: _currencyController),
-          const SizedBox(height: AppSpacing.sm),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            value: _vatEnabled,
-            onChanged: (v) => setState(() => _vatEnabled = v),
-            title: Text('VAT enabled', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
-          ),
-          // Nice-to-have pass — general orientation, not tied to the
-          // business-type category chosen at onboarding (that value is
-          // deliberately not persisted on this profile; see
-          // BusinessCategoryDefaults' own doc comment for why), so this
-          // stays a general note rather than pretending to re-derive a
-          // category-specific one it no longer has access to.
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Text(
-              'Businesses under ₦100m annual turnover are exempt from VAT collection under the Nigeria Tax Act 2025. Confirm your own registration status before enabling this.',
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-            ),
-          ),
-          if (_vatEnabled) ...[
-            const SizedBox(height: AppSpacing.sm),
-            FulusTextField(
-              label: 'VAT rate (%)',
-              controller: _vatRateController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
-          ),
-        ],
-      ),
-    );
-  }
+  bool _saving = false; String? _error;
+  @override void dispose() { _nameController.dispose(); _addressController.dispose(); _phoneController.dispose(); _emailController.dispose(); _tinController.dispose(); _currencyController.dispose(); _vatRateController.dispose(); super.dispose(); }
+  Future<void> _save() async { setState(() { _saving = true; _error = null; }); try { await ref.read(businessSettingsRepositoryProvider).updateSettings(businessName: _nameController.text.trim(), address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(), phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(), email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(), tin: _tinController.text.trim().isEmpty ? null : _tinController.text.trim(), vatEnabled: _vatEnabled, vatRate: double.tryParse(_vatRateController.text.trim()) ?? widget.profile.vatRate, currencySymbol: _currencyController.text.trim().isEmpty ? widget.profile.currencySymbol : _currencyController.text.trim(), receiptFooter: widget.profile.receiptFooter); if (mounted) { showFulusSnackbar(context, message: 'Saved.'); setState(() => _saving = false); } } on Failure catch (f) { if (mounted) setState(() { _saving = false; _error = f.message; }); } }
+  @override Widget build(BuildContext context) => FulusCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [if (_error != null) ...[Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), const SizedBox(height: AppSpacing.sm)], FulusTextField(label: 'Business name', controller: _nameController), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Address', controller: _addressController), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Phone', controller: _phoneController, keyboardType: TextInputType.phone), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Email', controller: _emailController, keyboardType: TextInputType.emailAddress), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Tax ID (TIN)', controller: _tinController), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Currency symbol', controller: _currencyController), const SizedBox(height: AppSpacing.sm), SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, value: _vatEnabled, onChanged: (v) => setState(() => _vatEnabled = v), title: Text('VAT enabled', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))), const SizedBox(height: AppSpacing.md), if (_vatEnabled) FulusTextField(label: 'VAT rate (%)', controller: _vatRateController, keyboardType: const TextInputType.numberWithOptions(decimal: true)), const SizedBox(height: AppSpacing.md), SizedBox(width: double.infinity, child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save))]));
 }
 
-class _ChangePinSheet extends ConsumerStatefulWidget {
-  const _ChangePinSheet();
-
-  @override
-  ConsumerState<_ChangePinSheet> createState() => _ChangePinSheetState();
-}
-
+class _ChangePinSheet extends ConsumerStatefulWidget { const _ChangePinSheet(); @override ConsumerState<_ChangePinSheet> createState() => _ChangePinSheetState(); }
 class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
-  final _pinController = TextEditingController();
-  final _confirmController = TextEditingController();
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _pinController.dispose();
-    _confirmController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final pin = _pinController.text.trim();
-    if (pin.length < 4) {
-      setState(() => _error = 'Use at least 4 digits.');
-      return;
-    }
-    if (pin != _confirmController.text.trim()) {
-      setState(() => _error = "PINs don't match.");
-      return;
-    }
-    final userId = ref.read(sessionProvider)?.id;
-    if (userId == null) return;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref.read(approvalPinRepositoryProvider).setOwnApprovalPin(userId: userId, pin: pin);
-      if (mounted) {
-        Navigator.of(context).pop();
-        showFulusSnackbar(context, message: 'Approval PIN updated.');
-      }
-    } on Failure catch (f) {
-      if (mounted) setState(() {
-        _saving = false;
-        _error = f.message;
-      });
-    } catch (_) {
-      // setOwnApprovalPin requires connectivity the first time it syncs
-      // (this screen's own header comment on why) — a plain connection
-      // failure isn't necessarily a Failure subtype.
-      if (mounted) setState(() {
-        _saving = false;
-        _error = "Couldn't reach the server — this needs a connection the first time.";
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSpacing.lg,
-        right: AppSpacing.lg,
-        top: AppSpacing.lg,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-      ),
-      // Responsive UI audit — SingleChildScrollView added; same gap as
-      // DiscountSheet.
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Change approval PIN', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Needs a connection this one time, to sync to the server.',
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (_error != null) ...[
-              Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            FulusTextField(
-              label: 'New PIN',
-              controller: _pinController,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.backspace_outlined),
-                tooltip: 'Clear',
-                onPressed: _pinController.clear,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            FulusTextField(
-              label: 'Confirm PIN',
-              controller: _confirmController,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.backspace_outlined),
-                tooltip: 'Clear',
-                onPressed: _confirmController.clear,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
-            ),
-          ],
-          ),
-        ),
-      );
-    }
-  }
-class _AppLockSheet extends ConsumerStatefulWidget {
-  const _AppLockSheet();
-
-  @override
-  ConsumerState<_AppLockSheet> createState() => _AppLockSheetState();
-}
-
-class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
-  final _pinController = TextEditingController();
-  final _confirmController = TextEditingController();
-  bool _active = false;
-  bool _loading = true;
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final config = await ref.read(appLockConfigProvider.future);
-    final active = await config.isActive();
-    if (mounted) setState(() {
-      _active = active;
-      _loading = false;
-    });
-  }
-
-  @override
-  void dispose() {
-    _pinController.dispose();
-    _confirmController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _turnOff() async {
-    setState(() => _saving = true);
-    final config = await ref.read(appLockConfigProvider.future);
-    await config.removePin();
-    if (mounted) {
-      Navigator.of(context).pop();
-      showFulusSnackbar(context, message: 'App Lock turned off.');
-    }
-  }
-
-  Future<void> _setPin() async {
-    final pin = _pinController.text.trim();
-    if (pin.length < 4) {
-      setState(() => _error = 'Use at least 4 digits.');
-      return;
-    }
-    if (pin != _confirmController.text.trim()) {
-      setState(() => _error = "PINs don't match.");
-      return;
-    }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    final config = await ref.read(appLockConfigProvider.future);
-    await config.setPin(pin);
-    if (mounted) {
-      Navigator.of(context).pop();
-      showFulusSnackbar(context, message: 'App Lock turned on.');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSpacing.lg,
-        right: AppSpacing.lg,
-        top: AppSpacing.lg,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-      ),
-      child: _loading
-          ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('App Lock', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'When on, Fulus asks for this PIN every time it\'s opened or '
-                  'resumed from the background — separate from your approval PIN.',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                if (_active) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: FulusButton(
-                      label: 'Turn off App Lock',
-                      variant: FulusButtonVariant.secondary,
-                      loading: _saving,
-                      onPressed: _saving ? null : _turnOff,
-                    ),
-                  ),
-                ] else ...[
-                  if (_error != null) ...[
-                    Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                  FulusTextField(
-                    label: 'New PIN',
-                    controller: _pinController,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.backspace_outlined),
-                      tooltip: 'Clear',
-                      onPressed: _pinController.clear,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusTextField(
-                    label: 'Confirm PIN',
-                    controller: _confirmController,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.backspace_outlined),
-                      tooltip: 'Clear',
-                      onPressed: _confirmController.clear,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FulusButton(label: 'Turn on App Lock', loading: _saving, onPressed: _saving ? null : _setPin),
-                  ),
-                ],
-              ],
-            ),
-    );
-  }
+  final _pinController = TextEditingController(); final _confirmController = TextEditingController(); bool _saving = false; String? _error;
+  @override void dispose() { _pinController.dispose(); _confirmController.dispose(); super.dispose(); }
+  Future<void> _save() async { final pin = _pinController.text.trim(); if (pin.length < 4) { setState(() => _error = 'Use at least 4 digits.'); return; } if (pin != _confirmController.text.trim()) { setState(() => _error = "PINs don't match."); return; } final userId = ref.read(sessionProvider)?.id; if (userId == null) return; setState(() { _saving = true; _error = null; }); try { await ref.read(approvalPinRepositoryProvider).setOwnApprovalPin(userId: userId, pin: pin); if (mounted) { Navigator.of(context).pop(); showFulusSnackbar(context, message: 'Approval PIN updated.'); } } on Failure catch (f) { if (mounted) setState(() { _saving = false; _error = f.message; }); } catch (_) { if (mounted) setState(() { _saving = false; _error = "Couldn't reach the server — this needs a connection the first time."; }); } }
+  @override Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Change approval PIN', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))), const SizedBox(height: AppSpacing.xs), Text('Needs a connection this one time, to sync to the server.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),), const SizedBox(height: AppSpacing.md), if (_error != null) ...[Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), const SizedBox(height: AppSpacing.sm)], FulusTextField(label: 'New PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, suffixIcon: IconButton(icon: const Icon(Icons.backspace_outlined), tooltip: 'Clear', onPressed: _pinController.clear)), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, suffixIcon: IconButton(icon: const Icon(Icons.backspace_outlined), tooltip: 'Clear', onPressed: _confirmController.clear)), const SizedBox(height: AppSpacing.lg), SizedBox(width: double.infinity, child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save))])));
 }
