@@ -65,10 +65,16 @@ jobs:
 
           path = Path("android/app/build.gradle")
           text = path.read_text()
-          old = '''            if (!keystorePropertiesFile.exists()) {\n                throw new GradleException(\n                    "Release signing is not configured. Provide android/key.properties from key.properties.example."\n                )\n            }\n'''
-          if old not in text:
+          marker = '            if (!keystorePropertiesFile.exists()) {'
+          start = text.find(marker)
+          if start == -1:
               raise SystemExit("Expected release signing guard was not found; refusing to modify the build.")
-          path.write_text(text.replace(old, "", 1))
+          end_marker = '            }\n            signingConfig = signingConfigs.release'
+          end = text.find(end_marker, start)
+          if end == -1:
+              raise SystemExit("Expected signing guard ending was not found; refusing to modify the build.")
+          replacement = '            // Signing guard intentionally bypassed for this debug-only diagnostic build.\n'
+          path.write_text(text[:start] + replacement + text[end + len('            }\n'):])
           print("Production signing guard disabled for this CI workspace only")
           PY
 
