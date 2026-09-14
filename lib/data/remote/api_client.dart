@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../core/config/supabase_config.dart';
 import '../../core/errors/failure.dart';
 import '../local/secure_storage/secure_storage.dart';
 
@@ -75,24 +76,16 @@ class ApiClient {
     }
 
     final response = error.response;
-    if (response == null) {
-      return const NetworkFailure.serverUnavailable();
-    }
+    if (response == null) return const NetworkFailure.serverUnavailable();
 
     final status = response.statusCode ?? 0;
     final body = response.data;
     final code = _extractCode(body);
     final message = _extractMessage(body);
 
-    if (status == 401) {
-      return const AuthFailure.sessionExpired();
-    }
-    if (status == 403) {
-      return const AuthFailure.forbidden();
-    }
+    if (status == 401) return const AuthFailure.sessionExpired();
+    if (status == 403) return const AuthFailure.forbidden();
 
-    // Supabase Auth deliberately returns structured auth codes. Do not throw
-    // those away and replace them with the old generic business error.
     if (code == 'email_not_confirmed' || code == 'phone_not_confirmed') {
       return BusinessRuleFailure(
         code == 'phone_not_confirmed'
@@ -257,9 +250,9 @@ class _AuthInterceptor extends Interceptor {
     }
 
     final refreshToken = await _secureStorage.getRefreshToken();
-    final supabaseUrl = _supabaseUrl;
-    final publishableKey = _publishableKey;
-    if (refreshToken == null || supabaseUrl == null || publishableKey == null) {
+    final supabaseUrl = _supabaseUrl ?? SupabaseConfig.url;
+    final publishableKey = _publishableKey ?? SupabaseConfig.publishableKey;
+    if (refreshToken == null) {
       await _onSessionExpired();
       handler.next(err);
       return;
