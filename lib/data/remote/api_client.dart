@@ -3,38 +3,11 @@ import 'package:dio/dio.dart';
 import '../../core/errors/failure.dart';
 import '../local/secure_storage/secure_storage.dart';
 
-/// The single Dio instance the whole app shares, wrapping Architecture
-/// Section 5's interceptor stack in the exact order specified there:
-/// auth (attaches the token, handles 401-triggered refresh), then retry
-/// (backs off on network/5xx, never on 4xx), then error mapping
-/// (converts whatever comes out the other end into a Failure). Logging
-/// is added only in debug builds, per Section 5's explicit note that
-/// production builds must not log request/response bodies given this
-/// handles real financial data.
+/// Shared HTTP client for the networked/cloud layer.
 ///
-/// IMPORTANT — found during a self-audit pass, after Stage 4: the auth
-/// interceptor described above is currently DORMANT, not merely unused.
-/// It was written for the old JWT model, where AuthRepositoryImpl called
-/// setAccessToken() after a real login/refresh against this same
-/// backend. Since Stage 2 (Architecture Redesign), login is entirely
-/// local — nothing anywhere calls setAccessToken() or
-/// secureStorage.setRefreshToken() anymore, ever. Concretely, right now:
-/// _accessToken stays null forever, so onRequest never attaches an
-/// Authorization header; every request a networked backend requires
-/// auth for gets a 401; _AuthInterceptor.onError's refresh attempt then
-/// finds getRefreshToken() also always null (nothing ever wrote one) and
-/// falls straight to the already-dormant onSessionExpired no-op
-/// (bootstrap.dart). The net effect: every optional Sync-layer call this
-/// app currently makes (business-settings/location/product
-/// syncFromServer, approval-hash sync/push) will 401 against any real
-/// backend that enforces authentication, silently, since bootstrap.dart
-/// wraps each in catchError((_) {}). This is not a regression to patch
-/// here — it's the real, open question a networked device now has no
-/// server-recognized identity to present at all, which needs Sync's own
-/// design (Stage 16), not a quick fix bolted onto the old JWT
-/// interceptor shape. Left the interceptor's structure in place (rather
-/// than deleting it) since its retry/error-mapping responsibilities are
-/// still genuinely needed — only the auth-attachment part is inert.
+/// Cloud access tokens are kept in memory. Refresh tokens are kept in secure
+/// storage. Supabase is the authority for cloud session refreshes; the client
+/// never attempts to refresh a Supabase token through the legacy API.
 class ApiClient {
   ApiClient({
     required String baseUrl,
@@ -54,11 +27,6 @@ class ApiClient {
     dio.interceptors.addAll([
       _authInterceptor,
       _RetryInterceptor(dio: dio),
-      // The error-mapping interceptor is last, deliberately — by the
-      // time a response or error reaches it, auth refresh has already
-      // been attempted and retry has already been exhausted, so what
-      // arrives here is genuinely final and ready to become a Failure,
-      // not an intermediate state something upstream might still resolve.
     ]);
   }
 
@@ -67,30 +35,24 @@ class ApiClient {
   late final _AuthInterceptor _authInterceptor;
   String? _serverAccessToken;
 
-  /// STALE COMMENT CORRECTED (self-audit pass, after Stage 4): this used
-  /// to say AuthRepositoryImpl calls this right after a successful login
-  /// or restoreSession() — true before Stage 2's redesign, false since:
-  /// AuthRepositoryImpl doesn't hold a reference to ApiClient at all
-  /// anymore, and nothing else calls this method either (confirmed
-  /// directly — grepped for callers repo-wide). This method still does
-  /// exactly what it says; there's just currently nothing left in the
-  /// app that calls it. See this class's own doc comment for the full
-  /// picture of what that means for the interceptor as a whole.
+  void configureServerAuth({
+    required String supabaseUrl,
+    required String publishableKey,
+  }) {
+    _authInterceptor.configureServerAuth(
+      supabaseUrl: supabaseUrl,
+      publishableKey: publishableKey,
+    );
+  }
+
   void setAccessToken(String? token) {
     _authInterceptor.setAccessToken(token);
     _serverAccessToken = token;
   }
 
-  /// Server-session helpers used only by the optional connection layer.
-  /// Access tokens remain memory-only; refresh tokens remain in Keystore-backed storage.
   Future<void> setServerAccessToken(String token) async {
     _authInterceptor.setAccessToken(token);
     _serverAccessToken = token;
-    final refreshToken = await _secureStorage.getRefreshToken();
-    if (refreshToken == null) {
-      // The caller will persist the newly issued refresh token explicitly
-      // through persistServerRefreshToken below.
-    }
   }
 
   Future<void> persistServerRefreshToken(String token) =>
@@ -103,32 +65,9 @@ class ApiClient {
   Future<void> clearServerRefreshToken() =>
       _secureStorage.deleteRefreshToken();
 
-  /// Rewires what happens when a refresh genuinely fails mid-session —
-  /// a setter, not only a constructor parameter, for the same reason as
-  /// SyncQueue.setOnEnqueued (sync_queue.dart): the real callback
-  /// (clearing AuthRepositoryImpl's own session state) depends on
-  /// AuthRepository, which itself depends on this ApiClient already
-  /// existing — a genuine construction-order cycle a setter breaks.
-  /// bootstrap.dart passes a no-op placeholder at construction time and
-  /// wires the real callback in via this setter once the rest of the
-  /// graph exists.
   void setOnSessionExpired(Future<void> Function() callback) =>
       _authInterceptor.setOnSessionExpired(callback);
 
-  /// Sets the stable device identifier used by the dedicated Fulus API to
-  /// authorize this installation for sync. The value itself is not a secret;
-  /// it is an installation identifier and is stored in secure storage so it
-  /// survives app restarts without being coupled to the local PIN identity.
-
-  /// Converts whatever Dio produced into a real Failure, following
-  /// Architecture Section 5's table exhaustively. Called explicitly by
-  /// each endpoint method (data/remote/endpoints/*.dart) around its own
-  /// Dio call — kept as a standalone function rather than baked silently
-  /// into an interceptor's error handler, so an endpoint method can
-  /// still distinguish "this specific call's 409 means success" (the
-  /// idempotent-retry case) from a genuine 409 elsewhere, which a single
-  /// app-wide interceptor rule couldn't do without knowing which
-  /// endpoint it's looking at.
   Failure mapError(DioException error) {
     if (error.type == DioExceptionType.connectionError ||
         error.type == DioExceptionType.connectionTimeout) {
@@ -137,126 +76,120 @@ class ApiClient {
 
     final response = error.response;
     if (response == null) {
-      // A timeout after the request DID reach the server (sendTimeout,
-      // receiveTimeout) is different from never connecting at all — the
-      // server may have processed it. Mapped to serverUnavailable, not
-      // offline, since the local write already stands regardless
-      // (Architecture Section 4: repositories never await the network
-      // inside a write), and re-attempting via the sync queue's retry
-      // interceptor is the correct next step either way.
       return const NetworkFailure.serverUnavailable();
     }
 
     final status = response.statusCode ?? 0;
     final body = response.data;
+    final code = _extractCode(body);
+    final message = _extractMessage(body);
+
+    if (status == 401) {
+      return const AuthFailure.sessionExpired();
+    }
+    if (status == 403) {
+      return const AuthFailure.forbidden();
+    }
+
+    // Supabase Auth deliberately returns structured auth codes. Do not throw
+    // those away and replace them with the old generic business error.
+    if (code == 'email_not_confirmed' || code == 'phone_not_confirmed') {
+      return BusinessRuleFailure(
+        code == 'phone_not_confirmed'
+            ? 'Please verify your phone number before signing in.'
+            : 'Please verify your email before signing in.',
+      );
+    }
+    if (code == 'invalid_credentials' ||
+        code == 'user_not_found' ||
+        code == 'email_exists') {
+      return const BusinessRuleFailure('Email or password is incorrect.');
+    }
+    if (code == 'signup_disabled' || code == 'email_provider_disabled') {
+      return const BusinessRuleFailure(
+        'New cloud accounts are currently unavailable. Please try again later.',
+      );
+    }
+    if (code == 'weak_password') {
+      return BusinessRuleFailure(
+        message ?? 'Choose a stronger password and try again.',
+      );
+    }
+    if (code == 'over_email_send_rate_limit' ||
+        code == 'over_request_rate_limit') {
+      return const BusinessRuleFailure(
+        'Too many requests. Please wait a little and try again.',
+      );
+    }
+    if (code == 'refresh_token_already_used' ||
+        code == 'refresh_token_not_found' ||
+        code == 'session_expired' ||
+        code == 'session_not_found') {
+      return const AuthFailure.sessionExpired();
+    }
 
     switch (status) {
-      case 401:
-        // The auth interceptor already attempted a silent refresh before
-        // this could ever reach here — a 401 surfacing this far means
-        // the refresh itself also failed.
-        return const AuthFailure.sessionExpired();
-
-      case 403:
-        // Architecture Section 5's explicit callout: this is a REAL,
-        // expected outcome now that the backend enforces roles
-        // server-side (verified directly — the fixes I made myself to
-        // sales.py/finance.py/employees.py/inventory.py/customers.py
-        // during the prior audit), not a case that "shouldn't happen."
-        return const AuthFailure.forbidden();
-
       case 409:
-        // Deliberately NOT mapped to a Failure at all in the general
-        // case reachable from here — per Architecture Section 5, a 409
-        // on a sale-creation retry (client_reference collision) is a
-        // SUCCESS signal, not a failure, and must be special-cased by
-        // the calling endpoint method BEFORE this function is ever
-        // reached for that specific call. If mapError is reached with a
-        // 409, it's being treated as a genuine conflict here because the
-        // caller didn't intercept it as the idempotent-success case —
-        // callers that create resources with a client_reference-style
-        // idempotency key are responsible for checking for 409
-        // specifically and treating it as success themselves; see
-        // SalesApi.createSale in data/remote/endpoints/sales_api.dart
-        // for the actual implementation of that special case.
         return BusinessRuleFailure(
-          _extractMessage(body) ?? 'This already happened — no changes needed.',
+          message ?? 'This operation conflicts with existing data.',
         );
-
       case 422:
         return ValidationFailure(fieldErrors: _extractFieldErrors(body));
-
       case 429:
         final lockedUntilRaw = _extractDetailField(body, 'locked_until');
-        if (lockedUntilRaw != null) {
-          final parsed = DateTime.tryParse(lockedUntilRaw);
-          if (parsed != null) {
-            return AuthFailure.accountLocked(lockedUntil: parsed);
-          }
-        }
-        // The backend's 429 for account lockout embeds the unlock time
-        // in its message text (verified directly: auth_service.py's
-        // AccountLockedError formats it into the detail string itself,
-        // not a separate structured field) rather than a dedicated JSON
-        // field — this fallback handles that shape; the structured-field
-        // attempt above is forward-looking in case that changes, not a
-        // claim it works today.
+        final parsed = lockedUntilRaw == null
+            ? null
+            : DateTime.tryParse(lockedUntilRaw);
+        if (parsed != null) return AuthFailure.accountLocked(lockedUntil: parsed);
         return BusinessRuleFailure(
-          _extractMessage(body) ?? 'Too many attempts. Please wait and try again.',
+          message ?? 'Too many attempts. Please wait and try again.',
         );
-
       case >= 400 && < 500:
-        // Every other 4xx — a deliberate business-rule rejection.
-        // Architecture Section 5's table: shown verbatim, since the
-        // backend's own messages already meet the plain-language bar
-        // (verified directly against several examples during the audit).
-        return BusinessRuleFailure(
-          _extractMessage(body) ?? 'That couldn\'t be completed.',
-        );
-
+        return BusinessRuleFailure(message ?? 'That couldn\'t be completed.');
       case >= 500:
         return const NetworkFailure.serverUnavailable();
-
       default:
-        // No status code branch above should be unreachable for a real
-        // HTTP response, but a default case exists rather than letting a
-        // genuinely unexpected status fall through unmapped — mapped to
-        // the most conservative, least alarming Failure rather than a
-        // raw-exception catch-all (see failure.dart's own closing
-        // comment on why no UnknownFailure variant exists).
         return const NetworkFailure.serverUnavailable();
     }
   }
 
+  String? _extractCode(dynamic body) {
+    if (body is! Map) return null;
+    final direct = body['code'];
+    if (direct is String && direct.isNotEmpty) return direct;
+    final error = body['error'];
+    if (error is Map && error['code'] is String) return error['code'] as String;
+    return null;
+  }
+
   String? _extractMessage(dynamic body) {
-    if (body is Map && body['detail'] is String) {
-      return body['detail'] as String;
+    if (body is! Map) return null;
+    for (final key in ['message', 'msg', 'error_description', 'detail']) {
+      final value = body[key];
+      if (value is String && value.trim().isNotEmpty) return value;
+    }
+    final error = body['error'];
+    if (error is Map) {
+      for (final key in ['message', 'msg', 'error_description', 'detail']) {
+        final value = error[key];
+        if (value is String && value.trim().isNotEmpty) return value;
+      }
     }
     return null;
   }
 
   String? _extractDetailField(dynamic body, String field) {
-    if (body is Map && body['detail'] is Map) {
-      final detail = body['detail'] as Map;
-      if (detail[field] is String) return detail[field] as String;
-    }
-    return null;
+    if (body is! Map || body['detail'] is! Map) return null;
+    final detail = body['detail'] as Map;
+    return detail[field] is String ? detail[field] as String : null;
   }
 
   Map<String, String> _extractFieldErrors(dynamic body) {
-    // FastAPI's default 422 shape (verified directly against the
-    // backend's own RequestValidationError handling in
-    // middleware/error_handlers.py): {"detail": [{"loc": [...], "msg":
-    // "...", ...}, ...]}. Mapped to a flat field-name -> message map,
-    // since that's what a form screen actually needs to key errors by.
     final errors = <String, String>{};
     if (body is Map && body['detail'] is List) {
-      for (final item in (body['detail'] as List)) {
+      for (final item in body['detail'] as List) {
         if (item is Map && item['loc'] is List && item['msg'] is String) {
           final loc = item['loc'] as List;
-          // loc is typically ['body', 'field_name'] — the field name is
-          // the last element, not the first, which is always the
-          // location type ('body', 'query', etc.), not useful as a key.
           final fieldName = loc.isNotEmpty ? loc.last.toString() : 'unknown';
           errors[fieldName] = item['msg'] as String;
         }
@@ -266,11 +199,6 @@ class ApiClient {
   }
 }
 
-/// Attaches the access token to every request and handles the 401 ->
-/// silent-refresh -> retry-original-request flow. The access token
-/// itself is read from wherever the app holds it in memory (Architecture
-/// Section 6: never persisted directly) via the getter passed in — this
-/// interceptor doesn't own token state, it only consumes and refreshes it.
 class _AuthInterceptor extends Interceptor {
   _AuthInterceptor({
     required SecureStorage secureStorage,
@@ -282,13 +210,19 @@ class _AuthInterceptor extends Interceptor {
 
   final SecureStorage _secureStorage;
   final Dio _dio;
-
-  // Not final — see ApiClient.setOnSessionExpired's own comment on why
-  // this needs to be rewireable after construction.
   Future<void> Function() _onSessionExpired;
-
   String? _accessToken;
+  String? _supabaseUrl;
+  String? _publishableKey;
   bool _isRefreshing = false;
+
+  void configureServerAuth({
+    required String supabaseUrl,
+    required String publishableKey,
+  }) {
+    _supabaseUrl = supabaseUrl;
+    _publishableKey = publishableKey;
+  }
 
   void setAccessToken(String? token) => _accessToken = token;
 
@@ -296,7 +230,7 @@ class _AuthInterceptor extends Interceptor {
       _onSessionExpired = callback;
 
   Future<void> _attachHeaders(RequestOptions options) async {
-    if (_accessToken != null) {
+    if (_accessToken != null && _accessToken!.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $_accessToken';
     }
     final deviceClientId = await _secureStorage.getDeviceClientId();
@@ -311,8 +245,6 @@ class _AuthInterceptor extends Interceptor {
       await _attachHeaders(options);
       handler.next(options);
     } catch (_) {
-      // Secure-storage failure must never make local Fulus unusable.
-      // The server will return the appropriate authentication/device error.
       handler.next(options);
     }
   }
@@ -324,34 +256,50 @@ class _AuthInterceptor extends Interceptor {
       return;
     }
 
+    final refreshToken = await _secureStorage.getRefreshToken();
+    final supabaseUrl = _supabaseUrl;
+    final publishableKey = _publishableKey;
+    if (refreshToken == null || supabaseUrl == null || publishableKey == null) {
+      await _onSessionExpired();
+      handler.next(err);
+      return;
+    }
+
     _isRefreshing = true;
     try {
-      final refreshToken = await _secureStorage.getRefreshToken();
-      if (refreshToken == null) {
-        await _onSessionExpired();
-        handler.next(err);
-        return;
+      final refreshClient = Dio(BaseOptions(
+        baseUrl: supabaseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+      ));
+      final response = await refreshClient.post(
+        '/auth/v1/token?grant_type=refresh_token',
+        data: {'refresh_token': refreshToken},
+        options: Options(headers: {
+          'apikey': publishableKey,
+          'content-type': 'application/json',
+        }),
+      );
+
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final newAccessToken = data['access_token'] as String?;
+      final newRefreshToken = data['refresh_token'] as String?;
+      if (newAccessToken == null || newAccessToken.isEmpty) {
+        throw StateError('Supabase refresh returned no access token.');
       }
 
-      // A bare, uninterceptored Dio call for the refresh itself —
-      // deliberately not going through the same client instance's
-      // interceptor stack, to avoid a refresh call that itself 401s
-      // recursively triggering another refresh attempt.
-      final refreshResponse = await Dio(BaseOptions(baseUrl: _dio.options.baseUrl))
-          .post('/api/auth/refresh', data: {'refresh_token': refreshToken});
-
-      final newAccessToken = refreshResponse.data['access_token'] as String;
-      final newRefreshToken = refreshResponse.data['refresh_token'] as String;
       setAccessToken(newAccessToken);
-      await _secureStorage.setRefreshToken(newRefreshToken);
+      if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+        await _secureStorage.setRefreshToken(newRefreshToken);
+      }
 
-      // Retry the original request with the new token.
       final retryOptions = err.requestOptions;
       retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
       final retryResponse = await _dio.fetch(retryOptions);
       handler.resolve(retryResponse);
     } catch (_) {
       await _secureStorage.deleteRefreshToken();
+      setAccessToken(null);
       await _onSessionExpired();
       handler.next(err);
     } finally {
@@ -360,29 +308,12 @@ class _AuthInterceptor extends Interceptor {
   }
 }
 
-/// Architecture Section 5's exact retry policy: immediate retry once,
-/// then backing off through the brief's own stated cadence (30s, 2min,
-/// 10min, continue) — for network errors and 5xx only, never 4xx, since
-/// a 4xx means the server processed the request and rejected it for a
-/// real reason retrying can't fix. This mirrors the exact 4xx/5xx
-/// distinction I verified directly in the desktop app's own
-/// offline-sync.ts during the prior audit.
-///
-/// This interceptor handles retry for a SINGLE in-flight request (e.g. a
-/// live screen's read that failed transiently) — it is deliberately
-/// separate from the sync QUEUE's own retry/backoff logic (sync/retry_policy.dart,
-/// Architecture Section 8), which operates on queued writes across
-/// separate app sessions, not a single request's immediate retry
-/// attempts within one call. Conflating the two would mean a live
-/// screen's read retry logic and the offline sync queue's multi-day
-/// backoff logic fighting over the same state.
 class _RetryInterceptor extends Interceptor {
   _RetryInterceptor({required Dio dio}) : _dio = dio;
 
   final Dio _dio;
-
   static const _backoffSteps = [
-    Duration.zero, // immediate retry
+    Duration.zero,
     Duration(seconds: 30),
     Duration(minutes: 2),
     Duration(minutes: 10),
@@ -395,7 +326,6 @@ class _RetryInterceptor extends Interceptor {
         err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         (status != null && status >= 500);
-
     final attempt = (err.requestOptions.extra['retry_attempt'] as int?) ?? 0;
 
     if (!isRetryable || attempt >= _backoffSteps.length) {
@@ -404,9 +334,7 @@ class _RetryInterceptor extends Interceptor {
     }
 
     final delay = _backoffSteps[attempt];
-    if (delay > Duration.zero) {
-      await Future.delayed(delay);
-    }
+    if (delay > Duration.zero) await Future.delayed(delay);
 
     try {
       final retryOptions = err.requestOptions;
@@ -414,10 +342,6 @@ class _RetryInterceptor extends Interceptor {
       final response = await _dio.fetch(retryOptions);
       handler.resolve(response);
     } on DioException catch (retryError) {
-      // onError will be invoked again for this new failure, and
-      // retry_attempt has already been incremented above, so the next
-      // pass through this same interceptor picks up at the correct
-      // backoff step rather than restarting from immediate.
       handler.next(retryError);
     }
   }
