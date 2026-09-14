@@ -67,16 +67,14 @@ class AppLockConfig {
   }
 
   Future<bool> verifyPin(String pin) async {
-    try {
-      final hash = await _secureStorage.read(key: _hashKey);
-      final salt = await _secureStorage.read(key: _saltKey);
-      if (hash == null || salt == null || hash.isEmpty || salt.isEmpty) return false;
-      return await _pinHasher.verify(pin, expectedHash: hash, salt: salt);
-    } catch (_) {
-      // A damaged/unreadable local verifier must behave like a failed PIN
-      // check, never strand the user behind the generic exception screen.
-      return false;
-    }
+    final hash = await _secureStorage.read(key: _hashKey);
+    final salt = await _secureStorage.read(key: _saltKey);
+    if (hash == null || salt == null || hash.isEmpty || salt.isEmpty) return false;
+
+    // Keep verifier/storage failures distinct from an incorrect PIN.
+    // The caller must not turn an exception into a false PIN result,
+    // otherwise a valid PIN can be reported as "Incorrect PIN".
+    return await _pinHasher.verify(pin, expectedHash: hash, salt: salt);
   }
 
   Future<void> setBiometricEnabled(bool value) async {
