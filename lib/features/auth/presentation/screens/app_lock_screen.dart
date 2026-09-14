@@ -38,17 +38,25 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   }
 
   Future<void> _prepareBiometric() async {
-    final config = await ref.read(appLockConfigProvider.future);
-    final enabled = await config.isBiometricEnabled();
-    final available = enabled && await _biometricAuth.isAvailable();
-    if (!mounted) return;
-    setState(() {
-      _biometricEnabled = enabled;
-      _biometricAvailable = available;
-    });
-    if (available && !_biometricAttempted) {
-      _biometricAttempted = true;
-      await _unlockWithBiometric();
+    try {
+      final config = await ref.read(appLockConfigProvider.future);
+      final enabled = await config.isBiometricEnabled();
+      final available = enabled && await _biometricAuth.isAvailable();
+      if (!mounted) return;
+      setState(() {
+        _biometricEnabled = enabled;
+        _biometricAvailable = available;
+      });
+      if (available && !_biometricAttempted) {
+        _biometricAttempted = true;
+        await _unlockWithBiometric();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _biometricEnabled = false;
+        _biometricAvailable = false;
+      });
     }
   }
 
@@ -58,41 +66,61 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
       _checking = true;
       _error = null;
     });
-    final authenticated = await _biometricAuth.authenticate();
-    if (!mounted) return;
-    if (authenticated) {
-      widget.onUnlocked();
-      return;
+    try {
+      final authenticated = await _biometricAuth.authenticate();
+      if (!mounted) return;
+      if (authenticated) {
+        widget.onUnlocked();
+        return;
+      }
+    } catch (_) {
+      // PIN remains available if the device biometric flow fails.
     }
-    setState(() => _checking = false);
+    if (mounted) setState(() => _checking = false);
   }
 
   Future<void> _unlock() async {
     final pin = _pinController.text.trim();
-    if (pin.isEmpty) return;
+    if (pin.isEmpty || _checking) return;
+
     setState(() {
       _checking = true;
       _error = null;
     });
-    final config = await ref.read(appLockConfigProvider.future);
-    final correct = await config.verifyPin(pin);
-    if (!mounted) return;
-    if (!correct) {
+
+    try {
+      final config = await ref.read(appLockConfigProvider.future);
+      final correct = await config.verifyPin(pin).timeout(const Duration(seconds: 15));
+      if (!mounted) return;
+      if (!correct) {
+        setState(() {
+          _checking = false;
+          _error = 'Incorrect PIN.';
+          _pinController.clear();
+        });
+        return;
+      }
+
+      final promptPending = await config.isBiometricPromptPending();
+      if (promptPending && await _biometricAuth.isAvailable()) {
+        await _offerBiometricSetup(config);
+        return;
+      }
+
+      widget.onUnlocked();
+    } on TimeoutException {
+      if (!mounted) return;
       setState(() {
         _checking = false;
-        _error = 'Incorrect PIN.';
-        _pinController.clear();
+        _error = 'PIN check took too long. Please try again.';
       });
-      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _error = 'We couldn\'t verify your PIN. Please try again.';
+      });
     }
-
-    final promptPending = await config.isBiometricPromptPending();
-    if (promptPending && await _biometricAuth.isAvailable()) {
-      await _offerBiometricSetup(config);
-      return;
-    }
-
-    widget.onUnlocked();
   }
 
   Future<void> _offerBiometricSetup(dynamic config) async {
