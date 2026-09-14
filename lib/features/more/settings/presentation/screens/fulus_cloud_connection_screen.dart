@@ -131,19 +131,27 @@ class _FulusCloudConnectionScreenState
   }
 
   Future<void> _checkVerification() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Enter the same email and password you used to create the account.');
+      return;
+    }
+
     setState(() { _busy = true; _error = null; });
     try {
-      final session = await ref.read(authApiProvider).restoreServerSession(
+      // Do not depend on the Android deep-link callback having delivered a
+      // refresh token. A verified account can always establish a fresh
+      // session with the credentials already present on this screen.
+      await ref.read(authApiProvider).connectServer(
+        email: email,
+        password: password,
         supabaseUrl: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
       );
-      if (session == null) {
-        throw StateError('Your email is not verified yet. Open the newest verification email and try again.');
-      }
-      if (mounted) {
-        setState(() => _awaitingVerification = false);
-        await _provisionBusiness();
-      }
+      if (!mounted) return;
+      setState(() => _awaitingVerification = false);
+      await _provisionBusiness();
     } on Failure catch (failure) {
       if (mounted) setState(() { _busy = false; _error = failure.message; });
     } catch (error) {
