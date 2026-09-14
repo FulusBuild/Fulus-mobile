@@ -9,7 +9,6 @@ import '../core/diagnostics/diagnostic_logger.dart';
 import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
-import '../core/onboarding/onboarding_state.dart';
 import '../core/security/pin_hasher.dart';
 import '../data/local/database/app_database_lifecycle.dart';
 import '../data/local/database/database.dart';
@@ -96,7 +95,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
   final syncConfig = await SyncConfig.load();
-  final onboardingState = await OnboardingState.load();
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
   apiClient = ApiClient(baseUrl: baseUrl, secureStorage: secureStorage, onSessionExpired: () async {});
@@ -313,14 +311,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       backupRepositoryProvider.overrideWithValue(backupRepository),
       dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
       reportsRepositoryProvider.overrideWithValue(reportsRepository),
-      syncConfigProvider.overrideWithValue(syncConfig),
+      syncConfigProvider.overrideWith(() => syncConfig),
       syncTriggersProvider.overrideWithValue(syncTriggers),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
-      fulusDeviceRegistrationProvider.overrideWithValue(fulusDeviceRegistration),
       fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
-      fulusConnectionStateProvider.overrideWithValue(fulusConnectionState),
-      fulusStaffAccessApiProvider.overrideWithValue(fulusStaffAccessApi),
+      fulusConnectionStateProvider.overrideWith(() => fulusConnectionState),
     ],
   );
 }
