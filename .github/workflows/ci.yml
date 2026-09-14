@@ -214,12 +214,19 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Verify Gradle wrapper
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Bootstrap Gradle wrapper
         run: |
-          set -euo pipefail
-          test -x android/gradlew
-          test -s android/gradle/wrapper/gradle-wrapper.jar
-          test -s android/gradle/wrapper/gradle-wrapper.properties
+          mkdir -p /tmp/gradle-wrapper-bootstrap
+          cd /tmp/gradle-wrapper-bootstrap
+          touch settings.gradle
+          gradle wrapper --distribution-type bin
+          cp -v gradlew gradlew.bat "$GITHUB_WORKSPACE/android/"
+          cp -v gradle/wrapper/gradle-wrapper.jar "$GITHUB_WORKSPACE/android/gradle/wrapper/"
+          chmod +x "$GITHUB_WORKSPACE/android/gradlew"
       - name: Flutter pub get
         run: flutter pub get
       - name: Generate code
