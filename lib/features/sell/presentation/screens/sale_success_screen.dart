@@ -74,8 +74,14 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
       return;
     }
 
+    // This screen is presented by the Sell flow with the platform Navigator.
+    // Going through go_router here can target the shell's router location
+    // without unwinding the Navigator that actually owns this page, which
+    // makes the button appear to do nothing. Pop the completed page instead;
+    // the committed sale has already cleared its draft cart, so the Sell
+    // page underneath is a fresh basket and is immediately ready for input.
     if (!context.mounted) return;
-    context.goNamed('sell');
+    Navigator.of(context).pop();
   }
 
   @override
