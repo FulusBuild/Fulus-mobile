@@ -92,8 +92,9 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
 
     try {
       final config = await ref.read(appLockConfigProvider.future);
-      final correct = await config.verifyPin(pin).timeout(const Duration(seconds: 15));
+      final correct = await config.verifyPin(pin).timeout(const Duration(seconds: 30));
       if (!mounted) return;
+
       if (!correct) {
         setState(() {
           _checking = false;
@@ -103,10 +104,18 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
         return;
       }
 
-      final promptPending = await config.isBiometricPromptPending();
-      if (promptPending && await _biometricAuth.isAvailable()) {
-        await _offerBiometricSetup(config);
-        return;
+      // PIN verification is the security decision. Everything below is
+      // optional biometric setup; a failure there must never turn a valid
+      // PIN into a failed unlock.
+      try {
+        final promptPending = await config.isBiometricPromptPending();
+        if (promptPending && await _biometricAuth.isAvailable()) {
+          await _offerBiometricSetup(config);
+          return;
+        }
+      } catch (_) {
+        // If preferences/biometric state cannot be read, fall back to the
+        // already-verified PIN instead of stranding the user.
       }
 
       widget.onUnlocked();
@@ -120,7 +129,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
       if (!mounted) return;
       setState(() {
         _checking = false;
-        _error = 'We couldn\'t verify your PIN. Please try again.';
+        _error = 'PIN verification is temporarily unavailable. Please try again.';
       });
     }
   }
