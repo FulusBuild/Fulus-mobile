@@ -6,8 +6,8 @@ import '../../../../core/security/biometric_auth.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 
-/// Full-screen app lock. PIN remains the offline fallback; device biometrics
-/// are a convenience layer backed entirely by Android/iOS system auth.
+/// Full-screen app lock. PIN remains the reliable fallback; biometrics are
+/// offered only after the user explicitly enables them.
 class AppLockScreen extends ConsumerStatefulWidget {
   const AppLockScreen({super.key, required this.onUnlocked});
   final VoidCallback onUnlocked;
@@ -22,6 +22,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   String? _error;
   bool _checking = false;
   bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
   bool _biometricAttempted = false;
 
   @override
@@ -37,9 +38,14 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   }
 
   Future<void> _prepareBiometric() async {
-    final available = await _biometricAuth.isAvailable();
+    final config = await ref.read(appLockConfigProvider.future);
+    final enabled = await config.isBiometricEnabled();
+    final available = enabled && await _biometricAuth.isAvailable();
     if (!mounted) return;
-    setState(() => _biometricAvailable = available);
+    setState(() {
+      _biometricEnabled = enabled;
+      _biometricAvailable = available;
+    });
     if (available && !_biometricAttempted) {
       _biometricAttempted = true;
       await _unlockWithBiometric();
@@ -71,19 +77,62 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
     final config = await ref.read(appLockConfigProvider.future);
     final correct = await config.verifyPin(pin);
     if (!mounted) return;
-    if (correct) {
+    if (!correct) {
+      setState(() {
+        _checking = false;
+        _error = 'Incorrect PIN.';
+        _pinController.clear();
+      });
+      return;
+    }
+
+    final promptPending = await config.isBiometricPromptPending();
+    if (promptPending && await _biometricAuth.isAvailable()) {
+      await _offerBiometricSetup(config);
+      return;
+    }
+
+    widget.onUnlocked();
+  }
+
+  Future<void> _offerBiometricSetup(dynamic config) async {
+    if (!mounted) return;
+    final enable = await showFulusConfirmDialog(
+      context,
+      title: 'Use fingerprint next time?',
+      message: 'Unlock Fulus faster with your phone\'s fingerprint. Your fingerprint stays on your phone.',
+      confirmLabel: 'Use fingerprint',
+      cancelLabel: 'Not now',
+    );
+    if (!mounted) return;
+
+    if (!enable) {
+      await config.dismissBiometricPrompt();
+      if (!mounted) return;
       widget.onUnlocked();
       return;
     }
-    setState(() {
-      _checking = false;
-      _error = 'Incorrect PIN.';
-      _pinController.clear();
-    });
+
+    setState(() => _checking = true);
+    final authenticated = await _biometricAuth.authenticate();
+    if (!mounted) return;
+    if (authenticated) {
+      await config.setBiometricEnabled(true);
+      if (!mounted) return;
+      showFulusSnackbar(context, message: 'Fingerprint unlock is on.');
+      widget.onUnlocked();
+      return;
+    }
+
+    await config.dismissBiometricPrompt();
+    if (!mounted) return;
+    setState(() => _checking = false);
+    widget.onUnlocked();
   }
 
   @override
   Widget build(BuildContext context) {
+    final biometricReady = _biometricEnabled && _biometricAvailable;
     return Material(
       color: AppColors.backgroundOf(context),
       child: SafeArea(
@@ -105,7 +154,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _biometricAvailable ? Icons.fingerprint_rounded : Icons.lock_outline_rounded,
+                      biometricReady ? Icons.fingerprint_rounded : Icons.lock_outline_rounded,
                       size: 48,
                       color: AppColors.primaryOf(context),
                     ),
@@ -118,14 +167,14 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    _biometricAvailable
+                    biometricReady
                         ? 'Unlock Fulus with your fingerprint or PIN.'
                         : 'Enter your PIN to continue.',
                     style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  if (_biometricAvailable) ...[
+                  if (biometricReady) ...[
                     SizedBox(
                       width: double.infinity,
                       child: FulusButton(
@@ -174,7 +223,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                     width: double.infinity,
                     child: FulusButton(
                       label: 'Unlock',
-                      loading: _checking && !_biometricAvailable,
+                      loading: _checking,
                       onPressed: _checking ? null : _unlock,
                     ),
                   ),
