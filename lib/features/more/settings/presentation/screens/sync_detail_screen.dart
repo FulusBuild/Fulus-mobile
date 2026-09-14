@@ -11,11 +11,34 @@ import '../../../../../sync/sync_status.dart';
 /// Sync is intentionally not presented as a feature the owner needs to
 /// operate. Fulus saves locally first and handles cloud synchronization in
 /// the background whenever Cloud is connected and the device is online.
-class SyncDetailScreen extends ConsumerWidget {
+class SyncDetailScreen extends ConsumerStatefulWidget {
   const SyncDetailScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SyncDetailScreen> createState() => _SyncDetailScreenState();
+}
+
+class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
+  bool _syncingNow = false;
+
+  Future<void> _syncNow() async {
+    if (_syncingNow) return;
+    setState(() => _syncingNow = true);
+    try {
+      await ref.read(syncTriggersProvider).syncNow();
+      if (!mounted) return;
+      ref.invalidate(_syncDetailStatusProvider);
+      showFulusSnackbar(context, message: 'Backup checked. Fulus will keep trying automatically if anything is still waiting.');
+    } catch (error) {
+      if (!mounted) return;
+      showFulusSnackbar(context, message: 'Backup could not be completed yet. Your work is still safe on this device.');
+    } finally {
+      if (mounted) setState(() => _syncingNow = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statusAsync = ref.watch(_syncDetailStatusProvider);
 
     return FulusScreen(
@@ -24,7 +47,11 @@ class SyncDetailScreen extends ConsumerWidget {
         children: [
           FulusSectionHeader(title: 'Your data'),
           statusAsync.when(
-            data: (status) => _StatusCard(status: status),
+            data: (status) => _StatusCard(
+              status: status,
+              syncingNow: _syncingNow,
+              onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
+            ),
             loading: () => const FulusLoadingIndicator(),
             error: (_, __) => FulusErrorState(
               message: "Couldn't read backup status.",
@@ -64,8 +91,15 @@ final _syncDetailStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
 });
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.status});
+  const _StatusCard({
+    required this.status,
+    required this.syncingNow,
+    required this.onSyncNow,
+  });
+
   final SyncStatus status;
+  final bool syncingNow;
+  final VoidCallback? onSyncNow;
 
   @override
   Widget build(BuildContext context) {
@@ -103,30 +137,48 @@ class _StatusCard extends StatelessWidget {
     };
 
     return FulusCard(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: AppIconSize.emphasis),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  headline,
-                  style: AppTypography.subheading.copyWith(
-                    color: AppColors.textPrimaryOf(context),
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: AppIconSize.emphasis),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      headline,
+                      style: AppTypography.subheading.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      body,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondaryOf(context),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  body,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textSecondaryOf(context),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          if (onSyncNow != null && status.kind != SyncStatusKind.settled) ...[
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(
+                label: syncingNow ? 'Checking backup…' : 'Try backup now',
+                loading: syncingNow,
+                onPressed: syncingNow ? null : onSyncNow,
+                variant: FulusButtonVariant.secondary,
+              ),
+            ),
+          ],
         ],
       ),
     );
