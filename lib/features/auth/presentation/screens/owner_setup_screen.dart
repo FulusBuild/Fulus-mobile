@@ -112,30 +112,47 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     return _buildBackAwareScreen(
       FulusScreen(
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(title, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(_needsOwnerName ? 'Your name and your business. Nothing else is required.' : 'Just your business name. You can configure the rest later.', style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context))),
-                    const SizedBox(height: AppSpacing.xxl),
-                    if (_bannerMessage != null) ...[AuthErrorBanner(message: _bannerMessage!), const SizedBox(height: AppSpacing.lg)],
-                    if (_needsOwnerName) ...[
-                      FulusTextField(label: 'Your name', controller: _fullNameController, errorText: _fieldErrors['fullName'], onChanged: (_) => _clearErrors()),
-                      if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
-                    ],
-                    if (_needsBusiness) FulusTextField(label: 'Business name', controller: _businessNameController, errorText: _fieldErrors['businessName'], onChanged: (_) => _clearErrors()),
-                    const SizedBox(height: AppSpacing.xl),
-                    FulusButton(label: !_needsBusiness ? 'Finish' : 'Create my business', icon: Icons.arrow_forward_rounded, loading: _submitting, onPressed: _submitting ? null : _submit),
-                  ],
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 0),
+                  child: TextButton.icon(
+                    onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Back'),
+                  ),
                 ),
               ),
-            ),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(title, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(_needsOwnerName ? 'Your name and your business. Nothing else is required.' : 'Just your business name. You can configure the rest later.', style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context))),
+                          const SizedBox(height: AppSpacing.xxl),
+                          if (_bannerMessage != null) ...[AuthErrorBanner(message: _bannerMessage!), const SizedBox(height: AppSpacing.lg)],
+                          if (_needsOwnerName) ...[
+                            FulusTextField(label: 'Your name', controller: _fullNameController, errorText: _fieldErrors['fullName'], onChanged: (_) => _clearErrors()),
+                            if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
+                          ],
+                          if (_needsBusiness) FulusTextField(label: 'Business name', controller: _businessNameController, errorText: _fieldErrors['businessName'], onChanged: (_) => _clearErrors()),
+                          const SizedBox(height: AppSpacing.xl),
+                          FulusButton(label: !_needsBusiness ? 'Finish' : 'Create my business', icon: Icons.arrow_forward_rounded, loading: _submitting, onPressed: _submitting ? null : _submit),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -154,24 +171,45 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
 
   Widget _buildAlreadySetUp(BuildContext context) {
     return FulusScreen(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context), size: AppIconSize.hero),
-                const SizedBox(height: AppSpacing.lg),
-                Text("You're all set", textAlign: TextAlign.center, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
-                const SizedBox(height: AppSpacing.sm),
-                Text('This business is already set up on this device.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-                const SizedBox(height: AppSpacing.xl),
-                FulusButton(label: 'Continue', onPressed: () => Navigator.of(context).pop()),
-              ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 0),
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('Back'),
+                ),
+              ),
             ),
+            Expanded(child: _buildAlreadySetUpContent(context)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlreadySetUpContent(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context), size: AppIconSize.hero),
+              const SizedBox(height: AppSpacing.lg),
+              Text("You're all set", textAlign: TextAlign.center, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
+              const SizedBox(height: AppSpacing.sm),
+              Text('This business is already set up on this device.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+              const SizedBox(height: AppSpacing.xl),
+              FulusButton(label: 'Continue', onPressed: () => Navigator.of(context).pop()),
+            ],
           ),
         ),
       ),
