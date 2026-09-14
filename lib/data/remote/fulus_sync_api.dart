@@ -3,11 +3,6 @@ import 'package:dio/dio.dart';
 import 'api_client.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
-///
-/// This is intentionally separate from the legacy FastAPI-style endpoint
-/// classes in this repository. The Fulus cloud API is the server-authoritative
-/// sync boundary and speaks in sync cursors/operations rather than screen-level
-/// CRUD calls.
 class FulusSyncApi {
   FulusSyncApi({
     required ApiClient client,
@@ -75,11 +70,17 @@ class FulusSyncApi {
         final dot = operationType.indexOf('.');
         final entity = operationType.substring(0, dot);
         final operation = operationType.substring(dot + 1);
+        final apiEntity = switch (entity) {
+          'product' => 'products',
+          'category' => 'categories',
+          'supplier' => 'suppliers',
+          _ => throw StateError('Unsupported catalog entity: $entity'),
+        };
         body
           ..remove('operation_type')
           ..remove('payload')
           ..['action'] = operation == 'delete' ? 'catalog_delete' : 'catalog_upsert'
-          ..['entity'] = '${entity == 'product' ? 'products' : '${entity}s'}';
+          ..['entity'] = apiEntity;
         if (operation == 'delete') {
           body['id'] = rawPayload['server_id'];
         } else {
@@ -97,10 +98,7 @@ class FulusSyncApi {
       );
 
       final result = Map<String, dynamic>.from(response.data as Map);
-      return _normalizeOperationResponse(
-        result,
-        operationType: operationType,
-      );
+      return _normalizeOperationResponse(result, operationType: operationType);
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
@@ -115,20 +113,13 @@ class FulusSyncApi {
 
     final data = Map<String, dynamic>.from(rawData);
     if (operationType == 'sale.create' && data['sale_id'] != null) {
-      result['data'] = {
-        ...data,
-        'entity_id': data['sale_id'],
-      };
+      result['data'] = {...data, 'entity_id': data['sale_id']};
     } else if ((operationType.startsWith('product.') ||
             operationType.startsWith('category.') ||
             operationType.startsWith('supplier.')) &&
         data['item'] is Map) {
       final item = Map<String, dynamic>.from(data['item'] as Map);
-      result['data'] = {
-        ...data,
-        'entity_id': item['id'],
-        'entity': item,
-      };
+      result['data'] = {...data, 'entity_id': item['id'], 'entity': item};
     }
     return result;
   }
@@ -159,9 +150,7 @@ class FulusSyncPullResponse {
     final rawChanges = (data['changes'] as List? ?? const []);
     return FulusSyncPullResponse(
       changes: rawChanges
-          .map((item) => FulusSyncChange.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ))
+          .map((item) => FulusSyncChange.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(growable: false),
       cursor: (data['cursor'] as num).toInt(),
       nextCursor: (data['next_cursor'] as num).toInt(),
@@ -187,8 +176,7 @@ class FulusSyncChange {
   final Object? payload;
   final DateTime createdAt;
 
-  factory FulusSyncChange.fromJson(Map<String, dynamic> json) =>
-      FulusSyncChange(
+  factory FulusSyncChange.fromJson(Map<String, dynamic> json) => FulusSyncChange(
         sequence: (json['sequence'] as num).toInt(),
         entityType: json['entity_type'] as String,
         entityId: json['entity_id'] as String,
