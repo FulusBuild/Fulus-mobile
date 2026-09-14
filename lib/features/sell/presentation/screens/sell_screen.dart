@@ -4,15 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/screens/barcode_scan_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../../core/ux/consumer_polish.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/quick_sale_sheet.dart';
@@ -76,6 +77,36 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
   late final Stream<List<Category>> _categoriesStream = ref.read(categoryRepositoryProvider).watchCategories();
   String _query = '';
   String? _selectedCategoryId;
+  final Set<String> _favoriteIds = <String>{};
+  bool _favoritesOnly = false;
+  bool _favoritesLoaded = false;
+  static const _favoritesKey = 'fulus_sell_favorite_product_ids';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final preferences = await SharedPreferences.getInstance();
+    final saved = preferences.getStringList(_favoritesKey) ?? const <String>[];
+    if (!mounted) return;
+    setState(() {
+      _favoriteIds
+        ..clear()
+        ..addAll(saved);
+      _favoritesLoaded = true;
+    });
+  }
+
+  Future<void> _toggleFavorite(String productId) async {
+    setState(() {
+      if (!_favoriteIds.add(productId)) _favoriteIds.remove(productId);
+    });
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(_favoritesKey, _favoriteIds.toList());
+  }
 
   @override
   void dispose() {
@@ -170,6 +201,23 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
               onChanged: (value) => setState(() => _query = value),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+            child: FulusChipRow(
+              children: [
+                FulusChip(
+                  label: 'All',
+                  selected: !_favoritesOnly,
+                  onTap: () => setState(() => _favoritesOnly = false),
+                ),
+                FulusChip(
+                  label: 'Favorites',
+                  selected: _favoritesOnly,
+                  onTap: () => setState(() => _favoritesOnly = true),
+                ),
+              ],
+            ),
+          ),
           StreamBuilder<List<Category>>(
             stream: _categoriesStream,
             builder: (context, snapshot) {
@@ -180,7 +228,7 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
                 child: FulusChipRow(
                   children: [
                     FulusChip(
-                      label: 'All',
+                      label: 'All categories',
                       selected: _selectedCategoryId == null,
                       onTap: () => setState(() => _selectedCategoryId = null),
                     ),
@@ -210,9 +258,7 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
                 _ => (errorMessage: null, catalogSlice: null),
               },
               builder: (context, result) {
-                if (result.errorMessage != null) {
-                  return FulusErrorState(message: result.errorMessage!);
-                }
+                if (result.errorMessage != null) return FulusErrorState(message: result.errorMessage!);
                 final slice = result.catalogSlice;
                 if (slice == null) return const FulusLoadingIndicator();
                 return _ProductArea(
@@ -221,8 +267,12 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
                   currencySymbol: slice.currencySymbol,
                   query: _query,
                   categoryId: _selectedCategoryId,
+                  favoritesOnly: _favoritesOnly,
+                  favoriteIds: _favoriteIds,
+                  favoritesLoaded: _favoritesLoaded,
                   onClearSearch: _clearSearch,
                   onAddProduct: (product) => _addProduct(context, product),
+                  onToggleFavorite: _toggleFavorite,
                 );
               },
             ),
@@ -241,11 +291,7 @@ class _SellScreenBodyState extends ConsumerState<_SellScreenBody> {
   }
 }
 
-typedef _CatalogSlice = ({
-  Map<String, ProductWithStock> catalog,
-  bool catalogLoaded,
-  String currencySymbol,
-});
+typedef _CatalogSlice = ({Map<String, ProductWithStock> catalog, bool catalogLoaded, String currencySymbol});
 typedef _ProductAreaState = ({String? errorMessage, _CatalogSlice? catalogSlice});
 
 class _ProductArea extends StatelessWidget {
@@ -255,8 +301,12 @@ class _ProductArea extends StatelessWidget {
     required this.currencySymbol,
     required this.query,
     required this.categoryId,
+    required this.favoritesOnly,
+    required this.favoriteIds,
+    required this.favoritesLoaded,
     required this.onClearSearch,
     required this.onAddProduct,
+    required this.onToggleFavorite,
   });
 
   final Map<String, ProductWithStock> catalog;
@@ -264,12 +314,16 @@ class _ProductArea extends StatelessWidget {
   final String currencySymbol;
   final String query;
   final String? categoryId;
+  final bool favoritesOnly;
+  final Set<String> favoriteIds;
+  final bool favoritesLoaded;
   final VoidCallback onClearSearch;
   final Future<void> Function(ProductWithStock product) onAddProduct;
+  final Future<void> Function(String productId) onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
-    if (!catalogLoaded) {
+    if (!catalogLoaded || !favoritesLoaded) {
       return GridView.builder(
         padding: const EdgeInsets.all(AppSpacing.lg),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -296,23 +350,30 @@ class _ProductArea extends StatelessWidget {
     final normalizedQuery = query.trim().toLowerCase();
     final products = catalog.values.where((p) {
       final product = p.product;
+      if (favoritesOnly && !favoriteIds.contains(product.localId)) return false;
       if (categoryId != null && product.categoryId != categoryId) return false;
       if (normalizedQuery.isEmpty) return true;
       return product.name.toLowerCase().contains(normalizedQuery) ||
           product.sku.toLowerCase().contains(normalizedQuery) ||
           (product.barcode?.toLowerCase().contains(normalizedQuery) ?? false);
     }).toList()
-      ..sort((a, b) => a.product.name.compareTo(b.product.name));
+      ..sort((a, b) {
+        final favoriteOrder = (favoriteIds.contains(b.product.localId) ? 1 : 0) -
+            (favoriteIds.contains(a.product.localId) ? 1 : 0);
+        return favoriteOrder != 0 ? favoriteOrder : a.product.name.compareTo(b.product.name);
+      });
 
     if (products.isEmpty) {
       return FulusEmptyState(
-        headline: 'No matches',
-        body: normalizedQuery.isEmpty
-            ? 'No products in this category yet.'
-            : 'Nothing matches "$query" — try a different search, or use Quick Sale.',
-        icon: Icons.search_off,
-        actionLabel: 'Clear search',
-        onAction: onClearSearch,
+        headline: favoritesOnly ? 'No favorites yet' : 'No matches',
+        body: favoritesOnly
+            ? 'Star your fastest-selling products to keep them one tap away.'
+            : normalizedQuery.isEmpty
+                ? 'No products in this category yet.'
+                : 'Nothing matches "$query" — try a different search, or use Quick Sale.',
+        icon: favoritesOnly ? Icons.star_border : Icons.search_off,
+        actionLabel: favoritesOnly ? 'Show all products' : 'Clear search',
+        onAction: favoritesOnly ? () {} : onClearSearch,
       );
     }
 
@@ -328,18 +389,28 @@ class _ProductArea extends StatelessWidget {
       itemBuilder: (context, i) => _ProductTile(
         productWithStock: products[i],
         currencySymbol: currencySymbol,
+        isFavorite: favoriteIds.contains(products[i].product.localId),
         onAdd: onAddProduct,
+        onToggleFavorite: onToggleFavorite,
       ),
     );
   }
 }
 
 class _ProductTile extends StatelessWidget {
-  const _ProductTile({required this.productWithStock, required this.currencySymbol, required this.onAdd});
+  const _ProductTile({
+    required this.productWithStock,
+    required this.currencySymbol,
+    required this.isFavorite,
+    required this.onAdd,
+    required this.onToggleFavorite,
+  });
 
   final ProductWithStock productWithStock;
   final String currencySymbol;
+  final bool isFavorite;
   final Future<void> Function(ProductWithStock product) onAdd;
+  final Future<void> Function(String productId) onToggleFavorite;
 
   bool get _outOfStock => productWithStock.product.tracksStock && productWithStock.currentStock <= 0;
 
@@ -348,81 +419,66 @@ class _ProductTile extends StatelessWidget {
     final product = productWithStock.product;
     return Opacity(
       opacity: _outOfStock ? AppOpacity.disabled : 1.0,
-      child: FulusPressable(
-        semanticsLabel: _outOfStock ? '${product.name}, out of stock' : 'Add ${product.name} to sale',
-        onPressed: _outOfStock ? null : () => onAdd(productWithStock),
-        child: FulusCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.selectedTintOf(context),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    alignment: Alignment.center,
-                    child: product.photoPath == null
-                        ? Icon(
-                            Icons.inventory_2_outlined,
-                            size: AppIconSize.emphasis,
-                            color: AppColors.primaryOf(context).withValues(alpha: 0.55),
-                          )
-                        : Image.file(
-                            File(product.photoPath!),
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            cacheWidth: 300,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.inventory_2_outlined,
-                              size: AppIconSize.emphasis,
-                              color: AppColors.primaryOf(context).withValues(alpha: 0.55),
-                            ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: FulusPressable(
+              semanticsLabel: _outOfStock ? '${product.name}, out of stock' : 'Add ${product.name} to sale',
+              onPressed: _outOfStock ? null : () => onAdd(productWithStock),
+              child: FulusCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: AppColors.selectedTintOf(context),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
-                  ),
+                          alignment: Alignment.center,
+                          child: product.photoPath == null
+                              ? Icon(Icons.inventory_2_outlined, size: AppIconSize.emphasis, color: AppColors.primaryOf(context).withValues(alpha: 0.55))
+                              : Image.file(
+                                  File(product.photoPath!),
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 300,
+                                  errorBuilder: (context, error, stackTrace) => Icon(Icons.inventory_2_outlined, size: AppIconSize.emphasis, color: AppColors.primaryOf(context).withValues(alpha: 0.55)),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(formatMoney(product.sellingPrice, symbol: currencySymbol), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),
+                    if (_outOfStock)
+                      Text('Out of stock', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)))
+                    else if (product.tracksStock && productWithStock.isLowStock)
+                      Text('Only ${productWithStock.currentStock} left', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.warningOf(context))),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                formatMoney(product.sellingPrice, symbol: currencySymbol),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.primaryOf(context),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (_outOfStock)
-                Text(
-                  'Out of stock',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)),
-                )
-              else if (product.tracksStock && productWithStock.isLowStock)
-                Text(
-                  'Only ${productWithStock.currentStock} left',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption.copyWith(color: AppColors.warningOf(context)),
-                ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            top: AppSpacing.sm,
+            right: AppSpacing.sm,
+            child: Material(
+              color: AppColors.surfaceOf(context).withValues(alpha: 0.92),
+              shape: const CircleBorder(),
+              child: FulusIconButton(
+                icon: isFavorite ? Icons.star : Icons.star_border,
+                tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                onPressed: () => onToggleFavorite(product.localId),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -439,10 +495,7 @@ class _CartSummaryBar extends StatelessWidget {
       top: false,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceOf(context),
-          boxShadow: AppElevation.liftOf(context),
-        ),
+        decoration: BoxDecoration(color: AppColors.surfaceOf(context), boxShadow: AppElevation.liftOf(context)),
         child: SizedBox(
           height: AppTouchTarget.minimum,
           child: Material(
@@ -452,14 +505,7 @@ class _CartSummaryBar extends StatelessWidget {
               semanticsLabel: 'View cart, ${state.itemCount} ${state.itemCount == 1 ? 'item' : 'items'}',
               onPressed: () {
                 final cubit = context.read<CartCubit>();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => BlocProvider.value(
-                      value: cubit,
-                      child: const CartScreen(),
-                    ),
-                  ),
-                );
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen())));
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -469,20 +515,13 @@ class _CartSummaryBar extends StatelessWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        state.itemCount == 1
-                            ? 'View Cart · 1 item'
-                            : 'View Cart · ${state.itemCount} items',
-                        style: AppTypography.buttonLabel.copyWith(
-                          color: AppColors.onPrimaryOf(context),
-                        ),
+                        state.itemCount == 1 ? 'View Cart · 1 item' : 'View Cart · ${state.itemCount} items',
+                        style: AppTypography.buttonLabel.copyWith(color: AppColors.onPrimaryOf(context)),
                       ),
                     ),
-                    Text(
-                      formatMoney(state.total, symbol: state.currencySymbol),
-                      style: AppTypography.buttonLabel.copyWith(
-                        color: AppColors.onPrimaryOf(context),
-                      ),
-                    ),
+                    Text(formatMoney(state.total, symbol: state.currencySymbol), style: AppTypography.mono.copyWith(color: AppColors.onPrimaryOf(context), fontWeight: FontWeight.w700)),
+                    const SizedBox(width: AppSpacing.xs),
+                    Icon(Icons.arrow_forward, color: AppColors.onPrimaryOf(context), size: AppIconSize.compact),
                   ],
                 ),
               ),
