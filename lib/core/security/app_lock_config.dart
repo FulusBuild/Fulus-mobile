@@ -33,10 +33,24 @@ class AppLockConfig {
 
   Future<bool> isActive() async {
     if (!(_preferences.getBool(_enabledKey) ?? false)) return false;
-    return (await _secureStorage.read(key: _hashKey)) != null;
+    try {
+      final hash = await _secureStorage.read(key: _hashKey);
+      final salt = await _secureStorage.read(key: _saltKey);
+      return hash != null && salt != null && hash.isNotEmpty && salt.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<bool> hasPinSet() async => (await _secureStorage.read(key: _hashKey)) != null;
+  Future<bool> hasPinSet() async {
+    try {
+      final hash = await _secureStorage.read(key: _hashKey);
+      final salt = await _secureStorage.read(key: _saltKey);
+      return hash != null && hash.isNotEmpty && salt != null && salt.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<bool> isBiometricEnabled() async =>
       (await isActive()) && (_preferences.getBool(_biometricEnabledKey) ?? false);
@@ -53,10 +67,16 @@ class AppLockConfig {
   }
 
   Future<bool> verifyPin(String pin) async {
-    final hash = await _secureStorage.read(key: _hashKey);
-    final salt = await _secureStorage.read(key: _saltKey);
-    if (hash == null || salt == null) return false;
-    return _pinHasher.verify(pin, expectedHash: hash, salt: salt);
+    try {
+      final hash = await _secureStorage.read(key: _hashKey);
+      final salt = await _secureStorage.read(key: _saltKey);
+      if (hash == null || salt == null || hash.isEmpty || salt.isEmpty) return false;
+      return await _pinHasher.verify(pin, expectedHash: hash, salt: salt);
+    } catch (_) {
+      // A damaged/unreadable local verifier must behave like a failed PIN
+      // check, never strand the user behind the generic exception screen.
+      return false;
+    }
   }
 
   Future<void> setBiometricEnabled(bool value) async {
