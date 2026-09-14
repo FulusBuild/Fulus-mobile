@@ -58,6 +58,20 @@ jobs:
           print("ShellGate diagnostic patch applied")
           PY
 
+      - name: Disable production signing guard for debug diagnostic build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/build.gradle")
+          text = path.read_text()
+          old = '''            if (!keystorePropertiesFile.exists()) {\n                throw new GradleException(\n                    "Release signing is not configured. Provide android/key.properties from key.properties.example."\n                )\n            }\n'''
+          if old not in text:
+              raise SystemExit("Expected release signing guard was not found; refusing to modify the build.")
+          path.write_text(text.replace(old, "", 1))
+          print("Production signing guard disabled for this CI workspace only")
+          PY
+
       - name: Build diagnostic APK
         run: flutter build apk --debug
 
