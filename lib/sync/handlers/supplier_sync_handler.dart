@@ -19,7 +19,7 @@ class SupplierSyncHandler implements SyncHandler {
 
   @override
   Future<void> sync(SyncQueueItem item) async {
-    if (item.operation != 'create') {
+    if (item.operation != 'create' && item.operation != 'update') {
       throw StateError(
         'SupplierSyncHandler does not support operation "${item.operation}".',
       );
@@ -38,22 +38,29 @@ class SupplierSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for supplier sync.');
     }
 
+    final isDelete = item.operation == 'update' && supplier.deletedAt != null;
+    final operationType = isDelete
+        ? 'supplier.delete'
+        : 'supplier.${item.operation}';
+    final payload = <String, dynamic>{
+      'name': supplier.name,
+      'phone': supplier.phone,
+      'email': supplier.email,
+      'address': supplier.address,
+      if (supplier.serverId != null) 'server_id': supplier.serverId,
+    };
+
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
-      operationType: 'supplier.create',
+      operationType: operationType,
       operationId: item.id,
       deviceClientId: device.deviceClientId,
-      payload: {
-        'name': supplier.name,
-        'phone': supplier.phone,
-        'email': supplier.email,
-        'address': supplier.address,
-      },
+      payload: isDelete ? {'server_id': supplier.serverId} : payload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
-    final serverId = data['entity_id'] as String?;
+    final serverId = (data['entity_id'] as String?) ?? supplier.serverId;
     if (serverId == null) {
-      throw StateError('Fulus supplier create returned no server entity ID.');
+      throw StateError('Fulus supplier sync returned no server entity ID.');
     }
 
     await _supplierRepository.markSynced(
