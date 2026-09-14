@@ -2,34 +2,23 @@ import 'package:flutter/material.dart';
 
 /// The canonical Fulus brand mark used inside the app.
 ///
-/// Keep the source asset in one place so individual screens cannot drift back
-/// to placeholder letters, generic icons, or differently tinted copies of the
-/// mark. The transparent mark is the same source used by the native launch
-/// artwork and Android launcher foreground.
+/// The source artwork must never be recolored or tinted. Background treatment
+/// is controlled independently so the original multi-color Fulus mark remains
+/// visually identical wherever it is displayed.
 class FulusBrandLogo extends StatelessWidget {
   const FulusBrandLogo({
     super.key,
     this.size = 64,
     this.backgroundColor,
     this.padding = 12,
-    this.tint,
   });
 
   final double size;
   final Color? backgroundColor;
   final double padding;
-  final Color? tint;
 
   @override
   Widget build(BuildContext context) {
-    final image = Image.asset(
-      'assets/branding/fulus_mark_transparent.png',
-      fit: BoxFit.contain,
-      color: tint,
-      colorBlendMode: tint == null ? null : BlendMode.srcIn,
-      semanticLabel: 'Fulus',
-    );
-
     return Container(
       width: size,
       height: size,
@@ -38,7 +27,11 @@ class FulusBrandLogo extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: image,
+      child: Image.asset(
+        'assets/branding/fulus_logo_master.png',
+        fit: BoxFit.contain,
+        semanticLabel: 'Fulus',
+      ),
     );
   }
 }
