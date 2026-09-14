@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ulid/ulid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../core/config/env_config.dart';
 import '../core/config/supabase_config.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
@@ -100,31 +98,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final syncConfig = await SyncConfig.load();
   final onboardingState = await OnboardingState.load();
   const baseUrl = EnvConfig.apiBaseUrl;
-
   late final ApiClient apiClient;
-  apiClient = ApiClient(
-    baseUrl: baseUrl,
-    secureStorage: secureStorage,
-    onSessionExpired: () async {},
-  );
+  apiClient = ApiClient(baseUrl: baseUrl, secureStorage: secureStorage, onSessionExpired: () async {});
 
   final fulusFunctionBaseUrl = '${SupabaseConfig.url}/functions/v1/fulus-api';
-  final fulusBusinessContext = FulusBusinessContext(
-    client: apiClient,
-    functionBaseUrl: fulusFunctionBaseUrl,
-  );
-  final fulusDeviceRegistration = FulusDeviceRegistration(
-    client: apiClient,
-    functionBaseUrl: fulusFunctionBaseUrl,
-  );
-  final fulusSyncApi = FulusSyncApi(
-    client: apiClient,
-    functionBaseUrl: fulusFunctionBaseUrl,
-  );
-  final fulusStaffAccessApi = FulusStaffAccessApi(
-    client: apiClient,
-    functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api',
-  );
+  final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  final fulusDeviceRegistration = FulusDeviceRegistration(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  final fulusSyncApi = FulusSyncApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  final fulusStaffAccessApi = FulusStaffAccessApi(client: apiClient, functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api');
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
@@ -140,10 +121,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     if (session == null) return;
     try {
       await fulusConnectionState.refresh();
-      final active = fulusConnectionState.membershipContext?.memberships
-              .where((m) => m.status == 'active')
-              .toList(growable: false) ??
-          const [];
+      final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
       if (active.length != 1) return;
       fulusConnectionState.selectBusiness(active.first.businessId);
       final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
@@ -189,67 +167,24 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final syncQueue = SyncQueue(database);
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
-  final saleRepository = SaleRepositoryImpl(
-    db: database,
-    syncQueue: syncQueue,
-    authRepository: authRepository,
-    customerCreditRepository: customerCreditRepository,
-    diagnosticLogger: diagnosticLogger,
-  );
+  final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
   final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
-  final expenseRepository = ExpenseRepositoryImpl(
-    db: database,
-    syncQueue: syncQueue,
-    auditRepository: auditRepository,
-  );
+  final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(
-    db: database,
-    productsApi: productsApi,
-    syncQueue: syncQueue,
-  );
+  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
   final categoryRepository = CategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
-  final draftCartRepository = DraftCartRepositoryImpl(
-    db: database,
-    productRepository: productRepository,
-    saleRepository: saleRepository,
-    diagnosticLogger: diagnosticLogger,
-  );
-  final returnRepository = ReturnRepositoryImpl(
-    db: database,
-    syncQueue: syncQueue,
-    customerCreditRepository: customerCreditRepository,
-  );
+  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
+  final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database);
   final taxRemittanceRepository = TaxRemittanceRepositoryImpl(db: database);
-  final financeStatsRepository = FinanceStatsRepositoryImpl(
-    db: database,
-    customerCreditRepository: customerCreditRepository,
-  );
-  final cashDrawerShiftRepository = CashDrawerShiftRepositoryImpl(
-    db: database,
-    syncQueue: syncQueue,
-    authRepository: authRepository,
-  );
-  final locationRepository = LocationRepositoryImpl(
-    db: database,
-    locationsApi: locationsApi,
-    syncQueue: syncQueue,
-  );
-  final businessSettingsRepository = BusinessSettingsRepositoryImpl(
-    db: database,
-    businessSettingsApi: businessSettingsApi,
-    authRepository: authRepository,
-    permissionRepository: permissionRepository,
-  );
-  final resolveActiveLocation = ResolveActiveLocation(
-    locationRepository: locationRepository,
-    authRepository: authRepository,
-    businessSettingsRepository: businessSettingsRepository,
-  );
+  final financeStatsRepository = FinanceStatsRepositoryImpl(db: database, customerCreditRepository: customerCreditRepository);
+  final cashDrawerShiftRepository = CashDrawerShiftRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository);
+  final locationRepository = LocationRepositoryImpl(db: database, locationsApi: locationsApi, syncQueue: syncQueue);
+  final businessSettingsRepository = BusinessSettingsRepositoryImpl(db: database, businessSettingsApi: businessSettingsApi, authRepository: authRepository, permissionRepository: permissionRepository);
+  final resolveActiveLocation = ResolveActiveLocation(locationRepository: locationRepository, authRepository: authRepository, businessSettingsRepository: businessSettingsRepository);
 
   if (syncConfig.isEnabled) {
     unawaited(locationRepository.syncFromServer().catchError((_) {}));
@@ -257,63 +192,18 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     unawaited(productRepository.syncFromServer().catchError((_) {}));
   }
 
-  final saleSyncHandler = SaleSyncHandler(
-    db: database,
-    fulusSyncApi: fulusSyncApi,
-    fulusConnectionState: fulusConnectionState,
-    salesApi: salesApi,
-    saleRepository: saleRepository,
-  );
-  final customerSyncHandler = CustomerSyncHandler(
-    customersApi: customersApi,
-    customerRepository: customerRepository,
-  );
-  final categorySyncHandler = CategorySyncHandler(
-    categoryRepository: categoryRepository,
-    fulusSyncApi: fulusSyncApi,
-    fulusConnectionState: fulusConnectionState,
-  );
-  final supplierSyncHandler = SupplierSyncHandler(
-    supplierRepository: supplierRepository,
-    fulusSyncApi: fulusSyncApi,
-    fulusConnectionState: fulusConnectionState,
-  );
-  final locationSyncHandler = LocationSyncHandler(
-    locationsApi: locationsApi,
-    locationRepository: locationRepository,
-  );
-  final returnSyncHandler = ReturnSyncHandler(
-    returnsApi: returnsApi,
-    returnRepository: returnRepository,
-  );
-  final expenseCategorySyncHandler = ExpenseCategorySyncHandler(
-    expenseCategoriesApi: expenseCategoriesApi,
-    expenseCategoryRepository: expenseCategoryRepository,
-  );
-  final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(
-    cashDrawerShiftsApi: cashDrawerShiftsApi,
-    cashDrawerShiftRepository: cashDrawerShiftRepository,
-  );
-  final expenseSyncHandler = ExpenseSyncHandler(
-    expensesApi: expensesApi,
-    expenseRepository: expenseRepository,
-  );
-  final incomeSyncHandler = IncomeSyncHandler(
-    incomeApi: incomeApi,
-    incomeRecordRepository: incomeRecordRepository,
-  );
-  final stockMovementSyncHandler = StockMovementSyncHandler(
-    db: database,
-    stockMovementsApi: stockMovementsApi,
-    stockMovementRepository: stockMovementRepository,
-    productRepository: productRepository,
-  );
-  final productSyncHandler = ProductSyncHandler(
-    db: database,
-    productRepository: productRepository,
-    fulusSyncApi: fulusSyncApi,
-    fulusConnectionState: fulusConnectionState,
-  );
+  final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository);
+  final customerSyncHandler = CustomerSyncHandler(customersApi: customersApi, customerRepository: customerRepository);
+  final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
+  final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
+  final locationSyncHandler = LocationSyncHandler(locationsApi: locationsApi, locationRepository: locationRepository);
+  final returnSyncHandler = ReturnSyncHandler(returnsApi: returnsApi, returnRepository: returnRepository);
+  final expenseCategorySyncHandler = ExpenseCategorySyncHandler(expenseCategoriesApi: expenseCategoriesApi, expenseCategoryRepository: expenseCategoryRepository);
+  final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(cashDrawerShiftsApi: cashDrawerShiftsApi, cashDrawerShiftRepository: cashDrawerShiftRepository);
+  final expenseSyncHandler = ExpenseSyncHandler(expensesApi: expensesApi, expenseRepository: expenseRepository);
+  final incomeSyncHandler = IncomeSyncHandler(incomeApi: incomeApi, incomeRecordRepository: incomeRecordRepository);
+  final stockMovementSyncHandler = StockMovementSyncHandler(db: database, stockMovementsApi: stockMovementsApi, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
+  final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final syncEngine = SyncEngine(
     db: database,
     handlersByEntityType: {
@@ -336,16 +226,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
-  final syncStatusNotifier = SyncStatusNotifier(
-    db: database,
-    syncConfig: syncConfig,
-    notificationService: notificationService,
-  );
-  final syncTriggers = SyncTriggers(
-    syncEngine: syncEngine,
-    syncConfig: syncConfig,
-    syncStatusNotifier: syncStatusNotifier,
-  );
+  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService);
+  final syncTriggers = SyncTriggers(syncEngine: syncEngine, syncConfig: syncConfig, syncStatusNotifier: syncStatusNotifier);
   await syncTriggers.start();
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
@@ -357,23 +239,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final searchRepository = SearchRepositoryImpl(db: database);
   final globalSearch = GlobalSearch(searchRepository: searchRepository);
   final exportService = ExportService();
-  final importProductsFromCsv = ImportProductsFromCsv(
-    productRepository: productRepository,
-    categoryRepository: categoryRepository,
-    supplierRepository: supplierRepository,
-  );
-
+  final importProductsFromCsv = ImportProductsFromCsv(productRepository: productRepository, categoryRepository: categoryRepository, supplierRepository: supplierRepository);
   final employeeRepository = EmployeeRepositoryImpl(db: database);
   final receiptRepository = ReceiptRepositoryImpl(db: database);
-  final appDatabaseLifecycle = AppDatabaseLifecycle(
-    getDatabase: () => database,
-    onReopened: (fresh) => database = fresh,
-  );
+  final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
   final backupRepository = BackupRepositoryImpl(lifecycle: appDatabaseLifecycle);
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
 
-  final container = ProviderContainer(
+  return ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(database),
       secureStorageProvider.overrideWithValue(secureStorage),
@@ -443,6 +317,4 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       diagnosticLoggerProvider.overrideWithValue(diagnosticLogger),
     ],
   );
-
-  return container;
 }
