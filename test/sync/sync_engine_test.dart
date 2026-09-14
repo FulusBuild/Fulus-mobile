@@ -64,8 +64,6 @@ void main() {
   test('processes items in priority order, then oldest-first within a priority',
       () async {
     final base = DateTime(2026, 1, 1);
-    // Deliberately seeded out of both orders, so passing this test
-    // means the query's ORDER BY is doing the work, not insertion order.
     await seedItem(
       id: 'q1',
       entityLocalId: 'low-priority-newer',
@@ -131,20 +129,18 @@ void main() {
 
     await engine.runOnce();
 
-    // Both were attempted — the run did NOT stop after the rejection.
     expect(handler.attemptedIds, ['rejected', 'fine']);
 
     final remaining = await allQueueItems();
-    // 'fine' succeeded and was removed; only the rejected one is left.
     expect(remaining, hasLength(1));
     expect(remaining.single.entityLocalId, 'rejected');
-    expect(remaining.single.syncAttempts, 5); // jumped straight to the threshold
+    expect(remaining.single.syncAttempts, 5);
     expect(remaining.single.lastError, 'Insufficient stock.');
   });
 
   test(
-      'a transient failure increments attempts by one and stops the run '
-      'before attempting further items', () async {
+      'a transient failure increments attempts by one and the run continues '
+      'to later independent items', () async {
     final now = DateTime.now();
     await seedItem(id: 'q1', entityLocalId: 'flaky', enqueuedAt: now);
     await seedItem(
@@ -166,10 +162,10 @@ void main() {
 
     await engine.runOnce();
 
-    expect(handler.attemptedIds, ['flaky']); // never reached the second item
+    expect(handler.attemptedIds, ['flaky', 'never-reached']);
 
     final remaining = await allQueueItems();
-    expect(remaining, hasLength(2)); // nothing succeeded, nothing removed
+    expect(remaining, hasLength(1));
     final flakyRow = remaining.firstWhere((r) => r.entityLocalId == 'flaky');
     expect(flakyRow.syncAttempts, 1);
   });
@@ -186,19 +182,16 @@ void main() {
       maxAttemptsBeforeAttentionNeeded: 2,
     );
 
-    await engine.runOnce(); // attempt 1 -> syncAttempts = 1
-    await engine.runOnce(); // attempt 2 -> syncAttempts = 2, crosses threshold
+    await engine.runOnce();
+    await engine.runOnce();
 
     expect(handler.attemptedIds, hasLength(2));
     var row = (await allQueueItems()).single;
     expect(row.syncAttempts, 2);
 
-    // A further automatic run must not attempt an item that's already
-    // at/above the threshold.
     await engine.runOnce();
-    expect(handler.attemptedIds, hasLength(2)); // unchanged
+    expect(handler.attemptedIds, hasLength(2));
 
-    // Manual bypasses that gate entirely.
     await engine.runOnce(manual: true);
     expect(handler.attemptedIds, hasLength(3));
   });
@@ -220,12 +213,11 @@ void main() {
     );
 
     final handler = _ScriptedHandler((_) async {});
-    // Only 'widget' is registered — nothing handles 'unregistered-type'.
     final engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
 
     await engine.runOnce();
 
-    expect(handler.attemptedIds, ['fine']); // the orphan never reaches a handler
+    expect(handler.attemptedIds, ['fine']);
 
     final remaining = await allQueueItems();
     expect(remaining, hasLength(1));
@@ -299,8 +291,6 @@ void main() {
         entityLocalId: 'ready-again',
         enqueuedAt: now,
         syncAttempts: 1,
-        // Default RetryPolicy's backoff after 1 attempt is 60s (30s
-        // base, doubled once) — an hour is comfortably past it.
         lastAttemptedAt: now.subtract(const Duration(hours: 1)),
       );
 
@@ -317,7 +307,6 @@ void main() {
         id: 'q1',
         entityLocalId: 'brand-new',
         enqueuedAt: DateTime.now(),
-        // syncAttempts: 0, lastAttemptedAt: null — the defaults.
       );
 
       final handler = _ScriptedHandler((_) async {});
