@@ -18,17 +18,31 @@ android {
     // production package so generated/compiled Android components use the
     // same stable identity as the release artifact.
     namespace = "com.fulus.app"
-
-    // Pin the Android SDK/NDK toolchain used by release builds. This keeps
-    // the release artifact reproducible when the Flutter SDK changes its
-    // recommended defaults. Camera/mobile_scanner require compileSdk 36.
+    // compileSdk/ndkVersion are pinned explicitly rather than deferred
+    // to Flutter's own recommended defaults (flutter.compileSdkVersion/
+    // flutter.ndkVersion): several plugins now require higher versions
+    // than Flutter 3.44.9's own defaults resolve to —
+    // androidx.camera:*:1.5.0 (via the camera/mobile_scanner plugins)
+    // needs compileSdk >=35, and mobile_scanner itself asks for 36.
+    // ndkVersion was raised a second time, from 25.1.8937393 to
+    // 27.0.12077973, after the CI log for this exact pin started listing
+    // 17 plugins (android_file_picker, camera_android_camerax,
+    // connectivity_plus, device_info_plus, flutter_local_notifications,
+    // flutter_plugin_android_lifecycle, flutter_secure_storage,
+    // flutter_usb_printer, jni_flutter, mobile_scanner, package_info_plus,
+    // permission_handler_android, print_bluetooth_thermal, printing,
+    // share_plus, shared_preferences_android, workmanager) all asking for
+    // 27.0.12077973 — the CI warning's own suggested fix. Both bumps are
+    // backward compatible per Android's own guidance, so this is safe even
+    // for plugins that don't strictly need the newer versions.
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        // flutter_local_notifications requires core library desugaring.
+        // flutter_local_notifications requires core library
+        // desugaring — see the coreLibraryDesugaring dependency below.
         coreLibraryDesugaringEnabled = true
     }
 
@@ -38,11 +52,12 @@ android {
 
     defaultConfig {
         applicationId = System.getenv("FULUS_APPLICATION_ID") ?: "com.fulus.app"
-        // Android 8.0 (API 26) is the supported platform floor.
+        // Android 8.0 (API 26) is the architecture document's stated
+        // floor (see pubspec.yaml's own environment comment) — an
+        // explicit override of Flutter's own lower default
+        // (flutter.minSdkVersion), not a value inherited from it.
         minSdk = 26
-        // Keep the production target explicit instead of inheriting a
-        // Flutter SDK default that could change when Flutter is upgraded.
-        targetSdk = 36
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -77,6 +92,8 @@ flutter {
 }
 
 dependencies {
-    // Required by compileOptions.coreLibraryDesugaringEnabled above.
+    // Required by compileOptions.coreLibraryDesugaringEnabled above —
+    // flutter_local_notifications needs this to build against AGP 8's
+    // AAR-metadata check.
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
 }
