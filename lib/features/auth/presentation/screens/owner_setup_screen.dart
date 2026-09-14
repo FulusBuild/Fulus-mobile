@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
@@ -89,7 +88,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
       }
       if (!mounted) return;
-      if (widget.startAtBusinessStep || widget.linkToExistingBusiness) context.closeScreenOr('/'); else context.go('/');
+      context.closeScreenOr('/');
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
       if (await _isFullyConfiguredAlready()) setState(() => _alreadyConfigured = true); else setState(() => _bannerMessage = f.message);
