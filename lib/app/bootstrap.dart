@@ -311,12 +311,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       backupRepositoryProvider.overrideWithValue(backupRepository),
       dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
       reportsRepositoryProvider.overrideWithValue(reportsRepository),
-      syncConfigProvider.overrideWith(() => syncConfig),
+      syncConfigProvider.overrideWithValue(syncConfig),
       syncTriggersProvider.overrideWithValue(syncTriggers),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
       fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
-      fulusConnectionStateProvider.overrideWith(() => fulusConnectionState),
+      fulusConnectionStateProvider.overrideWithValue(fulusConnectionState),
     ],
   );
 }
