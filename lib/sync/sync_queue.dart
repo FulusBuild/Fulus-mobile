@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../data/local/database/database.dart';
@@ -22,12 +23,9 @@ class SyncTask {
   });
 
   factory SyncTask.createSale(String localId) => SyncTask(
-        entityType: 'sale',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'sale', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.salesAndPayments,
       );
-
   factory SyncTask.updateCustomer(String localId) => SyncTask(
         entityType: 'customer', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
@@ -103,7 +101,6 @@ class SyncTask {
   final int priority;
 }
 
-/// Durable enqueue side of the sync engine.
 class SyncQueue {
   SyncQueue(this._db);
 
@@ -119,22 +116,15 @@ class SyncQueue {
   /// every startup and intentionally only changes ordering metadata.
   Future<void> normalizeDependencyPriorities() async {
     await _db.transaction(() async {
-      final dependencyTypes = [
-        'customer',
-        'category',
-        'supplier',
-        'location',
-        'expense_category',
-        'product',
-        'stock_movement',
-        'expense',
-        'income_record',
+      const dependencyTypes = [
+        'customer', 'category', 'supplier', 'location', 'expense_category',
+        'product', 'stock_movement', 'expense', 'income_record',
       ];
       await (_db.update(_db.syncQueueItems)
             ..where((q) => q.entityType.isIn(dependencyTypes)))
           .write(const SyncQueueItemsCompanion(priority: Value(0)));
 
-      final financialTypes = ['sale', 'return', 'cash_drawer_shift', 'customer_ledger'];
+      const financialTypes = ['sale', 'return', 'cash_drawer_shift', 'customer_ledger'];
       await (_db.update(_db.syncQueueItems)
             ..where((q) => q.entityType.isIn(financialTypes)))
           .write(const SyncQueueItemsCompanion(priority: Value(1)));
@@ -152,15 +142,15 @@ class SyncQueue {
       if (existing != null) return;
 
       await _db.into(_db.syncQueueItems).insert(
-            SyncQueueItemsCompanion.insert(
-              id: Ulid().toString(),
-              entityType: task.entityType,
-              entityLocalId: task.entityLocalId,
-              operation: task.operation,
-              priority: task.priority,
-              enqueuedAt: DateTime.now(),
-            ),
-          );
+        SyncQueueItemsCompanion.insert(
+          id: Ulid().toString(),
+          entityType: task.entityType,
+          entityLocalId: task.entityLocalId,
+          operation: task.operation,
+          priority: task.priority,
+          enqueuedAt: DateTime.now(),
+        ),
+      );
     });
 
     final callback = _onEnqueued;
