@@ -53,7 +53,15 @@ class AuthApi {
         return ServerSignUpResult(session: session, emailConfirmed: user['email_confirmed_at'] != null);
       }
       return ServerSignUpResult(session: null, emailConfirmed: user?['email_confirmed_at'] != null);
-    } on DioException catch (e) { throw _client.mapError(e); }
+    } on DioException catch (e) {
+      final body = e.response?.data;
+      if (body is Map && body['code'] == 'email_exists') {
+        throw const BusinessRuleFailure(
+          'An account with this email already exists. Sign in or resend the verification email.',
+        );
+      }
+      throw _client.mapError(e);
+    }
   }
 
   Future<void> resendSignupVerification({required String email, required String supabaseUrl, required String publishableKey}) async {
