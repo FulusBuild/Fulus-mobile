@@ -1,5 +1,19 @@
 import '../data/local/database/database.dart';
 
+/// Raised when a queued write is valid but depends on another queued entity
+/// becoming cloud-backed first (for example a sale whose product has not yet
+/// received its server ID). This is not a failed backup and should not count
+/// as an exhausted retry; the engine should leave it queued and continue with
+/// lower-priority dependency work in the same drain pass.
+class SyncDependencyDeferred implements Exception {
+  const SyncDependencyDeferred(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// One handler per entityType, registered into SyncEngine's map. The
 /// engine itself has zero entity-specific logic — it drains the queue
 /// in priority/age order and delegates each item to whichever handler
