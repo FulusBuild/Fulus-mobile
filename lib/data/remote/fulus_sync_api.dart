@@ -61,10 +61,6 @@ class FulusSyncApi {
         'payload': payload,
       };
 
-      // The deployed Fulus API exposes the authoritative sale command as
-      // `action: sale_create`. Keep the sync handler's operation contract
-      // unchanged and adapt it here so the response can still be normalized
-      // to the handler's expected entity_id shape.
       if (operationType == 'sale.create') {
         body
           ..remove('operation_type')
@@ -73,16 +69,17 @@ class FulusSyncApi {
           ..['action'] = 'sale_create';
       }
 
-      // Catalog writes use the API's permission-checked catalog endpoint.
-      // This also avoids the legacy seven-argument accept_sync_operation
-      // overload, which cannot carry the payload needed by catalog writes.
-      if (operationType.startsWith('product.')) {
-        final operation = operationType.substring('product.'.length);
+      if (operationType.startsWith('product.') ||
+          operationType.startsWith('category.') ||
+          operationType.startsWith('supplier.')) {
+        final dot = operationType.indexOf('.');
+        final entity = operationType.substring(0, dot);
+        final operation = operationType.substring(dot + 1);
         body
           ..remove('operation_type')
           ..remove('payload')
           ..['action'] = operation == 'delete' ? 'catalog_delete' : 'catalog_upsert'
-          ..['entity'] = 'products';
+          ..['entity'] = '${entity == 'product' ? 'products' : '${entity}s'}';
         if (operation == 'delete') {
           body['id'] = rawPayload['server_id'];
         } else {
@@ -122,7 +119,10 @@ class FulusSyncApi {
         ...data,
         'entity_id': data['sale_id'],
       };
-    } else if (operationType.startsWith('product.') && data['item'] is Map) {
+    } else if ((operationType.startsWith('product.') ||
+            operationType.startsWith('category.') ||
+            operationType.startsWith('supplier.')) &&
+        data['item'] is Map) {
       final item = Map<String, dynamic>.from(data['item'] as Map);
       result['data'] = {
         ...data,
