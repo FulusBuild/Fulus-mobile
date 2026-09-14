@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -88,7 +87,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
       }
       if (!mounted) return;
-      context.closeScreenOr('/');
+      Navigator.of(context).pop();
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
       if (await _isFullyConfiguredAlready()) setState(() => _alreadyConfigured = true); else setState(() => _bannerMessage = f.message);
@@ -100,13 +99,18 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_checkingExisting) {
-      return const BackGuard(fallbackLocation: '/', child: FulusScreen(body: FulusLoadingIndicator()));
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) Navigator.of(context).pop();
+        },
+        child: const FulusScreen(body: FulusLoadingIndicator()),
+      );
     }
-    if (_alreadyConfigured) return BackGuard(fallbackLocation: '/', child: _buildAlreadySetUp(context));
+    if (_alreadyConfigured) return _buildBackAwareScreen(_buildAlreadySetUp(context));
     final title = !_needsBusiness ? 'Finish setting up' : !_needsOwnerName ? 'Tell us about your business' : "Let's get started";
-    return BackGuard(
-      fallbackLocation: '/',
-      child: FulusScreen(
+    return _buildBackAwareScreen(
+      FulusScreen(
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -138,6 +142,16 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     );
   }
 
+  Widget _buildBackAwareScreen(Widget child) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) Navigator.of(context).pop();
+      },
+      child: child,
+    );
+  }
+
   Widget _buildAlreadySetUp(BuildContext context) {
     return FulusScreen(
       body: Center(
@@ -155,7 +169,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 Text('This business is already set up on this device.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
                 const SizedBox(height: AppSpacing.xl),
-                FulusButton(label: 'Continue', onPressed: () => context.closeScreenOr('/')),
+                FulusButton(label: 'Continue', onPressed: () => Navigator.of(context).pop()),
               ],
             ),
           ),
