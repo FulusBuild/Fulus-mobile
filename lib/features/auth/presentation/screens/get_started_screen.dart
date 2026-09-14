@@ -29,19 +29,11 @@ class GetStartedScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryOf(context),
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                      ),
-                      child: ColorFiltered(
-                        colorFilter: const ColorFilter.mode(AppColors.neutral0, BlendMode.srcIn),
-                        child: Image.asset('assets/branding/fulus_mark_transparent.png'),
-                      ),
+                  const Center(
+                    child: FulusBrandLogo(
+                      size: 72,
+                      padding: 10,
+                      backgroundColor: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),

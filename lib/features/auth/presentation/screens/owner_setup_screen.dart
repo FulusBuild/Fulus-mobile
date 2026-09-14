@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -89,7 +87,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
         try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
       }
       if (!mounted) return;
-      if (widget.startAtBusinessStep || widget.linkToExistingBusiness) context.closeScreenOr('/'); else context.go('/');
+      Navigator.of(context).pop();
     } on BusinessRuleFailure catch (f) {
       if (!mounted) return;
       if (await _isFullyConfiguredAlready()) setState(() => _alreadyConfigured = true); else setState(() => _bannerMessage = f.message);
@@ -100,37 +98,57 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_checkingExisting) return const FulusScreen(body: FulusLoadingIndicator());
-    if (_alreadyConfigured) return _buildAlreadySetUp(context);
+    if (_checkingExisting) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) Navigator.of(context).pop();
+        },
+        child: const FulusScreen(body: FulusLoadingIndicator()),
+      );
+    }
+    if (_alreadyConfigured) return _buildBackAwareScreen(_buildAlreadySetUp(context));
     final title = !_needsBusiness ? 'Finish setting up' : !_needsOwnerName ? 'Tell us about your business' : "Let's get started";
-    return FulusScreen(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(title, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(_needsOwnerName ? 'Your name and your business. Nothing else is required.' : 'Just your business name. You can configure the rest later.', style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context))),
-                  const SizedBox(height: AppSpacing.xxl),
-                  if (_bannerMessage != null) ...[AuthErrorBanner(message: _bannerMessage!), const SizedBox(height: AppSpacing.lg)],
-                  if (_needsOwnerName) ...[
-                    FulusTextField(label: 'Your name', controller: _fullNameController, errorText: _fieldErrors['fullName'], onChanged: (_) => _clearErrors()),
-                    if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
+    return _buildBackAwareScreen(
+      FulusScreen(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(title, style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context))),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(_needsOwnerName ? 'Your name and your business. Nothing else is required.' : 'Just your business name. You can configure the rest later.', style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context))),
+                    const SizedBox(height: AppSpacing.xxl),
+                    if (_bannerMessage != null) ...[AuthErrorBanner(message: _bannerMessage!), const SizedBox(height: AppSpacing.lg)],
+                    if (_needsOwnerName) ...[
+                      FulusTextField(label: 'Your name', controller: _fullNameController, errorText: _fieldErrors['fullName'], onChanged: (_) => _clearErrors()),
+                      if (_needsBusiness) const SizedBox(height: AppSpacing.lg),
+                    ],
+                    if (_needsBusiness) FulusTextField(label: 'Business name', controller: _businessNameController, errorText: _fieldErrors['businessName'], onChanged: (_) => _clearErrors()),
+                    const SizedBox(height: AppSpacing.xl),
+                    FulusButton(label: !_needsBusiness ? 'Finish' : 'Create my business', icon: Icons.arrow_forward_rounded, loading: _submitting, onPressed: _submitting ? null : _submit),
                   ],
-                  if (_needsBusiness) FulusTextField(label: 'Business name', controller: _businessNameController, errorText: _fieldErrors['businessName'], onChanged: (_) => _clearErrors()),
-                  const SizedBox(height: AppSpacing.xl),
-                  FulusButton(label: !_needsBusiness ? 'Finish' : 'Create my business', icon: Icons.arrow_forward_rounded, loading: _submitting, onPressed: _submitting ? null : _submit),
-                ],
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBackAwareScreen(Widget child) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) Navigator.of(context).pop();
+      },
+      child: child,
     );
   }
 
@@ -151,7 +169,7 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 Text('This business is already set up on this device.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
                 const SizedBox(height: AppSpacing.xl),
-                FulusButton(label: 'Continue', onPressed: () => context.closeScreenOr('/')),
+                FulusButton(label: 'Continue', onPressed: () => Navigator.of(context).pop()),
               ],
             ),
           ),

@@ -21,14 +21,14 @@ class SyncStatus extends Equatable {
 
   const SyncStatus.settled() : this._(kind: SyncStatusKind.settled);
 
-  /// The queue count is intentionally not exposed to normal UI. A pending
-  /// state simply means Fulus has saved work locally and will continue
-  /// automatically; users do not need to monitor a queue.
   const SyncStatus.pending(int count)
-      : this._(kind: SyncStatusKind.pending);
+      : this._(kind: SyncStatusKind.pending, pendingCount: count);
 
   const SyncStatus.syncing(int pendingCount)
-      : this._(kind: SyncStatusKind.syncing);
+      : this._(
+          kind: SyncStatusKind.syncing,
+          pendingCount: pendingCount,
+        );
 
   const SyncStatus.attentionNeeded({
     required int attentionCount,
@@ -36,14 +36,15 @@ class SyncStatus extends Equatable {
   }) : this._(
           kind: SyncStatusKind.attentionNeeded,
           attentionCount: attentionCount,
+          pendingCount: pendingCount,
         );
 
   final SyncStatusKind kind;
 
-  /// Kept for compatibility with existing internal callers. Normal UI
-  /// should not use queue size as a progress metric.
+  /// Number of queued writes still waiting for cloud backup.
   final int pendingCount;
 
+  /// Number of queued writes that have exhausted automatic retry attempts.
   final int attentionCount;
 
   @override

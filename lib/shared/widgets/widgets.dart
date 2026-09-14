@@ -12,6 +12,7 @@ library;
 
 export 'fulus_avatar.dart';
 export 'fulus_bottom_sheet.dart';
+export 'fulus_brand_logo.dart';
 export 'fulus_button.dart';
 export 'fulus_card.dart';
 export 'fulus_chip.dart';

@@ -12,9 +12,6 @@ import '../../../../../shared/widgets/widgets.dart';
 
 /// Optional cloud-account linking. Local PIN authentication and local
 /// business data remain usable when this connection is absent.
-///
-/// Once Cloud is connected, synchronization is automatic. Owners do not
-/// need to enable a second "sync" switch or understand sync queues.
 class FulusCloudConnectionScreen extends ConsumerStatefulWidget {
   const FulusCloudConnectionScreen({super.key, this.initialBusinessName});
 
@@ -32,6 +29,7 @@ class _FulusCloudConnectionScreenState
   final _businessController = TextEditingController();
   bool _busy = false;
   bool _creatingAccount = false;
+  bool _resendingVerification = false;
   bool _awaitingVerification = false;
   String? _error;
 
@@ -52,6 +50,36 @@ class _FulusCloudConnectionScreenState
 
   Future<void> _enableAutomaticSync() async {
     await ref.read(syncConfigProvider).setEnabled(true);
+  }
+
+  Future<void> _resendVerification() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _error = 'Enter your email address first.');
+      return;
+    }
+    setState(() {
+      _resendingVerification = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authApiProvider).resendSignupVerification(
+            email: email,
+            supabaseUrl: SupabaseConfig.url,
+            publishableKey: SupabaseConfig.publishableKey,
+          );
+      if (!mounted) return;
+      showFulusSnackbar(
+        context,
+        message: 'A fresh verification email has been sent. Open the newest email and try again.',
+      );
+    } on Failure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _resendingVerification = false);
+    }
   }
 
   Future<void> _createAccount() async {
@@ -86,7 +114,15 @@ class _FulusCloudConnectionScreenState
         );
       }
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) {
+        setState(() {
+          _error = failure.message;
+          if (failure.message.toLowerCase().contains('verify your email') ||
+              failure.message.toLowerCase().contains('already exists')) {
+            _awaitingVerification = true;
+          }
+        });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
     } finally {
@@ -102,7 +138,7 @@ class _FulusCloudConnectionScreenState
         publishableKey: SupabaseConfig.publishableKey,
       );
       if (session == null) {
-        throw StateError('Your email is not verified yet. Open the verification email and try again.');
+        throw StateError('Your email is not verified yet. Open the newest verification email and try again.');
       }
       if (mounted) {
         setState(() => _awaitingVerification = false);
@@ -176,7 +212,7 @@ class _FulusCloudConnectionScreenState
       await connection.refresh();
 
       final active = connection.membershipContext?.memberships
-              .where((m) => m.status == 'active')
+              .where((membership) => membership.status == 'active')
               .toList(growable: false) ??
           const [];
 
@@ -207,6 +243,9 @@ class _FulusCloudConnectionScreenState
         setState(() {
           _busy = false;
           _error = failure.message;
+          if (failure.message.toLowerCase().contains('verify your email')) {
+            _awaitingVerification = true;
+          }
         });
       }
     } catch (error) {
@@ -271,7 +310,7 @@ class _FulusCloudConnectionScreenState
   Widget build(BuildContext context) {
     final connection = ref.watch(fulusConnectionStateProvider);
     final memberships = connection.membershipContext?.memberships
-            .where((m) => m.status == 'active')
+            .where((membership) => membership.status == 'active')
             .toList(growable: false) ??
         const [];
     final connected = connection.isConnected && connection.isDeviceAuthorized;
@@ -285,16 +324,11 @@ class _FulusCloudConnectionScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  connected ? 'Connected' : 'Optional cloud connection',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text(connected ? 'Connected' : 'Optional cloud connection', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                Text(
-                  connected
-                      ? 'Your business is connected. Fulus syncs automatically whenever you’re online.'
-                      : 'Fulus works without internet. Connect Cloud only if you want backup and multi-device sync.',
-                ),
+                Text(connected
+                    ? 'Your business is connected. Fulus syncs automatically whenever you’re online.'
+                    : 'Fulus works without internet. Connect Cloud only if you want backup and multi-device sync.'),
               ],
             ),
           ),
@@ -309,58 +343,36 @@ class _FulusCloudConnectionScreenState
             FulusCard(
               child: Column(
                 children: [
-                  FulusTextField(
-                    label: 'Cloud account email',
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
+                  FulusTextField(label: 'Cloud account email', controller: _emailController, keyboardType: TextInputType.emailAddress),
                   const SizedBox(height: 12),
-                  FulusTextField(
-                    label: 'Business name (for a new account)',
-                    controller: _businessController,
-                  ),
+                  FulusTextField(label: 'Business name (for a new account)', controller: _businessController),
                   const SizedBox(height: 12),
-                  FulusTextField(
-                    label: 'Cloud account password',
-                    controller: _passwordController,
-                    obscureText: true,
-                  ),
+                  FulusTextField(label: 'Cloud account password', controller: _passwordController, obscureText: true),
                   const SizedBox(height: 16),
                   if (_error != null) ...[
-                    Text(
-                      _error!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    ),
+                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                     const SizedBox(height: 12),
                   ],
                   if (_awaitingVerification) ...[
                     SizedBox(
                       width: double.infinity,
-                      child: FulusButton(
-                        label: 'I’ve verified my email',
-                        loading: _busy,
-                        onPressed: _busy ? null : _checkVerification,
-                      ),
+                      child: FulusButton(label: 'I’ve verified my email', loading: _busy, onPressed: _busy ? null : _checkVerification),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FulusButton(label: 'Resend verification email', variant: FulusButtonVariant.secondary, loading: _resendingVerification, onPressed: _busy || _resendingVerification ? null : _resendVerification),
                     ),
                     const SizedBox(height: 10),
                   ],
                   SizedBox(
                     width: double.infinity,
-                    child: FulusButton(
-                      label: 'Connect to Fulus Cloud',
-                      loading: _busy && !_creatingAccount,
-                      onPressed: _busy ? null : _connect,
-                    ),
+                    child: FulusButton(label: 'Connect to Fulus Cloud', loading: _busy && !_creatingAccount, onPressed: _busy ? null : _connect),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    child: FulusButton(
-                      label: 'Create account & set up business',
-                      variant: FulusButtonVariant.secondary,
-                      loading: _busy && _creatingAccount,
-                      onPressed: _busy ? null : _createAccount,
-                    ),
+                    child: FulusButton(label: 'Create account & set up business', variant: FulusButtonVariant.secondary, loading: _busy && _creatingAccount, onPressed: _busy ? null : _createAccount),
                   ),
                 ],
               ),

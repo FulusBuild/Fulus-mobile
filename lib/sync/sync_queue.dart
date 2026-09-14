@@ -1,30 +1,19 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../data/local/database/database.dart';
 
-/// Architecture Section 8's three priority lanes, named as constants
-/// rather than a raw int at each call site — 0 is highest priority
-/// (processed first), matching SyncQueueItems.priority's own comment in
-/// tables.dart.
+/// Sync lanes are ordered around dependencies as well as business urgency.
+/// Reference data must reach the server before a sale can reference it by
+/// server ID, so catalog/customer/location writes share the first lane.
 abstract final class SyncPriority {
-  /// Sales and payments — Section 8: "the core trust promise."
-  static const salesAndPayments = 0;
-
-  /// Stock movements, customer/credit writes — still core, but not
-  /// money that's already changed hands.
-  static const stockAndCustomerWrites = 1;
-
-  /// Product photo uploads, bulk import — explicitly allowed to lag
-  /// behind the other two lanes on a poor connection (Section 8).
+  static const salesAndPayments = 1;
+  static const stockAndCustomerWrites = 0;
   static const photosAndBulkImport = 2;
 }
 
-/// One queued unit of sync work. A thin, typed wrapper around exactly
-/// the columns SyncQueueItems (tables.dart) needs — kept separate from
-/// that Drift row type deliberately, so callers outside data/ (a
-/// repository, say) can construct one without importing Drift at all.
 class SyncTask {
   const SyncTask({
     required this.entityType,
@@ -33,215 +22,116 @@ class SyncTask {
     required this.priority,
   });
 
-  /// Architecture Section 4's own example call:
-  /// `_syncQueue.enqueue(SyncTask.createSale(localId))`.
   factory SyncTask.createSale(String localId) => SyncTask(
-        entityType: 'sale',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'sale', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.salesAndPayments,
       );
-
   factory SyncTask.updateCustomer(String localId) => SyncTask(
-        entityType: 'customer',
-        entityLocalId: localId,
-        operation: 'update',
+        entityType: 'customer', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
   factory SyncTask.createCustomer(String localId) => SyncTask(
-        entityType: 'customer',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'customer', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
   factory SyncTask.updateExpense(String localId) => SyncTask(
-        entityType: 'expense',
-        entityLocalId: localId,
-        operation: 'update',
+        entityType: 'expense', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
   factory SyncTask.createExpense(String localId) => SyncTask(
-        entityType: 'expense',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'expense', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
   factory SyncTask.createIncomeRecord(String localId) => SyncTask(
-        entityType: 'income_record',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'income_record', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
-  /// Same priority tier as createCustomer/createExpense — a category or
-  /// supplier isn't money, but it's routine day-to-day catalog upkeep, not
-  /// the photos-and-bulk-import lane either.
   factory SyncTask.updateCategory(String localId) => SyncTask(
-        entityType: 'category',
-        entityLocalId: localId,
-        operation: 'update',
+        entityType: 'category', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
   factory SyncTask.createCategory(String localId) => SyncTask(
-        entityType: 'category',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'category', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
   factory SyncTask.createSupplier(String localId) => SyncTask(
-        entityType: 'supplier',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'supplier', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
-  /// Same priority tier as createCategory/createSupplier — foundational
-  /// reference data a Sale/Expense/IncomeRecord/StockMovement points to,
-  /// not itself money that's already changed hands.
   factory SyncTask.createLocation(String localId) => SyncTask(
-        entityType: 'location',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'location', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
-  /// Same priority tier as `createSale` — a return is directly
-  /// financial (a refund), not routine catalog upkeep.
   factory SyncTask.createReturn(String localId) => SyncTask(
-        entityType: 'return',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'return', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.salesAndPayments,
       );
-
   factory SyncTask.createExpenseCategory(String localId) => SyncTask(
-        entityType: 'expense_category',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'expense_category', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
-  /// Opening a shift is routine, but closing one carries the day's cash
-  /// reconciliation — same financial-priority tier as `createSale`/
-  /// `createReturn`, not catalog upkeep.
   factory SyncTask.createCashDrawerShift(String localId) => SyncTask(
-        entityType: 'cash_drawer_shift',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'cash_drawer_shift', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.salesAndPayments,
       );
-
   factory SyncTask.closeCashDrawerShift(String localId) => SyncTask(
-        entityType: 'cash_drawer_shift',
-        entityLocalId: localId,
-        operation: 'close',
+        entityType: 'cash_drawer_shift', entityLocalId: localId, operation: 'close',
         priority: SyncPriority.salesAndPayments,
       );
-
-  /// One factory for all three stock-movement write kinds (stock-in,
-  /// stock-out, adjustment) — deliberately NOT three separate factories
-  /// (createStockIn/createStockOut/createAdjustment) the way it might
-  /// first look like it should mirror createCustomer/createExpense.
-  /// From the queue's own point of view every one of these is just "a
-  /// new stock_movement row that needs to reach the server" — the SAME
-  /// single fact SyncQueueItems.operation already models as 'create'.
-  /// Which of the three backend endpoints that actually means is
-  /// entirely determined by the persisted row's own movementType column
-  /// (see tables.dart's StockMovements), which StockMovementSyncHandler
-  /// reads directly — exactly the same "fetch the persisted entity and
-  /// act on its own fields" shape CustomerSyncHandler/ExpenseSyncHandler
-  /// already use, just with a three-way branch instead of a single call.
-  /// Inventing three sync-queue-level operation strings for this would
-  /// duplicate a distinction the entity itself already carries.
   factory SyncTask.recordCustomerRepayment(String localId) => SyncTask(
-        entityType: 'customer_ledger',
-        entityLocalId: localId,
-        operation: 'repayment',
+        entityType: 'customer_ledger', entityLocalId: localId, operation: 'repayment',
         priority: SyncPriority.salesAndPayments,
       );
-
   factory SyncTask.recordStockMovement(String localId) => SyncTask(
-        entityType: 'stock_movement',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'stock_movement', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
-  /// **Phase 0 completion pass.** Same priority tier as
-  /// createCustomer/createCategory/createSupplier — catalog upkeep, not
-  /// money that's already changed hands. ProductSyncHandler reads the
-  /// Products row (and, for `create`, the ProductStockLevels row this
-  /// same product/location pair was seeded with —
-  /// ProductRepositoryImpl.createProduct always writes one, even at
-  /// zero) directly at drain time, the same "fetch the persisted entity
-  /// and act on its own fields" shape every handler above already uses
-  /// — no extra data needs to travel with the task itself.
   factory SyncTask.createProduct(String localId) => SyncTask(
-        entityType: 'product',
-        entityLocalId: localId,
-        operation: 'create',
+        entityType: 'product', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
-
-  /// Same reasoning as [SyncTask.createProduct] — ProductSyncHandler
-  /// reads the Products row's current field values directly rather than
-  /// this task carrying which specific fields changed. Safe because
-  /// ProductRepositoryImpl.updateProduct's own `null` = "don't touch"
-  /// convention means every field already on the row is exactly the
-  /// value that should sync, whether this is the first local edit or
-  /// the fifth one queued before connectivity returns.
   factory SyncTask.updateProduct(String localId) => SyncTask(
-        entityType: 'product',
-        entityLocalId: localId,
-        operation: 'update',
+        entityType: 'product', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
       );
 
   final String entityType;
   final String entityLocalId;
-  final String operation; // 'create' | 'update' | 'delete'
+  final String operation;
   final int priority;
 }
 
-/// The enqueue side of Architecture Section 8's sync engine — a
-/// repository calls `enqueue()` and returns immediately, per Section
-/// 4's rule that a write-repository method never awaits the network.
-///
-/// The actual draining/retry engine is sync_engine.dart (SyncEngine),
-/// which reads from the same SyncQueueItems table this class writes to.
-/// This class's own scope stays at "the write is durably queued" plus
-/// (via [setOnEnqueued]) nudging that engine to try immediately when a
-/// caller's told it to — it does not itself decide retry/backoff or
-/// priority processing order, that's entirely SyncEngine's job.
 class SyncQueue {
   SyncQueue(this._db);
 
   final AppDatabase _db;
   Future<void> Function()? _onEnqueued;
 
-  /// Wires Architecture Section 8's fourth trigger ("new item enqueued
-  /// while already online") — deliberately a setter, called once from
-  /// bootstrap.dart AFTER the full object graph exists, rather than a
-  /// constructor parameter. The natural owner of "attempt a sync now"
-  /// is SyncTriggers, which wraps SyncEngine, which dispatches to
-  /// SaleSyncHandler, which depends on SaleRepository — and
-  /// SaleRepositoryImpl itself depends on THIS SyncQueue. Requiring the
-  /// callback at construction time would make that a genuine
-  /// construction-order cycle; a setter lets every object in the graph
-  /// exist first and gets wired together only afterward.
   void setOnEnqueued(Future<void> Function() callback) {
     _onEnqueued = callback;
   }
 
+  /// Repairs queue rows written by older builds where sales were processed
+  /// ahead of their catalog/customer/location dependencies. Safe to run on
+  /// every startup and intentionally only changes ordering metadata.
+  Future<void> normalizeDependencyPriorities() async {
+    await _db.transaction(() async {
+      const dependencyTypes = [
+        'customer', 'category', 'supplier', 'location', 'expense_category',
+        'product', 'stock_movement', 'expense', 'income_record',
+      ];
+      await (_db.update(_db.syncQueueItems)
+            ..where((q) => q.entityType.isIn(dependencyTypes)))
+          .write(const SyncQueueItemsCompanion(priority: Value(0)));
+
+      const financialTypes = ['sale', 'return', 'cash_drawer_shift', 'customer_ledger'];
+      await (_db.update(_db.syncQueueItems)
+            ..where((q) => q.entityType.isIn(financialTypes)))
+          .write(const SyncQueueItemsCompanion(priority: Value(1)));
+    });
+  }
+
   Future<void> enqueue(SyncTask task) async {
-    // Re-read the persisted row inside one transaction so concurrent
-    // repository writes cannot create duplicate queue entries.
     await _db.transaction(() async {
       final existing = await (_db.select(_db.syncQueueItems)
             ..where((q) => q.entityType.equals(task.entityType))
@@ -252,28 +142,18 @@ class SyncQueue {
       if (existing != null) return;
 
       await _db.into(_db.syncQueueItems).insert(
-          SyncQueueItemsCompanion.insert(
-            id: Ulid().toString(),
-            entityType: task.entityType,
-            entityLocalId: task.entityLocalId,
-            operation: task.operation,
-            priority: task.priority,
-            enqueuedAt: DateTime.now(),
-          ),
-        );
+        SyncQueueItemsCompanion.insert(
+          id: Ulid().toString(),
+          entityType: task.entityType,
+          entityLocalId: task.entityLocalId,
+          operation: task.operation,
+          priority: task.priority,
+          enqueuedAt: DateTime.now(),
+        ),
+      );
     });
 
-    // Deliberately NOT awaited: enqueue() must still return immediately
-    // regardless of whether a sync attempt is already running or how
-    // long one takes (Architecture Section 4's rule against a write
-    // method ever awaiting the network applies transitively here too —
-    // the caller of enqueue() is a repository's write method). Whether
-    // this callback actually attempts anything right now, versus a
-    // no-op while offline, is entirely up to whatever bootstrap.dart
-    // wires in here — this class has no opinion on connectivity.
     final callback = _onEnqueued;
-    if (callback != null) {
-      unawaited(callback());
-    }
+    if (callback != null) unawaited(callback());
   }
 }

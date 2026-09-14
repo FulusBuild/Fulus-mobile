@@ -4,10 +4,6 @@ import 'api_client.dart';
 
 /// Resolves the server memberships available to the currently connected
 /// Supabase user and persists only the selected business ID locally.
-///
-/// This is intentionally a small connection-scoped service. Local Fulus
-/// authentication remains independent; if no server session exists, the
-/// selected business is simply unavailable to the sync layer.
 class FulusBusinessContext {
   FulusBusinessContext({
     required ApiClient client,
@@ -20,8 +16,8 @@ class FulusBusinessContext {
 
   Future<FulusMembershipContext> fetch() async {
     try {
-      final response = await Dio(BaseOptions(baseUrl: _functionBaseUrl)).get(
-        '',
+      final response = await _client.dio.get(
+        _functionBaseUrl,
         options: Options(headers: {
           'content-type': 'application/json',
           if (_client.serverAccessToken != null)
