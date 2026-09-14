@@ -15,11 +15,13 @@ void main() {
   late AppDatabase db;
   late DashboardRepositoryImpl repository;
 
+  final fixedNow = DateTime(2026, 9, 13, 10, 0);
+
   const locationId = 'loc-1';
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = DashboardRepositoryImpl(db: db);
+    repository = DashboardRepositoryImpl(db: db, clock: () => fixedNow);
     await db.into(db.locations).insert(LocationsCompanion.insert(
           localId: locationId,
           name: 'Main Store',
@@ -75,8 +77,8 @@ void main() {
             localId: 'shift-1',
             cashierUserId: 'u1',
             locationId: locationId,
-            openedAt: DateTime.now().subtract(const Duration(hours: 5)),
-            closedAt: Value(DateTime.now().subtract(const Duration(hours: 1))),
+            openedAt: fixedNow.subtract(const Duration(hours: 5)),
+            closedAt: Value(fixedNow.subtract(const Duration(hours: 1))),
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             syncStatus: SyncStatus.settled,
