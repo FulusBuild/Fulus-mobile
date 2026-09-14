@@ -22,6 +22,7 @@ class AppLockConfig {
 
   static const _enabledKey = 'fulus_app_lock_enabled';
   static const _biometricEnabledKey = 'fulus_app_lock_biometric_enabled';
+  static const _biometricPromptPendingKey = 'fulus_app_lock_biometric_prompt_pending';
   static const _hashKey = 'fulus_app_lock_pin_hash';
   static const _saltKey = 'fulus_app_lock_pin_salt';
 
@@ -40,11 +41,15 @@ class AppLockConfig {
   Future<bool> isBiometricEnabled() async =>
       (await isActive()) && (_preferences.getBool(_biometricEnabledKey) ?? false);
 
+  Future<bool> isBiometricPromptPending() async =>
+      (await isActive()) && (_preferences.getBool(_biometricPromptPendingKey) ?? false);
+
   Future<void> setPin(String pin) async {
     final hashed = await _pinHasher.hash(pin);
     await _secureStorage.write(key: _hashKey, value: hashed.hash);
     await _secureStorage.write(key: _saltKey, value: hashed.salt);
     await _preferences.setBool(_enabledKey, true);
+    await _preferences.setBool(_biometricPromptPendingKey, true);
   }
 
   Future<bool> verifyPin(String pin) async {
@@ -56,6 +61,11 @@ class AppLockConfig {
 
   Future<void> setBiometricEnabled(bool value) async {
     await _preferences.setBool(_biometricEnabledKey, value);
+    await _preferences.setBool(_biometricPromptPendingKey, false);
+  }
+
+  Future<void> dismissBiometricPrompt() async {
+    await _preferences.setBool(_biometricPromptPendingKey, false);
   }
 
   Future<void> setEnabled(bool value) => _preferences.setBool(_enabledKey, value);
@@ -63,6 +73,7 @@ class AppLockConfig {
   Future<void> removePin() async {
     await _preferences.setBool(_enabledKey, false);
     await _preferences.setBool(_biometricEnabledKey, false);
+    await _preferences.setBool(_biometricPromptPendingKey, false);
     await _secureStorage.delete(key: _hashKey);
     await _secureStorage.delete(key: _saltKey);
   }
