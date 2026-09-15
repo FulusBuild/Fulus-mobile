@@ -84,4 +84,82 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
       ),
     );
   }
+
+  @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String locationServerId,
+    required String source,
+    required double amount,
+    required DateTime incomeDate,
+    String? notes,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    await _db.transaction(() async {
+      final location = await (_db.select(_db.locations)
+            ..where((l) => l.serverId.equals(locationServerId)))
+          .getSingleOrNull();
+      if (location == null) {
+        throw StateError(
+          'Canonical income $serverId references unknown location $locationServerId.',
+        );
+      }
+
+      final existing = await (_db.select(_db.incomeRecords)
+            ..where((i) => i.serverId.equals(serverId)))
+          .getSingleOrNull();
+      final localId = existing?.localId ?? Ulid().toString();
+
+      if (existing == null) {
+        await _db.into(_db.incomeRecords).insert(
+              IncomeRecordsCompanion.insert(
+                localId: localId,
+                serverId: Value(serverId),
+                locationId: location.localId,
+                source: source,
+                amount: amount,
+                incomeDate: incomeDate,
+                notes: Value(notes),
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: Value(deletedAt),
+                syncStatus: SyncStatus.settled,
+              ),
+            );
+      } else {
+        await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId))).write(
+          IncomeRecordsCompanion(
+            serverId: Value(serverId),
+            locationId: Value(location.localId),
+            source: Value(source),
+            amount: Value(amount),
+            incomeDate: Value(incomeDate),
+            notes: Value(notes),
+            updatedAt: Value(updatedAt),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    final row = await (_db.select(_db.incomeRecords)
+          ..where((i) => i.serverId.equals(serverId)))
+        .getSingleOrNull();
+    if (row == null) return;
+
+    final now = DateTime.now();
+    await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(row.localId))).write(
+      IncomeRecordsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncStatus.settled),
+      ),
+    );
+  }
 }
