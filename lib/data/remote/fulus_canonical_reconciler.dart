@@ -73,7 +73,10 @@ class FulusCanonicalReconciler {
 
       switch (change.entityType) {
         case 'sale':
-          await _upsertRow('sales', Map<String, dynamic>.from(data['sale'] as Map));
+          await _upsertRow(
+            'sales',
+            Map<String, dynamic>.from(data['sale'] as Map),
+          );
           await _replaceChildren(
             table: 'sale_items',
             foreignKeyColumn: 'sale_local_id',
@@ -88,13 +91,31 @@ class FulusCanonicalReconciler {
           );
           break;
         case 'product':
-          await _upsertRow('products', Map<String, dynamic>.from(data['product'] as Map));
+          await _upsertRow(
+            'products',
+            Map<String, dynamic>.from(data['product'] as Map),
+          );
           await _replaceChildren(
             table: 'product_stock_levels',
             foreignKeyColumn: 'product_local_id',
             foreignKeyRemoteId: change.entityId,
             rows: _maps(data['stock_levels']),
-            preserveLocationKey: true,
+          );
+          break;
+        case 'return':
+          final row = data['row'];
+          if (row is! Map) {
+            throw StateError('Canonical return response has no row.');
+          }
+          await _upsertRow(
+            'return_requests',
+            Map<String, dynamic>.from(row),
+          );
+          await _replaceChildren(
+            table: 'return_items',
+            foreignKeyColumn: 'return_request_local_id',
+            foreignKeyRemoteId: change.entityId,
+            rows: _maps(data['return_items']),
           );
           break;
         default:
@@ -140,6 +161,16 @@ class FulusCanonicalReconciler {
           );
         }
         await _deleteByServerId('products', serverId);
+        return;
+      case 'return':
+        final localId = await _localIdForServerId('return_requests', serverId);
+        if (localId != null) {
+          await _db.customStatement(
+            'DELETE FROM "return_items" WHERE "return_request_local_id" = ?',
+            [localId],
+          );
+        }
+        await _deleteByServerId('return_requests', serverId);
         return;
       default:
         final table = _entityTables[entityType];
@@ -234,25 +265,23 @@ class FulusCanonicalReconciler {
     final placeholders = List.filled(columns.length, '?').join(', ');
     final quotedColumns = columns.map(_quote).join(', ');
     final updateColumns = columns
-        .where((column) =>
-            column != 'local_id' &&
-            !(table == 'product_stock_levels' &&
-                (column == 'product_local_id' || column == 'location_local_id')))
+        .where(
+          (column) =>
+              column != 'local_id' &&
+              !(table == 'product_stock_levels' &&
+                  (column == 'product_local_id' ||
+                      column == 'location_local_id')),
+        )
         .map((column) => '${_quote(column)} = excluded.${_quote(column)}')
         .join(', ');
 
-    final conflict = info.has('local_id') ? ' ON CONFLICT("local_id")' : ' ON CONFLICT';
-    if (updateColumns.isEmpty) {
-      await _db.customStatement(
-        'INSERT INTO ${_quote(table)} ($quotedColumns) VALUES ($placeholders)$conflict DO NOTHING',
-        values.values.toList(growable: false),
-      );
-    } else {
-      await _db.customStatement(
-        'INSERT INTO ${_quote(table)} ($quotedColumns) VALUES ($placeholders)$conflict DO UPDATE SET $updateColumns',
-        values.values.toList(growable: false),
-      );
-    }
+    final conflict = info.has('local_id')
+        ? ' ON CONFLICT("local_id")'
+        : ' ON CONFLICT';
+    final statement = updateColumns.isEmpty
+        ? 'INSERT INTO ${_quote(table)} ($quotedColumns) VALUES ($placeholders)$conflict DO NOTHING'
+        : 'INSERT INTO ${_quote(table)} ($quotedColumns) VALUES ($placeholders)$conflict DO UPDATE SET $updateColumns';
+    await _db.customStatement(statement, values.values.toList(growable: false));
   }
 
   Future<void> _replaceChildren({
@@ -260,10 +289,21 @@ class FulusCanonicalReconciler {
     required String foreignKeyColumn,
     required String foreignKeyRemoteId,
     required List<Map<String, dynamic>> rows,
-    bool preserveLocationKey = false,
   }) async {
+    final parentPrefix = foreignKeyColumn.substring(
+      0,
+      foreignKeyColumn.length - '_local_id'.length,
+    );
+    final parentTable = <String, String>{
+      'sale': 'sales',
+      'product': 'products',
+      'return_request': 'return_requests',
+    }[parentPrefix];
+    if (parentTable == null) {
+      throw StateError('Unsupported canonical child parent: $parentPrefix');
+    }
     final parentLocalId = await _localIdForServerId(
-      table == 'sale_items' || table == 'sale_payments' ? 'sales' : 'products',
+      parentTable,
       foreignKeyRemoteId,
     );
     if (parentLocalId == null) {
@@ -272,45 +312,16 @@ class FulusCanonicalReconciler {
       );
     }
 
-    final info = await _readTableInfo(table);
-    final existingRows = await _db.customSelect(
-      'SELECT ${info.has('local_id') ? '"local_id"' : 'rowid'} AS key_value FROM ${_quote(table)} WHERE ${_quote(foreignKeyColumn)} = ?',
-      variables: [Variable.withString(parentLocalId)],
-    ).get();
-    final existingKeys = existingRows
-        .map((row) => row.read<Object>('key_value').toString())
-        .toSet();
-    final incomingKeys = <String>{};
-
+    await _db.customStatement(
+      'DELETE FROM ${_quote(table)} WHERE ${_quote(foreignKeyColumn)} = ?',
+      [parentLocalId],
+    );
     for (final row in rows) {
       await _upsertRow(table, {
         ...row,
-        _remoteIdKeyForLocalForeignKey(foreignKeyColumn): foreignKeyRemoteId,
+        '${parentPrefix}_id': foreignKeyRemoteId,
       });
-      final id = row['id']?.toString();
-      if (id != null) incomingKeys.add(id);
     }
-
-    if (existingKeys.isEmpty || incomingKeys.isEmpty) return;
-    if (info.has('server_id')) {
-      for (final key in existingKeys) {
-        if (!incomingKeys.contains(key)) {
-          await _db.customStatement(
-            'DELETE FROM ${_quote(table)} WHERE "local_id" = ?',
-            [key],
-          );
-        }
-      }
-    }
-    if (preserveLocationKey) {
-      // Product stock levels are keyed by (product, location); the upsert
-      // above deliberately preserves both foreign-key columns as the
-      // conflict target.
-    }
-  }
-
-  String _remoteIdKeyForLocalForeignKey(String localColumn) {
-    return '${localColumn.substring(0, localColumn.length - '_local_id'.length)}_id';
   }
 
   Future<String?> _localIdForServerId(String table, String serverId) async {
@@ -338,7 +349,10 @@ class FulusCanonicalReconciler {
   ) async {
     if (remoteValue == null) return null;
     final serverId = remoteValue.toString();
-    final prefix = localColumn.substring(0, localColumn.length - '_local_id'.length);
+    final prefix = localColumn.substring(
+      0,
+      localColumn.length - '_local_id'.length,
+    );
     final table = <String, String>{
       'sale': 'sales',
       'product': 'products',
