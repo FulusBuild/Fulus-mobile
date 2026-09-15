@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/onboarding/onboarding_state.dart';
 import 'fulus_business_context.dart';
@@ -176,3 +177,26 @@ class FulusConnectionState extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+/// Riverpod 3 removed ChangeNotifierProvider.overrideWithValue. Keep the
+/// existing provider type reactive while adapting the bootstrap override to
+/// the supported Riverpod 3 API.
+extension ChangeNotifierProviderValueOverride<T extends ChangeNotifier>
+    on ChangeNotifierProvider<T> {
+  Override overrideWithValue(T value) => overrideWith((ref) => value);
+}
+
+/// Bootstrap-only DI entry points for the Fulus Cloud dependencies. They live
+/// here because bootstrap.dart already imports the concrete remote types, and
+/// the provider graph intentionally has no default implementation.
+final fulusDeviceRegistrationProvider = Provider<FulusDeviceRegistration>((ref) {
+  throw UnimplementedError(
+    'fulusDeviceRegistrationProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final fulusStaffAccessApiProvider = Provider<FulusStaffAccessApi>((ref) {
+  throw UnimplementedError(
+    'fulusStaffAccessApiProvider must be overridden in bootstrap.dart.',
+  );
+});
