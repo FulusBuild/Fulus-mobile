@@ -60,7 +60,10 @@ class FulusSyncApi {
           operationType == 'expense.create' ||
           operationType == 'return.create' ||
           operationType == 'stock_movement.create' ||
-          operationType == 'location.create') {
+          operationType == 'location.create' ||
+          operationType == 'income.create' ||
+          operationType == 'cash_drawer_shift.create' ||
+          operationType == 'cash_drawer_shift.close') {
         body
           ..remove('operation_type')
           ..remove('payload')
@@ -73,6 +76,9 @@ class FulusSyncApi {
             'return.create' => 'return_create',
             'stock_movement.create' => 'inventory_adjust',
             'location.create' => 'location_create',
+            'income.create' => 'income_create',
+            'cash_drawer_shift.create' => 'cash_drawer_open',
+            'cash_drawer_shift.close' => 'cash_drawer_close',
             _ => throw StateError('Unsupported Fulus operation: $operationType'),
           };
       }
@@ -143,6 +149,12 @@ class FulusSyncApi {
       result['data'] = {...data, 'entity_id': data['movement_id']};
     } else if (operationType == 'location.create' && data['location_id'] != null) {
       result['data'] = {...data, 'entity_id': data['location_id']};
+    } else if (operationType == 'income.create' && data['income_id'] != null) {
+      result['data'] = {...data, 'entity_id': data['income_id']};
+    } else if ((operationType == 'cash_drawer_shift.create' ||
+            operationType == 'cash_drawer_shift.close') &&
+        data['shift_id'] != null) {
+      result['data'] = {...data, 'entity_id': data['shift_id']};
     }
     return result;
   }
