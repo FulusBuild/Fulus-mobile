@@ -4,6 +4,7 @@ import '../../domain/entities/cash_drawer_shift.dart';
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../sync_handler.dart';
+import '../sync_queue.dart';
 
 /// Syncs both lifecycle operations for a cash drawer shift through the
 /// canonical Fulus Cloud transport.
