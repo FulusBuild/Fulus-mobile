@@ -36,7 +36,7 @@ void main() {
       createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1), syncStatus: SyncStatus.settled,
     ));
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
-    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+    when(() => connectionState.registeredDevice).thenReturn(FulusRegisteredDevice(
       id: 'device-1', businessId: 'business-1', deviceClientId: 'device-client-1', status: 'active',
     ));
   });
