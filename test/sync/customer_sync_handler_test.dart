@@ -95,10 +95,15 @@ void main() {
         operationId: 'q1',
         deviceClientId: 'device-client-1',
         clientReference: customer.localId,
-        payload: any(named: 'payload'),
+        payload: captureAny(named: 'payload'),
       ),
     ).captured;
-    expect(captured, isEmpty);
+    final payload = captured.single as Map<String, dynamic>;
+    expect(payload['business_id'], 'business-1');
+    expect(payload['operation_id'], 'q1');
+    expect(payload['client_reference'], customer.localId);
+    expect(payload['name'], 'Chidinma Okafor');
+    expect(payload['phone'], '+2348012345678');
 
     final updated = await customerRepository.getCustomerById(customer.localId);
     expect(updated!.serverId, 'server-customer-1');
