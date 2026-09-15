@@ -49,7 +49,7 @@ void main() {
   );
 
   test('pushes an expense through Fulus Cloud and marks it synced', () async {
-    final expense = await expenseRepository.recordExpense(const ExpenseDraft(
+    final expense = await expenseRepository.recordExpense(ExpenseDraft(
       locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1),
     ));
     when(() => fulusSyncApi.submitOperation(
@@ -67,7 +67,7 @@ void main() {
   });
 
   test('throws for an operation other than create', () async {
-    final expense = await expenseRepository.recordExpense(const ExpenseDraft(
+    final expense = await expenseRepository.recordExpense(ExpenseDraft(
       locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1),
     ));
     await expectLater(handler.sync(itemFor(expense, operation: 'update')), throwsA(isA<StateError>()));
