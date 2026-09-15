@@ -64,6 +64,14 @@ class FulusSyncApi {
           ..['action'] = 'sale_create';
       }
 
+      if (operationType == 'customer.create') {
+        body
+          ..remove('operation_type')
+          ..remove('payload')
+          ..addAll(rawPayload)
+          ..['action'] = 'customer_create';
+      }
+
       if (operationType == 'customer.repayment') {
         body
           ..remove('operation_type')
@@ -120,8 +128,11 @@ class FulusSyncApi {
     if (rawData is! Map) return result;
 
     final data = Map<String, dynamic>.from(rawData);
-    if (operationType == 'sale.create' && data['sale_id'] != null) {
+    if ((operationType == 'sale.create' || operationType == 'customer.create') &&
+        data['sale_id'] != null) {
       result['data'] = {...data, 'entity_id': data['sale_id']};
+    } else if (operationType == 'customer.create' && data['customer_id'] != null) {
+      result['data'] = {...data, 'entity_id': data['customer_id']};
     } else if ((operationType.startsWith('product.') ||
             operationType.startsWith('category.') ||
             operationType.startsWith('supplier.')) &&
