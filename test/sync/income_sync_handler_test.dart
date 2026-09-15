@@ -23,7 +23,7 @@ void main() {
 
   const locationId = 'loc-1';
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
@@ -43,9 +43,14 @@ void main() {
       deviceClientId: 'device-client-1',
       status: 'active',
     ));
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+          localId: locationId,
+          name: 'Main Store',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ));
   });
-
-  setUpAll(() {});
 
   tearDown(() async {
     await db.close();
@@ -64,14 +69,6 @@ void main() {
   }
 
   test('pushes income through Fulus Cloud and marks it synced', () async {
-    await db.into(db.locations).insert(LocationsCompanion.insert(
-          localId: locationId,
-          name: 'Main Store',
-          createdAt: DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
-        ));
-
     final record = await incomeRecordRepository.recordIncome(
       const IncomeRecordDraft(
         locationId: locationId,
