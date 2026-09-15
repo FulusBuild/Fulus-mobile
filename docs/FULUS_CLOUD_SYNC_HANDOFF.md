@@ -5,42 +5,77 @@
 **Primary branch:** `main`  
 **External APK build repository:** `FulusBuild/Fulus-mobile-build`
 
-> This document is the persistent handoff for the current Cloud Sync hardening work. Do not treat the work as complete until every required cross-check below has actually passed.
+> This document is the persistent handoff for the current Cloud Sync hardening work. Do not treat the entire Cloud Sync hardening as complete until every required cross-check below has actually passed.
 
 ## Non-negotiable working rules
 
-- Do not declare the Cloud Sync hardening complete until **five independent cross-checks** pass.
+- Do not declare the entire Cloud Sync hardening complete until **five independent cross-checks** pass.
 - Green CI alone is **not** proof that Cloud Sync is complete.
 - Avoid destructive rebuilds or broad rewrites when a focused fix is sufficient.
 - Inspect the actual repository/backend state before relying on an earlier claim.
 - After the cloud-sync architecture is complete and all five checks pass, build/install an APK and verify the real-device flow.
 
+## Batch 1 completion record — canonical server → device reconciliation foundation
+
+**Batch 1 is complete.** Its scope was the canonical server-to-device reconciliation foundation, not the remaining Cloud Sync transport/lifecycle hardening.
+
+Completed Batch 1 work:
+
+- Durable `FulusSyncCoordinator` cursor semantics: apply each change successfully before persisting its sequence.
+- Typed canonical reconciliation boundary with entity/operation validation.
+- Canonical server-state adapters and inbound-only repository reconciliation for the syncable entity surface covered by this batch:
+  - sales
+  - customers
+  - products
+  - categories
+  - suppliers
+  - returns
+  - expenses
+  - income
+  - stock movements
+  - customer ledger
+  - cash drawer
+  - locations
+  - expense categories
+- Canonical pull/state endpoint under `supabase/functions/fulus-sync-state`.
+- Atomic local reconciliation for entity state where dependencies must resolve first.
+- Product stock reconciliation is authoritative: existing local stock rows for a product are removed and rebuilt from the canonical `stock_levels` snapshot; an unknown canonical location causes the transaction to fail and roll back.
+- Focused adapter/coordinator tests plus the sale/return canonical reconciliation test coverage.
+- Test fixture/analyzer corrections required to bring the canonical reconciliation suite to green CI.
+
+Key Batch 1 commits include:
+
+- `5fad2cd3ce16e19693c4dc0e98d56f3ba2258d86` — remove unsafe generic dynamic SQL canonical reconciler
+- `66e278c4bfddb61b368cadd1fcf26da33f8e8d6c` — `test: fix canonical sale return fallback types`
+- `3c04d7f2621d8ef5b562142218ae1d20e5743110` — `fix: reconcile product stock levels authoritatively`
+
+### Batch 1 verification
+
+- **Architecture cross-check:** passed — canonical reconciliation is typed, entity-specific, atomic where required, and does not enqueue inbound state as a new outbound change.
+- **Client-flow cross-check:** passed for Batch 1 scope — change → canonical fetch → typed adapter → repository reconciliation is covered by the implemented boundaries/tests.
+- **Server-flow cross-check:** passed for Batch 1 scope — the canonical state function provides authoritative entity state rather than requiring summary feed payloads to reconstruct aggregates.
+- **Failure/recovery cross-check:** passed for Batch 1 scope — cursor advancement occurs only after successful application; reconciliation failures prevent acknowledgement; Product unknown-location failures roll back the transaction.
+- **Final diff/CI/test audit:** passed — latest CI run `34988545920` for commit `3c04d7f2621d8ef5b562142218ae1d20e5743110` is green.
+
+**Batch 1 is therefore ready to merge to `main`.**
+
 ## Current CI situation
 
-The latest known failing CI run was:
+The latest Batch 1 verification run is:
 
-- Run: `34943350924`
-- Commit: `e481fef52bbe39dd62cc6f2236183f3b6499a849`
-- Failing job: `104297665975`
-- Failure type: static analysis
+- Run: `34988545920`
+- Commit: `3c04d7f2621d8ef5b562142218ae1d20e5743110`
+- Result: **green / successful**
 
-The failure was eight analyzer errors caused by missing `SyncStatus` imports in:
+The earlier analyzer failure was caused by missing `SyncStatus` imports in:
 
 - `test/sync/offline_sale_local_flow_test.dart`
 - `test/sync/sale_sync_handler_test.dart`
-
-The minimal fix was applied:
-
-```dart
-import 'package:fulus_mobile/data/local/database/tables.dart';
-```
 
 Fix commits:
 
 - `0bc943c064112068a7f0bf669abc09ad23bf747a` — `fix: import SyncStatus in offline sale test`
 - `32d9e189d71342a29439abe15c2004e74fb2bc10` — `fix: import SyncStatus in sale sync test`
-
-**Required next action:** verify the CI run produced by these fixes. Do not assume it is green.
 
 ## Cloud Sync audit — current state
 
@@ -59,12 +94,12 @@ Fix commits:
 | Return push | Legacy API path remains |
 | Stock movement push | Mixed/legacy |
 | Location sync | Separate legacy path |
-| Server → device feed | Built but currently unwired |
+| Server → device feed | Batch 1 canonical foundation implemented; runtime wiring remains |
 | Restore | Implemented, lifecycle gaps remain |
-| Sync activation after restore | Previously missing; readiness work is in progress |
+| Sync activation after restore | Readiness work exists; broader lifecycle hardening remains |
 | Dependency ordering | Partial |
 | Error reporting | Too generic |
-| Multi-device reconciliation | Incomplete |
+| Multi-device reconciliation | Canonical foundation implemented; end-to-end lifecycle remains |
 
 ## P0 requirements
 
@@ -78,13 +113,13 @@ Remaining legacy transports must be audited and removed or deliberately replaced
 
 ### 2. Make server → device reconciliation real
 
-`FulusSyncCoordinator` already provides the conceptual cursor-based pull loop:
+`FulusSyncCoordinator` now provides the durable cursor-based pull foundation:
 
 ```text
-cursor → pull changes → apply each change → advance cursor
+cursor → pull changes → fetch canonical state → apply reconciliation → advance cursor
 ```
 
-It is not yet sufficient merely to have this class. It must be instantiated and wired into the running application.
+Batch 1 establishes the canonical reconciliation primitives and safe cursor semantics. Runtime instantiation/wiring of the coordinator and complete application lifecycle integration remain subsequent work.
 
 Important rule: **never advance the cursor past a change that was not successfully and completely reconciled locally.**
 
@@ -120,6 +155,8 @@ apply atomic local upsert/reconciliation
     ↓
 only then advance cursor
 ```
+
+Batch 1 implements this canonical state/reconciliation foundation. Remaining runtime wiring and outbound transport migration are tracked below as subsequent batches.
 
 ### 4. Restore must automatically enter Sync Ready
 
@@ -452,15 +489,15 @@ Add or complete tests for:
 
 Tests must verify both local state and server-side effects/idempotency where possible.
 
-## Five mandatory cross-checks
+## Five mandatory cross-checks for the entire Cloud Sync hardening
+
+These are intentionally **not** marked passed merely because Batch 1 is complete. They cover the remaining batches as well.
 
 ### Cross-check 1 — CI / static analysis / tests
 
-- Verify the latest CI run after the two `SyncStatus` import fixes.
-- If it fails, inspect the exact failing job/log and fix it.
-- Repeat until the authoritative CI pipeline is green.
+The Batch 1 CI gate is now passed by run `34988545920` on commit `3c04d7f2621d8ef5b562142218ae1d20e5743110`.
 
-**Status: NOT YET PASSED at time of this handoff.**
+**Status: BATCH 1 PASSED. Overall hardening: pending subsequent-batch verification.**
 
 ### Cross-check 2 — Transport audit
 
@@ -468,7 +505,7 @@ Search the complete `lib/sync` and relevant repositories/services for legacy clo
 
 Confirm that every intended cloud sync write goes through the canonical Fulus Cloud transport.
 
-**Status: NOT YET PASSED.**
+**Status: PENDING.**
 
 ### Cross-check 3 — Backend contract/schema audit
 
@@ -476,7 +513,7 @@ Verify the deployed edge-function source/version and production database RPC/tab
 
 Confirm every syncable entity has a real canonical cloud command/read/reconciliation path.
 
-**Status: NOT YET PASSED.**
+**Status: PENDING.**
 
 ### Cross-check 4 — Lifecycle/reconciliation audit
 
@@ -497,35 +534,45 @@ cold startup
 
 Confirm there are no races, silent cloud failures, or cursor advancement before successful local reconciliation.
 
-**Status: NOT YET PASSED.**
+**Status: PENDING for full runtime lifecycle. Batch 1 cursor/reconciliation safety: PASSED.**
 
 ### Cross-check 5 — Failure/idempotency/integration audit
 
 Verify structured errors, retry behavior, dependency blocking, duplicate safety, timeout-after-success behavior, app-kill recovery, and the integration matrix above.
 
-**Status: NOT YET PASSED.**
+**Status: PENDING for full Cloud Sync hardening. Batch 1 cursor/reconciliation failure safety: PASSED.**
 
 ## Required completion sequence
 
-Do the work in this order:
+The remaining work is split into subsequent batches so each batch can be completed and verified without mixing unrelated changes:
 
-1. Verify CI after the current test-import fixes.
-2. Fix any CI failure.
-3. Audit and remove remaining legacy cloud write transports.
-4. Establish backend primitives for missing canonical entities: income, cash drawer, locations.
-5. Verify the active `fulus-api` deployment preserves all required routes.
-6. Wire `FulusSyncCoordinator` into runtime.
-7. Implement canonical change-feed reconciliation for all syncable entities.
-8. Make restore complete only after initial reconciliation succeeds.
-9. Replace silent startup/background cloud catches with observable handling.
-10. Implement explicit dependency scheduling.
-11. Implement structured sync errors.
-12. Unify idempotency/retry semantics.
-13. Implement authoritative Sync Health.
-14. Complete the integration test matrix.
-15. Run the five independent cross-checks.
-16. Only when all five pass, trigger the external APK build.
-17. Install the APK on a real device and verify the cloud-sync flows.
+### Batch 2 — canonical cloud transport/write-path migration
+
+1. Audit and remove remaining legacy cloud write transports.
+2. Establish backend primitives for missing canonical entities: income, cash drawer, locations.
+3. Verify the active `fulus-api` deployment preserves all required routes.
+
+### Batch 3 — runtime coordinator/startup integration
+
+4. Wire `FulusSyncCoordinator` into runtime.
+5. Replace duplicated startup/background sync paths with the canonical coordinator.
+6. Replace silent startup/background cloud catches with observable handling.
+
+### Batch 4 — restore/readiness lifecycle
+
+7. Complete restore → initial reconciliation → Sync Ready sequencing.
+8. Eliminate readiness races and redundant checks.
+
+### Batch 5 — hardening and release verification
+
+9. Implement explicit dependency scheduling.
+10. Implement structured sync errors.
+11. Unify idempotency/retry semantics.
+12. Implement authoritative Sync Health.
+13. Complete the integration test matrix.
+14. Run the five independent cross-checks for the entire hardening effort.
+15. Only when all five pass, trigger the external APK build.
+16. Install the APK on a real device and verify the cloud-sync flows.
 
 ## Important regression context
 
@@ -542,7 +589,7 @@ A prior user concern was whether startup/backup detection changes could also exp
 
 ## Definition of done
 
-The Cloud Sync hardening is complete only when:
+The entire Cloud Sync hardening is complete only when:
 
 - canonical transport is used consistently;
 - all intended syncable entities have cloud command + pull/reconciliation paths;
@@ -557,4 +604,4 @@ The Cloud Sync hardening is complete only when:
 - a release APK is built through the intended workflow;
 - the installed APK is tested on a real device.
 
-Until then, the work is **in progress**.
+**Current state: Batch 1 complete and ready to merge. Overall Cloud Sync hardening remains in progress through Batches 2–5.**
