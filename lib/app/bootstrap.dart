@@ -228,6 +228,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncEngine: syncEngine,
     syncConfig: syncConfig,
     syncStatusNotifier: syncStatusNotifier,
+    isReady: () async => fulusConnectionState.isSyncReady,
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
       await locationRepository.syncFromServer();
