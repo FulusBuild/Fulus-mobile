@@ -12,6 +12,19 @@ void main() {
 
   setUp(() {
     repository = _MockCustomerRepository();
+    when(() => repository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          name: any(named: 'name'),
+          phone: any(named: 'phone'),
+          email: any(named: 'email'),
+          address: any(named: 'address'),
+          notes: any(named: 'notes'),
+          outstandingBalance: any(named: 'outstandingBalance'),
+          duplicateWarning: any(named: 'duplicateWarning'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+        )).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     reconciler = FulusCustomerCanonicalReconciler(repository: repository);
   });
 
@@ -92,6 +105,7 @@ void main() {
           outstandingBalance: any(named: 'outstandingBalance'),
           duplicateWarning: any(named: 'duplicateWarning'),
           updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
         ));
   });
 }
