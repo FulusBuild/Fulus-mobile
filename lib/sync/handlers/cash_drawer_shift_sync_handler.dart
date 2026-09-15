@@ -1,5 +1,6 @@
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
+import '../../domain/entities/cash_drawer_shift.dart';
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
 import '../sync_handler.dart';
 
