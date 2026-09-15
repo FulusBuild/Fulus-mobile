@@ -320,7 +320,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       onboardingStateProvider.overrideWithValue(onboardingState),
       syncConfigProvider.overrideWith((ref) => syncConfig),
       diagnosticLoggerProvider.overrideWithValue(diagnosticLogger),
-      appDatabaseLifecycleProvider.overrideWithValue(appDatabaseLifecycle),
       notificationRepositoryProvider.overrideWithValue(notificationRepository),
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
