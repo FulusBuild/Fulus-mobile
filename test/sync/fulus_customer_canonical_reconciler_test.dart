@@ -3,12 +3,17 @@ import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_customer_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/domain/repositories/customer_repository.dart';
+import 'package:fulus_mobile/domain/entities/customer.dart';
 
 class _MockCustomerRepository extends Mock implements CustomerRepository {}
 
 void main() {
   late _MockCustomerRepository repository;
   late FulusCustomerCanonicalReconciler reconciler;
+
+  setUpAll(() {
+    registerFallbackValue(const CustomerDraft(name: 'fallback'));
+  });
 
   setUp(() {
     repository = _MockCustomerRepository();
@@ -60,6 +65,7 @@ void main() {
           outstandingBalance: 12500.0,
           duplicateWarning: null,
           updatedAt: DateTime.parse('2026-09-15T12:00:00.000Z'),
+          deletedAt: null,
         )).called(1);
     verifyNever(() => repository.createCustomer(any()));
     verifyNever(() => repository.markSynced(
@@ -98,7 +104,7 @@ void main() {
       },
     });
 
-    expect(reconciler.apply(response), throwsStateError);
+    await expectLater(reconciler.apply(response), throwsStateError);
     verifyNever(() => repository.reconcileServerState(
           serverId: any(named: 'serverId'),
           name: any(named: 'name'),
