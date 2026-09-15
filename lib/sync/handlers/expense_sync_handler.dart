@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -26,36 +24,24 @@ class ExpenseSyncHandler implements SyncHandler {
 
   @override
   Future<void> sync(SyncQueueItem item) async {
-    if (item.operation != 'create') {
-      throw StateError('ExpenseSyncHandler supports only create.');
-    }
+    if (item.operation != 'create') throw StateError('ExpenseSyncHandler supports only create.');
     final expense = await _expenseRepository.getExpenseById(item.entityLocalId);
     if (expense == null) throw StateError('No local expense found for ${item.entityLocalId}.');
     if (expense.serverId?.isNotEmpty == true) return;
-
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || businessId.isEmpty || device?.status != 'active') {
       throw StateError('Fulus Cloud device authorization is required for expense sync.');
     }
-
-    final location = await (_db.select(_db.locations)
-          ..where((l) => l.localId.equals(expense.locationId)))
-        .getSingleOrNull();
+    final location = await (_db.select(_db.locations)..where((l) => l.localId.equals(expense.locationId))).getSingleOrNull();
     final locationId = location?.serverId;
-    if (locationId == null || locationId.isEmpty) {
-      throw StateError('Expense location has no server identity yet.');
-    }
-
+    if (locationId == null || locationId.isEmpty) throw StateError('Expense location has no server identity yet.');
     var category = 'general';
     final categoryId = expense.categoryId;
     if (categoryId != null && categoryId.isNotEmpty) {
-      final row = await (_db.select(_db.expenseCategories)
-            ..where((c) => c.localId.equals(categoryId)))
-          .getSingleOrNull();
+      final row = await (_db.select(_db.expenseCategories)..where((c) => c.localId.equals(categoryId))).getSingleOrNull();
       category = row?.name ?? category;
     }
-
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'expense.create',
