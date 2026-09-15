@@ -5,6 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
+import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/audit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/expense_repository_impl.dart';
