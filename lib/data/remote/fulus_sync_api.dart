@@ -59,7 +59,8 @@ class FulusSyncApi {
           operationType == 'customer.repayment' ||
           operationType == 'expense.create' ||
           operationType == 'return.create' ||
-          operationType == 'stock_movement.create') {
+          operationType == 'stock_movement.create' ||
+          operationType == 'location.create') {
         body
           ..remove('operation_type')
           ..remove('payload')
@@ -71,6 +72,7 @@ class FulusSyncApi {
             'expense.create' => 'expense_create',
             'return.create' => 'return_create',
             'stock_movement.create' => 'inventory_adjust',
+            'location.create' => 'location_create',
             _ => throw StateError('Unsupported Fulus operation: $operationType'),
           };
       }
@@ -139,6 +141,8 @@ class FulusSyncApi {
     } else if (operationType == 'stock_movement.create' &&
         data['movement_id'] != null) {
       result['data'] = {...data, 'entity_id': data['movement_id']};
+    } else if (operationType == 'location.create' && data['location_id'] != null) {
+      result['data'] = {...data, 'entity_id': data['location_id']};
     }
     return result;
   }
