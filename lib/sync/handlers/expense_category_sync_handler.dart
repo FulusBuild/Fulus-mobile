@@ -36,10 +36,10 @@ class ExpenseCategorySyncHandler implements SyncHandler {
     }
 
     final businessId = _fulusConnectionState.selectedBusinessId;
-    final deviceClientId = _fulusConnectionState.deviceClientId;
-    if (businessId == null || deviceClientId == null) {
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
       throw StateError(
-        'Fulus Cloud context is not ready for expense category sync.',
+        'Fulus Cloud device authorization is required for expense category sync.',
       );
     }
 
@@ -47,7 +47,7 @@ class ExpenseCategorySyncHandler implements SyncHandler {
       businessId: businessId,
       operationType: 'expense_category.create',
       operationId: category.localId,
-      deviceClientId: deviceClientId,
+      deviceClientId: device!.deviceClientId,
       payload: {
         'name': category.name,
       },
