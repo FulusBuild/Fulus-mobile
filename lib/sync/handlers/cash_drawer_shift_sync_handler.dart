@@ -2,6 +2,7 @@ import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/entities/cash_drawer_shift.dart';
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
+import '../../domain/repositories/location_repository.dart';
 import '../sync_handler.dart';
 
 /// Syncs both lifecycle operations for a cash drawer shift through the
@@ -11,13 +12,16 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
     required CashDrawerShiftRepository cashDrawerShiftRepository,
+    required LocationRepository locationRepository,
   })  : _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
-        _cashDrawerShiftRepository = cashDrawerShiftRepository;
+        _cashDrawerShiftRepository = cashDrawerShiftRepository,
+        _locationRepository = locationRepository;
 
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
   final CashDrawerShiftRepository _cashDrawerShiftRepository;
+  final LocationRepository _locationRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -36,6 +40,12 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
 
   Future<void> _syncCreate(SyncQueueItem item) async {
     final shift = await _requireShift(item.entityLocalId);
+    final location = await _locationRepository.getLocationById(shift.locationId);
+    if (location == null || location.serverId?.isNotEmpty != true) {
+      throw StateError(
+        'Cash drawer cannot sync until location ${shift.locationId} has a server ID.',
+      );
+    }
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || businessId.isEmpty || device?.status != 'active') {
@@ -52,7 +62,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'business_id': businessId,
         'operation_id': item.id,
         'client_reference': shift.localId,
-        'location_id': shift.locationId,
+        'location_id': location.serverId,
         'opening_cash': shift.openingCash,
         'opened_at': shift.openedAt.toIso8601String(),
       },
