@@ -85,7 +85,7 @@ void main() {
 
   test('pushes income through Fulus Cloud and marks it synced', () async {
     final record = await incomeRecordRepository.recordIncome(
-      const IncomeRecordDraft(
+      IncomeRecordDraft(
         locationId: locationId,
         source: 'Equipment rental',
         amount: 15000,
@@ -123,7 +123,7 @@ void main() {
 
   test('throws when the location has not synced yet', () async {
     final record = await incomeRecordRepository.recordIncome(
-      const IncomeRecordDraft(
+      IncomeRecordDraft(
         locationId: locationId,
         source: 'Fuel refund',
         amount: 3000,
@@ -155,7 +155,7 @@ void main() {
 
   test('throws for an operation other than create', () async {
     final record = await incomeRecordRepository.recordIncome(
-      const IncomeRecordDraft(
+      IncomeRecordDraft(
         locationId: locationId,
         source: 'Fuel refund',
         amount: 3000,
