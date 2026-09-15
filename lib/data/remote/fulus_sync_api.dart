@@ -47,6 +47,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
 
   Future<FulusSyncPullResponse> pullChanges({
     required String businessId,
+    required String deviceClientId,
     int cursor = 0,
     int limit = 100,
   }) async {
@@ -58,7 +59,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
           'cursor': cursor,
           'limit': limit,
         },
-        options: Options(headers: _headers()),
+        options: Options(headers: _headers(deviceClientId: deviceClientId)),
       );
       return FulusSyncPullResponse.fromJson(
         Map<String, dynamic>.from(response.data as Map),
