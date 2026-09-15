@@ -1,0 +1,78 @@
+name: One-time CI hotfix
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.github/workflows/ci-hotfix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply CI fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          bootstrap = Path('lib/app/bootstrap.dart')
+          text = bootstrap.read_text()
+          text = text.replace(
+              'fulusConnectionStateProvider.overrideWithValue(fulusConnectionState)',
+              'fulusConnectionStateProvider.overrideWith((ref) => fulusConnectionState)',
+          )
+          bootstrap.write_text(text)
+
+          providers = Path('lib/app/providers.dart')
+          text = providers.read_text()
+          if "import '../data/remote/fulus_device_registration.dart';" not in text:
+              text = text.replace(
+                  "import '../data/remote/fulus_connection_state.dart';\n",
+                  "import '../data/remote/fulus_connection_state.dart';\nimport '../data/remote/fulus_device_registration.dart';\nimport '../data/remote/fulus_staff_access_api.dart';\n",
+                  1,
+              )
+          marker = "final fulusConnectionStateProvider =\n    ChangeNotifierProvider<FulusConnectionState>((ref) {"
+          if 'final fulusDeviceRegistrationProvider =' not in text:
+              insertion = """final fulusDeviceRegistrationProvider = Provider<FulusDeviceRegistration>((ref) {\n  throw UnimplementedError(\n    'fulusDeviceRegistrationProvider must be overridden in bootstrap.dart.',\n  );\n});\n\nfinal fulusStaffAccessApiProvider = Provider<FulusStaffAccessApi>((ref) {\n  throw UnimplementedError(\n    'fulusStaffAccessApiProvider must be overridden in bootstrap.dart.',\n  );\n});\n\n"""
+              text = text.replace(marker, insertion + marker, 1)
+          providers.write_text(text)
+
+          ledger = Path('lib/sync/handlers/customer_ledger_sync_handler.dart')
+          text = ledger.read_text()
+          text = text.replace(
+              "import '../../data/local/database/database.dart';\n",
+              "import '../../data/local/database/database.dart';\nimport '../../data/local/database/tables.dart';\n",
+              1,
+          )
+          text = text.replace("import '../sync_status.dart';\n", '', 1)
+          ledger.write_text(text)
+
+          test = Path('test/sync/customer_sync_handler_test.dart')
+          text = test.read_text()
+          text = text.replace("import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';\n", '', 1)
+          text = text.replace(
+              "handler = CustomerSyncHandler(\n      fulusSyncApi: fulusSyncApi,\n      fulusConnectionState: fulusConnectionState,\n      customerRepository: customerRepository,\n    );",
+              "handler = CustomerSyncHandler(\n      fulusSyncApi: fulusSyncApi,\n      fulusConnectionState: fulusConnectionState,\n      customerRepository: customerRepository,\n    );",
+              1,
+          )
+          test.write_text(text)
+
+      - name: Verify changed files
+        run: git diff --check
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/app/bootstrap.dart lib/app/providers.dart lib/sync/handlers/customer_ledger_sync_handler.dart test/sync/customer_sync_handler_test.dart .github/workflows/ci-hotfix.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: resolve Riverpod and sync CI diagnostics'
+          git push
