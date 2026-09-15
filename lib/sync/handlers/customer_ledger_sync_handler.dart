@@ -4,6 +4,7 @@ import '../../data/local/database/database.dart';
 import '../../data/local/database/tables.dart';
 import '../../data/local/database/tables.dart';
 import '../../data/local/database/tables.dart';
+import '../../data/local/database/tables.dart';
 import '../../data/local/secure_storage/secure_storage.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
