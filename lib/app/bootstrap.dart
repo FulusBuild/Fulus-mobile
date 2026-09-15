@@ -73,6 +73,7 @@ import '../domain/usecases/global_search.dart';
 import '../domain/usecases/import_products_from_csv.dart';
 import '../sync/handlers/category_sync_handler.dart';
 import '../sync/handlers/cash_drawer_shift_sync_handler.dart';
+import '../sync/handlers/customer_ledger_sync_handler.dart';
 import '../sync/handlers/customer_sync_handler.dart';
 import '../sync/handlers/expense_category_sync_handler.dart';
 import '../sync/handlers/expense_sync_handler.dart';
@@ -194,6 +195,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository);
   final customerSyncHandler = CustomerSyncHandler(customersApi: customersApi, customerRepository: customerRepository);
+  final customerLedgerSyncHandler = CustomerLedgerSyncHandler(
+    db: database,
+    fulusSyncApi: fulusSyncApi,
+    fulusConnectionState: fulusConnectionState,
+    secureStorage: secureStorage,
+  );
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final locationSyncHandler = LocationSyncHandler(locationsApi: locationsApi, locationRepository: locationRepository);
@@ -209,6 +216,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     handlersByEntityType: {
       'sale': saleSyncHandler,
       'customer': customerSyncHandler,
+      'customer_ledger': customerLedgerSyncHandler,
       'category': categorySyncHandler,
       'supplier': supplierSyncHandler,
       'location': locationSyncHandler,
