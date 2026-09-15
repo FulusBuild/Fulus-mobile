@@ -117,6 +117,9 @@ class ProductRepositoryImpl implements ProductRepository {
       } else {
         await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(categoryId), supplierId: Value(supplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
       }
+      // stock_levels is authoritative: remove local rows that are absent from
+      // the canonical aggregate, then restore exactly the server snapshot.
+      await (_db.delete(_db.productStockLevels)..where((s) => s.productLocalId.equals(localId))).go();
       for (final stock in stockLevels) {
         final location = await (_db.select(_db.locations)..where((l) => l.serverId.equals(stock.locationServerId))).getSingleOrNull();
         if (location == null) throw StateError('Canonical product $serverId references unknown location ${stock.locationServerId}.');
