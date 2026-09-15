@@ -1,22 +1,40 @@
 import 'package:dio/dio.dart';
 
+import '../../../core/config/supabase_config.dart';
 import '../api_client.dart';
 
 /// Fetches the authenticated user's complete business restore snapshot.
 ///
-/// The restore endpoint is intentionally separate from ordinary sync pulls:
-/// reinstall recovery needs a consistent snapshot of the business rather
-/// than a collection of independent "current state" requests.
+/// Restore is a Supabase Edge Function, so it must use the Supabase project
+/// URL directly rather than the legacy API base URL used by ordinary app APIs.
 class CloudRestoreApi {
   CloudRestoreApi(this._client);
 
   final ApiClient _client;
 
   Future<Map<String, dynamic>> fetchSnapshot({required String businessId}) async {
+    final accessToken = _client.serverAccessToken;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw StateError('Fulus Cloud session is missing. Please sign in again.');
+    }
+
     try {
-      final response = await _client.dio.post(
+      final response = await Dio(
+        BaseOptions(
+          baseUrl: SupabaseConfig.url,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      ).post(
         '/functions/v1/fulus-restore',
         data: {'business_id': businessId},
+        options: Options(
+          headers: {
+            'apikey': SupabaseConfig.publishableKey,
+            'Authorization': 'Bearer $accessToken',
+            'content-type': 'application/json',
+          },
+        ),
       );
       return Map<String, dynamic>.from(
         (response.data as Map<String, dynamic>)['data'] as Map,
