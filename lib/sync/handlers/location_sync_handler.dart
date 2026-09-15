@@ -13,10 +13,7 @@ class LocationSyncHandler implements SyncHandler {
     required LocationRepository locationRepository,
   })  : _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
-        _locationRepository = locationRepository {
-    // The database is owned by the repository; this handler does not access it directly.
-    assert(db != null);
-  }
+        _locationRepository = locationRepository;
 
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
