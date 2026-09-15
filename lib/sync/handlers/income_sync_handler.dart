@@ -3,6 +3,7 @@ import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/income_record_repository.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../sync_handler.dart';
+import '../sync_queue.dart';
 
 /// Syncs miscellaneous income through the canonical Fulus Cloud transport.
 class IncomeSyncHandler implements SyncHandler {
@@ -78,7 +79,6 @@ class IncomeSyncHandler implements SyncHandler {
     if (serverId == null || serverId.isEmpty) {
       throw StateError('Fulus income sync returned no server entity ID.');
     }
-
     await _incomeRecordRepository.markSynced(
       localId: record.localId,
       serverId: serverId,
