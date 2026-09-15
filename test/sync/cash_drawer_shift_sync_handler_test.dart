@@ -64,6 +64,10 @@ void main() {
       status: 'active',
     ));
     when(() => repository.getShiftById('shift-local-1')).thenAnswer((_) async => shift);
+    when(() => repository.markSynced(
+          localId: any(named: 'localId'),
+          serverId: any(named: 'serverId'),
+        )).thenAnswer((_) async {});
     when(() => locationRepository.getLocationById('loc-1')).thenAnswer((_) async => location);
   });
 
