@@ -2,9 +2,10 @@ import 'package:dio/dio.dart';
 
 import '../../core/config/supabase_config.dart';
 import 'api_client.dart';
+import 'fulus_canonical_reconciler_typed.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
-class FulusSyncApi {
+class FulusSyncApi implements FulusCanonicalEntityFetcher {
   FulusSyncApi({
     required ApiClient client,
     required String functionBaseUrl,
@@ -19,6 +20,7 @@ class FulusSyncApi {
   final String _functionBaseUrl;
   final String _canonicalStateFunctionUrl;
 
+  @override
   Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
     required String businessId,
     required String entityType,
