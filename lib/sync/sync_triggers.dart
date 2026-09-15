@@ -124,12 +124,10 @@ class SyncTriggers with WidgetsBindingObserver {
     await _syncEngine.runOnce(manual: manual);
     final pull = _pullFromServer;
     if (pull != null) {
-      try {
-        await pull();
-      } catch (_) {
-        // A failed pull must never turn a successful local queue drain into
-        // a failed sync cycle. The next trigger retries it.
-      }
+      // Pull failures are intentionally propagated. A reconciliation failure
+      // is a real sync failure and must remain observable to the caller and
+      // diagnostic layer rather than being silently converted into success.
+      await pull();
     }
   }
 
