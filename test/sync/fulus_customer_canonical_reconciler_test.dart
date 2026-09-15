@@ -90,7 +90,11 @@ void main() {
         'entity_type': 'customer',
         'entity_id': 'server-customer-3',
         'operation': 'upsert',
-        'row': {'id': 'server-customer-3', 'name': 'Missing timestamp'},
+        'row': {
+          'id': 'server-customer-3',
+          'name': 'Missing timestamp',
+          'outstanding_balance': 0,
+        },
       },
     });
 
