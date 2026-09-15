@@ -1,51 +1,86 @@
+import 'package:drift/drift.dart';
+
 import '../../data/local/database/database.dart';
-import '../../data/remote/endpoints/returns_api.dart';
-import '../../data/repositories/return_mapper.dart';
+import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/return_repository.dart';
 import '../sync_handler.dart';
 
+/// Pushes returns through the authoritative Fulus Cloud command API.
 class ReturnSyncHandler implements SyncHandler {
   ReturnSyncHandler({
-    required ReturnsApi returnsApi,
+    required AppDatabase db,
+    required FulusSyncApi fulusSyncApi,
+    required FulusConnectionState fulusConnectionState,
     required ReturnRepository returnRepository,
-  })  : _returnsApi = returnsApi,
+  })  : _db = db,
+        _fulusSyncApi = fulusSyncApi,
+        _fulusConnectionState = fulusConnectionState,
         _returnRepository = returnRepository;
 
-  final ReturnsApi _returnsApi;
+  final AppDatabase _db;
+  final FulusSyncApi _fulusSyncApi;
+  final FulusConnectionState _fulusConnectionState;
   final ReturnRepository _returnRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
     if (item.operation != 'create') {
-      // approve/reject/complete pushes aren't built in this pass — see
-      // ReturnRepositoryImpl.approveOrRejectReturn's own doc comment.
-      throw StateError(
-        'ReturnSyncHandler does not support operation "${item.operation}" '
-        'yet — only "create" is implemented.',
-      );
+      throw StateError('ReturnSyncHandler supports only create.');
+    }
+    final request = await _returnRepository.getReturnById(item.entityLocalId);
+    if (request == null) throw StateError('No local return found for ${item.entityLocalId}.');
+    if (request.serverId?.isNotEmpty == true) return;
+
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+      throw StateError('Fulus Cloud device authorization is required for return sync.');
     }
 
-    final returnRequest = await _returnRepository.getReturnById(item.entityLocalId);
-    if (returnRequest == null) {
-      throw StateError(
-        'No local return found for ${item.entityLocalId} — the queue item '
-        'outlived its own row.',
-      );
+    final sale = await (_db.select(_db.sales)
+          ..where((s) => s.localId.equals(request.originalSaleLocalId)))
+        .getSingleOrNull();
+    final saleId = sale?.serverId;
+    if (saleId == null || saleId.isEmpty) {
+      throw StateError('Return cannot sync before its original sale is synced.');
     }
 
-    // Pushes the return exactly as it was created locally — including
-    // its local status (pending, or already approved for an
-    // owner/manager's own return via autoApprove). The backend
-    // independently derives its own starting status from the
-    // requester's real role (`pos_service.create_return`'s own role
-    // check), which is authoritative; a mismatch there is a sign the
-    // local `autoApprove` guess and the server's real role disagreed,
-    // surfaced by a later reconciliation pass, not resolved here.
-    final response = await _returnsApi.createReturn(returnRequest.toCreateDto());
+    final rows = await (_db.select(_db.returnItems)
+          ..where((r) => r.returnLocalId.equals(request.localId)))
+        .get();
+    final items = <Map<String, dynamic>>[];
+    for (final row in rows) {
+      final product = await (_db.select(_db.products)
+            ..where((p) => p.localId.equals(row.productLocalId)))
+          .getSingleOrNull();
+      final productId = product?.serverId;
+      if (productId == null || productId.isEmpty) {
+        throw StateError('Return product ${row.productLocalId} has no server identity yet.');
+      }
+      items.add({'product_id': productId, 'quantity': row.quantity});
+    }
 
-    await _returnRepository.markSynced(
-      localId: returnRequest.localId,
-      serverId: response.serverId!,
+    final result = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'return.create',
+      operationId: item.id,
+      deviceClientId: device!.deviceClientId,
+      clientReference: request.localId,
+      payload: {
+        'business_id': businessId,
+        'sale_id': saleId,
+        'operation_id': item.id,
+        'reason': request.returnReason,
+        'refund_amount': request.refundAmount,
+        'refund_method': request.refundMethod,
+        'items': items,
+      },
     );
+    final data = result['data'];
+    if (data is! Map) throw StateError('Fulus return sync returned no response data.');
+    final serverId = (data['entity_id'] ?? data['id'])?.toString();
+    if (serverId == null || serverId.isEmpty) throw StateError('Fulus return sync returned no server entity ID.');
+    await _returnRepository.markSynced(localId: request.localId, serverId: serverId);
   }
 }
