@@ -166,7 +166,7 @@ class ProductStockSnapshot {
   final DateTime? updatedAt;
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: true)
 class ProductResponseDto {
   const ProductResponseDto({
     required this.id,
@@ -201,6 +201,8 @@ class ProductResponseDto {
   factory ProductResponseDto.fromJson(Map<String, dynamic> json) =>
       _$ProductResponseDtoFromJson(json);
 
+  Map<String, dynamic> toJson() => _$ProductResponseDtoToJson(this);
+
   Product toDomain() {
     final now = DateTime.now();
     return Product(
@@ -221,7 +223,7 @@ class ProductResponseDto {
   }
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake, createFactory: false)
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class ProductListResponseDto {
   const ProductListResponseDto({
     required this.items,
