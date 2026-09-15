@@ -151,21 +151,6 @@ class ProductWithStock {
       product.tracksStock && currentStock <= product.lowStockThreshold;
 }
 
-/// Authoritative stock state returned with a canonical product aggregate.
-/// The location identifier is the server location ID and must be resolved
-/// to the local Locations.localId before it is written to ProductStockLevels.
-class ProductStockSnapshot {
-  const ProductStockSnapshot({
-    required this.locationServerId,
-    required this.currentStock,
-    this.updatedAt,
-  });
-
-  final String locationServerId;
-  final int currentStock;
-  final DateTime? updatedAt;
-}
-
 @JsonSerializable(fieldRename: FieldRename.snake, createToJson: true)
 class ProductResponseDto {
   const ProductResponseDto({
