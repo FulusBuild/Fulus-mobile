@@ -40,7 +40,6 @@ Future<void> main() async {
 
   final suffix =
       '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
-  final productOperationId = 'e2e-create-$suffix';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
