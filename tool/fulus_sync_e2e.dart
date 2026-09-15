@@ -33,6 +33,8 @@ Future<void> main() async {
     validateStatus: (_) => true,
   ));
 
+  await _preflightDevice(dio, businessId: businessId);
+
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final localId = 'e2e-$suffix';
   final operationId = 'e2e-create-$suffix';
@@ -136,6 +138,23 @@ Future<void> main() async {
       }
     }
   }
+}
+
+Future<void> _preflightDevice(
+  Dio dio, {
+  required String businessId,
+}) async {
+  final response = await dio.get(
+    '',
+    queryParameters: {'business_id': businessId},
+  );
+  final status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    throw StateError(
+      'E2E device preflight failed with HTTP $status: ${response.data}',
+    );
+  }
+  stdout.writeln('PASS: device authorization preflight');
 }
 
 String _required(String name) {
