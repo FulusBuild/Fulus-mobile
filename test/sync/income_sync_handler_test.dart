@@ -5,6 +5,8 @@ import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/income_record_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/income_record.dart';
+import 'package:fulus_mobile/domain/entities/location.dart';
+import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 import 'package:fulus_mobile/sync/handlers/income_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
@@ -13,20 +15,30 @@ import 'package:mocktail/mocktail.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
+class MockLocationRepository extends Mock implements LocationRepository {}
 
 void main() {
   late AppDatabase db;
   late MockFulusSyncApi fulusSyncApi;
   late MockFulusConnectionState connectionState;
+  late MockLocationRepository locationRepository;
   late IncomeRecordRepositoryImpl incomeRecordRepository;
   late IncomeSyncHandler handler;
 
   const locationId = 'loc-1';
+  final location = Location(
+    localId: locationId,
+    serverId: 'server-location-1',
+    name: 'Main Store',
+    createdAt: DateTime(2026, 1, 1),
+    updatedAt: DateTime(2026, 1, 1),
+  );
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
+    locationRepository = MockLocationRepository();
     incomeRecordRepository = IncomeRecordRepositoryImpl(
       db: db,
       syncQueue: SyncQueue(db),
@@ -35,6 +47,7 @@ void main() {
       fulusSyncApi: fulusSyncApi,
       fulusConnectionState: connectionState,
       incomeRecordRepository: incomeRecordRepository,
+      locationRepository: locationRepository,
     );
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
     when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
@@ -43,6 +56,8 @@ void main() {
       deviceClientId: 'device-client-1',
       status: 'active',
     ));
+    when(() => locationRepository.getLocationById(locationId))
+        .thenAnswer((_) async => location);
     await db.into(db.locations).insert(LocationsCompanion.insert(
           localId: locationId,
           name: 'Main Store',
@@ -91,17 +106,44 @@ void main() {
 
     await handler.sync(queueItemFor(record));
 
-    verify(() => fulusSyncApi.submitOperation(
+    final captured = verify(() => fulusSyncApi.submitOperation(
           businessId: 'business-1',
           operationType: 'income.create',
           operationId: 'q1',
           deviceClientId: 'device-client-1',
           clientReference: record.localId,
-          payload: any(named: 'payload'),
-        )).called(1);
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-1');
+    expect(captured['amount'], 15000);
 
     final updated = await incomeRecordRepository.getIncomeRecordById(record.localId);
     expect(updated!.serverId, 'server-income-1');
+  });
+
+  test('throws when the location has not synced yet', () async {
+    final record = await incomeRecordRepository.recordIncome(
+      const IncomeRecordDraft(
+        locationId: locationId,
+        source: 'Fuel refund',
+        amount: 3000,
+        incomeDate: DateTime(2026, 7, 1),
+      ),
+    );
+    when(() => locationRepository.getLocationById(locationId)).thenAnswer((_) async => location.copyWith(serverId: null));
+
+    await expectLater(
+      handler.sync(queueItemFor(record)),
+      throwsA(isA<StateError>()),
+    );
+    verifyNever(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        ));
   });
 
   test('throws for an operation other than create', () async {
