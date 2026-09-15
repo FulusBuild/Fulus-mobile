@@ -361,7 +361,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       cameraServiceProvider.overrideWithValue(cameraService),
       searchRepositoryProvider.overrideWithValue(searchRepository),
       globalSearchProvider.overrideWithValue(globalSearch),
-      exportProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),
+      exportServiceProvider.overrideWithValue(exportService),
       employeeRepositoryProvider.overrideWithValue(employeeRepository),
       receiptRepositoryProvider.overrideWithValue(receiptRepository),
       backupRepositoryProvider.overrideWithValue(backupRepository),
