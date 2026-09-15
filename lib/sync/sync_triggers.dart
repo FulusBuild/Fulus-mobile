@@ -103,15 +103,29 @@ class SyncTriggers with WidgetsBindingObserver {
     await _syncStatusNotifier.checkForStuckSyncAndNotify();
   }
 
+  /// Runs the first reconciliation after a restore before the connection is
+  /// advertised as Sync Ready. Device registration and authentication are
+  /// already complete at this point, but readiness is deliberately not used
+  /// as a precondition because this call is what establishes readiness.
+  Future<void> reconcileAfterRestore() async {
+    if (!_syncConfig.isEnabled) {
+      throw StateError(
+        'Cannot reconcile a restored business while sync is disabled.',
+      );
+    }
+    await _runIfOnline(requireReady: false);
+    await _syncStatusNotifier.checkForStuckSyncAndNotify();
+  }
+
   Future<void> notifyEnqueued() async {
     if (!_syncConfig.isEnabled) return;
     await _runIfOnline();
   }
 
-  Future<void> _runIfOnline() {
+  Future<void> _runIfOnline({bool requireReady = true}) {
     final active = _connectivityRun;
     if (active != null) return active;
-    final run = _runIfOnlineOnce();
+    final run = _runIfOnlineOnce(requireReady: requireReady);
     _connectivityRun = run;
     return run.whenComplete(() {
       if (identical(_connectivityRun, run)) {
@@ -120,15 +134,12 @@ class SyncTriggers with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _runIfOnlineOnce() async {
+  Future<void> _runIfOnlineOnce({required bool requireReady}) async {
     if (!_syncConfig.isEnabled) return;
     final ready = _isReady;
-    if (ready != null && !await ready()) return;
+    if (requireReady && ready != null && !await ready()) return;
     final results = await _connectivity.checkConnectivity();
     if (_hasConnectivity(results)) {
-      // Await the complete cycle. This keeps trigger completion aligned with
-      // queue drain + server reconciliation and prevents startup/connectivity
-      // races from observing a half-finished sync cycle.
       await _runAndCheckStuck();
     }
   }
