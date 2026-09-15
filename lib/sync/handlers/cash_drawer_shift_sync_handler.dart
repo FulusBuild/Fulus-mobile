@@ -43,7 +43,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
     final location = await _locationRepository.getLocationById(shift.locationId);
     if (location == null || location.serverId?.isNotEmpty != true) {
       throw StateError(
-        'Cash drawer cannot sync until location ${shift.locationId} has a server ID.',
+        'Cash drawer cannot sync because location ${shift.locationId} has not synced yet.',
       );
     }
     final businessId = _fulusConnectionState.selectedBusinessId;
