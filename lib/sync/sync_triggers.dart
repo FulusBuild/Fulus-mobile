@@ -23,12 +23,14 @@ class SyncTriggers with WidgetsBindingObserver {
     required SyncStatusNotifier syncStatusNotifier,
     Future<void> Function()? pullFromServer,
     Future<bool> Function()? isReady,
+    Future<void> Function()? onNotReady,
     Connectivity? connectivity,
   })  : _syncEngine = syncEngine,
         _syncConfig = syncConfig,
         _syncStatusNotifier = syncStatusNotifier,
         _pullFromServer = pullFromServer,
         _isReady = isReady,
+        _onNotReady = onNotReady,
         _connectivity = connectivity ?? Connectivity();
 
   final SyncEngine _syncEngine;
@@ -36,10 +38,12 @@ class SyncTriggers with WidgetsBindingObserver {
   final SyncStatusNotifier _syncStatusNotifier;
   final Future<void> Function()? _pullFromServer;
   final Future<bool> Function()? _isReady;
+  final Future<void> Function()? _onNotReady;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _started = false;
   Future<void>? _connectivityRun;
+  Future<void>? _readinessRun;
 
   Future<void> start() async {
     if (_started) return;
@@ -132,6 +136,27 @@ class SyncTriggers with WidgetsBindingObserver {
     await _runIfOnline();
   }
 
+  Future<void> _ensureReady() async {
+    final ready = _isReady;
+    if (ready == null || await ready()) return;
+    final initialize = _onNotReady;
+    if (initialize == null) return;
+    final active = _readinessRun;
+    if (active != null) {
+      await active;
+      return;
+    }
+    final run = initialize();
+    _readinessRun = run;
+    try {
+      await run;
+    } finally {
+      if (identical(_readinessRun, run)) {
+        _readinessRun = null;
+      }
+    }
+  }
+
   Future<void> _runIfOnline({bool requireReady = true}) {
     final active = _connectivityRun;
     if (active != null) return active;
@@ -146,8 +171,11 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> _runIfOnlineOnce({required bool requireReady}) async {
     if (!_syncConfig.isEnabled) return;
-    final ready = _isReady;
-    if (requireReady && ready != null && !await ready()) return;
+    if (requireReady) {
+      await _ensureReady();
+      final ready = _isReady;
+      if (ready != null && !await ready()) return;
+    }
     final results = await _connectivity.checkConnectivity();
     if (_hasConnectivity(results)) {
       await _runAndCheckStuck();
