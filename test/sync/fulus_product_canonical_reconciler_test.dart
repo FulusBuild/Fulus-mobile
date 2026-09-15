@@ -12,6 +12,22 @@ void main() {
 
   setUp(() {
     repository = _MockProductRepository();
+    when(() => repository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          name: any(named: 'name'),
+          sku: any(named: 'sku'),
+          barcode: any(named: 'barcode'),
+          categoryId: any(named: 'categoryId'),
+          supplierId: any(named: 'supplierId'),
+          costPrice: any(named: 'costPrice'),
+          sellingPrice: any(named: 'sellingPrice'),
+          lowStockThreshold: any(named: 'lowStockThreshold'),
+          isActive: any(named: 'isActive'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+          stockLevels: any(named: 'stockLevels'),
+        )).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     reconciler = FulusProductCanonicalReconciler(repository: repository);
   });
 
@@ -110,11 +126,15 @@ void main() {
           serverId: any(named: 'serverId'),
           name: any(named: 'name'),
           sku: any(named: 'sku'),
+          barcode: any(named: 'barcode'),
+          categoryId: any(named: 'categoryId'),
+          supplierId: any(named: 'supplierId'),
           costPrice: any(named: 'costPrice'),
           sellingPrice: any(named: 'sellingPrice'),
           lowStockThreshold: any(named: 'lowStockThreshold'),
           isActive: any(named: 'isActive'),
           updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
           stockLevels: any(named: 'stockLevels'),
         ));
   });
