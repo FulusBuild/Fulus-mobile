@@ -4,6 +4,7 @@ import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/repositories/sale_repository.dart';
+import '../sync_error.dart';
 import '../sync_handler.dart';
 
 class SaleSyncHandler implements SyncHandler {
@@ -23,6 +24,9 @@ class SaleSyncHandler implements SyncHandler {
   final FulusSyncApi? _fulusSyncApi;
   final FulusConnectionState? _fulusConnectionState;
   final SaleRepository _saleRepository;
+  // Kept as an injection-compatible field for existing bootstrap/tests. It is
+  // deliberately never used: all queued sale writes must go through Fulus
+  // Cloud, never the legacy API_BASE_URL transport.
   final SalesApi? _salesApi;
 
   @override
@@ -35,9 +39,8 @@ class SaleSyncHandler implements SyncHandler {
       throw StateError('No local sale found for ${item.entityLocalId}.');
     }
 
-    // Validate referenced customers before selecting either cloud or legacy
-    // transport. A sale cannot sync until its customer has a server identity;
-    // otherwise the legacy path would reach the API with an unresolved local ID.
+    // Validate referenced customers before selecting cloud or legacy
+    // transport. A sale cannot sync until its customer has a server identity.
     if (sale.customerId != null) {
       await _resolveCustomerServerId(sale);
     }
@@ -80,40 +83,11 @@ class SaleSyncHandler implements SyncHandler {
       return;
     }
 
-    final salesApi = _salesApi;
-    if (salesApi == null) {
-      throw StateError('Fulus cloud authorization is required for sale sync.');
-    }
-    final items = await _resolveItems(sale);
-    final synced = await salesApi.createSale(
-      dto: SaleCreateDto(
-        clientReference: sale.clientReference,
-        locationId: sale.locationId,
-        customerId: sale.customerId,
-        saleDate: sale.saleDate,
-        discount: sale.discount,
-        tax: sale.tax,
-        amountPaid: sale.amountPaid,
-        paymentMethod: sale.paymentMethod,
-        notes: sale.notes,
-        items: items
-            .map((item) => SaleItemCreateDto(
-                  productId: item['product_id'] as String,
-                  quantity: item['quantity'] as int,
-                  unitPrice: (item['unit_price'] as num).toDouble(),
-                ))
-            .toList(growable: false),
-      ),
-      locationLocalId: sale.locationId,
-    );
-    final syncedServerId = synced.serverId;
-    if (syncedServerId == null) {
-      throw StateError('Sales API returned no server ID for synced sale.');
-    }
-    await _saleRepository.markSynced(
-      localId: sale.localId,
-      serverId: syncedServerId,
-      invoiceNumber: synced.invoiceNumber ?? sale.clientReference,
+    // Never silently fall back to API_BASE_URL. A queued sale is a Fulus Cloud
+    // command and must wait for an authenticated business + active device.
+    throw const SyncFailure(
+      kind: SyncErrorKind.dependencyNotReady,
+      message: 'Fulus Cloud authorization is required for sale sync.',
     );
   }
 
