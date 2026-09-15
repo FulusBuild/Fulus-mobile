@@ -1,6 +1,7 @@
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/income_record_repository.dart';
+import '../../domain/repositories/location_repository.dart';
 import '../sync_handler.dart';
 
 /// Syncs miscellaneous income through the canonical Fulus Cloud transport.
@@ -9,13 +10,16 @@ class IncomeSyncHandler implements SyncHandler {
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
     required IncomeRecordRepository incomeRecordRepository,
+    required LocationRepository locationRepository,
   })  : _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
-        _incomeRecordRepository = incomeRecordRepository;
+        _incomeRecordRepository = incomeRecordRepository,
+        _locationRepository = locationRepository;
 
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
   final IncomeRecordRepository _incomeRecordRepository;
+  final LocationRepository _locationRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -31,6 +35,13 @@ class IncomeSyncHandler implements SyncHandler {
       throw StateError(
         'No local income record found for ${item.entityLocalId} — the '
         'queue item outlived its own row.',
+      );
+    }
+
+    final location = await _locationRepository.getLocationById(record.locationId);
+    if (location == null || location.serverId?.isNotEmpty != true) {
+      throw StateError(
+        'Income cannot sync until location ${record.locationId} has a server ID.',
       );
     }
 
@@ -50,7 +61,7 @@ class IncomeSyncHandler implements SyncHandler {
         'business_id': businessId,
         'operation_id': item.id,
         'client_reference': record.localId,
-        'location_id': record.locationId,
+        'location_id': location.serverId,
         'source': record.source,
         'amount': record.amount,
         'income_date': record.incomeDate.toIso8601String(),
