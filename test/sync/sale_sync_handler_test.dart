@@ -1,4 +1,5 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
