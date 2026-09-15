@@ -239,8 +239,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     preferences: syncPreferences,
     applyChange: (change) async {
       final businessId = fulusConnectionState.selectedBusinessId;
-      if (businessId == null || !fulusConnectionState.isSyncReady) {
-        throw StateError('Fulus Cloud is not ready for canonical reconciliation.');
+      if (businessId == null) {
+        throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
       }
       final registeredDevice = fulusConnectionState.registeredDevice;
       if (registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
@@ -287,7 +287,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (!syncConfig.isEnabled) return;
       final businessId = fulusConnectionState.selectedBusinessId;
       final registeredDevice = fulusConnectionState.registeredDevice;
-      if (businessId == null || registeredDevice == null || !fulusConnectionState.isSyncReady) {
+      if (businessId == null || registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
         throw StateError('Fulus Cloud is not ready for canonical pull.');
       }
       await syncCoordinator.pullAndApply(businessId: businessId);

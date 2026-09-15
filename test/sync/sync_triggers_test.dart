@@ -216,10 +216,34 @@ void main() {
 
       await triggers.reconcileAfterRestore();
 
-      verify(() => connectivity.checkConnectivity()).called(2);
+      verify(() => connectivity.checkConnectivity()).called(1);
       verify(() => syncEngine.runOnce()).called(1);
-      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(2);
+      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
       expect(pulls, [1]);
+    });
+
+    test('restore reconciliation propagates reconciliation failure', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenThrow(StateError('reconciliation failed'));
+      final pulls = <int>[];
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        pullFromServer: () async => pulls.add(1),
+        connectivity: connectivity,
+      );
+
+      await expectLater(
+        triggers.reconcileAfterRestore(),
+        throwsA(isA<StateError>()),
+      );
+      expect(pulls, isEmpty);
+      verifyNever(() => syncStatusNotifier.checkForStuckSyncAndNotify());
     });
 
     test('restore reconciliation refuses to advertise success offline', () async {

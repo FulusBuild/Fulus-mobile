@@ -107,6 +107,11 @@ class SyncTriggers with WidgetsBindingObserver {
   /// advertised as Sync Ready. Device registration and authentication are
   /// already complete at this point, but readiness is deliberately not used
   /// as a precondition because this call is what establishes readiness.
+  ///
+  /// Connectivity is checked here because restore is a one-time readiness
+  /// gate. The check is intentionally performed only once; normal trigger
+  /// paths may use [_runIfOnline], but restore must not accidentally perform
+  /// two network-state checks around the same reconciliation.
   Future<void> reconcileAfterRestore() async {
     if (!_syncConfig.isEnabled) {
       throw StateError(
@@ -119,8 +124,7 @@ class SyncTriggers with WidgetsBindingObserver {
         'Fulus Cloud initial reconciliation requires an internet connection.',
       );
     }
-    await _runIfOnline(requireReady: false);
-    await _syncStatusNotifier.checkForStuckSyncAndNotify();
+    await _runAndCheckStuck();
   }
 
   Future<void> notifyEnqueued() async {
