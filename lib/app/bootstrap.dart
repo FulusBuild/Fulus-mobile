@@ -138,19 +138,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
-  final authRepository = AuthRepositoryImpl(
-    db: database,
-    pinHasher: const Argon2PinHasher(),
-    auditRepository: auditRepository,
-    permissionRepository: permissionRepository,
-  );
+  final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
   await authRepository.restoreSession();
-  final approvalPinRepository = ApprovalPinRepositoryImpl(
-    authApi: authApi,
-    secureStorage: secureStorage,
-    pinHasher: const Argon2PinHasher(),
-    auditRepository: auditRepository,
-  );
+  final approvalPinRepository = ApprovalPinRepositoryImpl(authApi: authApi, secureStorage: secureStorage, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository);
 
   final salesApi = SalesApi(apiClient);
   final customersApi = CustomersApi(apiClient);
@@ -194,13 +184,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   }
 
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository);
-  final customerSyncHandler = CustomerSyncHandler(customersApi: customersApi, customerRepository: customerRepository);
-  final customerLedgerSyncHandler = CustomerLedgerSyncHandler(
-    db: database,
-    fulusSyncApi: fulusSyncApi,
-    fulusConnectionState: fulusConnectionState,
-    secureStorage: secureStorage,
-  );
+  final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository);
+  final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage);
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final locationSyncHandler = LocationSyncHandler(locationsApi: locationsApi, locationRepository: locationRepository);
@@ -267,70 +252,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   return ProviderContainer(
     overrides: [
-      databaseProvider.overrideWithValue(database),
-      secureStorageProvider.overrideWithValue(secureStorage),
-      apiClientProvider.overrideWithValue(apiClient),
-      authApiProvider.overrideWithValue(authApi),
-      auditRepositoryProvider.overrideWithValue(auditRepository),
-      authRepositoryProvider.overrideWithValue(authRepository),
-      permissionRepositoryProvider.overrideWithValue(permissionRepository),
-      approvalPinRepositoryProvider.overrideWithValue(approvalPinRepository),
-      salesApiProvider.overrideWithValue(salesApi),
-      customersApiProvider.overrideWithValue(customersApi),
-      expensesApiProvider.overrideWithValue(expensesApi),
-      expenseCategoriesApiProvider.overrideWithValue(expenseCategoriesApi),
-      incomeApiProvider.overrideWithValue(incomeApi),
-      stockMovementsApiProvider.overrideWithValue(stockMovementsApi),
-      productsApiProvider.overrideWithValue(productsApi),
-      categoriesApiProvider.overrideWithValue(categoriesApi),
-      suppliersApiProvider.overrideWithValue(suppliersApi),
-      returnsApiProvider.overrideWithValue(returnsApi),
-      cashDrawerShiftsApiProvider.overrideWithValue(cashDrawerShiftsApi),
-      locationsApiProvider.overrideWithValue(locationsApi),
-      businessSettingsApiProvider.overrideWithValue(businessSettingsApi),
-      syncQueueProvider.overrideWithValue(syncQueue),
-      customerCreditRepositoryProvider.overrideWithValue(customerCreditRepository),
-      saleRepositoryProvider.overrideWithValue(saleRepository),
-      customerRepositoryProvider.overrideWithValue(customerRepository),
-      expenseRepositoryProvider.overrideWithValue(expenseRepository),
-      incomeRecordRepositoryProvider.overrideWithValue(incomeRecordRepository),
-      stockMovementRepositoryProvider.overrideWithValue(stockMovementRepository),
-      productRepositoryProvider.overrideWithValue(productRepository),
-      categoryRepositoryProvider.overrideWithValue(categoryRepository),
-      supplierRepositoryProvider.overrideWithValue(supplierRepository),
-      draftCartRepositoryProvider.overrideWithValue(draftCartRepository),
-      returnRepositoryProvider.overrideWithValue(returnRepository),
-      expenseCategoryRepositoryProvider.overrideWithValue(expenseCategoryRepository),
-      supplierCreditRepositoryProvider.overrideWithValue(supplierCreditRepository),
-      taxRemittanceRepositoryProvider.overrideWithValue(taxRemittanceRepository),
-      financeStatsRepositoryProvider.overrideWithValue(financeStatsRepository),
-      cashDrawerShiftRepositoryProvider.overrideWithValue(cashDrawerShiftRepository),
-      locationRepositoryProvider.overrideWithValue(locationRepository),
-      businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository),
-      resolveActiveLocationProvider.overrideWithValue(resolveActiveLocation),
-      printerRepositoryProvider.overrideWithValue(printerRepository),
-      receiptPrinterServiceProvider.overrideWithValue(receiptPrinterService),
-      printerDiscoveryServiceProvider.overrideWithValue(printerDiscoveryService),
-      barcodeScannerServiceProvider.overrideWithValue(barcodeScannerService),
-      cameraServiceProvider.overrideWithValue(cameraService),
-      globalSearchProvider.overrideWithValue(globalSearch),
-      exportServiceProvider.overrideWithValue(exportService),
-      importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),
-      employeeRepositoryProvider.overrideWithValue(employeeRepository),
-      receiptRepositoryProvider.overrideWithValue(receiptRepository),
-      backupRepositoryProvider.overrideWithValue(backupRepository),
-      dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
-      reportsRepositoryProvider.overrideWithValue(reportsRepository),
-      syncConfigProvider.overrideWith((ref) => syncConfig),
-      syncTriggersProvider.overrideWithValue(syncTriggers),
-      syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
-      fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
-      fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
-      fulusConnectionStateProvider.overrideWith((ref) => fulusConnectionState),
-      diagnosticLoggerProvider.overrideWithValue(diagnosticLogger),
-      notificationRepositoryProvider.overrideWithValue(notificationRepository),
-      notificationServiceProvider.overrideWithValue(notificationService),
-      onboardingStateProvider.overrideWithValue(onboardingState),
+      databaseProvider.overrideWithValue(database), secureStorageProvider.overrideWithValue(secureStorage), apiClientProvider.overrideWithValue(apiClient), authApiProvider.overrideWithValue(authApi), auditRepositoryProvider.overrideWithValue(auditRepository), authRepositoryProvider.overrideWithValue(authRepository), permissionRepositoryProvider.overrideWithValue(permissionRepository), approvalPinRepositoryProvider.overrideWithValue(approvalPinRepository), salesApiProvider.overrideWithValue(salesApi), customersApiProvider.overrideWithValue(customersApi), expensesApiProvider.overrideWithValue(expensesApi), expenseCategoriesApiProvider.overrideWithValue(expenseCategoriesApi), incomeApiProvider.overrideWithValue(incomeApi), stockMovementsApiProvider.overrideWithValue(stockMovementsApi), productsApiProvider.overrideWithValue(productsApi), categoriesApiProvider.overrideWithValue(categoriesApi), suppliersApiProvider.overrideWithValue(suppliersApi), returnsApiProvider.overrideWithValue(returnsApi), cashDrawerShiftsApiProvider.overrideWithValue(cashDrawerShiftsApi), locationsApiProvider.overrideWithValue(locationsApi), businessSettingsApiProvider.overrideWithValue(businessSettingsApi), syncQueueProvider.overrideWithValue(syncQueue), customerCreditRepositoryProvider.overrideWithValue(customerCreditRepository), saleRepositoryProvider.overrideWithValue(saleRepository), customerRepositoryProvider.overrideWithValue(customerRepository), expenseRepositoryProvider.overrideWithValue(expenseRepository), incomeRecordRepositoryProvider.overrideWithValue(incomeRecordRepository), stockMovementRepositoryProvider.overrideWithValue(stockMovementRepository), productRepositoryProvider.overrideWithValue(productRepository), categoryRepositoryProvider.overrideWithValue(categoryRepository), supplierRepositoryProvider.overrideWithValue(supplierRepository), returnRepositoryProvider.overrideWithValue(returnRepository), expenseCategoryRepositoryProvider.overrideWithValue(expenseCategoryRepository), supplierCreditRepositoryProvider.overrideWithValue(supplierCreditRepository), taxRemittanceRepositoryProvider.overrideWithValue(taxRemittanceRepository), financeStatsRepositoryProvider.overrideWithValue(financeStatsRepository), cashDrawerShiftRepositoryProvider.overrideWithValue(cashDrawerShiftRepository), locationRepositoryProvider.overrideWithValue(locationRepository), businessSettingsRepositoryProvider.overrideWithValue(businessSettingsRepository), resolveActiveLocationProvider.overrideWithValue(resolveActiveLocation), draftCartRepositoryProvider.overrideWithValue(draftCartRepository), printerRepositoryProvider.overrideWithValue(printerRepository), receiptPrinterServiceProvider.overrideWithValue(receiptPrinterService), printerDiscoveryServiceProvider.overrideWithValue(printerDiscoveryService), barcodeScannerServiceProvider.overrideWithValue(barcodeScannerService), cameraServiceProvider.overrideWithValue(cameraService), globalSearchProvider.overrideWithValue(globalSearch), exportServiceProvider.overrideWithValue(exportService), importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv), employeeRepositoryProvider.overrideWithValue(employeeRepository), receiptRepositoryProvider.overrideWithValue(receiptRepository), backupRepositoryProvider.overrideWithValue(backupRepository), dashboardRepositoryProvider.overrideWithValue(dashboardRepository), reportsRepositoryProvider.overrideWithValue(reportsRepository), onboardingStateProvider.overrideWithValue(onboardingState), diagnosticLoggerProvider.overrideWithValue(diagnosticLogger), notificationRepositoryProvider.overrideWithValue(notificationRepository), notificationServiceProvider.overrideWithValue(notificationService), syncConfigProvider.overrideWithValue(syncConfig), syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier), syncEngineProvider.overrideWithValue(syncEngine), syncTriggersProvider.overrideWithValue(syncTriggers), fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext), fulusDeviceRegistrationProvider.overrideWithValue(fulusDeviceRegistration), fulusSyncApiProvider.overrideWithValue(fulusSyncApi), fulusStaffAccessApiProvider.overrideWithValue(fulusStaffAccessApi), fulusConnectionStateProvider.overrideWithValue(fulusConnectionState),
     ],
   );
 }
