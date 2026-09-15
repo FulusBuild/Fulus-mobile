@@ -1,9 +1,9 @@
+import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/income_record_repository.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../sync_handler.dart';
-import '../sync_queue.dart';
 
 /// Syncs miscellaneous income through the canonical Fulus Cloud transport.
 class IncomeSyncHandler implements SyncHandler {
