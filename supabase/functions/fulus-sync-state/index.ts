@@ -22,7 +22,6 @@ const SIMPLE_ENTITIES: Record<string, string> = {
   location: "locations",
   customer_ledger: "customer_ledger_entries",
   stock: "inventory_movements",
-  return: "returns",
 };
 
 Deno.serve(async (req) => {
@@ -51,9 +50,10 @@ Deno.serve(async (req) => {
     }, 401);
   }
 
-  const businessId = req.url ? new URL(req.url).searchParams.get("business_id") : null;
-  const entityType = req.url ? new URL(req.url).searchParams.get("entity_type") : null;
-  const entityId = req.url ? new URL(req.url).searchParams.get("entity_id") : null;
+  const params = new URL(req.url).searchParams;
+  const businessId = params.get("business_id");
+  const entityType = params.get("entity_type");
+  const entityId = params.get("entity_id");
   const deviceClientId = req.headers.get("x-fulus-device-id");
 
   if (!businessId || !entityType || !entityId || !deviceClientId) {
@@ -164,6 +164,32 @@ Deno.serve(async (req) => {
         operation: "upsert",
         product,
         stock_levels: stockLevels ?? [],
+        server_authoritative: true,
+      },
+    });
+  }
+
+  if (entityType === "return") {
+    const { data: returnRow, error: returnError } = await db
+      .from("returns")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("id", entityId)
+      .maybeSingle();
+    if (returnError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read return" } }, 500);
+    if (!returnRow) return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", row: null, return_items: [], server_authoritative: true } });
+    const { data: items, error: itemsError } = await db
+      .from("return_items")
+      .select("*")
+      .eq("return_id", entityId);
+    if (itemsError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read return aggregate" } }, 500);
+    return out({
+      data: {
+        entity_type: entityType,
+        entity_id: entityId,
+        operation: "upsert",
+        row: returnRow,
+        return_items: items ?? [],
         server_authoritative: true,
       },
     });
