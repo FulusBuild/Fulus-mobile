@@ -5,6 +5,7 @@ import '../../data/local/secure_storage/secure_storage.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../sync_handler.dart';
+import '../sync_status.dart';
 
 /// Pushes customer repayment ledger entries to the server.
 ///
