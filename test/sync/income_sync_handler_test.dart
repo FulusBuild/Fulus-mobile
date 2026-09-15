@@ -130,7 +130,14 @@ void main() {
         incomeDate: DateTime(2026, 7, 1),
       ),
     );
-    when(() => locationRepository.getLocationById(locationId)).thenAnswer((_) async => location.copyWith(serverId: null));
+    final unsyncedLocation = Location(
+      localId: locationId,
+      name: location.name,
+      createdAt: location.createdAt,
+      updatedAt: location.updatedAt,
+    );
+    when(() => locationRepository.getLocationById(locationId))
+        .thenAnswer((_) async => unsyncedLocation);
 
     await expectLater(
       handler.sync(queueItemFor(record)),
