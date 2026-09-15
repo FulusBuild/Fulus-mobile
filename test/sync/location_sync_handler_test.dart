@@ -1,6 +1,7 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/endpoints/locations_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
+import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/location_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/location.dart';
@@ -39,7 +40,7 @@ void main() {
       locationRepository: locationRepository,
     );
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
-    when(() => connectionState.registeredDevice).thenReturn(FulusRegisteredDevice(
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
       id: 'device-1',
       businessId: 'business-1',
       deviceClientId: 'device-client-1',
