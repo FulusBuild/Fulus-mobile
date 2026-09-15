@@ -1,4 +1,5 @@
 import '../entities/product.dart';
+import '../entities/product_stock_snapshot.dart';
 
 /// Repository contract for the local product catalog and per-location stock.
 abstract class ProductRepository {
@@ -25,15 +26,11 @@ abstract class ProductRepository {
   Future<void> archiveProduct(String localId);
   Future<void> markSynced({required String localId, required String serverId});
   Future<void> syncFromServer();
-
   Future<void> reconcileStockLevel({
     required String productLocalId,
     required String locationId,
     required int currentStock,
   });
-
-  /// Applies authoritative product state and all returned stock levels.
-  /// This is inbound-only and must never enqueue an outbound sync task.
   Future<void> reconcileServerState({
     required String serverId,
     required String name,
@@ -49,9 +46,7 @@ abstract class ProductRepository {
     DateTime? deletedAt,
     required List<ProductStockSnapshot> stockLevels,
   });
-
   Future<void> reconcileDeleted(String serverId);
-
   Future<void> setLocalOverrides({
     required String productLocalId,
     bool? tracksStock,
