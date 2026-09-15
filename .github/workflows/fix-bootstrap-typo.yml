@@ -1,0 +1,28 @@
+name: Temporary bootstrap typo fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: contains(github.event.head_commit.message, 'fix: initialize cloud sync on restored sessions')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix typo
+        run: |
+          set -euo pipefail
+          sed -i 's/exportProductsFromCsvProvider\.overrideWithValue(importProductsFromCsv)/exportServiceProvider.overrideWithValue(exportService)/' lib/app/bootstrap.dart
+          git diff --check
+          git diff --exit-code -- lib/app/bootstrap.dart && exit 0 || true
+          git config user.name 'FulusBuild'
+          git config user.email 'sannimetaisland@gmail.com'
+          git add lib/app/bootstrap.dart
+          git commit -m 'fix: restore export service provider wiring'
+          git push
