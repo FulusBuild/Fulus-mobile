@@ -11,10 +11,11 @@ import 'package:dio/dio.dart';
 ///   FULUS_BUSINESS_ID   Active business ID for that user
 ///   FULUS_DEVICE_ID     Active registered device_client_id for that business
 ///
-/// This test creates one uniquely-named product, retries the same operation
-/// (idempotency), verifies a conflicting replay is rejected, then deletes the
-/// created product. It is intentionally opt-in so normal CI never mutates a
-/// live database unless explicitly requested.
+/// This test creates one uniquely-named product using the same catalog command
+/// contract as the Flutter client, exercises the generic sync_operation
+/// idempotency contract separately, then deletes the created product. It is
+/// intentionally opt-in so normal CI never mutates a live database unless
+/// explicitly requested.
 Future<void> main() async {
   final baseUrl = _required('FULUS_API_URL');
   final token = _required('FULUS_ACCESS_TOKEN');
@@ -37,16 +38,18 @@ Future<void> main() async {
   _printIdentityFingerprint('device_client_id', deviceClientId);
   await _preflightDevice(dio, businessId: businessId);
 
-  final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
-  final localId = 'e2e-$suffix';
-  final operationId = 'e2e-create-$suffix';
+  final suffix =
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
+  final productOperationId = 'e2e-create-$suffix';
+  final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
 
   try {
+    // Match the real FulusSyncApi wire contract for product.create:
+    // action=catalog_upsert, entity=products, item=<product payload>.
     final createPayload = {
-      'local_id': localId,
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
       'cost_price': 100,
@@ -55,78 +58,89 @@ Future<void> main() async {
       'is_active': true,
     };
 
-    final first = await _submit(
+    final create = await _submitCatalog(
       dio,
       businessId: businessId,
-      operationType: 'product.create',
-      operationId: operationId,
-      payload: createPayload,
+      action: 'catalog_upsert',
+      entity: 'products',
+      item: createPayload,
     );
-    _expect2xx(first, 'initial product.create');
+    _expect2xx(create, 'initial product.create');
 
-    serverId = _entityId(first);
+    serverId = _entityId(create);
     if (serverId == null || serverId.isEmpty) {
-      throw StateError('initial product.create returned no data.entity_id');
+      throw StateError('initial product.create returned no data.item.id');
     }
+    stdout.writeln('PASS: product.create');
 
-    final replay = await _submit(
+    // Idempotency is a separate server contract implemented by
+    // accept_sync_operation. Do not pretend catalog_upsert itself provides
+    // operation-id idempotency until the backend does so explicitly.
+    final idempotencyPayload = {
+      'kind': 'e2e-idempotency-probe',
+      'product_id': serverId,
+      'value': sku,
+    };
+
+    final first = await _submitSyncOperation(
       dio,
       businessId: businessId,
-      operationType: 'product.create',
-      operationId: operationId,
-      payload: createPayload,
+      operationId: idempotencyOperationId,
+      payload: idempotencyPayload,
     );
-    _expect2xx(replay, 'idempotent product.create replay');
+    _expect2xx(first, 'idempotency first submission');
+    stdout.writeln('PASS: idempotency first submission');
 
-    final replayId = _entityId(replay);
-    if (replayId != serverId) {
-      throw StateError(
-        'idempotent replay returned entity_id=$replayId; expected $serverId',
-      );
-    }
-
-    final conflictingReplay = await _submit(
+    final replay = await _submitSyncOperation(
       dio,
       businessId: businessId,
-      operationType: 'product.create',
-      operationId: operationId,
+      operationId: idempotencyOperationId,
+      payload: idempotencyPayload,
+    );
+    _expect2xx(replay, 'idempotency same replay');
+    stdout.writeln('PASS: idempotency same replay');
+
+    final conflictingReplay = await _submitSyncOperation(
+      dio,
+      businessId: businessId,
+      operationId: idempotencyOperationId,
       payload: {
-        ...createPayload,
-        'name': 'Fulus E2E Conflicting Replay $suffix',
+        ...idempotencyPayload,
+        'value': '$sku-conflict',
       },
     );
-
-    if (conflictingReplay.statusCode == null ||
-        conflictingReplay.statusCode! < 400 ||
-        conflictingReplay.statusCode! >= 500) {
+    final conflictStatus = conflictingReplay.statusCode ?? 0;
+    final conflictData = conflictingReplay.data;
+    if (conflictStatus != 409 ||
+        conflictData is! Map ||
+        conflictData['error'] is! Map ||
+        (conflictData['error'] as Map)['code'] != 'IDEMPOTENCY_CONFLICT') {
       throw StateError(
-        'conflicting operation replay should be rejected with a 4xx; '
-        'got ${conflictingReplay.statusCode}',
+        'conflicting idempotency replay expected HTTP 409 '
+        'IDEMPOTENCY_CONFLICT, got HTTP $conflictStatus: $conflictData',
       );
     }
+    stdout.writeln('PASS: conflicting idempotency replay rejected');
 
-    stdout.writeln('PASS: create, idempotent replay, and conflict detection');
-
-    final delete = await _submit(
+    final delete = await _submitCatalog(
       dio,
       businessId: businessId,
-      operationType: 'product.delete',
-      operationId: 'e2e-delete-$suffix',
-      payload: {'server_id': serverId},
+      action: 'catalog_delete',
+      entity: 'products',
+      id: serverId,
     );
     _expect2xx(delete, 'cleanup product.delete');
     cleanedUp = true;
-
-    stdout.writeln('PASS: cleanup');
+    stdout.writeln('PASS: product.delete');
   } finally {
     if (serverId != null && !cleanedUp) {
       try {
-        final cleanup = await _submit(
+        final cleanup = await _submitCatalog(
           dio,
           businessId: businessId,
-          operationType: 'product.delete',
-          operationId: 'e2e-final-cleanup-$suffix',
-          payload: {'server_id': serverId},
+          action: 'catalog_delete',
+          entity: 'products',
+          id: serverId,
         );
         if (cleanup.statusCode != null &&
             cleanup.statusCode! >= 200 &&
@@ -140,6 +154,47 @@ Future<void> main() async {
       }
     }
   }
+
+  stdout.writeln('PASS: Fulus live sync contract E2E');
+}
+
+Future<Response<dynamic>> _submitCatalog(
+  Dio dio, {
+  required String businessId,
+  required String action,
+  required String entity,
+  Map<String, dynamic>? item,
+  String? id,
+}) {
+  return dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'action': action,
+      'entity': entity,
+      if (item != null) 'item': item,
+      if (id != null) 'id': id,
+    },
+  );
+}
+
+Future<Response<dynamic>> _submitSyncOperation(
+  Dio dio, {
+  required String businessId,
+  required String operationId,
+  required Map<String, dynamic> payload,
+}) {
+  return dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'operation_type': 'sync_operation',
+      'operation_id': operationId,
+      'client_reference': operationId,
+      'payload': payload,
+      'action': 'sync_operation',
+    },
+  );
 }
 
 void _printIdentityFingerprint(String label, String value) {
@@ -187,24 +242,6 @@ String _required(String name) {
   return value;
 }
 
-Future<Response<dynamic>> _submit(
-  Dio dio, {
-  required String businessId,
-  required String operationType,
-  required String operationId,
-  required Object payload,
-}) {
-  return dio.post(
-    '',
-    data: {
-      'business_id': businessId,
-      'operation_type': operationType,
-      'operation_id': operationId,
-      'payload': payload,
-    },
-  );
-}
-
 void _expect2xx(Response<dynamic> response, String operation) {
   final status = response.statusCode ?? 0;
   if (status < 200 || status >= 300) {
@@ -219,6 +256,8 @@ String? _entityId(Response<dynamic> response) {
   if (root is! Map) return null;
   final data = root['data'];
   if (data is! Map) return null;
-  final value = data['entity_id'];
+  final item = data['item'];
+  if (item is! Map) return null;
+  final value = item['id'];
   return value is String ? value : null;
 }
