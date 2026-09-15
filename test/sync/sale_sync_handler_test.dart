@@ -8,6 +8,7 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
+import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -16,8 +17,6 @@ import 'package:mocktail/mocktail.dart';
 
 class MockSalesApi extends Mock implements SalesApi {}
 
-/// Hand-rolled rather than a mocktail Mock — same reasoning as the
-/// other sync tests in this directory.
 class _FakeAuthRepository implements AuthRepository {
   @override
   AuthUser? get currentUser => null;
@@ -26,24 +25,17 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<AuthUser?> restoreSession() async => throw UnimplementedError();
   @override
-  Future<AuthUser> createFirstOwner({required String fullName}) async =>
-      throw UnimplementedError();
+  Future<AuthUser> createFirstOwner({required String fullName}) async => throw UnimplementedError();
   @override
   Future<void> setOwnLoginPin({required String pin}) async => throw UnimplementedError();
   @override
   Future<List<AuthUser>> listLocalIdentities() async => throw UnimplementedError();
   @override
-  Future<AuthUser> switchLocalUser({required String userId, String? pin}) async =>
-      throw UnimplementedError();
+  Future<AuthUser> switchLocalUser({required String userId, String? pin}) async => throw UnimplementedError();
   @override
-  Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async =>
-      throw UnimplementedError();
+  Future<AuthUser> createAdditionalOwner({required String fullName, required String pin}) async => throw UnimplementedError();
   @override
-  Future<AuthUser> createEmployeeAccount({
-    required String employeeId,
-    required String pin,
-    AuthRole role = AuthRole.employee,
-  }) async => throw UnimplementedError();
+  Future<AuthUser> createEmployeeAccount({required String employeeId, required String pin, AuthRole role = AuthRole.employee}) async => throw UnimplementedError();
   @override
   Future<void> logout() async => throw UnimplementedError();
   @override
@@ -61,13 +53,6 @@ void main() {
   const locationId = 'loc-1';
   const productId = 'prod-1';
   const customerId = 'cust-1';
-
-  setUpAll(() {
-    // mocktail requires a registered fallback for any custom type used
-    // with any()/captureAny() — this minimal instance is never actually
-    // used as real data, just as a type witness.
-    registerFallbackValue(const SaleCreateDto(items: [], amountPaid: 0, locationId: locationId));
-  });
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -94,9 +79,6 @@ void main() {
             syncStatus: SyncStatus.settled,
           ),
         );
-    // Deliberately NO serverId on this product — several tests below
-    // rely on that being the starting state; the one test that needs a
-    // synced product sets serverId explicitly first.
     await db.into(db.products).insert(
           ProductsCompanion.insert(
             localId: productId,
@@ -139,10 +121,6 @@ void main() {
     return saleRepository.createSale(draft);
   }
 
-  /// handler.sync only reads item.operation and item.entityLocalId — a
-  /// minimal row built directly is enough; the queue plumbing itself is
-  /// already covered in sync_engine_test.dart, not what these tests
-  /// are about.
   SyncQueueItem queueItemFor(Sale sale, {String operation = 'create'}) {
     return SyncQueueItem(
       id: 'q1',
@@ -155,59 +133,33 @@ void main() {
     );
   }
 
-  test(
-      'sends the product\'s serverId (not its local id) and marks the '
-      'local sale synced from the response', () async {
+  test('never falls back to the legacy Sales API when Fulus Cloud is unavailable', () async {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
         .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
     final sale = await createLocalSale();
 
-    when(
+    await expectLater(
+      handler.sync(queueItemFor(sale)),
+      throwsA(
+        isA<SyncFailure>().having(
+          (failure) => failure.kind,
+          'kind',
+          SyncErrorKind.dependencyNotReady,
+        ),
+      ),
+    );
+
+    verifyNever(
       () => salesApi.createSale(
         dto: any(named: 'dto'),
         locationLocalId: any(named: 'locationLocalId'),
       ),
-    ).thenAnswer(
-      (_) async => Sale(
-        localId: sale.localId,
-        serverId: 'server-sale-1',
-        clientReference: sale.localId,
-        invoiceNumber: 'INV-001',
-        locationId: locationId,
-        saleDate: sale.saleDate,
-        subtotal: sale.subtotal,
-        discount: sale.discount,
-        tax: sale.tax,
-        total: sale.total,
-        amountPaid: sale.amountPaid,
-        items: sale.items,
-        createdAt: sale.createdAt,
-        updatedAt: sale.updatedAt,
-      ),
     );
-
-    await handler.sync(queueItemFor(sale));
-
-    final captured = verify(
-      () => salesApi.createSale(
-        dto: captureAny(named: 'dto'),
-        locationLocalId: any(named: 'locationLocalId'),
-      ),
-    ).captured;
-    final dto = captured.single as SaleCreateDto;
-    expect(dto.items.single.productId, 'server-product-1');
-    expect(dto.clientReference, sale.localId);
-    expect(dto.locationId, sale.locationId);
-
-    final updated = await saleRepository.getSaleByLocalId(sale.localId);
-    expect(updated!.serverId, 'server-sale-1');
-    expect(updated.invoiceNumber, 'INV-001');
   });
 
-  test('throws before calling the API when the product has no serverId yet',
-      () async {
-    final sale = await createLocalSale(); // product left unsynced in setUp
+  test('throws before calling the API when the product has no serverId yet', () async {
+    final sale = await createLocalSale();
 
     await expectLater(
       handler.sync(queueItemFor(sale)),
@@ -222,9 +174,7 @@ void main() {
     );
   });
 
-  test(
-      'throws before calling the API when the sale has a customer with no '
-      'serverId yet', () async {
+  test('throws before calling the API when the sale has a customer with no serverId yet', () async {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
         .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
@@ -237,7 +187,7 @@ void main() {
             updatedAt: now,
             syncStatus: SyncStatus.settled,
           ),
-        ); // no serverId
+        );
 
     final sale = await createLocalSale(withCustomerId: customerId);
 
