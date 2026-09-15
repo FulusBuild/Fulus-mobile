@@ -1,0 +1,47 @@
+name: Fix Import Provider Wiring
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-import-provider-wiring.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore provider override
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/app/bootstrap.dart')
+          s = p.read_text()
+          needle = "  final importProductsFromCsv = ImportProductsFromCsv(productRepository: productRepository, categoryRepository: categoryRepository, supplierRepository: supplierRepository);"
+          replacement = needle + "\n"
+          replacement += "  // Keep the CSV import use case in the root provider container.\n"
+          replacement += "  // This is intentionally wired here because the provider has no default implementation."
+          if 'importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv)' in s:
+              raise SystemExit('Provider override already present')
+          if needle not in s:
+              raise SystemExit('Expected importProductsFromCsv declaration not found')
+          s = s.replace(needle, replacement, 1)
+          marker = "      exportServiceProvider.overrideWithValue(exportService),\n"
+          if marker not in s:
+              raise SystemExit('Expected export service provider marker not found')
+          s = s.replace(marker, marker + "      importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),\n", 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- lib/app/bootstrap.dart
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/app/bootstrap.dart
+          git commit -m "fix: restore import products provider wiring"
+          git push
