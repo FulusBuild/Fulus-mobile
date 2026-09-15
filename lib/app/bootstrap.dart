@@ -10,6 +10,7 @@ import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/security/pin_hasher.dart';
+import '../core/onboarding/onboarding_state.dart';
 import '../data/local/database/app_database_lifecycle.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
@@ -95,6 +96,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
   final syncConfig = await SyncConfig.load();
+  final onboardingState = await OnboardingState.load();
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
   apiClient = ApiClient(baseUrl: baseUrl, secureStorage: secureStorage, onSessionExpired: () async {});
@@ -317,6 +319,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
       fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
       fulusConnectionStateProvider.overrideWith((ref) => fulusConnectionState),
+      onboardingStateProvider.overrideWithValue(onboardingState),
     ],
   );
 }
