@@ -304,6 +304,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final globalSearch = GlobalSearch(searchRepository: searchRepository);
   final exportService = ExportService();
   final importProductsFromCsv = ImportProductsFromCsv(productRepository: productRepository, categoryRepository: categoryRepository, supplierRepository: supplierRepository);
+  // Keep the CSV import use case in the root provider container.
+  // This is intentionally wired here because the provider has no default implementation.
   final employeeRepository = EmployeeRepositoryImpl(db: database);
   final receiptRepository = ReceiptRepositoryImpl(db: database);
   final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
@@ -362,6 +364,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       searchRepositoryProvider.overrideWithValue(searchRepository),
       globalSearchProvider.overrideWithValue(globalSearch),
       exportServiceProvider.overrideWithValue(exportService),
+      importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),
       employeeRepositoryProvider.overrideWithValue(employeeRepository),
       receiptRepositoryProvider.overrideWithValue(receiptRepository),
       backupRepositoryProvider.overrideWithValue(backupRepository),
