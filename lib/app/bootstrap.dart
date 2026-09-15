@@ -194,7 +194,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final locationSyncHandler = LocationSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, locationRepository: locationRepository);
   final returnSyncHandler = ReturnSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, returnRepository: returnRepository);
-  final expenseCategorySyncHandler = ExpenseCategorySyncHandler(expenseCategoriesApi: expenseCategoriesApi, expenseCategoryRepository: expenseCategoryRepository);
+  final expenseCategorySyncHandler = ExpenseCategorySyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseCategoryRepository: expenseCategoryRepository);
   final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, cashDrawerShiftRepository: cashDrawerShiftRepository, locationRepository: locationRepository);
   final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository);
   final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository, locationRepository: locationRepository);
