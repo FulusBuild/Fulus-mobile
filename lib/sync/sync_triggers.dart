@@ -113,6 +113,12 @@ class SyncTriggers with WidgetsBindingObserver {
         'Cannot reconcile a restored business while sync is disabled.',
       );
     }
+    final results = await _connectivity.checkConnectivity();
+    if (!_hasConnectivity(results)) {
+      throw StateError(
+        'Fulus Cloud initial reconciliation requires an internet connection.',
+      );
+    }
     await _runIfOnline(requireReady: false);
     await _syncStatusNotifier.checkForStuckSyncAndNotify();
   }
