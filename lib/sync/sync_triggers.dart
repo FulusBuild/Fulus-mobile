@@ -108,7 +108,10 @@ class SyncTriggers with WidgetsBindingObserver {
     if (!_syncConfig.isEnabled) return;
     final results = await _connectivity.checkConnectivity();
     if (_hasConnectivity(results)) {
-      unawaited(_runAndCheckStuck());
+      // Await the complete cycle. This keeps trigger completion aligned with
+      // queue drain + server reconciliation and prevents startup/connectivity
+      // races from observing a half-finished sync cycle.
+      await _runAndCheckStuck();
     }
   }
 
