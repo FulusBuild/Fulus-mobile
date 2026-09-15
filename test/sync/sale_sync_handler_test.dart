@@ -1,5 +1,4 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
-import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
@@ -100,6 +99,14 @@ void main() {
         ));
   });
 
+  setUpAll(() {
+    registerFallbackValue(const SaleCreateDto(
+      items: [],
+      amountPaid: 0,
+      locationId: locationId,
+    ));
+  });
+
   tearDown(() async {
     await db.close();
   });
@@ -150,31 +157,33 @@ void main() {
       ),
     );
 
-    verifyNever(
-      () => salesApi.createSale(
-        dto: any(named: 'dto'),
-        locationLocalId: any(named: 'locationLocalId'),
-      ),
-    );
+    verifyNever(() => salesApi.createSale(
+          dto: any(named: 'dto'),
+          locationLocalId: any(named: 'locationLocalId'),
+        ));
   });
 
-  test('throws before calling the API when the product has no serverId yet', () async {
+  test('reports cloud readiness before attempting a sale whose product is not cloud-ready', () async {
     final sale = await createLocalSale();
 
     await expectLater(
       handler.sync(queueItemFor(sale)),
-      throwsA(isA<StateError>()),
-    );
-
-    verifyNever(
-      () => salesApi.createSale(
-        dto: any(named: 'dto'),
-        locationLocalId: any(named: 'locationLocalId'),
+      throwsA(
+        isA<SyncFailure>().having(
+          (failure) => failure.kind,
+          'kind',
+          SyncErrorKind.dependencyNotReady,
+        ),
       ),
     );
+
+    verifyNever(() => salesApi.createSale(
+          dto: any(named: 'dto'),
+          locationLocalId: any(named: 'locationLocalId'),
+        ));
   });
 
-  test('throws before calling the API when the sale has a customer with no serverId yet', () async {
+  test('reports the missing customer serverId before attempting the API', () async {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
         .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
@@ -193,15 +202,19 @@ void main() {
 
     await expectLater(
       handler.sync(queueItemFor(sale)),
-      throwsA(isA<StateError>()),
-    );
-
-    verifyNever(
-      () => salesApi.createSale(
-        dto: any(named: 'dto'),
-        locationLocalId: any(named: 'locationLocalId'),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Customer $customerId has no serverId yet.'),
+        ),
       ),
     );
+
+    verifyNever(() => salesApi.createSale(
+          dto: any(named: 'dto'),
+          locationLocalId: any(named: 'locationLocalId'),
+        ));
   });
 
   test('throws for an operation other than create', () async {
