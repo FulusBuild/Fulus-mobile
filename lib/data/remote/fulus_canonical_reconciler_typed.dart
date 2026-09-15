@@ -1,5 +1,19 @@
 import 'fulus_sync_api.dart';
 
+/// Minimal transport contract needed by canonical reconciliation.
+///
+/// Keeping this boundary separate from the concrete HTTP client makes the
+/// reconciliation layer independently testable and keeps transport concerns
+/// out of entity-owned persistence callbacks.
+abstract interface class FulusCanonicalEntityFetcher {
+  Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
+    required String businessId,
+    required String entityType,
+    required String entityId,
+    required String deviceClientId,
+  });
+}
+
 /// Routes canonical server state to entity-owned reconciliation callbacks.
 ///
 /// This class intentionally has no knowledge of Drift tables or SQL. Each
@@ -7,12 +21,12 @@ import 'fulus_sync_api.dart';
 /// complete after its local reconciliation has completed successfully.
 class FulusCanonicalTypedReconciler {
   FulusCanonicalTypedReconciler({
-    required FulusSyncApi api,
+    required FulusCanonicalEntityFetcher api,
     required Map<String, Future<void> Function(FulusCanonicalEntityResponse)> handlers,
   })  : _api = api,
         _handlers = Map.unmodifiable(handlers);
 
-  final FulusSyncApi _api;
+  final FulusCanonicalEntityFetcher _api;
   final Map<String, Future<void> Function(FulusCanonicalEntityResponse)> _handlers;
 
   Future<void> reconcile(
