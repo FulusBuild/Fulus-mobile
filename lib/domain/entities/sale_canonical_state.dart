@@ -1,5 +1,3 @@
-import 'sale_payment.dart';
-
 class SaleCanonicalState {
   const SaleCanonicalState({
     required this.serverId,
