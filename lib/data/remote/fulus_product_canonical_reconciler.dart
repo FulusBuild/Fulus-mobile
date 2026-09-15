@@ -1,4 +1,4 @@
-import '../../domain/entities/product.dart';
+import '../../domain/entities/product_stock_snapshot.dart';
 import '../../domain/repositories/product_repository.dart';
 import 'fulus_sync_api.dart';
 
@@ -61,7 +61,7 @@ class FulusProductCanonicalReconciler {
     return ProductStockSnapshot(
       locationServerId: _string(json['location_id']),
       currentStock: _integer(json['current_stock']),
-      updatedAt: _nullableDate(json['updated_at']),
+      updatedAt: _date(json['updated_at']),
     );
   }
 
