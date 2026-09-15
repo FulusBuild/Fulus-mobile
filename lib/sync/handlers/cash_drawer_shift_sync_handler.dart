@@ -1,33 +1,30 @@
-import '../../data/local/database/database.dart';
-import '../../data/remote/endpoints/cash_drawer_shifts_api.dart';
-import '../../data/repositories/cash_drawer_shift_mapper.dart';
-import '../../domain/entities/cash_drawer_shift.dart';
+import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
 import '../sync_handler.dart';
 
-/// The first handler in this codebase that genuinely needs to support
-/// two operations for the same entity type — every other handler
-/// (`CategorySyncHandler`, `ReturnSyncHandler`, etc.) only implements
-/// 'create' and explicitly throws for anything else. A shift has a real
-/// second lifecycle event (`close`) that has to reach the same server
-/// row `create` already pushed, not a second, independent row.
+/// Syncs both lifecycle operations for a cash drawer shift through the
+/// canonical Fulus Cloud transport.
 class CashDrawerShiftSyncHandler implements SyncHandler {
   CashDrawerShiftSyncHandler({
-    required CashDrawerShiftsApi cashDrawerShiftsApi,
+    required FulusSyncApi fulusSyncApi,
+    required FulusConnectionState fulusConnectionState,
     required CashDrawerShiftRepository cashDrawerShiftRepository,
-  })  : _cashDrawerShiftsApi = cashDrawerShiftsApi,
+  })  : _fulusSyncApi = fulusSyncApi,
+        _fulusConnectionState = fulusConnectionState,
         _cashDrawerShiftRepository = cashDrawerShiftRepository;
 
-  final CashDrawerShiftsApi _cashDrawerShiftsApi;
+  final FulusSyncApi _fulusSyncApi;
+  final FulusConnectionState _fulusConnectionState;
   final CashDrawerShiftRepository _cashDrawerShiftRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
     switch (item.operation) {
       case 'create':
-        await _syncCreate(item.entityLocalId);
+        await _syncCreate(item);
       case 'close':
-        await _syncClose(item.entityLocalId);
+        await _syncClose(item);
       default:
         throw StateError(
           'CashDrawerShiftSyncHandler does not support operation '
@@ -36,39 +33,89 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
     }
   }
 
-  Future<void> _syncCreate(String localId) async {
-    final shift = await _requireShift(localId);
-    final response = await _cashDrawerShiftsApi.openShift(shift.toOpenDto());
-    await _cashDrawerShiftRepository.markSynced(
-      localId: shift.localId,
-      serverId: response.serverId!,
+  Future<void> _syncCreate(SyncQueueItem item) async {
+    final shift = await _requireShift(item.entityLocalId);
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+      throw StateError('Fulus Cloud device authorization is required for cash drawer sync.');
+    }
+
+    final result = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'cash_drawer_shift.create',
+      operationId: item.id,
+      clientReference: shift.localId,
+      deviceClientId: device!.deviceClientId,
+      payload: {
+        'business_id': businessId,
+        'operation_id': item.id,
+        'client_reference': shift.localId,
+        'location_id': shift.locationId,
+        'opening_cash': shift.openingCash,
+        'opened_at': shift.openedAt.toIso8601String(),
+      },
     );
+
+    await _markSyncedFromResult(shift.localId, result);
   }
 
-  Future<void> _syncClose(String localId) async {
-    final shift = await _requireShift(localId);
-    if (shift.serverId == null) {
-      // The 'create' push for this same shift hasn't reached the server
-      // yet — there's no server-side row to close. Both tasks share
-      // `SyncPriority.salesAndPayments` and 'create' is always enqueued
-      // strictly before 'close' can be (a shift has to exist locally
-      // before it can be closed), so under normal FIFO-within-priority
-      // processing this shouldn't actually happen — but if it does
-      // (e.g. a retry ordering edge case), throwing lets the sync
-      // engine's normal retry/backoff handle it rather than this
-      // handler guessing at a resolution.
+  Future<void> _syncClose(SyncQueueItem item) async {
+    final shift = await _requireShift(item.entityLocalId);
+    final serverId = shift.serverId;
+    if (serverId == null || serverId.isEmpty) {
       throw StateError(
         'Cannot sync a shift close before its create has synced '
-        '(no serverId yet for $localId).',
+        '(no serverId yet for ${shift.localId}).',
       );
     }
-    final response = await _cashDrawerShiftsApi.closeShift(
-      serverId: shift.serverId!,
-      dto: shift.toCloseDto(),
+
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+      throw StateError('Fulus Cloud device authorization is required for cash drawer sync.');
+    }
+    if (shift.closedAt == null || shift.closingCash == null) {
+      throw StateError('Cannot sync an open cash drawer shift as closed.');
+    }
+
+    final result = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'cash_drawer_shift.close',
+      operationId: item.id,
+      clientReference: shift.localId,
+      deviceClientId: device!.deviceClientId,
+      payload: {
+        'business_id': businessId,
+        'operation_id': item.id,
+        'client_reference': shift.localId,
+        'shift_id': serverId,
+        'closing_cash': shift.closingCash,
+        'cash_difference': shift.cashDifference,
+        'closing_note': shift.closingNote,
+        'closed_at': shift.closedAt!.toIso8601String(),
+      },
     );
+
+    await _markSyncedFromResult(shift.localId, result);
+  }
+
+  Future<void> _markSyncedFromResult(
+    String localId,
+    Map<String, dynamic> result,
+  ) async {
+    final rawData = result['data'];
+    if (rawData is! Map) {
+      throw StateError('Fulus cash drawer sync returned no response data.');
+    }
+    final data = Map<String, dynamic>.from(rawData);
+    final serverId = (data['entity_id'] ?? data['shift_id'] ?? data['id'])?.toString();
+    if (serverId == null || serverId.isEmpty) {
+      throw StateError('Fulus cash drawer sync returned no server entity ID.');
+    }
     await _cashDrawerShiftRepository.markSynced(
-      localId: shift.localId,
-      serverId: response.serverId!,
+      localId: localId,
+      serverId: serverId,
     );
   }
 
