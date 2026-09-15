@@ -70,7 +70,7 @@ Deno.serve(async req => {
 
   if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
     const entity = typeof b.entity === "string" ? b.entity : null;
-    if (!entity || !["products", "categories", "suppliers"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
+    if (!entity || !["products", "categories", "suppliers", "expense_categories"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
     const { data: allowed, error: pe } = await db.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage" });
     if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
@@ -88,7 +88,7 @@ Deno.serve(async req => {
       return out({ data: { entity, item: data, server_authoritative: true } });
     }
     const input = b.item && typeof b.item === "object" ? b.item as Record<string, unknown> : {};
-    const fields: Record<string, string[]> = { categories: ["name", "description"], suppliers: ["name", "phone", "email", "address"], products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"] };
+    const fields: Record<string, string[]> = { categories: ["name", "description"], suppliers: ["name", "phone", "email", "address"], products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"], expense_categories: ["name"] };
     const row: Record<string, unknown> = { business_id: bid };
     for (const f of fields[entity]) if (f in input) row[f] = input[f];
     if (typeof row.name !== "string" || !row.name.trim()) return out({ error: { code: "INVALID_CATALOG_ITEM", message: "name is required" } }, 400);
@@ -107,7 +107,7 @@ Deno.serve(async req => {
 
   let data: any, error: any;
   if (action === "sale_payment") ({ data, error } = await db.rpc("record_sale_payment", { target_business_id: bid, target_sale_id: b.sale_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : "cash", target_device_id: d.id }));
-  else if (action === "sale_create") ({ data, error } = await db.rpc("create_sale_atomic", { target_business_id: bid, target_location_id: b.location_id, target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null, target_client_reference: b.client_reference, target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(), target_discount: Number(b.discount ?? 0), target_tax: Number(b.tax ?? 0), target_amount_paid: Number(b.amount_paid ?? 0), target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_notes: typeof b.notes === "string" ? b.notes : null, target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
+  else if (action === "sale_create") ({ data, error } = await db.rpc("create_sale_atomic", { target_business_id: bid, target_location_id: b.location_id, target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null, target_client_reference: b.client_reference, target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(), target_discount: Number(b.discount ?? 0), target_tax: Number(b.tax ?? 0), target_amount_paid: Number(b.amount_paid ?? 0), target_payment_method: typeof b.payment_method === "string' ? b.payment_method : null, target_notes: typeof b.notes === "string' ? b.notes : null, target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
   else if (action === "customer_create") ({ data, error } = await db.rpc("create_customer", { target_business_id: bid, target_name: b.name, target_phone: typeof b.phone === "string" ? b.phone : null, target_email: typeof b.email === "string" ? b.email : null, target_address: typeof b.address === "string" ? b.address : null, target_credit_limit: Number(b.credit_limit ?? 0) }));
   else if (action === "customer_repayment") ({ data, error } = await db.rpc("record_customer_repayment", { target_business_id: bid, target_customer_id: b.customer_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_note: typeof b.note === "string" ? b.note : null, target_device_id: d.id }));
   else if (action === "expense_create") ({ data, error } = await db.rpc("record_expense", { target_business_id: bid, target_location_id: b.location_id, target_amount: Number(b.amount), target_category: typeof b.category === "string" ? b.category : "general", target_description: typeof b.description === "string" ? b.description : null, target_operation_id: oid, target_device_id: d.id }));
@@ -116,13 +116,7 @@ Deno.serve(async req => {
   else if (action === "income_create") ({ data, error } = await db.rpc("cloud_record_income", { target_business_id: bid, target_location_id: b.location_id, target_source: b.source, target_amount: Number(b.amount), target_income_date: b.income_date, target_notes: typeof b.notes === "string" ? b.notes : null, target_operation_id: oid, target_device_id: d.id }));
   else if (action === "cash_drawer_open") ({ data, error } = await db.rpc("cloud_open_cash_drawer_shift", { target_business_id: bid, target_location_id: b.location_id, target_opening_cash: Number(b.opening_cash), target_opened_at: b.opened_at, target_operation_id: oid, target_device_id: d.id }));
   else if (action === "cash_drawer_close") ({ data, error } = await db.rpc("cloud_close_cash_drawer_shift", { target_business_id: bid, target_shift_id: b.shift_id, target_closing_cash: Number(b.closing_cash), target_cash_difference: b.cash_difference == null ? null : Number(b.cash_difference), target_closing_note: typeof b.closing_note === "string" ? b.closing_note : null, target_closed_at: b.closed_at, target_operation_id: oid, target_device_id: d.id }));
-  else if (action === "sync_operation") {
-    const payload = b.payload && typeof b.payload === "object" ? b.payload : {};
-    const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(payload)));
-    const hash = Array.from(new Uint8Array(h)).map(x => x.toString(16).padStart(2, "0")).join("");
-    ({ data, error } = await db.rpc("accept_sync_operation", { target_business_id: bid, target_device_id: d.id, target_user_id: uid, target_operation_id: oid, target_operation_type: typeof b.operation_type === "string" ? b.operation_type : "", target_client_reference: typeof b.client_reference === "string" ? b.client_reference : null, target_request_hash: hash }));
-  } else return out({ error: { code: "UNSUPPORTED_COMMAND", message: "Unsupported Fulus Cloud command" } }, 400);
-
-  if (error) return out({ error: { code: "COMMAND_FAILED", message: error.message } }, error.code === "42501" ? 403 : error.code === "22013" ? 409 : error.code === "P0002" ? 404 : 400);
-  return out({ data }, data?.status === "already_applied" ? 200 : 201);
+  else return out({ error: { code: "UNKNOWN_COMMAND", message: `Unsupported action: ${String(action)}` } }, 400);
+  if (error) return out({ error: { code: "COMMAND_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+  return out({ data: { ...data, server_authoritative: true } }, data?.status === "already_applied" ? 200 : 201);
 });
