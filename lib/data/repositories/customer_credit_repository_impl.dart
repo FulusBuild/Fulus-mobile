@@ -11,9 +11,12 @@ import '../local/database/tables.dart';
 import 'customer_ledger_mapper.dart';
 
 class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
-  CustomerCreditRepositoryImpl({required AppDatabase db, SyncQueue? syncQueue}) : _db = db;
+  CustomerCreditRepositoryImpl({required AppDatabase db, SyncQueue? syncQueue})
+      : _db = db,
+        _syncQueue = syncQueue;
 
   final AppDatabase _db;
+  final SyncQueue? _syncQueue;
 
   Future<CustomerRow> _requireCustomer(String localId) async {
     final row = await (_db.select(_db.customers)
@@ -58,9 +61,6 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
         createdAt: now,
         updatedAt: now,
       );
-      // `settled` — a local echo of a balance change the Sale row's own
-      // sync already accounts for, not something with its own sync task.
-      // See CustomerLedgerEntryType.creditSale's own doc comment.
       await _db.into(_db.customerLedgerEntries).insert(
             entry.toDriftCompanion(syncStatus: SyncStatus.settled),
           );
@@ -85,7 +85,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
       throw ArgumentError.value(amount, 'amount', 'must be > 0');
     }
 
-    return _db.transaction(() async {
+    final result = await _db.transaction(() async {
       final customer = await _requireCustomer(customerLocalId);
       final effect = engine.computeRepaymentEffect(
         currentBalance: customer.outstandingBalance,
@@ -106,8 +106,6 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
         localId: Ulid().toString(),
         customerLocalId: customerLocalId,
         entryType: CustomerLedgerEntryType.repayment,
-        // The full amount actually tendered, not the (possibly smaller)
-        // applied amount — see CustomerLedgerEntry.amount's doc comment.
         amount: amount,
         paymentMethod: paymentMethod,
         note: note,
@@ -115,21 +113,23 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
         createdAt: now,
         updatedAt: now,
       );
-      // `settled` by convention regardless of whether saleLocalId is
-      // set — see CustomerLedgerEntryType.repayment's own doc comment
-      // for exactly why neither branch has a real push today: a
-      // freestanding repayment has no backend endpoint at all, and a
-      // sale-linked one needs Sales' own update-sale sync support,
-      // which doesn't exist in this pass. Marking this `pending` would
-      // queue a sync task with no handler registered for it — a worse
-      // failure mode than honestly marking it settled-with-nothing-to-
-      // sync until that support exists.
       await _db.into(_db.customerLedgerEntries).insert(
-            entry.toDriftCompanion(syncStatus: SyncStatus.settled),
+            entry.toDriftCompanion(syncStatus: SyncStatus.pending),
           );
 
-      return (entry: entry, newBalance: effect.newBalance, excessAmount: effect.excessAmount);
+      return (
+        entry: entry,
+        newBalance: effect.newBalance,
+        excessAmount: effect.excessAmount,
+      );
     });
+
+    final syncQueue = _syncQueue;
+    if (syncQueue != null) {
+      await syncQueue.enqueue(SyncTask.recordCustomerRepayment(result.entry.localId));
+    }
+
+    return result;
   }
 
   @override
@@ -179,11 +179,6 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   Stream<List<CustomerLedgerEntry>> watchLedger(String customerLocalId) {
     final query = _db.select(_db.customerLedgerEntries)
       ..where((e) => e.customerLocalId.equals(customerLocalId))
-      // createdAt alone ties for entries written in the same second
-      // (Drift's default DateTime storage is one-second precision) —
-      // localId (a ULID, sortable to millisecond precision) breaks
-      // those ties in the right direction. Same fix as
-      // AuditRepositoryImpl.getAuditLogs.
       ..orderBy([
         (e) => OrderingTerm.desc(e.createdAt),
         (e) => OrderingTerm.desc(e.localId),
@@ -199,10 +194,6 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     final startOfDay = DateTime(start.year, start.month, start.day);
     final endExclusive = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
 
-    // 'repayment' — the string form of CustomerLedgerEntryType.repayment,
-    // same textEnum WHERE-clause comparison
-    // FinanceStatsRepositoryImpl.getCashFlow already verified working
-    // against this exact column type elsewhere in this codebase.
     final rows = await (_db.select(_db.customerLedgerEntries)
           ..where(
             (e) =>
