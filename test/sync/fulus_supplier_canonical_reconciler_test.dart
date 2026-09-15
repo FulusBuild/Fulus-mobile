@@ -12,6 +12,16 @@ void main() {
 
   setUp(() {
     repository = _MockSupplierRepository();
+    when(() => repository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          name: any(named: 'name'),
+          phone: any(named: 'phone'),
+          email: any(named: 'email'),
+          address: any(named: 'address'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+        )).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     reconciler = FulusSupplierCanonicalReconciler(repository: repository);
   });
 
@@ -78,7 +88,11 @@ void main() {
     verifyNever(() => repository.reconcileServerState(
           serverId: any(named: 'serverId'),
           name: any(named: 'name'),
+          phone: any(named: 'phone'),
+          email: any(named: 'email'),
+          address: any(named: 'address'),
           updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
         ));
   });
 }
