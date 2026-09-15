@@ -103,7 +103,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
                 createdAt: updatedAt,
                 updatedAt: updatedAt,
                 deletedAt: Value(deletedAt),
-                syncStatus: const Value(SyncStatus.settled),
+                syncStatus: SyncStatus.settled,
               ),
             );
       } else {
