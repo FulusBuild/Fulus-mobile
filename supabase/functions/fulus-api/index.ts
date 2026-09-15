@@ -1,469 +1,127 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+const url = Deno.env.get("SUPABASE_URL")!;
+const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "access-control-allow-origin": "*",
-        "access-control-allow-headers": "authorization, content-type, x-fulus-device-id",
-        "access-control-allow-methods": "GET, POST, OPTIONS",
-      },
-    });
-  }
-
-  const url = new URL(req.url);
-  if (url.pathname.endsWith("/health") || url.searchParams.get("action") === "health") {
-    return json({ data: { service: "fulus-api", status: "ok", server_authoritative: true } });
-  }
-
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return json({ error: { code: "UNAUTHENTICATED", message: "Bearer token required" } }, 401);
-  }
-
-  const token = authHeader.slice("Bearer ".length).trim();
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: userData, error: userError } = await admin.auth.getUser(token);
-  if (userError || !userData.user) {
-    return json({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
-  }
-
-  const userId = userData.user.id;
-  const deviceClientId = req.headers.get("x-fulus-device-id");
-
-  const { data: memberships, error: membershipError } = await admin
-    .from("business_memberships")
-    .select("business_id, role_id, status, joined_at")
-    .eq("user_id", userId)
-    .eq("status", "active");
-
-  if (membershipError) {
-    return json({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve memberships" } }, 500);
-  }
-
-  if (req.method === "POST") {
-    let raw: Record<string, unknown>;
-    try { raw = await req.json(); } catch { return json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400); }
-    if (raw.action === "create_business") {
-      const name = typeof raw.name === "string" ? raw.name : null;
-      if (!name || name.trim().length < 2) {
-        return json({ error: { code: "INVALID_BUSINESS", message: "Business name must be at least 2 characters" } }, 400);
-      }
-      const { data, error } = await admin.rpc("create_business_for_user", {
-        target_name: name,
-        target_currency_code: typeof raw.currency_code === "string" ? raw.currency_code : "NGN",
-        target_timezone: typeof raw.timezone === "string" ? raw.timezone : "Africa/Lagos",
-        target_location_name: typeof raw.location_name === "string" ? raw.location_name : "Main",
-      });
-      if (error) {
-        return json({ error: { code: "BUSINESS_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
-      }
-      return json({ data: { ...data, server_authoritative: true } }, 201);
-    }
-    if (raw.action === "sale_payment" || raw.action === "return_create" || raw.action === "expense_create") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const operationId = typeof raw.operation_id === "string" ? raw.operation_id : null;
-      if (!businessId || !operationId) return json({ error: { code: "INVALID_FINANCE_OPERATION", message: "business_id and operation_id are required" } }, 400);
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      const { data: device, error: deviceError } = await admin.from("devices").select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
-      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-      let data; let error;
-      if (raw.action === "sale_payment") {
-        ({ data, error } = await admin.rpc("record_sale_payment", {
-          target_business_id: businessId, target_sale_id: raw.sale_id, target_amount: Number(raw.amount),
-          target_operation_id: operationId, target_payment_method: typeof raw.payment_method === "string" ? raw.payment_method : "cash",
-          target_device_id: device.id,
-        }));
-      } else if (raw.action === "return_create") {
-        ({ data, error } = await admin.rpc("create_return_atomic", {
-          target_business_id: businessId, target_sale_id: raw.sale_id, target_client_reference: operationId,
-          target_reason: typeof raw.reason === "string" ? raw.reason : "Customer return", target_refund_amount: Number(raw.refund_amount ?? 0),
-          target_device_id: device.id, target_items: Array.isArray(raw.items) ? raw.items : [],
-        }));
-      } else {
-        ({ data, error } = await admin.rpc("record_expense", {
-          target_business_id: businessId, target_location_id: raw.location_id, target_amount: Number(raw.amount),
-          target_category: typeof raw.category === "string" ? raw.category : "general",
-          target_description: typeof raw.description === "string" ? raw.description : null,
-          target_operation_id: operationId, target_device_id: device.id,
-        }));
-      }
-      if (error) {
-        const status = error.code === "42501" ? 403 : error.code === "22013" ? 409 : 400;
-        return json({ error: { code: "FINANCE_OPERATION_FAILED", message: error.message } }, status);
-      }
-      return json({ data }, data?.status === "already_applied" ? 200 : 201);
-    }
-
-    if (raw.action === "customer_create") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const name = typeof raw.name === "string" ? raw.name : null;
-      if (!businessId || !name?.trim()) return json({ error: { code: "INVALID_CUSTOMER", message: "business_id and name are required" } }, 400);
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      const { data, error } = await admin.rpc("create_customer", {
-        target_business_id: businessId, target_name: name, target_phone: typeof raw.phone === "string" ? raw.phone : null,
-        target_email: typeof raw.email === "string" ? raw.email : null, target_address: typeof raw.address === "string" ? raw.address : null,
-        target_credit_limit: Number(raw.credit_limit ?? 0),
-      });
-      if (error) return json({ error: { code: "CUSTOMER_CREATE_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
-      return json({ data }, 201);
-    }
-
-    if (raw.action === "customer_repayment") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const customerId = typeof raw.customer_id === "string" ? raw.customer_id : null;
-      const operationId = typeof raw.operation_id === "string" ? raw.operation_id : null;
-      const amount = Number(raw.amount);
-      if (!businessId || !customerId || !operationId || !Number.isFinite(amount) || amount <= 0) return json({ error: { code: "INVALID_REPAYMENT", message: "business_id, customer_id, amount and operation_id are required" } }, 400);
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      const { data: device, error: deviceError } = await admin.from("devices").select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
-      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-      const { data, error } = await admin.rpc("record_customer_repayment", {
-        target_business_id: businessId, target_customer_id: customerId, target_amount: amount, target_operation_id: operationId,
-        target_payment_method: typeof raw.payment_method === "string" ? raw.payment_method : null,
-        target_note: typeof raw.note === "string" ? raw.note : null, target_device_id: device.id,
-      });
-      if (error) return json({ error: { code: "CUSTOMER_REPAYMENT_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
-      return json({ data });
-    }
-
-    if (raw.action === "sale_create") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const locationId = typeof raw.location_id === "string" ? raw.location_id : null;
-      const clientReference = typeof raw.client_reference === "string" ? raw.client_reference : null;
-      const items = Array.isArray(raw.items) ? raw.items : null;
-      if (!businessId || !locationId || !clientReference || !items || items.length === 0) {
-        return json({ error: { code: "INVALID_SALE", message: "business_id, location_id, client_reference and items are required" } }, 400);
-      }
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) {
-        return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      }
-      const { data: device, error: deviceError } = await admin.from("devices")
-        .select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
-      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-      const { data, error } = await admin.rpc("create_sale_atomic", {
-        target_business_id: businessId,
-        target_location_id: locationId,
-        target_customer_id: typeof raw.customer_id === "string" ? raw.customer_id : null,
-        target_client_reference: clientReference,
-        target_sale_date: typeof raw.sale_date === "string" ? raw.sale_date : new Date().toISOString(),
-        target_discount: Number(raw.discount ?? 0),
-        target_tax: Number(raw.tax ?? 0),
-        target_amount_paid: Number(raw.amount_paid ?? 0),
-        target_payment_method: typeof raw.payment_method === "string" ? raw.payment_method : null,
-        target_notes: typeof raw.notes === "string" ? raw.notes : null,
-        target_device_id: device.id,
-        target_items: items,
-      });
-      if (error) {
-        const status = error.code === "42501" ? 403 : error.code === "22013" ? 409 : 400;
-        return json({ error: { code: "SALE_CREATE_FAILED", message: error.message } }, status);
-      }
-      return json({ data }, data?.status === "already_applied" ? 200 : 201);
-    }
-
-    if (raw.action === "inventory_adjust") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const productId = typeof raw.product_id === "string" ? raw.product_id : null;
-      const locationId = typeof raw.location_id === "string" ? raw.location_id : null;
-      const operationId = typeof raw.operation_id === "string" ? raw.operation_id : null;
-      const delta = Number(raw.quantity_delta);
-      const reason = typeof raw.reason === "string" ? raw.reason : null;
-      if (!businessId || !productId || !locationId || !operationId || !reason || !Number.isSafeInteger(delta) || delta === 0) {
-        return json({ error: { code: "INVALID_INVENTORY_ADJUSTMENT", message: "business_id, product_id, location_id, integer quantity_delta, reason and operation_id are required" } }, 400);
-      }
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) {
-        return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      }
-      const { data: device, error: deviceError } = await admin.from("devices")
-        .select("id,status").eq("business_id",businessId).eq("device_client_id",deviceClientId).maybeSingle();
-      if (deviceError) return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-      if (!device || device.status !== "active") return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-      const { data, error } = await admin.rpc("apply_inventory_adjustment", {
-        target_business_id: businessId, target_product_id: productId, target_location_id: locationId,
-        target_quantity_delta: delta, target_reason: reason, target_operation_id: operationId,
-        target_device_id: device.id,
-      });
-      if (error) {
-        const status = error.code === "42501" ? 403 : error.code === "22013" ? 409 : 400;
-        return json({ error: { code: "INVENTORY_ADJUSTMENT_FAILED", message: error.message } }, status);
-      }
-      return json({ data }, data?.status === "already_applied" ? 200 : 201);
-    }
-
-    if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(raw.action))) {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const entity = typeof raw.entity === "string" ? raw.entity : null;
-      if (!businessId || !entity || !["products", "categories", "suppliers"].includes(entity)) {
-        return json({ error: { code: "INVALID_CATALOG_REQUEST", message: "business_id and a supported entity are required" } }, 400);
-      }
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) {
-        return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      }
-      const permission = raw.action === "catalog_list" ? "catalog.read" : "catalog.manage";
-      const { data: permitted, error: permissionError } = await admin.rpc("user_has_permission", {
-        target_business_id: businessId,
-        target_user_id: userId,
-        target_permission: permission,
-      });
-      if (permissionError) {
-        return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
-      }
-      if (!permitted) {
-        return json({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
-      }
-
-      const table = entity;
-      if (raw.action === "catalog_list") {
-        const limit = Math.min(Math.max(Number(raw.limit ?? 100), 1), 500);
-        const { data, error } = await admin.from(table)
-          .select("*")
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .order("updated_at", { ascending: false })
-          .limit(limit);
-        if (error) return json({ error: { code: "CATALOG_READ_FAILED", message: "Unable to read catalog" } }, 500);
-        return json({ data: { entity, items: data ?? [], server_authoritative: true } });
-      }
-
-      const itemId = typeof raw.id === "string" ? raw.id : null;
-      if (raw.action === "catalog_delete") {
-        if (!itemId) return json({ error: { code: "INVALID_CATALOG_DELETE", message: "id is required" } }, 400);
-        const { data, error } = await admin.from(table)
-          .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-          .eq("id", itemId)
-          .eq("business_id", businessId)
-          .select("*")
-          .maybeSingle();
-        if (error) return json({ error: { code: "CATALOG_DELETE_FAILED", message: "Unable to delete catalog item" } }, 500);
-        if (!data) return json({ error: { code: "NOT_FOUND", message: "Catalog item not found" } }, 404);
-        return json({ data: { entity, item: data, server_authoritative: true } });
-      }
-
-      const input = (raw.item && typeof raw.item === "object") ? raw.item as Record<string, unknown> : {};
-      const allowedFields: Record<string, string[]> = {
-        categories: ["name", "description"],
-        suppliers: ["name", "phone", "email", "address"],
-        products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"],
-      };
-      const row: Record<string, unknown> = { business_id: businessId };
-      for (const field of allowedFields[entity]) {
-        if (field in input) row[field] = input[field];
-      }
-      if (entity === "categories" || entity === "suppliers" || entity === "products") {
-        if (typeof row.name !== "string" || row.name.trim().length < 1) {
-          return json({ error: { code: "INVALID_CATALOG_ITEM", message: "name is required" } }, 400);
-        }
-        row.name = row.name.trim();
-      }
-      if (entity === "products") {
-        if (typeof row.sku !== "string" || row.sku.trim().length < 1) {
-          return json({ error: { code: "INVALID_PRODUCT", message: "sku is required" } }, 400);
-        }
-        row.sku = row.sku.trim();
-        for (const fk of ["category_id", "supplier_id"]) {
-          if (row[fk] != null) {
-            const { data: parent, error: parentError } = await admin.from(fk === "category_id" ? "categories" : "suppliers")
-              .select("id").eq("id", row[fk]).eq("business_id", businessId).maybeSingle();
-            if (parentError) return json({ error: { code: "CATALOG_VALIDATION_FAILED", message: "Unable to validate catalog relationship" } }, 500);
-            if (!parent) return json({ error: { code: "INVALID_CATALOG_RELATION", message: fk + " belongs to another business or does not exist" } }, 400);
-          }
-        }
-      }
-      let query;
-      if (itemId) {
-        query = admin.from(table).update(row).eq("id", itemId).eq("business_id", businessId).select("*").maybeSingle();
-      } else {
-        query = admin.from(table).insert(row).select("*").single();
-      }
-      const { data, error } = await query;
-      if (error) return json({ error: { code: "CATALOG_WRITE_FAILED", message: "Unable to save catalog item" } }, 400);
-      return json({ data: { entity, item: data, server_authoritative: true } }, itemId ? 200 : 201);
-    }
-
-    if (raw.action === "register_device") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const clientId = typeof raw.device_client_id === "string" ? raw.device_client_id : null;
-      if (!businessId || !clientId) return json({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "business_id and device_client_id are required" } }, 400);
-      if (!(memberships ?? []).some((m) => m.business_id === businessId)) return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-      const { data, error } = await admin.rpc("register_device", {
-        target_business_id: businessId, target_user_id: userId, target_device_client_id: clientId,
-        target_device_name: typeof raw.device_name === "string" ? raw.device_name : null,
-        target_platform: typeof raw.platform === "string" ? raw.platform : null,
-        target_app_version: typeof raw.app_version === "string" ? raw.app_version : null,
-      });
-      if (error) return json({ error: { code: "DEVICE_REGISTRATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
-      return json({ data: { device: data, server_authoritative: true } }, 201);
-    }
-    if (raw.action === "revoke_device") {
-      const businessId = typeof raw.business_id === "string" ? raw.business_id : null;
-      const deviceId = typeof raw.device_id === "string" ? raw.device_id : null;
-      if (!businessId || !deviceId) return json({ error: { code: "INVALID_DEVICE_REVOCATION", message: "business_id and device_id are required" } }, 400);
-      const { data, error } = await admin.rpc("revoke_device", { target_business_id: businessId, target_device_id: deviceId, target_user_id: userId });
-      if (error) return json({ error: { code: "DEVICE_REVOCATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
-      return json({ data: { revoked: data, server_authoritative: true } });
-    }
-  }
+Deno.serve(async req => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, x-fulus-device-id", "access-control-allow-methods": "GET, POST, OPTIONS" } });
+  const u = new URL(req.url);
+  if (u.pathname.endsWith("/health") || u.searchParams.get("action") === "health") return out({ data: { service: "fulus-api", status: "ok", server_authoritative: true } });
+  const ah = req.headers.get("authorization");
+  if (!ah?.startsWith("Bearer ")) return out({ error: { code: "UNAUTHENTICATED", message: "Bearer token required" } }, 401);
+  const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: ud, error: ue } = await db.auth.getUser(ah.slice(7).trim());
+  if (ue || !ud.user) return out({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
+  const uid = ud.user.id;
+  const dc = req.headers.get("x-fulus-device-id");
+  const { data: members, error: me } = await db.from("business_memberships").select("business_id,role_id,status,joined_at").eq("user_id", uid).eq("status", "active");
+  if (me) return out({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve memberships" } }, 500);
 
   if (req.method === "GET") {
-    const url = new URL(req.url);
-    const businessId = url.searchParams.get("business_id");
-    const cursorRaw = url.searchParams.get("cursor") ?? "0";
-    const limitRaw = url.searchParams.get("limit") ?? "100";
-
-    if (!businessId) {
-      return json({ data: {
-        user_id: userId,
-        memberships: memberships ?? [],
-        device_client_id: deviceClientId,
-        server_authoritative: true,
-      }});
-    }
-
-    const membership = (memberships ?? []).find((m) => m.business_id === businessId);
-    if (!membership) {
-      return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
-    }
-
-    if (!deviceClientId) {
-      return json({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for sync" } }, 400);
-    }
-
-    const { data: device, error: deviceError } = await admin
-      .from("devices")
-      .select("id, status")
-      .eq("business_id", businessId)
-      .eq("device_client_id", deviceClientId)
-      .maybeSingle();
-
-    if (deviceError) {
-      return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-    }
-    if (!device || device.status !== "active") {
-      return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-    }
-
-    const cursor = Number(cursorRaw);
-    const requestedLimit = Number(limitRaw);
-    if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 500) {
-      return json({ error: { code: "INVALID_SYNC_CURSOR", message: "cursor must be a non-negative integer and limit must be between 1 and 500" } }, 400);
-    }
-
-    const { data: changes, error: changesError } = await admin
-      .from("sync_changes")
-      .select("sequence, entity_type, entity_id, operation, payload, created_at")
-      .eq("business_id", businessId)
-      .gt("sequence", cursor)
-      .order("sequence", { ascending: true })
-      .limit(requestedLimit);
-
-    if (changesError) {
-      return json({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
-    }
-
+    const bid = u.searchParams.get("business_id");
+    if (!bid) return out({ data: { user_id: uid, memberships: members ?? [], device_client_id: dc, server_authoritative: true } });
+    if (!(members ?? []).some(m => m.business_id === bid)) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+    if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for sync" } }, 400);
+    const { data: d, error: de } = await db.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
+    if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+    if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+    const cursor = Number(u.searchParams.get("cursor") ?? "0"), limit = Number(u.searchParams.get("limit") ?? "100");
+    if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 500) return out({ error: { code: "INVALID_SYNC_CURSOR", message: "Invalid cursor or limit" } }, 400);
+    const { data: changes, error: ce } = await db.from("sync_changes").select("sequence,entity_type,entity_id,operation,payload,created_at").eq("business_id", bid).gt("sequence", cursor).order("sequence", { ascending: true }).limit(limit);
+    if (ce) return out({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
     const rows = changes ?? [];
-    const nextCursor = rows.length ? Number(rows[rows.length - 1].sequence) : cursor;
-    return json({
-      data: {
-        changes: rows,
-        cursor,
-        next_cursor: nextCursor,
-        has_more: rows.length === requestedLimit,
-        server_authoritative: true,
-      },
-    });
+    return out({ data: { changes: rows, cursor, next_cursor: rows.length ? Number(rows[rows.length - 1].sequence) : cursor, has_more: rows.length === limit, server_authoritative: true } });
   }
 
-  let body: { business_id?: string; operation_type?: string; operation_id?: string; client_reference?: string; payload?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400);
+  let b: Record<string, unknown>;
+  try { b = await req.json(); } catch { return out({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400); }
+  const action = typeof b.action === "string" ? b.action : null;
+
+  if (action === "create_business") {
+    const name = typeof b.name === "string" ? b.name.trim() : "";
+    if (name.length < 2) return out({ error: { code: "INVALID_BUSINESS", message: "Business name must be at least 2 characters" } }, 400);
+    const { data, error } = await db.rpc("create_business_for_user", { target_name: name, target_currency_code: typeof b.currency_code === "string" ? b.currency_code : "NGN", target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos", target_location_name: typeof b.location_name === "string" ? b.location_name : "Main" });
+    if (error) return out({ error: { code: "BUSINESS_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+    return out({ data: { ...data, server_authoritative: true } }, 201);
   }
 
-  if (!body.business_id || !body.operation_type || !body.operation_id) {
-    return json({
-      error: {
-        code: "INVALID_COMMAND",
-        message: "business_id, operation_type and operation_id are required",
-      },
-    }, 400);
+  const bid = typeof b.business_id === "string" ? b.business_id : null;
+  if (!bid) return out({ error: { code: "INVALID_COMMAND", message: "business_id is required" } }, 400);
+  if (!(members ?? []).some(m => m.business_id === bid)) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+
+  if (action === "register_device") {
+    const cid = typeof b.device_client_id === "string" ? b.device_client_id : null;
+    if (!cid) return out({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "device_client_id is required" } }, 400);
+    const { data, error } = await db.rpc("register_device", { target_business_id: bid, target_user_id: uid, target_device_client_id: cid, target_device_name: typeof b.device_name === "string" ? b.device_name : null, target_platform: typeof b.platform === "string" ? b.platform : null, target_app_version: typeof b.app_version === "string" ? b.app_version : null });
+    if (error) return out({ error: { code: "DEVICE_REGISTRATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+    return out({ data: { device: data, server_authoritative: true } }, 201);
   }
 
-  const membership = (memberships ?? []).find((m) => m.business_id === body.business_id);
-  if (!membership) {
-    return json({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+  if (action === "location_create") {
+    const name = typeof b.name === "string" ? b.name.trim() : "";
+    const operationId = typeof b.operation_id === "string" ? b.operation_id : null;
+    if (!name || !operationId) return out({ error: { code: "INVALID_LOCATION", message: "name and operation_id are required" } }, 400);
+    const { data, error } = await db.rpc("create_location", { target_business_id: bid, target_operation_id: operationId, target_name: name, target_code: typeof b.code === "string" ? b.code : null, target_address: typeof b.address === "string" ? b.address : null, target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos" });
+    if (error) return out({ error: { code: "LOCATION_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+    return out({ data: { ...data, server_authoritative: true } }, data?.status === "already_applied" ? 200 : 201);
   }
 
-  if (!deviceClientId) {
-    return json({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for commands" } }, 400);
+  if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
+    const entity = typeof b.entity === "string" ? b.entity : null;
+    if (!entity || !["products", "categories", "suppliers"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
+    const { data: allowed, error: pe } = await db.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage" });
+    if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
+    if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
+    if (action === "catalog_list") {
+      const { data, error } = await db.from(entity).select("*").eq("business_id", bid).is("deleted_at", null).order("updated_at", { ascending: false }).limit(Math.min(Math.max(Number(b.limit ?? 100), 1), 500));
+      if (error) return out({ error: { code: "CATALOG_READ_FAILED", message: "Unable to read catalog" } }, 500);
+      return out({ data: { entity, items: data ?? [], server_authoritative: true } });
+    }
+    const id = typeof b.id === "string" ? b.id : null;
+    if (action === "catalog_delete") {
+      if (!id) return out({ error: { code: "INVALID_CATALOG_DELETE", message: "id is required" } }, 400);
+      const { data, error } = await db.from(entity).update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).eq("business_id", bid).select("*").maybeSingle();
+      if (error) return out({ error: { code: "CATALOG_DELETE_FAILED", message: error.message } }, 500);
+      if (!data) return out({ error: { code: "NOT_FOUND", message: "Catalog item not found" } }, 404);
+      return out({ data: { entity, item: data, server_authoritative: true } });
+    }
+    const input = b.item && typeof b.item === "object" ? b.item as Record<string, unknown> : {};
+    const fields: Record<string, string[]> = { categories: ["name", "description"], suppliers: ["name", "phone", "email", "address"], products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"] };
+    const row: Record<string, unknown> = { business_id: bid };
+    for (const f of fields[entity]) if (f in input) row[f] = input[f];
+    if (typeof row.name !== "string" || !row.name.trim()) return out({ error: { code: "INVALID_CATALOG_ITEM", message: "name is required" } }, 400);
+    row.name = (row.name as string).trim();
+    const { data, error } = id ? await db.from(entity).update(row).eq("id", id).eq("business_id", bid).select("*").maybeSingle() : await db.from(entity).insert(row).select("*").single();
+    if (error) return out({ error: { code: "CATALOG_WRITE_FAILED", message: error.message } }, 400);
+    return out({ data: { entity, item: data, server_authoritative: true } }, id ? 200 : 201);
   }
 
-  const { data: device, error: deviceError } = await admin
-    .from("devices")
-    .select("id, status")
-    .eq("business_id", body.business_id)
-    .eq("device_client_id", deviceClientId)
-    .maybeSingle();
+  if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for commands" } }, 400);
+  const oid = typeof b.operation_id === "string" ? b.operation_id : null;
+  if (!oid) return out({ error: { code: "INVALID_COMMAND", message: "operation_id is required" } }, 400);
+  const { data: d, error: de } = await db.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
+  if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+  if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
 
-  if (deviceError) {
-    return json({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-  }
-  if (!device || device.status !== "active") {
-    return json({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-  }
+  let data: any, error: any;
+  if (action === "sale_create") ({ data, error } = await db.rpc("create_sale_atomic", { target_business_id: bid, target_location_id: b.location_id, target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null, target_client_reference: b.client_reference, target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(), target_discount: Number(b.discount ?? 0), target_tax: Number(b.tax ?? 0), target_amount_paid: Number(b.amount_paid ?? 0), target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_notes: typeof b.notes === "string" ? b.notes : null, target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
+  else if (action === "customer_create") ({ data, error } = await db.rpc("create_customer", { target_business_id: bid, target_name: b.name, target_phone: typeof b.phone === "string" ? b.phone : null, target_email: typeof b.email === "string" ? b.email : null, target_address: typeof b.address === "string" ? b.address : null, target_credit_limit: Number(b.credit_limit ?? 0) }));
+  else if (action === "customer_repayment") ({ data, error } = await db.rpc("record_customer_repayment", { target_business_id: bid, target_customer_id: b.customer_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_note: typeof b.note === "string" ? b.note : null, target_device_id: d.id }));
+  else if (action === "expense_create") ({ data, error } = await db.rpc("record_expense", { target_business_id: bid, target_location_id: b.location_id, target_amount: Number(b.amount), target_category: typeof b.category === "string" ? b.category : "general", target_description: typeof b.description === "string" ? b.description : null, target_operation_id: oid, target_device_id: d.id }));
+  else if (action === "return_create") ({ data, error } = await db.rpc("create_return_atomic", { target_business_id: bid, target_sale_id: b.sale_id, target_client_reference: oid, target_reason: typeof b.reason === "string" ? b.reason : "Customer return", target_refund_amount: Number(b.refund_amount ?? 0), target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
+  else if (action === "inventory_adjust") ({ data, error } = await db.rpc("apply_inventory_adjustment", { target_business_id: bid, target_product_id: b.product_id, target_location_id: b.location_id, target_quantity_delta: Number(b.quantity_delta), target_reason: b.reason, target_operation_id: oid, target_device_id: d.id }));
+  else if (action === "income_create") ({ data, error } = await db.rpc("cloud_record_income", { target_business_id: bid, target_location_id: b.location_id, target_source: b.source, target_amount: Number(b.amount), target_income_date: b.income_date, target_notes: typeof b.notes === "string" ? b.notes : null, target_operation_id: oid, target_device_id: d.id }));
+  else if (action === "cash_drawer_open") ({ data, error } = await db.rpc("cloud_open_cash_drawer_shift", { target_business_id: bid, target_location_id: b.location_id, target_opening_cash: Number(b.opening_cash), target_opened_at: b.opened_at, target_operation_id: oid, target_device_id: d.id }));
+  else if (action === "cash_drawer_close") ({ data, error } = await db.rpc("cloud_close_cash_drawer_shift", { target_business_id: bid, target_shift_id: b.shift_id, target_closing_cash: Number(b.closing_cash), target_cash_difference: b.cash_difference == null ? null : Number(b.cash_difference), target_closing_note: typeof b.closing_note === "string" ? b.closing_note : null, target_closed_at: b.closed_at, target_operation_id: oid, target_device_id: d.id }));
+  else if (action === "sync_operation") {
+    const payload = b.payload && typeof b.payload === "object" ? b.payload : {};
+    const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(payload)));
+    const hash = Array.from(new Uint8Array(h)).map(x => x.toString(16).padStart(2, "0")).join("");
+    ({ data, error } = await db.rpc("accept_sync_operation", { target_business_id: bid, target_device_id: d.id, target_user_id: uid, target_operation_id: oid, target_operation_type: typeof b.operation_type === "string" ? b.operation_type : "", target_client_reference: typeof b.client_reference === "string" ? b.client_reference : null, target_request_hash: hash }));
+  } else return out({ error: { code: "UNSUPPORTED_COMMAND", message: "Unsupported Fulus Cloud command" } }, 400);
 
-  const requestBody = JSON.stringify(body.payload ?? null);
-  const requestHashBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(requestBody),
-  );
-  const requestHash = Array.from(new Uint8Array(requestHashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  const { data: result, error: commandError } = await admin.rpc(
-    "accept_sync_operation",
-    {
-      target_business_id: body.business_id,
-      target_device_id: device.id,
-      target_user_id: userId,
-      target_operation_id: body.operation_id,
-      target_operation_type: body.operation_type,
-      target_client_reference: body.client_reference ?? null,
-      target_request_hash: requestHash,
-    },
-  );
-
-  if (commandError || !result) {
-    return json({
-      error: {
-        code: "COMMAND_ACCEPTANCE_FAILED",
-        message: "Unable to accept sync operation",
-      },
-    }, 500);
-  }
-
-  if (result.error) {
-    return json({ error: result.error }, result.status_code ?? 500);
-  }
-
-  return json(result.response, result.status_code ?? 202);
+  if (error) return out({ error: { code: "COMMAND_FAILED", message: error.message } }, error.code === "42501" ? 403 : error.code === "22013" ? 409 : error.code === "P0002" ? 404 : 400);
+  return out({ data }, data?.status === "already_applied" ? 200 : 201);
 });
