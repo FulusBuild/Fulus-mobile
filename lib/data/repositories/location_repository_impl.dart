@@ -41,7 +41,6 @@ class LocationRepositoryImpl implements LocationRepository {
     final location = draft.toLocationEntity(localId: localId);
 
     await _db.into(_db.locations).insert(location.toDriftCompanion());
-
     await _syncQueue.enqueue(SyncTask.createLocation(localId));
 
     return location;
@@ -76,17 +75,59 @@ class LocationRepositoryImpl implements LocationRepository {
 
   @override
   Future<void> syncFromServer() async {
-    // Not paginated (LocationsApi.getLocations's own doc comment) — one
-    // call gets everything there is. insertOnConflictUpdate, not
-    // InsertMode.insertOrReplace, for the same reason as
-    // ProductRepositoryImpl.syncFromServer: Locations has real
-    // dependents (Sales/Expenses/IncomeRecords/StockMovements/Shifts
-    // all reference Locations.localId), and SQLite's INSERT OR REPLACE
-    // deletes-then-reinserts on conflict, which risks disturbing those
-    // references during something as routine as a re-sync.
     final response = await _locationsApi.getLocations();
     for (final item in response) {
       await _db.into(_db.locations).insertOnConflictUpdate(item.toDriftCompanion());
     }
+  }
+
+  @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String name,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    final existing = await (_db.select(_db.locations)
+          ..where((l) => l.serverId.equals(serverId)))
+        .getSingleOrNull();
+    final localId = existing?.localId ?? Ulid().toString();
+
+    await _db.transaction(() async {
+      if (existing == null) {
+        await _db.into(_db.locations).insert(
+              LocationsCompanion.insert(
+                localId: localId,
+                serverId: Value(serverId),
+                name: name,
+                createdAt: updatedAt,
+                updatedAt: updatedAt,
+                deletedAt: Value(deletedAt),
+                syncStatus: SyncStatus.settled,
+              ),
+            );
+      } else {
+        await (_db.update(_db.locations)..where((l) => l.localId.equals(localId))).write(
+          LocationsCompanion(
+            serverId: Value(serverId),
+            name: Value(name),
+            updatedAt: Value(updatedAt),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    await (_db.update(_db.locations)..where((l) => l.serverId.equals(serverId))).write(
+      LocationsCompanion(
+        deletedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncStatus.settled),
+      ),
+    );
   }
 }

@@ -6,9 +6,6 @@ import '../entities/category.dart';
 abstract class CategoryRepository {
   Future<Category> createCategory(CategoryDraft draft);
 
-  /// Reactive — the category picker in Stock/Sell (Volume 6: "the same
-  /// ones that appear as chips in Sell") needs this to update the moment
-  /// a new category is created locally or a synced change arrives.
   Stream<List<Category>> watchCategories();
 
   Future<Category?> getCategoryById(String localId);
@@ -16,6 +13,21 @@ abstract class CategoryRepository {
   Future<void> updateCategory({required String localId, String? name, String? description});
 
   Future<void> archiveCategory(String localId);
+
+  /// Applies a canonical server snapshot without enqueueing an outbound
+  /// sync task. Server identity is matched before allocating a new local
+  /// identity, so a change received after a local create cannot duplicate
+  /// the row on this device.
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String name,
+    String? description,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  });
+
+  /// Applies a canonical delete without enqueueing an outbound task.
+  Future<void> reconcileDeleted(String serverId);
 
   Future<void> markSynced({required String localId, required String serverId});
 }

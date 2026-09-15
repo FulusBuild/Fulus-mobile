@@ -92,6 +92,75 @@ class CustomerRepositoryImpl implements CustomerRepository {
   }
 
   @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String name,
+    String? phone,
+    String? email,
+    String? address,
+    String? notes,
+    required double outstandingBalance,
+    String? duplicateWarning,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    final existing = await (_db.select(_db.customers)
+          ..where((c) => c.serverId.equals(serverId)))
+        .getSingleOrNull();
+    final localId = existing?.localId ?? Ulid().toString();
+
+    await _db.transaction(() async {
+      if (existing == null) {
+        await _db.into(_db.customers).insert(
+              CustomersCompanion.insert(
+                localId: localId,
+                serverId: Value(serverId),
+                name: name,
+                phone: Value(phone),
+                email: Value(email),
+                address: Value(address),
+                notes: Value(notes),
+                outstandingBalance: Value(outstandingBalance),
+                createdAt: updatedAt,
+                updatedAt: updatedAt,
+                deletedAt: Value(deletedAt),
+                syncStatus: SyncStatus.settled,
+                lastSyncWarning: Value(duplicateWarning),
+              ),
+            );
+      } else {
+        await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+          CustomersCompanion(
+            serverId: Value(serverId),
+            name: Value(name),
+            phone: Value(phone),
+            email: Value(email),
+            address: Value(address),
+            notes: Value(notes),
+            outstandingBalance: Value(outstandingBalance),
+            lastSyncWarning: Value(duplicateWarning),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+            updatedAt: Value(updatedAt),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    final now = DateTime.now();
+    await (_db.update(_db.customers)..where((c) => c.serverId.equals(serverId))).write(
+      CustomersCompanion(
+        deletedAt: Value(now),
+        syncStatus: const Value(SyncStatus.settled),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,

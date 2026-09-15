@@ -58,4 +58,59 @@ class ExpenseCategoryRepositoryImpl implements ExpenseCategoryRepository {
       ),
     );
   }
+
+  @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String name,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.expenseCategories)
+            ..where((c) => c.serverId.equals(serverId)))
+          .getSingleOrNull();
+      final localId = existing?.localId ?? Ulid().toString();
+      if (existing == null) {
+        await _db.into(_db.expenseCategories).insert(
+          ExpenseCategoriesCompanion.insert(
+            localId: localId,
+            serverId: Value(serverId),
+            name: name,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: Value(deletedAt),
+            syncStatus: SyncStatus.settled,
+          ),
+        );
+      } else {
+        await (_db.update(_db.expenseCategories)..where((c) => c.localId.equals(localId))).write(
+          ExpenseCategoriesCompanion(
+            serverId: Value(serverId),
+            name: Value(name),
+            updatedAt: Value(updatedAt),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    final row = await (_db.select(_db.expenseCategories)
+          ..where((c) => c.serverId.equals(serverId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    final now = DateTime.now();
+    await (_db.update(_db.expenseCategories)..where((c) => c.localId.equals(row.localId))).write(
+      ExpenseCategoriesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncStatus.settled),
+      ),
+    );
+  }
 }

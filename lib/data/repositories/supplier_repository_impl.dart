@@ -24,7 +24,6 @@ class SupplierRepositoryImpl implements SupplierRepository {
     final supplier = draft.toSupplierEntity(localId: localId);
 
     await _db.into(_db.suppliers).insert(supplier.toDriftCompanion());
-
     await _syncQueue.enqueue(SyncTask.createSupplier(localId));
 
     return supplier;
@@ -62,6 +61,70 @@ class SupplierRepositoryImpl implements SupplierRepository {
       throw ArgumentError.value(localId, 'localId', 'no such supplier');
     }
     return updated;
+  }
+
+  @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String name,
+    String? phone,
+    String? email,
+    String? address,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    final existing = await (_db.select(_db.suppliers)
+          ..where((s) => s.serverId.equals(serverId)))
+        .getSingleOrNull();
+    final localId = existing?.localId ?? Ulid().toString();
+
+    await _db.transaction(() async {
+      if (existing == null) {
+        await _db.into(_db.suppliers).insert(
+              SuppliersCompanion.insert(
+                localId: localId,
+                serverId: Value(serverId),
+                name: name,
+                phone: Value(phone),
+                email: Value(email),
+                address: Value(address),
+                createdAt: updatedAt,
+                updatedAt: updatedAt,
+                deletedAt: Value(deletedAt),
+                syncStatus: SyncStatus.settled,
+              ),
+            );
+      } else {
+        await (_db.update(_db.suppliers)..where((s) => s.localId.equals(localId))).write(
+          SuppliersCompanion(
+            serverId: Value(serverId),
+            name: Value(name),
+            phone: Value(phone),
+            email: Value(email),
+            address: Value(address),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+            updatedAt: Value(updatedAt),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    final row = await (_db.select(_db.suppliers)
+          ..where((s) => s.serverId.equals(serverId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    final now = DateTime.now();
+    await (_db.update(_db.suppliers)..where((s) => s.localId.equals(row.localId))).write(
+      SuppliersCompanion(
+        deletedAt: Value(now),
+        syncStatus: const Value(SyncStatus.settled),
+        updatedAt: Value(now),
+      ),
+    );
   }
 
   @override
