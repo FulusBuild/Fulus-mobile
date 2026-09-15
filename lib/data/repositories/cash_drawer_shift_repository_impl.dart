@@ -40,26 +40,14 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
 
   @override
   Future<CashDrawerShift> openShift(CashDrawerShiftDraft draft) async {
-    if (draft.openingCash < 0) {
-      throw ArgumentError.value(draft.openingCash, 'openingCash', 'must be ≥ 0');
-    }
+    if (draft.openingCash < 0) throw ArgumentError.value(draft.openingCash, 'openingCash', 'must be ≥ 0');
     final currentUser = _authRepository.currentUser;
-    if (currentUser == null) {
-      throw StateError('Cannot open a shift with no signed-in user.');
-    }
+    if (currentUser == null) throw StateError('Cannot open a shift with no signed-in user.');
     return _db.transaction(() async {
       final existing = await getActiveShift(locationId: draft.locationId);
-      if (existing != null) {
-        throw StateError('A shift is already open for this location — close it before opening another.');
-      }
+      if (existing != null) throw StateError('A shift is already open for this location — close it before opening another.');
       final localId = Ulid().toString();
-      final shift = CashDrawerShift(
-        localId: localId,
-        cashierUserId: currentUser.id,
-        locationId: draft.locationId,
-        openedAt: DateTime.now(),
-        openingCash: draft.openingCash,
-      );
+      final shift = CashDrawerShift(localId: localId, cashierUserId: currentUser.id, locationId: draft.locationId, openedAt: DateTime.now(), openingCash: draft.openingCash);
       await _db.into(_db.cashDrawerShifts).insert(shift.toDriftCompanion());
       await _syncQueue.enqueue(SyncTask.createCashDrawerShift(localId));
       return shift;
@@ -68,103 +56,49 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
 
   @override
   Future<ExpectedCashPreview> computeExpectedCash(String shiftLocalId) async {
-    final shiftRow = await (_db.select(_db.cashDrawerShifts)
-          ..where((s) => s.localId.equals(shiftLocalId)))
-        .getSingleOrNull();
-    if (shiftRow == null) {
-      throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
-    }
+    final shiftRow = await (_db.select(_db.cashDrawerShifts)..where((s) => s.localId.equals(shiftLocalId))).getSingleOrNull();
+    if (shiftRow == null) throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
     final since = shiftRow.openedAt;
-    final sales = await (_db.select(_db.sales)
-          ..where((s) =>
-              s.locationId.equals(shiftRow.locationId) &
-              s.deletedAt.isNull() &
-              s.saleDate.isBiggerOrEqualValue(since)))
-        .get();
-
+    final sales = await (_db.select(_db.sales)..where((s) => s.locationId.equals(shiftRow.locationId) & s.deletedAt.isNull() & s.saleDate.isBiggerOrEqualValue(since))).get();
     var cashSales = 0.0;
     for (final sale in sales) {
-      final payments = await (_db.select(_db.salePayments)
-            ..where((p) => p.saleLocalId.equals(sale.localId)))
-          .get();
+      final payments = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(sale.localId))).get();
       if (payments.isNotEmpty) {
-        cashSales += payments
-            .where((p) => p.method == 'cash' && !p.recordedAt.isBefore(since))
-            .fold<double>(0.0, (sum, p) => sum + p.amount);
+        cashSales += payments.where((p) => p.method == 'cash' && !p.recordedAt.isBefore(since)).fold<double>(0.0, (sum, p) => sum + p.amount);
       } else if (sale.paymentMethod == 'cash') {
         cashSales += sale.amountPaid;
       }
     }
-
-    final cashExpenseRows = await (_db.select(_db.expenses)
-          ..where((e) =>
-              e.locationId.equals(shiftRow.locationId) &
-              e.paymentMethod.equals('cash') &
-              e.expenseDate.isBiggerOrEqualValue(since)))
-        .get();
+    final cashExpenseRows = await (_db.select(_db.expenses)..where((e) => e.locationId.equals(shiftRow.locationId) & e.paymentMethod.equals('cash') & e.expenseDate.isBiggerOrEqualValue(since))).get();
     final cashExpenses = cashExpenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
     final expectedCash = shiftRow.openingCash + cashSales - cashExpenses;
-    return ExpectedCashPreview(
-      openingCash: shiftRow.openingCash,
-      cashSales: cashSales,
-      cashExpenses: cashExpenses,
-      expectedCash: expectedCash,
-    );
+    return ExpectedCashPreview(openingCash: shiftRow.openingCash, cashSales: cashSales, cashExpenses: cashExpenses, expectedCash: expectedCash);
   }
 
   @override
-  Future<CashDrawerShift> closeShift({
-    required String shiftLocalId,
-    required double closingCash,
-    String? notes,
-  }) async {
-    if (closingCash < 0) {
-      throw ArgumentError.value(closingCash, 'closingCash', 'must be ≥ 0');
-    }
+  Future<CashDrawerShift> closeShift({required String shiftLocalId, required double closingCash, String? notes}) async {
+    if (closingCash < 0) throw ArgumentError.value(closingCash, 'closingCash', 'must be ≥ 0');
     return _db.transaction(() async {
-      final row = await (_db.select(_db.cashDrawerShifts)
-            ..where((s) => s.localId.equals(shiftLocalId)))
-          .getSingleOrNull();
-      if (row == null) {
-        throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
-      }
+      final row = await (_db.select(_db.cashDrawerShifts)..where((s) => s.localId.equals(shiftLocalId))).getSingleOrNull();
+      if (row == null) throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
       if (row.closedAt != null) throw StateError('This shift is already closed.');
       final preview = await computeExpectedCash(shiftLocalId);
       final now = DateTime.now();
-      await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(shiftLocalId))).write(
-        CashDrawerShiftsCompanion(
-          closedAt: Value(now),
-          closingCash: Value(closingCash),
-          cashDifference: Value(closingCash - preview.expectedCash),
-          closingNote: Value(notes),
-          closingSummaryLocked: const Value(true),
-          updatedAt: Value(now),
-        ),
-      );
+      await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(shiftLocalId))).write(CashDrawerShiftsCompanion(closedAt: Value(now), closingCash: Value(closingCash), cashDifference: Value(closingCash - preview.expectedCash), closingNote: Value(notes), closingSummaryLocked: const Value(true), updatedAt: Value(now)));
       await _syncQueue.enqueue(SyncTask.closeCashDrawerShift(shiftLocalId));
-      return (await (_db.select(_db.cashDrawerShifts)
-            ..where((s) => s.localId.equals(shiftLocalId)))
-          .getSingle()).toDomain();
+      return (await (_db.select(_db.cashDrawerShifts)..where((s) => s.localId.equals(shiftLocalId))).getSingle()).toDomain();
     });
   }
 
   @override
   Stream<List<CashDrawerShift>> watchShiftHistory({required String locationId}) {
-    final query = _db.select(_db.cashDrawerShifts)
-      ..where((s) => s.locationId.equals(locationId))
-      ..orderBy([(s) => OrderingTerm.desc(s.openedAt)]);
+    final query = _db.select(_db.cashDrawerShifts)..where((s) => s.locationId.equals(locationId))..orderBy([(s) => OrderingTerm.desc(s.openedAt)]);
     return query.watch().map((rows) => rows.map((r) => r.toDomain()).toList());
   }
 
   @override
   Future<void> markSynced({required String localId, required String serverId}) async {
-    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
-      CashDrawerShiftsCompanion(
-        serverId: Value(serverId),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(CashDrawerShiftsCompanion(serverId: Value(serverId), syncStatus: const Value(SyncStatus.settled), updatedAt: Value(DateTime.now())));
   }
 
   @override
@@ -182,48 +116,28 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     required DateTime updatedAt,
   }) async {
     await _db.transaction(() async {
-      final location = await (_db.select(_db.locations)
-            ..where((l) => l.serverId.equals(locationServerId)))
-          .getSingleOrNull();
-      if (location == null) {
-        throw StateError('Canonical cash drawer shift $serverId references unknown location $locationServerId.');
-      }
-      final existing = await (_db.select(_db.cashDrawerShifts)
-            ..where((s) => s.serverId.equals(serverId)))
-          .getSingleOrNull();
+      final location = await (_db.select(_db.locations)..where((l) => l.serverId.equals(locationServerId))).getSingleOrNull();
+      if (location == null) throw StateError('Canonical cash drawer shift $serverId references unknown location $locationServerId.');
+      final existing = await (_db.select(_db.cashDrawerShifts)..where((s) => s.serverId.equals(serverId))).getSingleOrNull();
       final localId = existing?.localId ?? Ulid().toString();
-      final values = CashDrawerShiftsCompanion(
-        serverId: Value(serverId),
-        cashierUserId: Value(cashierUserId),
-        locationId: Value(location.localId),
-        openedAt: Value(openedAt),
-        closedAt: Value(closedAt),
-        openingCash: Value(openingCash),
-        closingCash: Value(closingCash),
-        cashDifference: Value(cashDifference),
-        closingNote: Value(closingNote),
-        closingSummaryLocked: Value(closingSummaryLocked),
-        updatedAt: Value(updatedAt),
-        syncStatus: const Value(SyncStatus.settled),
-      );
+      final values = CashDrawerShiftsCompanion(serverId: Value(serverId), cashierUserId: Value(cashierUserId), locationId: Value(location.localId), openedAt: Value(openedAt), closedAt: Value(closedAt), openingCash: Value(openingCash), closingCash: Value(closingCash), cashDifference: Value(cashDifference), closingNote: Value(closingNote), closingSummaryLocked: Value(closingSummaryLocked), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled));
       if (existing == null) {
-        await _db.into(_db.cashDrawerShifts).insert(
-          CashDrawerShiftsCompanion.insert(
-            localId: localId,
-            serverId: Value(serverId),
-            cashierUserId: cashierUserId,
-            locationId: location.localId,
-            openedAt: openedAt,
-            closedAt: Value(closedAt),
-            openingCash: openingCash,
-            closingCash: Value(closingCash),
-            cashDifference: Value(cashDifference),
-            closingNote: Value(closingNote),
-            closingSummaryLocked: closingSummaryLocked,
-            updatedAt: updatedAt,
-            syncStatus: SyncStatus.settled,
-          ),
-        );
+        await _db.into(_db.cashDrawerShifts).insert(CashDrawerShiftsCompanion.insert(
+          localId: localId,
+          serverId: Value(serverId),
+          cashierUserId: cashierUserId,
+          locationId: location.localId,
+          openedAt: openedAt,
+          closedAt: Value(closedAt),
+          openingCash: Value(openingCash),
+          closingCash: Value(closingCash),
+          cashDifference: Value(cashDifference),
+          closingNote: Value(closingNote),
+          closingSummaryLocked: Value(closingSummaryLocked),
+          createdAt: openedAt,
+          updatedAt: updatedAt,
+          syncStatus: SyncStatus.settled,
+        ));
       } else {
         await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(values);
       }
@@ -232,17 +146,9 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
 
   @override
   Future<void> reconcileDeleted(String serverId) async {
-    final row = await (_db.select(_db.cashDrawerShifts)
-          ..where((s) => s.serverId.equals(serverId)))
-        .getSingleOrNull();
+    final row = await (_db.select(_db.cashDrawerShifts)..where((s) => s.serverId.equals(serverId))).getSingleOrNull();
     if (row == null) return;
     final now = DateTime.now();
-    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(row.localId))).write(
-      CashDrawerShiftsCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncStatus.settled),
-      ),
-    );
+    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(row.localId))).write(CashDrawerShiftsCompanion(deletedAt: Value(now), updatedAt: Value(now), syncStatus: const Value(SyncStatus.settled)));
   }
 }
