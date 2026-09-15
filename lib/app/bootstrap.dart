@@ -115,12 +115,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final authApi = AuthApi(apiClient);
 
   unawaited(() async {
-    final session = await authApi.restoreServerSession(
-      supabaseUrl: SupabaseConfig.url,
-      publishableKey: SupabaseConfig.publishableKey,
-    );
-    if (session == null) return;
     try {
+      final session = await authApi.restoreServerSession(
+        supabaseUrl: SupabaseConfig.url,
+        publishableKey: SupabaseConfig.publishableKey,
+      );
+      if (session == null) return;
       await fulusConnectionState.refresh();
       final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
       if (active.length != 1) return;
@@ -133,7 +133,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         platform: Platform.operatingSystem,
         appVersion: package.version,
       );
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      await diagnosticLogger.captureError(
+        error: error,
+        stackTrace: stackTrace,
+        category: DiagnosticCategory.synchronization,
+        component: 'Bootstrap',
+        operation: 'restoreCloudSession',
+        severity: DiagnosticSeverity.warning,
+      );
+    }
   }());
 
   final auditRepository = AuditRepositoryImpl(db: database);
@@ -189,12 +198,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final locationSyncHandler = LocationSyncHandler(locationsApi: locationsApi, locationRepository: locationRepository);
-  final returnSyncHandler = ReturnSyncHandler(returnsApi: returnsApi, returnRepository: returnRepository);
+  final returnSyncHandler = ReturnSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, returnRepository: returnRepository);
   final expenseCategorySyncHandler = ExpenseCategorySyncHandler(expenseCategoriesApi: expenseCategoriesApi, expenseCategoryRepository: expenseCategoryRepository);
   final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(cashDrawerShiftsApi: cashDrawerShiftsApi, cashDrawerShiftRepository: cashDrawerShiftRepository);
-  final expenseSyncHandler = ExpenseSyncHandler(expensesApi: expensesApi, expenseRepository: expenseRepository);
+  final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository);
   final incomeSyncHandler = IncomeSyncHandler(incomeApi: incomeApi, incomeRecordRepository: incomeRecordRepository);
-  final stockMovementSyncHandler = StockMovementSyncHandler(db: database, stockMovementsApi: stockMovementsApi, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
+  final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
   final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final syncEngine = SyncEngine(
     db: database,
