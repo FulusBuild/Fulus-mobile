@@ -33,6 +33,8 @@ Future<void> main() async {
     validateStatus: (_) => true,
   ));
 
+  _printIdentityFingerprint('business_id', businessId);
+  _printIdentityFingerprint('device_client_id', deviceClientId);
   await _preflightDevice(dio, businessId: businessId);
 
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
@@ -138,6 +140,26 @@ Future<void> main() async {
       }
     }
   }
+}
+
+void _printIdentityFingerprint(String label, String value) {
+  final trimmed = value.trim();
+  stdout.writeln(
+    'E2E identity $label: length=${value.length}, '
+    'trimmed_length=${trimmed.length}, fingerprint=${_fingerprint(value)}, '
+    'trimmed_fingerprint=${_fingerprint(trimmed)}',
+  );
+}
+
+String _fingerprint(String value) {
+  // Non-secret diagnostic fingerprint. This avoids printing the actual
+  // identity while making exact CI-vs-local value comparisons possible.
+  var hash = 0xcbf29ce484222325;
+  for (final byte in value.codeUnits) {
+    hash ^= byte;
+    hash = (hash * 0x100000001b3) & 0xffffffffffffffff;
+  }
+  return hash.toRadixString(16).padLeft(16, '0');
 }
 
 Future<void> _preflightDevice(
