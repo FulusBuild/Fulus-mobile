@@ -46,18 +46,14 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<ProductWithStock?> getProductById(
-    String localId, {
-    required String locationId,
-  }) async {
+  Future<ProductWithStock?> getProductById(String localId, {required String locationId}) async {
     final query = _db.select(_db.products).join([
       leftOuterJoin(
         _db.productStockLevels,
         _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) &
             _db.productStockLevels.locationLocalId.equals(locationId),
       ),
-    ])
-      ..where(_db.products.localId.equals(localId));
+    ])..where(_db.products.localId.equals(localId));
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
   }
@@ -79,35 +75,27 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<ProductWithStock?> getProductByBarcode(
-    String barcode, {
-    required String locationId,
-  }) async {
+  Future<ProductWithStock?> getProductByBarcode(String barcode, {required String locationId}) async {
     final query = _db.select(_db.products).join([
       leftOuterJoin(
         _db.productStockLevels,
         _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) &
             _db.productStockLevels.locationLocalId.equals(locationId),
       ),
-    ])
-      ..where(_db.products.barcode.equals(barcode) & _db.products.deletedAt.isNull());
+    ])..where(_db.products.barcode.equals(barcode) & _db.products.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
   }
 
   @override
-  Future<ProductWithStock?> getProductBySku(
-    String sku, {
-    required String locationId,
-  }) async {
+  Future<ProductWithStock?> getProductBySku(String sku, {required String locationId}) async {
     final query = _db.select(_db.products).join([
       leftOuterJoin(
         _db.productStockLevels,
         _db.productStockLevels.productLocalId.equalsExp(_db.products.localId) &
             _db.productStockLevels.locationLocalId.equals(locationId),
       ),
-    ])
-      ..where(_db.products.sku.equals(sku) & _db.products.deletedAt.isNull());
+    ])..where(_db.products.sku.equals(sku) & _db.products.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     return row == null ? null : _mapRow(row);
   }
@@ -151,28 +139,18 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> reconcileStockLevel({
-    required String productLocalId,
-    required String locationId,
-    required int currentStock,
-  }) async {
-    final product = await (_db.select(_db.products)
-          ..where((p) => p.localId.equals(productLocalId)))
-        .getSingleOrNull();
-    if (product == null) {
-      throw StateError(
-        'reconcileStockLevel called for product $productLocalId, which this device has no local Products row for.',
-      );
-    }
+  Future<void> reconcileStockLevel({required String productLocalId, required String locationId, required int currentStock}) async {
+    final product = await (_db.select(_db.products)..where((p) => p.localId.equals(productLocalId))).getSingleOrNull();
+    if (product == null) throw StateError('reconcileStockLevel called for product $productLocalId, which this device has no local Products row for.');
     await _db.into(_db.productStockLevels).insertOnConflictUpdate(
-          ProductStockLevelsCompanion.insert(
-            productLocalId: productLocalId,
-            locationLocalId: locationId,
-            currentStock: Value(currentStock),
-            updatedAt: DateTime.now(),
-            syncStatus: SyncStatus.settled,
-          ),
-        );
+      ProductStockLevelsCompanion.insert(
+        productLocalId: productLocalId,
+        locationLocalId: locationId,
+        currentStock: Value(currentStock),
+        updatedAt: DateTime.now(),
+        syncStatus: SyncStatus.settled,
+      ),
+    );
   }
 
   @override
@@ -191,32 +169,30 @@ class ProductRepositoryImpl implements ProductRepository {
     DateTime? deletedAt,
     required List<ProductStockSnapshot> stockLevels,
   }) async {
-    final existing = await (_db.select(_db.products)
-          ..where((p) => p.serverId.equals(serverId)))
-        .getSingleOrNull();
+    final existing = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
 
     await _db.transaction(() async {
       if (existing == null) {
         await _db.into(_db.products).insert(
-              ProductsCompanion.insert(
-                localId: localId,
-                serverId: Value(serverId),
-                name: name,
-                sku: sku,
-                barcode: Value(barcode),
-                categoryId: Value(categoryId),
-                supplierId: Value(supplierId),
-                costPrice: costPrice,
-                sellingPrice: sellingPrice,
-                lowStockThreshold: Value(lowStockThreshold),
-                isActive: Value(isActive),
-                createdAt: updatedAt,
-                updatedAt: updatedAt,
-                deletedAt: Value(deletedAt),
-                syncStatus: const Value(SyncStatus.settled),
-              ),
-            );
+          ProductsCompanion.insert(
+            localId: localId,
+            serverId: Value(serverId),
+            name: name,
+            sku: sku,
+            barcode: Value(barcode),
+            categoryId: Value(categoryId),
+            supplierId: Value(supplierId),
+            costPrice: costPrice,
+            sellingPrice: sellingPrice,
+            lowStockThreshold: Value(lowStockThreshold),
+            isActive: Value(isActive),
+            createdAt: updatedAt,
+            updatedAt: updatedAt,
+            deletedAt: Value(deletedAt),
+            syncStatus: SyncStatus.settled,
+          ),
+        );
       } else {
         await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(
           ProductsCompanion(
@@ -238,32 +214,26 @@ class ProductRepositoryImpl implements ProductRepository {
       }
 
       for (final stock in stockLevels) {
-        final location = await (_db.select(_db.locations)
-              ..where((l) => l.serverId.equals(stock.locationServerId)))
-            .getSingleOrNull();
+        final location = await (_db.select(_db.locations)..where((l) => l.serverId.equals(stock.locationServerId))).getSingleOrNull();
         if (location == null) {
-          throw StateError(
-            'Canonical product $serverId references unknown location ${stock.locationServerId}.',
-          );
+          throw StateError('Canonical product $serverId references unknown location ${stock.locationServerId}.');
         }
         await _db.into(_db.productStockLevels).insertOnConflictUpdate(
-              ProductStockLevelsCompanion.insert(
-                productLocalId: localId,
-                locationLocalId: location.localId,
-                currentStock: Value(stock.currentStock),
-                updatedAt: stock.updatedAt ?? updatedAt,
-                syncStatus: SyncStatus.settled,
-              ),
-            );
+          ProductStockLevelsCompanion.insert(
+            productLocalId: localId,
+            locationLocalId: location.localId,
+            currentStock: Value(stock.currentStock),
+            updatedAt: stock.updatedAt ?? updatedAt,
+            syncStatus: SyncStatus.settled,
+          ),
+        );
       }
     });
   }
 
   @override
   Future<void> reconcileDeleted(String serverId) async {
-    final row = await (_db.select(_db.products)
-          ..where((p) => p.serverId.equals(serverId)))
-        .getSingleOrNull();
+    final row = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     if (row == null) return;
     final now = DateTime.now();
     await (_db.update(_db.products)..where((p) => p.localId.equals(row.localId))).write(
@@ -278,12 +248,8 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<Product> createProduct(ProductDraft draft) async {
-    if (draft.sellingPrice <= 0) {
-      throw ArgumentError.value(draft.sellingPrice, 'sellingPrice', 'must be > 0');
-    }
-    if (draft.costPrice < 0) {
-      throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
-    }
+    if (draft.sellingPrice <= 0) throw ArgumentError.value(draft.sellingPrice, 'sellingPrice', 'must be > 0');
+    if (draft.costPrice < 0) throw ArgumentError.value(draft.costPrice, 'costPrice', 'must be >= 0');
     final existingSku = await (_db.select(_db.products)..where((p) => p.sku.equals(draft.sku) & p.deletedAt.isNull())).getSingleOrNull();
     if (existingSku != null) throw ArgumentError.value(draft.sku, 'sku', 'already exists');
     if (draft.barcode != null && draft.barcode!.isNotEmpty) {
@@ -294,35 +260,16 @@ class ProductRepositoryImpl implements ProductRepository {
     final product = draft.toProductEntity(localId: localId);
     await _db.transaction(() async {
       await _db.into(_db.products).insert(product.toDriftCompanion());
-      await reconcileStockLevel(
-        productLocalId: localId,
-        locationId: draft.locationId,
-        currentStock: draft.initialStock,
-      );
+      await reconcileStockLevel(productLocalId: localId, locationId: draft.locationId, currentStock: draft.initialStock);
       await _syncQueue.enqueue(SyncTask.createProduct(localId));
     });
     return product;
   }
 
   @override
-  Future<void> updateProduct({
-    required String localId,
-    String? name,
-    String? sku,
-    String? barcode,
-    String? categoryId,
-    String? supplierId,
-    double? costPrice,
-    double? sellingPrice,
-    int? lowStockThreshold,
-    bool? isActive,
-  }) async {
-    if (sellingPrice != null && sellingPrice <= 0) {
-      throw ArgumentError.value(sellingPrice, 'sellingPrice', 'must be > 0');
-    }
-    if (costPrice != null && costPrice < 0) {
-      throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
-    }
+  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, double? costPrice, double? sellingPrice, int? lowStockThreshold, bool? isActive}) async {
+    if (sellingPrice != null && sellingPrice <= 0) throw ArgumentError.value(sellingPrice, 'sellingPrice', 'must be > 0');
+    if (costPrice != null && costPrice < 0) throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
     if (current == null) throw StateError('Product $localId does not exist.');
     if (sku != null) {
@@ -372,20 +319,12 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<void> markSynced({required String localId, required String serverId}) async {
     await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(
-      ProductsCompanion(
-        serverId: Value(serverId),
-        syncStatus: Value(SyncStatus.settled),
-      ),
+      ProductsCompanion(serverId: Value(serverId), syncStatus: Value(SyncStatus.settled)),
     );
   }
 
   @override
-  Future<void> setLocalOverrides({
-    required String productLocalId,
-    bool? tracksStock,
-    String? unit,
-    String? photoPath,
-  }) async {
+  Future<void> setLocalOverrides({required String productLocalId, bool? tracksStock, String? unit, String? photoPath}) async {
     await (_db.update(_db.products)..where((p) => p.localId.equals(productLocalId))).write(
       ProductsCompanion(
         tracksStock: tracksStock == null ? const Value.absent() : Value(tracksStock),
