@@ -89,10 +89,6 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       await _syncQueue.enqueue(SyncTask.updateExpense(localId));
     });
 
-    // Never throws (see AuditRepository.log's own doc comment) — an
-    // audit-write failure must never turn a successful edit into a
-    // reported failure, same reasoning as every other post-write side
-    // effect in this codebase.
     await _auditRepository.log(
       userId: userId,
       action: 'expense.updated',
@@ -144,8 +140,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required String localId,
     required String serverId,
   }) async {
-    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId)))
-        .write(
+    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
       ExpensesCompanion(
         serverId: Value(serverId),
         syncStatus: const Value(SyncStatus.settled),
@@ -159,8 +154,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required String localId,
     required String? photoPath,
   }) async {
-    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId)))
-        .write(
+    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
       ExpensesCompanion(
         receiptPhotoPath: Value(photoPath),
         syncStatus: const Value(SyncStatus.pending),
@@ -168,5 +162,86 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       ),
     );
     await _syncQueue.enqueue(SyncTask.updateExpense(localId));
+  }
+
+  @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String locationServerId,
+    String? categoryId,
+    required String description,
+    required double amount,
+    required DateTime expenseDate,
+    String? paymentMethod,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    await _db.transaction(() async {
+      final location = await (_db.select(_db.locations)
+            ..where((l) => l.serverId.equals(locationServerId)))
+          .getSingleOrNull();
+      if (location == null) {
+        throw StateError(
+          'Canonical expense $serverId references unknown location $locationServerId.',
+        );
+      }
+
+      final existing = await (_db.select(_db.expenses)
+            ..where((e) => e.serverId.equals(serverId)))
+          .getSingleOrNull();
+      final localId = existing?.localId ?? Ulid().toString();
+
+      if (existing == null) {
+        await _db.into(_db.expenses).insert(
+              ExpensesCompanion.insert(
+                localId: localId,
+                serverId: Value(serverId),
+                locationId: location.localId,
+                categoryId: Value(categoryId),
+                description: description,
+                amount: amount,
+                expenseDate: expenseDate,
+                paymentMethod: Value(paymentMethod),
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: Value(deletedAt),
+                syncStatus: SyncStatus.settled,
+              ),
+            );
+      } else {
+        await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
+          ExpensesCompanion(
+            serverId: Value(serverId),
+            locationId: Value(location.localId),
+            categoryId: Value(categoryId),
+            description: Value(description),
+            amount: Value(amount),
+            expenseDate: Value(expenseDate),
+            paymentMethod: Value(paymentMethod),
+            updatedAt: Value(updatedAt),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    final row = await (_db.select(_db.expenses)
+          ..where((e) => e.serverId.equals(serverId)))
+        .getSingleOrNull();
+    if (row == null) return;
+
+    final now = DateTime.now();
+    await (_db.update(_db.expenses)..where((e) => e.localId.equals(row.localId))).write(
+      ExpensesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncStatus.settled),
+      ),
+    );
   }
 }
