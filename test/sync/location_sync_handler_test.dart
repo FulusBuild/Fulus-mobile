@@ -23,6 +23,10 @@ void main() {
   late LocationRepositoryImpl locationRepository;
   late LocationSyncHandler handler;
 
+  setUpAll(() {
+    registerFallbackValue(const LocationCreateDto(name: 'fallback'));
+  });
+
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     locationsApi = MockLocationsApi();
