@@ -27,11 +27,28 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
   // Cache the startup future so rebuilds do not repeat the local checks.
   late Future<(bool, bool, bool)> _stageInputsFuture = _loadStageInputs();
 
+  Never _startupFailure(String phase, Object error) {
+    throw StateError(
+      'STARTUP_${phase}_FAILED: ${error.runtimeType}: $error',
+    );
+  }
+
   Future<(bool, bool, bool)> _loadStageInputs() async {
-    final hasOwnerAccount =
-        await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
-    final businessConfigured =
-        await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    late final bool hasOwnerAccount;
+    try {
+      hasOwnerAccount =
+          await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
+    } catch (error) {
+      _startupFailure('AUTH_CHECK', error);
+    }
+
+    late final bool businessConfigured;
+    try {
+      businessConfigured =
+          await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    } catch (error) {
+      _startupFailure('BUSINESS_CHECK', error);
+    }
 
     // Durable-backup discovery is best-effort. It is useful for detecting
     // a backup that survived an uninstall, but it must never prevent a
@@ -62,11 +79,15 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
     );
 
     if (stage == AuthGateStage.needsAccountCreation) {
-      final onboardingState = ref.read(onboardingStateProvider);
-      if (onboardingState.walkthroughNotStarted) {
-        await onboardingState.advanceWalkthroughTo(OnboardingStep.welcome);
-        ref.read(walkthroughStepProvider.notifier).state =
-            OnboardingStep.welcome;
+      try {
+        final onboardingState = ref.read(onboardingStateProvider);
+        if (onboardingState.walkthroughNotStarted) {
+          await onboardingState.advanceWalkthroughTo(OnboardingStep.welcome);
+          ref.read(walkthroughStepProvider.notifier).state =
+              OnboardingStep.welcome;
+        }
+      } catch (error) {
+        _startupFailure('ONBOARDING_STATE', error);
       }
     }
     return (hasOwnerAccount, businessConfigured, hasDetectedBackup);
@@ -78,9 +99,13 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
       future: _stageInputsFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          final error = snapshot.error.toString().replaceFirst(
+                'Bad state: ',
+                '',
+              );
           return FulusScreen(
             body: Center(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -91,7 +116,12 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Please try opening the app again.',
+                      'Startup diagnostic:',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    SelectableText(
+                      error,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
