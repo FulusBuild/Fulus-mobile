@@ -26,18 +26,22 @@ class FulusConnectionState extends ChangeNotifier {
   FulusMembershipContext? _membershipContext;
   String? _selectedBusinessId;
   bool _loading = false;
+  bool _syncReady = false;
 
   FulusMembershipContext? get membershipContext => _membershipContext;
   String? get selectedBusinessId => _selectedBusinessId;
   bool get isLoading => _loading;
   FulusRegisteredDevice? get registeredDevice => _registeredDevice;
   bool get isDeviceAuthorized => _registeredDevice?.status == 'active';
+  bool get isSyncReady =>
+      _syncReady && isConnected && isDeviceAuthorized;
 
   bool get isConnected =>
       _selectedBusinessId != null && _selectedBusinessId!.isNotEmpty;
 
   Future<void> refresh() async {
     _loading = true;
+    _syncReady = false;
     notifyListeners();
     try {
       final context = await _businessContext.fetch();
@@ -53,6 +57,23 @@ class FulusConnectionState extends ChangeNotifier {
     }
   }
 
+  void markSyncReady() {
+    if (!isConnected || !isDeviceAuthorized) {
+      throw StateError(
+        'Cannot mark Fulus Cloud sync ready without an active business and registered device.',
+      );
+    }
+    if (_syncReady) return;
+    _syncReady = true;
+    notifyListeners();
+  }
+
+  void clearSyncReady() {
+    if (!_syncReady) return;
+    _syncReady = false;
+    notifyListeners();
+  }
+
   Future<FulusRegisteredDevice> registerDevice({
     required String deviceClientId,
     String? deviceName,
@@ -63,6 +84,7 @@ class FulusConnectionState extends ChangeNotifier {
     if (businessId == null) {
       throw StateError('Select an active business before registering the device.');
     }
+    clearSyncReady();
     final device = await _deviceRegistration.register(
       businessId: businessId,
       deviceClientId: deviceClientId,
@@ -139,7 +161,10 @@ class FulusConnectionState extends ChangeNotifier {
     final businessId = _selectedBusinessId;
     if (api == null || businessId == null) throw StateError('Fulus cloud staff access is unavailable.');
     final revoked = await api.revokeDevice(businessId: businessId, deviceId: deviceId);
-    if (revoked && _registeredDevice?.id == deviceId) _registeredDevice = null;
+    if (revoked && _registeredDevice?.id == deviceId) {
+      _registeredDevice = null;
+      _syncReady = false;
+    }
     notifyListeners();
     return revoked;
   }
@@ -164,6 +189,7 @@ class FulusConnectionState extends ChangeNotifier {
     if (_selectedBusinessId == businessId) return;
     _selectedBusinessId = businessId;
     _registeredDevice = null;
+    _syncReady = false;
     unawaited(_syncOnboardingBusiness(businessId));
     notifyListeners();
   }
@@ -172,6 +198,7 @@ class FulusConnectionState extends ChangeNotifier {
     if (_selectedBusinessId == null && _registeredDevice == null) return;
     _selectedBusinessId = null;
     _registeredDevice = null;
+    _syncReady = false;
     unawaited(_syncOnboardingBusiness(null));
     notifyListeners();
   }
