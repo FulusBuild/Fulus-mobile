@@ -14,6 +14,8 @@ class _MockReturnCanonicalRepository extends Mock implements ReturnCanonicalRepo
 void main() {
   test('maps canonical sale aggregate and rejects delete as outbound work', () async {
     final repository = _MockSaleCanonicalRepository();
+    when(() => repository.reconcileServerState(any())).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     final reconciler = FulusSaleCanonicalReconciler(repository: repository);
     final response = FulusCanonicalEntityResponse.fromJson({
       'data': {
@@ -65,6 +67,8 @@ void main() {
 
   test('maps canonical return aggregate', () async {
     final repository = _MockReturnCanonicalRepository();
+    when(() => repository.reconcileServerState(any())).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     final reconciler = FulusReturnCanonicalReconciler(repository: repository);
     final response = FulusCanonicalEntityResponse.fromJson({
       'data': {
@@ -100,6 +104,8 @@ void main() {
   test('routes sale and return deletes without outbound writes', () async {
     final saleRepository = _MockSaleCanonicalRepository();
     final returnRepository = _MockReturnCanonicalRepository();
+    when(() => saleRepository.reconcileDeleted(any())).thenAnswer((_) async {});
+    when(() => returnRepository.reconcileDeleted(any())).thenAnswer((_) async {});
     final saleReconciler = FulusSaleCanonicalReconciler(repository: saleRepository);
     final returnReconciler = FulusReturnCanonicalReconciler(repository: returnRepository);
 
