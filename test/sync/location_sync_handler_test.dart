@@ -1,4 +1,5 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/remote/endpoints/locations_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/location_repository_impl.dart';
@@ -9,11 +10,13 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+class MockLocationsApi extends Mock implements LocationsApi {}
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 
 void main() {
   late AppDatabase db;
+  late MockLocationsApi locationsApi;
   late MockFulusSyncApi fulusSyncApi;
   late MockFulusConnectionState connectionState;
   late LocationRepositoryImpl locationRepository;
@@ -21,11 +24,12 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    locationsApi = MockLocationsApi();
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     locationRepository = LocationRepositoryImpl(
       db: db,
-      locationsApi: throw StateError('legacy LocationsApi must not be used'),
+      locationsApi: locationsApi,
       syncQueue: SyncQueue(db),
     );
     handler = LocationSyncHandler(
@@ -79,6 +83,8 @@ void main() {
       clientReference: location.localId,
       payload: any(named: 'payload'),
     )).called(1);
+
+    verifyNever(() => locationsApi.createLocation(any()));
 
     final updated = await locationRepository.getLocationById(location.localId);
     expect(updated!.serverId, 'server-loc-1');
