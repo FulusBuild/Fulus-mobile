@@ -8,10 +8,11 @@ import '../core/errors/failure.dart';
 import '../data/local/database/database.dart';
 import 'conflict_resolver.dart';
 import 'retry_policy.dart';
+import 'sync_error.dart';
 import 'sync_handler.dart';
 
-/// Queue-draining engine. A failed item remains durable in the queue, while
-/// independent items are still given a chance to sync in the same run.
+/// Durable queue-draining engine. A failed item remains in the queue, while
+/// independent items still get a chance to sync in the same cycle.
 class SyncEngine {
   SyncEngine({
     required AppDatabase db,
@@ -109,6 +110,8 @@ class SyncEngine {
       try {
         await handler.sync(item);
         await _removeFromQueue(item.id);
+      } on SyncFailure catch (e, st) {
+        await _handleClassifiedFailure(item, e, st);
       } on BusinessRuleFailure catch (e, st) {
         final message = _conflictResolver.looksLikeConflict(e.message)
             ? _conflictResolver.annotate(e.message)
@@ -122,20 +125,32 @@ class SyncEngine {
         await _markAttentionNeeded(item.id, error: e.message);
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
       } catch (e, st) {
-        final attempts = item.syncAttempts + 1;
-        if (attempts >= maxAttemptsBeforeAttentionNeeded) {
-          await _markAttentionNeeded(item.id, error: e.toString());
-          unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
-        } else {
-          await _recordAttempt(item.id, attempts: attempts, error: e.toString());
-        }
-        // One failed queue item must not prevent independent items from
-        // syncing. This matters especially during migration from the old
-        // API layer: a stale/unsupported item should not starve newer Fulus
-        // cloud operations behind it.
-        continue;
+        final classified = SyncFailure.classify(e);
+        await _handleClassifiedFailure(item, classified, st);
       }
     }
+  }
+
+  Future<void> _handleClassifiedFailure(
+    SyncQueueItem item,
+    SyncFailure failure,
+    StackTrace stackTrace,
+  ) async {
+    final attempts = item.syncAttempts + 1;
+    if (!failure.shouldRetry || attempts >= maxAttemptsBeforeAttentionNeeded) {
+      await _markAttentionNeeded(item.id, error: failure.message);
+    } else {
+      await _recordAttempt(
+        item.id,
+        attempts: attempts,
+        error: failure.message,
+      );
+    }
+    unawaited(_captureSyncFailure(
+      item: item,
+      error: failure,
+      stackTrace: stackTrace,
+    ));
   }
 
   Future<void> _captureSyncFailure({
@@ -155,7 +170,9 @@ class SyncEngine {
       context: {
         'Entity type': '${item.entityType}',
         'Sync attempts': '${item.syncAttempts}',
-        'syncOutcome': 'attentionNeeded',
+        'syncOutcome': error is SyncFailure && error.shouldRetry
+            ? 'retry'
+            : 'attentionNeeded',
       },
     );
   }
