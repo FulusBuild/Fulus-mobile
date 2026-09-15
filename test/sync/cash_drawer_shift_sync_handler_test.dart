@@ -2,7 +2,9 @@ import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/domain/entities/cash_drawer_shift.dart';
+import 'package:fulus_mobile/domain/entities/location.dart';
 import 'package:fulus_mobile/domain/repositories/cash_drawer_shift_repository.dart';
+import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 import 'package:fulus_mobile/sync/handlers/cash_drawer_shift_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,11 +13,13 @@ import 'package:mocktail/mocktail.dart';
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 class MockCashDrawerShiftRepository extends Mock implements CashDrawerShiftRepository {}
+class MockLocationRepository extends Mock implements LocationRepository {}
 
 void main() {
   late MockFulusSyncApi fulusSyncApi;
   late MockFulusConnectionState connectionState;
   late MockCashDrawerShiftRepository repository;
+  late MockLocationRepository locationRepository;
   late CashDrawerShiftSyncHandler handler;
 
   final opened = DateTime(2026, 9, 15, 8);
@@ -33,15 +37,24 @@ void main() {
     closingNote: 'Balanced',
     closingSummaryLocked: true,
   );
+  final location = Location(
+    localId: 'loc-1',
+    serverId: 'server-location-1',
+    name: 'Main Store',
+    createdAt: DateTime(2026, 1, 1),
+    updatedAt: DateTime(2026, 1, 1),
+  );
 
   setUp(() {
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     repository = MockCashDrawerShiftRepository();
+    locationRepository = MockLocationRepository();
     handler = CashDrawerShiftSyncHandler(
       fulusSyncApi: fulusSyncApi,
       fulusConnectionState: connectionState,
       cashDrawerShiftRepository: repository,
+      locationRepository: locationRepository,
     );
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
     when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
@@ -51,6 +64,7 @@ void main() {
       status: 'active',
     ));
     when(() => repository.getShiftById('shift-local-1')).thenAnswer((_) async => shift);
+    when(() => locationRepository.getLocationById('loc-1')).thenAnswer((_) async => location);
   });
 
   SyncQueueItem item(String operation) => SyncQueueItem(
@@ -63,7 +77,7 @@ void main() {
         syncAttempts: 0,
       );
 
-  test('pushes shift open through Fulus Cloud and settles the local row', () async {
+  test('pushes shift open through Fulus Cloud and uses server location id', () async {
     when(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'),
           operationType: any(named: 'operationType'),
@@ -77,18 +91,16 @@ void main() {
 
     await handler.sync(item('create'));
 
-    verify(() => fulusSyncApi.submitOperation(
+    final captured = verify(() => fulusSyncApi.submitOperation(
           businessId: 'business-1',
           operationType: 'cash_drawer_shift.create',
           operationId: 'open-op-1',
           deviceClientId: 'device-client-1',
           clientReference: shift.localId,
-          payload: any(named: 'payload'),
-        )).called(1);
-    verify(() => repository.markSynced(
-          localId: shift.localId,
-          serverId: 'shift-server-1',
-        )).called(1);
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-1');
+    verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1')).called(1);
   });
 
   test('pushes shift close through Fulus Cloud using the existing server row', () async {
@@ -113,10 +125,7 @@ void main() {
           clientReference: shift.localId,
           payload: any(named: 'payload'),
         )).called(1);
-    verify(() => repository.markSynced(
-          localId: shift.localId,
-          serverId: 'shift-server-1',
-        )).called(1);
+    verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1')).called(1);
   });
 
   test('blocks a close when the create has not produced a server id', () async {
@@ -129,10 +138,7 @@ void main() {
     );
     when(() => repository.getShiftById(shift.localId)).thenAnswer((_) async => localOnly);
 
-    await expectLater(
-      handler.sync(item('close')),
-      throwsA(isA<StateError>()),
-    );
+    await expectLater(handler.sync(item('close')), throwsA(isA<StateError>()));
     verifyNever(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'),
           operationType: any(named: 'operationType'),
