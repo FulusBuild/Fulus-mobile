@@ -64,6 +64,14 @@ class FulusSyncApi {
           ..['action'] = 'sale_create';
       }
 
+      if (operationType == 'customer.repayment') {
+        body
+          ..remove('operation_type')
+          ..remove('payload')
+          ..addAll(rawPayload)
+          ..['action'] = 'customer_repayment';
+      }
+
       if (operationType.startsWith('product.') ||
           operationType.startsWith('category.') ||
           operationType.startsWith('supplier.')) {
