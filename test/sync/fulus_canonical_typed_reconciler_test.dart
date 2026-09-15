@@ -6,6 +6,7 @@ class _FakeApi implements FulusCanonicalEntityFetcher {
   _FakeApi(this.response);
 
   final FulusCanonicalEntityResponse response;
+  int fetchCount = 0;
 
   @override
   Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
@@ -13,8 +14,23 @@ class _FakeApi implements FulusCanonicalEntityFetcher {
     required String entityType,
     required String entityId,
     required String deviceClientId,
-  }) async => response;
+  }) async {
+    fetchCount++;
+    return response;
+  }
 }
+
+FulusSyncChange _change({
+  String entityType = 'customer',
+  String operation = 'upsert',
+}) => FulusSyncChange(
+      sequence: 1,
+      entityType: entityType,
+      entityId: 'customer-1',
+      operation: operation,
+      payload: const {},
+      createdAt: DateTime.utc(2026, 1, 1),
+    );
 
 void main() {
   test('routes canonical state to the typed entity handler', () async {
@@ -37,14 +53,7 @@ void main() {
     );
 
     await reconciler.reconcile(
-      FulusSyncChange(
-        sequence: 1,
-        entityType: 'customer',
-        entityId: 'customer-1',
-        operation: 'upsert',
-        payload: const {},
-        createdAt: DateTime.utc(2026, 1, 1),
-      ),
+      _change(),
       businessId: 'business-1',
       deviceClientId: 'device-1',
     );
@@ -53,7 +62,6 @@ void main() {
   });
 
   test('unknown entities fail before canonical fetch', () async {
-    var fetched = false;
     final api = _FakeApi(FulusCanonicalEntityResponse.fromJson({
       'data': {
         'entity_type': 'customer',
@@ -67,23 +75,39 @@ void main() {
     );
 
     expect(
-      () async {
-        fetched = true;
-        await reconciler.reconcile(
-          FulusSyncChange(
-            sequence: 1,
-            entityType: 'customer',
-            entityId: 'customer-1',
-            operation: 'upsert',
-            payload: const {},
-            createdAt: DateTime.utc(2026, 1, 1),
-          ),
-          businessId: 'business-1',
-          deviceClientId: 'device-1',
-        );
-      },
+      () => reconciler.reconcile(
+        _change(),
+        businessId: 'business-1',
+        deviceClientId: 'device-1',
+      ),
       throwsStateError,
     );
-    expect(fetched, isFalse);
+    expect(api.fetchCount, 0);
+  });
+
+  test('unsupported operations fail before canonical fetch', () async {
+    final api = _FakeApi(FulusCanonicalEntityResponse.fromJson({
+      'data': {
+        'entity_type': 'customer',
+        'entity_id': 'customer-1',
+        'operation': 'upsert',
+      },
+    }));
+    final reconciler = FulusCanonicalTypedReconciler(
+      api: api,
+      handlers: {
+        'customer': (_) async {},
+      },
+    );
+
+    expect(
+      () => reconciler.reconcile(
+        _change(operation: 'patch'),
+        businessId: 'business-1',
+        deviceClientId: 'device-1',
+      ),
+      throwsStateError,
+    );
+    expect(api.fetchCount, 0);
   });
 }
