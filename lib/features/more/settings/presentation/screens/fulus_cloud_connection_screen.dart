@@ -174,14 +174,27 @@ class _FulusCloudConnectionScreenState
         publishableKey: SupabaseConfig.publishableKey,
       );
       final connection = ref.read(fulusConnectionStateProvider);
-      await connection.refresh();
-      final active = connection.membershipContext?.memberships
-          .where((m) => m.status == 'active').toList(growable: false) ?? const [];
-      if (active.length == 1) {
-        connection.selectBusiness(active.first.businessId);
-        await _registerDevice(connection);
-        await _enableAutomaticSync();
+      List<dynamic> active = const [];
+      for (var attempt = 0; attempt < 3; attempt++) {
+        await connection.refresh();
+        active = connection.membershipContext?.memberships
+                .where((m) => m.status == 'active')
+                .toList(growable: false) ??
+            const [];
+        if (active.length == 1) break;
+        if (attempt < 2) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        }
       }
+      if (active.length != 1) {
+        throw StateError(
+          'Business setup completed, but the new business membership is not available yet. '
+          'Please try connecting again in a moment.',
+        );
+      }
+      connection.selectBusiness(active.first.businessId);
+      await _registerDevice(connection);
+      await _enableAutomaticSync();
       if (mounted) {
         showFulusSnackbar(context, message: 'You’re ready. Fulus will sync automatically when you’re online.');
         Navigator.of(context).popUntil((route) => route.isFirst);
