@@ -134,31 +134,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final authApi = AuthApi(apiClient);
   final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
 
-  unawaited(() async {
-    try {
-      final session = await authApi.restoreServerSession(
-        supabaseUrl: SupabaseConfig.url,
-        publishableKey: SupabaseConfig.publishableKey,
-      );
-      if (session == null) return;
-      await fulusConnectionState.refresh();
-      final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
-      if (active.length != 1) return;
-      fulusConnectionState.selectBusiness(active.first.businessId);
-      final package = await PackageInfo.fromPlatform();
-      await fulusConnectionState.registerDevice(
-        deviceClientId: deviceClientId,
-        deviceName: 'Fulus Mobile',
-        platform: Platform.operatingSystem,
-        appVersion: package.version,
-      );
-    } catch (error) {
-      diagnosticLogger.breadcrumb(
-        'Fulus Cloud startup initialization failed: ${error.runtimeType}',
-      );
-    }
-  }());
-
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
@@ -278,11 +253,35 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
   final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService);
-  final syncTriggers = SyncTriggers(
+  late final SyncTriggers syncTriggers;
+
+  Future<void> initializeCloudSync() async {
+    final session = await authApi.restoreServerSession(
+      supabaseUrl: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
+    if (session == null) return;
+    await fulusConnectionState.refresh();
+    final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
+    if (active.length != 1) return;
+    fulusConnectionState.selectBusiness(active.first.businessId);
+    final package = await PackageInfo.fromPlatform();
+    await fulusConnectionState.registerDevice(
+      deviceClientId: deviceClientId,
+      deviceName: 'Fulus Mobile',
+      platform: Platform.operatingSystem,
+      appVersion: package.version,
+    );
+    await syncTriggers.reconcileAfterRestore();
+    fulusConnectionState.markSyncReady();
+  }
+
+  syncTriggers = SyncTriggers(
     syncEngine: syncEngine,
     syncConfig: syncConfig,
     syncStatusNotifier: syncStatusNotifier,
     isReady: () async => fulusConnectionState.isSyncReady,
+    onNotReady: initializeCloudSync,
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
       final businessId = fulusConnectionState.selectedBusinessId;
@@ -362,8 +361,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       cameraServiceProvider.overrideWithValue(cameraService),
       searchRepositoryProvider.overrideWithValue(searchRepository),
       globalSearchProvider.overrideWithValue(globalSearch),
-      exportServiceProvider.overrideWithValue(exportService),
-      importProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),
+      exportProductsFromCsvProvider.overrideWithValue(importProductsFromCsv),
       employeeRepositoryProvider.overrideWithValue(employeeRepository),
       receiptRepositoryProvider.overrideWithValue(receiptRepository),
       backupRepositoryProvider.overrideWithValue(backupRepository),
