@@ -44,14 +44,12 @@ abstract class CustomerRepository {
   /// local-only constraint applies.
   Future<void> restoreCustomer(String localId);
 
-  /// Applies server-authoritative customer fields without enqueueing a
-  /// new outbound sync task. This is deliberately separate from the
-  /// user-facing write methods above: a server change arriving from
-  /// another device must never bounce back to the server as a new local
-  /// write. Local-only fields such as creditLimit, purchaseCount,
-  /// loyaltyThreshold and photoPath are preserved.
+  /// Applies a canonical server snapshot without enqueueing an outbound
+  /// sync task. If the server entity is already known locally, its local
+  /// identity and local-only fields are preserved. If it is new to this
+  /// device, a new local identity is allocated. This is an upsert, not a
+  /// push, so a server change can never bounce back through SyncQueue.
   Future<void> reconcileServerState({
-    required String localId,
     required String serverId,
     required String name,
     String? phone,
@@ -65,14 +63,15 @@ abstract class CustomerRepository {
   });
 
   /// Applies a canonical delete without enqueueing an outbound task.
-  Future<void> reconcileDeleted(String localId);
+  /// Missing local rows are intentionally a no-op: there is nothing to
+  /// reconcile on this device.
+  Future<void> reconcileDeleted(String serverId);
 
   /// Reconciles a locally-created customer with the server's own
   /// identity once the sync engine's handler for this entity type
   /// successfully pushes it — same role as SaleRepository.markSynced.
   /// [duplicateWarning] is CustomerResponseDto's own field, passed
-  /// through verbatim when the create response carried one — see that
-  /// DTO's doc comment for exactly how far this gets taken.
+  /// through verbatim when the create response carried one.
   Future<void> markSynced({
     required String localId,
     required String serverId,
