@@ -63,6 +63,9 @@ void main() {
       businessId: any(named: 'businessId'), operationType: any(named: 'operationType'), operationId: any(named: 'operationId'),
       deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
     )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-1', 'current_stock': 45}});
+    when(() => productRepository.reconcileStockLevel(
+      productLocalId: productLocalId, locationId: locationId, currentStock: 45,
+    )).thenAnswer((_) async {});
     await handler.sync(itemFor(movement.localId));
     verify(() => fulusSyncApi.submitOperation(
       businessId: 'business-1', operationType: 'stock_movement.create', operationId: 'q1', deviceClientId: 'device-client-1',
