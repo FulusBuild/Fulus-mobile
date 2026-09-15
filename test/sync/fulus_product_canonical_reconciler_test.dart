@@ -3,12 +3,23 @@ import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_product_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
+import 'package:fulus_mobile/domain/entities/product.dart';
 
 class _MockProductRepository extends Mock implements ProductRepository {}
 
 void main() {
   late _MockProductRepository repository;
   late FulusProductCanonicalReconciler reconciler;
+
+  setUpAll(() {
+    registerFallbackValue(const ProductDraft(
+      name: 'fallback',
+      sku: 'fallback',
+      costPrice: 0,
+      sellingPrice: 1,
+      locationId: 'fallback',
+    ));
+  });
 
   setUp(() {
     repository = _MockProductRepository();
@@ -121,7 +132,7 @@ void main() {
       },
     });
 
-    expect(reconciler.apply(response), throwsStateError);
+    await expectLater(reconciler.apply(response), throwsStateError);
     verifyNever(() => repository.reconcileServerState(
           serverId: any(named: 'serverId'),
           name: any(named: 'name'),
