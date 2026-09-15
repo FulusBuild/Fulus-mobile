@@ -1,15 +1,47 @@
 import 'package:dio/dio.dart';
 
+import '../../core/config/supabase_config.dart';
 import 'api_client.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
 class FulusSyncApi {
-  FulusSyncApi({required ApiClient client, required String functionBaseUrl})
-      : _client = client,
-        _functionBaseUrl = functionBaseUrl;
+  FulusSyncApi({
+    required ApiClient client,
+    required String functionBaseUrl,
+    String? canonicalStateFunctionUrl,
+  })  : _client = client,
+        _functionBaseUrl = functionBaseUrl,
+        _canonicalStateFunctionUrl =
+            canonicalStateFunctionUrl ??
+                '${SupabaseConfig.url}/functions/v1/fulus-sync-state';
 
   final ApiClient _client;
   final String _functionBaseUrl;
+  final String _canonicalStateFunctionUrl;
+
+  Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
+    required String businessId,
+    required String entityType,
+    required String entityId,
+    required String deviceClientId,
+  }) async {
+    try {
+      final response = await _client.dio.get(
+        _canonicalStateFunctionUrl,
+        queryParameters: {
+          'business_id': businessId,
+          'entity_type': entityType,
+          'entity_id': entityId,
+        },
+        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+      );
+      return FulusCanonicalEntityResponse.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
 
   Future<FulusSyncPullResponse> pullChanges({
     required String businessId,
@@ -165,6 +197,26 @@ class FulusSyncApi {
         if (_client.serverAccessToken != null)
           'Authorization': 'Bearer ${_client.serverAccessToken}',
       };
+}
+
+class FulusCanonicalEntityResponse {
+  const FulusCanonicalEntityResponse({required this.data});
+
+  final Map<String, dynamic> data;
+
+  String get entityType => data['entity_type'] as String;
+  String get entityId => data['entity_id'] as String;
+  String get operation => data['operation'] as String;
+
+  factory FulusCanonicalEntityResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    if (rawData is! Map) {
+      throw const FormatException('Invalid canonical sync response.');
+    }
+    return FulusCanonicalEntityResponse(
+      data: Map<String, dynamic>.from(rawData),
+    );
+  }
 }
 
 class FulusSyncPullResponse {
