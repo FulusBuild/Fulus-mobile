@@ -15,6 +15,8 @@ import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
 import '../data/remote/fulus_connection_state.dart';
+import '../data/remote/fulus_device_registration.dart';
+import '../data/remote/fulus_staff_access_api.dart';
 import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
@@ -406,6 +408,18 @@ final cashDrawerShiftRepositoryProvider =
 final fulusBusinessContextProvider = Provider<FulusBusinessContext>((ref) {
   throw UnimplementedError(
     'fulusBusinessContextProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final fulusDeviceRegistrationProvider = Provider<FulusDeviceRegistration>((ref) {
+  throw UnimplementedError(
+    'fulusDeviceRegistrationProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final fulusStaffAccessApiProvider = Provider<FulusStaffAccessApi>((ref) {
+  throw UnimplementedError(
+    'fulusStaffAccessApiProvider must be overridden in bootstrap.dart.',
   );
 });
 
