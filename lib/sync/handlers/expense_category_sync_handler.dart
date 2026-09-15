@@ -1,17 +1,20 @@
 import '../../data/local/database/database.dart';
-import '../../data/remote/endpoints/expense_categories_api.dart';
-import '../../domain/entities/expense_category.dart';
+import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/expense_category_repository.dart';
 import '../sync_handler.dart';
 
 class ExpenseCategorySyncHandler implements SyncHandler {
   ExpenseCategorySyncHandler({
-    required ExpenseCategoriesApi expenseCategoriesApi,
+    required FulusSyncApi fulusSyncApi,
+    required FulusConnectionState fulusConnectionState,
     required ExpenseCategoryRepository expenseCategoryRepository,
-  })  : _expenseCategoriesApi = expenseCategoriesApi,
+  })  : _fulusSyncApi = fulusSyncApi,
+        _fulusConnectionState = fulusConnectionState,
         _expenseCategoryRepository = expenseCategoryRepository;
 
-  final ExpenseCategoriesApi _expenseCategoriesApi;
+  final FulusSyncApi _fulusSyncApi;
+  final FulusConnectionState _fulusConnectionState;
   final ExpenseCategoryRepository _expenseCategoryRepository;
 
   @override
@@ -23,8 +26,8 @@ class ExpenseCategorySyncHandler implements SyncHandler {
       );
     }
 
-    final category =
-        await _expenseCategoryRepository.getExpenseCategoryById(item.entityLocalId);
+    final category = await _expenseCategoryRepository
+        .getExpenseCategoryById(item.entityLocalId);
     if (category == null) {
       throw StateError(
         'No local expense category found for ${item.entityLocalId} — the '
@@ -32,13 +35,34 @@ class ExpenseCategorySyncHandler implements SyncHandler {
       );
     }
 
-    final response = await _expenseCategoriesApi.createExpenseCategory(
-      ExpenseCategoryCreateDto(name: category.name),
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+      throw StateError(
+        'Fulus Cloud device authorization is required for expense category sync.',
+      );
+    }
+
+    final response = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'expense_category.create',
+      operationId: category.localId,
+      deviceClientId: device!.deviceClientId,
+      payload: {
+        'name': category.name,
+      },
     );
+
+    final data = response['data'];
+    if (data is! Map || data['entity_id'] is! String) {
+      throw const FormatException(
+        'Fulus Cloud returned an invalid expense category response.',
+      );
+    }
 
     await _expenseCategoryRepository.markSynced(
       localId: category.localId,
-      serverId: response.serverId!,
+      serverId: data['entity_id'] as String,
     );
   }
 }

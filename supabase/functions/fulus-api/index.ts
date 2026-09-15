@@ -70,7 +70,7 @@ Deno.serve(async req => {
 
   if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
     const entity = typeof b.entity === "string" ? b.entity : null;
-    if (!entity || !["products", "categories", "suppliers"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
+    if (!entity || !["products", "categories", "suppliers", "expense_categories"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
     const { data: allowed, error: pe } = await db.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage" });
     if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
@@ -88,7 +88,7 @@ Deno.serve(async req => {
       return out({ data: { entity, item: data, server_authoritative: true } });
     }
     const input = b.item && typeof b.item === "object" ? b.item as Record<string, unknown> : {};
-    const fields: Record<string, string[]> = { categories: ["name", "description"], suppliers: ["name", "phone", "email", "address"], products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"] };
+    const fields: Record<string, string[]> = { categories: ["name", "description"], suppliers: ["name", "phone", "email", "address"], products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"], expense_categories: ["name"] };
     const row: Record<string, unknown> = { business_id: bid };
     for (const f of fields[entity]) if (f in input) row[f] = input[f];
     if (typeof row.name !== "string" || !row.name.trim()) return out({ error: { code: "INVALID_CATALOG_ITEM", message: "name is required" } }, 400);
