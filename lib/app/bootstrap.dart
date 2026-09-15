@@ -195,9 +195,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final locationSyncHandler = LocationSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, locationRepository: locationRepository);
   final returnSyncHandler = ReturnSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, returnRepository: returnRepository);
   final expenseCategorySyncHandler = ExpenseCategorySyncHandler(expenseCategoriesApi: expenseCategoriesApi, expenseCategoryRepository: expenseCategoryRepository);
-  final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, cashDrawerShiftRepository: cashDrawerShiftRepository);
+  final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, cashDrawerShiftRepository: cashDrawerShiftRepository, locationRepository: locationRepository);
   final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository);
-  final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository);
+  final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository, locationRepository: locationRepository);
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
   final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final syncEngine = SyncEngine(
