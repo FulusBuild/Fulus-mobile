@@ -319,6 +319,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
       fulusSyncApiProvider.overrideWithValue(fulusSyncApi),
       fulusConnectionStateProvider.overrideWith((ref) => fulusConnectionState),
+      diagnosticLoggerProvider.overrideWithValue(diagnosticLogger),
+      notificationRepositoryProvider.overrideWithValue(notificationRepository),
+      notificationServiceProvider.overrideWithValue(notificationService),
       onboardingStateProvider.overrideWithValue(onboardingState),
     ],
   );
