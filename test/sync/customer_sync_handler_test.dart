@@ -1,31 +1,34 @@
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
-import 'package:fulus_mobile/data/remote/endpoints/customers_api.dart';
+import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
+import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
+import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/sync/handlers/customer_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
-import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 
-class MockCustomersApi extends Mock implements CustomersApi {}
+class MockFulusSyncApi extends Mock implements FulusSyncApi {}
+
+class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 
 void main() {
   late AppDatabase db;
-  late MockCustomersApi customersApi;
+  late MockFulusSyncApi fulusSyncApi;
+  late MockFulusConnectionState fulusConnectionState;
   late CustomerRepositoryImpl customerRepository;
   late CustomerSyncHandler handler;
 
-  setUpAll(() {
-    registerFallbackValue(const CustomerCreateDto(name: 'fallback'));
-  });
-
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    customersApi = MockCustomersApi();
+    fulusSyncApi = MockFulusSyncApi();
+    fulusConnectionState = MockFulusConnectionState();
     customerRepository = CustomerRepositoryImpl(db: db, syncQueue: SyncQueue(db));
     handler = CustomerSyncHandler(
-      customersApi: customersApi,
+      fulusSyncApi: fulusSyncApi,
+      fulusConnectionState: fulusConnectionState,
       customerRepository: customerRepository,
     );
   });
@@ -46,34 +49,56 @@ void main() {
     );
   }
 
+  void stubCloudAuthorization() {
+    when(() => fulusConnectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => fulusConnectionState.registeredDevice).thenReturn(
+      const FulusRegisteredDevice(
+        id: 'device-1',
+        businessId: 'business-1',
+        deviceClientId: 'device-client-1',
+        status: 'active',
+      ),
+    );
+  }
+
   test(
-      'sends the client_reference equal to the local id and marks the '
-      'local customer synced from the response', () async {
+      'sends the client reference and marks the local customer synced from the cloud response',
+      () async {
     final customer = await customerRepository.createCustomer(
       const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
     );
+    stubCloudAuthorization();
 
     when(
-      () => customersApi.createCustomer(any()),
-    ).thenAnswer(
-      (_) async => Customer(
-        localId: customer.localId,
-        serverId: 'server-customer-1',
-        name: customer.name,
-        phone: customer.phone,
-        outstandingBalance: 0,
-        purchaseCount: 0,
-        createdAt: customer.createdAt,
-        updatedAt: customer.updatedAt,
+      () => fulusSyncApi.submitOperation(
+        businessId: any(named: 'businessId'),
+        operationType: any(named: 'operationType'),
+        operationId: any(named: 'operationId'),
+        deviceClientId: any(named: 'deviceClientId'),
+        clientReference: any(named: 'clientReference'),
+        payload: any(named: 'payload'),
       ),
+    ).thenAnswer(
+      (_) async => {
+        'data': {
+          'entity_id': 'server-customer-1',
+        },
+      },
     );
 
     await handler.sync(queueItemFor(customer));
 
-    final captured = verify(() => customersApi.createCustomer(captureAny())).captured;
-    final dto = captured.single as CustomerCreateDto;
-    expect(dto.clientReference, customer.localId);
-    expect(dto.name, 'Chidinma Okafor');
+    final captured = verify(
+      () => fulusSyncApi.submitOperation(
+        businessId: 'business-1',
+        operationType: 'customer.create',
+        operationId: 'q1',
+        deviceClientId: 'device-client-1',
+        clientReference: customer.localId,
+        payload: any(named: 'payload'),
+      ),
+    ).captured;
+    expect(captured, isEmpty);
 
     final updated = await customerRepository.getCustomerById(customer.localId);
     expect(updated!.serverId, 'server-customer-1');
