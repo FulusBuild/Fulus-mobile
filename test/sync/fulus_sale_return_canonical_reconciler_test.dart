@@ -12,6 +12,44 @@ class _MockSaleCanonicalRepository extends Mock implements SaleCanonicalReposito
 class _MockReturnCanonicalRepository extends Mock implements ReturnCanonicalRepository {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(const SaleCanonicalState(
+      serverId: 'fallback',
+      clientReference: null,
+      invoiceNumber: null,
+      customerServerId: null,
+      locationServerId: 'fallback',
+      cashierUserId: null,
+      saleDate: DateTime(2026),
+      subtotal: 0,
+      discount: 0,
+      tax: 0,
+      total: 0,
+      amountPaid: 0,
+      paymentMethod: 'cash',
+      notes: null,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      deletedAt: null,
+      items: [],
+      payments: [],
+    ));
+    registerFallbackValue(const ReturnCanonicalState(
+      serverId: 'fallback',
+      originalSaleServerId: 'fallback',
+      status: 'completed',
+      returnReason: 'fallback',
+      refundAmount: 0,
+      refundMethod: 'cash',
+      inventoryRestored: false,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      completedAt: null,
+      deletedAt: null,
+      items: [],
+    ));
+  });
+
   test('maps canonical sale aggregate and rejects delete as outbound work', () async {
     final repository = _MockSaleCanonicalRepository();
     when(() => repository.reconcileServerState(any())).thenAnswer((_) async {});
