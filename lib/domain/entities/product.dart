@@ -2,6 +2,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'product.g.dart';
 
+/// Mirrors the Products table exactly — catalog fields only.
 class Product {
   const Product({
     required this.localId,
