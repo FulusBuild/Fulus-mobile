@@ -80,6 +80,64 @@ class CategoryRepositoryImpl implements CategoryRepository {
   }
 
   @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String name,
+    String? description,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    final existing = await (_db.select(_db.categories)
+          ..where((c) => c.serverId.equals(serverId)))
+        .getSingleOrNull();
+    final localId = existing?.localId ?? Ulid().toString();
+
+    await _db.transaction(() async {
+      if (existing == null) {
+        await _db.into(_db.categories).insert(
+              CategoriesCompanion.insert(
+                localId: localId,
+                serverId: Value(serverId),
+                name: name,
+                description: Value(description),
+                createdAt: updatedAt,
+                updatedAt: updatedAt,
+                deletedAt: Value(deletedAt),
+                syncStatus: const Value(SyncStatus.settled),
+              ),
+            );
+      } else {
+        await (_db.update(_db.categories)..where((c) => c.localId.equals(localId))).write(
+          CategoriesCompanion(
+            serverId: Value(serverId),
+            name: Value(name),
+            description: Value(description),
+            deletedAt: Value(deletedAt),
+            syncStatus: const Value(SyncStatus.settled),
+            updatedAt: Value(updatedAt),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    final row = await (_db.select(_db.categories)
+          ..where((c) => c.serverId.equals(serverId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    final now = DateTime.now();
+    await (_db.update(_db.categories)..where((c) => c.localId.equals(row.localId))).write(
+      CategoriesCompanion(
+        deletedAt: Value(now),
+        syncStatus: const Value(SyncStatus.settled),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  @override
   Future<void> markSynced({
     required String localId,
     required String serverId,
