@@ -24,9 +24,8 @@ class SaleSyncHandler implements SyncHandler {
   final FulusSyncApi? _fulusSyncApi;
   final FulusConnectionState? _fulusConnectionState;
   final SaleRepository _saleRepository;
-  // Kept as an injection-compatible field for existing bootstrap/tests. It is
-  // deliberately never used: all queued sale writes must go through Fulus
-  // Cloud, never the legacy API_BASE_URL transport.
+  // Retained for injection compatibility with existing callers/tests. It is
+  // intentionally never used for writes: queued sales are Fulus Cloud-only.
   final SalesApi? _salesApi;
 
   @override
@@ -39,8 +38,6 @@ class SaleSyncHandler implements SyncHandler {
       throw StateError('No local sale found for ${item.entityLocalId}.');
     }
 
-    // Validate referenced customers before selecting cloud or legacy
-    // transport. A sale cannot sync until its customer has a server identity.
     if (sale.customerId != null) {
       await _resolveCustomerServerId(sale);
     }
@@ -83,11 +80,12 @@ class SaleSyncHandler implements SyncHandler {
       return;
     }
 
-    // Never silently fall back to API_BASE_URL. A queued sale is a Fulus Cloud
-    // command and must wait for an authenticated business + active device.
-    throw const SyncFailure(
+    final legacyTransportConfigured = _salesApi != null;
+    throw SyncFailure(
       kind: SyncErrorKind.dependencyNotReady,
-      message: 'Fulus Cloud authorization is required for sale sync.',
+      message: legacyTransportConfigured
+          ? 'Fulus Cloud authorization is required for sale sync; legacy API transport is disabled.'
+          : 'Fulus Cloud authorization is required for sale sync.',
     );
   }
 
