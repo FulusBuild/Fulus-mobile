@@ -53,6 +53,14 @@ void main() {
   const locationId = 'loc-1';
   const productId = 'prod-1';
 
+  setUpAll(() {
+    registerFallbackValue(const SaleCreateDto(
+      items: [],
+      amountPaid: 0,
+      locationId: locationId,
+    ));
+  });
+
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('fulus_offline_sync_test_');
     dbFile = File('${tempDir.path}/test.sqlite');
