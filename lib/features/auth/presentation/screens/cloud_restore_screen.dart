@@ -122,17 +122,24 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
       ref.read(sessionProvider.notifier).state = owner;
 
-      // A successful restore is the point at which this installation has a
-      // valid cloud membership, an authorized device, and a complete local
-      // snapshot. Enable the persisted sync extension only after all three
-      // are true. SyncTriggers listens to SyncConfig and will activate the
-      // queue + server reconciliation immediately without requiring a restart.
+      // A restored installation must prove that its first reconciliation can
+      // complete before it is advertised as Sync Ready. Enabling the
+      // persisted switch alone is not enough: readiness means the business,
+      // device and initial server reconciliation are all valid.
       await ref.read(syncConfigProvider).setEnabled(true);
+      setState(() => _status = 'Reconciling with Fulus Cloud…');
+      try {
+        await ref.read(syncTriggersProvider).reconcileAfterRestore();
+        connection.markSyncReady();
+      } catch (_) {
+        connection.clearSyncReady();
+        rethrow;
+      }
 
       if (!mounted) return;
       showFulusSnackbar(
         context,
-        message: 'Your Fulus business has been restored (${result.totalRows} records). Sync is now enabled.',
+        message: 'Your Fulus business has been restored (${result.totalRows} records). Sync is ready.',
       );
       context.closeScreenOr('/');
     } on Failure catch (failure) {
