@@ -26,13 +26,14 @@ class FulusCanonicalReconciler {
     'category': 'categories',
     'supplier': 'suppliers',
     'customer': 'customers',
-    'sale': 'sales',
+    'expense_category': 'expense_categories',
     'expense': 'expenses',
-    'income': 'income_records',
-    'stock': 'stock_movements',
+    'income_record': 'income_records',
+    'stock_movement': 'stock_movements',
     'customer_ledger': 'customer_ledger_entries',
     'return': 'return_requests',
     'cash_drawer_shift': 'cash_drawer_shifts',
+    'sale': 'sales',
   };
 
   Future<void> reconcile(
@@ -73,10 +74,11 @@ class FulusCanonicalReconciler {
 
       switch (change.entityType) {
         case 'sale':
-          await _upsertRow(
-            'sales',
-            Map<String, dynamic>.from(data['sale'] as Map),
-          );
+          final sale = data['sale'];
+          if (sale is! Map) {
+            throw StateError('Canonical sale response has no sale row.');
+          }
+          await _upsertRow('sales', Map<String, dynamic>.from(sale));
           await _replaceChildren(
             table: 'sale_items',
             foreignKeyColumn: 'sale_local_id',
@@ -91,10 +93,11 @@ class FulusCanonicalReconciler {
           );
           break;
         case 'product':
-          await _upsertRow(
-            'products',
-            Map<String, dynamic>.from(data['product'] as Map),
-          );
+          final product = data['product'];
+          if (product is! Map) {
+            throw StateError('Canonical product response has no product row.');
+          }
+          await _upsertRow('products', Map<String, dynamic>.from(product));
           await _replaceChildren(
             table: 'product_stock_levels',
             foreignKeyColumn: 'product_local_id',
@@ -107,10 +110,7 @@ class FulusCanonicalReconciler {
           if (row is! Map) {
             throw StateError('Canonical return response has no row.');
           }
-          await _upsertRow(
-            'return_requests',
-            Map<String, dynamic>.from(row),
-          );
+          await _upsertRow('return_requests', Map<String, dynamic>.from(row));
           await _replaceChildren(
             table: 'return_items',
             foreignKeyColumn: 'return_request_local_id',
