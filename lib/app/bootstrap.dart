@@ -73,7 +73,9 @@ import '../data/repositories/printer_repository_impl.dart';
 import '../data/repositories/product_repository_impl.dart';
 import '../data/repositories/receipt_repository_impl.dart';
 import '../data/repositories/reports_repository_impl.dart';
+import '../data/repositories/return_canonical_repository_impl.dart';
 import '../data/repositories/return_repository_impl.dart';
+import '../data/repositories/sale_canonical_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
 import '../data/repositories/search_repository_impl.dart';
 import '../data/repositories/stock_movement_repository_impl.dart';
@@ -180,6 +182,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
+  final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
   final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
@@ -189,6 +192,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
+  final returnCanonicalRepository = ReturnCanonicalRepositoryImpl(db: database);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database);
   final taxRemittanceRepository = TaxRemittanceRepositoryImpl(db: database);
@@ -215,13 +219,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final canonicalReconciler = FulusCanonicalTypedReconciler(
     api: fulusSyncApi,
     handlers: {
-      'sale': FulusSaleCanonicalReconciler(repository: saleRepository).apply,
+      'sale': FulusSaleCanonicalReconciler(repository: saleCanonicalRepository).apply,
       'customer': FulusCustomerCanonicalReconciler(repository: customerRepository).apply,
       'customer_ledger': FulusCustomerLedgerCanonicalReconciler(repository: customerCreditRepository).apply,
       'category': FulusCategoryCanonicalReconciler(repository: categoryRepository).apply,
       'supplier': FulusSupplierCanonicalReconciler(repository: supplierRepository).apply,
-      'location': FulusLocationCanonicalReconciler(repository: locationRepository).apply,
-      'return': FulusReturnCanonicalReconciler(repository: returnRepository).apply,
+      'location': FulusLocationCanonicalReconciler(locationRepository).apply,
+      'return': FulusReturnCanonicalReconciler(repository: returnCanonicalRepository).apply,
       'expense_category': FulusExpenseCategoryCanonicalReconciler(repository: expenseCategoryRepository).apply,
       'cash_drawer_shift': FulusCashDrawerCanonicalReconciler(repository: cashDrawerShiftRepository).apply,
       'expense': FulusExpenseCanonicalReconciler(repository: expenseRepository).apply,
