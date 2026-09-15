@@ -1,25 +1,25 @@
-import '../../data/local/database/database.dart';
-import '../../data/remote/endpoints/income_api.dart';
+import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/income_record_repository.dart';
 import '../sync_handler.dart';
 
+/// Syncs miscellaneous income through the canonical Fulus Cloud transport.
 class IncomeSyncHandler implements SyncHandler {
   IncomeSyncHandler({
-    required IncomeApi incomeApi,
+    required FulusSyncApi fulusSyncApi,
+    required FulusConnectionState fulusConnectionState,
     required IncomeRecordRepository incomeRecordRepository,
-  })  : _incomeApi = incomeApi,
+  })  : _fulusSyncApi = fulusSyncApi,
+        _fulusConnectionState = fulusConnectionState,
         _incomeRecordRepository = incomeRecordRepository;
 
-  final IncomeApi _incomeApi;
+  final FulusSyncApi _fulusSyncApi;
+  final FulusConnectionState _fulusConnectionState;
   final IncomeRecordRepository _incomeRecordRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
     if (item.operation != 'create') {
-      // No caller in this codebase enqueues 'update'/'delete' for
-      // 'income_record' today — SyncTask.createIncomeRecord is the only
-      // factory that exists. Kept as an explicit, honest failure rather
-      // than silently doing nothing if this is ever somehow reached.
       throw StateError(
         'IncomeSyncHandler does not support operation "${item.operation}" '
         'yet — only "create" is implemented.',
@@ -34,17 +34,43 @@ class IncomeSyncHandler implements SyncHandler {
       );
     }
 
-    // Unlike SaleSyncHandler, there is no product/customer-serverId gap
-    // to resolve here — an IncomeRecord has no foreign keys of its own
-    // into anything else that would need its own prior sync.
-    final response = await _incomeApi.createIncome(
-      record.toCreateDto(clientReference: record.localId),
-      locationLocalId: record.locationId,
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+      throw StateError('Fulus Cloud device authorization is required for income sync.');
+    }
+
+    final result = await _fulusSyncApi.submitOperation(
+      businessId: businessId,
+      operationType: 'income.create',
+      operationId: item.id,
+      clientReference: record.localId,
+      deviceClientId: device!.deviceClientId,
+      payload: {
+        'business_id': businessId,
+        'operation_id': item.id,
+        'client_reference': record.localId,
+        'location_id': record.locationId,
+        'source': record.source,
+        'amount': record.amount,
+        'income_date': record.incomeDate.toIso8601String(),
+        'notes': record.notes,
+      },
     );
+
+    final rawData = result['data'];
+    if (rawData is! Map) {
+      throw StateError('Fulus income sync returned no response data.');
+    }
+    final data = Map<String, dynamic>.from(rawData);
+    final serverId = (data['entity_id'] ?? data['income_id'] ?? data['id'])?.toString();
+    if (serverId == null || serverId.isEmpty) {
+      throw StateError('Fulus income sync returned no server entity ID.');
+    }
 
     await _incomeRecordRepository.markSynced(
       localId: record.localId,
-      serverId: response.serverId!,
+      serverId: serverId,
     );
   }
 }
