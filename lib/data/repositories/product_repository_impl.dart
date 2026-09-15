@@ -120,7 +120,7 @@ class ProductRepositoryImpl implements ProductRepository {
       for (final stock in stockLevels) {
         final location = await (_db.select(_db.locations)..where((l) => l.serverId.equals(stock.locationServerId))).getSingleOrNull();
         if (location == null) throw StateError('Canonical product $serverId references unknown location ${stock.locationServerId}.');
-        await _db.into(_db.productStockLevels).insertOnConflictUpdate(ProductStockLevelsCompanion.insert(productLocalId: localId, locationLocalId: location.localId, currentStock: Value(stock.currentStock), updatedAt: stock.updatedAt ?? updatedAt, syncStatus: SyncStatus.settled));
+        await _db.into(_db.productStockLevels).insertOnConflictUpdate(ProductStockLevelsCompanion.insert(productLocalId: localId, locationLocalId: location.localId, currentStock: Value(stock.currentStock), updatedAt: stock.updatedAt, syncStatus: SyncStatus.settled));
       }
     });
   }
