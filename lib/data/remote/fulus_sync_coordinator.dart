@@ -25,14 +25,12 @@ class FulusSyncCoordinator {
 
   Future<int> pullAndApply({
     required String businessId,
-    required String deviceClientId,
     int batchSize = 100,
   }) async {
     var cursor = cursorFor(businessId);
     while (true) {
       final page = await _api.pullChanges(
         businessId: businessId,
-        deviceClientId: deviceClientId,
         cursor: cursor,
         limit: batchSize,
       );
