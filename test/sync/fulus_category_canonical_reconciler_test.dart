@@ -12,6 +12,14 @@ void main() {
 
   setUp(() {
     repository = _MockCategoryRepository();
+    when(() => repository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          name: any(named: 'name'),
+          description: any(named: 'description'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+        )).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     reconciler = FulusCategoryCanonicalReconciler(repository: repository);
   });
 
@@ -74,7 +82,9 @@ void main() {
     verifyNever(() => repository.reconcileServerState(
           serverId: any(named: 'serverId'),
           name: any(named: 'name'),
+          description: any(named: 'description'),
           updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
         ));
   });
 }
