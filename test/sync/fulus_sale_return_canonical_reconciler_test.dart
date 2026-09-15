@@ -13,9 +13,9 @@ class _MockReturnCanonicalRepository extends Mock implements ReturnCanonicalRepo
 
 void main() {
   setUpAll(() {
-    registerFallbackValue(const SaleCanonicalState(
+    registerFallbackValue(SaleCanonicalState(
       serverId: 'fallback',
-      clientReference: null,
+      clientReference: 'fallback',
       invoiceNumber: null,
       customerServerId: null,
       locationServerId: 'fallback',
@@ -31,10 +31,10 @@ void main() {
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
       deletedAt: null,
-      items: [],
-      payments: [],
+      items: const [],
+      payments: const [],
     ));
-    registerFallbackValue(const ReturnCanonicalState(
+    registerFallbackValue(ReturnCanonicalState(
       serverId: 'fallback',
       originalSaleServerId: 'fallback',
       status: 'completed',
@@ -42,11 +42,11 @@ void main() {
       refundAmount: 0,
       refundMethod: 'cash',
       inventoryRestored: false,
+      isVoid: false,
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
       completedAt: null,
-      deletedAt: null,
-      items: [],
+      items: const [],
     ));
   });
 
@@ -121,6 +121,7 @@ void main() {
           'refund_amount': 500,
           'refund_method': 'cash',
           'inventory_restored': true,
+          'is_void': false,
           'created_at': '2026-09-15T11:00:00Z',
           'updated_at': '2026-09-15T11:01:00Z',
           'completed_at': '2026-09-15T11:01:00Z',
