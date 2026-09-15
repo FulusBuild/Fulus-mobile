@@ -10,23 +10,32 @@ import 'sync_status_notifier.dart';
 /// Wires Architecture Section 8's trigger conditions to SyncEngine.runOnce.
 /// Server -> device reconciliation is supplied separately through
 /// [pullFromServer] so the queue algorithm remains platform-independent.
+///
+/// [isReady] is deliberately separate from [SyncConfig]: the persisted
+/// switch means "the user enabled sync", while readiness means the current
+/// session has an authenticated membership and an active registered device.
+/// Keeping those states separate prevents startup/lifecycle triggers from
+/// racing device registration after restore or token recovery.
 class SyncTriggers with WidgetsBindingObserver {
   SyncTriggers({
     required SyncEngine syncEngine,
     required SyncConfig syncConfig,
     required SyncStatusNotifier syncStatusNotifier,
     Future<void> Function()? pullFromServer,
+    Future<bool> Function()? isReady,
     Connectivity? connectivity,
   })  : _syncEngine = syncEngine,
         _syncConfig = syncConfig,
         _syncStatusNotifier = syncStatusNotifier,
         _pullFromServer = pullFromServer,
+        _isReady = isReady,
         _connectivity = connectivity ?? Connectivity();
 
   final SyncEngine _syncEngine;
   final SyncConfig _syncConfig;
   final SyncStatusNotifier _syncStatusNotifier;
   final Future<void> Function()? _pullFromServer;
+  final Future<bool> Function()? _isReady;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _started = false;
@@ -83,6 +92,13 @@ class SyncTriggers with WidgetsBindingObserver {
         'SyncStatusNotifier reports sync as enabled.',
       );
     }
+    final ready = _isReady;
+    if (ready != null && !await ready()) {
+      throw StateError(
+        'Fulus Cloud is not ready: authentication, business membership, '
+        'and active device registration are required before syncing.',
+      );
+    }
     await _runSyncCycle(manual: true);
     await _syncStatusNotifier.checkForStuckSyncAndNotify();
   }
@@ -106,6 +122,8 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> _runIfOnlineOnce() async {
     if (!_syncConfig.isEnabled) return;
+    final ready = _isReady;
+    if (ready != null && !await ready()) return;
     final results = await _connectivity.checkConnectivity();
     if (_hasConnectivity(results)) {
       // Await the complete cycle. This keeps trigger completion aligned with
