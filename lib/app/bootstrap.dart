@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
@@ -16,10 +17,25 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
+import '../data/remote/fulus_canonical_reconciler_typed.dart';
+import '../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
+import '../data/remote/fulus_category_canonical_reconciler.dart';
 import '../data/remote/fulus_connection_state.dart';
+import '../data/remote/fulus_customer_canonical_reconciler.dart';
+import '../data/remote/fulus_customer_ledger_canonical_reconciler.dart';
 import '../data/remote/fulus_device_registration.dart';
-import '../data/remote/fulus_sync_api.dart';
+import '../data/remote/fulus_expense_canonical_reconciler.dart';
+import '../data/remote/fulus_expense_category_canonical_reconciler.dart';
+import '../data/remote/fulus_income_canonical_reconciler.dart';
+import '../data/remote/fulus_location_canonical_reconciler.dart';
+import '../data/remote/fulus_product_canonical_reconciler.dart';
+import '../data/remote/fulus_return_canonical_reconciler.dart';
+import '../data/remote/fulus_sale_canonical_reconciler.dart';
 import '../data/remote/fulus_staff_access_api.dart';
+import '../data/remote/fulus_stock_movement_canonical_reconciler.dart';
+import '../data/remote/fulus_sync_api.dart';
+import '../data/remote/fulus_supplier_canonical_reconciler.dart';
+import '../data/remote/fulus_sync_coordinator.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
@@ -57,7 +73,9 @@ import '../data/repositories/printer_repository_impl.dart';
 import '../data/repositories/product_repository_impl.dart';
 import '../data/repositories/receipt_repository_impl.dart';
 import '../data/repositories/reports_repository_impl.dart';
+import '../data/repositories/return_canonical_repository_impl.dart';
 import '../data/repositories/return_repository_impl.dart';
+import '../data/repositories/sale_canonical_repository_impl.dart';
 import '../data/repositories/sale_repository_impl.dart';
 import '../data/repositories/search_repository_impl.dart';
 import '../data/repositories/stock_movement_repository_impl.dart';
@@ -97,6 +115,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
   final syncConfig = await SyncConfig.load();
+  final syncPreferences = await SharedPreferences.getInstance();
   final onboardingState = await OnboardingState.load();
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
@@ -113,6 +132,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     staffAccessApi: fulusStaffAccessApi,
   );
   final authApi = AuthApi(apiClient);
+  final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
 
   unawaited(() async {
     try {
@@ -125,7 +145,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
       if (active.length != 1) return;
       fulusConnectionState.selectBusiness(active.first.businessId);
-      final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
       final package = await PackageInfo.fromPlatform();
       await fulusConnectionState.registerDevice(
         deviceClientId: deviceClientId,
@@ -163,6 +182,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
+  final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
   final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
@@ -172,6 +192,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
+  final returnCanonicalRepository = ReturnCanonicalRepositoryImpl(db: database);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierCreditRepository = SupplierCreditRepositoryImpl(db: database);
   final taxRemittanceRepository = TaxRemittanceRepositoryImpl(db: database);
@@ -180,12 +201,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final locationRepository = LocationRepositoryImpl(db: database, locationsApi: locationsApi, syncQueue: syncQueue);
   final businessSettingsRepository = BusinessSettingsRepositoryImpl(db: database, businessSettingsApi: businessSettingsApi, authRepository: authRepository, permissionRepository: permissionRepository);
   final resolveActiveLocation = ResolveActiveLocation(locationRepository: locationRepository, authRepository: authRepository, businessSettingsRepository: businessSettingsRepository);
-
-  if (syncConfig.isEnabled) {
-    unawaited(locationRepository.syncFromServer().catchError((_) {}));
-    unawaited(businessSettingsRepository.syncFromServer().catchError((_) {}));
-    unawaited(productRepository.syncFromServer().catchError((_) {}));
-  }
 
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository);
   final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository);
@@ -200,6 +215,45 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository, locationRepository: locationRepository);
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
   final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
+
+  final canonicalReconciler = FulusCanonicalTypedReconciler(
+    api: fulusSyncApi,
+    handlers: {
+      'sale': FulusSaleCanonicalReconciler(repository: saleCanonicalRepository).apply,
+      'customer': FulusCustomerCanonicalReconciler(repository: customerRepository).apply,
+      'customer_ledger': FulusCustomerLedgerCanonicalReconciler(repository: customerCreditRepository).apply,
+      'category': FulusCategoryCanonicalReconciler(repository: categoryRepository).apply,
+      'supplier': FulusSupplierCanonicalReconciler(repository: supplierRepository).apply,
+      'location': FulusLocationCanonicalReconciler(locationRepository).apply,
+      'return': FulusReturnCanonicalReconciler(repository: returnCanonicalRepository).apply,
+      'expense_category': FulusExpenseCategoryCanonicalReconciler(repository: expenseCategoryRepository).apply,
+      'cash_drawer_shift': FulusCashDrawerCanonicalReconciler(repository: cashDrawerShiftRepository).apply,
+      'expense': FulusExpenseCanonicalReconciler(repository: expenseRepository).apply,
+      'income_record': FulusIncomeCanonicalReconciler(repository: incomeRecordRepository).apply,
+      'stock_movement': FulusStockMovementCanonicalReconciler(repository: stockMovementRepository).apply,
+      'product': FulusProductCanonicalReconciler(repository: productRepository).apply,
+    },
+  );
+  final syncCoordinator = FulusSyncCoordinator(
+    api: fulusSyncApi,
+    preferences: syncPreferences,
+    applyChange: (change) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId == null || !fulusConnectionState.isSyncReady) {
+        throw StateError('Fulus Cloud is not ready for canonical reconciliation.');
+      }
+      final registeredDevice = fulusConnectionState.registeredDevice;
+      if (registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
+        throw StateError('Fulus Cloud device registration is not ready.');
+      }
+      await canonicalReconciler.reconcile(
+        change,
+        businessId: businessId,
+        deviceClientId: registeredDevice.deviceClientId,
+      );
+    },
+  );
+
   final syncEngine = SyncEngine(
     db: database,
     handlersByEntityType: {
@@ -231,9 +285,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isReady: () async => fulusConnectionState.isSyncReady,
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
-      await locationRepository.syncFromServer();
-      await businessSettingsRepository.syncFromServer();
-      await productRepository.syncFromServer();
+      final businessId = fulusConnectionState.selectedBusinessId;
+      final registeredDevice = fulusConnectionState.registeredDevice;
+      if (businessId == null || registeredDevice == null || !fulusConnectionState.isSyncReady) {
+        throw StateError('Fulus Cloud is not ready for canonical pull.');
+      }
+      await syncCoordinator.pullAndApply(businessId: businessId);
     },
   );
   await syncTriggers.start();
