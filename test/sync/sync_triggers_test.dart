@@ -196,5 +196,46 @@ void main() {
       await expectLater(triggers.syncNow(), throwsA(isA<StateError>()));
       verifyNever(() => syncEngine.runOnce(manual: true));
     });
+
+    test('restore reconciliation runs before readiness is required', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+      final pulls = <int>[];
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => false,
+        pullFromServer: () async => pulls.add(1),
+        connectivity: connectivity,
+      );
+
+      await triggers.reconcileAfterRestore();
+
+      verify(() => connectivity.checkConnectivity()).called(2);
+      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(2);
+      expect(pulls, [1]);
+    });
+
+    test('restore reconciliation refuses to advertise success offline', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.none]);
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      await expectLater(triggers.reconcileAfterRestore(), throwsA(isA<StateError>()));
+      verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
+    });
   });
 }
