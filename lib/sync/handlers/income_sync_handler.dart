@@ -41,7 +41,7 @@ class IncomeSyncHandler implements SyncHandler {
     final location = await _locationRepository.getLocationById(record.locationId);
     if (location == null || location.serverId?.isNotEmpty != true) {
       throw StateError(
-        'Income cannot sync until location ${record.locationId} has a server ID.',
+        'Income cannot sync because location ${record.locationId} has not synced yet.',
       );
     }
 
