@@ -66,4 +66,74 @@ void main() {
     verify(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).called(1);
     verify(() => api.pullChanges(businessId: 'b1', cursor: 1, limit: 100)).called(1);
   });
+
+  test('skips replayed changes at or before the durable cursor', () async {
+    SharedPreferences.setMockInitialValues({'fulus_sync_cursor_b1': 5});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 5, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [
+        FulusSyncChange(sequence: 4, entityType: 'customer', entityId: 'old', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)),
+        FulusSyncChange(sequence: 5, entityType: 'customer', entityId: 'replayed', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)),
+        FulusSyncChange(sequence: 6, entityType: 'customer', entityId: 'new', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)),
+      ],
+      cursor: 5,
+      nextCursor: 6,
+      hasMore: false,
+    ));
+    final applied = <int>[];
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (change) async => applied.add(change.sequence),
+    );
+
+    final cursor = await coordinator.pullAndApply(businessId: 'b1');
+
+    expect(cursor, 6);
+    expect(applied, [6]);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 6);
+  });
+
+  test('keeps cursors isolated per business', () async {
+    SharedPreferences.setMockInitialValues({'fulus_sync_cursor_b1': 7});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b2', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [FulusSyncChange(sequence: 3, entityType: 'customer', entityId: 'c3', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
+      cursor: 0,
+      nextCursor: 3,
+      hasMore: false,
+    ));
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (_) async {},
+    );
+
+    await coordinator.pullAndApply(businessId: 'b2');
+
+    expect(coordinator.cursorFor('b1'), 7);
+    expect(coordinator.cursorFor('b2'), 3);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 7);
+    expect(preferences.getInt('fulus_sync_cursor_b2'), 3);
+  });
+
+  test('resetCursor removes only the selected business cursor', () async {
+    SharedPreferences.setMockInitialValues({
+      'fulus_sync_cursor_b1': 7,
+      'fulus_sync_cursor_b2': 3,
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final coordinator = FulusSyncCoordinator(
+      api: MockFulusSyncApi(),
+      preferences: preferences,
+      applyChange: (_) async {},
+    );
+
+    await coordinator.resetCursor('b1');
+
+    expect(coordinator.cursorFor('b1'), 0);
+    expect(coordinator.cursorFor('b2'), 3);
+  });
 }
