@@ -133,14 +133,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         platform: Platform.operatingSystem,
         appVersion: package.version,
       );
-    } catch (error, stackTrace) {
-      await diagnosticLogger.captureError(
-        error: error,
-        stackTrace: stackTrace,
-        category: DiagnosticCategory.synchronization,
-        component: 'Bootstrap',
-        operation: 'restoreCloudSession',
-        severity: DiagnosticSeverity.warning,
+    } catch (error) {
+      diagnosticLogger.breadcrumb(
+        'Fulus Cloud startup initialization failed: ${error.runtimeType}',
       );
     }
   }());
