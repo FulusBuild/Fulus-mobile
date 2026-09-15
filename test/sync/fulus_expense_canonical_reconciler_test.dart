@@ -12,6 +12,19 @@ void main() {
 
   setUp(() {
     repository = _MockExpenseRepository();
+    when(() => repository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          locationServerId: any(named: 'locationServerId'),
+          categoryId: any(named: 'categoryId'),
+          description: any(named: 'description'),
+          amount: any(named: 'amount'),
+          expenseDate: any(named: 'expenseDate'),
+          paymentMethod: any(named: 'paymentMethod'),
+          createdAt: any(named: 'createdAt'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+        )).thenAnswer((_) async {});
+    when(() => repository.reconcileDeleted(any())).thenAnswer((_) async {});
     reconciler = FulusExpenseCanonicalReconciler(repository: repository);
   });
 
@@ -88,11 +101,14 @@ void main() {
     verifyNever(() => repository.reconcileServerState(
           serverId: any(named: 'serverId'),
           locationServerId: any(named: 'locationServerId'),
+          categoryId: any(named: 'categoryId'),
           description: any(named: 'description'),
           amount: any(named: 'amount'),
           expenseDate: any(named: 'expenseDate'),
+          paymentMethod: any(named: 'paymentMethod'),
           createdAt: any(named: 'createdAt'),
           updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
         ));
   });
 }
