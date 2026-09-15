@@ -117,7 +117,8 @@ class FulusSyncApi {
 
       if (operationType.startsWith('product.') ||
           operationType.startsWith('category.') ||
-          operationType.startsWith('supplier.')) {
+          operationType.startsWith('supplier.') ||
+          operationType.startsWith('expense_category.')) {
         final dot = operationType.indexOf('.');
         final entity = operationType.substring(0, dot);
         final operation = operationType.substring(dot + 1);
@@ -125,6 +126,7 @@ class FulusSyncApi {
           'product' => 'products',
           'category' => 'categories',
           'supplier' => 'suppliers',
+          'expense_category' => 'expense_categories',
           _ => throw StateError('Unsupported catalog entity: $entity'),
         };
         body
@@ -168,7 +170,8 @@ class FulusSyncApi {
       result['data'] = {...data, 'entity_id': data['customer_id']};
     } else if ((operationType.startsWith('product.') ||
             operationType.startsWith('category.') ||
-            operationType.startsWith('supplier.')) &&
+            operationType.startsWith('supplier.') ||
+            operationType.startsWith('expense_category.')) &&
         data['item'] is Map) {
       final item = Map<String, dynamic>.from(data['item'] as Map);
       result['data'] = {...data, 'entity_id': item['id'], 'entity': item};
