@@ -108,15 +108,27 @@ Future<void> main() async {
         'value': '$sku-conflict',
       },
     );
-    final conflictStatus = conflictingReplay.statusCode ?? 0;
+    final conflictHttpStatus = conflictingReplay.statusCode ?? 0;
     final conflictData = conflictingReplay.data;
-    if (conflictStatus != 409 ||
-        conflictData is! Map ||
-        conflictData['error'] is! Map ||
-        (conflictData['error'] as Map)['code'] != 'IDEMPOTENCY_CONFLICT') {
+    final nestedData = conflictData is Map ? conflictData['data'] : null;
+    final envelopeStatus = nestedData is Map
+        ? nestedData['status_code']
+        : null;
+    final envelopeError = nestedData is Map
+        ? nestedData['error']
+        : null;
+    final envelopeErrorCode = envelopeError is Map
+        ? envelopeError['code']
+        : null;
+    final conflictStatus = envelopeStatus is num
+        ? envelopeStatus.toInt()
+        : conflictHttpStatus;
+
+    if (conflictStatus != 409 || envelopeErrorCode != 'IDEMPOTENCY_CONFLICT') {
       throw StateError(
-        'conflicting idempotency replay expected HTTP 409 '
-        'IDEMPOTENCY_CONFLICT, got HTTP $conflictStatus: $conflictData',
+        'conflicting idempotency replay expected HTTP 409 or a '
+        'status_code=409 IDEMPOTENCY_CONFLICT envelope, got HTTP '
+        '$conflictHttpStatus: $conflictData',
       );
     }
     stdout.writeln('PASS: conflicting idempotency replay rejected');
