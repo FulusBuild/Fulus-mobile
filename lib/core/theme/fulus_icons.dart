@@ -60,6 +60,9 @@ abstract final class FulusIcons {
   static const logout = Symbols.logout;
   static const backspace = Symbols.backspace;
   static const visibility = Symbols.visibility;
+  static const bugReport = Symbols.bug_report;
+  static const localShipping = Symbols.local_shipping;
+  static const payments = Symbols.payments;
 }
 
 /// Default visual treatment for Fulus Material Symbols.
