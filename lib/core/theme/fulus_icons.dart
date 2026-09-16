@@ -40,6 +40,8 @@ abstract final class FulusIcons {
   static const close = Symbols.close;
   static const more = Symbols.more_vert;
   static const filter = Symbols.filter_list;
+  static const sort = Symbols.sort;
+  static const category = Symbols.category;
   static const calendar = Symbols.calendar_month;
   static const edit = Symbols.edit;
   static const delete = Symbols.delete_outline;
