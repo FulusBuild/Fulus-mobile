@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 
 import '../../domain/entities/search_result.dart';
 import '../../domain/repositories/search_repository.dart';

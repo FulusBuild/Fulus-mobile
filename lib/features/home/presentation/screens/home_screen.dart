@@ -213,8 +213,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final profile = ref.watch(_businessProfileProvider).value;
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
-    if (isOwner) return profile?.businessName?.trim().isNotEmpty == true ? profile!.businessName!.trim() : 'there';
-    return user?.fullName.trim().isNotEmpty == true ? user!.fullName.trim() : 'there';
+    if (isOwner) return profile?.businessName.trim().isNotEmpty == true ? profile!.businessName.trim() : 'there';
+    return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
 
   void _openAccountSheet(BuildContext context) {

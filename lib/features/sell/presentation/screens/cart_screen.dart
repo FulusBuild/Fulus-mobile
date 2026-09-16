@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
-import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../shared/widgets/widgets.dart';

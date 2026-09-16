@@ -5,7 +5,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../app/providers.dart';
 import '../../core/errors/failure.dart';
 import '../../core/theme/design_tokens.dart';
-import '../../core/theme/fulus_icons.dart';
 import '../widgets/widgets.dart';
 
 /// Shared barcode scanner used by Sell and product creation/editing.

@@ -5,7 +5,6 @@ import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
-import '../../../../core/ux/consumer_polish.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../onboarding/presentation/screens/transaction_verification_screen.dart';
 import '../widgets/receipt_preview_sheet.dart';

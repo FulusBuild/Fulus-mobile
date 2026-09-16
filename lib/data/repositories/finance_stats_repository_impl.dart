@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 
 import '../../domain/entities/finance_stats.dart';
 import '../../domain/repositories/customer_credit_repository.dart';
