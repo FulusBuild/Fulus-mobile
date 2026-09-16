@@ -25,7 +25,7 @@ class FulusPinKeypad extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final keySize = ((width - AppSpacing.lg * 2) / 3).clamp(64.0, 92.0);
+        final keySize = ((width - AppSpacing.lg * 2) / 3).clamp(68.0, 92.0);
         return SizedBox(
           width: keySize * 3 + AppSpacing.lg * 2,
           child: GridView.builder(
@@ -44,7 +44,7 @@ class FulusPinKeypad extends StatelessWidget {
               final isBackspace = key == 'back';
               return _PinKey(
                 label: isBackspace ? null : key,
-                icon: isBackspace ? Icons.backspace_outlined : null,
+                icon: isBackspace ? Icons.backspace_rounded : null,
                 enabled: enabled,
                 onTap: isBackspace ? onBackspace : () => onDigit(key),
               );
@@ -71,14 +71,17 @@ class _PinKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
     final text = AppColors.textPrimaryOf(context);
+    final secondary = AppColors.textSecondaryOf(context);
     final border = AppColors.borderOf(context);
+    final surface = AppColors.surfaceOf(context);
+    final isBackspace = label == null;
+
     return Semantics(
       button: true,
-      label: label == null ? 'Delete last digit' : 'Digit $label',
+      label: isBackspace ? 'Delete last digit' : 'Digit $label',
       child: Material(
-        color: AppColors.surfaceOf(context),
+        color: Colors.transparent,
         shape: const CircleBorder(),
         child: InkWell(
           onTap: enabled ? onTap : null,
@@ -86,12 +89,13 @@ class _PinKey extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: border.withValues(alpha: .72)),
+              color: isBackspace ? surface.withValues(alpha: .72) : surface,
+              border: Border.all(color: border.withValues(alpha: .55)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: .035),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: .055),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -100,16 +104,16 @@ class _PinKey extends StatelessWidget {
                   ? Text(
                       label!,
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 23,
                         height: 1,
-                        fontWeight: FontWeight.w600,
-                        color: enabled ? text : AppColors.textSecondaryOf(context),
+                        fontWeight: FontWeight.w650,
+                        color: enabled ? text : secondary,
                       ),
                     )
                   : Icon(
                       icon,
-                      size: 21,
-                      color: enabled ? text : AppColors.textSecondaryOf(context),
+                      size: 20,
+                      color: enabled ? text : secondary,
                     ),
             ),
           ),
