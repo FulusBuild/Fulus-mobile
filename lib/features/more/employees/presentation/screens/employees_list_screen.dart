@@ -232,33 +232,58 @@ class _EmployeeTile extends ConsumerWidget {
   final VoidCallback onEdit;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => FulusListRow(
-        onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-        leading: FulusAvatar(name: employee.fullName),
-        title: Text(employee.fullName),
-        subtitle: Text(employee.role ?? (employee.phone ?? 'Team member')),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (employee.authUserId == null)
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.xs),
-                child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
-              ),
-            FulusIconButton(
-              icon: Icons.edit_outlined,
-              tooltip: 'Edit team member',
-              onPressed: onEdit,
-            ),
-            FulusIconButton(
-              icon: Icons.event_available_outlined,
-              tooltip: 'Mark attendance',
-              onPressed: () => _markToday(context, ref),
-            ),
-            Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
-          ],
-        ),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 420;
+        return FulusListRow(
+          onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
+          leading: FulusAvatar(name: employee.fullName),
+          title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(employee.role ?? (employee.phone ?? 'Team member'), maxLines: 1, overflow: TextOverflow.ellipsis),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (employee.authUserId == null)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
+                ),
+              if (!compact)
+                FulusIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit team member',
+                  onPressed: onEdit,
+                ),
+              if (!compact)
+                FulusIconButton(
+                  icon: Icons.event_available_outlined,
+                  tooltip: 'Mark attendance',
+                  onPressed: () => _markToday(context, ref),
+                ),
+              if (compact)
+                PopupMenuButton<_TeamAction>(
+                  tooltip: 'Team member actions',
+                  onSelected: (action) {
+                    switch (action) {
+                      case _TeamAction.edit:
+                        onEdit();
+                      case _TeamAction.attendance:
+                        _markToday(context, ref);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: _TeamAction.edit, child: Text('Edit team member')),
+                    PopupMenuItem(value: _TeamAction.attendance, child: Text('Mark attendance')),
+                  ],
+                ),
+              Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _markToday(BuildContext context, WidgetRef ref) async {
     final status = await showFulusBottomSheet<AttendanceStatus>(
@@ -270,13 +295,46 @@ class _EmployeeTile extends ConsumerWidget {
           for (final s in AttendanceStatus.values)
             FulusListRow(
               onTap: () => Navigator.of(context).pop(s),
-              leading: Icon(Icons.circle_outlined, color: AppColors.primaryOf(context)),
-              title: Text(s.name),
+              leading: Icon(_attendanceIcon(s), color: _attendanceColor(context, s)),
+              title: Text(_attendanceLabel(s)),
             ),
         ],
       ),
     );
     if (status == null) return;
-    await ref.read(employeeRepositoryProvider).markAttendance(employeeId: employee.id, date: DateTime.now(), status: status);
+    try {
+      await ref.read(employeeRepositoryProvider).markAttendance(
+            employeeId: employee.id,
+            date: DateTime.now(),
+            status: status,
+          );
+      if (context.mounted) {
+        showFulusSnackbar(context, message: '${employee.fullName}: ${_attendanceLabel(status)} recorded.');
+      }
+    } on Exception catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't record attendance. Try again.");
+      }
+    }
   }
+
+  String _attendanceLabel(AttendanceStatus status) => switch (status) {
+        AttendanceStatus.present => 'Present',
+        AttendanceStatus.absent => 'Absent',
+        AttendanceStatus.late => 'Late',
+      };
+
+  IconData _attendanceIcon(AttendanceStatus status) => switch (status) {
+        AttendanceStatus.present => Icons.check_circle_outline,
+        AttendanceStatus.absent => Icons.cancel_outlined,
+        AttendanceStatus.late => Icons.schedule_outlined,
+      };
+
+  Color _attendanceColor(BuildContext context, AttendanceStatus status) => switch (status) {
+        AttendanceStatus.present => AppColors.primaryOf(context),
+        AttendanceStatus.absent => AppColors.errorOf(context),
+        AttendanceStatus.late => AppColors.warningOf(context),
+      };
 }
+
+enum _TeamAction { edit, attendance }
