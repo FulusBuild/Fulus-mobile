@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
@@ -260,6 +262,50 @@ void main() {
 
       await expectLater(triggers.reconcileAfterRestore(), throwsA(isA<StateError>()));
       verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
+    });
+
+    test('retries readiness after startup initialization fails', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final connectivityChanges = StreamController<List<ConnectivityResult>>();
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => connectivityChanges.stream);
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      var initializationCalls = 0;
+      var ready = false;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => ready,
+        onNotReady: () async {
+          initializationCalls++;
+          if (initializationCalls == 1) {
+            throw StateError('startup initialization failed');
+          }
+          ready = true;
+        },
+        connectivity: connectivity,
+      );
+
+      await expectLater(triggers.start(), throwsA(isA<StateError>()));
+      expect(initializationCalls, 1);
+      verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
+
+      connectivityChanges.add([ConnectivityResult.wifi]);
+      await untilCalled(() => syncEngine.runOnce());
+
+      expect(initializationCalls, 2);
+      expect(ready, isTrue);
+      verify(() => connectivity.checkConnectivity()).called(1);
+      verify(() => syncEngine.runOnce()).called(1);
+
+      triggers.dispose();
+      await connectivityChanges.close();
     });
   });
 }
