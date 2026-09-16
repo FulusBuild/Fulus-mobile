@@ -33,7 +33,7 @@ on:
       run_fulus_e2e:
         description: "Run the live Fulus sync contract test (requires FULUS_E2E_* secrets)"
         required: true
-        default: "false"
+        default: "true"
         type: boolean
 
 env:
@@ -132,7 +132,6 @@ jobs:
   fulus_e2e:
     name: Fulus live sync contract test
     needs: test
-    if: github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
