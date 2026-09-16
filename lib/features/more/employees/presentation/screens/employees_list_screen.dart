@@ -29,7 +29,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         ),
       ],
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddSheet(context),
+        onPressed: () => _openEmployeeSheet(context),
         icon: const Icon(Icons.person_add_outlined),
         label: const Text('Add member'),
       ),
@@ -44,7 +44,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               headline: 'No team members yet',
               body: 'Add your first team member to manage attendance and access.',
               actionLabel: 'Add team member',
-              onAction: () => _openAddSheet(context),
+              onAction: () => _openEmployeeSheet(context),
             );
           }
 
@@ -67,7 +67,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                     child: Column(
                       children: [
                         for (var i = 0; i < employees.length; i++) ...[
-                          _EmployeeTile(employee: employees[i]),
+                          _EmployeeTile(employee: employees[i], onEdit: () => _openEmployeeSheet(context, existing: employees[i])),
                           if (i < employees.length - 1) const FulusListDivider(),
                         ],
                       ],
@@ -82,10 +82,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     );
   }
 
-  Future<void> _openAddSheet(BuildContext context) => showFulusBottomSheet<void>(
+  Future<void> _openEmployeeSheet(BuildContext context, {Employee? existing}) => showFulusBottomSheet<void>(
         context: context,
-        title: 'Add team member',
-        builder: (_) => const _AddEmployeeSheet(),
+        title: existing == null ? 'Add team member' : 'Edit team member',
+        builder: (_) => _EmployeeFormSheet(existing: existing),
       );
 }
 
@@ -137,16 +137,18 @@ class _TeamOverview extends StatelessWidget {
   }
 }
 
-class _AddEmployeeSheet extends ConsumerStatefulWidget {
-  const _AddEmployeeSheet();
+class _EmployeeFormSheet extends ConsumerStatefulWidget {
+  const _EmployeeFormSheet({this.existing});
+  final Employee? existing;
+
   @override
-  ConsumerState<_AddEmployeeSheet> createState() => _AddEmployeeSheetState();
+  ConsumerState<_EmployeeFormSheet> createState() => _EmployeeFormSheetState();
 }
 
-class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
-  final _nameController = TextEditingController();
-  final _roleController = TextEditingController();
-  final _phoneController = TextEditingController();
+class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
+  late final _nameController = TextEditingController(text: widget.existing?.fullName ?? '');
+  late final _roleController = TextEditingController(text: widget.existing?.role ?? '');
+  late final _phoneController = TextEditingController(text: widget.existing?.phone ?? '');
   bool _saving = false;
 
   @override
@@ -160,18 +162,35 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
   Future<void> _submit() async {
     setState(() => _saving = true);
     try {
-      await ref.read(employeeRepositoryProvider).createEmployee(
-            EmployeeDraft(
-              fullName: _nameController.text,
-              role: _roleController.text.trim().isEmpty ? null : _roleController.text.trim(),
-              phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-            ),
-          );
+      final existing = widget.existing;
+      final draft = EmployeeDraft(
+        fullName: _nameController.text.trim(),
+        role: _roleController.text.trim().isEmpty ? null : _roleController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        authUserId: existing?.authUserId,
+        department: existing?.department,
+        position: existing?.position,
+        salary: existing?.salary,
+        email: existing?.email,
+        dateHired: existing?.dateHired,
+        locationId: existing?.locationId,
+      );
+      final repo = ref.read(employeeRepositoryProvider);
+      if (existing == null) {
+        await repo.createEmployee(draft);
+      } else {
+        await repo.updateEmployee(existing.id, draft);
+      }
       if (mounted) Navigator.of(context).pop();
     } on EmployeeValidationException catch (e) {
       if (mounted) {
         setState(() => _saving = false);
         showFulusSnackbar(context, message: e.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        showFulusSnackbar(context, message: 'Couldn\'t save this team member. Try again.');
       }
     }
   }
@@ -195,7 +214,11 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
-                child: FulusButton(label: 'Add member', loading: _saving, onPressed: _saving ? null : _submit),
+                child: FulusButton(
+                  label: widget.existing == null ? 'Add member' : 'Save changes',
+                  loading: _saving,
+                  onPressed: _saving ? null : _submit,
+                ),
               ),
             ],
           ),
@@ -204,8 +227,9 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
 }
 
 class _EmployeeTile extends ConsumerWidget {
-  const _EmployeeTile({required this.employee});
+  const _EmployeeTile({required this.employee, required this.onEdit});
   final Employee employee;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => FulusListRow(
@@ -221,6 +245,11 @@ class _EmployeeTile extends ConsumerWidget {
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
               ),
+            FulusIconButton(
+              icon: Icons.edit_outlined,
+              tooltip: 'Edit team member',
+              onPressed: onEdit,
+            ),
             FulusIconButton(
               icon: Icons.event_available_outlined,
               tooltip: 'Mark attendance',
