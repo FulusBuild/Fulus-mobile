@@ -21,7 +21,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Team',
-      subtitle: 'People who help run your business',
       actions: [
         FulusIconButton(
           icon: Icons.person_off_outlined,
