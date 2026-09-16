@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/money_transaction.dart';
 import '../utils/money_format.dart';
@@ -11,25 +12,25 @@ import '../utils/money_format.dart';
 IconData moneyTransactionIcon(MoneyTransaction t) {
   switch (t.type) {
     case MoneyTransactionType.saleIncome:
-      return Icons.point_of_sale_outlined;
+      return FulusIcons.sell;
     case MoneyTransactionType.manualIncome:
-      return Icons.add_circle_outline;
+      return FulusIcons.add;
     case MoneyTransactionType.customerRepayment:
-      return Icons.person_outline;
+      return FulusIcons.person;
     case MoneyTransactionType.supplierPayment:
-      return Icons.local_shipping_outlined;
+      return FulusIcons.stock;
     case MoneyTransactionType.expense:
       switch (t.category) {
         case 'Rent':
-          return Icons.home_outlined;
+          return FulusIcons.home;
         case 'Wages':
-          return Icons.people_outline;
+          return FulusIcons.customers;
         case 'Utilities':
-          return Icons.bolt_outlined;
+          return FulusIcons.settings;
         case 'Transport':
-          return Icons.local_shipping_outlined;
+          return FulusIcons.stock;
         default:
-          return Icons.receipt_long_outlined;
+          return FulusIcons.receipt;
       }
   }
 }
@@ -48,9 +49,6 @@ class MoneyTransactionTile extends StatelessWidget {
 
   final MoneyTransaction transaction;
   final String currencySymbol;
-
-  /// False when the caller already groups rows under a day header
-  /// (Money History) — the subtitle then only needs the time.
   final bool showDate;
   final VoidCallback? onTap;
 
