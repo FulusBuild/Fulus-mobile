@@ -1,26 +1,30 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 
-/// Opt-in live contract test for the Fulus authoritative sync API.
+/// Live contract test for the Fulus authoritative sync API.
 ///
 /// Required environment:
 ///   FULUS_API_URL       Edge Function URL
-///   FULUS_ACCESS_TOKEN  Supabase access token for a user with an active Fulus business membership
-///   FULUS_BUSINESS_ID   Active business ID for that user
-///   FULUS_DEVICE_ID     Active registered device_client_id for that business
+///   FULUS_BUSINESS_ID   Active business ID for the E2E user
+///   FULUS_DEVICE_ID     Active registered device_client_id
 ///
-/// This test creates one uniquely-named product using the same catalog command
-/// contract as the Flutter client, exercises the generic sync_operation
-/// idempotency contract separately, then deletes the created product. It is
-/// intentionally opt-in so normal CI never mutates a live database unless
-/// explicitly requested.
+/// Authentication can use either:
+///   FULUS_ACCESS_TOKEN  short-lived Supabase access token (legacy fallback)
+/// or:
+///   FULUS_AUTH_URL      Supabase project URL
+///   FULUS_PUBLISHABLE_KEY
+///   FULUS_REFRESH_TOKEN long-lived refresh token for the dedicated E2E user
+///
+/// Prefer the refresh-token path in CI so access tokens are minted fresh for
+/// every run instead of eventually expiring in GitHub Secrets.
 Future<void> main() async {
   final baseUrl = _required('FULUS_API_URL');
-  final token = _required('FULUS_ACCESS_TOKEN');
   final businessId = _required('FULUS_BUSINESS_ID');
   final deviceClientId = _required('FULUS_DEVICE_ID');
+  final token = await _resolveAccessToken();
 
   final dio = Dio(BaseOptions(
     baseUrl: baseUrl,
@@ -46,8 +50,6 @@ Future<void> main() async {
   var cleanedUp = false;
 
   try {
-    // Match the real FulusSyncApi wire contract for product.create:
-    // action=catalog_upsert, entity=products, item=<product payload>.
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
@@ -72,9 +74,6 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: product.create');
 
-    // Idempotency is a separate server contract implemented by
-    // accept_sync_operation. Do not pretend catalog_upsert itself provides
-    // operation-id idempotency until the backend does so explicitly.
     final idempotencyPayload = {
       'kind': 'e2e-idempotency-probe',
       'product_id': serverId,
@@ -169,6 +168,52 @@ Future<void> main() async {
   stdout.writeln('PASS: Fulus live sync contract E2E');
 }
 
+Future<String> _resolveAccessToken() async {
+  final refreshToken = Platform.environment['FULUS_REFRESH_TOKEN'];
+  if (refreshToken != null && refreshToken.isNotEmpty) {
+    final authUrl = _required('FULUS_AUTH_URL');
+    final publishableKey = _required('FULUS_PUBLISHABLE_KEY');
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 20),
+      headers: {
+        'apikey': publishableKey,
+        'content-type': 'application/json',
+      },
+      validateStatus: (_) => true,
+    ));
+
+    final response = await dio.post(
+      '$authUrl/auth/v1/token',
+      queryParameters: {'grant_type': 'refresh_token'},
+      data: {'refresh_token': refreshToken},
+    );
+    final status = response.statusCode ?? 0;
+    final data = response.data;
+    final accessToken = data is Map ? data['access_token'] : null;
+    if (status < 200 || status >= 300 || accessToken is! String || accessToken.isEmpty) {
+      throw StateError(
+        'E2E refresh-token authentication failed with HTTP $status: '
+        '${_safeAuthError(data)}',
+      );
+    }
+    stdout.writeln('PASS: fresh E2E access token minted from refresh token');
+    return accessToken;
+  }
+
+  final accessToken = _required('FULUS_ACCESS_TOKEN');
+  stdout.writeln('WARNING: using static FULUS_ACCESS_TOKEN; prefer FULUS_REFRESH_TOKEN in CI.');
+  return accessToken;
+}
+
+String _safeAuthError(dynamic data) {
+  if (data is Map) {
+    final error = data['error_description'] ?? data['msg'] ?? data['error'];
+    if (error != null) return error.toString();
+  }
+  return 'authentication response did not contain an access token';
+}
+
 Future<Response<dynamic>> _submitCatalog(
   Dio dio, {
   required String businessId,
@@ -218,8 +263,6 @@ void _printIdentityFingerprint(String label, String value) {
 }
 
 String _fingerprint(String value) {
-  // Non-secret diagnostic fingerprint. This avoids printing the actual
-  // identity while making exact CI-vs-local value comparisons possible.
   var hash = 0xcbf29ce484222325;
   for (final byte in value.codeUnits) {
     hash ^= byte;
