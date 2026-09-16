@@ -12,6 +12,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
 import '../../../../data/remote/cloud_restore_coordinator.dart';
 import '../../../../data/remote/endpoints/cloud_restore_api.dart';
+import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Restores a Fulus installation from the user's single Fulus Cloud business.
@@ -34,6 +35,41 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  BusinessSettingsResponseDto _settingsFromSnapshot(Map<String, dynamic> snapshot) {
+    final business = snapshot['business'];
+    if (business is! Map) {
+      throw const FormatException('Restore snapshot did not contain business settings.');
+    }
+    final data = Map<String, dynamic>.from(business);
+    final businessId = data['id']?.toString();
+    final businessName = data['name']?.toString().trim();
+    if (businessId == null || businessId.isEmpty || businessName == null || businessName.isEmpty) {
+      throw const FormatException('Restore snapshot contained incomplete business settings.');
+    }
+
+    final currencyCode = data['currency_code']?.toString().toUpperCase();
+    final currencySymbol = switch (currencyCode) {
+      'NGN' => '₦',
+      'USD' => r'$',
+      'EUR' => '€',
+      'GBP' => '£',
+      _ => currencyCode ?? '₦',
+    };
+
+    return BusinessSettingsResponseDto(
+      id: businessId,
+      businessName: businessName,
+      vatEnabled: data['vat_enabled'] == true,
+      vatRate: data['vat_rate'] is num ? (data['vat_rate'] as num).toDouble() : 0,
+      currencySymbol: currencySymbol,
+      address: data['address']?.toString(),
+      phone: data['phone']?.toString(),
+      email: data['email']?.toString(),
+      tin: data['tin']?.toString(),
+      receiptFooter: data['receipt_footer']?.toString(),
+    );
   }
 
   Future<void> _restore() async {
@@ -88,11 +124,14 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         throw StateError('Restore snapshot did not contain the authenticated owner identity.');
       }
 
-      // Fetch all non-transactional remote dependencies before changing local
-      // business data. A settings outage therefore cannot leave a destructive
-      // restore half-completed.
+      // The restore snapshot is the canonical cloud payload. Do not make a
+      // second call to the legacy /api/settings/business-profile route here:
+      // fulus-api owns this cloud contract and its root GET response is the
+      // membership context, not the old BusinessProfileOut shape. Reading
+      // settings from the same snapshot also keeps restore atomic from the
+      // mobile app's point of view and avoids a mismatched second source.
       setState(() => _status = 'Preparing business settings…');
-      final settings = await ref.read(businessSettingsApiProvider).getBusinessProfile();
+      final settings = _settingsFromSnapshot(snapshot);
 
       // Register the physical installation before the destructive local
       // transaction. If registration fails, the local database remains
@@ -112,20 +151,12 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         throw StateError('The cloud business has no restorable business data.');
       }
 
-      // The coordinator creates the local session inside the final owner
-      // normalization transaction. Reload it through the repository so the
-      // repository's in-memory current-user state and the database session
-      // agree before the app continues.
       final owner = await ref.read(authRepositoryProvider).restoreSession();
       if (owner == null || owner.id != ownerCloudUserId || !owner.isActive) {
         throw StateError('Restore completed without a valid local owner session.');
       }
       ref.read(sessionProvider.notifier).state = owner;
 
-      // A restored installation must prove that its first reconciliation can
-      // complete before it is advertised as Sync Ready. Enabling the
-      // persisted switch alone is not enough: readiness means the business,
-      // device and initial server reconciliation are all valid.
       await ref.read(syncConfigProvider).setEnabled(true);
       setState(() => _status = 'Reconciling with Fulus Cloud…');
       try {
