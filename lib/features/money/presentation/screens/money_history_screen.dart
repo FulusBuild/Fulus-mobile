@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/export/export_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
@@ -112,13 +113,13 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.table_chart_outlined),
+            leading: const Icon(FulusIcons.tableChart),
             title: const Text('CSV'),
             subtitle: const Text('Open in a spreadsheet'),
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
           ListTile(
-            leading: const Icon(Icons.picture_as_pdf_outlined),
+            leading: const Icon(FulusIcons.pictureAsPdf),
             title: const Text('PDF'),
             subtitle: const Text('Share a printable summary'),
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
@@ -202,9 +203,9 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
       applyPadding: false,
       actions: [
         if (kDebugMode)
-          FulusIconButton(icon: Icons.bug_report_outlined, tooltip: 'Simulate error (debug)', onPressed: _toggleSimulatedError),
+          FulusIconButton(icon: FulusIcons.bugReport, tooltip: 'Simulate error (debug)', onPressed: _toggleSimulatedError),
         FulusIconButton(
-          icon: Icons.ios_share,
+          icon: FulusIcons.share,
           tooltip: 'Export',
           onPressed: () async {
             final items = await _future;
@@ -259,7 +260,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
               child: Row(
                 children: [
-                  Icon(Icons.filter_alt_outlined, size: AppIconSize.dense, color: AppColors.textSecondaryOf(context)),
+                  Icon(FulusIcons.filterAlt, size: AppIconSize.dense, color: AppColors.textSecondaryOf(context)),
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
@@ -298,7 +299,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
                 if (items.isEmpty) {
                   return SingleChildScrollView(
                     child: FulusEmptyState(
-                      icon: Icons.search_off,
+                      icon: FulusIcons.searchOff,
                       headline: 'No transactions found.',
                       body: _searchQuery.isNotEmpty
                           ? 'Try a different search term or period.'
