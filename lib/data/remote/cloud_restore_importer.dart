@@ -416,14 +416,15 @@ class CloudRestoreImporter {
     _TableInfo info,
     Map<String, dynamic> remote,
   ) async {
+    final normalizedRemote = _normalizeRemoteRow(table, remote);
     final values = <String, Object?>{};
     for (final column in info.columns) {
-      final remoteKey = _remoteKeyForColumn(column.name, remote);
+      final remoteKey = _remoteKeyForColumn(column.name, normalizedRemote);
       if (remoteKey == null) continue;
-      values[column.name] = _coerce(remote[remoteKey], column.type);
+      values[column.name] = _coerce(normalizedRemote[remoteKey], column.type);
     }
 
-    final remoteId = remote['id']?.toString();
+    final remoteId = normalizedRemote['id']?.toString();
     if (remoteId != null && remoteId.isNotEmpty) {
       if (info.has('local_id')) values['local_id'] = remoteId;
       if (info.has('server_id')) values['server_id'] = remoteId;
@@ -448,6 +449,74 @@ class CloudRestoreImporter {
     }
     if (values.isEmpty) throw StateError('Cannot restore an empty $table row.');
     await _insertValues(table, values);
+  }
+
+  /// Converts the server's audit-event vocabulary to the local AuditLogs
+  /// shape before the generic importer validates required columns.
+  ///
+  /// The cloud event uses entity_type/entity_id/metadata while the local
+  /// audit table deliberately uses module/record_id/details. Keeping this
+  /// translation here makes the cloud contract explicit without weakening
+  /// the local schema or making AuditLogs.module nullable.
+  Map<String, dynamic> _normalizeRemoteRow(
+    String table,
+    Map<String, dynamic> remote,
+  ) {
+    if (table != 'audit_logs') return remote;
+
+    final normalized = Map<String, dynamic>.from(remote);
+    final entityType = remote['entity_type']?.toString().trim();
+    final action = remote['action']?.toString().trim();
+
+    if (!normalized.containsKey('module')) {
+      normalized['module'] = _auditModule(entityType, action);
+    }
+    if (!normalized.containsKey('record_id') && remote.containsKey('entity_id')) {
+      normalized['record_id'] = remote['entity_id'];
+    }
+    if (!normalized.containsKey('details') && remote.containsKey('metadata')) {
+      normalized['details'] = remote['metadata'];
+    }
+    if (!normalized.containsKey('details') && remote.containsKey('reason')) {
+      normalized['details'] = remote['reason'];
+    }
+
+    return normalized;
+  }
+
+  String _auditModule(String? entityType, String? action) {
+    final key = entityType?.toLowerCase().replaceAll('-', '_') ?? '';
+    const aliases = <String, String>{
+      'user': 'AUTH',
+      'auth': 'AUTH',
+      'business': 'BUSINESS',
+      'business_profile': 'BUSINESS',
+      'location': 'BUSINESS',
+      'product': 'INVENTORY',
+      'category': 'INVENTORY',
+      'supplier': 'INVENTORY',
+      'stock_movement': 'INVENTORY',
+      'inventory_movement': 'INVENTORY',
+      'customer': 'CUSTOMERS',
+      'sale': 'SALES',
+      'sale_item': 'SALES',
+      'return': 'POS_RETURN',
+      'return_request': 'POS_RETURN',
+      'expense': 'FINANCE',
+      'expense_category': 'FINANCE',
+      'income': 'FINANCE',
+      'income_record': 'FINANCE',
+      'tax_remittance': 'FINANCE',
+      'cash_drawer_shift': 'POS_SHIFT',
+      'employee': 'EMPLOYEES',
+      'staff': 'EMPLOYEES',
+      'audit': 'BACKUP',
+    };
+    final mapped = aliases[key];
+    if (mapped != null) return mapped;
+    if (key.isNotEmpty) return key.toUpperCase();
+    if (action != null && action.isNotEmpty) return 'SYSTEM';
+    return 'SYSTEM';
   }
 
   Future<void> _insertValues(String table, Map<String, Object?> values) async {
