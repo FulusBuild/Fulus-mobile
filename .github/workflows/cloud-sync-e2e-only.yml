@@ -1,9 +1,6 @@
 name: Fulus Cloud Sync E2E Only
 
 on:
-  push:
-    branches:
-      - '**'
   workflow_dispatch:
 
 permissions:
