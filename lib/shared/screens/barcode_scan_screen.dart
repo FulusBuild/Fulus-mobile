@@ -187,7 +187,7 @@ class _ScannerView extends StatelessWidget {
       children: [
         MobileScanner(controller: controller, onDetect: onDetect),
         const _ScannerScrim(),
-        Center(child: _Viewfinder()),
+        const Center(child: _Viewfinder()),
         Positioned(
           top: AppSpacing.md,
           left: AppSpacing.md,
@@ -354,10 +354,10 @@ class _ScannerCircleButton extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onPressed,
-          child: const SizedBox(
+          child: SizedBox(
             width: 46,
             height: 46,
-            child: Icon(Icons.close, color: Colors.white),
+            child: Icon(icon, color: Colors.white),
           ),
         ),
       ),
