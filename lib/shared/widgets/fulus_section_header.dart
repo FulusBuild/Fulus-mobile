@@ -35,7 +35,7 @@ class FulusSectionHeader extends StatelessWidget {
               style: AppTypography.heading.copyWith(
                 color: AppColors.textPrimaryOf(context),
                 fontWeight: FontWeight.w700,
-                letterSpacing: -0.2,
+                letterSpacing: -0.25,
               ),
             ),
           ),
@@ -48,6 +48,10 @@ class FulusSectionHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                overlayColor: primary.withValues(alpha: 0.08),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
