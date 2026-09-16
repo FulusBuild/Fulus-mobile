@@ -11,6 +11,8 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.9"
+  SUPABASE_URL: "https://bejcuvoxemwomcatgyxz.supabase.co"
+  SUPABASE_PUBLISHABLE_KEY: "${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
 
 jobs:
   flutter-tests:
@@ -34,6 +36,28 @@ jobs:
         run: flutter analyze --fatal-infos
       - name: Run complete Flutter test suite
         run: flutter test
+
+  account-creation-contract:
+    name: Account creation contract
+    needs: flutter-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Verify account creation contract
+        env:
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: dart run tool/fulus_auth_e2e.dart
 
   live-server-contract:
     name: Live server and idempotency contract
