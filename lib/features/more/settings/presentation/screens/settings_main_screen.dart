@@ -88,11 +88,11 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (isOwner) ...[
-                FulusSectionHeader(title: 'Account & Backup'),
+                FulusSectionHeader(title: 'Cloud'),
                 FulusListRow(
                   leading: const Icon(Icons.cloud_outlined),
-                  title: const Text('Account & Backup'),
-                  subtitle: const Text('Back up this business and use it on other devices'),
+                  title: const Text('Fulus Cloud'),
+                  subtitle: const Text('Connect this business for server-authoritative sync'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.pushNamed('moreSettingsCloud'),
                 ),
@@ -258,3 +258,361 @@ class _BusinessInfoFormState extends ConsumerState<_BusinessInfoForm> {
             ],
             FulusTextField(label: 'Business name', controller: _nameController),
             const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Address', controller: _addressController),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Phone', controller: _phoneController, keyboardType: TextInputType.phone),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Email', controller: _emailController, keyboardType: TextInputType.emailAddress),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Tax ID (TIN)', controller: _tinController),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(label: 'Currency symbol', controller: _currencyController),
+            const SizedBox(height: AppSpacing.sm),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _vatEnabled,
+              onChanged: (v) => setState(() => _vatEnabled = v),
+              title: Text('VAT enabled', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                'Businesses under ₦100m annual turnover are exempt from VAT collection under the Nigeria Tax Act 2025. Confirm your own registration status before enabling this.',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+              ),
+            ),
+            if (_vatEnabled) ...[
+              const SizedBox(height: AppSpacing.sm),
+              FulusTextField(
+                label: 'VAT rate (%)',
+                controller: _vatRateController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ChangePinSheet extends ConsumerStatefulWidget {
+  const _ChangePinSheet();
+
+  @override
+  ConsumerState<_ChangePinSheet> createState() => _ChangePinSheetState();
+}
+
+class _ChangePinSheetState extends ConsumerState<_ChangePinSheet> {
+  final _pinController = TextEditingController();
+  final _confirmController = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final pin = _pinController.text.trim();
+    if (pin.length < 4) {
+      setState(() => _error = 'Use at least 4 digits.');
+      return;
+    }
+    if (pin != _confirmController.text.trim()) {
+      setState(() => _error = "PINs don't match.");
+      return;
+    }
+    final userId = ref.read(sessionProvider)?.id;
+    if (userId == null) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(approvalPinRepositoryProvider).setOwnApprovalPin(userId: userId, pin: pin);
+      if (mounted) {
+        Navigator.of(context).pop();
+        showFulusSnackbar(context, message: 'Approval PIN updated.');
+      }
+    } on Failure catch (f) {
+      if (mounted) setState(() {
+        _saving = false;
+        _error = f.message;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        _saving = false;
+        _error = "Couldn't reach the server — this needs a connection the first time.";
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          top: AppSpacing.lg,
+          bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Change approval PIN', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+              const SizedBox(height: AppSpacing.xs),
+              Text('Needs a connection this one time, to sync to the server.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+              const SizedBox(height: AppSpacing.md),
+              if (_error != null) ...[
+                Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              FulusTextField(label: 'New PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number),
+              const SizedBox(height: AppSpacing.sm),
+              FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(width: double.infinity, child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save)),
+            ],
+          ),
+        ),
+      );
+}
+
+class _AppLockSheet extends ConsumerStatefulWidget {
+  const _AppLockSheet();
+
+  @override
+  ConsumerState<_AppLockSheet> createState() => _AppLockSheetState();
+}
+
+class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
+  final _pinController = TextEditingController();
+  final _confirmController = TextEditingController();
+  final _biometricAuth = BiometricAuth();
+  bool _active = false;
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+  bool _loading = true;
+  bool _saving = false;
+  bool _biometricSaving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final config = await ref.read(appLockConfigProvider.future);
+      final active = await config.isActive();
+      final enabled = active && await config.isBiometricEnabled();
+      final available = active && await _biometricAuth.isAvailable();
+      if (mounted) setState(() {
+        _active = active;
+        _biometricEnabled = enabled;
+        _biometricAvailable = available;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        _loading = false;
+        _error = 'Couldn\'t load App Lock settings.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _turnOff() async {
+    setState(() => _saving = true);
+    final config = await ref.read(appLockConfigProvider.future);
+    await config.removePin();
+    if (mounted) {
+      Navigator.of(context).pop();
+      showFulusSnackbar(context, message: 'App Lock turned off.');
+    }
+  }
+
+  Future<void> _setPin() async {
+    final pin = _pinController.text.trim();
+    if (pin.length < 4) {
+      setState(() => _error = 'Use at least 4 digits.');
+      return;
+    }
+    if (pin != _confirmController.text.trim()) {
+      setState(() => _error = "PINs don't match.");
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final config = await ref.read(appLockConfigProvider.future);
+      await config.setPin(pin);
+      final biometricAvailable = await _biometricAuth.isAvailable();
+      if (!mounted) return;
+      setState(() {
+        _active = true;
+        _biometricEnabled = false;
+        _biometricAvailable = biometricAvailable;
+        _saving = false;
+      });
+      if (!biometricAvailable) {
+        showFulusSnackbar(context, message: 'App Lock is on. No fingerprint or face unlock is available on this device.');
+      }
+    } catch (_) {
+      if (mounted) setState(() {
+        _saving = false;
+        _error = 'Couldn\'t turn on App Lock. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _setBiometric(bool value) async {
+    if (_biometricSaving) return;
+    final config = await ref.read(appLockConfigProvider.future);
+
+    if (!value) {
+      setState(() => _biometricSaving = true);
+      try {
+        await config.setBiometricEnabled(false);
+        if (mounted) setState(() {
+          _biometricEnabled = false;
+          _biometricSaving = false;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _biometricSaving = false);
+      }
+      return;
+    }
+
+    if (!_biometricAvailable) {
+      if (mounted) showFulusSnackbar(context, message: 'No fingerprint or face unlock is available on this device.');
+      return;
+    }
+
+    setState(() {
+      _biometricSaving = true;
+      _error = null;
+    });
+    try {
+      final authenticated = await _biometricAuth.authenticate();
+      if (!authenticated) {
+        if (mounted) setState(() => _biometricSaving = false);
+        return;
+      }
+      await config.setBiometricEnabled(true);
+      if (mounted) {
+        setState(() {
+          _biometricEnabled = true;
+          _biometricSaving = false;
+        });
+        showFulusSnackbar(context, message: 'Biometric unlock is on.');
+      }
+    } catch (_) {
+      if (mounted) setState(() {
+        _biometricSaving = false;
+        _error = 'Couldn\'t enable biometric unlock. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('App Lock', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'When on, Fulus asks for this PIN every time it\'s opened or resumed from the background — separate from your approval PIN.',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (_active) ...[
+                  if (!_biometricEnabled && _biometricAvailable) ...[
+                    Text(
+                      'Protect Fulus with your fingerprint or face',
+                      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'You can unlock faster with the biometric method already set up on your phone. Your fingerprint or face data stays on your device.',
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: _biometricEnabled,
+                    onChanged: _biometricSaving ? null : _setBiometric,
+                    title: Text('Use biometric unlock', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
+                    subtitle: Text(
+                      _biometricAvailable ? 'Use your phone\'s fingerprint or face to unlock Fulus.' : 'No biometric method is available on this device.',
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(
+                      label: 'Done',
+                      loading: _saving,
+                      onPressed: _saving || _biometricSaving ? null : () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FulusButton(
+                      label: 'Turn off App Lock',
+                      variant: FulusButtonVariant.secondary,
+                      loading: _saving,
+                      onPressed: _saving || _biometricSaving ? null : _turnOff,
+                    ),
+                  ),
+                ] else ...[
+                  if (_error != null) ...[
+                    Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  FulusTextField(label: 'New PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number),
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(width: double.infinity, child: FulusButton(label: 'Turn on App Lock', loading: _saving, onPressed: _saving ? null : _setPin)),
+                ],
+              ],
+            ),
+    );
+  }
+}
