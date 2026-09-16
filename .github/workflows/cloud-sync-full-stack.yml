@@ -1,0 +1,87 @@
+name: Fulus Cloud Sync Full-Stack Verification
+
+on:
+  push:
+    branches:
+      - test/cloud-sync-full-stack
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.44.9"
+  SUPABASE_URL: "https://bejcuvoxemwomcatgyxz.supabase.co"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
+
+jobs:
+  flutter-tests:
+    name: Local DB and sync test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+      - name: Run complete Flutter test suite
+        run: flutter test
+
+  account-creation-contract:
+    name: Account creation contract
+    needs: flutter-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Verify account creation contract
+        env:
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+        run: dart run tool/fulus_auth_e2e.dart
+
+  live-server-contract:
+    name: Live server and idempotency contract
+    needs: flutter-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Run live Fulus sync contract test
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: ${{ env.SUPABASE_URL }}
+          FULUS_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: dart run tool/fulus_sync_e2e.dart
