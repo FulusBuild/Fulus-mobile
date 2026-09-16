@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/ux/consumer_polish.dart';
+import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/screens/barcode_scan_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../stock/application/stock_providers.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/quick_sale_sheet.dart';
@@ -48,7 +52,6 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   Future<void> _scanProduct() async {
     final barcode = await BarcodeScanScreen.scan(context, title: 'Scan product barcode');
     if (barcode == null || !mounted) return;
-
     final cubit = _cartCubit;
     if (cubit == null) return;
     final current = cubit.state;
@@ -69,16 +72,15 @@ class _SellScreenState extends ConsumerState<SellScreen> {
       return;
     }
 
-    final product = match.product;
-    if (product.tracksStock && match.currentStock <= 0) {
-      showFulusSnackbar(context, message: '${product.name} is out of stock.');
+    if (match.product.tracksStock && match.currentStock <= 0) {
+      showFulusSnackbar(context, message: '${match.product.name} is out of stock.');
       return;
     }
 
     try {
-      await cubit.addProduct(product.localId);
+      await cubit.addProduct(match.product.localId);
       FulusHaptics.selection();
-      if (mounted) showFulusSnackbar(context, message: '${product.name} added to the cart.');
+      if (mounted) showFulusSnackbar(context, message: '${match.product.name} added to the cart.');
     } on StateError catch (e) {
       FulusHaptics.error();
       if (mounted) showFulusSnackbar(context, message: e.message);
@@ -146,7 +148,7 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   }
 }
 
-class _SellContent extends StatelessWidget {
+class _SellContent extends ConsumerWidget {
   const _SellContent({
     required this.searchController,
     required this.query,
@@ -168,7 +170,10 @@ class _SellContent extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider).asData?.value ?? const <Category>[];
+    final categoryById = {for (final category in categories) category.localId: category};
+
     return FulusScreen(
       title: 'Sell',
       subtitle: 'Add products to today’s sale',
@@ -182,6 +187,7 @@ class _SellContent extends StatelessWidget {
           if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
           if (state is! CartLoaded) return const FulusLoadingIndicator();
           final inset = fulusHorizontalInset(context);
+          final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
           return Column(
             children: [
               Padding(
@@ -195,11 +201,12 @@ class _SellContent extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   children: [
                     FulusChip(label: 'All', selected: selectedCategoryId == null, onTap: () => onCategoryChanged(null)),
-                    ...state.catalog.values
-                        .map((entry) => entry.product.categoryId)
-                        .whereType<String>()
-                        .toSet()
-                        .map((id) => FulusChip(label: id, selected: selectedCategoryId == id, onTap: () => onCategoryChanged(id))),
+                    for (final id in categoryIds)
+                      FulusChip(
+                        label: categoryById[id]?.name ?? id,
+                        selected: selectedCategoryId == id,
+                        onTap: () => onCategoryChanged(id),
+                      ),
                   ],
                 ),
               ),
@@ -262,16 +269,29 @@ class _ProductRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final product = entry.product;
     final out = product.tracksStock && entry.currentStock <= 0;
+    final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
     return FulusCard(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-            alignment: Alignment.center,
-            child: Icon(Icons.inventory_2_outlined, color: AppColors.primaryOf(context)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Container(
+              width: 52,
+              height: 52,
+              color: AppColors.selectedTintOf(context),
+              alignment: Alignment.center,
+              child: product.photoPath == null
+                  ? Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)))
+                  : Image.file(
+                      File(product.photoPath!),
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      cacheWidth: 120,
+                      errorBuilder: (_, __, ___) => Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context))),
+                    ),
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -309,17 +329,22 @@ class _CartSummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.sm, fulusHorizontalInset(context), AppSpacing.sm),
+        padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
         child: FulusButton(
           label: state.itemCount == 1
               ? 'View cart · 1 item · ${state.currencySymbol}${state.total.toStringAsFixed(2)}'
               : 'View cart · ${state.itemCount} items · ${state.currencySymbol}${state.total.toStringAsFixed(2)}',
           onPressed: () {
             final cubit = context.read<CartCubit>();
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen())));
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen()),
+              ),
+            );
           },
         ),
       ),
