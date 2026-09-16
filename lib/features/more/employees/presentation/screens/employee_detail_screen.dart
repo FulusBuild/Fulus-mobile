@@ -238,7 +238,7 @@ class _LeaveRequestTile extends ConsumerWidget {
     final decidedBy = ref.read(authRepositoryProvider).currentUser?.id; if (decidedBy == null) return;
     try { await ref.read(employeeRepositoryProvider).decideLeaveRequest(leaveId: leave.id, status: status, decidedBy: decidedBy); onChanged(); }
     on Failure catch (f) { if (context.mounted) showFulusSnackbar(context, message: f.message); }
-    catch (_) { if (context.mounted) showFulusSnackbar(context, message: "That request isn't available anymore."); onChanged(); }
+    on Object catch (_) { if (context.mounted) showFulusSnackbar(context, message: "That request isn't available anymore."); onChanged(); }
   }
 }
 
