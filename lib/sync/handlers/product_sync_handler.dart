@@ -5,18 +5,11 @@ import '../../data/repositories/product_mapper.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../sync_handler.dart';
 
-/// **Phase 0 completion pass.** Second handler in this codebase (after
-/// CashDrawerShiftSyncHandler) that supports two operations for one
-/// entity type — 'create' for a brand-new product (Product Design Bible
-/// Volume 6, "Adding & Managing Products") and 'update' for an edit to
-/// an existing one, both enqueued by ProductRepositoryImpl.
+/// Pushes product catalog changes through the authoritative Fulus Cloud API.
 ///
-/// Needs the local Location row directly (not just ProductRepository),
-/// for the same single-reason ProductRepositoryImpl.syncFromServer
-/// already does: 'create' needs to read back the ProductStockLevels row
-/// createProduct seeded at a specific location, and Phase 0 is
-/// single-location, so there's exactly one to read — see that method's
-/// own doc comment for the fuller reasoning, unchanged here.
+/// Product category/supplier references are local IDs in the offline-first
+/// database. The cloud API expects server UUIDs, so both references must be
+/// resolved before a product write is attempted.
 class ProductSyncHandler implements SyncHandler {
   ProductSyncHandler({
     required ProductRepository productRepository,
@@ -59,13 +52,21 @@ class ProductSyncHandler implements SyncHandler {
     final stock = await (_db.select(_db.productStockLevels)
           ..where((s) => s.productLocalId.equals(localId)))
         .getSingleOrNull();
+    final categoryId = await _resolveCatalogServerId(
+      localId: product.categoryId,
+      entityType: 'category',
+    );
+    final supplierId = await _resolveCatalogServerId(
+      localId: product.supplierId,
+      entityType: 'supplier',
+    );
     final payload = <String, dynamic>{
       'local_id': localId,
       'name': product.name,
       'sku': product.sku,
       'barcode': product.barcode,
-      'category_id': product.categoryId,
-      'supplier_id': product.supplierId,
+      'category_id': categoryId,
+      'supplier_id': supplierId,
       'cost_price': product.costPrice,
       'selling_price': product.sellingPrice,
       'low_stock_threshold': product.lowStockThreshold,
@@ -103,9 +104,19 @@ class ProductSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
 
+    final categoryId = await _resolveCatalogServerId(
+      localId: product.categoryId,
+      entityType: 'category',
+    );
+    final supplierId = await _resolveCatalogServerId(
+      localId: product.supplierId,
+      entityType: 'supplier',
+    );
     final payload = <String, dynamic>{
       'server_id': serverId,
       ...product.toUpdateDto().toJson(),
+      'category_id': categoryId,
+      'supplier_id': supplierId,
     };
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
@@ -122,9 +133,43 @@ class ProductSyncHandler implements SyncHandler {
     await _productRepository.markSynced(localId: localId, serverId: serverId);
   }
 
+  Future<String?> _resolveCatalogServerId({
+    required String? localId,
+    required String entityType,
+  }) async {
+    if (localId == null || localId.isEmpty) return null;
+
+    final serverId = switch (entityType) {
+      'category' => await _resolveCategoryServerId(localId),
+      'supplier' => await _resolveSupplierServerId(localId),
+      _ => throw StateError('Unsupported product catalog dependency: $entityType'),
+    };
+    if (serverId == null || serverId.isEmpty) {
+      throw StateError(
+        'Product $entityType $localId has no server identity yet.',
+      );
+    }
+    return serverId;
+  }
+
+  Future<String?> _resolveCategoryServerId(String localId) async {
+    final row = await (_db.select(_db.categories)
+          ..where((c) => c.localId.equals(localId)))
+        .getSingleOrNull();
+    return row?.serverId;
+  }
+
+  Future<String?> _resolveSupplierServerId(String localId) async {
+    final row = await (_db.select(_db.suppliers)
+          ..where((s) => s.localId.equals(localId)))
+        .getSingleOrNull();
+    return row?.serverId;
+  }
+
   Future<ProductRow> _requireProductRow(String localId) async {
-    final row =
-        await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
+    final row = await (_db.select(_db.products)
+          ..where((p) => p.localId.equals(localId)))
+        .getSingleOrNull();
     if (row == null) {
       throw StateError(
         'No local product found for $localId — the queue item outlived its own row.',
