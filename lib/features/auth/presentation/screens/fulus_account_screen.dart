@@ -89,7 +89,9 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
 
       if (!mounted) return;
       await Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
+        MaterialPageRoute(
+          builder: (_) => CloudRestoreScreen(ownerEmail: email),
+        ),
       );
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
