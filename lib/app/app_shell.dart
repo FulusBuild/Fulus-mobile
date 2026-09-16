@@ -19,7 +19,13 @@ class FulusAppShell extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
   final bool showMoneyTab;
+
   static const _maxContentWidth = 1120.0;
+  static final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// Lets feature-level headers open the single workspace drawer without
+  /// creating a second navigation implementation inside each screen.
+  static void openDrawer() => scaffoldKey.currentState?.openDrawer();
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +40,7 @@ class FulusAppShell extends StatelessWidget {
         : navigationShell;
 
     return Scaffold(
+      key: scaffoldKey,
       drawer: _FulusNavigationDrawer(shell: navigationShell, showMoneyTab: showMoneyTab),
       drawerEdgeDragWidth: 52,
       drawerEnableOpenDragGesture: true,
