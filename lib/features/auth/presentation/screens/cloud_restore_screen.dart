@@ -6,7 +6,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../../app/providers.dart';
-import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
@@ -16,26 +15,23 @@ import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Restores a Fulus installation from the user's single Fulus Cloud business.
+///
+/// Authentication is completed by [FulusAccountScreen] before this screen is
+/// opened. This screen deliberately owns only the restore operation; it never
+/// asks for the cloud credentials a second time.
 class CloudRestoreScreen extends ConsumerStatefulWidget {
-  const CloudRestoreScreen({super.key});
+  const CloudRestoreScreen({super.key, required this.ownerEmail});
+
+  final String ownerEmail;
 
   @override
   ConsumerState<CloudRestoreScreen> createState() => _CloudRestoreScreenState();
 }
 
 class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _busy = false;
   String? _error;
-  String _status = 'Sign in to restore your business.';
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
+  String _status = 'Ready to restore your business.';
 
   BusinessSettingsResponseDto _settingsFromSnapshot(Map<String, dynamic> snapshot) {
     final business = snapshot['business'];
@@ -73,29 +69,20 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
   }
 
   Future<void> _restore() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Enter your Fulus Cloud email and password.');
-      return;
-    }
+    if (_busy) return;
 
     setState(() {
       _busy = true;
       _error = null;
-      _status = 'Signing in…';
+      _status = 'Finding your business…';
     });
 
     try {
-      await ref.read(authApiProvider).connectServer(
-            email: email,
-            password: password,
-            supabaseUrl: SupabaseConfig.url,
-            publishableKey: SupabaseConfig.publishableKey,
-          );
-
+      // FulusAccountScreen has already authenticated this exact account and
+      // stored its access/refresh credentials in ApiClient. Reusing that
+      // session prevents duplicate credential entry and, importantly, keeps
+      // authentication separate from the destructive local restore step.
       final connection = ref.read(fulusConnectionStateProvider);
-      setState(() => _status = 'Finding your business…');
       await connection.refresh();
 
       final active = connection.membershipContext?.memberships
@@ -124,19 +111,9 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         throw StateError('Restore snapshot did not contain the authenticated owner identity.');
       }
 
-      // The restore snapshot is the canonical cloud payload. Do not make a
-      // second call to the legacy /api/settings/business-profile route here:
-      // fulus-api owns this cloud contract and its root GET response is the
-      // membership context, not the old BusinessProfileOut shape. Reading
-      // settings from the same snapshot also keeps restore atomic from the
-      // mobile app's point of view and avoids a mismatched second source.
       setState(() => _status = 'Preparing business settings…');
       final settings = _settingsFromSnapshot(snapshot);
 
-      // Register the physical installation before the destructive local
-      // transaction. If registration fails, the local database remains
-      // untouched. If the later import fails, the registered device is safe
-      // to reuse on the next attempt.
       setState(() => _status = 'Registering this device…');
       await _registerDevice(connection);
 
@@ -144,7 +121,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       final result = await CloudRestoreCoordinator(ref.read(databaseProvider)).restore(
         snapshot: snapshot,
         ownerCloudUserId: ownerCloudUserId,
-        ownerEmail: email,
+        ownerEmail: widget.ownerEmail,
         settings: settings,
       );
       if (result.totalRows == 0) {
@@ -178,7 +155,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         setState(() {
           _busy = false;
           _error = failure.message;
-          _status = 'Sign in to restore your business.';
+          _status = 'Ready to restore your business.';
         });
       }
     } catch (error) {
@@ -186,7 +163,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         setState(() {
           _busy = false;
           _error = error.toString().replaceFirst('Bad state: ', '');
-          _status = 'Sign in to restore your business.';
+          _status = 'Ready to restore your business.';
         });
       }
     }
@@ -224,7 +201,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Sign in to Fulus Cloud and restore your business to this device.',
+                    'Your Fulus account is signed in. Restore your cloud business to this device.',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
@@ -233,24 +210,27 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        FulusTextField(
-                          label: 'Cloud account email',
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          enabled: !_busy,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        FulusTextField(
-                          label: 'Cloud account password',
-                          controller: _passwordController,
-                          obscureText: true,
-                          enabled: !_busy,
+                        Text(
+                          widget.ownerEmail,
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodyLarge.copyWith(
+                            color: AppColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text(_status, textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+                        Text(
+                          _status,
+                          textAlign: TextAlign.center,
+                          style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                        ),
                         if (_error != null) ...[
                           const SizedBox(height: AppSpacing.md),
-                          Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          ),
                         ],
                         const SizedBox(height: AppSpacing.lg),
                         FulusButton(
@@ -263,7 +243,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'One Fulus Cloud account is linked to one business. Your business can be restored on another device by signing in with the same account.',
+                    'This restores the business belonging to the signed-in Fulus account. Your existing local data is not merged with the cloud business.',
                     textAlign: TextAlign.center,
                     style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
