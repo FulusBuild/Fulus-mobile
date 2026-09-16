@@ -7,9 +7,9 @@ import '../sync_handler.dart';
 
 /// Pushes product catalog changes through the authoritative Fulus Cloud API.
 ///
-/// Product category/supplier references are local IDs in the offline-first
-/// database. The cloud API expects server UUIDs, so both references must be
-/// resolved before a product write is attempted.
+/// Product category/supplier references may be local IDs for offline-created
+/// rows or server IDs for rows reconciled from the cloud. The cloud API expects
+/// server UUIDs, so resolve either representation before a product write.
 class ProductSyncHandler implements SyncHandler {
   ProductSyncHandler({
     required ProductRepository productRepository,
@@ -153,17 +153,27 @@ class ProductSyncHandler implements SyncHandler {
   }
 
   Future<String?> _resolveCategoryServerId(String localId) async {
-    final row = await (_db.select(_db.categories)
+    final localRow = await (_db.select(_db.categories)
           ..where((c) => c.localId.equals(localId)))
         .getSingleOrNull();
-    return row?.serverId;
+    if (localRow?.serverId?.isNotEmpty == true) return localRow!.serverId;
+    if (localRow != null) return null;
+    final serverRow = await (_db.select(_db.categories)
+          ..where((c) => c.serverId.equals(localId)))
+        .getSingleOrNull();
+    return serverRow?.serverId;
   }
 
   Future<String?> _resolveSupplierServerId(String localId) async {
-    final row = await (_db.select(_db.suppliers)
+    final localRow = await (_db.select(_db.suppliers)
           ..where((s) => s.localId.equals(localId)))
         .getSingleOrNull();
-    return row?.serverId;
+    if (localRow?.serverId?.isNotEmpty == true) return localRow!.serverId;
+    if (localRow != null) return null;
+    final serverRow = await (_db.select(_db.suppliers)
+          ..where((s) => s.serverId.equals(localId)))
+        .getSingleOrNull();
+    return serverRow?.serverId;
   }
 
   Future<ProductRow> _requireProductRow(String localId) async {
