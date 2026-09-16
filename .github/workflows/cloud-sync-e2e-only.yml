@@ -1,0 +1,39 @@
+name: Fulus Cloud Sync E2E Only
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.44.9"
+  SUPABASE_URL: "https://bejcuvoxemwomcatgyxz.supabase.co"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
+
+jobs:
+  live-server-contract:
+    name: Live sync E2E contract only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Run live Fulus sync contract test
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: ${{ env.SUPABASE_URL }}
+          FULUS_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: dart run tool/fulus_sync_e2e.dart
