@@ -381,6 +381,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       notificationRepositoryProvider.overrideWithValue(notificationRepository),
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
+      syncTriggersProvider.overrideWithValue(syncTriggers),
     ],
   );
 }
