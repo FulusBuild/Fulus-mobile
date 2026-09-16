@@ -8,36 +8,20 @@ import '../../../../../shared/widgets/widgets.dart';
 
 /// Every location this business has — synced down from a desktop
 /// companion (`LocationRepository.syncFromServer`) or created directly
-/// from this screen. Feature-local (not `app/providers.dart`) since
-/// nothing outside this screen needs the full list — every other
-/// feature only ever needs the one *active* location
-/// (`activeLocationIdProvider`).
+/// from this screen. Feature-local since nothing outside this screen needs
+/// the full list — every other feature only ever needs the one active
+/// location (`activeLocationIdProvider`).
 final _locationsProvider = StreamProvider<List<Location>>((ref) {
   return ref.watch(locationRepositoryProvider).watchLocations();
 });
 
-/// Volume 6/Decision 21 made mobile-side location creation real: a
-/// business isn't limited to whatever a desktop companion set up (or,
-/// for a mobile-only business, to the one location silently seeded at
-/// onboarding — `ResolveActiveLocation`). Owner-facing, reached from
-/// More → Locations, matching this screen's siblings in the same list
-/// (Employees, Reports, Backup — none of which gate on role at this
-/// screen's level either; see `_MoreScreen`, app/router.dart).
-///
-/// Kept deliberately simple, matching Decision 21's own progressive-
-/// disclosure spirit: a flat list, a name-only "Add Location" sheet,
-/// tap-a-row-to-switch — no address/phone/hours fields, since
-/// `Location` itself has none (location.dart's own doc comment: "a
-/// thin entity, name is the only catalog field").
+/// Owner-facing location switcher. The data model intentionally remains
+/// name-only; this pass changes presentation, not the location contract.
 class ManageLocationsScreen extends ConsumerWidget {
   const ManageLocationsScreen({super.key});
 
   Future<void> _setActive(BuildContext context, WidgetRef ref, Location location) async {
     await ref.read(authRepositoryProvider).setActiveLocationId(location.localId);
-    // Every other feature's "which location" question funnels through
-    // this one provider (Sell/Stock/Money) — invalidating it here is
-    // what actually makes a switch on this screen take effect
-    // elsewhere, immediately, without an app restart.
     ref.invalidate(activeLocationIdProvider);
     if (context.mounted) {
       showFulusSnackbar(context, message: 'Now viewing ${location.name}.');
@@ -56,10 +40,6 @@ class ManageLocationsScreen extends ConsumerWidget {
       final created = await ref.read(locationRepositoryProvider).createLocation(
             LocationDraft(name: name.trim()),
           );
-      // A newly added second (or later) location is the natural moment
-      // to switch to it — an owner adding a location almost always
-      // means they're about to start using it, not admiring it from
-      // the first location's point of view.
       await _setActive(context, ref, created);
     } catch (_) {
       if (context.mounted) {
@@ -75,10 +55,11 @@ class ManageLocationsScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: 'Locations',
-      applyPadding: false,
-      floatingActionButton: FloatingActionButton(
+      subtitle: 'Choose where you are working',
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addLocation(context, ref),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Add location'),
       ),
       body: locationsAsync.when(
         data: (locations) {
@@ -92,22 +73,15 @@ class ManageLocationsScreen extends ConsumerWidget {
           }
           final activeId = activeIdAsync.value;
           return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            padding: const EdgeInsets.fromLTRB(0, AppSpacing.sm, 0, 112),
             itemCount: locations.length,
-            separatorBuilder: (_, __) => const FulusListDivider(indented: false),
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) {
               final location = locations[index];
               final isActive = location.localId == activeId;
-              return FulusListRow(
-                title: Text(location.name),
-                subtitle: isActive ? const Text('Active') : null,
-                leading: Icon(
-                  Icons.storefront_outlined,
-                  color: isActive ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
-                ),
-                trailing: isActive
-                    ? Icon(Icons.check_circle, color: AppColors.primaryOf(context))
-                    : null,
+              return _LocationCard(
+                location: location,
+                isActive: isActive,
                 onTap: isActive ? null : () => _setActive(context, ref, location),
               );
             },
@@ -118,6 +92,70 @@ class ManageLocationsScreen extends ConsumerWidget {
           message: "Couldn't load locations.",
           onRetry: () => ref.invalidate(_locationsProvider),
         ),
+      ),
+    );
+  }
+}
+
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({required this.location, required this.isActive, required this.onTap});
+
+  final Location location;
+  final bool isActive;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    return FulusCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      outlined: isActive,
+      elevated: isActive,
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.selectedTintOf(context) : AppColors.surfaceAltOf(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(
+              Icons.storefront_outlined,
+              size: AppIconSize.base,
+              color: isActive ? primary : AppColors.textSecondaryOf(context),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  location.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                if (isActive)
+                  const FulusStatusPill(label: 'Active', icon: Icons.check_circle_outline)
+                else
+                  Text(
+                    'Tap to switch here',
+                    style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context)),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Icon(
+            isActive ? Icons.check_circle : Icons.chevron_right,
+            color: isActive ? primary : AppColors.mutedOf(context),
+          ),
+        ],
       ),
     );
   }
