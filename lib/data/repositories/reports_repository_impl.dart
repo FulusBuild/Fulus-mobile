@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import 'employee_mapper.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/report.dart';
 import '../../domain/repositories/reports_repository.dart';
