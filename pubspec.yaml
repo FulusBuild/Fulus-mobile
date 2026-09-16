@@ -29,6 +29,7 @@ dependencies:
   cryptography: ^2.9.0
   crypto: ^3.0.5
   cupertino_icons: ^1.0.8
+  material_symbols_icons: ^4.2960.0
   sqlite3: ^3.5.2
   pdf: ^3.11.1
   printing: ^5.13.4
