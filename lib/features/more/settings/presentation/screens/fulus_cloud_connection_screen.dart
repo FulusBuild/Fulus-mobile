@@ -32,7 +32,6 @@ class _FulusCloudConnectionScreenState
   final _passwordController = TextEditingController();
   final _businessController = TextEditingController();
   bool _busy = false;
-  bool _creatingAccount = false;
   bool _resendingVerification = false;
   bool _awaitingVerification = false;
   String? _error;
@@ -123,7 +122,6 @@ class _FulusCloudConnectionScreenState
 
     setState(() {
       _busy = true;
-      _creatingAccount = true;
       _error = null;
     });
 
@@ -162,10 +160,7 @@ class _FulusCloudConnectionScreenState
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _busy = false;
-          _creatingAccount = false;
-        });
+        setState(() => _busy = false);
       }
     }
   }
