@@ -75,8 +75,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
           await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
       if (hasLocalBusiness) {
         throw StateError(
-          'This device already has a business. Sign in from Settings to connect it; '
-          'Fulus will not replace or merge your existing local data automatically.',
+          'This device already has a business. Account sign-in is only for restoring a cloud business during fresh setup.',
         );
       }
 
