@@ -147,10 +147,7 @@ class _MoneyViewTabs extends StatelessWidget {
     final labels = ['Overview', 'Transactions', 'Expenses'];
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAltOf(context),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
+      decoration: BoxDecoration(color: AppColors.surfaceAltOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
       child: Row(
         children: [
           for (var i = 0; i < labels.length; i++)
@@ -189,16 +186,11 @@ class _MoneyViewTabs extends StatelessWidget {
 }
 
 class _OverviewView extends StatelessWidget {
-  const _OverviewView({
-    required this.summaryFuture,
-    required this.transactionsFuture,
-    required this.currencySymbol,
-    required this.onRefresh,
-  });
+  const _OverviewView({required this.summaryFuture, required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
   final Future<MoneySummary> summaryFuture;
   final Future<List<MoneyTransaction>> transactionsFuture;
   final String currencySymbol;
-  final Future<void> Function() onRefresh;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -232,11 +224,7 @@ class _OverviewView extends StatelessWidget {
           },
         ),
         const SizedBox(height: AppSpacing.xl),
-        _RecentTransactions(
-          transactionsFuture: transactionsFuture,
-          currencySymbol: currencySymbol,
-          onRefresh: onRefresh,
-        ),
+        _RecentTransactions(transactionsFuture: transactionsFuture, currencySymbol: currencySymbol, onRefresh: onRefresh),
       ],
     );
   }
@@ -246,26 +234,24 @@ class _TransactionsView extends StatelessWidget {
   const _TransactionsView({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
   final Future<List<MoneyTransaction>> transactionsFuture;
   final String currencySymbol;
-  final Future<void> Function() onRefresh;
+  final VoidCallback onRefresh;
 
   @override
-  Widget build(BuildContext context) {
-    return _TransactionFeed(
-      title: 'Transactions',
-      transactionsFuture: transactionsFuture,
-      currencySymbol: currencySymbol,
-      onRefresh: onRefresh,
-      emptyHeadline: 'No transactions for this period.',
-      emptyBody: 'Sales, income, expenses, and payments you record will appear here.',
-    );
-  }
+  Widget build(BuildContext context) => _TransactionFeed(
+        title: 'Transactions',
+        transactionsFuture: transactionsFuture,
+        currencySymbol: currencySymbol,
+        onRefresh: onRefresh,
+        emptyHeadline: 'No transactions for this period.',
+        emptyBody: 'Sales, income, expenses, and payments you record will appear here.',
+      );
 }
 
 class _ExpensesView extends StatelessWidget {
   const _ExpensesView({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
   final Future<List<MoneyTransaction>> transactionsFuture;
   final String currencySymbol;
-  final Future<void> Function() onRefresh;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -273,9 +259,7 @@ class _ExpensesView extends StatelessWidget {
       future: transactionsFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) return _SectionError(onRetry: onRefresh, message: "Couldn't load expenses.");
-        if (!snapshot.hasData) {
-          return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
-        }
+        if (!snapshot.hasData) return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
         final expenses = snapshot.data!.where((item) => item.type == MoneyTransactionType.expense).toList();
         final total = expenses.fold<double>(0, (sum, item) => sum + item.amount);
         return Column(
@@ -289,11 +273,7 @@ class _ExpensesView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             if (expenses.isEmpty)
-              const FulusEmptyState(
-                icon: Icons.payments_outlined,
-                headline: 'No expenses for this period.',
-                body: 'Expenses you record will appear here.',
-              )
+              const FulusEmptyState(icon: Icons.payments_outlined, headline: 'No expenses for this period.', body: 'Expenses you record will appear here.')
             else
               _TransactionCard(items: expenses, currencySymbol: currencySymbol),
             const SizedBox(height: AppSpacing.lg),
@@ -309,41 +289,31 @@ class _RecentTransactions extends StatelessWidget {
   const _RecentTransactions({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
   final Future<List<MoneyTransaction>> transactionsFuture;
   final String currencySymbol;
-  final Future<void> Function() onRefresh;
+  final VoidCallback onRefresh;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FulusSectionHeader(title: 'Recent transactions', action: 'See all', onActionTap: () => context.pushNamed('moneyHistory')),
-        _TransactionFeed(
-          transactionsFuture: transactionsFuture,
-          currencySymbol: currencySymbol,
-          onRefresh: onRefresh,
-          limit: 5,
-          emptyHeadline: 'Nothing recorded for this period.',
-          emptyBody: 'Sales, income, and expenses you record will show up here.',
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FulusSectionHeader(title: 'Recent transactions', action: 'See all', onActionTap: () => context.pushNamed('moneyHistory')),
+          _TransactionFeed(
+            transactionsFuture: transactionsFuture,
+            currencySymbol: currencySymbol,
+            onRefresh: onRefresh,
+            limit: 5,
+            emptyHeadline: 'Nothing recorded for this period.',
+            emptyBody: 'Sales, income, and expenses you record will show up here.',
+          ),
+        ],
+      );
 }
 
 class _TransactionFeed extends StatelessWidget {
-  const _TransactionFeed({
-    required this.transactionsFuture,
-    required this.currencySymbol,
-    required this.onRefresh,
-    required this.emptyHeadline,
-    required this.emptyBody,
-    this.title,
-    this.limit,
-  });
+  const _TransactionFeed({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh, required this.emptyHeadline, required this.emptyBody, this.title, this.limit});
   final String? title;
   final Future<List<MoneyTransaction>> transactionsFuture;
   final String currencySymbol;
-  final Future<void> Function() onRefresh;
+  final VoidCallback onRefresh;
   final String emptyHeadline;
   final String emptyBody;
   final int? limit;
@@ -354,13 +324,9 @@ class _TransactionFeed extends StatelessWidget {
       future: transactionsFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) return _SectionError(onRetry: onRefresh, message: "Couldn't load transactions.");
-        if (!snapshot.hasData) {
-          return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
-        }
+        if (!snapshot.hasData) return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
         final items = limit == null ? snapshot.data! : snapshot.data!.take(limit!).toList();
-        if (items.isEmpty) {
-          return FulusEmptyState(icon: Icons.receipt_long_outlined, headline: emptyHeadline, body: emptyBody);
-        }
+        if (items.isEmpty) return FulusEmptyState(icon: Icons.receipt_long_outlined, headline: emptyHeadline, body: emptyBody);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -482,9 +448,7 @@ class _SummarySection extends StatelessWidget {
           Expanded(child: FulusStatCard(label: 'Money in', value: formatMoney(summary.moneyIn, symbol: currencySymbol), valueColor: AppColors.primaryOf(context))),
           Expanded(child: FulusStatCard(label: 'Money out', value: formatMoney(summary.moneyOut, symbol: currencySymbol), valueColor: AppColors.errorOf(context))),
         ];
-        return horizontal
-            ? Row(children: [cards[0], const SizedBox(width: AppSpacing.md), cards[1]])
-            : Column(children: [cards[0], const SizedBox(height: AppSpacing.sm), cards[1]]);
+        return horizontal ? Row(children: [cards[0], const SizedBox(width: AppSpacing.md), cards[1]]) : Column(children: [cards[0], const SizedBox(height: AppSpacing.sm), cards[1]]);
       }),
       const SizedBox(height: AppSpacing.md),
       FulusStatCard(label: 'Net', value: formatMoney(net, symbol: currencySymbol, showSign: true), valueColor: net >= 0 ? AppColors.primaryOf(context) : AppColors.errorOf(context), trend: trendUp ? FulusTrend.up : FulusTrend.down, trendLabel: 'vs previous period'),
@@ -505,7 +469,7 @@ class _SectionError extends StatelessWidget {
   const _SectionError({required this.message, required this.onRetry, this.reassurance});
   final String message;
   final String? reassurance;
-  final Future<void> Function() onRetry;
+  final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => FulusErrorState(message: message, reassurance: reassurance, onRetry: onRetry);
 }
