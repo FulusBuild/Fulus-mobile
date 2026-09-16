@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_icons.dart';
 import 'fulus_bottom_sheet.dart';
 
 /// One option in a [FulusDropdownField].
@@ -46,9 +47,6 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
     return matches.isEmpty ? '' : matches.first.label;
   }
 
-  // "≤5 short options" per 5.13 — a rough proxy for "short": also
-  // requires no label over ~18 characters, since a long label is the
-  // other trigger 5.13 names for falling back to a sheet.
   bool get _useAnchoredMenu =>
       widget.options.length <= 5 && widget.options.every((o) => o.label.length <= 18);
 
@@ -63,7 +61,7 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
           suffixIcon: AnimatedRotation(
             turns: _open ? 0.5 : 0,
             duration: AppMotion.standard,
-            child: const Icon(Icons.expand_more),
+            child: const Icon(FulusIcons.chevronDown),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
         ),
@@ -112,14 +110,7 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
               ),
             ),
           ),
-          // "Selected row: Primary/50 fill, Primary text, trailing
-          // checkmark — same selected treatment as a Chip" (5.13). The
-          // Primary/50 fill is left to the bottom-sheet variant below
-          // (via ListTile.tileColor) — PopupMenuItem has no per-item
-          // background color slot, so this variant relies on the
-          // colored label + checkmark pair, which already satisfies
-          // "never relies on color alone."
-          if (selected) Icon(Icons.check, color: AppColors.primaryOf(context), size: AppIconSize.compact),
+          if (selected) Icon(FulusIcons.check, color: AppColors.primaryOf(context), size: AppIconSize.compact),
         ],
       ),
     );
@@ -135,7 +126,7 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
           for (final o in widget.options)
             ListTile(
               title: Text(o.label),
-              trailing: o.value == widget.value ? Icon(Icons.check, color: AppColors.primaryOf(sheetContext)) : null,
+              trailing: o.value == widget.value ? Icon(FulusIcons.check, color: AppColors.primaryOf(sheetContext)) : null,
               tileColor: o.value == widget.value ? AppColors.selectedTintOf(sheetContext) : null,
               onTap: () => Navigator.of(sheetContext).pop(o.value),
             ),
