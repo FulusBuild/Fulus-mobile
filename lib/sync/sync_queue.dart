@@ -145,7 +145,7 @@ class SyncQueue {
   Future<void> seedExistingBusinessData() async {
     final tasks = <SyncTask>[];
 
-    Future<void> add(String entityType, Future<List<String>> Function() ids,
+    Future<void> add(Future<List<String>> Function() ids,
         SyncTask Function(String) create) async {
       final localIds = await ids();
       for (final localId in localIds) {
@@ -212,31 +212,30 @@ class SyncQueue {
             .map((row) => row.localId)
             .toList();
 
-    await add('location', idsForLocations, SyncTask.createLocation);
-    await add('category', idsForCategories, SyncTask.createCategory);
-    await add('supplier', idsForSuppliers, SyncTask.createSupplier);
-    await add('customer', idsForCustomers, SyncTask.createCustomer);
-    await add('expense_category', idsForExpenseCategories, SyncTask.createExpenseCategory);
-    await add('product', idsForProducts, SyncTask.createProduct);
-    await add('expense', idsForExpenses, SyncTask.createExpense);
-    await add('income_record', idsForIncomeRecords, SyncTask.createIncomeRecord);
-    await add('stock_movement', idsForStockMovements, SyncTask.recordStockMovement);
-    await add('sale', idsForSales, SyncTask.createSale);
-    await add('return', idsForReturns, SyncTask.createReturn);
-    await add('cash_drawer_shift', idsForCashDrawerShifts, SyncTask.createCashDrawerShift);
-    await add('customer_ledger', idsForCustomerLedger, SyncTask.recordCustomerRepayment);
+    await add(idsForLocations, SyncTask.createLocation);
+    await add(idsForCategories, SyncTask.createCategory);
+    await add(idsForSuppliers, SyncTask.createSupplier);
+    await add(idsForCustomers, SyncTask.createCustomer);
+    await add(idsForExpenseCategories, SyncTask.createExpenseCategory);
+    await add(idsForProducts, SyncTask.createProduct);
+    await add(idsForExpenses, SyncTask.createExpense);
+    await add(idsForIncomeRecords, SyncTask.createIncomeRecord);
+    await add(idsForStockMovements, SyncTask.recordStockMovement);
+    await add(idsForSales, SyncTask.createSale);
+    await add(idsForReturns, SyncTask.createReturn);
+    await add(idsForCashDrawerShifts, SyncTask.createCashDrawerShift);
+    await add(idsForCustomerLedger, SyncTask.recordCustomerRepayment);
 
+    // Closed shifts need both lifecycle operations. The create task is added
+    // above first; the close task follows it so the queue's stable enqueue
+    // ordering lets the handler obtain the server shift ID before closing it.
     final shifts = await _db.select(_db.cashDrawerShifts).get();
     for (final shift in shifts) {
-      if (shift.serverId == null || shift.serverId!.isEmpty ||
-          shift.deletedAt != null || shift.closedAt == null) {
+      if (shift.deletedAt != null || shift.closedAt == null ||
+          shift.serverId != null && shift.serverId!.isNotEmpty) {
         continue;
       }
-      final existingClose = tasks.any(
-        (task) => task.entityType == 'cash_drawer_shift' &&
-            task.entityLocalId == shift.localId && task.operation == 'close',
-      );
-      if (!existingClose) tasks.add(SyncTask.closeCashDrawerShift(shift.localId));
+      tasks.add(SyncTask.closeCashDrawerShift(shift.localId));
     }
 
     if (tasks.isEmpty) return;
