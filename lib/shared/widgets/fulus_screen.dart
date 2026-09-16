@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_shell.dart';
 import '../../core/theme/design_tokens.dart';
 
 /// Shared page composition for secondary and detail screens.
@@ -16,6 +17,7 @@ class FulusScreen extends StatelessWidget {
     this.bottomNavigationBar,
     this.padding = const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
     this.applyPadding = true,
+    this.showMenu = true,
   });
 
   final String? title;
@@ -27,6 +29,7 @@ class FulusScreen extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final EdgeInsets padding;
   final bool applyPadding;
+  final bool showMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +51,7 @@ class FulusScreen extends StatelessWidget {
                 actions: actions,
                 leading: leading,
                 showBack: canPop && leading == null,
+                showMenu: showMenu && !canPop && leading == null,
               ),
             Expanded(
               child: Align(
@@ -72,6 +76,7 @@ class _PageHeader extends StatelessWidget {
     required this.actions,
     required this.leading,
     required this.showBack,
+    required this.showMenu,
   });
 
   final String title;
@@ -79,6 +84,7 @@ class _PageHeader extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? leading;
   final bool showBack;
+  final bool showMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -97,22 +103,33 @@ class _PageHeader extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               isWide ? AppSpacing.lg : AppSpacing.sm,
-              isWide ? AppSpacing.md : AppSpacing.sm,
+              isWide ? AppSpacing.md : AppSpacing.xs,
               isWide ? AppSpacing.lg : AppSpacing.md,
-              isWide ? AppSpacing.md : AppSpacing.sm,
+              isWide ? AppSpacing.md : AppSpacing.xs,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (leading != null || showBack)
+                if (leading != null || showBack || showMenu)
                   SizedBox(
                     width: AppTouchTarget.minimum,
                     height: AppTouchTarget.minimum,
-                    child: leading ?? const BackButton(),
+                    child: leading ?? (showBack
+                        ? const BackButton()
+                        : IconButton(
+                            tooltip: 'Open navigation',
+                            onPressed: FulusAppShell.openDrawer,
+                            icon: const Icon(Icons.menu_rounded),
+                          )),
                   ),
+                if (showMenu) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  const _HeaderBrand(),
+                  const SizedBox(width: AppSpacing.md),
+                ],
                 Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : AppSpacing.sm),
+                    padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -129,7 +146,7 @@ class _PageHeader extends StatelessWidget {
                           ),
                         ),
                         if (subtitle != null) ...[
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 2),
                           Text(
                             subtitle!,
                             maxLines: 1,
@@ -153,6 +170,42 @@ class _PageHeader extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HeaderBrand extends StatelessWidget {
+  const _HeaderBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: AppColors.primaryOf(context),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Image.asset(
+            'assets/branding/fulus_mark_transparent.png',
+            fit: BoxFit.contain,
+            semanticLabel: 'Fulus',
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          'Fulus',
+          style: AppTypography.subheading.copyWith(
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimaryOf(context),
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
     );
   }
 }
