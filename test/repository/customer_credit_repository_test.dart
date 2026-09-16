@@ -263,6 +263,12 @@ void main() {
         amount: 5000,
         saleLocalId: 'sale-1',
       );
+
+      // The production ordering is by createdAt. Give the two domain events
+      // distinct timestamps rather than relying on two back-to-back calls to
+      // DateTime.now() having different microsecond values on every runner.
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+
       await creditRepository.recordRepayment(
         customerLocalId: customerId,
         amount: 2000,

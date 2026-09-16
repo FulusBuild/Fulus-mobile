@@ -24,13 +24,23 @@ class FulusBusinessContext {
             'Authorization': 'Bearer ${_client.serverAccessToken}',
         }),
       );
-      final root = Map<String, dynamic>.from(response.data as Map);
-      final data = Map<String, dynamic>.from(root['data'] as Map);
-      final raw = (data['memberships'] as List? ?? const []);
-      return FulusMembershipContext.fromJson(data, raw);
+      final root = _asMap(response.data, 'Fulus Cloud response');
+      final data = _asMap(root['data'], 'Fulus Cloud membership response');
+      final raw = data['memberships'];
+      if (raw != null && raw is! List) {
+        throw const FormatException('Fulus Cloud returned invalid membership data.');
+      }
+      return FulusMembershipContext.fromJson(data, raw as List<dynamic>? ?? const []);
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
+  }
+
+  static Map<String, dynamic> _asMap(Object? value, String label) {
+    if (value is! Map) {
+      throw FormatException('$label is unavailable or malformed.');
+    }
+    return Map<String, dynamic>.from(value);
   }
 }
 
@@ -48,16 +58,26 @@ class FulusMembershipContext {
   factory FulusMembershipContext.fromJson(
     Map<String, dynamic> data,
     List<dynamic> raw,
-  ) =>
-      FulusMembershipContext(
-        userId: data['user_id'] as String,
-        deviceClientId: data['device_client_id'] as String?,
-        memberships: raw
-            .map((item) => FulusBusinessMembership.fromJson(
-                  Map<String, dynamic>.from(item as Map),
-                ))
-            .toList(growable: false),
-      );
+  ) {
+    final userId = data['user_id']?.toString();
+    if (userId == null || userId.isEmpty) {
+      throw const FormatException('Fulus Cloud did not return the signed-in user.');
+    }
+
+    final memberships = <FulusBusinessMembership>[];
+    for (final item in raw) {
+      if (item is! Map) {
+        throw const FormatException('Fulus Cloud returned an invalid business membership.');
+      }
+      memberships.add(FulusBusinessMembership.fromJson(Map<String, dynamic>.from(item)));
+    }
+
+    return FulusMembershipContext(
+      userId: userId,
+      deviceClientId: data['device_client_id']?.toString(),
+      memberships: memberships,
+    );
+  }
 }
 
 class FulusBusinessMembership {
@@ -73,13 +93,26 @@ class FulusBusinessMembership {
   final String status;
   final DateTime? joinedAt;
 
-  factory FulusBusinessMembership.fromJson(Map<String, dynamic> json) =>
-      FulusBusinessMembership(
-        businessId: json['business_id'] as String,
-        roleId: json['role_id'] as String?,
-        status: json['status'] as String,
-        joinedAt: json['joined_at'] == null
-            ? null
-            : DateTime.tryParse(json['joined_at'] as String),
-      );
+  factory FulusBusinessMembership.fromJson(Map<String, dynamic> json) {
+    final businessId = json['business_id']?.toString();
+    final status = json['status']?.toString();
+    if (businessId == null || businessId.isEmpty) {
+      throw const FormatException('Fulus Cloud returned a membership without a business.');
+    }
+    if (status == null || status.isEmpty) {
+      throw const FormatException('Fulus Cloud returned a membership without a status.');
+    }
+
+    final joinedAtValue = json['joined_at'];
+    final joinedAt = joinedAtValue == null
+        ? null
+        : DateTime.tryParse(joinedAtValue.toString());
+
+    return FulusBusinessMembership(
+      businessId: businessId,
+      roleId: json['role_id']?.toString(),
+      status: status,
+      joinedAt: joinedAt,
+    );
+  }
 }

@@ -3,24 +3,25 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 
-/// Opt-in live contract test for the Fulus authoritative sync API.
+/// Live contract test for the Fulus authoritative sync API.
 ///
 /// Required environment:
 ///   FULUS_API_URL       Edge Function URL
-///   FULUS_ACCESS_TOKEN  Supabase access token for a user with an active Fulus business membership
-///   FULUS_BUSINESS_ID   Active business ID for that user
-///   FULUS_DEVICE_ID     Active registered device_client_id for that business
+///   FULUS_BUSINESS_ID   Active business ID for the E2E user
+///   FULUS_DEVICE_ID     Active registered device_client_id
 ///
-/// This test creates one uniquely-named product using the same catalog command
-/// contract as the Flutter client, exercises the generic sync_operation
-/// idempotency contract separately, then deletes the created product. It is
-/// intentionally opt-in so normal CI never mutates a live database unless
-/// explicitly requested.
+/// Authentication requires the dedicated Supabase Auth account credentials:
+///   FULUS_E2E_EMAIL     Supabase Auth email
+///   FULUS_E2E_PASSWORD   Supabase Auth password
+///
+/// A fresh Supabase access token is minted from the email/password credentials
+/// for every E2E run. Static access-token and refresh-token authentication are
+/// intentionally unsupported so an expired CI token cannot become a fallback.
 Future<void> main() async {
   final baseUrl = _required('FULUS_API_URL');
-  final token = _required('FULUS_ACCESS_TOKEN');
   final businessId = _required('FULUS_BUSINESS_ID');
   final deviceClientId = _required('FULUS_DEVICE_ID');
+  final token = await _resolveAccessToken();
 
   final dio = Dio(BaseOptions(
     baseUrl: baseUrl,
@@ -38,16 +39,13 @@ Future<void> main() async {
   _printIdentityFingerprint('device_client_id', deviceClientId);
   await _preflightDevice(dio, businessId: businessId);
 
-  final suffix =
-      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
+  final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
 
   try {
-    // Match the real FulusSyncApi wire contract for product.create:
-    // action=catalog_upsert, entity=products, item=<product payload>.
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
@@ -72,9 +70,6 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: product.create');
 
-    // Idempotency is a separate server contract implemented by
-    // accept_sync_operation. Do not pretend catalog_upsert itself provides
-    // operation-id idempotency until the backend does so explicitly.
     final idempotencyPayload = {
       'kind': 'e2e-idempotency-probe',
       'product_id': serverId,
@@ -111,15 +106,9 @@ Future<void> main() async {
     final conflictHttpStatus = conflictingReplay.statusCode ?? 0;
     final conflictData = conflictingReplay.data;
     final nestedData = conflictData is Map ? conflictData['data'] : null;
-    final envelopeStatus = nestedData is Map
-        ? nestedData['status_code']
-        : null;
-    final envelopeError = nestedData is Map
-        ? nestedData['error']
-        : null;
-    final envelopeErrorCode = envelopeError is Map
-        ? envelopeError['code']
-        : null;
+    final envelopeStatus = nestedData is Map ? nestedData['status_code'] : null;
+    final envelopeError = nestedData is Map ? nestedData['error'] : null;
+    final envelopeErrorCode = envelopeError is Map ? envelopeError['code'] : null;
     final conflictStatus = envelopeStatus is num
         ? envelopeStatus.toInt()
         : conflictHttpStatus;
@@ -160,13 +149,57 @@ Future<void> main() async {
         }
       } catch (_) {
         stderr.writeln(
-          'WARNING: automatic cleanup failed for server entity $serverId.',
+          'WARNING: automatic cleanup failed for the test-created server entity.',
         );
       }
     }
   }
 
   stdout.writeln('PASS: Fulus live sync contract E2E');
+}
+
+Future<String> _resolveAccessToken() async {
+  final email = _required('FULUS_E2E_EMAIL');
+  final password = _required('FULUS_E2E_PASSWORD');
+  final authUrl = _required('FULUS_AUTH_URL');
+  final publishableKey = _required('FULUS_PUBLISHABLE_KEY');
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
+
+  final response = await dio.post(
+    '$authUrl/auth/v1/token',
+    queryParameters: {'grant_type': 'password'},
+    data: {
+      'email': email,
+      'password': password,
+    },
+  );
+  final status = response.statusCode ?? 0;
+  final data = response.data;
+  final accessToken = data is Map ? data['access_token'] : null;
+  if (status < 200 || status >= 300 || accessToken is! String || accessToken.isEmpty) {
+    throw StateError(
+      'E2E password authentication failed with HTTP $status: '
+      '${_safeAuthError(data)}',
+    );
+  }
+  stdout.writeln('PASS: fresh E2E access token minted from Supabase password authentication');
+  return accessToken;
+}
+
+String _safeAuthError(dynamic data) {
+  if (data is Map) {
+    final error = data['error_description'] ?? data['msg'] ?? data['error'];
+    if (error != null) return error.toString();
+  }
+  return 'authentication response did not contain an access token';
 }
 
 Future<Response<dynamic>> _submitCatalog(

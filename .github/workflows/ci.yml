@@ -29,19 +29,12 @@ on:
         options:
           - none
           - debug
-          - release
 
       run_fulus_e2e:
         description: "Run the live Fulus sync contract test (requires FULUS_E2E_* secrets)"
         required: true
-        default: "false"
+        default: "true"
         type: boolean
-
-      api_base_url:
-        description: "API base URL for release APK (leave empty to use repository variable)"
-        required: false
-        default: ""
-        type: string
 
 env:
   FLUTTER_VERSION: "3.44.9"
@@ -139,7 +132,6 @@ jobs:
   fulus_e2e:
     name: Fulus live sync contract test
     needs: test
-    if: github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -156,7 +148,10 @@ jobs:
       - name: Run Fulus sync contract test
         env:
           FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
-          FULUS_ACCESS_TOKEN: ${{ secrets.FULUS_E2E_ACCESS_TOKEN }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: https://bejcuvoxemwomcatgyxz.supabase.co
+          FULUS_PUBLISHABLE_KEY: sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80
           FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
           FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
         run: dart run tool/fulus_sync_e2e.dart
@@ -256,13 +251,13 @@ jobs:
           APPLICATION_ID: ${{ vars.FULUS_APPLICATION_ID }}
         run: |
           set -euo pipefail
-          if [ -z "$APPLICATION_ID" ]; then echo "::error::FULUS_APPLICATION_ID repository variable is not configured."; exit 1; fi
+          if [ -z "$APPLICATION_ID" ]; then echo "::error::FULUS_APPLICATION_ID is not configured."; exit 1; fi
           case "$APPLICATION_ID" in com.example.*) echo "::error::FULUS_APPLICATION_ID must not use the placeholder com.example namespace."; exit 1;; esac
           echo "APPLICATION_ID=$APPLICATION_ID" >> "$GITHUB_OUTPUT"
       - name: Resolve API base URL
         id: api
         env:
-          INPUT_API_BASE_URL: ${{ inputs.api_base_url }}
+          INPUT_API_BASE_URL: ""
           REPOSITORY_API_BASE_URL: ${{ vars.API_BASE_URL }}
         run: |
           API_BASE_URL="$INPUT_API_BASE_URL"

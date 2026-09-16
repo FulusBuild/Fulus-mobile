@@ -1,9 +1,9 @@
-name: Fulus Cloud Sync E2E Only
+name: Fulus Cloud Sync Full-Stack Verification
 
 on:
   push:
     branches:
-      - '**'
+      - test/cloud-sync-full-stack
   workflow_dispatch:
 
 permissions:
@@ -15,8 +15,31 @@ env:
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
 
 jobs:
+  flutter-tests:
+    name: Local DB and sync test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+      - name: Run complete Flutter test suite
+        run: flutter test
+
   account-creation-contract:
-    name: Account creation E2E contract
+    name: Account creation contract
+    needs: flutter-tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -30,13 +53,17 @@ jobs:
           cache: true
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Run account creation contract test
+      - name: Verify account creation contract
+        env:
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
         run: dart run tool/fulus_auth_e2e.dart
 
   live-server-contract:
-    name: Live sync E2E contract
+    name: Live server and idempotency contract
+    needs: flutter-tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4

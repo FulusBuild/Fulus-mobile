@@ -131,6 +131,138 @@ class SyncQueue {
     });
   }
 
+  /// Seeds the durable queue with business records that already existed
+  /// before cloud backup was connected. Normal repository writes enqueue
+  /// themselves, but a business created offline can contain historical rows
+  /// that were written before a cloud account existed. Without this pass,
+  /// the initial reconciliation would see an empty queue and upload nothing.
+  ///
+  /// Only entity types with a real sync handler are seeded. Device-only
+  /// tables (for example users, permissions, diagnostics, and local stock
+  /// level projections) are intentionally not treated as cloud records.
+  /// Soft-deleted rows are skipped because they were already deleted locally
+  /// before the first cloud connection and must not be recreated remotely.
+  Future<void> seedExistingBusinessData() async {
+    final tasks = <SyncTask>[];
+
+    Future<void> add(Future<List<String>> Function() ids,
+        SyncTask Function(String) create) async {
+      final localIds = await ids();
+      for (final localId in localIds) {
+        tasks.add(create(localId));
+      }
+    }
+
+    Future<List<String>> idsForLocations() async => (await _db.select(_db.locations).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForCategories() async => (await _db.select(_db.categories).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForSuppliers() async => (await _db.select(_db.suppliers).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForCustomers() async => (await _db.select(_db.customers).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForProducts() async => (await _db.select(_db.products).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForExpenseCategories() async =>
+        (await _db.select(_db.expenseCategories).get())
+            .where((row) => row.serverId == null && row.deletedAt == null)
+            .map((row) => row.localId)
+            .toList();
+    Future<List<String>> idsForExpenses() async => (await _db.select(_db.expenses).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForIncomeRecords() async =>
+        (await _db.select(_db.incomeRecords).get())
+            .where((row) => row.serverId == null && row.deletedAt == null)
+            .map((row) => row.localId)
+            .toList();
+    Future<List<String>> idsForStockMovements() async =>
+        (await _db.select(_db.stockMovements).get())
+            .where((row) => row.serverId == null && row.deletedAt == null)
+            .map((row) => row.localId)
+            .toList();
+    Future<List<String>> idsForSales() async => (await _db.select(_db.sales).get())
+        .where((row) => row.serverId == null && row.deletedAt == null)
+        .map((row) => row.localId)
+        .toList();
+    Future<List<String>> idsForReturns() async =>
+        (await _db.select(_db.returnRequests).get())
+            .where((row) => row.serverId == null && row.deletedAt == null)
+            .map((row) => row.localId)
+            .toList();
+    Future<List<String>> idsForCashDrawerShifts() async =>
+        (await _db.select(_db.cashDrawerShifts).get())
+            .where((row) => row.serverId == null && row.deletedAt == null)
+            .map((row) => row.localId)
+            .toList();
+    Future<List<String>> idsForCustomerLedger() async =>
+        (await _db.select(_db.customerLedgerEntries).get())
+            .where((row) => row.serverId == null && row.deletedAt == null)
+            .map((row) => row.localId)
+            .toList();
+
+    await add(idsForLocations, SyncTask.createLocation);
+    await add(idsForCategories, SyncTask.createCategory);
+    await add(idsForSuppliers, SyncTask.createSupplier);
+    await add(idsForCustomers, SyncTask.createCustomer);
+    await add(idsForExpenseCategories, SyncTask.createExpenseCategory);
+    await add(idsForProducts, SyncTask.createProduct);
+    await add(idsForExpenses, SyncTask.createExpense);
+    await add(idsForIncomeRecords, SyncTask.createIncomeRecord);
+    await add(idsForStockMovements, SyncTask.recordStockMovement);
+    await add(idsForSales, SyncTask.createSale);
+    await add(idsForReturns, SyncTask.createReturn);
+    await add(idsForCashDrawerShifts, SyncTask.createCashDrawerShift);
+    await add(idsForCustomerLedger, SyncTask.recordCustomerRepayment);
+
+    // Closed shifts need both lifecycle operations. The create task is added
+    // above first; the close task follows it so the queue's stable enqueue
+    // ordering lets the handler obtain the server shift ID before closing it.
+    final shifts = await _db.select(_db.cashDrawerShifts).get();
+    for (final shift in shifts) {
+      if (shift.deletedAt != null || shift.closedAt == null ||
+          shift.serverId != null && shift.serverId!.isNotEmpty) {
+        continue;
+      }
+      tasks.add(SyncTask.closeCashDrawerShift(shift.localId));
+    }
+
+    if (tasks.isEmpty) return;
+
+    final existingRows = await _db.select(_db.syncQueueItems).get();
+    final existingKeys = existingRows
+        .map((row) => '${row.entityType}|${row.entityLocalId}|${row.operation}')
+        .toSet();
+
+    await _db.transaction(() async {
+      for (final task in tasks) {
+        final key = '${task.entityType}|${task.entityLocalId}|${task.operation}';
+        if (!existingKeys.add(key)) continue;
+        await _db.into(_db.syncQueueItems).insert(
+          SyncQueueItemsCompanion.insert(
+            id: Ulid().toString(),
+            entityType: task.entityType,
+            entityLocalId: task.entityLocalId,
+            operation: task.operation,
+            priority: task.priority,
+            enqueuedAt: DateTime.now(),
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> enqueue(SyncTask task) async {
     await _db.transaction(() async {
       final existing = await (_db.select(_db.syncQueueItems)
