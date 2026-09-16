@@ -5,96 +5,24 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
 import '../core/theme/device_form_factor.dart';
+import '../domain/entities/auth_user.dart';
+import '../domain/entities/permission.dart';
+import '../shared/widgets/fulus_brand_logo.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
-/// The global app shell — Component Library 5.5's bottom bar,
-/// "visible from every screen... the product's spine." Wraps whichever
-/// branch [navigationShell] is currently showing (Home/Stock/Sell/
-/// Money/More, each keeping its own independent navigation stack —
-/// go_router's `StatefulShellRoute.indexedStack`, wired in router.dart)
-/// in a persistent [Scaffold] + bottom nav.
+/// Global Fulus workspace shell.
 ///
-/// This widget owns navigation chrome only — it has no opinion on auth;
-/// router.dart gates the entire shell behind a signed-in check before
-/// ever building this, so by the time this widget exists, a session is
-/// assumed to be real. [showMoneyTab] is the one piece of session state
-/// it does need directly, though: Volume 2's Decision 6 — "the
-/// navigation structure itself is generated per role, so an employee
-/// login never renders tabs it doesn't need" — Money was owner-only
-/// (Volume 9: "An Employee login never sees Money, Reports, Employees,
-/// or Settings at all — not grayed out, not present-but-locked, simply
-/// not rendered"). Roles & Permissions (schemaVersion 10) replaces that
-/// blanket rule with `Permission.viewMoney`, granted or withheld per
-/// login rather than fixed to "is this literally an owner" — the caller
-/// (router.dart's `_ShellGate`) resolves that check and passes the
-/// result in here as a plain bool, keeping this widget itself free of
-/// any AuthRole/Permission-shaped decision.
-///
-/// More stays unconditionally visible now, for every signed-in role —
-/// unlike Money, it was never all-or-nothing to begin with even under
-/// the original two-role model: Notifications and Diagnostics under it
-/// were always meant to be reachable informational screens, not
-/// business-sensitive ones, and the individually-restricted rows inside
-/// it (Employees, Reports, Settings, Backup) now hide themselves per
-/// permission (see `_MoreScreen`) rather than the whole tab needing to
-/// disappear to protect them. Hiding the buttons is only half of
-/// Decision 6's enforcement either way — router.dart's top-level
-/// `redirect` is the other half, blocking direct navigation to a
-/// restricted route even if nothing in this UI offers a way to tap
-/// there.
-///
-/// Stock's employee-visibility is genuinely ambiguous in the source
-/// material — Decision 6 and Volume 9 both name Money, Reports,
-/// Employees, and Settings explicitly as hidden, and neither ever names
-/// Stock one way or the other. Volume 9 does say an Employee login can
-/// always "request... a stock adjustment," which reads as assuming some
-/// stock-related capability stays reachable. Kept visible here on that
-/// basis — the more conservative reading between "explicitly hidden"
-/// and "never mentioned," not a confirmed decision.
-///
-/// Gap fix: Volume 2/Volume 12's persistent sync indicator — "same
-/// place on every screen" — didn't exist anywhere. It couldn't live on
-/// each screen's own AppBar: several screens (Home included) build no
-/// AppBar at all, so "same place on every screen" can only genuinely
-/// hold at the one layer that wraps literally every screen, which is
-/// this shell. Rendered as a small overlay above [navigationShell]
-/// rather than inside the Scaffold's own `appBar` slot, since that slot
-/// belongs to each individual screen, not this shared shell.
-///
-/// Gap fix: a global "you're offline" indicator didn't exist either —
-/// `connectivity_plus` (already a dependency) was only ever checked in
-/// one place, Payment, to block Card/Mobile Money specifically. This is
-/// a genuinely different signal from the sync indicator above: sync can
-/// be (and by default is) turned off entirely while the device is still
-/// online, and the device can go offline whether or not sync is even
-/// enabled — conflating the two would misreport one or the other.
-/// Rendered as a thin banner that pushes content down rather than an
-/// overlay, since Volume 12's own rule for this state ("never a
-/// full-screen interstitial... reassuring, not alarming") reads as
-/// wanting it noticeable, not just a small icon someone has to go
-/// looking for.
-///
-/// **Tablet Support.** [navigationShell] itself is centered and capped
-/// at [_maxContentWidth] on a tablet-width window ([isTabletWidth]) —
-/// the one shell-level layout change that benefits every single screen
-/// in the app at once, rather than requiring each of them to separately
-/// notice it's running on a wide window. Deliberately the extent of
-/// this pass's tablet-specific layout work, not a rewrite of every
-/// screen: the bottom nav bar itself, and every individual screen's own
-/// internal layout, are untouched either way and keep rendering exactly
-/// as they do on a phone, just inside a narrower, centered column
-/// instead of stretched edge-to-edge — the safe, additive foundation
-/// [isTabletWidth]'s own doc comment describes, for later screen-by-
-/// screen work (a Home/Reports two-column layout, a master-detail
-/// Employees/Products list) to build on without this shell needing to
-/// change again. A phone-width window (`isTabletWidth` false) takes the
-/// `else` branch below and is completely unaffected — this cannot
-/// change anything about the current Android/phone experience by
-/// construction, since that branch is byte-for-byte what this method
-/// returned before this change existed.
+/// Navigation is intentionally hidden until requested: swipe from the left
+/// edge (or tap the menu button exposed by the drawer-aware screens) to open
+/// the navigation drawer. This replaces the permanent bottom navigation bar
+/// while preserving the existing StatefulShellRoute branch stacks.
 class FulusAppShell extends StatelessWidget {
-  const FulusAppShell({super.key, required this.navigationShell, required this.showMoneyTab});
+  const FulusAppShell({
+    super.key,
+    required this.navigationShell,
+    required this.showMoneyTab,
+  });
 
   final StatefulNavigationShell navigationShell;
   final bool showMoneyTab;
@@ -114,6 +42,9 @@ class FulusAppShell extends StatelessWidget {
         : navigationShell;
 
     return Scaffold(
+      drawer: const _FulusNavigationDrawer(),
+      drawerEdgeDragWidth: 44,
+      drawerEnableOpenDragGesture: true,
       body: Column(
         children: [
           const _OfflineBanner(),
@@ -121,33 +52,304 @@ class FulusAppShell extends StatelessWidget {
             child: Stack(
               children: [
                 content,
-                const Positioned(top: 0, right: 0, child: SafeArea(child: _SyncStatusIndicator())),
+                const Positioned(
+                  top: 0,
+                  right: 0,
+                  child: SafeArea(child: _SyncStatusIndicator()),
+                ),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _FulusBottomNav(
-        currentIndex: navigationShell.currentIndex,
-        showMoneyTab: showMoneyTab,
-        // `initialLocation: true` when re-tapping the already-active
-        // tab pops that branch back to its own root, matching the
-        // Bible's implicit assumption that tapping a nav icon always
-        // means "take me to the top of this section" — go_router's own
-        // documented behavior for this exact StatefulShellRoute pattern.
-        onTap: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+}
+
+class FulusNavBranch {
+  FulusNavBranch._();
+  static const home = 0;
+  static const stock = 1;
+  static const sell = 2;
+  static const money = 3;
+  static const more = 4;
+}
+
+class _FulusNavigationDrawer extends ConsumerWidget {
+  const _FulusNavigationDrawer();
+
+  void _close(BuildContext context) => Navigator.of(context).pop();
+
+  void _branch(BuildContext context, StatefulNavigationShell shell, int index) {
+    _close(context);
+    shell.goBranch(index, initialLocation: shell.currentIndex == index);
+  }
+
+  void _route(BuildContext context, String name) {
+    _close(context);
+    context.pushNamed(name);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shell = _shellFromContext(context);
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final isOwner = user?.role == AuthRole.owner;
+    final businessNameAsync = ref.watch(_drawerBusinessNameProvider);
+    final businessName = businessNameAsync.value?.trim();
+    final displayBusinessName = businessName == null || businessName.isEmpty ? 'Your business' : businessName;
+    final displayUserName = user?.fullName.trim().isNotEmpty == true ? user!.fullName : 'Business owner';
+
+    final canReports = isOwner || permissions.contains(Permission.viewReports);
+    final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
+    final canSettings = isOwner || permissions.contains(Permission.manageSettings);
+
+    return Drawer(
+      width: isTabletWidth(context) ? 360 : MediaQuery.sizeOf(context).width * .84,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
+              child: Row(
+                children: [
+                  const FulusBrandLogo(size: 46, padding: 9),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Fulus',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Simple. Powerful. Yours.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close navigation',
+                    onPressed: () => _close(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 18),
+                children: [
+                  const _DrawerSectionLabel('RUN'),
+                  _DrawerItem(
+                    icon: Icons.home_outlined,
+                    label: 'Home',
+                    selected: shell.currentIndex == FulusNavBranch.home,
+                    onTap: () => _branch(context, shell, FulusNavBranch.home),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.point_of_sale_outlined,
+                    label: 'Sell',
+                    selected: shell.currentIndex == FulusNavBranch.sell,
+                    onTap: () => _branch(context, shell, FulusNavBranch.sell),
+                  ),
+                  if (showMoneyTabFor(ref))
+                    _DrawerItem(
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Money',
+                      selected: shell.currentIndex == FulusNavBranch.money,
+                      onTap: () => _branch(context, shell, FulusNavBranch.money),
+                    ),
+                  const SizedBox(height: 16),
+                  const _DrawerSectionLabel('MANAGE'),
+                  _DrawerItem(
+                    icon: Icons.inventory_2_outlined,
+                    label: 'Stock',
+                    selected: shell.currentIndex == FulusNavBranch.stock,
+                    onTap: () => _branch(context, shell, FulusNavBranch.stock),
+                  ),
+                  if (showMoneyTabFor(ref))
+                    _DrawerItem(
+                      icon: Icons.people_outline,
+                      label: 'Customers',
+                      onTap: () => _route(context, 'moneyCustomers'),
+                    ),
+                  if (canEmployees)
+                    _DrawerItem(
+                      icon: Icons.badge_outlined,
+                      label: 'Staff',
+                      onTap: () => _route(context, 'moreEmployees'),
+                    ),
+                  if (canSettings)
+                    _DrawerItem(
+                      icon: Icons.location_on_outlined,
+                      label: 'Locations',
+                      onTap: () => _route(context, 'moreSettingsLocations'),
+                    ),
+                  const SizedBox(height: 16),
+                  const _DrawerSectionLabel('UNDERSTAND'),
+                  if (canReports)
+                    _DrawerItem(
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Reports',
+                      onTap: () => _route(context, 'moreReports'),
+                    ),
+                  const SizedBox(height: 16),
+                  const _DrawerSectionLabel('BUSINESS'),
+                  if (canSettings)
+                    _DrawerItem(
+                      icon: Icons.cloud_outlined,
+                      label: 'Account & Backup',
+                      onTap: () => _route(context, 'moreSettingsCloud'),
+                    ),
+                  if (canSettings)
+                    _DrawerItem(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      onTap: () => _route(context, 'moreSettings'),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.primaryOf(context).withValues(alpha: .12),
+                    foregroundColor: AppColors.primaryOf(context),
+                    child: Text(
+                      (displayBusinessName.isNotEmpty ? displayBusinessName[0] : displayUserName[0]).toUpperCase(),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayBusinessName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          displayUserName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  StatefulNavigationShell _shellFromContext(BuildContext context) {
+    return GoRouterState.of(context).extra is StatefulNavigationShell
+        ? GoRouterState.of(context).extra as StatefulNavigationShell
+        : throw StateError('Fulus navigation shell is not available in drawer context');
+  }
+
+  bool showMoneyTabFor(WidgetRef ref) {
+    final user = ref.read(sessionProvider);
+    if (user?.role == AuthRole.owner) return true;
+    final permissions = ref.read(sessionPermissionsProvider).value ?? const <Permission>{};
+    return permissions.contains(Permission.viewMoney);
+  }
+}
+
+final _drawerBusinessNameProvider = StreamProvider.autoDispose<String?>((ref) {
+  return ref.watch(businessSettingsRepositoryProvider).watchSettings().map((profile) => profile?.businessName);
+});
+
+class _DrawerSectionLabel extends StatelessWidget {
+  const _DrawerSectionLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+              color: AppColors.textSecondaryOf(context),
+            ),
+      ),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: selected ? primary.withValues(alpha: .10) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Icon(icon, size: 22, color: selected ? primary : AppColors.textSecondaryOf(context)),
+                  const SizedBox(width: 14),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected ? primary : null,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-/// A thin, dismissal-free banner — appears the moment the device goes
-/// offline, disappears the moment it's back, no tap target of its own
-/// (the sync indicator above is the tap target, for anyone who wants
-/// more than "you're offline" — this is purely informational).
 class _OfflineBanner extends ConsumerWidget {
   const _OfflineBanner();
 
@@ -169,11 +371,13 @@ class _OfflineBanner extends ConsumerWidget {
                   children: [
                     const Icon(Icons.cloud_off_outlined, color: Colors.white, size: AppIconSize.dense),
                     const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      "You're offline — your work is saved and will sync when you're back.",
-                      style: AppTypography.caption.copyWith(color: Colors.white),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
+                    Flexible(
+                      child: Text(
+                        "You're offline — your work is saved and will sync when you're back.",
+                        style: AppTypography.caption.copyWith(color: Colors.white),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -183,24 +387,12 @@ class _OfflineBanner extends ConsumerWidget {
   }
 }
 
-/// `connectivity_plus` is already a dependency (payment_screen.dart's
-/// own comment on why) — `onConnectivityChanged` rather than repeatedly
-/// polling `checkConnectivity()`, since this needs to react the instant
-/// connectivity changes, not just when something else happens to
-/// re-check it.
 final _isOnlineProvider = StreamProvider.autoDispose<bool>((ref) {
   return Connectivity()
       .onConnectivityChanged
       .map((results) => results.any((r) => r != ConnectivityResult.none));
 });
 
-/// The indicator itself — Volume 12: "exactly four visual states:
-/// quiet/settled, a small count, actively spinning, a soft amber mark,"
-/// plus [SyncStatusKind.disabled] (sync_status.dart's own doc comment
-/// on why that fifth state exists). Deliberately small and quiet even
-/// in its most attention-grabbing state — a soft amber dot, not a
-/// banner — matching "the user should never have to think about sync
-/// unless something is genuinely wrong" (Volume 12).
 class _SyncStatusIndicator extends ConsumerWidget {
   const _SyncStatusIndicator();
 
@@ -217,20 +409,10 @@ class _SyncStatusIndicator extends ConsumerWidget {
       SyncStatusKind.syncing => (Icons.sync, AppColors.primaryOf(context), 0),
       SyncStatusKind.attentionNeeded => (Icons.warning_amber_outlined, AppColors.warningOf(context), status.attentionCount),
     };
-    final label = switch (status.kind) {
-      SyncStatusKind.disabled => 'Sync is off',
-      SyncStatusKind.settled => 'All synced',
-      SyncStatusKind.syncing => 'Syncing now',
-      SyncStatusKind.pending =>
-        badgeCount > 0 ? 'Sync pending, $badgeCount item${badgeCount == 1 ? '' : 's'} waiting' : 'Sync pending',
-      SyncStatusKind.attentionNeeded =>
-        badgeCount > 0 ? 'Sync needs attention, $badgeCount item${badgeCount == 1 ? '' : 's'}' : 'Sync needs attention',
-    };
 
     return Semantics(
       button: true,
-      label: label,
-      excludeSemantics: true,
+      label: 'Sync status',
       child: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.md, top: AppSpacing.xs),
         child: Material(
@@ -275,225 +457,6 @@ class _SyncStatusIndicator extends ConsumerWidget {
   }
 }
 
-/// Separate from sync_detail_screen.dart's own status provider
-/// (`.autoDispose`, torn down when that screen closes) — this one backs
-/// a widget that's mounted for the app's entire lifetime once signed
-/// in, so it deliberately stays alive rather than repeatedly
-/// resubscribing to `SyncStatusNotifier.watch()`'s underlying Drift
-/// query every time a screen with `.autoDispose` semantics happened to
-/// rebuild something nearby.
 final _shellSyncStatusProvider = StreamProvider<SyncStatus>((ref) {
   return ref.watch(syncStatusNotifierProvider).watch();
 });
-
-/// Branch indices, matching 5.5's stated icon order (Home, Stock, Sell,
-/// Money, More) and router.dart's branch order — kept as named
-/// constants here rather than magic numbers repeated at both call
-/// sites. All five branches always exist in the router regardless of
-/// role (StatefulShellRoute branches are fixed at construction, not
-/// reactive) — what changes per role is only which of these indices
-/// [_FulusBottomNav] renders a button for, plus router.dart's redirect
-/// guard for the two an Employee shouldn't reach at all.
-class FulusNavBranch {
-  FulusNavBranch._();
-  static const home = 0;
-  static const stock = 1;
-  static const sell = 2;
-  static const money = 3;
-  static const more = 4;
-}
-
-class _FulusBottomNav extends StatelessWidget {
-  const _FulusBottomNav({required this.currentIndex, required this.onTap, required this.showMoneyTab});
-
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-  final bool showMoneyTab;
-
-  static const _barHeight = 64.0;
-  static const _sellDiameter = 54.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final leftItems = [
-      _NavItem(
-        icon: Icons.home_outlined,
-        filledIcon: Icons.home,
-        label: 'Home',
-        selected: currentIndex == FulusNavBranch.home,
-        onTap: () => onTap(FulusNavBranch.home),
-      ),
-      _NavItem(
-        icon: Icons.inventory_2_outlined,
-        filledIcon: Icons.inventory_2,
-        label: 'Stock',
-        selected: currentIndex == FulusNavBranch.stock,
-        onTap: () => onTap(FulusNavBranch.stock),
-      ),
-    ];
-    // Money is the one item that's ever absent from the right side now
-    // — see this class's own doc comment and FulusAppShell's for why
-    // More no longer varies the same way. A missing Money button still
-    // keeps More's icon centered under the same equal-width-Expandeds
-    // layout described below; it just leaves a one-item right side
-    // instead of two.
-    final rightItems = [
-      if (showMoneyTab)
-        _NavItem(
-          icon: Icons.account_balance_wallet_outlined,
-          filledIcon: Icons.account_balance_wallet,
-          label: 'Money',
-          selected: currentIndex == FulusNavBranch.money,
-          onTap: () => onTap(FulusNavBranch.money),
-        ),
-      _NavItem(
-        icon: Icons.more_horiz,
-        filledIcon: Icons.more_horiz,
-        label: 'More',
-        selected: currentIndex == FulusNavBranch.more,
-        onTap: () => onTap(FulusNavBranch.more),
-      ),
-    ];
-
-    // Extra headroom above the bar so the Sell button's circle can
-    // "break the baseline" (5.5) rather than sit flush inside the bar
-    // like the other items. The exact overlap amount below is a
-    // reasonable starting point, not visually verified on a device (no
-    // Flutter toolchain was available while writing this) — worth a
-    // quick look the first time this actually renders, and adjusting
-    // the Positioned `top` value below if the circle reads as
-    // crowding the bar rather than clearly floating above it.
-    return SizedBox(
-      height: _barHeight + (_sellDiameter * 0.45),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Container(
-            height: _barHeight,
-            decoration: BoxDecoration(color: AppColors.surfaceOf(context), boxShadow: AppElevation.liftOf(context)),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                children: [
-                  // Left and right halves are each an Expanded wrapping
-                  // an evenly-spaced Row of whatever items that side
-                  // has — this is what keeps the center gap (and the
-                  // Sell button floating above it) genuinely centered
-                  // regardless of whether the right side has 2 items
-                  // (Owner) or 0 (Employee), rather than the gap
-                  // drifting off-center if left/right item counts
-                  // differ.
-                  Expanded(
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: leftItems),
-                  ),
-                  const SizedBox(width: _sellDiameter + AppSpacing.md),
-                  Expanded(
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: rightItems),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            child: _SellNavItem(
-              selected: currentIndex == FulusNavBranch.sell,
-              onTap: () => onTap(FulusNavBranch.sell),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Home/Stock/Money/More — the four ordinary destinations. "Active
-/// state: filled icon + Primary colour + label weight stays the
-/// same — filled-vs-outline is what actually signals selection, colour
-/// reinforces it" (5.5) — hence swapping between [icon] (outline) and
-/// [filledIcon] rather than only recoloring one fixed glyph. "Labels
-/// always visible, never icon-only" (Product Bible Decision 55).
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.filledIcon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final IconData filledIcon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context);
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(selected ? filledIcon : icon, color: color, size: AppIconSize.base),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: AppTypography.caption.copyWith(color: color, fontSize: 11, height: 1),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The Sell destination — 5.5's one deliberate exception: "Elevated
-/// 54dp circle, breaks the baseline... the one nav item allowed to look
-/// different, because it's the one action the whole product exists to
-/// make fast." Still carries a visible "Sell" label underneath, same as
-/// every other item — the Bible's own component listing pairs
-/// `point_of_sale` with the label "Sell" exactly like the other four,
-/// so "looks different" means the elevated circle treatment, not an
-/// exemption from the always-visible-label rule.
-class _SellNavItem extends StatelessWidget {
-  const _SellNavItem({required this.selected, required this.onTap});
-
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final circleColor = AppColors.primaryOf(context);
-    final onCircleColor = AppColors.onPrimaryOf(context);
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: circleColor,
-              boxShadow: AppElevation.liftOf(context),
-            ),
-            child: Icon(Icons.point_of_sale, color: onCircleColor, size: AppIconSize.base),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Sell',
-            style: AppTypography.caption.copyWith(color: circleColor, fontSize: 11, height: 1),
-          ),
-        ],
-      ),
-    );
-  }
-}
