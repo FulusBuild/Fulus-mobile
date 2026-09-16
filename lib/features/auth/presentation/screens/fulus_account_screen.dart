@@ -196,9 +196,6 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     final authRepository = ref.read(authRepositoryProvider);
     final businessRepository = ref.read(businessSettingsRepositoryProvider);
 
-    // Keep local-first semantics: establish the local owner/business before
-    // enabling sync. If cloud provisioning later fails, the business remains
-    // usable offline and can be connected again from Settings.
     final owner = await authRepository.createFirstOwner(fullName: name);
     if (!mounted) return;
     ref.read(sessionProvider.notifier).state = owner;
@@ -228,9 +225,6 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
 
     connection.selectBusiness(active.single.businessId);
 
-    // A connected account is not sync-ready until the physical installation
-    // is authorized. Register it before enabling automatic backup so the
-    // first queued write cannot race ahead of device authorization.
     final storage = ref.read(secureStorageProvider);
     final deviceId = await storage.ensureDeviceClientId(Ulid().toString());
     final package = await PackageInfo.fromPlatform();
@@ -241,8 +235,6 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       appVersion: package.version,
     );
 
-    // Sync is only considered ready after the first reconciliation succeeds.
-    // This is the same readiness gate used by the fresh-install restore flow.
     final syncConfig = ref.read(syncConfigProvider);
     final syncTriggers = ref.read(syncTriggersProvider);
     await syncConfig.setEnabled(true);
@@ -344,17 +336,6 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                       child: Text(creating ? 'I already have an account' : 'Create a Fulus account'),
                     ),
                   ),
-                  if (!creating)
-                    Center(
-                      child: TextButton(
-                        onPressed: _busy
-                            ? null
-                            : () => Navigator.of(context).push<void>(
-                                  MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
-                                ),
-                        child: const Text('Restore my business'),
-                      ),
-                    ),
                 ],
               ),
             ),
