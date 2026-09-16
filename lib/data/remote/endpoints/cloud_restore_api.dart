@@ -36,9 +36,22 @@ class CloudRestoreApi {
           },
         ),
       );
-      return Map<String, dynamic>.from(
-        (response.data as Map<String, dynamic>)['data'] as Map,
-      );
+
+      final root = response.data;
+      if (root is! Map) {
+        throw const FormatException('Fulus Cloud returned an invalid restore response.');
+      }
+      final data = root['data'];
+      if (data is! Map) {
+        final error = root['error'];
+        final message = error is Map ? error['message']?.toString() : null;
+        throw FormatException(
+          message == null || message.isEmpty
+              ? 'Fulus Cloud did not return a restore snapshot.'
+              : message,
+        );
+      }
+      return Map<String, dynamic>.from(data);
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
