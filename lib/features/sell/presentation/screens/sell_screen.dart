@@ -45,6 +45,13 @@ class _SellScreenState extends ConsumerState<SellScreen> {
     setState(() => _query = '');
   }
 
+  void _retryCart() {
+    final cubit = _cartCubit;
+    _cartCubit = null;
+    cubit?.close();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _scanProduct() async {
     final barcode = await BarcodeScanScreen.scan(context, title: 'Scan product barcode');
     if (barcode == null || !mounted) return;
@@ -78,9 +85,7 @@ class _SellScreenState extends ConsumerState<SellScreen> {
     try {
       await cubit.addProduct(product.localId);
       FulusHaptics.selection();
-      if (mounted) {
-        showFulusSnackbar(context, message: '${product.name} added to the cart.');
-      }
+      if (mounted) showFulusSnackbar(context, message: '${product.name} added to the cart.');
     } on StateError catch (e) {
       FulusHaptics.error();
       if (mounted) showFulusSnackbar(context, message: e.message);
@@ -140,6 +145,7 @@ class _SellScreenState extends ConsumerState<SellScreen> {
             onCategoryChanged: (value) => setState(() => _selectedCategoryId = value),
             onClearSearch: _clearSearch,
             onScan: _scanProduct,
+            onRetry: _retryCart,
           ),
         );
       },
@@ -156,6 +162,7 @@ class _SellContent extends StatelessWidget {
     required this.onCategoryChanged,
     required this.onClearSearch,
     required this.onScan,
+    required this.onRetry,
   });
 
   final TextEditingController searchController;
@@ -165,6 +172,7 @@ class _SellContent extends StatelessWidget {
   final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onScan;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -178,18 +186,14 @@ class _SellContent extends StatelessWidget {
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
-          if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: () => context.read<CartCubit>().retry());
+          if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
           if (state is! CartLoaded) return const FulusLoadingIndicator();
           final inset = fulusHorizontalInset(context);
           return Column(
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
-                child: FulusSearchField(
-                  controller: searchController,
-                  hintText: 'Search products or scan barcode',
-                  onChanged: onQueryChanged,
-                ),
+                child: FulusSearchField(controller: searchController, hintText: 'Search products or scan barcode', onChanged: onQueryChanged),
               ),
               SizedBox(
                 height: 48,
@@ -207,14 +211,7 @@ class _SellContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              Expanded(
-                child: _ProductList(
-                  state: state,
-                  query: query,
-                  categoryId: selectedCategoryId,
-                  onClearSearch: onClearSearch,
-                ),
-              ),
+              Expanded(child: _ProductList(state: state, query: query, categoryId: selectedCategoryId, onClearSearch: onClearSearch)),
               if (state.items.isNotEmpty) _CartSummaryBar(state: state),
             ],
           );
