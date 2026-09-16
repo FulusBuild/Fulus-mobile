@@ -56,11 +56,14 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void> _activate() async {
     if (_subscription != null) return;
     WidgetsBinding.instance.addObserver(this);
-    await _runIfOnline();
-    if (!_syncConfig.isEnabled || _subscription != null) return;
+    // Subscribe before the initial run. If restored-session initialization
+    // fails (for example because the device is offline), the connectivity
+    // listener remains alive and can retry readiness when connectivity returns.
     _subscription = _connectivity.onConnectivityChanged.listen((_) {
       unawaited(_runIfOnline());
     });
+    if (!_syncConfig.isEnabled) return;
+    await _runIfOnline();
   }
 
   void dispose() {
