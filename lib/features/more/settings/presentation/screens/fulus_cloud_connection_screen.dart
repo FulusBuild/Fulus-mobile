@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,12 +7,17 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../../../app/providers.dart';
-import 'package:fulus_mobile/core/config/supabase_config.dart';
+import '../../../../../core/config/supabase_config.dart';
 import '../../../../../core/errors/failure.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
-/// Optional cloud-account linking. Local PIN authentication and local
-/// business data remain usable when this connection is absent.
+/// Connects an already-running local business to a Fulus account.
+///
+/// This screen never restores a cloud business over local data. A new cloud
+/// account can be created for the local business, or an existing account with
+/// no business can be connected to it. If an existing account already owns a
+/// business, restore belongs to fresh-install setup and this screen refuses
+/// to merge the two businesses.
 class FulusCloudConnectionScreen extends ConsumerStatefulWidget {
   const FulusCloudConnectionScreen({super.key, this.initialBusinessName});
 
@@ -37,7 +43,22 @@ class _FulusCloudConnectionScreenState
   void initState() {
     super.initState();
     final name = widget.initialBusinessName?.trim();
-    if (name != null && name.isNotEmpty) _businessController.text = name;
+    if (name != null && name.isNotEmpty) {
+      _businessController.text = name;
+    } else {
+      unawaited(_loadLocalBusinessName());
+    }
+  }
+
+  Future<void> _loadLocalBusinessName() async {
+    try {
+      final settings = await ref.read(businessSettingsRepositoryProvider).watchSettings().first;
+      final name = settings?.businessName.trim();
+      if (!mounted || name == null || name.isEmpty || _businessController.text.isNotEmpty) return;
+      setState(() => _businessController.text = name);
+    } catch (_) {
+      // The field remains editable; failure to prefill must not block linking.
+    }
   }
 
   @override
@@ -46,10 +67,6 @@ class _FulusCloudConnectionScreenState
     _passwordController.dispose();
     _businessController.dispose();
     super.dispose();
-  }
-
-  Future<void> _enableAutomaticSync() async {
-    await ref.read(syncConfigProvider).setEnabled(true);
   }
 
   Future<void> _resendVerification() async {
@@ -117,8 +134,7 @@ class _FulusCloudConnectionScreenState
       if (mounted) {
         setState(() {
           _error = failure.message;
-          if (failure.message.toLowerCase().contains('verify your email') ||
-              failure.message.toLowerCase().contains('already exists')) {
+          if (failure.message.toLowerCase().contains('verify your email')) {
             _awaitingVerification = true;
           }
         });
@@ -140,9 +156,6 @@ class _FulusCloudConnectionScreenState
 
     setState(() { _busy = true; _error = null; });
     try {
-      // Do not depend on the Android deep-link callback having delivered a
-      // refresh token. A verified account can always establish a fresh
-      // session with the credentials already present on this screen.
       await ref.read(authApiProvider).connectServer(
         email: email,
         password: password,
@@ -162,7 +175,7 @@ class _FulusCloudConnectionScreenState
   Future<void> _provisionBusiness() async {
     final name = _businessController.text.trim();
     if (name.length < 2) {
-      setState(() => _error = 'Enter your business name.');
+      if (mounted) setState(() => _error = 'Enter your business name.');
       return;
     }
     setState(() { _busy = true; _error = null; });
@@ -174,31 +187,18 @@ class _FulusCloudConnectionScreenState
         publishableKey: SupabaseConfig.publishableKey,
       );
       final connection = ref.read(fulusConnectionStateProvider);
-      List<dynamic> active = const [];
-      for (var attempt = 0; attempt < 3; attempt++) {
-        await connection.refresh();
-        active = connection.membershipContext?.memberships
-                .where((m) => m.status == 'active')
-                .toList(growable: false) ??
-            const [];
-        if (active.length == 1) break;
-        if (attempt < 2) {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-        }
-      }
+      await connection.refresh();
+      final active = connection.membershipContext?.memberships
+              .where((membership) => membership.status == 'active')
+              .toList(growable: false) ??
+          const [];
       if (active.length != 1) {
         throw StateError(
-          'Business setup completed, but the new business membership is not available yet. '
-          'Please try connecting again in a moment.',
+          'Business setup completed, but the new business connection is not ready yet. Please try again in a moment.',
         );
       }
-      connection.selectBusiness(active.first.businessId);
-      await _registerDevice(connection);
-      await _enableAutomaticSync();
-      if (mounted) {
-        showFulusSnackbar(context, message: 'You’re ready. Fulus will sync automatically when you’re online.');
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
+      connection.selectBusiness(active.single.businessId);
+      await _finishCloudConnection(connection);
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } catch (error) {
@@ -212,12 +212,13 @@ class _FulusCloudConnectionScreenState
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Enter the cloud account email and password.');
+      setState(() => _error = 'Enter the account email and password.');
       return;
     }
 
     setState(() {
       _busy = true;
+      _creatingAccount = false;
       _error = null;
     });
 
@@ -231,34 +232,21 @@ class _FulusCloudConnectionScreenState
 
       final connection = ref.read(fulusConnectionStateProvider);
       await connection.refresh();
-
       final active = connection.membershipContext?.memberships
               .where((membership) => membership.status == 'active')
               .toList(growable: false) ??
           const [];
 
-      if (active.isEmpty) {
+      // An account that already owns a business belongs to the fresh-install
+      // restore path. Never point this local business at it and never merge
+      // two businesses implicitly.
+      if (active.isNotEmpty) {
         throw StateError(
-          'This cloud account has no active Fulus business membership. '
-          'Use “Create account & set up business” to finish setup.',
+          'This account already has a Fulus business. To use that business on this device, restore it during fresh setup. Fulus will not merge it with this local business.',
         );
       }
 
-      if (active.length == 1) {
-        connection.selectBusiness(active.first.businessId);
-        await _registerDevice(connection);
-        await _enableAutomaticSync();
-      }
-
-      if (mounted) {
-        showFulusSnackbar(
-          context,
-          message: active.length == 1
-              ? 'Fulus Cloud connected. Sync will happen automatically.'
-              : 'Connected. Select a business below.',
-        );
-        setState(() => _busy = false);
-      }
+      await _provisionBusiness();
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {
@@ -279,6 +267,28 @@ class _FulusCloudConnectionScreenState
     }
   }
 
+  Future<void> _finishCloudConnection(dynamic connection) async {
+    await _registerDevice(connection);
+    final syncConfig = ref.read(syncConfigProvider);
+    final syncTriggers = ref.read(syncTriggersProvider);
+    await syncConfig.setEnabled(true);
+    try {
+      await syncTriggers.reconcileAfterRestore();
+      connection.markSyncReady();
+    } catch (_) {
+      connection.clearSyncReady();
+      rethrow;
+    }
+
+    if (mounted) {
+      showFulusSnackbar(
+        context,
+        message: 'Your business is connected. Fulus will back it up automatically when you’re online.',
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
   Future<void> _registerDevice(dynamic connection) async {
     final storage = ref.read(secureStorageProvider);
     final deviceId = await storage.ensureDeviceClientId(Ulid().toString());
@@ -292,37 +302,13 @@ class _FulusCloudConnectionScreenState
     );
   }
 
-  Future<void> _selectBusiness(String businessId) async {
-    final connection = ref.read(fulusConnectionStateProvider);
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      connection.selectBusiness(businessId);
-      await _registerDevice(connection);
-      await _enableAutomaticSync();
-      if (mounted) {
-        showFulusSnackbar(context, message: 'Business connected. Sync will happen automatically.');
-        setState(() => _busy = false);
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = error.toString().replaceFirst('Bad state: ', '');
-        });
-      }
-    }
-  }
-
   Future<void> _disconnect() async {
     ref.read(fulusConnectionStateProvider).disconnect();
     await ref.read(apiClientProvider).clearServerRefreshToken();
     ref.read(apiClientProvider).setAccessToken(null);
     await ref.read(syncConfigProvider).setEnabled(false);
     if (mounted) {
-      showFulusSnackbar(context, message: 'Fulus Cloud disconnected. Your local data is still safe.');
+      showFulusSnackbar(context, message: 'Cloud backup disconnected. Your local data is still safe.');
       setState(() {});
     }
   }
@@ -330,14 +316,10 @@ class _FulusCloudConnectionScreenState
   @override
   Widget build(BuildContext context) {
     final connection = ref.watch(fulusConnectionStateProvider);
-    final memberships = connection.membershipContext?.memberships
-            .where((membership) => membership.status == 'active')
-            .toList(growable: false) ??
-        const [];
     final connected = connection.isConnected && connection.isDeviceAuthorized;
 
     return FulusScreen(
-      title: 'Fulus Cloud',
+      title: 'Account & Backup',
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
@@ -345,30 +327,30 @@ class _FulusCloudConnectionScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(connected ? 'Connected' : 'Optional cloud connection', style: Theme.of(context).textTheme.titleLarge),
+                Text(connected ? 'Backup is on' : 'Connect your Fulus account', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Text(connected
-                    ? 'Your business is connected. Fulus syncs automatically whenever you’re online.'
-                    : 'Fulus works without internet. Connect Cloud only if you want backup and multi-device sync.'),
+                    ? 'Your business stays on this device and is backed up automatically when you’re online.'
+                    : 'Fulus works without internet. Connect an account to back up this local business and use it on other devices.'),
               ],
             ),
           ),
           const SizedBox(height: 16),
           if (connected)
             FulusButton(
-              label: 'Disconnect Cloud',
+              label: 'Disconnect account',
               variant: FulusButtonVariant.secondary,
               onPressed: _busy ? null : _disconnect,
             )
-          else ...[
+          else
             FulusCard(
               child: Column(
                 children: [
-                  FulusTextField(label: 'Cloud account email', controller: _emailController, keyboardType: TextInputType.emailAddress),
+                  FulusTextField(label: 'Email', controller: _emailController, keyboardType: TextInputType.emailAddress),
                   const SizedBox(height: 12),
-                  FulusTextField(label: 'Business name (for a new account)', controller: _businessController),
+                  FulusTextField(label: 'Business name', controller: _businessController),
                   const SizedBox(height: 12),
-                  FulusTextField(label: 'Cloud account password', controller: _passwordController, obscureText: true),
+                  FulusTextField(label: 'Password', controller: _passwordController, obscureText: true),
                   const SizedBox(height: 16),
                   if (_error != null) ...[
                     Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -388,33 +370,16 @@ class _FulusCloudConnectionScreenState
                   ],
                   SizedBox(
                     width: double.infinity,
-                    child: FulusButton(label: 'Connect to Fulus Cloud', loading: _busy && !_creatingAccount, onPressed: _busy ? null : _connect),
+                    child: FulusButton(label: 'Connect account', loading: _busy && !_creatingAccount, onPressed: _busy ? null : _connect),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    child: FulusButton(label: 'Create account & set up business', variant: FulusButtonVariant.secondary, loading: _busy && _creatingAccount, onPressed: _busy ? null : _createAccount),
+                    child: FulusButton(label: 'Create account & back up this business', variant: FulusButtonVariant.secondary, loading: _busy && _creatingAccount, onPressed: _busy ? null : _createAccount),
                   ),
                 ],
               ),
             ),
-            if (memberships.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const FulusSectionHeader(title: 'Businesses'),
-              for (final membership in memberships)
-                FulusListRow(
-                  leading: const Icon(Icons.storefront_outlined),
-                  title: Text(membership.businessId),
-                  subtitle: Text(membership.roleId ?? 'Active membership'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _busy ? null : () => _selectBusiness(membership.businessId),
-                ),
-            ],
-          ],
-          if (_error != null && connected) ...[
-            const SizedBox(height: 16),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
         ],
       ),
     );
