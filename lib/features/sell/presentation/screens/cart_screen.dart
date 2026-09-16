@@ -23,7 +23,11 @@ class CartScreen extends StatelessWidget {
         if (cartState is CartFailure) {
           return FulusScreen(
             title: 'Cart',
-            body: FulusErrorState(message: cartState.message),
+            body: FulusErrorState(
+              message: cartState.message,
+              actionLabel: 'Retry',
+              onRetry: () => context.read<CartCubit>().retryInitialization(),
+            ),
           );
         }
         if (cartState is! CartLoaded) {
@@ -552,37 +556,23 @@ class _TotalsFooter extends StatelessWidget {
               currencySymbol: state.currencySymbol,
             ),
             _DiscountRow(state: state),
-            if (state.draftCart.tax > 0)
-              _TotalRow(
-                label: 'Tax',
-                value: state.draftCart.tax,
-                currencySymbol: state.currencySymbol,
-              ),
-            const SizedBox(height: AppSpacing.xs),
-            Divider(height: 1, color: AppColors.borderOf(context)),
-            const SizedBox(height: AppSpacing.sm),
+            _TotalRow(
+              label: 'Tax',
+              value: state.draftCart.tax,
+              currencySymbol: state.currencySymbol,
+            ),
+            const Divider(),
             _TotalRow(
               label: 'Total',
               value: state.total,
               currencySymbol: state.currencySymbol,
-              emphasized: true,
+              strong: true,
             ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: 'Continue to payment · ${formatMoney(state.total, symbol: state.currencySymbol)}',
-                onPressed: () {
-                  final cubit = context.read<CartCubit>();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: cubit,
-                        child: const PaymentScreen(),
-                      ),
-                    ),
-                  );
-                },
+            const SizedBox(height: AppSpacing.sm),
+            FulusButton(
+              label: 'Proceed to Payment',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PaymentScreen()),
               ),
             ),
           ],
@@ -599,45 +589,11 @@ class _DiscountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasDiscount = state.discount > 0;
-    return FulusPressable(
-      semanticsLabel: 'Discount for this sale',
-      onPressed: () => DiscountSheet.show(
-        context,
-        title: 'Discount on this sale',
-        baseAmount: state.subtotal,
-        currencySymbol: state.currencySymbol,
-        initialDiscount: state.draftCart.wholeCartDiscount,
-        onSave: (amount) => context.read<CartCubit>().setWholeCartDiscount(amount),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Discount',
-              style: AppTypography.body.copyWith(
-                color: AppColors.primaryOf(context),
-              ),
-            ),
-            Flexible(
-              child: Text(
-                hasDiscount
-                    ? '-${formatMoney(state.discount, symbol: state.currencySymbol)}'
-                    : 'Add',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.primaryOf(context),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    if (state.discount <= 0) return const SizedBox.shrink();
+    return _TotalRow(
+      label: 'Discount',
+      value: -state.discount,
+      currencySymbol: state.currencySymbol,
     );
   }
 }
@@ -647,38 +603,37 @@ class _TotalRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.currencySymbol,
-    this.emphasized = false,
+    this.strong = false,
   });
 
   final String label;
   final double value;
   final String currencySymbol;
-  final bool emphasized;
+  final bool strong;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: AppTypography.body.copyWith(
-            color: AppColors.textSecondaryOf(context),
-            fontWeight: emphasized ? FontWeight.w700 : FontWeight.w400,
+    final style = strong ? AppTypography.subheading : AppTypography.body;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: style.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
           ),
-        ),
-        Flexible(
-          child: Text(
+          Text(
             formatMoney(value, symbol: currencySymbol),
-            textAlign: TextAlign.right,
-            style: (emphasized ? AppTypography.subheading : AppTypography.body).copyWith(
+            style: style.copyWith(
               color: AppColors.textPrimaryOf(context),
-              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
+              fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
