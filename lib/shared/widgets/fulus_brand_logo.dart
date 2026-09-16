@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// The canonical Fulus brand mark used inside the app.
+import '../../core/theme/design_tokens.dart';
+
+/// Canonical Fulus brand mark used throughout the workspace shell.
 ///
-/// The transparent source artwork must never be recolored or tinted. The
-/// container supplies the single brand background so the mark does not carry
-/// a second nested square behind it.
+/// The source artwork is transparent; the container supplies the single
+/// Fulus-blue brand background so the mark reads consistently in the drawer,
+/// account surfaces, and other shell-level UI.
 class FulusBrandLogo extends StatelessWidget {
   const FulusBrandLogo({
     super.key,
     this.size = 64,
     this.backgroundColor,
-    this.padding = 12,
+    this.padding = 10,
   });
 
   final double size;
@@ -24,8 +26,8 @@ class FulusBrandLogo extends StatelessWidget {
       height: size,
       padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
+        color: backgroundColor ?? AppColors.primaryOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Image.asset(
         'assets/branding/fulus_mark_transparent.png',
