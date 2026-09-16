@@ -1,0 +1,58 @@
+name: Temporary Drift Import Fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ui/reference-convergence-pass-a
+      - name: Restore required repository imports
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'lib/data/repositories/finance_stats_repository_impl.dart': (
+                  "\nimport 'package:drift/drift.dart';\n",
+                  "import 'package:drift/drift.dart';\n\n",
+              ),
+              'lib/data/repositories/search_repository_impl.dart': (
+                  "\nimport 'package:drift/drift.dart';\n",
+                  "import 'package:drift/drift.dart';\n\n",
+              ),
+              'lib/data/repositories/reports_repository_impl.dart': (
+                  "import 'package:drift/drift.dart';\n\n",
+                  "import 'package:drift/drift.dart';\n\nimport 'employee_mapper.dart';\n",
+              ),
+          }
+          for filename, (old, new) in replacements.items():
+              path = Path(filename)
+              text = path.read_text()
+              if filename != 'lib/data/repositories/reports_repository_impl.dart':
+                  if text.startswith(old):
+                      continue
+                  if text.startswith("\n"):
+                      text = text[1:]
+                  if text.startswith("import 'package:drift/drift.dart';\n\n"):
+                      continue
+                  text = "import 'package:drift/drift.dart';\n\n" + text
+              else:
+                  if "import 'employee_mapper.dart';" not in text:
+                      text = text.replace(old, new, 1)
+              path.write_text(text)
+          PY
+      - name: Commit source-only fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/data/repositories/finance_stats_repository_impl.dart lib/data/repositories/search_repository_impl.dart lib/data/repositories/reports_repository_impl.dart
+          git diff --cached --check
+          git diff --cached --quiet || git commit -m "fix: restore required Drift repository imports"
+          git push origin HEAD:ui/reference-convergence-pass-a
