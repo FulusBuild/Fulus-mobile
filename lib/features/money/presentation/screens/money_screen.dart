@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
@@ -74,9 +75,9 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
       applyPadding: false,
       actions: [
         if (kDebugMode)
-          FulusIconButton(icon: Icons.bug_report_outlined, tooltip: 'Simulate error (debug)', onPressed: _toggleSimulatedError),
-        FulusIconButton(icon: Icons.receipt_long_outlined, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
-        FulusIconButton(icon: Icons.receipt_outlined, tooltip: 'Receipts', onPressed: () => context.pushNamed('receiptHistory')),
+          FulusIconButton(icon: FulusIcons.bugReport, tooltip: 'Simulate error (debug)', onPressed: _toggleSimulatedError),
+        FulusIconButton(icon: FulusIcons.receipt, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
+        FulusIconButton(icon: FulusIcons.receipt, tooltip: 'Receipts', onPressed: () => context.pushNamed('receiptHistory')),
       ],
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -273,11 +274,11 @@ class _ExpensesView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             if (expenses.isEmpty)
-              const FulusEmptyState(icon: Icons.payments_outlined, headline: 'No expenses for this period.', body: 'Expenses you record will appear here.')
+              const FulusEmptyState(icon: FulusIcons.payments, headline: 'No expenses for this period.', body: 'Expenses you record will appear here.')
             else
               _TransactionCard(items: expenses, currencySymbol: currencySymbol),
             const SizedBox(height: AppSpacing.lg),
-            FulusQuickAction(icon: Icons.remove, label: 'Add expense', onTap: () => context.pushNamed('moneyAddExpense')),
+            FulusQuickAction(icon: FulusIcons.remove, label: 'Add expense', onTap: () => context.pushNamed('moneyAddExpense')),
           ],
         );
       },
@@ -326,7 +327,7 @@ class _TransactionFeed extends StatelessWidget {
         if (snapshot.hasError) return _SectionError(onRetry: onRefresh, message: "Couldn't load transactions.");
         if (!snapshot.hasData) return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
         final items = limit == null ? snapshot.data! : snapshot.data!.take(limit!).toList();
-        if (items.isEmpty) return FulusEmptyState(icon: Icons.receipt_long_outlined, headline: emptyHeadline, body: emptyBody);
+        if (items.isEmpty) return FulusEmptyState(icon: FulusIcons.receipt, headline: emptyHeadline, body: emptyBody);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -406,10 +407,10 @@ class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <({IconData icon, String label, VoidCallback onTap})>[
-      (icon: Icons.add, label: 'Add income', onTap: () => context.pushNamed('moneyAddIncome')),
-      (icon: Icons.remove, label: 'Add expense', onTap: () => context.pushNamed('moneyAddExpense')),
-      (icon: Icons.people_outline, label: 'Customers', onTap: () => context.pushNamed('moneyCustomers')),
-      (icon: Icons.local_shipping_outlined, label: 'Suppliers', onTap: () => context.pushNamed('moneySuppliers')),
+      (icon: FulusIcons.add, label: 'Add income', onTap: () => context.pushNamed('moneyAddIncome')),
+      (icon: FulusIcons.remove, label: 'Add expense', onTap: () => context.pushNamed('moneyAddExpense')),
+      (icon: FulusIcons.customers, label: 'Customers', onTap: () => context.pushNamed('moneyCustomers')),
+      (icon: FulusIcons.localShipping, label: 'Suppliers', onTap: () => context.pushNamed('moneySuppliers')),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
