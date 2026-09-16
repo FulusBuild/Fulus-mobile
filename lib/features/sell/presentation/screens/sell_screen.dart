@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
@@ -178,8 +179,8 @@ class _SellContent extends ConsumerWidget {
       title: 'Sell',
       subtitle: 'Add products to today’s sale',
       actions: [
-        FulusIconButton(icon: Icons.qr_code_scanner_outlined, tooltip: 'Scan product', onPressed: onScan),
-        FulusIconButton(icon: Icons.storefront_outlined, tooltip: 'Quick Sale', onPressed: () => QuickSaleSheet.show(context)),
+        FulusIconButton(icon: FulusIcons.scan, tooltip: 'Scan product', onPressed: onScan),
+        FulusIconButton(icon: FulusIcons.sell, tooltip: 'Quick Sale', onPressed: () => QuickSaleSheet.show(context)),
       ],
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
@@ -243,7 +244,7 @@ class _ProductList extends StatelessWidget {
       return FulusEmptyState(
         headline: 'No products found',
         body: q.isEmpty ? 'Add products from Stock to start selling.' : 'Nothing matches “$query”.',
-        icon: Icons.search_off,
+        icon: FulusIcons.search,
         actionLabel: q.isEmpty ? 'Quick Sale' : 'Clear search',
         onAction: q.isEmpty ? () => QuickSaleSheet.show(context) : onClearSearch,
       );
@@ -306,7 +307,7 @@ class _ProductRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          FulusIconButton(icon: Icons.add, tooltip: out ? 'Out of stock' : 'Add ${product.name}', onPressed: out ? null : () => _add(context)),
+          FulusIconButton(icon: FulusIcons.add, tooltip: out ? 'Out of stock' : 'Add ${product.name}', onPressed: out ? null : () => _add(context)),
         ],
       ),
     );
