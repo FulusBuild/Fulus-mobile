@@ -5,15 +5,14 @@ import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
-import 'backup_restore_decision_screen.dart';
 import 'fulus_account_screen.dart';
 import 'owner_setup_screen.dart';
 
 /// First-launch entry point for a device with no local owner/business yet.
 ///
-/// Cloud restore is intentionally part of the Fulus account flow on a fresh
-/// installation. An already-running local business connects to Cloud from
-/// Settings instead; it never restores a cloud business over local data.
+/// Cloud restore is part of the login flow on a fresh installation. An
+/// already-running local business connects to Cloud from Settings instead;
+/// it never restores a cloud business over local data.
 class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
@@ -50,7 +49,7 @@ class GetStartedScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                   FulusButton(
-                    label: 'Create my Fulus account',
+                    label: 'Sign up',
                     icon: Icons.arrow_forward_rounded,
                     onPressed: () async {
                       final onboardingState = ref.read(onboardingStateProvider);
@@ -58,7 +57,9 @@ class GetStartedScreen extends ConsumerWidget {
                       ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.businessSetup;
                       if (!context.mounted) return;
                       Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const FulusAccountScreen(),
+                        ),
                       );
                     },
                   ),
@@ -67,20 +68,12 @@ class GetStartedScreen extends ConsumerWidget {
                     child: TextButton(
                       onPressed: () {
                         Navigator.of(context).push<void>(
-                          MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const FulusAccountScreen(),
+                          ),
                         );
                       },
-                      child: const Text('I already have a Fulus account'),
-                    ),
-                  ),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute(builder: (_) => const BackupRestoreDecisionScreen()),
-                        );
-                      },
-                      child: const Text('Restore a local backup'),
+                      child: const Text('Login'),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -88,7 +81,9 @@ class GetStartedScreen extends ConsumerWidget {
                     child: TextButton(
                       onPressed: () {
                         Navigator.of(context).push<void>(
-                          MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const OwnerSetupScreen(),
+                          ),
                         );
                       },
                       child: const Text('Continue offline'),
