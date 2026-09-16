@@ -39,40 +39,47 @@ class FulusListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-          child: Row(
-            children: [
-              if (leading != null) ...[
-                SizedBox(width: leadingSize, height: leadingSize, child: leading),
-                const SizedBox(width: AppSpacing.md),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DefaultTextStyle.merge(
-                      style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
-                      child: title,
-                    ),
-                    if (subtitle != null)
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        splashColor: AppColors.primaryOf(context).withValues(alpha: 0.08),
+        highlightColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
+        hoverColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                if (leading != null) ...[
+                  SizedBox(width: leadingSize, height: leadingSize, child: leading),
+                  const SizedBox(width: AppSpacing.md),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       DefaultTextStyle.merge(
-                        style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                        child: subtitle!,
+                        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                        child: title,
                       ),
-                  ],
+                      if (subtitle != null)
+                        DefaultTextStyle.merge(
+                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                          child: subtitle!,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: AppSpacing.md),
-                trailing!,
+                if (trailing != null) ...[
+                  const SizedBox(width: AppSpacing.md),
+                  trailing!,
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
