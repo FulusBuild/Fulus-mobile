@@ -12,7 +12,6 @@ import 'cart_screen.dart';
 
 class SellScreen extends StatefulWidget {
   const SellScreen({super.key});
-
   @override
   State<SellScreen> createState() => _SellScreenState();
 }
@@ -23,15 +22,8 @@ class _SellScreenState extends State<SellScreen> {
   String? _selectedCategoryId;
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() => _query = '');
-  }
+  void dispose() { _searchController.dispose(); super.dispose(); }
+  void _clearSearch() { _searchController.clear(); setState(() => _query = ''); }
 
   @override
   Widget build(BuildContext context) {
@@ -46,38 +38,29 @@ class _SellScreenState extends State<SellScreen> {
         builder: (context, state) {
           if (state is CartFailure) return FulusErrorState(message: state.message);
           if (state is! CartLoaded) return const FulusLoadingIndicator();
-
           final inset = fulusHorizontalInset(context);
-          return Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
-                child: FulusSearchField(
-                  controller: _searchController,
-                  hintText: 'Search products or scan barcode',
-                  onChanged: (value) => setState(() => _query = value),
-                ),
+          return Column(children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+              child: FulusSearchField(controller: _searchController, hintText: 'Search products or scan barcode', onChanged: (value) => setState(() => _query = value)),
+            ),
+            SizedBox(
+              height: 48,
+              child: ListView(
+                padding: EdgeInsets.symmetric(horizontal: inset),
+                scrollDirection: Axis.horizontal,
+                children: [
+                  FulusChip(label: 'All', selected: _selectedCategoryId == null, onTap: () => setState(() => _selectedCategoryId = null)),
+                  ...state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().map(
+                    (id) => FulusChip(label: id, selected: _selectedCategoryId == id, onTap: () => setState(() => _selectedCategoryId = id)),
+                  ),
+                ],
               ),
-              SizedBox(
-                height: 48,
-                child: ListView(
-                  padding: EdgeInsets.symmetric(horizontal: inset),
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    FulusChip(label: 'All', selected: _selectedCategoryId == null, onTap: () => setState(() => _selectedCategoryId = null)),
-                    ...state.catalog.values
-                        .map((entry) => entry.product.categoryId)
-                        .whereType<String>()
-                        .toSet()
-                        .map((id) => FulusChip(label: id, selected: _selectedCategoryId == id, onTap: () => setState(() => _selectedCategoryId = id))),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Expanded(child: _ProductList(state: state, query: _query, categoryId: _selectedCategoryId, onClearSearch: _clearSearch)),
-              if (state.items.isNotEmpty) _CartSummaryBar(state: state),
-            ],
-          );
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Expanded(child: _ProductList(state: state, query: _query, categoryId: _selectedCategoryId, onClearSearch: _clearSearch)),
+            if (state.items.isNotEmpty) _CartSummaryBar(state: state),
+          ]);
         },
       ),
     );
@@ -132,32 +115,23 @@ class _ProductRow extends StatelessWidget {
     final out = product.tracksStock && entry.currentStock <= 0;
     return FulusCard(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-            alignment: Alignment.center,
-            child: Icon(Icons.inventory_2_outlined, color: AppColors.primaryOf(context)),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontWeight: FontWeight.w650, color: AppColors.textPrimaryOf(context))),
-              const SizedBox(height: 3),
-              Text(currency + product.sellingPrice.toStringAsFixed(2), style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600)),
-              if (out) Text('Out of stock', style: AppTypography.caption.copyWith(color: AppColors.errorOf(context))),
-            ]),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          FulusIconButton(
-            icon: Icons.add,
-            tooltip: out ? 'Out of stock' : 'Add ${product.name}',
-            onPressed: out ? null : () => _add(context),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
+          alignment: Alignment.center,
+          child: Icon(Icons.inventory_2_outlined, color: AppColors.primaryOf(context)),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context))),
+          const SizedBox(height: 3),
+          Text('$currency${product.sellingPrice.toStringAsFixed(2)}', style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600)),
+          if (out) Text('Out of stock', style: AppTypography.caption.copyWith(color: AppColors.errorOf(context))),
+        ])),
+        const SizedBox(width: AppSpacing.sm),
+        FulusIconButton(icon: Icons.add, tooltip: out ? 'Out of stock' : 'Add ${product.name}', onPressed: out ? null : () => _add(context)),
+      ]),
     );
   }
 
