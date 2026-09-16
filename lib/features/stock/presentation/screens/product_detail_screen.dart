@@ -135,7 +135,7 @@ class _ProductDetailBody extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.lg),
                           ],
-                          _PriceAndStockCard(item: item, category: category, currencySymbol: currencySymbol),
+                          _PriceAndStockCard(item: item!, category: category, currencySymbol: currencySymbol),
                           const SizedBox(height: AppSpacing.lg),
                           SizedBox(
                             width: wide ? null : double.infinity,
