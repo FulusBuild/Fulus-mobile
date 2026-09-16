@@ -74,7 +74,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                     child: Column(
                       children: [
                         for (var i = 0; i < employees.length; i++) ...[
-                          _EmployeeTile(employee: employees[i], onEdit: () => _openEmployeeSheet(context, existing: employees[i])),
+                          _EmployeeTile(
+                            employee: employees[i],
+                            onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
+                          ),
                           if (i < employees.length - 1) const FulusListDivider(),
                         ],
                       ],
@@ -242,22 +245,95 @@ class _EmployeeTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 420;
+        final compact = constraints.maxWidth < 520;
         return FulusListRow(
           onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
           leading: FulusAvatar(name: employee.fullName),
           title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: compact
-              ? IconButton(icon: const Icon(Icons.edit_outlined), tooltip: 'Edit', onPressed: onEdit)
-              : Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(employee.phone ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                  const SizedBox(width: AppSpacing.sm),
-                  IconButton(icon: const Icon(Icons.edit_outlined), tooltip: 'Edit', onPressed: onEdit),
-                  Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryOf(context)),
-                ]),
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FulusIconButton(
+                      icon: Icons.event_available_outlined,
+                      tooltip: 'Mark attendance',
+                      onPressed: () => _markToday(context, ref),
+                    ),
+                    FulusIconButton(
+                      icon: Icons.edit_outlined,
+                      tooltip: 'Edit',
+                      onPressed: onEdit,
+                    ),
+                  ],
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (employee.authUserId == null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.xs),
+                        child: Icon(
+                          Icons.no_accounts_outlined,
+                          color: AppColors.warningOf(context),
+                          size: AppIconSize.compact,
+                        ),
+                      ),
+                    Text(
+                      employee.phone ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    FulusIconButton(
+                      icon: Icons.event_available_outlined,
+                      tooltip: 'Mark attendance',
+                      onPressed: () => _markToday(context, ref),
+                    ),
+                    FulusIconButton(
+                      icon: Icons.edit_outlined,
+                      tooltip: 'Edit',
+                      onPressed: onEdit,
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryOf(context)),
+                  ],
+                ),
         );
       },
     );
+  }
+
+  Future<void> _markToday(BuildContext context, WidgetRef ref) async {
+    final status = await showFulusBottomSheet<AttendanceStatus>(
+      context: context,
+      title: 'Mark attendance',
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final status in AttendanceStatus.values)
+            FulusListRow(
+              onTap: () => Navigator.of(context).pop(status),
+              leading: Icon(Icons.circle_outlined, color: AppColors.primaryOf(context)),
+              title: Text(status.name),
+            ),
+        ],
+      ),
+    );
+    if (status == null) return;
+    try {
+      await ref.read(employeeRepositoryProvider).markAttendance(
+            employeeId: employee.id,
+            date: DateTime.now(),
+            status: status,
+          );
+      if (context.mounted) {
+        showFulusSnackbar(context, message: 'Attendance marked as ${status.name}.');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't mark attendance. Try again.");
+      }
+    }
   }
 }
