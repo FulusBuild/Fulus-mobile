@@ -24,14 +24,7 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _selectedCategoryId;
-  late final Future<String> _locationFuture;
   CartCubit? _cartCubit;
-
-  @override
-  void initState() {
-    super.initState();
-    _locationFuture = ref.read(activeLocationIdProvider.future);
-  }
 
   @override
   void dispose() {
@@ -110,7 +103,7 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: _locationFuture,
+      future: ref.watch(activeLocationIdProvider.future),
       builder: (context, locationSnapshot) {
         if (locationSnapshot.connectionState != ConnectionState.done) {
           return const FulusScreen(
