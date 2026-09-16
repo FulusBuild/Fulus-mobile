@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/security/biometric_auth.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../shared/widgets/widgets.dart';
+import '../../../../shared/widgets/fulus_brand_logo.dart';
+import '../../../../shared/widgets/pin_keypad.dart';
 
 /// Full-screen app lock. PIN remains the reliable fallback; biometrics are
 /// used only when explicitly enabled in Settings.
@@ -81,9 +82,30 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
     if (mounted) setState(() => _checking = false);
   }
 
+  void _addDigit(String digit) {
+    if (_checking) return;
+    setState(() {
+      _pinController.text += digit;
+      _pinController.selection = TextSelection.collapsed(offset: _pinController.text.length);
+      _error = null;
+    });
+  }
+
+  void _removeDigit() {
+    if (_checking || _pinController.text.isEmpty) return;
+    setState(() {
+      _pinController.text = _pinController.text.substring(0, _pinController.text.length - 1);
+      _pinController.selection = TextSelection.collapsed(offset: _pinController.text.length);
+      _error = null;
+    });
+  }
+
   Future<void> _unlock() async {
     final pin = _pinController.text.trim();
-    if (pin.isEmpty || _checking) return;
+    if (pin.length < 4 || _checking) {
+      if (pin.isNotEmpty && pin.length < 4) setState(() => _error = 'Use at least 4 digits.');
+      return;
+    }
 
     setState(() {
       _checking = true;
@@ -98,14 +120,12 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
       if (!correct) {
         setState(() {
           _checking = false;
-          _error = 'Incorrect PIN.';
+          _error = 'Incorrect PIN. Try again.';
           _pinController.clear();
         });
         return;
       }
 
-      // PIN verification is the security decision. Nothing related to
-      // biometric preferences may block a valid PIN from unlocking.
       widget.onUnlocked();
     } on TimeoutException {
       if (!mounted) return;
@@ -122,109 +142,176 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
     }
   }
 
+  void _showForgotPinInfo() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surfaceOf(context),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 8, AppSpacing.xl, AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Forgot your PIN?', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(sheetContext))),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Your app PIN is stored securely on this device. If biometric unlock is enabled, you can use it instead. Otherwise, the PIN must be changed from Fulus Settings after the app is unlocked.',
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(sheetContext)),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(sheetContext).pop(),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final biometricReady = _biometricEnabled && _biometricAvailable;
+    final pinLength = _pinController.text.length;
+
     return Material(
       color: AppColors.backgroundOf(context),
       child: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 280),
-                    width: 96,
-                    height: 96,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.selectedTintOf(context),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      biometricReady ? Icons.fingerprint_rounded : Icons.lock_outline_rounded,
-                      size: 48,
-                      color: AppColors.primaryOf(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    'Welcome back',
-                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    biometricReady
-                        ? 'Unlock Fulus with your fingerprint or PIN.'
-                        : 'Enter your PIN to continue.',
-                    style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  if (biometricReady) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: FulusButton(
-                        label: 'Use fingerprint',
-                        icon: Icons.fingerprint_rounded,
-                        loading: _checking,
-                        onPressed: _checking ? null : _unlockWithBiometric,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                          child: Text(
-                            'or use PIN',
-                            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const FulusBrandLogo(size: 58, padding: 10),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'Enter your PIN',
+                        style: AppTypography.heading.copyWith(
+                          color: AppColors.textPrimaryOf(context),
+                          fontWeight: FontWeight.w800,
                         ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                  FulusTextField(
-                    label: 'PIN',
-                    controller: _pinController,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    errorText: _error,
-                    onChanged: (_) {
-                      if (_error != null) setState(() => _error = null);
-                    },
-                    suffixIcon: Semantics(
-                      label: 'Clear',
-                      button: true,
-                      child: IconButton(
-                        icon: const Icon(Icons.backspace_outlined),
-                        onPressed: _pinController.clear,
+                        textAlign: TextAlign.center,
                       ),
-                    ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        biometricReady ? 'Use your PIN or device biometrics to unlock Fulus.' : 'Keep your business secure.',
+                        style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _PinIndicator(length: pinLength, error: _error != null),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          _error!,
+                          style: AppTypography.caption.copyWith(color: AppColors.errorOf(context)),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.xl),
+                      FulusPinKeypad(
+                        onDigit: _addDigit,
+                        onBackspace: _removeDigit,
+                        enabled: !_checking,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (biometricReady)
+                        _BiometricAction(
+                          loading: _checking,
+                          onTap: _checking ? null : _unlockWithBiometric,
+                        )
+                      else
+                        TextButton(
+                          onPressed: _checking ? null : _showForgotPinInfo,
+                          child: const Text('Forgot PIN?'),
+                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(
+                        width: 180,
+                        child: FilledButton(
+                          onPressed: _checking ? null : _unlock,
+                          child: _checking
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text('Unlock'),
+                        ),
+                      ),
+                      if (constraints.maxHeight > 760) const SizedBox(height: AppSpacing.sm),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FulusButton(
-                      label: 'Unlock',
-                      loading: _checking,
-                      onPressed: _checking ? null : _unlock,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
+    );
+  }
+}
+
+class _PinIndicator extends StatelessWidget {
+  const _PinIndicator({required this.length, required this.error});
+
+  final int length;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleCount = length.clamp(4, 8);
+    final primary = AppColors.primaryOf(context);
+    final border = error ? AppColors.errorOf(context) : AppColors.borderOf(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < visibleCount; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: i < length ? primary : Colors.transparent,
+              border: Border.all(color: i < length ? primary : border, width: 1.4),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _BiometricAction extends StatelessWidget {
+  const _BiometricAction({required this.loading, required this.onTap});
+
+  final bool loading;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: loading
+          ? SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+            )
+          : Icon(Icons.fingerprint_rounded, size: 21, color: primary),
+      label: Text('Use biometrics', style: TextStyle(color: primary, fontWeight: FontWeight.w700)),
     );
   }
 }
