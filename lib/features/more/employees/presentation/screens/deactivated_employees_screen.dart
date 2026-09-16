@@ -33,6 +33,13 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                 child: StreamBuilder<List<Employee>>(
                   stream: _employeesStream,
                   builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return FulusErrorState(
+                        message: "Couldn't load deactivated team members.",
+                        reassurance: 'No team data was changed — this is only a loading problem.',
+                        onRetry: () => setState(() {}),
+                      );
+                    }
                     if (!snapshot.hasData) return const FulusLoadingIndicator();
                     final employees = snapshot.data!;
                     if (employees.isEmpty) {
