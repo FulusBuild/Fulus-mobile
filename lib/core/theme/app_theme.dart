@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'design_tokens.dart';
+import 'fulus_icons.dart';
 
 /// Product-wide Material foundation for Fulus.
 ///
@@ -33,6 +34,7 @@ class AppTheme {
       fontFamilyFallback: const ['system-ui', 'sans-serif'],
       scaffoldBackgroundColor: AppColors.backgroundLight,
       textTheme: _textTheme(AppColors.textPrimaryLight, AppColors.textSecondaryLight),
+      iconTheme: fulusIconTheme,
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.textPrimaryLight, AppColors.borderLight),
       textButtonTheme: _textButtonTheme(AppColors.primary),
@@ -72,6 +74,7 @@ class AppTheme {
       fontFamilyFallback: const ['system-ui', 'sans-serif'],
       scaffoldBackgroundColor: AppColors.backgroundDark,
       textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
+      iconTheme: fulusIconTheme,
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.darkTextPrimary, AppColors.borderDark),
       textButtonTheme: _textButtonTheme(AppColors.darkPrimary),
