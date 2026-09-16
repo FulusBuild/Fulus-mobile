@@ -56,7 +56,7 @@ class FulusDiagnosticUploader {
       final events = await _logger.getForExport();
       for (final event in events) {
         if (_uploadedIds.contains(event.id)) continue;
-        final accepted = await _upload(event);
+        final accepted = await _upload(event, token);
         if (accepted) _uploadedIds.add(event.id);
       }
     } catch (_) {
@@ -67,7 +67,7 @@ class FulusDiagnosticUploader {
     }
   }
 
-  Future<bool> _upload(DiagnosticEvent event) async {
+  Future<bool> _upload(DiagnosticEvent event, String token) async {
     try {
       final response = await Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 8),
@@ -83,7 +83,8 @@ class FulusDiagnosticUploader {
         options: Options(headers: {
           'content-type': 'application/json',
           'Authorization': 'Bearer $token',
-          'x-fulus-device-id': _connection.registeredDevice?.deviceClientId,
+          if (_connection.registeredDevice?.deviceClientId != null)
+            'x-fulus-device-id': _connection.registeredDevice!.deviceClientId,
         }),
       );
       final status = response.statusCode ?? 0;
