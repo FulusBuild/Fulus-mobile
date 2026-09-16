@@ -37,6 +37,7 @@ abstract final class FulusIcons {
   static const error = Symbols.error_outline;
   static const inbox = Symbols.inbox;
   static const camera = Symbols.camera_alt;
+  static const keyboard = Symbols.keyboard;
   static const close = Symbols.close;
   static const more = Symbols.more_vert;
   static const filter = Symbols.filter_list;
