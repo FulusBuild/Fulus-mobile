@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
@@ -74,7 +75,7 @@ class _ProductDetailBody extends ConsumerWidget {
             body: FulusEmptyState(
               headline: "This product isn't here anymore.",
               body: 'It may have been removed.',
-              icon: Icons.inventory_2_outlined,
+              icon: FulusIcons.stock,
             ),
           );
         }
@@ -99,7 +100,7 @@ class _ProductDetailBody extends ConsumerWidget {
           subtitle: 'Product details and stock activity',
           actions: [
             FulusIconButton(
-              icon: Icons.edit_outlined,
+              icon: FulusIcons.edit,
               tooltip: 'Edit product',
               onPressed: () => context.pushNamed('stockEditProduct', extra: product),
             ),
@@ -128,7 +129,7 @@ class _ProductDetailBody extends ConsumerWidget {
                                   errorBuilder: (context, error, stackTrace) => Container(
                                     color: AppColors.surfaceAltOf(context),
                                     alignment: Alignment.center,
-                                    child: Icon(Icons.inventory_2_outlined, color: AppColors.mutedOf(context), size: 40),
+                                    child: Icon(FulusIcons.stock, color: AppColors.mutedOf(context), size: 40),
                                   ),
                                 ),
                               ),
@@ -141,7 +142,7 @@ class _ProductDetailBody extends ConsumerWidget {
                             width: wide ? null : double.infinity,
                             child: FulusButton(
                               label: 'Record stock',
-                              icon: Icons.swap_vert,
+                              icon: FulusIcons.swap,
                               onPressed: () => context.pushNamed('stockRecordMovement', extra: product),
                             ),
                           ),
@@ -155,7 +156,7 @@ class _ProductDetailBody extends ConsumerWidget {
                               child: FulusEmptyState(
                                 headline: 'No activity yet',
                                 body: 'Stock movements for this product will show up here.',
-                                icon: Icons.history,
+                                icon: FulusIcons.history,
                               ),
                             )
                           else
