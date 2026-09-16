@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
@@ -20,8 +19,8 @@ import '../widgets/breakdown_section.dart';
 import '../widgets/period_filter_bar.dart';
 import '../widgets/transaction_tile.dart';
 
-/// Money workspace: balance, period summary, breakdowns, and recent activity.
-/// All values remain repository-backed; this screen only controls presentation.
+/// Money workspace: balance first, then one compact view switch for
+/// Overview / Transactions / Expenses. All values remain repository-backed.
 class MoneyScreen extends ConsumerStatefulWidget {
   const MoneyScreen({super.key});
 
@@ -33,7 +32,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   ReportPeriod? _builtForPeriod;
   late Future<double> _balanceFuture;
   late Future<MoneySummary> _summaryFuture;
-  late Future<List<MoneyTransaction>> _recentFuture;
+  late Future<List<MoneyTransaction>> _transactionsFuture;
+  int _selectedView = 0;
 
   void _load(ReportPeriod period) {
     final repo = ref.read(moneyRepositoryProvider);
@@ -44,14 +44,12 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
     _balanceFuture = repo.getAvailableBalance();
     _summaryFuture = repo.getSummary(period, currentAuthUserId: currentAuthUserId, canViewAllSales: canViewAllSales);
-    _recentFuture = repo
-        .getTransactions(period, currentAuthUserId: currentAuthUserId, canViewAllSales: canViewAllSales)
-        .then((list) => list.take(5).toList());
+    _transactionsFuture = repo.getTransactions(period, currentAuthUserId: currentAuthUserId, canViewAllSales: canViewAllSales);
   }
 
   Future<void> _refresh() async {
     setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
-    await Future.wait([_balanceFuture, _summaryFuture, _recentFuture]);
+    await Future.wait([_balanceFuture, _summaryFuture, _transactionsFuture]);
   }
 
   void _toggleSimulatedError() {
@@ -84,11 +82,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         builder: (context, constraints) {
           final inset = fulusHorizontalInset(context);
           final wide = constraints.maxWidth >= 760;
-          final contentWidth = wide ? 1120.0 : double.infinity;
           return Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: contentWidth),
+              constraints: BoxConstraints(maxWidth: wide ? 1120 : double.infinity),
               child: RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView(
@@ -104,67 +101,31 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     const MoneyPeriodFilterBar(),
-                    const SizedBox(height: AppSpacing.lg),
-                    const _QuickActionsRow(),
-                    const SizedBox(height: AppSpacing.lg),
-                    FutureBuilder<MoneySummary>(
-                      future: _summaryFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return _SectionError(
-                            onRetry: _refresh,
-                            message: "Couldn't load this period's summary.",
-                            reassurance: 'Your recorded sales, income, and expenses are safe — this is only about showing the totals right now.',
-                          );
-                        }
-                        if (!snapshot.hasData) return const FulusDelayedSkeleton(skeleton: _SummarySkeleton());
-                        return _SummarySection(
-                          summary: snapshot.data!,
-                          currencySymbol: currencySymbol,
-                          onBreakdownRowTap: (row) => context.pushNamed(
-                            'moneyHistory',
-                            extra: MoneyHistoryFilterRequest(
-                              type: row.type,
-                              category: row.type == MoneyTransactionType.expense ? row.label : null,
-                            ),
-                          ),
-                        );
-                      },
+                    const SizedBox(height: AppSpacing.md),
+                    _MoneyViewTabs(
+                      selectedIndex: _selectedView,
+                      onChanged: (index) => setState(() => _selectedView = index),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    FulusSectionHeader(title: 'Recent transactions', action: 'See all', onActionTap: () => context.pushNamed('moneyHistory')),
-                    FutureBuilder<List<MoneyTransaction>>(
-                      future: _recentFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) return _SectionError(onRetry: _refresh, message: "Couldn't load recent transactions.");
-                        if (!snapshot.hasData) {
-                          return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
-                        }
-                        final items = snapshot.data!;
-                        if (items.isEmpty) {
-                          return const FulusEmptyState(
-                            icon: Icons.receipt_long_outlined,
-                            headline: 'Nothing recorded for this period.',
-                            body: 'Sales, income, and expenses you record will show up here.',
-                          );
-                        }
-                        return FulusCard(
-                          padding: EdgeInsets.zero,
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < items.length; i++) ...[
-                                if (i > 0) const FulusListDivider(),
-                                MoneyTransactionTile(
-                                  transaction: items[i],
-                                  currencySymbol: currencySymbol,
-                                  onTap: () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': items[i].id}, extra: items[i]),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (_selectedView == 0)
+                      _OverviewView(
+                        summaryFuture: _summaryFuture,
+                        transactionsFuture: _transactionsFuture,
+                        currencySymbol: currencySymbol,
+                        onRefresh: _refresh,
+                      )
+                    else if (_selectedView == 1)
+                      _TransactionsView(
+                        transactionsFuture: _transactionsFuture,
+                        currencySymbol: currencySymbol,
+                        onRefresh: _refresh,
+                      )
+                    else
+                      _ExpensesView(
+                        transactionsFuture: _transactionsFuture,
+                        currencySymbol: currencySymbol,
+                        onRefresh: _refresh,
+                      ),
                   ],
                 ),
               ),
@@ -174,6 +135,268 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
       ),
     );
   }
+}
+
+class _MoneyViewTabs extends StatelessWidget {
+  const _MoneyViewTabs({required this.selectedIndex, required this.onChanged});
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = ['Overview', 'Transactions', 'Expenses'];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAltOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: selectedIndex == i,
+                label: labels[i],
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  onTap: () => onChanged(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: selectedIndex == i ? AppColors.surfaceOf(context) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      boxShadow: selectedIndex == i ? AppElevation.subtleOf(context) : null,
+                    ),
+                    child: Text(
+                      labels[i],
+                      textAlign: TextAlign.center,
+                      style: AppTypography.label.copyWith(
+                        color: selectedIndex == i ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
+                        fontWeight: selectedIndex == i ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewView extends StatelessWidget {
+  const _OverviewView({
+    required this.summaryFuture,
+    required this.transactionsFuture,
+    required this.currencySymbol,
+    required this.onRefresh,
+  });
+  final Future<MoneySummary> summaryFuture;
+  final Future<List<MoneyTransaction>> transactionsFuture;
+  final String currencySymbol;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _QuickActionsRow(),
+        const SizedBox(height: AppSpacing.lg),
+        FutureBuilder<MoneySummary>(
+          future: summaryFuture,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _SectionError(
+                onRetry: onRefresh,
+                message: "Couldn't load this period's summary.",
+                reassurance: 'Your recorded sales, income, and expenses are safe — this is only about showing the totals right now.',
+              );
+            }
+            if (!snapshot.hasData) return const FulusDelayedSkeleton(skeleton: _SummarySkeleton());
+            return _SummarySection(
+              summary: snapshot.data!,
+              currencySymbol: currencySymbol,
+              onBreakdownRowTap: (row) => context.pushNamed(
+                'moneyHistory',
+                extra: MoneyHistoryFilterRequest(
+                  type: row.type,
+                  category: row.type == MoneyTransactionType.expense ? row.label : null,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _RecentTransactions(
+          transactionsFuture: transactionsFuture,
+          currencySymbol: currencySymbol,
+          onRefresh: onRefresh,
+        ),
+      ],
+    );
+  }
+}
+
+class _TransactionsView extends StatelessWidget {
+  const _TransactionsView({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
+  final Future<List<MoneyTransaction>> transactionsFuture;
+  final String currencySymbol;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TransactionFeed(
+      title: 'Transactions',
+      transactionsFuture: transactionsFuture,
+      currencySymbol: currencySymbol,
+      onRefresh: onRefresh,
+      emptyHeadline: 'No transactions for this period.',
+      emptyBody: 'Sales, income, expenses, and payments you record will appear here.',
+    );
+  }
+}
+
+class _ExpensesView extends StatelessWidget {
+  const _ExpensesView({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
+  final Future<List<MoneyTransaction>> transactionsFuture;
+  final String currencySymbol;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<MoneyTransaction>>(
+      future: transactionsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return _SectionError(onRetry: onRefresh, message: "Couldn't load expenses.");
+        if (!snapshot.hasData) {
+          return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
+        }
+        final expenses = snapshot.data!.where((item) => item.type == MoneyTransactionType.expense).toList();
+        final total = expenses.fold<double>(0, (sum, item) => sum + item.amount);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FulusStatCard(
+              label: 'Expenses',
+              value: formatMoney(total, symbol: currencySymbol),
+              valueColor: AppColors.errorOf(context),
+              trendLabel: '${expenses.length} transaction${expenses.length == 1 ? '' : 's'}',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (expenses.isEmpty)
+              const FulusEmptyState(
+                icon: Icons.payments_outlined,
+                headline: 'No expenses for this period.',
+                body: 'Expenses you record will appear here.',
+              )
+            else
+              _TransactionCard(items: expenses, currencySymbol: currencySymbol),
+            const SizedBox(height: AppSpacing.lg),
+            FulusQuickAction(icon: Icons.remove, label: 'Add expense', onTap: () => context.pushNamed('moneyAddExpense')),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RecentTransactions extends StatelessWidget {
+  const _RecentTransactions({required this.transactionsFuture, required this.currencySymbol, required this.onRefresh});
+  final Future<List<MoneyTransaction>> transactionsFuture;
+  final String currencySymbol;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FulusSectionHeader(title: 'Recent transactions', action: 'See all', onActionTap: () => context.pushNamed('moneyHistory')),
+        _TransactionFeed(
+          transactionsFuture: transactionsFuture,
+          currencySymbol: currencySymbol,
+          onRefresh: onRefresh,
+          limit: 5,
+          emptyHeadline: 'Nothing recorded for this period.',
+          emptyBody: 'Sales, income, and expenses you record will show up here.',
+        ),
+      ],
+    );
+  }
+}
+
+class _TransactionFeed extends StatelessWidget {
+  const _TransactionFeed({
+    required this.transactionsFuture,
+    required this.currencySymbol,
+    required this.onRefresh,
+    required this.emptyHeadline,
+    required this.emptyBody,
+    this.title,
+    this.limit,
+  });
+  final String? title;
+  final Future<List<MoneyTransaction>> transactionsFuture;
+  final String currencySymbol;
+  final Future<void> Function() onRefresh;
+  final String emptyHeadline;
+  final String emptyBody;
+  final int? limit;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<MoneyTransaction>>(
+      future: transactionsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return _SectionError(onRetry: onRefresh, message: "Couldn't load transactions.");
+        if (!snapshot.hasData) {
+          return const FulusDelayedSkeleton(skeleton: Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]));
+        }
+        final items = limit == null ? snapshot.data! : snapshot.data!.take(limit!).toList();
+        if (items.isEmpty) {
+          return FulusEmptyState(icon: Icons.receipt_long_outlined, headline: emptyHeadline, body: emptyBody);
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null) ...[
+              FulusSectionHeader(title: title!, action: 'See all', onActionTap: () => context.pushNamed('moneyHistory')),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            _TransactionCard(items: items, currencySymbol: currencySymbol),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TransactionCard extends StatelessWidget {
+  const _TransactionCard({required this.items, required this.currencySymbol});
+  final List<MoneyTransaction> items;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) => FulusCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const FulusListDivider(),
+              MoneyTransactionTile(
+                transaction: items[i],
+                currencySymbol: currencySymbol,
+                onTap: () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': items[i].id}, extra: items[i]),
+              ),
+            ],
+          ],
+        ),
+      );
 }
 
 class _BalanceHero extends StatelessWidget {
@@ -224,7 +447,7 @@ class _QuickActionsRow extends StatelessWidget {
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 700 ? 4 : constraints.maxWidth >= 430 ? 4 : 2;
+        final columns = constraints.maxWidth >= 700 ? 4 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -282,7 +505,7 @@ class _SectionError extends StatelessWidget {
   const _SectionError({required this.message, required this.onRetry, this.reassurance});
   final String message;
   final String? reassurance;
-  final VoidCallback onRetry;
+  final Future<void> Function() onRetry;
   @override
   Widget build(BuildContext context) => FulusErrorState(message: message, reassurance: reassurance, onRetry: onRetry);
 }
