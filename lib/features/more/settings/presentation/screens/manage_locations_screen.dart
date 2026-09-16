@@ -6,26 +6,17 @@ import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/location.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
-/// Every location this business has — synced down from a desktop
-/// companion (`LocationRepository.syncFromServer`) or created directly
-/// from this screen. Feature-local since nothing outside this screen needs
-/// the full list — every other feature only ever needs the one active
-/// location (`activeLocationIdProvider`).
 final _locationsProvider = StreamProvider<List<Location>>((ref) {
   return ref.watch(locationRepositoryProvider).watchLocations();
 });
 
-/// Owner-facing location switcher. The data model intentionally remains
-/// name-only; this pass changes presentation, not the location contract.
 class ManageLocationsScreen extends ConsumerWidget {
   const ManageLocationsScreen({super.key});
 
   Future<void> _setActive(BuildContext context, WidgetRef ref, Location location) async {
     await ref.read(authRepositoryProvider).setActiveLocationId(location.localId);
     ref.invalidate(activeLocationIdProvider);
-    if (context.mounted) {
-      showFulusSnackbar(context, message: 'Now viewing ${location.name}.');
-    }
+    if (context.mounted) showFulusSnackbar(context, message: 'Now viewing ${location.name}.');
   }
 
   Future<void> _addLocation(BuildContext context, WidgetRef ref) async {
@@ -35,16 +26,11 @@ class ManageLocationsScreen extends ConsumerWidget {
       builder: (_) => const _AddLocationSheet(),
     );
     if (name == null || name.trim().isEmpty) return;
-
     try {
-      final created = await ref.read(locationRepositoryProvider).createLocation(
-            LocationDraft(name: name.trim()),
-          );
+      final created = await ref.read(locationRepositoryProvider).createLocation(LocationDraft(name: name.trim()));
       await _setActive(context, ref, created);
     } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't add that location. Try again.");
-      }
+      if (context.mounted) showFulusSnackbar(context, message: "Couldn't add that location. Try again.");
     }
   }
 
@@ -72,22 +58,32 @@ class ManageLocationsScreen extends ConsumerWidget {
             );
           }
           final activeId = activeIdAsync.value;
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(0, AppSpacing.sm, 0, 112),
-            itemCount: locations.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (context, index) {
-              final location = locations[index];
-              final isActive = location.localId == activeId;
-              return _LocationCard(
-                location: location,
-                isActive: isActive,
-                onTap: isActive ? null : () => _setActive(context, ref, location),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 900 ? 3 : constraints.maxWidth >= 560 ? 2 : 1;
+              return GridView.builder(
+                padding: const EdgeInsets.fromLTRB(0, AppSpacing.sm, 0, 112),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.md,
+                  childAspectRatio: columns == 1 ? 3.0 : 1.65,
+                ),
+                itemCount: locations.length,
+                itemBuilder: (context, index) {
+                  final location = locations[index];
+                  final isActive = location.localId == activeId;
+                  return _LocationCard(
+                    location: location,
+                    isActive: isActive,
+                    onTap: isActive ? null : () => _setActive(context, ref, location),
+                  );
+                },
               );
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: FulusLoadingIndicator()),
         error: (error, stackTrace) => FulusErrorState(
           message: "Couldn't load locations.",
           onRetry: () => ref.invalidate(_locationsProvider),
@@ -99,7 +95,6 @@ class ManageLocationsScreen extends ConsumerWidget {
 
 class _LocationCard extends StatelessWidget {
   const _LocationCard({required this.location, required this.isActive, required this.onTap});
-
   final Location location;
   final bool isActive;
   final VoidCallback? onTap;
@@ -122,39 +117,25 @@ class _LocationCard extends StatelessWidget {
               color: isActive ? AppColors.selectedTintOf(context) : AppColors.surfaceAltOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(
-              Icons.storefront_outlined,
-              size: AppIconSize.base,
-              color: isActive ? primary : AppColors.textSecondaryOf(context),
-            ),
+            child: Icon(Icons.storefront_outlined, size: AppIconSize.base, color: isActive ? primary : AppColors.textSecondaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  location.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
-                ),
+                Text(location.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
                 const SizedBox(height: AppSpacing.xs),
                 if (isActive)
                   const FulusStatusPill(label: 'Active', icon: Icons.check_circle_outline)
                 else
-                  Text(
-                    'Tap to switch here',
-                    style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context)),
-                  ),
+                  Text('Tap to switch here', style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context))),
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Icon(
-            isActive ? Icons.check_circle : Icons.chevron_right,
-            color: isActive ? primary : AppColors.mutedOf(context),
-          ),
+          Icon(isActive ? Icons.check_circle : Icons.chevron_right, color: isActive ? primary : AppColors.mutedOf(context)),
         ],
       ),
     );
@@ -163,14 +144,12 @@ class _LocationCard extends StatelessWidget {
 
 class _AddLocationSheet extends StatefulWidget {
   const _AddLocationSheet();
-
   @override
   State<_AddLocationSheet> createState() => _AddLocationSheetState();
 }
 
 class _AddLocationSheetState extends State<_AddLocationSheet> {
   final _controller = TextEditingController();
-
   @override
   void dispose() {
     _controller.dispose();
@@ -183,16 +162,9 @@ class _AddLocationSheetState extends State<_AddLocationSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FulusTextField(
-          label: 'Location name',
-          controller: _controller,
-          hintText: 'e.g. Main Branch, Downtown',
-        ),
+        FulusTextField(label: 'Location name', controller: _controller, hintText: 'e.g. Main Branch, Downtown'),
         const SizedBox(height: AppSpacing.lg),
-        FulusButton(
-          label: 'Add location',
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-        ),
+        FulusButton(label: 'Add location', onPressed: () => Navigator.of(context).pop(_controller.text)),
       ],
     );
   }
