@@ -32,11 +32,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _paymentMethod;
   String? _amountError;
   bool _submitting = false;
-
-  /// Gap-closure pass: "Receipt photo attachment on expenses" — a
-  /// local file path from `PhotoCaptureScreen` (shared/screens — the
-  /// same one Product Photo Capture uses), optional, set before this
-  /// expense is ever saved.
   String? _receiptPhotoPath;
 
   @override
@@ -70,8 +65,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
             receiptPhotoPath: _receiptPhotoPath,
           );
-      // See dataRefreshSignalProvider's own doc comment in
-      // app/providers.dart.
       ref.read(dataRefreshSignalProvider.notifier).state++;
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Expense recorded.');
@@ -92,97 +85,131 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add expense',
-      body: ListView(
-        children: [
-          FulusTextField(
-            label: 'Amount',
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            hintText: '0.00',
-            errorText: _amountError,
-            suffixIcon: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.lg),
-              child: Align(
-                widthFactor: 1,
-                child: Text(ref.watch(moneyCurrencySymbolProvider).value ?? '₦'),
+      subtitle: 'Record a business expense and keep the cash trail clear',
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+          final inset = wide ? AppSpacing.lg : AppSpacing.sm;
+          return ListView(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FulusCard(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.errorOf(context).withValues(alpha: 0.10),
+                              ),
+                              child: Icon(Icons.south_east_rounded, color: AppColors.errorOf(context)),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Business expense',
+                                    style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    'Choose the category and payment method to keep closing accurate.',
+                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      FulusCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            FulusTextField(
+                              label: 'Amount',
+                              controller: _amountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              hintText: '0.00',
+                              errorText: _amountError,
+                              suffixIcon: Padding(
+                                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                                child: Align(widthFactor: 1, child: Text(currencySymbol)),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            Text('Category', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            const SizedBox(height: AppSpacing.sm),
+                            FulusChipRow(
+                              children: [
+                                for (final category in _kExpenseCategories)
+                                  FulusChip(
+                                    label: category,
+                                    selected: _category == category,
+                                    onTap: () => setState(() => _category = category),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            Text('Paid with', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            const SizedBox(height: AppSpacing.sm),
+                            FulusChipRow(
+                              children: [
+                                for (final method in _kExpensePaymentMethods)
+                                  FulusChip(
+                                    label: method,
+                                    selected: _paymentMethod == method,
+                                    onTap: () => setState(() => _paymentMethod = method),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            Text('Receipt photo (optional)', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                            const SizedBox(height: AppSpacing.sm),
+                            _ReceiptPhotoField(
+                              path: _receiptPhotoPath,
+                              onAdd: _captureReceiptPhoto,
+                              onRetake: _captureReceiptPhoto,
+                              onRemove: _removeReceiptPhoto,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            FulusTextField(label: 'Note (optional)', controller: _noteController, maxLines: 3),
+                            const SizedBox(height: AppSpacing.xl),
+                            FulusButton(
+                              label: 'Save expense',
+                              loading: _submitting,
+                              onPressed: _submitting ? null : _submit,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Category', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final category in _kExpenseCategories)
-                FulusChip(
-                  label: category,
-                  selected: _category == category,
-                  onTap: () => setState(() => _category = category),
-                ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Paid with', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final method in _kExpensePaymentMethods)
-                FulusChip(
-                  label: method,
-                  selected: _paymentMethod == method,
-                  onTap: () => setState(() => _paymentMethod = method),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Receipt photo (optional)',
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-          const SizedBox(height: AppSpacing.sm),
-          _ReceiptPhotoField(
-            path: _receiptPhotoPath,
-            onAdd: _captureReceiptPhoto,
-            onRetake: _captureReceiptPhoto,
-            onRemove: _removeReceiptPhoto,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FulusTextField(
-            label: 'Note (optional)',
-            controller: _noteController,
-            maxLines: 3,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Save expense',
-              loading: _submitting,
-              onPressed: _submitting ? null : _submit,
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-/// Shared between Add Expense (this file) and Transaction Detail's
-/// after-the-fact attach flow — a thumbnail once a photo exists,
-/// otherwise a plain "Add photo" affordance, per Component Library
-/// 5.4's leading-thumbnail treatment ("used whenever the row
-/// represents something visual").
 class _ReceiptPhotoField extends StatelessWidget {
-  const _ReceiptPhotoField({
-    required this.path,
-    required this.onAdd,
-    required this.onRetake,
-    required this.onRemove,
-  });
+  const _ReceiptPhotoField({required this.path, required this.onAdd, required this.onRetake, required this.onRemove});
 
   final String? path;
   final VoidCallback onAdd;
@@ -198,8 +225,7 @@ class _ReceiptPhotoField extends StatelessWidget {
           children: [
             Icon(Icons.add_a_photo_outlined, color: AppColors.primaryOf(context)),
             const SizedBox(width: AppSpacing.md),
-            Text('Add photo of receipt',
-                style: AppTypography.body.copyWith(color: AppColors.primaryOf(context))),
+            Expanded(child: Text('Add photo of receipt', style: AppTypography.body.copyWith(color: AppColors.primaryOf(context)))),
           ],
         ),
       );
@@ -212,10 +238,7 @@ class _ReceiptPhotoField extends StatelessWidget {
             child: Image.file(File(path!), width: 56, height: 56, fit: BoxFit.cover),
           ),
           const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text('Receipt photo attached',
-                style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
-          ),
+          Expanded(child: Text('Receipt photo attached', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)))),
           FulusIconButton(icon: Icons.refresh, tooltip: 'Retake', onPressed: onRetake),
           FulusIconButton(icon: Icons.delete_outline, tooltip: 'Remove', onPressed: onRemove),
         ],

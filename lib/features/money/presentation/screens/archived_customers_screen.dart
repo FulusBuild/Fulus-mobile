@@ -24,57 +24,139 @@ class ArchivedCustomersScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: 'Archived customers',
-      applyPadding: false,
+      subtitle: 'Customers you have moved out of the active credit book',
       body: archivedAsync.when(
         loading: () => const FulusDelayedSkeleton(
-          skeleton: Column(children: [
-            FulusListRowSkeleton(),
-            FulusListRowSkeleton(),
-            FulusListRowSkeleton(),
-          ]),
+          skeleton: Column(
+            children: [
+              FulusSkeletonBox(height: 72),
+              SizedBox(height: AppSpacing.lg),
+              FulusListRowSkeleton(),
+              FulusListRowSkeleton(),
+              FulusListRowSkeleton(),
+            ],
+          ),
         ),
         error: (error, stack) => FulusErrorState(
           message: "Couldn't load archived customers.",
+          reassurance: 'Your customer records are still safe — this is only about showing the archived list right now.',
           onRetry: () => ref.invalidate(_archivedCustomersProvider),
         ),
         data: (customers) {
-          if (customers.isEmpty) {
-            return const FulusEmptyState(
-              icon: Icons.people_outline,
-              headline: 'No archived customers.',
-              body: 'Anyone you archive shows up here, and can be restored any time.',
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-            itemCount: customers.length,
-            separatorBuilder: (_, __) => const FulusListDivider(),
-            itemBuilder: (context, index) {
-              final customer = customers[index];
-              return FulusListRow(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.selectedTintOf(context),
-                  foregroundColor: AppColors.primaryOf(context),
-                  child: Text(customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?'),
-                ),
-                title: Text(customer.name),
-                subtitle: Text(customer.phone ?? 'No phone number'),
-                trailing: Text(
-                  formatMoney(customer.outstandingBalance, symbol: currencySymbol),
-                  style: AppTypography.body.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color: AppColors.textSecondaryOf(context),
+          final outstanding = customers.fold<double>(0, (sum, customer) => sum + customer.outstandingBalance);
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 760;
+              final inset = wide ? AppSpacing.lg : AppSpacing.sm;
+              return ListView(
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                children: [
+                  FulusCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceAltOf(context),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: Icon(Icons.archive_outlined, color: AppColors.primaryOf(context)),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${customers.length} archived ${customers.length == 1 ? 'customer' : 'customers'}',
+                                style: AppTypography.subheading.copyWith(
+                                  color: AppColors.textPrimaryOf(context),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                outstanding > 0
+                                    ? '${formatMoney(outstanding, symbol: currencySymbol)} outstanding across this list.'
+                                    : 'No outstanding customer balance in this list.',
+                                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                onTap: () => context.pushNamed(
-                  'moneyCustomerProfile',
-                  pathParameters: {'id': customer.localId},
-                  extra: customer,
-                ),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (customers.isEmpty)
+                    const FulusEmptyState(
+                      icon: Icons.people_outline,
+                      headline: 'No archived customers.',
+                      body: 'Anyone you archive shows up here, and can be restored any time.',
+                    )
+                  else
+                    FulusCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var index = 0; index < customers.length; index++) ...[
+                            if (index > 0) const FulusListDivider(),
+                            _ArchivedCustomerRow(
+                              customer: customers[index],
+                              currencySymbol: currencySymbol,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _ArchivedCustomerRow extends StatelessWidget {
+  const _ArchivedCustomerRow({required this.customer, required this.currencySymbol});
+
+  final Customer customer;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final outstanding = customer.outstandingBalance;
+    return FulusListRow(
+      leading: FulusAvatar(name: customer.name),
+      title: Text(customer.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(customer.phone ?? 'No phone number', maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            formatMoney(outstanding, symbol: currencySymbol),
+            style: AppTypography.body.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+              fontWeight: FontWeight.w700,
+              color: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            outstanding > 0 ? 'Outstanding' : 'Settled',
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+        ],
+      ),
+      onTap: () => context.pushNamed(
+        'moneyCustomerProfile',
+        pathParameters: {'id': customer.localId},
+        extra: customer,
       ),
     );
   }

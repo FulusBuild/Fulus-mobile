@@ -69,47 +69,100 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add income',
-      body: ListView(
-        children: [
-          FulusTextField(
-            label: 'Amount',
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            hintText: '0.00',
-            errorText: _amountError,
-            suffixIcon: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.lg),
-              child: Align(
-                widthFactor: 1,
-                child: Text(ref.watch(moneyCurrencySymbolProvider).value ?? '₦'),
+      subtitle: 'Record money received outside a sale',
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+          final inset = wide ? AppSpacing.lg : AppSpacing.sm;
+          return ListView(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FulusCard(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.selectedTintOf(context),
+                              ),
+                              child: Icon(Icons.south_west_rounded, color: AppColors.primaryOf(context)),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Other income',
+                                    style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    'Add a clear source so the entry is easy to audit later.',
+                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      FulusCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            FulusTextField(
+                              label: 'Amount',
+                              controller: _amountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              hintText: '0.00',
+                              errorText: _amountError,
+                              suffixIcon: Padding(
+                                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                                child: Align(widthFactor: 1, child: Text(currencySymbol)),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            FulusTextField(
+                              label: 'Source',
+                              controller: _sourceController,
+                              hintText: 'e.g. Old shelf sold, space rental',
+                              errorText: _sourceError,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            FulusTextField(
+                              label: 'Note (optional)',
+                              controller: _noteController,
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+                            FulusButton(
+                              label: 'Save income',
+                              loading: _submitting,
+                              onPressed: _submitting ? null : _submit,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FulusTextField(
-            label: 'Source',
-            controller: _sourceController,
-            hintText: 'e.g. Old shelf sold, space rental',
-            errorText: _sourceError,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FulusTextField(
-            label: 'Note (optional)',
-            controller: _noteController,
-            maxLines: 3,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Save income',
-              loading: _submitting,
-              onPressed: _submitting ? null : _submit,
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

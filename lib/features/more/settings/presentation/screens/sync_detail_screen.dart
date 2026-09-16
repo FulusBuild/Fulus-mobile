@@ -20,17 +20,20 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
     if (_syncingNow) return;
     setState(() => _syncingNow = true);
     try {
-      // Older queue rows used the old priority lanes. Repair only their
-      // ordering metadata before the manual drain so existing stuck sales can
-      // finally run after their product/customer/location dependencies.
       await ref.read(syncQueueProvider).normalizeDependencyPriorities();
       await ref.read(syncTriggersProvider).syncNow();
       if (!mounted) return;
       ref.invalidate(_syncDetailStatusProvider);
-      showFulusSnackbar(context, message: 'Backup checked. Fulus will keep trying automatically if anything is still waiting.');
+      showFulusSnackbar(
+        context,
+        message: 'Backup checked. Fulus will keep trying automatically if anything is still waiting.',
+      );
     } catch (_) {
       if (!mounted) return;
-      showFulusSnackbar(context, message: 'Backup could not be completed yet. Your work is still safe on this device.');
+      showFulusSnackbar(
+        context,
+        message: 'Backup could not be completed yet. Your work is still safe on this device.',
+      );
     } finally {
       if (mounted) setState(() => _syncingNow = false);
     }
@@ -41,38 +44,72 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
     final statusAsync = ref.watch(_syncDetailStatusProvider);
     return FulusScreen(
       title: 'Sync & backup',
-      body: ListView(
-        children: [
-          FulusSectionHeader(title: 'Your data'),
-          statusAsync.when(
-            data: (status) => _StatusCard(
-              status: status,
-              syncingNow: _syncingNow,
-              onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
-            ),
-            loading: () => const FulusLoadingIndicator(),
-            error: (_, __) => FulusErrorState(
-              message: "Couldn't read backup status.",
-              onRetry: () => ref.invalidate(_syncDetailStatusProvider),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FulusCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    'Fulus always saves your work on this device first. When Fulus Cloud is connected, backup and sync happen automatically in the background.',
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+      subtitle: 'See what is backed up and what Fulus is still working on',
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+          final inset = wide ? AppSpacing.lg : AppSpacing.xs;
+          return ListView(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const FulusSectionHeader(
+                        title: 'Your data',
+                        subtitle: 'Fulus saves locally first, then backs up when Cloud is connected',
+                      ),
+                      statusAsync.when(
+                        data: (status) => _StatusCard(
+                          status: status,
+                          syncingNow: _syncingNow,
+                          onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
+                        ),
+                        loading: () => const FulusLoadingIndicator(),
+                        error: (_, __) => FulusErrorState(
+                          message: "Couldn't read backup status.",
+                          reassurance: 'Your local business data is not affected by this status check.',
+                          onRetry: () => ref.invalidate(_syncDetailStatusProvider),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      const FulusSectionHeader(
+                        title: 'How Fulus protects your work',
+                        subtitle: 'Cloud backup never replaces your local-first workflow',
+                      ),
+                      FulusCard(
+                        child: Column(
+                          children: [
+                            _InfoRow(
+                              icon: Icons.phone_android_outlined,
+                              title: 'Saved on this device first',
+                              body: 'Sales, stock, customers, and other business work remain available locally.',
+                            ),
+                            const FulusListDivider(),
+                            _InfoRow(
+                              icon: Icons.cloud_outlined,
+                              title: 'Backed up when connected',
+                              body: 'Fulus Cloud sends pending changes automatically when the connection is available.',
+                            ),
+                            const FulusListDivider(),
+                            _InfoRow(
+                              icon: Icons.sync_outlined,
+                              title: 'Safe to keep working offline',
+                              body: 'A delayed backup does not block normal business operations on this device.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -124,29 +161,37 @@ class _StatusCard extends StatelessWidget {
         ),
     };
 
+    final settled = status.kind == SyncStatusKind.settled;
     return FulusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: AppIconSize.emphasis),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(headline, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(body, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                  ],
-                ),
-              ),
-            ],
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(icon, color: color, size: 28),
           ),
-          if (onSyncNow != null && status.kind != SyncStatusKind.settled) ...[
-            const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            headline,
+            style: AppTypography.heading.copyWith(
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            body,
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
+          ),
+          if (onSyncNow != null && !settled) ...[
+            const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
               child: FulusButton(
@@ -159,6 +204,55 @@ class _StatusCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.title, required this.body});
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.selectedTintOf(context),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Icon(icon, color: AppColors.primaryOf(context)),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                body,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

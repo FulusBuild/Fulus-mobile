@@ -21,6 +21,29 @@ class SettingsMainScreen extends ConsumerStatefulWidget {
 class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
   late Future<BusinessProfile?> _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
 
+  Widget _group({required List<Widget> children}) {
+    return FulusCard(
+      padding: EdgeInsets.zero,
+      child: Column(children: children),
+    );
+  }
+
+  Widget _row({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return FulusListRow(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      trailing: trailing ?? const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(sessionProvider);
@@ -31,6 +54,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
     return FulusScreen(
       title: 'Settings',
+      subtitle: 'Keep your business safe and up to date',
       body: FutureBuilder<BusinessProfile?>(
         future: _future,
         builder: (context, snap) {
@@ -44,80 +68,120 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
           }
           if (!snap.hasData) return const FulusLoadingIndicator();
           final profile = snap.data;
-          return ListView(
-            children: [
-              if (canManageSettings) ...[
-                FulusSectionHeader(title: 'Business'),
-                if (profile != null) _BusinessInfoForm(profile: profile),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (canManageSettings || canManageBackup) ...[
-                FulusSectionHeader(title: 'Devices & data'),
-                if (canManageSettings) ...[
-                  FulusListRow(
-                    leading: const Icon(Icons.print_outlined),
-                    title: const Text('Printers'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSettingsPrinters'),
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 760;
+              final inset = wide ? AppSpacing.lg : AppSpacing.xs;
+              return ListView(
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                children: [
+                  if (canManageSettings) ...[
+                    const FulusSectionHeader(
+                      title: 'Business',
+                      subtitle: 'Business details and workspace configuration',
+                    ),
+                    if (profile != null) _BusinessInfoForm(profile: profile),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  if (canManageSettings || canManageBackup) ...[
+                    const FulusSectionHeader(
+                      title: 'Account & Backup',
+                      subtitle: 'Devices, data, and cloud protection',
+                    ),
+                    _group(
+                      children: [
+                        if (canManageBackup)
+                          _row(
+                            icon: Icons.backup_outlined,
+                            title: 'Backup',
+                            subtitle: 'Back up and restore your business data',
+                            onTap: () => context.pushNamed('moreSettingsBackup'),
+                          ),
+                        if (canManageBackup && canManageSettings)
+                          const FulusListDivider(),
+                        if (canManageSettings)
+                          _row(
+                            icon: Icons.print_outlined,
+                            title: 'Printers',
+                            subtitle: 'Receipt and printing settings',
+                            onTap: () => context.pushNamed('moreSettingsPrinters'),
+                          ),
+                        if (canManageSettings)
+                          const FulusListDivider(),
+                        if (canManageSettings)
+                          _row(
+                            icon: Icons.sync_outlined,
+                            title: 'Sync',
+                            subtitle: 'Local and cloud synchronization status',
+                            onTap: () => context.pushNamed('moreSyncDetail'),
+                          ),
+                        if (canManageSettings)
+                          const FulusListDivider(),
+                        if (canManageSettings)
+                          _row(
+                            icon: Icons.storefront_outlined,
+                            title: 'Locations',
+                            subtitle: 'Manage the places where this business operates',
+                            onTap: () => context.pushNamed('moreSettingsLocations'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  if (isOwner) ...[
+                    const FulusSectionHeader(
+                      title: 'Fulus Cloud',
+                      subtitle: 'Back up this business and keep it available across devices',
+                    ),
+                    _group(
+                      children: [
+                        _row(
+                          icon: Icons.cloud_outlined,
+                          title: 'Fulus Cloud',
+                          subtitle: 'Connect this business for server-authoritative sync',
+                          onTap: () => context.pushNamed('moreSettingsCloud'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  const FulusSectionHeader(
+                    title: 'Security',
+                    subtitle: 'Protect approvals and access to Fulus',
                   ),
-                  const FulusListDivider(indented: false),
-                  FulusListRow(
-                    leading: const Icon(Icons.sync_outlined),
-                    title: const Text('Sync'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSyncDetail'),
+                  _group(
+                    children: [
+                      _row(
+                        icon: Icons.password_outlined,
+                        title: 'Change approval PIN',
+                        subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
+                        onTap: () => _openChangePinSheet(context),
+                      ),
+                      const FulusListDivider(),
+                      const _AppLockStatusRow(),
+                    ],
                   ),
-                  const FulusListDivider(indented: false),
+                  const SizedBox(height: AppSpacing.lg),
+                  const FulusSectionHeader(
+                    title: 'Account',
+                    subtitle: 'Your local business account',
+                  ),
+                  _group(
+                    children: [
+                      _row(
+                        icon: Icons.logout,
+                        title: 'Log out',
+                        subtitle: 'Your data on this device stays put — sign back in any time.',
+                        trailing: const SizedBox.shrink(),
+                        onTap: () => _logout(context, ref),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
                 ],
-                if (canManageBackup) ...[
-                  FulusListRow(
-                    leading: const Icon(Icons.backup_outlined),
-                    title: const Text('Backup'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSettingsBackup'),
-                  ),
-                  const FulusListDivider(indented: false),
-                ],
-                if (canManageSettings)
-                  FulusListRow(
-                    leading: const Icon(Icons.storefront_outlined),
-                    title: const Text('Locations'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.pushNamed('moreSettingsLocations'),
-                  ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (isOwner) ...[
-                FulusSectionHeader(title: 'Cloud'),
-                FulusListRow(
-                  leading: const Icon(Icons.cloud_outlined),
-                  title: const Text('Fulus Cloud'),
-                  subtitle: const Text('Connect this business for server-authoritative sync'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.pushNamed('moreSettingsCloud'),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              FulusSectionHeader(title: 'Security'),
-              FulusListRow(
-                leading: const Icon(Icons.password_outlined),
-                title: const Text('Change approval PIN'),
-                subtitle: const Text('Needed to approve discounts, refunds, and stock adjustments'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _openChangePinSheet(context),
-              ),
-              const FulusListDivider(indented: false),
-              const _AppLockStatusRow(),
-              const SizedBox(height: AppSpacing.lg),
-              FulusSectionHeader(title: 'Account'),
-              FulusListRow(
-                leading: const Icon(Icons.logout),
-                title: const Text('Log out'),
-                subtitle: const Text('Your data on this device stays put — sign back in any time.'),
-                onTap: () => _logout(context, ref),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-            ],
+              );
+            },
           );
         },
       ),

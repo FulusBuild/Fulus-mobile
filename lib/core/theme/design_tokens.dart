@@ -100,6 +100,7 @@ class AppColors {
   static Color backgroundOf(BuildContext context) => isDark(context) ? backgroundDark : backgroundLight;
   static Color surfaceOf(BuildContext context) => isDark(context) ? surfaceDark : surfaceLight;
   static Color surfaceAltOf(BuildContext context) => isDark(context) ? surfaceAltDark : surfaceAltLight;
+  static Color surfaceVariantOf(BuildContext context) => surfaceAltOf(context);
   static Color borderOf(BuildContext context) => isDark(context) ? borderDark : borderLight;
   static Color dividerOf(BuildContext context) => borderOf(context);
   static Color textPrimaryOf(BuildContext context) => isDark(context) ? darkTextPrimary : textPrimaryLight;

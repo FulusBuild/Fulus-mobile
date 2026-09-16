@@ -21,7 +21,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Categories',
-      applyPadding: false,
+      subtitle: 'Organize products for faster selling and stock management',
       body: StreamBuilder<List<Category>>(
         stream: _categoriesStream,
         builder: (context, snapshot) {
@@ -35,55 +35,65 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           if (!snapshot.hasData) return const FulusLoadingIndicator();
 
           final categories = snapshot.data!;
-          if (categories.isEmpty) {
-            return FulusEmptyState(
-              icon: Icons.sell_outlined,
-              headline: 'No categories yet.',
-              body: 'Categories help organize Stock and appear as chips in Sell.',
-              actionLabel: 'Add category',
-              onAction: () => _openAddSheet(context),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: categories.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (context, i) {
-              final category = categories[i];
-              return FulusCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimaryOf(context),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 760;
+              final inset = wide ? AppSpacing.lg : AppSpacing.sm;
+              return ListView(
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _CategoryOverview(count: categories.length),
+                          const SizedBox(height: AppSpacing.xl),
+                          const FulusSectionHeader(
+                            title: 'Product categories',
+                            subtitle: 'These categories appear as filters in Sell and Stock.',
+                          ),
+                          if (categories.isEmpty)
+                            FulusCard(
+                              child: FulusEmptyState(
+                                icon: Icons.sell_outlined,
+                                headline: 'No categories yet',
+                                body: 'Create your first category to make products easier to find while selling and managing stock.',
+                                actionLabel: 'Add category',
+                                onAction: () => _openAddSheet(context),
+                              ),
+                            )
+                          else
+                            FulusCard(
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < categories.length; i++) ...[
+                                    _CategoryRow(category: categories[i]),
+                                    if (i < categories.length - 1) const FulusListDivider(),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: AppSpacing.lg),
+                          SizedBox(
+                            width: wide ? null : double.infinity,
+                            child: FulusButton(
+                              label: 'Add category',
+                              icon: Icons.add,
+                              onPressed: () => _openAddSheet(context),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    if (category.description != null && category.description!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        child: Text(
-                          category.description!,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                        ),
-                      ),
-                  ],
-                ),
+                  ),
+                ],
               );
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddSheet(context),
-        tooltip: 'Add category',
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -93,6 +103,106 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       context: context,
       isScrollControlled: true,
       builder: (_) => const _AddCategorySheet(),
+    );
+  }
+}
+
+class _CategoryOverview extends StatelessWidget {
+  const _CategoryOverview({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return FulusCard(
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.selectedTintOf(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(Icons.category_outlined, color: AppColors.primaryOf(context), size: 28),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count ${count == 1 ? 'category' : 'categories'}',
+                  style: AppTypography.subheading.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Keep your catalogue organized and easier to browse.',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({required this.category});
+
+  final Category category;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAltOf(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(Icons.sell_outlined, color: AppColors.primaryOf(context)),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                if (category.description != null && category.description!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    category.description!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -149,32 +259,42 @@ class _AddCategorySheetState extends ConsumerState<_AddCategorySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSpacing.lg,
-        right: AppSpacing.lg,
-        top: AppSpacing.lg,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('New category', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-          const SizedBox(height: AppSpacing.md),
-          if (_error != null) ...[
-            Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          FulusTextField(label: 'Name', controller: _nameController),
-          const SizedBox(height: AppSpacing.sm),
-          FulusTextField(label: 'Description (optional)', controller: _descriptionController),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(label: 'Save', loading: _saving, onPressed: _saving ? null : _save),
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          top: AppSpacing.lg,
+          bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('New category', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Give products a simple grouping you can use across Stock and Sell.',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (_error != null) ...[
+                Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              FulusTextField(label: 'Name', controller: _nameController),
+              const SizedBox(height: AppSpacing.sm),
+              FulusTextField(label: 'Description (optional)', controller: _descriptionController),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FulusButton(label: 'Save category', loading: _saving, onPressed: _saving ? null : _save),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

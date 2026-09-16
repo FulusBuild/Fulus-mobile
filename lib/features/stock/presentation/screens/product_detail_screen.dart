@@ -13,22 +13,8 @@ import '../../../money/presentation/providers/money_providers.dart' show moneyCu
 import '../../application/stock_providers.dart';
 import '../widgets/stock_movement_tile.dart';
 
-/// Volume 6: "Every product's detail screen carries a reverse-
-/// chronological history: every sale, stock in/out, transfer, and
-/// adjustment, and price change, each with a timestamp and who made
-/// it." Two honest gaps against that exact sentence, both flagged
-/// rather than invented around: price-change history isn't tracked
-/// anywhere in this data model (no movement type for it), and "who"
-/// isn't available either ([StockMovementTile]'s own doc comment).
-/// Sales show up here for free the moment Sell exists to create them —
-/// see stock_providers.dart's own comment on why.
-///
-/// Watches [productsWithStockProvider] and finds this one product
-/// rather than a dedicated single-product fetch, so this screen updates
-/// live the moment a stock movement changes this product's count —
-/// "reactive by default," the same reasoning [ProductRepository]'s own
-/// doc comment gives for why [watchProducts] is a Stream in the first
-/// place.
+/// Product detail remains repository-backed and reactive. This pass only
+/// refines its workspace presentation and responsive layout.
 class ProductDetailScreen extends ConsumerWidget {
   const ProductDetailScreen({super.key, required this.productId});
 
@@ -41,7 +27,11 @@ class ProductDetailScreen extends ConsumerWidget {
     return locationAsync.when(
       loading: () => const FulusScreen(body: FulusLoadingIndicator()),
       error: (e, _) => FulusScreen(
-        body: FulusErrorState(message: "Couldn't load this product.", onRetry: () => ref.invalidate(currentLocationIdProvider)),
+        body: FulusErrorState(
+          message: "Couldn't load this product.",
+          reassurance: 'Your local product data is still safe.',
+          onRetry: () => ref.invalidate(currentLocationIdProvider),
+        ),
       ),
       data: (locationId) => _ProductDetailBody(productId: productId, locationId: locationId),
     );
@@ -66,6 +56,7 @@ class _ProductDetailBody extends ConsumerWidget {
       error: (e, _) => FulusScreen(
         body: FulusErrorState(
           message: "Couldn't load this product.",
+          reassurance: 'Your local product data is still safe.',
           onRetry: () => ref.invalidate(productsWithStockProvider(locationId)),
         ),
       ),
@@ -105,6 +96,7 @@ class _ProductDetailBody extends ConsumerWidget {
 
         return FulusScreen(
           title: product.name,
+          subtitle: 'Product details and stock activity',
           actions: [
             FulusIconButton(
               icon: Icons.edit_outlined,
@@ -112,42 +104,82 @@ class _ProductDetailBody extends ConsumerWidget {
               onPressed: () => context.pushNamed('stockEditProduct', extra: product),
             ),
           ],
-          body: ListView(
-            children: [
-              if (product.photoPath != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  child: Image.file(
-                    File(product.photoPath!),
-                    width: double.infinity,
-                    height: 180,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 760;
+              final inset = wide ? AppSpacing.lg : AppSpacing.sm;
+              return ListView(
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (product.photoPath != null) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              child: AspectRatio(
+                                aspectRatio: wide ? 3.2 : 2.1,
+                                child: Image.file(
+                                  File(product.photoPath!),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    color: AppColors.surfaceAltOf(context),
+                                    alignment: Alignment.center,
+                                    child: Icon(Icons.inventory_2_outlined, color: AppColors.mutedOf(context), size: 40),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                          ],
+                          _PriceAndStockCard(item: item!, category: category, currencySymbol: currencySymbol),
+                          const SizedBox(height: AppSpacing.lg),
+                          SizedBox(
+                            width: wide ? null : double.infinity,
+                            child: FulusButton(
+                              label: 'Record stock',
+                              icon: Icons.swap_vert,
+                              onPressed: () => context.pushNamed('stockRecordMovement', extra: product),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          const FulusSectionHeader(
+                            title: 'History',
+                            subtitle: 'Recent stock activity for this product',
+                          ),
+                          if (movements.isEmpty)
+                            FulusCard(
+                              child: FulusEmptyState(
+                                headline: 'No activity yet',
+                                body: 'Stock movements for this product will show up here.',
+                                icon: Icons.history,
+                              ),
+                            )
+                          else
+                            FulusCard(
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < movements.length; i++) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                      child: StockMovementTile(movement: movements[i]),
+                                    ),
+                                    if (i < movements.length - 1) const FulusListDivider(),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              _PriceAndStockCard(item: item, category: category, currencySymbol: currencySymbol),
-              const SizedBox(height: AppSpacing.lg),
-              FulusButton(
-                label: 'Record stock',
-                icon: Icons.swap_vert,
-                onPressed: () => context.pushNamed('stockRecordMovement', extra: product),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              FulusSectionHeader(title: 'History'),
-              if (movements.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: FulusEmptyState(
-                    headline: 'No activity yet.',
-                    body: 'Stock movements for this product will show up here.',
-                    icon: Icons.history,
-                  ),
-                )
-              else
-                for (final movement in movements) StockMovementTile(movement: movement),
-            ],
+                ],
+              );
+            },
           ),
         );
       },
@@ -176,7 +208,6 @@ class _PriceAndStockCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Price', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-              // Responsive UI audit — Flexible+ellipsis on the value side.
               Flexible(
                 child: Text(
                   formatMoney(product.sellingPrice, symbol: currencySymbol),
@@ -223,10 +254,10 @@ class _PriceAndStockCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-          // Responsive UI audit — Flexible+ellipsis on the value side.
-          // Category is a user-defined name and SKU is user-entered —
-          // neither is bounded the way the fixed labels here are.
+          Flexible(
+            child: Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+          ),
+          const SizedBox(width: AppSpacing.md),
           Flexible(
             child: Text(
               value,

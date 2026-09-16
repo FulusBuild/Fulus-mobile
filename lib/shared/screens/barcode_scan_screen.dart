@@ -7,28 +7,18 @@ import '../../core/errors/failure.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/widgets.dart';
 
-/// Gap fix: BarcodeScannerService (device_services/scanning/) was fully
-/// built — permission handling, a configured controller, the
-/// vibration+sound confirmation Volume 5 specifies — with no screen
-/// anywhere in the app that ever used it (confirmed by grep: no
-/// reference to it outside app/providers.dart and app/bootstrap.dart).
-/// This is that missing screen, shared between Sell (find a product to
-/// sell) and Add/Edit Product (fill the barcode field) rather than
-/// building two near-identical camera screens.
-///
-/// Manual entry is always available, not just after a permission
-/// denial — Volume 12/Production Rules: "manual entry fallback always
-/// available" for camera-unavailable states in general, which a
-/// scratched or damaged barcode qualifies as just as much as a denied
-/// permission does.
+/// Shared barcode scanner used by Sell and product creation/editing.
+/// Camera permission, scan confirmation, and manual fallback remain owned
+/// by the existing scanner service; this screen only presents the experience.
 class BarcodeScanScreen extends ConsumerStatefulWidget {
   const BarcodeScanScreen({super.key, this.title = 'Scan a barcode'});
 
   final String title;
 
-  /// Pushes this screen and returns the scanned (or manually entered)
-  /// value, or null if the user backed out without one.
-  static Future<String?> scan(BuildContext context, {String title = 'Scan a barcode'}) {
+  static Future<String?> scan(
+    BuildContext context, {
+    String title = 'Scan a barcode',
+  }) {
     return Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => BarcodeScanScreen(title: title)),
     );
@@ -60,11 +50,6 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   Future<void> _checkPermission() async {
     final service = ref.read(barcodeScannerServiceProvider);
 
-    // Nice-to-have gap closure — Volume 3 Decision 8's primer, shown
-    // only when there's actually an OS dialog about to follow (a
-    // returning owner who already granted camera access skips straight
-    // to `ensurePermission`, which then resolves without any dialog of
-    // its own).
     if (!await service.hasPermission) {
       if (!mounted) return;
       final proceed = await showFulusPermissionPrimer(
@@ -105,40 +90,21 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.keyboard_outlined),
-            tooltip: 'Enter manually',
-            onPressed: _enterManually,
-          ),
-        ],
+      body: SafeArea(
+        child: switch (_permission) {
+          _PermissionState.checking => const _ScannerLoading(),
+          _PermissionState.denied => _PermissionDeniedBody(
+              onEnterManually: _enterManually,
+            ),
+          _PermissionState.granted => _ScannerView(
+              controller: _controller,
+              title: widget.title,
+              onDetect: _onDetect,
+              onBack: () => Navigator.of(context).pop(),
+              onEnterManually: _enterManually,
+            ),
+        },
       ),
-      body: switch (_permission) {
-        _PermissionState.checking => const Center(child: CircularProgressIndicator(color: Colors.white)),
-        _PermissionState.denied => _PermissionDeniedBody(onEnterManually: _enterManually),
-        _PermissionState.granted => Stack(
-            fit: StackFit.expand,
-            children: [
-              MobileScanner(controller: _controller, onDetect: _onDetect),
-              // A simple viewfinder frame — mobile_scanner draws no
-              // overlay of its own by default.
-              Center(
-                child: Container(
-                  width: 240,
-                  height: 240,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 2),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  ),
-                ),
-              ),
-            ],
-          ),
-      },
     );
   }
 
@@ -149,9 +115,16 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Enter barcode'),
         scrollable: true,
-        content: FulusTextField(label: 'Barcode', controller: controller, keyboardType: TextInputType.text),
+        content: FulusTextField(
+          label: 'Barcode',
+          controller: controller,
+          keyboardType: TextInputType.text,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
           FulusButton(
             label: 'Use this',
             onPressed: () {
@@ -162,12 +135,239 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         ],
       ),
     );
+    controller.dispose();
     if (value != null && mounted) Navigator.of(context).pop(value);
+  }
+}
+
+class _ScannerLoading extends StatelessWidget {
+  const _ScannerLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.5),
+          ),
+          SizedBox(height: AppSpacing.md),
+          Text(
+            'Preparing scanner…',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScannerView extends StatelessWidget {
+  const _ScannerView({
+    required this.controller,
+    required this.title,
+    required this.onDetect,
+    required this.onBack,
+    required this.onEnterManually,
+  });
+
+  final MobileScannerController? controller;
+  final String title;
+  final void Function(BarcodeCapture) onDetect;
+  final VoidCallback onBack;
+  final VoidCallback onEnterManually;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        MobileScanner(controller: controller, onDetect: onDetect),
+        const _ScannerScrim(),
+        const Center(child: _Viewfinder()),
+        Positioned(
+          top: AppSpacing.md,
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          child: Row(
+            children: [
+              _ScannerCircleButton(
+                icon: Icons.arrow_back,
+                tooltip: 'Back',
+                onPressed: onBack,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTypography.subheading.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _ScannerCircleButton(
+                icon: Icons.keyboard_outlined,
+                tooltip: 'Enter manually',
+                onPressed: onEnterManually,
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: AppSpacing.xl,
+          right: AppSpacing.xl,
+          bottom: AppSpacing.xl,
+          child: IgnorePointer(
+            child: Column(
+              children: [
+                Text(
+                  'Place the barcode inside the frame',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.body.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Scanning happens automatically',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption.copyWith(
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScannerScrim extends StatelessWidget {
+  const _ScannerScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withValues(alpha: 0.48),
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.62),
+            ],
+            stops: const [0, 0.48, 1],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Viewfinder extends StatelessWidget {
+  const _Viewfinder();
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context).width < 420 ? 248.0 : 286.0;
+    return IgnorePointer(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.16),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+          ),
+          child: CustomPaint(painter: _ViewfinderPainter()),
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewfinderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    const length = 28.0;
+    const radius = 18.0;
+    final path = Path();
+    path
+      ..moveTo(radius, 0)
+      ..lineTo(length, 0)
+      ..moveTo(0, radius)
+      ..lineTo(0, length)
+      ..moveTo(size.width - radius, 0)
+      ..lineTo(size.width - length, 0)
+      ..moveTo(size.width, radius)
+      ..lineTo(size.width, length)
+      ..moveTo(0, size.height - radius)
+      ..lineTo(0, size.height - length)
+      ..moveTo(radius, size.height)
+      ..lineTo(length, size.height)
+      ..moveTo(size.width - radius, size.height)
+      ..lineTo(size.width - length, size.height)
+      ..moveTo(size.width, size.height - radius)
+      ..lineTo(size.width, size.height - length);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ScannerCircleButton extends StatelessWidget {
+  const _ScannerCircleButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.48),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 46,
+            height: 46,
+            child: Icon(icon, color: Colors.white),
+          ),
+        ),
+      ),
+    );
   }
 }
 
 class _PermissionDeniedBody extends StatelessWidget {
   const _PermissionDeniedBody({required this.onEnterManually});
+
   final VoidCallback onEnterManually;
 
   @override
@@ -178,8 +378,20 @@ class _PermissionDeniedBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 48),
-            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.camera_alt_outlined,
+                color: Colors.white,
+                size: 34,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               'Camera access needed to scan',
               style: AppTypography.heading.copyWith(color: Colors.white),
@@ -192,7 +404,10 @@ class _PermissionDeniedBody extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
-            FulusButton(label: 'Enter barcode manually', onPressed: onEnterManually),
+            FulusButton(
+              label: 'Enter barcode manually',
+              onPressed: onEnterManually,
+            ),
           ],
         ),
       ),
