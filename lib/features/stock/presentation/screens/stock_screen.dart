@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
@@ -30,12 +31,12 @@ class _StockScreenState extends ConsumerState<StockScreen> {
       title: 'Stock',
       applyPadding: false,
       actions: [
-        FulusIconButton(icon: Icons.category_outlined, tooltip: 'Categories', onPressed: () => context.pushNamed('stockCategories')),
-        FulusIconButton(icon: Icons.upload_file_outlined, tooltip: 'Bulk import', onPressed: () => context.pushNamed('stockBulkImport')),
+        FulusIconButton(icon: FulusIcons.stock, tooltip: 'Categories', onPressed: () => context.pushNamed('stockCategories')),
+        FulusIconButton(icon: FulusIcons.upload, tooltip: 'Bulk import', onPressed: () => context.pushNamed('stockBulkImport')),
       ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.pushNamed('stockRecordMovement'),
-        icon: const Icon(Icons.swap_vert),
+        icon: const Icon(FulusIcons.arrowUp),
         label: const Text('Record stock'),
       ),
       body: locationAsync.when(
@@ -141,7 +142,7 @@ class _StockBody extends ConsumerWidget {
                         ),
                       ]),
                     ),
-                    FulusIconButton(icon: Icons.sort, tooltip: 'Sort', onPressed: () => _showSortSheet(context, ref, filter)),
+                    FulusIconButton(icon: FulusIcons.filter, tooltip: 'Sort', onPressed: () => _showSortSheet(context, ref, filter)),
                   ],
                 ),
               ),
@@ -198,7 +199,7 @@ class _StockBody extends ConsumerWidget {
           for (final option in StockSortOrder.values)
             FulusListRow(
               title: Text(option.label),
-              trailing: filter.sort == option ? Icon(Icons.check, color: AppColors.primaryOf(sheetContext)) : null,
+              trailing: filter.sort == option ? Icon(FulusIcons.check, color: AppColors.primaryOf(sheetContext)) : null,
               onTap: () {
                 ref.read(stockFilterProvider.notifier).state = filter.copyWith(sort: option);
                 Navigator.of(sheetContext).pop();
