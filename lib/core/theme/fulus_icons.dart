@@ -35,8 +35,10 @@ abstract final class FulusIcons {
   static const arrowDown = Symbols.arrow_downward;
   static const chevronRight = Symbols.chevron_right;
   static const chevronDown = Symbols.keyboard_arrow_down;
+  static const chevronUp = Symbols.keyboard_arrow_up;
   static const error = Symbols.error_outline;
   static const inbox = Symbols.inbox;
+  static const image = Symbols.image;
   static const camera = Symbols.camera_alt;
   static const keyboard = Symbols.keyboard;
   static const close = Symbols.close;
