@@ -200,16 +200,10 @@ class _ProfileBody extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.lg),
                     _ArchiveSection(customer: customer, onChanged: onChanged),
                     const SizedBox(height: AppSpacing.lg),
-                    const FulusSectionHeader(
-                      title: 'Purchase history',
-                      subtitle: 'Sales made to this customer',
-                    ),
+                    const FulusSectionHeader(title: 'Purchase history', subtitle: 'Sales made to this customer'),
                     _buildPurchaseHistorySection(context, ref),
                     const SizedBox(height: AppSpacing.lg),
-                    const FulusSectionHeader(
-                      title: 'Credit history',
-                      subtitle: 'Credit sales and repayments',
-                    ),
+                    const FulusSectionHeader(title: 'Credit history', subtitle: 'Credit sales and repayments'),
                     _buildLedgerSection(ref),
                   ],
                 ),
@@ -231,11 +225,7 @@ class _ProfileBody extends ConsumerWidget {
       ),
       data: (transactions) {
         if (transactions.isEmpty) {
-          return const FulusEmptyState(
-            icon: Icons.point_of_sale_outlined,
-            headline: 'No purchases yet.',
-            body: 'Sales made to this customer will show up here.',
-          );
+          return const FulusEmptyState(icon: Icons.point_of_sale_outlined, headline: 'No purchases yet.', body: 'Sales made to this customer will show up here.');
         }
         return FulusCard(
           padding: EdgeInsets.zero,
@@ -246,11 +236,7 @@ class _ProfileBody extends ConsumerWidget {
                 _PurchaseHistoryRow(
                   transaction: transactions[i],
                   currencySymbol: currencySymbol,
-                  onTap: () => context.pushNamed(
-                    'moneyTransactionDetail',
-                    pathParameters: {'id': transactions[i].id},
-                    extra: transactions[i],
-                  ),
+                  onTap: () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': transactions[i].id}, extra: transactions[i]),
                 ),
               ],
             ],
@@ -270,11 +256,7 @@ class _ProfileBody extends ConsumerWidget {
       ),
       data: (entries) {
         if (entries.isEmpty) {
-          return const FulusEmptyState(
-            icon: Icons.receipt_long_outlined,
-            headline: 'No credit history yet.',
-            body: 'Credit sales and repayments for this customer will show up here.',
-          );
+          return const FulusEmptyState(icon: Icons.receipt_long_outlined, headline: 'No credit history yet.', body: 'Credit sales and repayments for this customer will show up here.');
         }
         return FulusCard(
           padding: EdgeInsets.zero,
@@ -308,10 +290,7 @@ class _BalanceMetric extends StatelessWidget {
         FittedBox(
           alignment: Alignment.centerLeft,
           fit: BoxFit.scaleDown,
-          child: Text(
-            value,
-            style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
-          ),
+          child: Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
         ),
       ],
     );
@@ -330,9 +309,7 @@ class _ArchiveSection extends ConsumerWidget {
     final confirmed = await showFulusConfirmDialog(
       context,
       title: 'Archive ${customer.name}?',
-      message: 'They\'ll disappear from your customer list, but their record and full '
-          "credit history are kept. You can restore them from here any time — nothing "
-          'here is permanent.',
+      message: 'They\'ll disappear from your customer list, but their record and full credit history are kept. You can restore them from here any time — nothing here is permanent.',
       confirmLabel: 'Archive',
     );
     if (!confirmed || !context.mounted) return;
@@ -343,9 +320,7 @@ class _ArchiveSection extends ConsumerWidget {
         onChanged();
       }
     } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't archive ${customer.name}. Try again.");
-      }
+      if (context.mounted) showFulusSnackbar(context, message: "Couldn't archive ${customer.name}. Try again.");
     }
   }
 
@@ -357,9 +332,7 @@ class _ArchiveSection extends ConsumerWidget {
         onChanged();
       }
     } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't restore ${customer.name}. Try again.");
-      }
+      if (context.mounted) showFulusSnackbar(context, message: "Couldn't restore ${customer.name}. Try again.");
     }
   }
 
@@ -377,12 +350,91 @@ class _ArchiveSection extends ConsumerWidget {
         Text(
           _isArchived
               ? 'Restoring brings them back to your active customer list.'
-              : "They'll disappear from your customer list. Their record and credit "
-                  'history are kept, and this can be undone any time.',
+              : "They'll disappear from your customer list. Their record and credit history are kept, and this can be undone any time.",
           style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+}
+
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow({required this.entry, required this.currencySymbol});
+  final CustomerLedgerEntry entry;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final isRepayment = entry.entryType == CustomerLedgerEntryType.repayment;
+    final label = switch (entry.entryType) {
+      CustomerLedgerEntryType.creditSale => 'Credit sale',
+      CustomerLedgerEntryType.repayment => 'Repayment${entry.paymentMethod != null ? ' — ${entry.paymentMethod}' : ''}',
+      CustomerLedgerEntryType.refundAdjustment => 'Refund adjustment',
+    };
+    final increasesBalance = entry.entryType == CustomerLedgerEntryType.creditSale;
+    final signed = increasesBalance ? entry.amount : -entry.amount;
+
+    return FulusListRow(
+      title: Text(label),
+      subtitle: Text('${formatRelativeDay(entry.createdAt)} · ${formatTime(entry.createdAt)}'),
+      trailing: Text(
+        formatMoney(signed, symbol: currencySymbol, showSign: true),
+        style: AppTypography.body.copyWith(
+          fontFeatures: const [FontFeature.tabularFigures()],
+          fontWeight: FontWeight.w600,
+          color: isRepayment ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseHistoryRow extends StatelessWidget {
+  const _PurchaseHistoryRow({required this.transaction, required this.currencySymbol, required this.onTap});
+
+  final MoneyTransaction transaction;
+  final String currencySymbol;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = transaction;
+    final total = t.saleTotal ?? t.amount;
+    final due = t.balanceDue;
+    final hasSummary = t.subtitle != null && t.subtitle!.isNotEmpty;
+
+    return FulusListRow(
+      title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${formatRelativeDay(t.dateTime)} · ${formatTime(t.dateTime)}${hasSummary ? ' · ${t.subtitle}' : ''}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatMoney(total, symbol: currencySymbol),
+            style: AppTypography.body.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            due > 0
+                ? '${formatMoney(t.amount, symbol: currencySymbol)} paid · ${formatMoney(due, symbol: currencySymbol)} due'
+                : 'Paid in full',
+            style: AppTypography.caption.copyWith(
+              color: due > 0 ? AppColors.errorOf(context) : AppColors.textSecondaryOf(context),
+            ),
+          ),
+        ],
+      ),
+      onTap: onTap,
     );
   }
 }
