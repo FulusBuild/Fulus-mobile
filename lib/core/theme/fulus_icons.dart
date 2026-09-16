@@ -63,6 +63,8 @@ abstract final class FulusIcons {
   static const bugReport = Symbols.bug_report;
   static const localShipping = Symbols.local_shipping;
   static const payments = Symbols.payments;
+  static const swap = Symbols.swap_vert;
+  static const history = Symbols.history;
 }
 
 /// Default visual treatment for Fulus Material Symbols.
