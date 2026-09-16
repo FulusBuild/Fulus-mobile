@@ -17,6 +17,10 @@ abstract final class FulusIcons {
   static const staff = Symbols.badge;
   static const locations = Symbols.location_on;
   static const cloud = Symbols.cloud;
+  static const cloudOff = Symbols.cloud_off;
+  static const cloudDone = Symbols.cloud_done;
+  static const cloudUpload = Symbols.cloud_upload;
+  static const warning = Symbols.warning;
   static const settings = Symbols.settings;
   static const menu = Symbols.menu;
   static const search = Symbols.search;
