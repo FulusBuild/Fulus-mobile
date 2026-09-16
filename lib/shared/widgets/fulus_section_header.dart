@@ -8,11 +8,13 @@ class FulusSectionHeader extends StatelessWidget {
   const FulusSectionHeader({
     super.key,
     required this.title,
+    this.subtitle,
     this.action,
     this.onActionTap,
   });
 
   final String title;
+  final String? subtitle;
   final String? action;
   final VoidCallback? onActionTap;
 
@@ -28,15 +30,31 @@ class FulusSectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.heading.copyWith(
-                color: AppColors.textPrimaryOf(context),
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.25,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.heading.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.25,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (action != null) ...[
