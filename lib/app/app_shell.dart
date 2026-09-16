@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
 import '../core/theme/device_form_factor.dart';
+import '../core/theme/fulus_icons.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
@@ -23,8 +24,6 @@ class FulusAppShell extends StatelessWidget {
   static const _maxContentWidth = 1120.0;
   static final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
-  /// Lets feature-level headers open the single workspace drawer without
-  /// creating a second navigation implementation inside each screen.
   static void openDrawer() => scaffoldKey.currentState?.openDrawer();
 
   @override
@@ -121,7 +120,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                   IconButton(
                     tooltip: 'Close navigation',
                     onPressed: () => _close(context),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: const Icon(FulusIcons.close),
                   ),
                 ],
               ),
@@ -132,22 +131,22 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.lg, AppSpacing.sm, AppSpacing.lg),
                 children: [
                   const _DrawerSectionLabel('RUN'),
-                  _DrawerItem(icon: Icons.home_outlined, label: 'Home', selected: shell.currentIndex == FulusNavBranch.home, onTap: () => _branch(context, FulusNavBranch.home)),
-                  _DrawerItem(icon: Icons.point_of_sale_outlined, label: 'Sell', selected: shell.currentIndex == FulusNavBranch.sell, onTap: () => _branch(context, FulusNavBranch.sell)),
-                  if (showMoneyTab) _DrawerItem(icon: Icons.account_balance_wallet_outlined, label: 'Money', selected: shell.currentIndex == FulusNavBranch.money, onTap: () => _branch(context, FulusNavBranch.money)),
+                  _DrawerItem(icon: FulusIcons.home, label: 'Home', selected: shell.currentIndex == FulusNavBranch.home, onTap: () => _branch(context, FulusNavBranch.home)),
+                  _DrawerItem(icon: FulusIcons.sell, label: 'Sell', selected: shell.currentIndex == FulusNavBranch.sell, onTap: () => _branch(context, FulusNavBranch.sell)),
+                  if (showMoneyTab) _DrawerItem(icon: FulusIcons.money, label: 'Money', selected: shell.currentIndex == FulusNavBranch.money, onTap: () => _branch(context, FulusNavBranch.money)),
                   const SizedBox(height: AppSpacing.xl),
                   const _DrawerSectionLabel('MANAGE'),
-                  _DrawerItem(icon: Icons.inventory_2_outlined, label: 'Stock', selected: shell.currentIndex == FulusNavBranch.stock, onTap: () => _branch(context, FulusNavBranch.stock)),
-                  if (showMoneyTab) _DrawerItem(icon: Icons.people_outline, label: 'Customers', onTap: () => _route(context, 'moneyCustomers')),
-                  if (canEmployees) _DrawerItem(icon: Icons.badge_outlined, label: 'Staff', onTap: () => _route(context, 'moreEmployees')),
-                  if (canSettings) _DrawerItem(icon: Icons.location_on_outlined, label: 'Locations', onTap: () => _route(context, 'moreSettingsLocations')),
+                  _DrawerItem(icon: FulusIcons.stock, label: 'Stock', selected: shell.currentIndex == FulusNavBranch.stock, onTap: () => _branch(context, FulusNavBranch.stock)),
+                  if (showMoneyTab) _DrawerItem(icon: FulusIcons.customers, label: 'Customers', onTap: () => _route(context, 'moneyCustomers')),
+                  if (canEmployees) _DrawerItem(icon: FulusIcons.staff, label: 'Staff', onTap: () => _route(context, 'moreEmployees')),
+                  if (canSettings) _DrawerItem(icon: FulusIcons.locations, label: 'Locations', onTap: () => _route(context, 'moreSettingsLocations')),
                   const SizedBox(height: AppSpacing.xl),
                   const _DrawerSectionLabel('UNDERSTAND'),
-                  if (canReports) _DrawerItem(icon: Icons.bar_chart_outlined, label: 'Reports', onTap: () => _route(context, 'moreReports')),
+                  if (canReports) _DrawerItem(icon: FulusIcons.reports, label: 'Reports', onTap: () => _route(context, 'moreReports')),
                   const SizedBox(height: AppSpacing.xl),
                   const _DrawerSectionLabel('BUSINESS'),
-                  if (canSettings) _DrawerItem(icon: Icons.cloud_outlined, label: 'Account & Backup', onTap: () => _route(context, 'moreSettingsCloud')),
-                  if (canSettings) _DrawerItem(icon: Icons.settings_outlined, label: 'Settings', onTap: () => _route(context, 'moreSettings')),
+                  if (canSettings) _DrawerItem(icon: FulusIcons.cloud, label: 'Account & Backup', onTap: () => _route(context, 'moreSettingsCloud')),
+                  if (canSettings) _DrawerItem(icon: FulusIcons.settings, label: 'Settings', onTap: () => _route(context, 'moreSettings')),
                 ],
               ),
             ),
@@ -222,7 +221,7 @@ class _DrawerItem extends StatelessWidget {
                   Icon(icon, size: AppIconSize.base, color: foreground),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? primary : null))),
-                  if (selected) Icon(Icons.chevron_right_rounded, size: AppIconSize.compact, color: primary),
+                  if (selected) Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: primary),
                 ],
               ),
             ),
@@ -249,7 +248,7 @@ class _OfflineBanner extends ConsumerWidget {
                 color: AppColors.textSecondaryOf(context),
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.md),
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.cloud_off_outlined, color: Colors.white, size: AppIconSize.dense),
+                  const Icon(FulusIcons.cloudOff, color: Colors.white, size: AppIconSize.dense),
                   const SizedBox(width: AppSpacing.xs),
                   Flexible(child: Text("You're offline — your work is saved and will sync when you're back.", style: AppTypography.caption.copyWith(color: Colors.white), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis)),
                 ]),
@@ -268,11 +267,11 @@ class _SyncStatusIndicator extends ConsumerWidget {
     final status = ref.watch(_shellSyncStatusProvider).value;
     if (status == null) return const SizedBox.shrink();
     final (icon, color, badgeCount) = switch (status.kind) {
-      SyncStatusKind.disabled => (Icons.cloud_off_outlined, AppColors.textSecondaryOf(context), 0),
-      SyncStatusKind.settled => (Icons.cloud_done_outlined, AppColors.textSecondaryOf(context), 0),
-      SyncStatusKind.pending => (Icons.cloud_upload_outlined, AppColors.textSecondaryOf(context), status.pendingCount),
-      SyncStatusKind.syncing => (Icons.sync, AppColors.primaryOf(context), 0),
-      SyncStatusKind.attentionNeeded => (Icons.warning_amber_outlined, AppColors.warningOf(context), status.attentionCount),
+      SyncStatusKind.disabled => (FulusIcons.cloudOff, AppColors.textSecondaryOf(context), 0),
+      SyncStatusKind.settled => (FulusIcons.cloudDone, AppColors.textSecondaryOf(context), 0),
+      SyncStatusKind.pending => (FulusIcons.cloudUpload, AppColors.textSecondaryOf(context), status.pendingCount),
+      SyncStatusKind.syncing => (FulusIcons.sync, AppColors.primaryOf(context), 0),
+      SyncStatusKind.attentionNeeded => (FulusIcons.warning, AppColors.warningOf(context), status.attentionCount),
     };
     return Semantics(
       button: true,
