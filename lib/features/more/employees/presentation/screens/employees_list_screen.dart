@@ -36,6 +36,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       body: StreamBuilder<List<Employee>>(
         stream: _employeesStream,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return FulusErrorState(
+              message: "Couldn't load your team.",
+              reassurance: 'No team data was changed — this is only a loading problem.',
+              onRetry: () => setState(() {}),
+            );
+          }
           final employees = snapshot.data ?? const <Employee>[];
           if (!snapshot.hasData) return const FulusLoadingIndicator();
           if (employees.isEmpty) {
@@ -190,7 +197,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
-        showFulusSnackbar(context, message: 'Couldn\'t save this team member. Try again.');
+        showFulusSnackbar(context, message: 'Couldn\\'t save this team member. Try again.');
       }
     }
   }
@@ -240,101 +247,17 @@ class _EmployeeTile extends ConsumerWidget {
           onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
           leading: FulusAvatar(name: employee.fullName),
           title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(employee.role ?? (employee.phone ?? 'Team member'), maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (employee.authUserId == null)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: Icon(Icons.no_accounts_outlined, color: AppColors.warningOf(context), size: AppIconSize.compact),
-                ),
-              if (!compact)
-                FulusIconButton(
-                  icon: Icons.edit_outlined,
-                  tooltip: 'Edit team member',
-                  onPressed: onEdit,
-                ),
-              if (!compact)
-                FulusIconButton(
-                  icon: Icons.event_available_outlined,
-                  tooltip: 'Mark attendance',
-                  onPressed: () => _markToday(context, ref),
-                ),
-              if (compact)
-                PopupMenuButton<_TeamAction>(
-                  tooltip: 'Team member actions',
-                  onSelected: (action) {
-                    switch (action) {
-                      case _TeamAction.edit:
-                        onEdit();
-                      case _TeamAction.attendance:
-                        _markToday(context, ref);
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: _TeamAction.edit, child: Text('Edit team member')),
-                    PopupMenuItem(value: _TeamAction.attendance, child: Text('Mark attendance')),
-                  ],
-                ),
-              Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
-            ],
-          ),
+          subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
+          trailing: compact
+              ? IconButton(icon: const Icon(Icons.edit_outlined), tooltip: 'Edit', onPressed: onEdit)
+              : Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(employee.phone ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                  const SizedBox(width: AppSpacing.sm),
+                  IconButton(icon: const Icon(Icons.edit_outlined), tooltip: 'Edit', onPressed: onEdit),
+                  Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryOf(context)),
+                ]),
         );
       },
     );
   }
-
-  Future<void> _markToday(BuildContext context, WidgetRef ref) async {
-    final status = await showFulusBottomSheet<AttendanceStatus>(
-      context: context,
-      title: 'Mark attendance',
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in AttendanceStatus.values)
-            FulusListRow(
-              onTap: () => Navigator.of(context).pop(s),
-              leading: Icon(_attendanceIcon(s), color: _attendanceColor(context, s)),
-              title: Text(_attendanceLabel(s)),
-            ),
-        ],
-      ),
-    );
-    if (status == null) return;
-    try {
-      await ref.read(employeeRepositoryProvider).markAttendance(
-            employeeId: employee.id,
-            date: DateTime.now(),
-            status: status,
-          );
-      if (context.mounted) {
-        showFulusSnackbar(context, message: '${employee.fullName}: ${_attendanceLabel(status)} recorded.');
-      }
-    } on Exception catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't record attendance. Try again.");
-      }
-    }
-  }
-
-  String _attendanceLabel(AttendanceStatus status) => switch (status) {
-        AttendanceStatus.present => 'Present',
-        AttendanceStatus.absent => 'Absent',
-        AttendanceStatus.late => 'Late',
-      };
-
-  IconData _attendanceIcon(AttendanceStatus status) => switch (status) {
-        AttendanceStatus.present => Icons.check_circle_outline,
-        AttendanceStatus.absent => Icons.cancel_outlined,
-        AttendanceStatus.late => Icons.schedule_outlined,
-      };
-
-  Color _attendanceColor(BuildContext context, AttendanceStatus status) => switch (status) {
-        AttendanceStatus.present => AppColors.primaryOf(context),
-        AttendanceStatus.absent => AppColors.errorOf(context),
-        AttendanceStatus.late => AppColors.warningOf(context),
-      };
 }
-
-enum _TeamAction { edit, attendance }
