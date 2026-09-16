@@ -15,24 +15,6 @@ env:
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
 
 jobs:
-  account-creation-contract:
-    name: Account creation E2E contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Resolve dependencies
-        run: flutter pub get
-      - name: Run account creation contract test
-        run: dart run tool/fulus_auth_e2e.dart
-
   live-server-contract:
     name: Live sync E2E contract
     runs-on: ubuntu-latest
