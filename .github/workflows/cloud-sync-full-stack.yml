@@ -79,6 +79,9 @@ jobs:
         env:
           FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
           FULUS_ACCESS_TOKEN: ${{ secrets.FULUS_E2E_ACCESS_TOKEN }}
+          FULUS_REFRESH_TOKEN: ${{ secrets.FULUS_E2E_REFRESH_TOKEN }}
+          FULUS_AUTH_URL: ${{ env.SUPABASE_URL }}
+          FULUS_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
           FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
           FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
         run: dart run tool/fulus_sync_e2e.dart
