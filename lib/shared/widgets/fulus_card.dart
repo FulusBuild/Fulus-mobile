@@ -23,12 +23,15 @@ class FulusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.xl);
-    final borderColor = AppColors.borderOf(context).withValues(alpha: 0.72);
+    // Workspace surfaces use a barely-there outline by default. It keeps
+    // adjacent cards visually separated without turning the UI into a grid
+    // of heavy borders. `outlined` remains available for stronger emphasis.
+    final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.55);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         borderRadius: radius,
-        border: outlined ? Border.all(color: borderColor) : null,
+        border: Border.all(color: borderColor),
         boxShadow: elevated ? AppElevation.cardOf(context) : null,
       ),
       child: Material(
