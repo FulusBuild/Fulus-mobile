@@ -58,7 +58,7 @@ abstract final class FulusIcons {
   static const lock = Symbols.lock_outline;
   static const notifications = Symbols.notifications;
   static const help = Symbols.help_outline;
-  static const info = Symbols.info_outline;
+  static const info = Symbols.info;
   static const backup = Symbols.cloud_upload;
   static const sync = Symbols.sync;
   static const language = Symbols.language;
