@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Shared content surface. Fulus should not feel like a dashboard made from
-/// dozens of bordered boxes. Cards are quiet containers; use [outlined] only
-/// when a boundary genuinely improves comprehension.
+/// Shared content surface. Cards stay quiet; hierarchy comes from spacing,
+/// typography and interaction rather than heavy borders.
 class FulusCard extends StatelessWidget {
   const FulusCard({
     super.key,
@@ -23,12 +22,16 @@ class FulusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.lg);
+    final radius = BorderRadius.circular(AppRadius.xl);
+    // Workspace surfaces use a barely-there outline by default. It keeps
+    // adjacent cards visually separated without turning the UI into a grid
+    // of heavy borders. `outlined` remains available for stronger emphasis.
+    final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.55);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceOf(context),
         borderRadius: radius,
-        border: outlined ? Border.all(color: AppColors.borderOf(context)) : null,
+        border: Border.all(color: borderColor),
         boxShadow: elevated ? AppElevation.cardOf(context) : null,
       ),
       child: Material(
@@ -68,7 +71,7 @@ class FulusStatCard extends StatelessWidget {
   final IconData? icon;
   final Color? iconColor;
   final VoidCallback? onTap;
-  static const minWidth = 130.0;
+  static const minWidth = 136.0;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +111,7 @@ class FulusStatCard extends StatelessWidget {
 }
 
 class FulusStatGrid extends StatelessWidget {
-  const FulusStatGrid({super.key, required this.cards, this.minTileWidth = FulusStatCard.minWidth + AppSpacing.xl, this.spacing = AppSpacing.sm});
+  const FulusStatGrid({super.key, required this.cards, this.minTileWidth = FulusStatCard.minWidth + AppSpacing.xl, this.spacing = AppSpacing.md});
   final List<Widget> cards;
   final double minTileWidth;
   final double spacing;
@@ -120,7 +123,7 @@ class FulusStatGrid extends StatelessWidget {
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : minTileWidth;
         final rawColumns = (availableWidth / minTileWidth).floor();
-        final byWidth = rawColumns < 1 ? 1 : (rawColumns > 4 ? 4 : rawColumns);
+        final byWidth = rawColumns.clamp(1, 4);
         final columns = byWidth < cards.length ? byWidth : cards.length;
         final rows = <Widget>[];
         for (var i = 0; i < cards.length; i += columns) {

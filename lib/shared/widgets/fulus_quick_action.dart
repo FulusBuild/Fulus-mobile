@@ -16,6 +16,7 @@ class FulusQuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = AppColors.primaryOf(context);
+    final textColor = AppColors.textPrimaryOf(context);
     return Semantics(
       button: true,
       label: label,
@@ -24,29 +25,42 @@ class FulusQuickAction extends StatelessWidget {
         semanticsLabel: label,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: fulusMotionDuration(context, AppMotion.fast),
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.isDark(context) ? AppColors.surfaceAltDark : AppColors.neutral100,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: AppIconSize.base, color: primary),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.visible,
-                style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context)),
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Quick actions are commonly placed four-up inside an Expanded
+              // row. Keep the visual rhythm intact on small phones without
+              // allowing long/localized labels to collide with their
+              // neighbours. The touch target itself remains 48dp.
+              final iconSize = constraints.maxWidth < 72 ? 44.0 : 48.0;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: fulusMotionDuration(context, AppMotion.fast),
+                    width: iconSize,
+                    height: iconSize,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.isDark(context) ? AppColors.surfaceAltDark : AppColors.neutral100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: AppIconSize.base, color: primary),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
+                      style: AppTypography.label.copyWith(color: textColor),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

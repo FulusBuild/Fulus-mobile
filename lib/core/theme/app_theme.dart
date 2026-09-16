@@ -42,6 +42,10 @@ class AppTheme {
       dividerTheme: const DividerThemeData(color: AppColors.borderLight, thickness: 1, space: 1),
       chipTheme: _chipTheme(colorScheme, AppColors.borderLight),
       listTileTheme: _listTileTheme(AppColors.textPrimaryLight),
+      dialogTheme: _dialogTheme(AppColors.surfaceLight, AppColors.textPrimaryLight),
+      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceLight),
+      floatingActionButtonTheme: _fabTheme(colorScheme),
+      snackBarTheme: _snackBarTheme(colorScheme),
       pageTransitionsTheme: _pageTransitionsTheme,
       splashFactory: InkSparkle.splashFactory,
     );
@@ -77,6 +81,10 @@ class AppTheme {
       dividerTheme: const DividerThemeData(color: AppColors.borderDark, thickness: 1, space: 1),
       chipTheme: _chipTheme(colorScheme, AppColors.borderDark),
       listTileTheme: _listTileTheme(AppColors.darkTextPrimary),
+      dialogTheme: _dialogTheme(AppColors.surfaceDark, AppColors.darkTextPrimary),
+      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceDark),
+      floatingActionButtonTheme: _fabTheme(colorScheme),
+      snackBarTheme: _snackBarTheme(colorScheme),
       pageTransitionsTheme: _pageTransitionsTheme,
       splashFactory: InkSparkle.splashFactory,
     );
@@ -164,6 +172,54 @@ class AppTheme {
       minVerticalPadding: AppSpacing.sm,
       horizontalTitleGap: AppSpacing.md,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+    );
+  }
+
+  static DialogThemeData _dialogTheme(Color surface, Color foreground) {
+    return DialogThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shadowColor: Colors.black.withValues(alpha: 0.14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+      titleTextStyle: AppTypography.heading.copyWith(color: foreground),
+      contentTextStyle: AppTypography.body.copyWith(color: foreground),
+    );
+  }
+
+  static BottomSheetThemeData _bottomSheetTheme(Color surface) {
+    return BottomSheetThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      modalElevation: 0,
+      showDragHandle: true,
+      dragHandleColor: AppColors.borderLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+    );
+  }
+
+  static FloatingActionButtonThemeData _fabTheme(ColorScheme scheme) {
+    return FloatingActionButtonThemeData(
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+      elevation: 2,
+      focusElevation: 3,
+      hoverElevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+    );
+  }
+
+  static SnackBarThemeData _snackBarTheme(ColorScheme scheme) {
+    return SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: scheme.inverseSurface,
+      contentTextStyle: AppTypography.body.copyWith(color: scheme.onInverseSurface),
+      actionTextColor: scheme.inversePrimary,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
     );
   }
 

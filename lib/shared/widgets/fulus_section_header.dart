@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Publication-style section heading shared across feature screens. The
-/// heading carries the serif editorial voice; the action stays functional
-/// and compact so content, not chrome, remains the visual focus.
+/// Quiet section heading used to establish hierarchy without adding heavy
+/// chrome to feature screens.
 class FulusSectionHeader extends StatelessWidget {
-  const FulusSectionHeader({super.key, required this.title, this.action, this.onActionTap});
+  const FulusSectionHeader({
+    super.key,
+    required this.title,
+    this.action,
+    this.onActionTap,
+  });
 
   final String title;
   final String? action;
@@ -14,8 +18,12 @@ class FulusSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm, top: AppSpacing.sm),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.sm,
+        bottom: AppSpacing.sm,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -24,7 +32,11 @@ class FulusSectionHeader extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+              style: AppTypography.heading.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.25,
+              ),
             ),
           ),
           if (action != null) ...[
@@ -32,16 +44,21 @@ class FulusSectionHeader extends StatelessWidget {
             TextButton(
               onPressed: onActionTap,
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.textPrimaryOf(context),
+                foregroundColor: primary,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                overlayColor: primary.withValues(alpha: 0.08),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(action!, style: AppTypography.buttonLabel),
+                  Text(action!, style: AppTypography.buttonLabel.copyWith(color: primary)),
                   const SizedBox(width: AppSpacing.xs),
-                  const Icon(Icons.arrow_forward, size: AppIconSize.dense),
+                  const Icon(Icons.arrow_forward_rounded, size: AppIconSize.dense),
                 ],
               ),
             ),

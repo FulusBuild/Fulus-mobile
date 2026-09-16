@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 
 /// Shared page composition for secondary and detail screens.
-///
-/// Fulus uses a calm canvas rather than a dashboard of containers. Headers
-/// stay compact, actions remain reachable, and content keeps the context of
-/// the current task instead of feeling like a separate admin page.
+/// Keeps the workspace visually consistent across phone and tablet widths.
 class FulusScreen extends StatelessWidget {
   const FulusScreen({
     super.key,
@@ -17,7 +14,7 @@ class FulusScreen extends StatelessWidget {
     this.leading,
     this.floatingActionButton,
     this.bottomNavigationBar,
-    this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.padding = const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
     this.applyPadding = true,
   });
 
@@ -56,7 +53,7 @@ class FulusScreen extends StatelessWidget {
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
+                  constraints: const BoxConstraints(maxWidth: 1120),
                   child: content,
                 ),
               ),
@@ -85,55 +82,76 @@ class _PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (leading != null || showBack)
-            SizedBox(
-              width: AppTouchTarget.minimum,
-              height: AppTouchTarget.minimum,
-              child: leading ?? const BackButton(),
+    final muted = AppColors.mutedOf(context);
+    final foreground = AppColors.textPrimaryOf(context);
+    final isWide = MediaQuery.sizeOf(context).width >= 700;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.backgroundOf(context),
+        border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.55))),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              isWide ? AppSpacing.lg : AppSpacing.sm,
+              isWide ? AppSpacing.md : AppSpacing.sm,
+              isWide ? AppSpacing.lg : AppSpacing.md,
+              isWide ? AppSpacing.md : AppSpacing.sm,
             ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : AppSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.heading.copyWith(
-                      color: AppColors.textPrimaryOf(context),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (leading != null || showBack)
+                  SizedBox(
+                    width: AppTouchTarget.minimum,
+                    height: AppTouchTarget.minimum,
+                    child: leading ?? const BackButton(),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : AppSpacing.sm),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.heading.copyWith(
+                            fontSize: isWide ? 22 : 20,
+                            fontWeight: FontWeight.w700,
+                            color: foreground,
+                            letterSpacing: -0.35,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.caption.copyWith(color: muted),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.mutedOf(context),
-                      ),
+                ),
+                if (actions != null)
+                  ...actions!.map(
+                    (action) => Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xs),
+                      child: action,
                     ),
-                  ],
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
-          if (actions != null)
-            ...actions!.map(
-              (action) => Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.xs),
-                child: action,
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }

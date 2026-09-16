@@ -49,6 +49,8 @@ class FulusButton extends StatelessWidget {
             disabledForegroundColor: AppColors.onPrimaryOf(context).withValues(alpha: AppOpacity.disabled),
             minimumSize: minimumSize,
             elevation: 0,
+            textStyle: AppTypography.buttonLabel,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
           child: child,
         );
@@ -59,6 +61,8 @@ class FulusButton extends StatelessWidget {
             foregroundColor: AppColors.textPrimaryOf(context),
             side: BorderSide(color: AppColors.borderOf(context)),
             minimumSize: minimumSize,
+            textStyle: AppTypography.buttonLabel,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
           child: child,
         );
@@ -72,6 +76,8 @@ class FulusButton extends StatelessWidget {
             disabledForegroundColor: AppColors.errorOnOf(context).withValues(alpha: AppOpacity.disabled),
             minimumSize: minimumSize,
             elevation: 0,
+            textStyle: AppTypography.buttonLabel,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
           child: child,
         );
@@ -82,6 +88,8 @@ class FulusButton extends StatelessWidget {
             foregroundColor: AppColors.primaryOf(context),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             minimumSize: minimumSize,
+            textStyle: AppTypography.buttonLabel,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
           child: child,
         );
@@ -155,24 +163,19 @@ class FulusIconButton extends StatelessWidget {
             FulusHaptics.selection();
             onPressed!();
           };
-    final button = filled
-        ? IconButton.filled(
-            onPressed: action,
-            icon: Icon(icon),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.primaryOf(context),
-              foregroundColor: AppColors.onPrimaryOf(context),
-              minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
-            ),
-          )
-        : IconButton(
-            onPressed: action,
-            icon: Icon(icon),
-            style: IconButton.styleFrom(
-              foregroundColor: AppColors.textPrimaryOf(context),
-              minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
-            ),
-          );
+    final foreground = filled ? AppColors.onPrimaryOf(context) : AppColors.textPrimaryOf(context);
+    final button = IconButton(
+      onPressed: action,
+      icon: Icon(icon),
+      style: IconButton.styleFrom(
+        backgroundColor: filled ? AppColors.primaryOf(context) : Colors.transparent,
+        foregroundColor: foreground,
+        minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
+        maximumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+        overlayColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
+      ),
+    );
     final wrapped = tooltip == null ? button : Tooltip(message: tooltip!, child: button);
     return tooltip == null
         ? wrapped
