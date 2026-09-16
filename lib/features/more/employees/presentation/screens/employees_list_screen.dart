@@ -197,7 +197,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
-        showFulusSnackbar(context, message: 'Couldn\\'t save this team member. Try again.');
+        showFulusSnackbar(context, message: "Couldn't save this team member. Try again.");
       }
     }
   }
