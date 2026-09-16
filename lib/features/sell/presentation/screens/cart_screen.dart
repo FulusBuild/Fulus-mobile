@@ -25,7 +25,6 @@ class CartScreen extends StatelessWidget {
             title: 'Cart',
             body: FulusErrorState(
               message: cartState.message,
-              actionLabel: 'Retry',
               onRetry: () => context.read<CartCubit>().retryInitialization(),
             ),
           );
