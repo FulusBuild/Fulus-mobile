@@ -1,3 +1,4 @@
+# CI configuration — validates the complete mobile application on pull requests and protected branches.
 name: Fulus Mobile CI
 
 on:
@@ -29,7 +30,6 @@ on:
         options:
           - none
           - debug
-
       run_fulus_e2e:
         description: "Run the live Fulus sync contract test (requires FULUS_E2E_* secrets)"
         required: true
@@ -39,9 +39,6 @@ on:
 env:
   FLUTTER_VERSION: "3.44.9"
 
-# A branch push and its pull-request run must share the same group. Otherwise
-# github.ref differs (refs/heads/... vs refs/pull/.../merge), allowing both
-# runs to execute even though they validate the same branch state.
 concurrency:
   group: fulus-mobile-ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
@@ -67,7 +64,6 @@ jobs:
         run: flutter --version
       - name: Resolve dependencies
         run: flutter pub get
-
   codegen:
     name: Generate Dart code
     needs: dependencies
@@ -86,7 +82,6 @@ jobs:
         run: flutter pub get
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
-
   analyze:
     name: Static analysis
     needs: codegen
@@ -107,7 +102,6 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Analyze
         run: flutter analyze --fatal-infos
-
   test:
     name: Flutter tests
     needs: analyze
@@ -128,7 +122,6 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Run tests
         run: flutter test
-
   fulus_e2e:
     name: Fulus live sync contract test
     needs: test
@@ -155,7 +148,6 @@ jobs:
           FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
           FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
         run: dart run tool/fulus_sync_e2e.dart
-
   debug_apk:
     name: Build debug APK
     needs: test
@@ -189,7 +181,6 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 2
-
   release_apk:
     name: Build release APK
     if: github.event_name == 'workflow_dispatch' && inputs.build_apk == 'release'
