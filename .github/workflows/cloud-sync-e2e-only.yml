@@ -15,59 +15,63 @@ env:
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
 
 jobs:
-  live-server-contract:
-    name: Live sync E2E contract only
+  account-creation-contract:
+    name: Account creation E2E contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Run account creation contract test
+        run: dart run tool/fulus_auth_e2e.dart
 
+  live-server-contract:
+    name: Live sync E2E contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
       - name: Resolve fresh Supabase access token
         env:
           FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
           FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
         run: |
           set -euo pipefail
-
           response_file="$(mktemp)"
-          http_status="$(curl -sS -o "$response_file" -w '%{http_code}' \
-            -X POST \
-            -H 'Content-Type: application/json' \
-            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
-            --data "$(jq -nc --arg email "$FULUS_E2E_EMAIL" --arg password "$FULUS_E2E_PASSWORD" '{email:$email,password:$password}')" \
-            "$SUPABASE_URL/auth/v1/token?grant_type=password")"
-
+          http_status="$(curl -sS -o "$response_file" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "apikey: $SUPABASE_PUBLISHABLE_KEY" --data "$(jq -nc --arg email "$FULUS_E2E_EMAIL" --arg password "$FULUS_E2E_PASSWORD" '{email:$email,password:$password}')" "$SUPABASE_URL/auth/v1/token?grant_type=password")"
           if [[ "$http_status" != "200" ]]; then
             echo "Supabase password authentication failed with HTTP $http_status."
             rm -f "$response_file"
             exit 1
           fi
-
           access_token="$(jq -er '.access_token // empty' "$response_file")"
           rm -f "$response_file"
-
           if [[ -z "$access_token" ]]; then
             echo "Supabase authentication succeeded but returned no access token."
             exit 1
           fi
-
           {
             echo 'FULUS_ACCESS_TOKEN<<EOF'
             echo "$access_token"
             echo 'EOF'
           } >> "$GITHUB_ENV"
-
       - name: Run live Fulus sync contract test
         env:
           FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
