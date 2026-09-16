@@ -5,6 +5,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'cloud_restore_screen.dart';
 
@@ -200,7 +201,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
 
     await businessRepository.createBusiness(
       businessName: businessName,
-      category: ref.read(defaultBusinessCategoryProvider),
+      category: BusinessCategory.retailShop,
       currencySymbol: '₦',
     );
 
@@ -314,7 +315,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                       child: Text(creating ? 'I already have an account' : 'Create a Fulus account'),
                     ),
                   ),
-                  if (!creating) ...[
+                  if (!creating)
                     Center(
                       child: TextButton(
                         onPressed: _busy
@@ -325,7 +326,6 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                         child: const Text('Restore my business'),
                       ),
                     ),
-                  ],
                 ],
               ),
             ),
