@@ -6,17 +6,14 @@ import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'backup_restore_decision_screen.dart';
-import 'cloud_restore_screen.dart';
 import 'fulus_account_screen.dart';
 import 'owner_setup_screen.dart';
 
 /// First-launch entry point for a device with no local owner/business yet.
 ///
-/// The primary decision is now the Fulus account itself: people who already
-/// use Fulus sign in and restore their business, while new users can create
-/// their account and business in one journey. Local file backup remains an
-/// explicit recovery option for users who have a database backup rather than
-/// a Fulus account.
+/// Cloud restore is intentionally part of the Fulus account flow on a fresh
+/// installation. An already-running local business connects to Cloud from
+/// Settings instead; it never restores a cloud business over local data.
 class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
@@ -74,16 +71,6 @@ class GetStartedScreen extends ConsumerWidget {
                         );
                       },
                       child: const Text('I already have a Fulus account'),
-                    ),
-                  ),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute(builder: (_) => const CloudRestoreScreen()),
-                        );
-                      },
-                      child: const Text('Restore my business'),
                     ),
                   ),
                   Center(
