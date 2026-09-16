@@ -11,8 +11,8 @@ import '../providers/money_providers.dart';
 import '../utils/money_format.dart';
 import '../widgets/supplier_form_sheet.dart';
 
-/// Volume 8, Decision 26's supplier mirror of `customer_profile_screen
-/// .dart` — real data via `SupplierRepository`/`SupplierCreditRepository`.
+/// Supplier profile remains repository-backed and reactive. This pass only
+/// refines its workspace presentation and responsive layout.
 class SupplierProfileScreen extends ConsumerStatefulWidget {
   const SupplierProfileScreen({super.key, required this.supplierId, this.preloaded});
 
@@ -47,6 +47,7 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
 
     return FulusScreen(
       title: 'Supplier',
+      subtitle: 'Supplier details and payment history',
       body: FutureBuilder<Supplier?>(
         future: _future,
         builder: (context, snapshot) {
@@ -76,97 +77,137 @@ class _SupplierProfileBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      children: [
-        FulusCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
-                    child: Icon(Icons.local_shipping_outlined, color: AppColors.textSecondaryOf(context)),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(supplier.name, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
-                        if (supplier.phone != null)
-                          Text(supplier.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                        if (supplier.email != null)
-                          Text(supplier.email!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                        if (supplier.address != null)
-                          Text(supplier.address!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                      ],
-                    ),
-                  ),
-                  // Bug fix (suppliers gap-closure): same "no proper way
-                  // to edit" gap customer_profile_screen.dart's own
-                  // identical button already closed for customers —
-                  // updateSupplier existed on no call path at all until
-                  // this button and SupplierFormSheet.
-                  FulusIconButton(
-                    icon: Icons.edit_outlined,
-                    tooltip: 'Edit supplier',
-                    onPressed: () async {
-                      final saved = await SupplierFormSheet.show(context, existing: supplier);
-                      if (saved != null) onChanged();
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('You owe', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
-                  // Responsive UI audit — Flexible+ellipsis added. The
-                  // label is fixed and short, but the balance is not
-                  // bounded (this app already anticipates values into
-                  // the billions elsewhere — see StockOverviewStats),
-                  // so it's the side that needs to be able to give.
-                  Flexible(
-                    child: Text(
-                      formatMoney(supplier.outstandingBalance, symbol: currencySymbol),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: AppTypography.heading.copyWith(
-                        color: AppColors.textPrimaryOf(context),
-                        fontFeatures: const [FontFeature.tabularFigures()],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
+        final inset = wide ? AppSpacing.lg : AppSpacing.sm;
+        return ListView(
+          padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FulusCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.selectedTintOf(context),
+                                ),
+                                child: Icon(Icons.local_shipping_outlined, color: AppColors.primaryOf(context)),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      supplier.name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                    ),
+                                    if (supplier.phone != null)
+                                      Text(supplier.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                                    if (supplier.email != null)
+                                      Text(supplier.email!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                                  ],
+                                ),
+                              ),
+                              FulusIconButton(
+                                icon: Icons.edit_outlined,
+                                tooltip: 'Edit supplier',
+                                onPressed: () async {
+                                  final saved = await SupplierFormSheet.show(context, existing: supplier);
+                                  if (saved != null) onChanged();
+                                },
+                              ),
+                            ],
+                          ),
+                          if (supplier.address != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            FulusListRow(
+                              leading: const Icon(Icons.location_on_outlined),
+                              title: const Text('Address'),
+                              subtitle: Text(supplier.address!),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          FulusCard(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: LayoutBuilder(
+                              builder: (context, metricConstraints) {
+                                final compact = metricConstraints.maxWidth < 430;
+                                final balance = _BalanceMetric(
+                                  label: 'Outstanding balance',
+                                  value: formatMoney(supplier.outstandingBalance, symbol: currencySymbol),
+                                );
+                                final status = _BalanceMetric(
+                                  label: 'Account status',
+                                  value: supplier.deletedAt == null ? 'Active' : 'Archived',
+                                );
+                                if (compact) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      balance,
+                                      const SizedBox(height: AppSpacing.md),
+                                      status,
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  children: [
+                                    Expanded(child: balance),
+                                    const SizedBox(width: AppSpacing.lg),
+                                    Container(width: 1, height: 44, color: AppColors.borderOf(context)),
+                                    const SizedBox(width: AppSpacing.lg),
+                                    Expanded(child: status),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FulusButton(
+                              label: 'Pay supplier',
+                              onPressed: () async {
+                                final result = await context.pushNamed<bool>(
+                                  'moneyPaySupplier',
+                                  pathParameters: {'id': supplier.localId},
+                                  extra: supplier,
+                                );
+                                if (result == true) onChanged();
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(
-                  label: 'Pay supplier',
-                  onPressed: () async {
-                    final result = await context.pushNamed<bool>(
-                      'moneyPaySupplier',
-                      pathParameters: {'id': supplier.localId},
-                      extra: supplier,
-                    );
-                    if (result == true) onChanged();
-                  },
+                    const SizedBox(height: AppSpacing.xl),
+                    const FulusSectionHeader(
+                      title: 'Payment history',
+                      subtitle: 'Stock bought on credit and payments made',
+                    ),
+                    _buildLedgerSection(ref),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        FulusSectionHeader(title: 'Payment history'),
-        _buildLedgerSection(ref),
-        const SizedBox(height: AppSpacing.xl),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -198,6 +239,32 @@ class _SupplierProfileBody extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _BalanceMetric extends StatelessWidget {
+  const _BalanceMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+        const SizedBox(height: 2),
+        FittedBox(
+          alignment: Alignment.centerLeft,
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
     );
   }
 }
