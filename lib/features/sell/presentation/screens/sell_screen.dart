@@ -137,7 +137,7 @@ class _ProductRow extends StatelessWidget {
 
   Future<void> _add(BuildContext context) async {
     try {
-      await context.read<CartCubit>().addProduct(entry);
+      await context.read<CartCubit>().addProduct(entry.product.localId);
       FulusHaptics.selection();
     } on StateError catch (e) {
       FulusHaptics.error();
