@@ -42,8 +42,8 @@ class FulusAppShell extends StatelessWidget {
         : navigationShell;
 
     return Scaffold(
-      drawer: const _FulusNavigationDrawer(),
-      drawerEdgeDragWidth: 44,
+      drawer: _FulusNavigationDrawer(shell: navigationShell, showMoneyTab: showMoneyTab),
+      drawerEdgeDragWidth: 48,
       drawerEnableOpenDragGesture: true,
       body: Column(
         children: [
@@ -76,11 +76,14 @@ class FulusNavBranch {
 }
 
 class _FulusNavigationDrawer extends ConsumerWidget {
-  const _FulusNavigationDrawer();
+  const _FulusNavigationDrawer({required this.shell, required this.showMoneyTab});
+
+  final StatefulNavigationShell shell;
+  final bool showMoneyTab;
 
   void _close(BuildContext context) => Navigator.of(context).pop();
 
-  void _branch(BuildContext context, StatefulNavigationShell shell, int index) {
+  void _branch(BuildContext context, int index) {
     _close(context);
     shell.goBranch(index, initialLocation: shell.currentIndex == index);
   }
@@ -92,7 +95,6 @@ class _FulusNavigationDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shell = _shellFromContext(context);
     final user = ref.watch(sessionProvider);
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
     final isOwner = user?.role == AuthRole.owner;
@@ -137,7 +139,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                   IconButton(
                     tooltip: 'Close navigation',
                     onPressed: () => _close(context),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                   ),
                 ],
               ),
@@ -152,20 +154,20 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     icon: Icons.home_outlined,
                     label: 'Home',
                     selected: shell.currentIndex == FulusNavBranch.home,
-                    onTap: () => _branch(context, shell, FulusNavBranch.home),
+                    onTap: () => _branch(context, FulusNavBranch.home),
                   ),
                   _DrawerItem(
                     icon: Icons.point_of_sale_outlined,
                     label: 'Sell',
                     selected: shell.currentIndex == FulusNavBranch.sell,
-                    onTap: () => _branch(context, shell, FulusNavBranch.sell),
+                    onTap: () => _branch(context, FulusNavBranch.sell),
                   ),
-                  if (showMoneyTabFor(ref))
+                  if (showMoneyTab)
                     _DrawerItem(
                       icon: Icons.account_balance_wallet_outlined,
                       label: 'Money',
                       selected: shell.currentIndex == FulusNavBranch.money,
-                      onTap: () => _branch(context, shell, FulusNavBranch.money),
+                      onTap: () => _branch(context, FulusNavBranch.money),
                     ),
                   const SizedBox(height: 16),
                   const _DrawerSectionLabel('MANAGE'),
@@ -173,9 +175,9 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     icon: Icons.inventory_2_outlined,
                     label: 'Stock',
                     selected: shell.currentIndex == FulusNavBranch.stock,
-                    onTap: () => _branch(context, shell, FulusNavBranch.stock),
+                    onTap: () => _branch(context, FulusNavBranch.stock),
                   ),
-                  if (showMoneyTabFor(ref))
+                  if (showMoneyTab)
                     _DrawerItem(
                       icon: Icons.people_outline,
                       label: 'Customers',
@@ -261,19 +263,6 @@ class _FulusNavigationDrawer extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  StatefulNavigationShell _shellFromContext(BuildContext context) {
-    return GoRouterState.of(context).extra is StatefulNavigationShell
-        ? GoRouterState.of(context).extra as StatefulNavigationShell
-        : throw StateError('Fulus navigation shell is not available in drawer context');
-  }
-
-  bool showMoneyTabFor(WidgetRef ref) {
-    final user = ref.read(sessionProvider);
-    if (user?.role == AuthRole.owner) return true;
-    final permissions = ref.read(sessionPermissionsProvider).value ?? const <Permission>{};
-    return permissions.contains(Permission.viewMoney);
   }
 }
 
@@ -388,9 +377,7 @@ class _OfflineBanner extends ConsumerWidget {
 }
 
 final _isOnlineProvider = StreamProvider.autoDispose<bool>((ref) {
-  return Connectivity()
-      .onConnectivityChanged
-      .map((results) => results.any((r) => r != ConnectivityResult.none));
+  return Connectivity().onConnectivityChanged.map((results) => results.any((r) => r != ConnectivityResult.none));
 });
 
 class _SyncStatusIndicator extends ConsumerWidget {
