@@ -31,7 +31,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
       title: 'Stock',
       applyPadding: false,
       actions: [
-        FulusIconButton(icon: FulusIcons.stock, tooltip: 'Categories', onPressed: () => context.pushNamed('stockCategories')),
+        FulusIconButton(icon: FulusIcons.category, tooltip: 'Categories', onPressed: () => context.pushNamed('stockCategories')),
         FulusIconButton(icon: FulusIcons.upload, tooltip: 'Bulk import', onPressed: () => context.pushNamed('stockBulkImport')),
       ],
       floatingActionButton: FloatingActionButton.extended(
@@ -104,17 +104,9 @@ class _StockBody extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: FulusChipRow(children: [
-                    FulusChip(
-                      label: 'All',
-                      selected: filter.categoryId == null,
-                      onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: null),
-                    ),
+                    FulusChip(label: 'All', selected: filter.categoryId == null, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: null)),
                     for (final category in categories)
-                      FulusChip(
-                        label: category.name,
-                        selected: filter.categoryId == category.localId,
-                        onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: category.localId),
-                      ),
+                      FulusChip(label: category.name, selected: filter.categoryId == category.localId, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: category.localId)),
                   ]),
                 ),
               ),
@@ -125,24 +117,12 @@ class _StockBody extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: FulusChipRow(children: [
-                        FulusChip(
-                          label: 'All',
-                          selected: !filter.lowStockOnly && !filter.outOfStockOnly,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false),
-                        ),
-                        FulusChip(
-                          label: 'Low stock',
-                          selected: filter.lowStockOnly,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false),
-                        ),
-                        FulusChip(
-                          label: 'Out of stock',
-                          selected: filter.outOfStockOnly,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false),
-                        ),
+                        FulusChip(label: 'All', selected: !filter.lowStockOnly && !filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false)),
+                        FulusChip(label: 'Low stock', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
+                        FulusChip(label: 'Out of stock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
                       ]),
                     ),
-                    FulusIconButton(icon: FulusIcons.filter, tooltip: 'Sort', onPressed: () => _showSortSheet(context, ref, filter)),
+                    FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort', onPressed: () => _showSortSheet(context, ref, filter)),
                   ],
                 ),
               ),
@@ -159,12 +139,10 @@ class _StockBody extends ConsumerWidget {
                   headline: 'Nothing matches.',
                   body: 'Try a different search or clear your filters.',
                   actionLabel: filter.isDefault ? null : 'Clear filters',
-                  onAction: filter.isDefault
-                      ? null
-                      : () {
-                          searchController.clear();
-                          ref.read(stockFilterProvider.notifier).state = const StockFilterState();
-                        },
+                  onAction: filter.isDefault ? null : () {
+                    searchController.clear();
+                    ref.read(stockFilterProvider.notifier).state = const StockFilterState();
+                  },
                 ),
               )
             else
