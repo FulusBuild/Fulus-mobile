@@ -12,7 +12,7 @@ permissions:
 env:
   FLUTTER_VERSION: "3.44.9"
   SUPABASE_URL: "https://bejcuvoxemwomcatgyxz.supabase.co"
-  SUPABASE_PUBLISHABLE_KEY: "${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
 
 jobs:
   flutter-tests:
@@ -56,7 +56,7 @@ jobs:
       - name: Verify account creation contract
         env:
           SUPABASE_URL: ${{ env.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
         run: dart run tool/fulus_auth_e2e.dart
 
   live-server-contract:
