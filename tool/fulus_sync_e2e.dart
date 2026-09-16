@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -42,8 +41,7 @@ Future<void> main() async {
   _printIdentityFingerprint('device_client_id', deviceClientId);
   await _preflightDevice(dio, businessId: businessId);
 
-  final suffix =
-      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
+  final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
@@ -110,15 +108,9 @@ Future<void> main() async {
     final conflictHttpStatus = conflictingReplay.statusCode ?? 0;
     final conflictData = conflictingReplay.data;
     final nestedData = conflictData is Map ? conflictData['data'] : null;
-    final envelopeStatus = nestedData is Map
-        ? nestedData['status_code']
-        : null;
-    final envelopeError = nestedData is Map
-        ? nestedData['error']
-        : null;
-    final envelopeErrorCode = envelopeError is Map
-        ? envelopeError['code']
-        : null;
+    final envelopeStatus = nestedData is Map ? nestedData['status_code'] : null;
+    final envelopeError = nestedData is Map ? nestedData['error'] : null;
+    final envelopeErrorCode = envelopeError is Map ? envelopeError['code'] : null;
     final conflictStatus = envelopeStatus is num
         ? envelopeStatus.toInt()
         : conflictHttpStatus;
