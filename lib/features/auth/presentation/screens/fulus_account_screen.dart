@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:ulid/ulid.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
@@ -223,6 +227,20 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     }
 
     connection.selectBusiness(active.single.businessId);
+
+    // A connected account is not sync-ready until the physical installation
+    // is authorized. Register it before enabling automatic backup so the
+    // first queued write cannot race ahead of device authorization.
+    final storage = ref.read(secureStorageProvider);
+    final deviceId = await storage.ensureDeviceClientId(Ulid().toString());
+    final package = await PackageInfo.fromPlatform();
+    await connection.registerDevice(
+      deviceClientId: deviceId,
+      deviceName: 'Fulus Mobile',
+      platform: Platform.operatingSystem,
+      appVersion: package.version,
+    );
+
     await ref.read(syncConfigProvider).setEnabled(true);
 
     if (!mounted) return;
