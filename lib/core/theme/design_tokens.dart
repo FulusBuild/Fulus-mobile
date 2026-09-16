@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 /// colours only where they communicate a meaningful state.
 class AppColors {
   AppColors._();
-  static const primary = Color(0xFF2563EB);
+  static const primary = Color(0xFF3B82F6);
   static const brand = primary;
-  static const brandDark = Color(0xFF1D4ED8);
-  static const brandLight = Color(0xFFEFF4FF);
+  static const brandDark = Color(0xFF2563EB);
+  static const brandLight = Color(0xFFEFF6FF);
   static const accent = primary;
   static const accentLight = brandLight;
   static const clay = Color(0xFF92400E);
@@ -56,16 +56,16 @@ class AppColors {
   static const neutral700 = Color(0xFF374151);
   static const neutral800 = Color(0xFF1F2937);
   static const neutral900 = Color(0xFF111111);
-  static const primary50 = Color(0xFFEFF4FF);
+  static const primary50 = Color(0xFFEFF6FF);
   static const primary100 = Color(0xFFDBEAFE);
   static const primary200 = Color(0xFFBFDBFE);
   static const primary300 = Color(0xFF93C5FD);
   static const primary400 = Color(0xFF60A5FA);
   static const primary500 = primary;
-  static const primary600 = Color(0xFF1D4ED8);
-  static const primary700 = Color(0xFF1E40AF);
-  static const primary800 = Color(0xFF1E3A8A);
-  static const primary900 = Color(0xFF172554);
+  static const primary600 = Color(0xFF2563EB);
+  static const primary700 = Color(0xFF1D4ED8);
+  static const primary800 = Color(0xFF1E40AF);
+  static const primary900 = Color(0xFF1E3A8A);
   static const secondary50 = Color(0xFFF9FAFB);
   static const secondary100 = Color(0xFFF3F4F6);
   static const secondary200 = Color(0xFFE5E7EB);
