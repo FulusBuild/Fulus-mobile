@@ -1,11 +1,11 @@
-import '../../data/local/database/database.dart';
-import '../../data/remote/endpoints/sales_api.dart';
-import '../../data/remote/fulus_connection_state.dart';
-import '../../data/remote/fulus_sync_api.dart';
-import '../../domain/entities/sale.dart';
-import '../../domain/repositories/sale_repository.dart';
-import '../sync_error.dart';
-import '../sync_handler.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
+import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
+import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
+import 'package:fulus_mobile/domain/entities/sale.dart';
+import 'package:fulus_mobile/domain/repositories/sale_repository.dart';
+import 'package:fulus_mobile/sync/sync_error.dart';
+import 'package:fulus_mobile/sync/sync_handler.dart';
 
 class SaleSyncHandler implements SyncHandler {
   SaleSyncHandler({
@@ -46,6 +46,7 @@ class SaleSyncHandler implements SyncHandler {
     final device = _fulusConnectionState?.registeredDevice;
     if (_fulusSyncApi != null && businessId != null && device?.status == 'active') {
       final customerId = await _resolveCustomerServerId(sale);
+      final locationId = await _resolveLocationServerId(sale.locationId);
       final items = await _resolveItems(sale);
       final result = await _fulusSyncApi.submitOperation(
         businessId: businessId,
@@ -55,7 +56,7 @@ class SaleSyncHandler implements SyncHandler {
         deviceClientId: device!.deviceClientId,
         payload: {
           'business_id': businessId,
-          'location_id': sale.locationId,
+          'location_id': locationId,
           'customer_id': customerId,
           'client_reference': sale.clientReference,
           'sale_date': sale.saleDate.toIso8601String(),
@@ -87,6 +88,17 @@ class SaleSyncHandler implements SyncHandler {
           ? 'Fulus Cloud authorization is required for sale sync; legacy API transport is disabled.'
           : 'Fulus Cloud authorization is required for sale sync.',
     );
+  }
+
+  Future<String> _resolveLocationServerId(String localId) async {
+    final location = await (_db.select(_db.locations)
+          ..where((l) => l.localId.equals(localId)))
+        .getSingleOrNull();
+    final serverId = location?.serverId;
+    if (serverId == null || serverId.isEmpty) {
+      throw StateError('Location $localId has no serverId yet.');
+    }
+    return serverId;
   }
 
   Future<String?> _resolveCustomerServerId(Sale sale) async {
