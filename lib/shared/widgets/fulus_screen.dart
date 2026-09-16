@@ -3,10 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/theme/design_tokens.dart';
 
 /// Shared page composition for secondary and detail screens.
-///
-/// The shell keeps navigation quiet and lets the current task own the screen.
-/// A single responsive header is used throughout the workspace so feature
-/// screens feel like one product rather than separate admin pages.
 class FulusScreen extends StatelessWidget {
   const FulusScreen({
     super.key,
@@ -117,7 +113,7 @@ class _PageHeader extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.heading.copyWith(
                         fontSize: 20,
-                        fontWeight: FontWeight.w750,
+                        fontWeight: FontWeight.w700,
                         color: foreground,
                       ),
                     ),
