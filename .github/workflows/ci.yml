@@ -156,8 +156,8 @@ jobs:
       - name: Run Fulus sync contract test
         env:
           FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
-          FULUS_ACCESS_TOKEN: ${{ secrets.FULUS_E2E_ACCESS_TOKEN }}
-          FULUS_REFRESH_TOKEN: ${{ secrets.FULUS_E2E_REFRESH_TOKEN }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
           FULUS_AUTH_URL: https://bejcuvoxemwomcatgyxz.supabase.co
           FULUS_PUBLISHABLE_KEY: sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80
           FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}

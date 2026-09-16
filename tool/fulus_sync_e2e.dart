@@ -10,15 +10,13 @@ import 'package:dio/dio.dart';
 ///   FULUS_BUSINESS_ID   Active business ID for the E2E user
 ///   FULUS_DEVICE_ID     Active registered device_client_id
 ///
-/// Authentication can use either:
-///   FULUS_ACCESS_TOKEN  short-lived Supabase access token (legacy fallback)
-/// or:
-///   FULUS_AUTH_URL      Supabase project URL
-///   FULUS_PUBLISHABLE_KEY
-///   FULUS_REFRESH_TOKEN long-lived refresh token for the dedicated E2E user
+/// Authentication requires the dedicated Supabase Auth account credentials:
+///   FULUS_E2E_EMAIL     Supabase Auth email
+///   FULUS_E2E_PASSWORD   Supabase Auth password
 ///
-/// Prefer the refresh-token path in CI so access tokens are minted fresh for
-/// every run instead of eventually expiring in GitHub Secrets.
+/// A fresh Supabase access token is minted from the email/password credentials
+/// for every E2E run. Static access-token and refresh-token authentication are
+/// intentionally unsupported so an expired CI token cannot become a fallback.
 Future<void> main() async {
   final baseUrl = _required('FULUS_API_URL');
   final businessId = _required('FULUS_BUSINESS_ID');
@@ -151,7 +149,7 @@ Future<void> main() async {
         }
       } catch (_) {
         stderr.writeln(
-          'WARNING: automatic cleanup failed for server entity $serverId.',
+          'WARNING: automatic cleanup failed for the test-created server entity.',
         );
       }
     }
@@ -161,40 +159,38 @@ Future<void> main() async {
 }
 
 Future<String> _resolveAccessToken() async {
-  final refreshToken = Platform.environment['FULUS_REFRESH_TOKEN'];
-  if (refreshToken != null && refreshToken.isNotEmpty) {
-    final authUrl = _required('FULUS_AUTH_URL');
-    final publishableKey = _required('FULUS_PUBLISHABLE_KEY');
-    final dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 20),
-      headers: {
-        'apikey': publishableKey,
-        'content-type': 'application/json',
-      },
-      validateStatus: (_) => true,
-    ));
+  final email = _required('FULUS_E2E_EMAIL');
+  final password = _required('FULUS_E2E_PASSWORD');
+  final authUrl = _required('FULUS_AUTH_URL');
+  final publishableKey = _required('FULUS_PUBLISHABLE_KEY');
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
 
-    final response = await dio.post(
-      '$authUrl/auth/v1/token',
-      queryParameters: {'grant_type': 'refresh_token'},
-      data: {'refresh_token': refreshToken},
+  final response = await dio.post(
+    '$authUrl/auth/v1/token',
+    queryParameters: {'grant_type': 'password'},
+    data: {
+      'email': email,
+      'password': password,
+    },
+  );
+  final status = response.statusCode ?? 0;
+  final data = response.data;
+  final accessToken = data is Map ? data['access_token'] : null;
+  if (status < 200 || status >= 300 || accessToken is! String || accessToken.isEmpty) {
+    throw StateError(
+      'E2E password authentication failed with HTTP $status: '
+      '${_safeAuthError(data)}',
     );
-    final status = response.statusCode ?? 0;
-    final data = response.data;
-    final accessToken = data is Map ? data['access_token'] : null;
-    if (status < 200 || status >= 300 || accessToken is! String || accessToken.isEmpty) {
-      throw StateError(
-        'E2E refresh-token authentication failed with HTTP $status: '
-        '${_safeAuthError(data)}',
-      );
-    }
-    stdout.writeln('PASS: fresh E2E access token minted from refresh token');
-    return accessToken;
   }
-
-  final accessToken = _required('FULUS_ACCESS_TOKEN');
-  stdout.writeln('WARNING: using static FULUS_ACCESS_TOKEN; prefer FULUS_REFRESH_TOKEN in CI.');
+  stdout.writeln('PASS: fresh E2E access token minted from Supabase password authentication');
   return accessToken;
 }
 
