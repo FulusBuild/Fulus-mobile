@@ -269,6 +269,12 @@ class _FulusCloudConnectionScreenState
 
   Future<void> _finishCloudConnection(dynamic connection) async {
     await _registerDevice(connection);
+
+    // A local business may contain historical rows created before cloud
+    // backup existed. Seed those rows into the same durable, dependency-
+    // ordered queue used by normal writes before the first reconciliation.
+    await ref.read(syncQueueProvider).seedExistingBusinessData();
+
     final syncConfig = ref.read(syncConfigProvider);
     final syncTriggers = ref.read(syncTriggersProvider);
     await syncConfig.setEnabled(true);
