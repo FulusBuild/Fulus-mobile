@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
-import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -25,7 +24,6 @@ class CartScreen extends StatelessWidget {
             title: 'Cart',
             body: FulusErrorState(
               message: cartState.message,
-              actionLabel: 'Retry',
               onRetry: () => context.read<CartCubit>().retryInitialization(),
             ),
           );
@@ -178,7 +176,6 @@ class _CartLineTile extends StatelessWidget {
       ),
       onDismissed: (_) => _remove(context),
       child: FulusCard(
-        margin: EdgeInsets.zero,
         onTap: () => _editDiscount(context),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -397,7 +394,6 @@ class _CustomerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FulusCard(
-      margin: EdgeInsets.zero,
       onTap: () => CustomerPickerSheet.show(context),
       child: Row(
         children: [
