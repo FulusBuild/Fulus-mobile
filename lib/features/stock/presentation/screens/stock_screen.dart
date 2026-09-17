@@ -33,6 +33,11 @@ class _StockScreenState extends ConsumerState<StockScreen> {
       applyPadding: false,
       actions: [
         FulusIconButton(
+          icon: FulusIcons.add,
+          tooltip: 'Add product',
+          onPressed: () => context.pushNamed('stockAddProduct'),
+        ),
+        FulusIconButton(
           icon: FulusIcons.more,
           tooltip: 'More stock options',
           onPressed: () => _showStockActions(context),
