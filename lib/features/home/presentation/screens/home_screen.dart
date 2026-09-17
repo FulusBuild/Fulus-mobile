@@ -122,7 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             return const FulusEmptyState(
                               headline: 'Nothing to show yet',
                               body: 'Your sales summary will appear here when there is data to show.',
-                              icon: Icons.storefront_outlined,
+                              icon: FulusIcons.stock,
                             );
                           }
                           return _HomeSalesCard(state: snapshot.data!, currencySymbol: currencySymbol);
@@ -173,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             return const FulusEmptyState(
                               headline: 'No activity yet today',
                               body: 'Sales, stock, and expenses you record will show up here.',
-                              icon: Icons.receipt_long_outlined,
+                              icon: FulusIcons.receipt,
                             );
                           }
                           return FulusCard(
@@ -267,7 +267,7 @@ class _HomeHeader extends StatelessWidget {
     return Row(
       children: [
         FulusIconButton(
-          icon: Icons.menu_rounded,
+          icon: FulusIcons.menu,
           tooltip: 'Open navigation',
           onPressed: FulusAppShell.openDrawer,
         ),
@@ -276,7 +276,7 @@ class _HomeHeader extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text('Fulus', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
         const Spacer(),
-        FulusIconButton(icon: Icons.swap_horiz_rounded, tooltip: 'Switch account', onPressed: onAccountTap),
+        FulusIconButton(icon: FulusIcons.swap, tooltip: 'Switch account', onPressed: onAccountTap),
       ],
     );
   }
@@ -347,10 +347,10 @@ class _HomeQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <({IconData icon, String label, VoidCallback onTap})>[
-      (icon: Icons.point_of_sale_outlined, label: 'Sell', onTap: () => context.goNamed('sell')),
-      (icon: Icons.inventory_2_outlined, label: 'Stock', onTap: () => context.goNamed('stock')),
-      (icon: Icons.account_balance_wallet_outlined, label: 'Money', onTap: () => context.goNamed('money')),
-      (icon: Icons.bar_chart_outlined, label: 'Reports', onTap: () => context.pushNamed('moreReports')),
+      (icon: FulusIcons.sell, label: 'Sell', onTap: () => context.goNamed('sell')),
+      (icon: FulusIcons.stock, label: 'Stock', onTap: () => context.goNamed('stock')),
+      (icon: FulusIcons.money, label: 'Money', onTap: () => context.goNamed('money')),
+      (icon: FulusIcons.reports, label: 'Reports', onTap: () => context.pushNamed('moreReports')),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -394,11 +394,11 @@ class _AttentionSection extends StatelessWidget {
               final notice = selection.shown[index];
               switch (notice.type) {
                 case SecondaryNoticeType.lowStock:
-                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: Icons.inventory_2_outlined, onTap: () => context.goNamed('stock'));
+                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.stock, onTap: () => context.goNamed('stock'));
                 case SecondaryNoticeType.pendingCredit:
-                  return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: Icons.request_page_outlined, onTap: () => context.pushNamed('moneyCustomers'));
+                  return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: FulusIcons.payments, onTap: () => context.pushNamed('moneyCustomers'));
                 case SecondaryNoticeType.unsyncedItems:
-                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: Icons.cloud_upload_outlined, onTap: () => context.pushNamed('moreSyncDetail'));
+                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.cloudUpload, onTap: () => context.pushNamed('moreSyncDetail'));
               }
             },
           ),
