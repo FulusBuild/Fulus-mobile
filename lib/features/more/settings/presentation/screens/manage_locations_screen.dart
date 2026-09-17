@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/ux/consumer_polish.dart';
 import '../../../../../domain/entities/location.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
@@ -60,7 +61,7 @@ class ManageLocationsScreen extends ConsumerWidget {
           final activeId = activeIdAsync.value;
           return LayoutBuilder(
             builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 900 ? 3 : constraints.maxWidth >= 560 ? 2 : 1;
+              final columns = FulusLayout.columns(constraints.maxWidth, minTileWidth: 260, maxColumns: 3);
               return GridView.builder(
                 padding: const EdgeInsets.fromLTRB(0, AppSpacing.sm, 0, 112),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
