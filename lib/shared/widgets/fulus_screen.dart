@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_shell.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
+import 'fulus_button.dart';
 
 /// Shared page composition for secondary and detail screens.
 /// Keeps the workspace visually consistent across phone and tablet widths.
@@ -175,42 +176,6 @@ class _PageHeader extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _HeaderBrand extends StatelessWidget {
-  const _HeaderBrand();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: AppColors.primaryOf(context),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Image.asset(
-            'assets/branding/fulus_mark_transparent.png',
-            fit: BoxFit.contain,
-            semanticLabel: 'Fulus',
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          'Fulus',
-          style: AppTypography.subheading.copyWith(
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimaryOf(context),
-            letterSpacing: -0.2,
-          ),
-        ),
-      ],
     );
   }
 }
