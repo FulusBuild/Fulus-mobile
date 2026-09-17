@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ulid/ulid.dart';
 
@@ -145,11 +146,10 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
 
       if (!mounted) return;
-      showFulusSnackbar(
-        context,
-        message: 'Your Fulus business has been restored (${result.totalRows} records). Sync is ready.',
-      );
-      context.closeScreenOr('/');
+      // Do not pop back into the authentication stack. A restore establishes
+      // a real local session, so the router must be given the root location
+      // explicitly and allowed to rebuild the authenticated shell.
+      context.go('/');
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {
