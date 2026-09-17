@@ -102,7 +102,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                           const FulusListDivider(),
                         if (canManageSettings)
                           _row(
-                            icon: Symbols.print,
+                            icon: FulusIcons.print,
                             title: 'Printers',
                             subtitle: 'Receipt and printing settings',
                             onTap: () => context.pushNamed('moreSettingsPrinters'),
