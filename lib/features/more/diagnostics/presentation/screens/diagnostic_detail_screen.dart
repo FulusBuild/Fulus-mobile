@@ -54,13 +54,11 @@ class _DiagnosticDetailScreenState extends ConsumerState<DiagnosticDetailScreen>
             return const FulusEmptyState(
               headline: 'Not found',
               body: 'This event may have been cleared by the retention policy.',
-              icon: Icons.search_off,
+              icon: FulusIcons.searchOff,
             );
           }
           if (!_markedViewed) {
             _markedViewed = true;
-            // Fire-and-forget, purely cosmetic (an unread indicator) —
-            // see DriftDiagnosticStore.markViewed's own doc comment.
             ref.read(diagnosticLoggerProvider).markViewed(event.id);
           }
           return _DetailBody(event: event);
