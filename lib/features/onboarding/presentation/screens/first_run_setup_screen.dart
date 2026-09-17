@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/theme/fulus_icons.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// A lightweight handoff after business creation. Nothing on this screen is
