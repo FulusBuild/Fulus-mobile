@@ -176,22 +176,43 @@ class _SellContent extends ConsumerWidget {
     return FulusScreen(
       title: 'Sell',
       subtitle: 'Add products to today’s sale',
-      actions: [
-        FulusIconButton(icon: FulusIcons.scan, tooltip: 'Scan product', onPressed: onScan),
-        FulusIconButton(icon: FulusIcons.sell, tooltip: 'Quick Sale', onPressed: () => QuickSaleSheet.show(context)),
-      ],
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
           if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
           if (state is! CartLoaded) return const FulusLoadingIndicator();
           final inset = fulusHorizontalInset(context);
-          final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
+          final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()
+            ..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
           return Column(
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
-                child: FulusSearchField(controller: searchController, hintText: 'Search products or scan barcode', onChanged: onQueryChanged),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: FulusSearchField(
+                        controller: searchController,
+                        hintText: 'Search by product name or barcode',
+                        onChanged: onQueryChanged,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: onScan,
+                        icon: const Icon(FulusIcons.scan),
+                        label: const Text('Scan'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               SizedBox(
                 height: 48,
@@ -209,8 +230,26 @@ class _SellContent extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Expanded(child: _ProductList(state: state, query: query, categoryId: selectedCategoryId, onClearSearch: onClearSearch)),
+              Padding(
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.xs),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => QuickSaleSheet.show(context),
+                    icon: const Icon(FulusIcons.sell),
+                    label: const Text('Quick sale without adding a product'),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _ProductList(
+                  state: state,
+                  query: query,
+                  categoryId: selectedCategoryId,
+                  onClearSearch: onClearSearch,
+                ),
+              ),
               if (state.items.isNotEmpty) _CartSummaryBar(state: state),
             ],
           );
