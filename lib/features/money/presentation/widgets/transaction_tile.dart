@@ -1,5 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/money_transaction.dart';
@@ -62,16 +66,18 @@ class MoneyTransactionTile extends StatelessWidget {
     ];
 
     return FulusListRow(
-      leading: Container(
-        decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
-        child: Center(
-          child: Icon(
-            moneyTransactionIcon(t),
-            size: AppIconSize.compact,
-            color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
-          ),
-        ),
-      ),
+      leading: t.type == MoneyTransactionType.saleIncome
+          ? _SaleProductThumbnail(saleId: t.id.substring('sale-'.length))
+          : Container(
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
+              child: Center(
+                child: Icon(
+                  moneyTransactionIcon(t),
+                  size: AppIconSize.compact,
+                  color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
+                ),
+              ),
+            ),
       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Text(
@@ -83,6 +89,71 @@ class MoneyTransactionTile extends StatelessWidget {
         ),
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// Resolves the products behind a sale and uses the first available local
+/// product photo. This deliberately keeps the MoneyTransaction model lean:
+/// product photos are device-local and are presentation-only data, while the
+/// sale transaction itself remains the shared cash-flow model.
+class _SaleProductThumbnail extends ConsumerWidget {
+  const _SaleProductThumbnail({required this.saleId});
+
+  final String saleId;
+
+  Future<String?> _loadPhoto(WidgetRef ref) async {
+    final sale = await ref.read(saleRepositoryProvider).getSaleByLocalId(saleId);
+    if (sale == null) return null;
+
+    for (final item in sale.items) {
+      final productId = item.productLocalId;
+      if (productId == null) continue;
+      final product = await ref.read(productRepositoryProvider).getProductById(
+            productId,
+            locationId: sale.locationId,
+          );
+      final photoPath = product?.product.photoPath;
+      if (photoPath != null && photoPath.trim().isNotEmpty) return photoPath;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<String?>(
+      future: _loadPhoto(ref),
+      builder: (context, snapshot) {
+        final path = snapshot.data;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAltOf(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            alignment: Alignment.center,
+            child: path == null
+                ? Icon(
+                    FulusIcons.sell,
+                    size: AppIconSize.compact,
+                    color: AppColors.primaryOf(context),
+                  )
+                : Image.file(
+                    File(path),
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    cacheWidth: 120,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      FulusIcons.sell,
+                      size: AppIconSize.compact,
+                      color: AppColors.primaryOf(context),
+                    ),
+                  ),
+          ),
+        );
+      },
     );
   }
 }
