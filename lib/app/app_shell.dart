@@ -9,6 +9,7 @@ import '../core/theme/fulus_icons.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
+import '../shared/widgets/fulus_button.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
@@ -117,10 +118,10 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  IconButton(
+                  FulusIconButton(
+                    icon: FulusIcons.close,
                     tooltip: 'Close navigation',
                     onPressed: () => _close(context),
-                    icon: const Icon(FulusIcons.close),
                   ),
                 ],
               ),
@@ -279,10 +280,15 @@ class _SyncStatusIndicator extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.md, top: AppSpacing.xs),
         child: Material(
-          color: AppColors.surfaceOf(context).withValues(alpha: .92),
-          shape: const CircleBorder(),
+          color: AppColors.surfaceOf(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(color: AppColors.borderOf(context).withValues(alpha: .7)),
+          ),
+          elevation: 2,
+          shadowColor: Colors.black.withValues(alpha: .10),
           child: InkWell(
-            customBorder: const CircleBorder(),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             onTap: () => context.pushNamed('moreSyncDetail'),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xs),
