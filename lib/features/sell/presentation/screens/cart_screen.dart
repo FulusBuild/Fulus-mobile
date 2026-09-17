@@ -21,7 +21,14 @@ class CartScreen extends StatelessWidget {
     return BlocBuilder<CartCubit, CartState>(
       builder: (context, cartState) {
         if (cartState is CartFailure) {
-          return FulusScreen(title: 'Cart', body: FulusErrorState(message: cartState.message));
+          return FulusScreen(
+            title: 'Cart',
+            body: FulusErrorState(
+              message: cartState.message,
+              actionLabel: 'Retry',
+              onRetry: () => context.read<CartCubit>().retryInitialization(),
+            ),
+          );
         }
         if (cartState is! CartLoaded) {
           return const FulusScreen(title: 'Cart', body: FulusLoadingIndicator());
@@ -32,7 +39,7 @@ class CartScreen extends StatelessWidget {
             body: FulusEmptyState(
               headline: 'Your cart is empty',
               body: 'Add a product from Sell to start a sale.',
-              icon: Icons.shopping_cart_outlined,
+              icon: FulusIcons.shoppingCart,
               actionLabel: 'Back to Sell',
               onAction: () => Navigator.of(context).pop(),
             ),
@@ -167,7 +174,7 @@ class _CartLineTile extends StatelessWidget {
           color: AppColors.errorOf(context),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: Icon(Icons.delete_outline, color: AppColors.errorOnOf(context)),
+        child: Icon(FulusIcons.delete, color: AppColors.errorOnOf(context)),
       ),
       onDismissed: (_) => _remove(context),
       child: FulusCard(
@@ -304,13 +311,13 @@ class _QuantityStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _StepButton(icon: Icons.remove, semanticsLabel: 'Decrease ${item.description}', onTap: () => cubit.decrementItem(item)),
+          _StepButton(icon: FulusIcons.remove, semanticsLabel: 'Decrease ${item.description}', onTap: () => cubit.decrementItem(item)),
           FulusPressable(
             semanticsLabel: 'Edit quantity for ${item.description}',
             onPressed: () => _editQuantity(context, cubit),
             child: SizedBox(
               height: AppTouchTarget.minimum,
-              minWidth: 46,
+              width: 46,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -321,7 +328,7 @@ class _QuantityStepper extends StatelessWidget {
               ),
             ),
           ),
-          _StepButton(icon: Icons.add, semanticsLabel: 'Increase ${item.description}', onTap: () => _increment(context, cubit)),
+          _StepButton(icon: FulusIcons.add, semanticsLabel: 'Increase ${item.description}', onTap: () => _increment(context, cubit)),
         ],
       ),
     );
@@ -402,7 +409,7 @@ class _CustomerRow extends StatelessWidget {
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(Icons.person_outline, color: AppColors.primaryOf(context)),
+            child: Icon(FulusIcons.person, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -423,7 +430,7 @@ class _CustomerRow extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
+          Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
         ],
       ),
     );
