@@ -128,7 +128,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
       applyPadding: false,
       actions: [
         FulusIconButton(
-          icon: _dateRange == null ? FulusIcons.calendar : FulusIcons.check,
+          icon: _dateRange == null ? FulusIcons.calendar : FulusIcons.filterAlt,
           tooltip: _dateRange == null ? 'Filter by date' : 'Change date filter',
           onPressed: _pickDateRange,
         ),
