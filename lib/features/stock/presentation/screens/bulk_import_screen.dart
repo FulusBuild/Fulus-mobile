@@ -42,7 +42,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
         type: FileType.custom,
         allowedExtensions: ['csv'],
       );
-      if (result.isEmpty) return; // canceled
+      if (result.isEmpty) return;
       final bytes = await result.single.readAsBytes();
       _contentController.text = utf8.decode(bytes, allowMalformed: true);
       setState(() {});
@@ -58,14 +58,41 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Bulk import products',
+      subtitle: 'Add many products from a CSV file',
       body: ListView(
         children: [
           FulusCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Format', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
-                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryOf(context).withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Icon(FulusIcons.upload, color: AppColors.primaryOf(context)),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Import format', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Prepare your spreadsheet before importing',
+                            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   'First row is column names. Required: name, selling_price. '
                   "Optional: sku, barcode, cost_price, category, supplier, "
@@ -80,7 +107,8 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundOf(context),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(color: AppColors.borderOf(context)),
                   ),
                   child: Text(
                     'name,sku,selling_price,cost_price,initial_stock\n'
@@ -99,14 +127,17 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
             width: double.infinity,
             child: FulusButton(
               label: 'Choose a .csv file',
-              icon: Icons.upload_file,
+              icon: FulusIcons.upload,
               variant: FulusButtonVariant.secondary,
               loading: _picking,
               onPressed: _picking ? null : _pickFile,
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          FulusSectionHeader(title: 'Or paste manually'),
+          const FulusSectionHeader(
+            title: 'Or paste manually',
+            subtitle: 'Paste the exported CSV text if you already have it copied',
+          ),
           FulusTextField(
             label: 'CSV content',
             controller: _contentController,
@@ -118,7 +149,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
           SizedBox(
             width: double.infinity,
             child: FulusButton(
-              label: 'Continue',
+              label: 'Continue to review',
               onPressed: _contentController.text.trim().isEmpty
                   ? null
                   : () => context.pushNamed('stockBulkImportReview', extra: _contentController.text),

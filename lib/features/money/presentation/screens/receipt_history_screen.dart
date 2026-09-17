@@ -51,12 +51,6 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
 
   String _searchQuery = '';
   String _builtForQuery = '';
-  // Bug fix (Receipt History date filter): local, screen-only override
-  // of the all-time [_historyStart]/[DateTime.now()] span above — null
-  // means "no filter, show everything," same all-time default as
-  // before. Deliberately NOT the shared `moneyPeriodProvider` Money
-  // History and Cash Flow use — see this class's own doc comment for
-  // why this screen can't reuse that.
   DateTimeRange? _dateRange;
   DateTimeRange? _builtForDateRange;
   Timer? _debounce;
@@ -68,13 +62,6 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
     _load();
   }
 
-  /// Employee data isolation: the same `currentAuthUserId`/
-  /// `canViewAllSales` computation every other Money screen uses —
-  /// copied verbatim from `money_screen.dart`'s own `_load()`, per the
-  /// brief's own instruction to reuse that exact pattern rather than
-  /// re-deriving it — so an employee without
-  /// `Permission.viewDashboardStats` sees only their own past sales
-  /// here, exactly as Cash Flow and Money History already scope theirs.
   void _load() {
     final repo = ref.read(moneyRepositoryProvider);
     _builtForQuery = _searchQuery;
@@ -83,11 +70,6 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
     final currentAuthUserId = user?.id ?? '';
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    // [_dateRange] narrows the all-time span when set. `end` only needs
-    // to be a calendar date, not a precise timestamp —
-    // SaleRepositoryImpl.getSalesForPeriod already treats it as a full
-    // day (see that method's own "both ends treated as full calendar
-    // days" comment) and includes every sale recorded on it.
     final period = ReportPeriod(
       kind: ReportPeriodKind.custom,
       start: _dateRange?.start ?? _historyStart,
@@ -122,9 +104,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
       lastDate: now,
       initialDateRange: _dateRange ?? DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
     );
-    if (picked != null && mounted) {
-      setState(() => _dateRange = picked);
-    }
+    if (picked != null && mounted) setState(() => _dateRange = picked);
   }
 
   void _clearDateRange() => setState(() => _dateRange = null);
@@ -137,19 +117,10 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Same re-trigger-on-external-change pattern as every other Money
-    // screen's own dataRefreshSignalProvider listener (see
-    // money_screen.dart's identical block) — a sale recorded elsewhere
-    // (checkout, a refund) shows up here without a manual pull-to-
-    // refresh.
     ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
-      if (previous != null && previous != next) {
-        setState(_load);
-      }
+      if (previous != null && previous != next) setState(_load);
     });
-    if (_builtForQuery != _searchQuery || _builtForDateRange != _dateRange) {
-      _load();
-    }
+    if (_builtForQuery != _searchQuery || _builtForDateRange != _dateRange) _load();
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return FulusScreen(
@@ -157,7 +128,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
       applyPadding: false,
       actions: [
         FulusIconButton(
-          icon: _dateRange == null ? Icons.calendar_month_outlined : Icons.event_available,
+          icon: _dateRange == null ? FulusIcons.calendar : FulusIcons.filterAlt,
           tooltip: _dateRange == null ? 'Filter by date' : 'Change date filter',
           onPressed: _pickDateRange,
         ),
@@ -180,7 +151,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
                     onTap: _pickDateRange,
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  FulusIconButton(icon: Icons.close, tooltip: 'Clear date filter', onPressed: _clearDateRange),
+                  FulusIconButton(icon: FulusIcons.close, tooltip: 'Clear date filter', onPressed: _clearDateRange),
                 ],
               ),
             ),
@@ -207,7 +178,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
                 if (items.isEmpty) {
                   return SingleChildScrollView(
                     child: FulusEmptyState(
-                      icon: Icons.receipt_outlined,
+                      icon: FulusIcons.receipt,
                       headline: 'No receipts found.',
                       body: _searchQuery.isNotEmpty
                           ? 'Try a different search term.'
@@ -230,14 +201,6 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
   }
 }
 
-/// Same "group under a day header, most recent day first" shape as
-/// Money History's own `_GroupedTransactionList` — bank-app style, per
-/// the request — but each row is [_ReceiptRow] rather than
-/// [MoneyTransactionTile]: a receipt row's identifying details
-/// (customer, receipt/invoice number) aren't part of that shared
-/// tile's own subtitle, which only ever shows date/time/payment method
-/// (it's shared across every transaction type in Money, not
-/// receipt-specific — see its own doc comment).
 class _GroupedReceiptList extends StatelessWidget {
   const _GroupedReceiptList({required this.items, required this.currencySymbol});
 
@@ -247,9 +210,7 @@ class _GroupedReceiptList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groups = <String, List<MoneyTransaction>>{};
-    for (final t in items) {
-      groups.putIfAbsent(formatRelativeDay(t.dateTime), () => []).add(t);
-    }
+    for (final t in items) groups.putIfAbsent(formatRelativeDay(t.dateTime), () => []).add(t);
     final dayKeys = groups.keys.toList();
 
     return ListView.builder(
@@ -263,13 +224,7 @@ class _GroupedReceiptList extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
-              child: Text(
-                dayKey,
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondaryOf(context),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text(dayKey, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
             ),
             FulusCard(
               padding: EdgeInsets.zero,
@@ -280,11 +235,7 @@ class _GroupedReceiptList extends StatelessWidget {
                     _ReceiptRow(
                       transaction: dayItems[i],
                       currencySymbol: currencySymbol,
-                      onTap: () => context.pushNamed(
-                        'moneyTransactionDetail',
-                        pathParameters: {'id': dayItems[i].id},
-                        extra: dayItems[i],
-                      ),
+                      onTap: () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': dayItems[i].id}, extra: dayItems[i]),
                     ),
                   ],
                 ],
@@ -298,12 +249,6 @@ class _GroupedReceiptList extends StatelessWidget {
   }
 }
 
-/// One past sale — enough to identify it at a glance: the time
-/// (grouped under a day header, so the date itself isn't repeated per
-/// row — same convention `MoneyTransactionTile.showDate: false` uses
-/// elsewhere), the receipt/invoice number (via [MoneyTransaction.title],
-/// already formatted as "Sale — INV-2041", falling back to plain
-/// "Sale" when a sale has none), and the customer if one was attached.
 class _ReceiptRow extends StatelessWidget {
   const _ReceiptRow({required this.transaction, required this.currencySymbol, this.onTap});
 
@@ -323,27 +268,13 @@ class _ReceiptRow extends StatelessWidget {
     return FulusListRow(
       leading: Container(
         decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
-        child: Center(
-          child: Icon(
-            moneyTransactionIcon(t),
-            size: AppIconSize.compact,
-            color: AppColors.primaryOf(context),
-          ),
-        ),
+        child: Center(child: Icon(moneyTransactionIcon(t), size: AppIconSize.compact, color: AppColors.primaryOf(context))),
       ),
       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
-      // Plain, unsigned — unlike MoneyTransactionTile's `signedAmount,
-      // showSign: true` (built for a feed that mixes inflows/outflows),
-      // every row here is a sale, so a "+" would only ever repeat the
-      // same fact every other row already states.
       trailing: Text(
         formatMoney(t.amount, symbol: currencySymbol),
-        style: AppTypography.body.copyWith(
-          fontFeatures: const [FontFeature.tabularFigures()],
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimaryOf(context),
-        ),
+        style: AppTypography.body.copyWith(fontFeatures: const [FontFeature.tabularFigures()], fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
       ),
       onTap: onTap,
     );

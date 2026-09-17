@@ -131,7 +131,27 @@ class SyncTriggers with WidgetsBindingObserver {
         'Fulus Cloud initial reconciliation requires an internet connection.',
       );
     }
-    await _runAndCheckStuck();
+
+    // Enabling sync immediately before this call also fires _onConfigChanged,
+    // which can start the normal trigger path concurrently. Reconciliation is
+    // intentionally serialized here: restore must have one authoritative
+    // engine/pull cycle before any lifecycle/connectivity-triggered cycle can
+    // start, otherwise two pulls can race on the same cursor and readiness can
+    // be advertised against a different cycle than the restore flow awaited.
+    final active = _connectivityRun;
+    if (active != null) {
+      await active;
+      return;
+    }
+    final run = _runAndCheckStuck();
+    _connectivityRun = run;
+    try {
+      await run;
+    } finally {
+      if (identical(_connectivityRun, run)) {
+        _connectivityRun = null;
+      }
+    }
   }
 
   Future<void> notifyEnqueued() async {

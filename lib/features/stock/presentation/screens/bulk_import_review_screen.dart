@@ -39,6 +39,7 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Import results',
+      subtitle: 'Review what was added and what needs fixing',
       body: FutureBuilder<ProductImportResult>(
         future: _future,
         builder: (context, snap) {
@@ -57,27 +58,61 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
           return ListView(
             children: [
               FulusCard(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                child: Column(
                   children: [
-                    _ResultStat(label: 'Added', value: result.successCount, color: AppColors.primaryOf(context)),
-                    _ResultStat(label: 'Errors', value: result.errorCount, color: AppColors.errorOf(context)),
-                    _ResultStat(label: 'Total rows', value: result.totalRows, color: AppColors.textSecondaryOf(context)),
+                    Row(
+                      children: [
+                        _ResultIcon(
+                          icon: result.errorCount == 0 ? FulusIcons.check : FulusIcons.warning,
+                          color: result.errorCount == 0 ? AppColors.primaryOf(context) : AppColors.errorOf(context),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            result.errorCount == 0
+                                ? 'Import completed successfully'
+                                : '${result.successCount} added, ${result.errorCount} need attention',
+                            style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _ResultStat(label: 'Added', value: result.successCount, color: AppColors.primaryOf(context)),
+                        _ResultStat(label: 'Errors', value: result.errorCount, color: AppColors.errorOf(context)),
+                        _ResultStat(label: 'Total rows', value: result.totalRows, color: AppColors.textSecondaryOf(context)),
+                      ],
+                    ),
                   ],
                 ),
               ),
               if (result.errors.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
-                FulusSectionHeader(title: 'Rows that need fixing'),
+                const FulusSectionHeader(
+                  title: 'Rows that need fixing',
+                  subtitle: 'Correct these rows in your source file before importing them again',
+                ),
                 for (final error in result.errors)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: FulusCard(
-                      child: Text(
-                        error.row == 0
-                            ? error.message
-                            : 'Row ${error.row}${error.field != null ? ' (${error.field})' : ''}: ${error.message}',
-                        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(FulusIcons.error, color: AppColors.errorOf(context), size: AppIconSize.compact),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              error.row == 0
+                                  ? error.message
+                                  : 'Row ${error.row}${error.field != null ? ' (${error.field})' : ''}: ${error.message}',
+                              style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -87,6 +122,7 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
                 width: double.infinity,
                 child: FulusButton(
                   label: 'Done',
+                  icon: FulusIcons.check,
                   onPressed: () => context.goNamed('stock'),
                 ),
               ),
@@ -95,6 +131,26 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
           );
         },
       ),
+    );
+  }
+}
+
+class _ResultIcon extends StatelessWidget {
+  const _ResultIcon({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Icon(icon, color: color),
     );
   }
 }

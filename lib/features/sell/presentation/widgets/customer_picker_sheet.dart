@@ -8,13 +8,8 @@ import '../../../../domain/entities/customer.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
 
-/// Volume 5's "Customer Selection" — "search by name or phone from
-/// directly inside checkout; a new customer can be added inline with
-/// just a name, without leaving Sell." Reads `CustomerRepository`
-/// directly (via Riverpod) for the read side — the write side
-/// ([CartCubit.setCustomer] / [CartCubit.createAndSetWalkInCustomer])
-/// is the only part that also needs to touch the draft cart, so that's
-/// what stays on the Cubit.
+/// Customer selection stays inside checkout so a cashier never has to leave
+/// the sale flow just to attach a customer.
 class CustomerPickerSheet extends ConsumerStatefulWidget {
   const CustomerPickerSheet({super.key});
 
@@ -22,7 +17,7 @@ class CustomerPickerSheet extends ConsumerStatefulWidget {
     final cubit = context.read<CartCubit>();
     return showFulusBottomSheet(
       context: context,
-      title: 'Select Customer',
+      title: 'Select customer',
       builder: (_) => BlocProvider.value(value: cubit, child: const CustomerPickerSheet()),
     );
   }
@@ -53,19 +48,23 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
         children: [
           FulusSearchField(
             controller: _searchController,
-            hintText: 'Search by name or phone…',
+            hintText: 'Search customer by name or phone',
             onChanged: (value) => setState(() => _query = value),
           ),
           const SizedBox(height: AppSpacing.sm),
-          FulusListRow(
-            leading: Icon(Icons.person_off_outlined, color: AppColors.textSecondaryOf(context)),
-            title: const Text('No customer (walk-in)'),
-            onTap: () {
-              cartCubit.setCustomer(null);
-              Navigator.of(context).pop();
-            },
+          FulusCard(
+            padding: EdgeInsets.zero,
+            child: FulusListRow(
+              leading: Icon(FulusIcons.person, color: AppColors.textSecondaryOf(context)),
+              title: const Text('Walk-in customer'),
+              subtitle: const Text('No customer details needed'),
+              onTap: () {
+                cartCubit.setCustomer(null);
+                Navigator.of(context).pop();
+              },
+            ),
           ),
-          const FulusListDivider(indented: false),
+          const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: StreamBuilder<List<Customer>>(
               stream: _customersStream,
@@ -84,11 +83,11 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
                         .toList();
                 if (filtered.isEmpty) {
                   return FulusEmptyState(
-                    headline: query.isEmpty ? 'No customers yet' : 'No matches',
+                    headline: query.isEmpty ? 'No customers yet' : 'No matches found',
                     body: query.isEmpty
-                        ? 'Add your first customer below.'
+                        ? 'Add a customer below when you need to keep their details.'
                         : 'Try a different name or phone number.',
-                    icon: Icons.people_outline,
+                    icon: FulusIcons.person,
                   );
                 }
                 return ListView.separated(
@@ -97,7 +96,7 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
                   itemBuilder: (context, i) {
                     final customer = filtered[i];
                     return FulusListRow(
-                      leading: Icon(Icons.person_outline, color: AppColors.textSecondaryOf(context)),
+                      leading: Icon(FulusIcons.person, color: AppColors.textSecondaryOf(context)),
                       title: Text(customer.name),
                       subtitle: customer.phone == null ? null : Text(customer.phone!),
                       onTap: () {
@@ -112,9 +111,9 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusButton(
-            label: 'Add New Customer',
+            label: 'Add customer',
             variant: FulusButtonVariant.secondary,
-            icon: Icons.person_add_alt,
+            icon: FulusIcons.person,
             onPressed: () => _addNewCustomer(context, cartCubit),
           ),
         ],
@@ -127,25 +126,25 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('New Customer'),
-        // `scrollable: true` wraps the content in a scroll view so it
-        // can shrink instead of overflowing once the keyboard opens and
-        // reduces the available height — that's what your screenshot's
-        // "BOTTOM OVERFLOWED BY 82 PIXELS" banner was.
+        title: const Text('Add customer'),
         scrollable: true,
-        content: FulusTextField(label: 'Name', controller: controller),
+        content: FulusTextField(
+          label: 'Customer name',
+          controller: controller,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           FulusButton(
-            label: 'Add',
+            label: 'Add customer',
             onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
           ),
         ],
       ),
     );
+    controller.dispose();
     if (name == null || name.isEmpty || !context.mounted) return;
     try {
       await cartCubit.createAndSetWalkInCustomer(name);

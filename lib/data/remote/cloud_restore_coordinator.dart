@@ -69,11 +69,33 @@ class CloudRestoreCoordinator {
     // structurally unrestricted local owner role.
     final localRole = cloudRole == 'admin' ? AuthRole.manager : AuthRole.owner;
 
-    final owner = await (_db.select(_db.users)
+    var owner = await (_db.select(_db.users)
           ..where((u) => u.localId.equals(ownerCloudUserId)))
         .getSingleOrNull();
+
+    // Restore snapshots intentionally do not export the device-local `users`
+    // table. The importer therefore cannot create the authenticated owner
+    // while it is reconstructing staff (the owner is explicitly excluded from
+    // that staff loop). Create the owner identity here, before normalizing it,
+    // using the stable cloud user id as the local identity id. This makes the
+    // restored session self-contained on a fresh installation rather than
+    // requiring an old local user row to survive the restore.
     if (owner == null) {
-      throw StateError('Restore did not create the cloud account identity.');
+      final now = DateTime.now();
+      await _db.into(_db.users).insert(
+        UsersCompanion.insert(
+          localId: ownerCloudUserId,
+          fullName: fullName,
+          email: Value(ownerEmail),
+          role: localRole,
+          isActive: const Value(true),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      owner = await (_db.select(_db.users)
+            ..where((u) => u.localId.equals(ownerCloudUserId)))
+          .getSingle();
     }
 
     await (_db.update(_db.users)

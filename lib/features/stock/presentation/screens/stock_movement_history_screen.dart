@@ -9,12 +9,7 @@ import '../widgets/stock_movement_tile.dart';
 /// "What recently changed?" in full — the Stock overview's own Recent
 /// Activity preview caps at 3; this is that same feed, unfiltered,
 /// reachable via its "See all." [productId] narrows it to one product's
-/// history when opened from [ProductDetailScreen] rather than a bare
-/// re-implementation of that screen's own history section — though in
-/// practice ProductDetailScreen renders its own inline (no navigation
-/// needed there, the whole point of a detail screen already being
-/// scrolled to), so [productId] mainly exists so this screen's contract
-/// supports that case if a future screen wants to link to it directly.
+/// history when opened from [ProductDetailScreen].
 class StockMovementHistoryScreen extends ConsumerWidget {
   const StockMovementHistoryScreen({super.key, this.productId});
 
@@ -25,12 +20,31 @@ class StockMovementHistoryScreen extends ConsumerWidget {
     final locationAsync = ref.watch(currentLocationIdProvider);
 
     return FulusScreen(
-      title: 'Stock activity',
+      title: productId == null ? 'Stock activity' : 'Product activity',
+      subtitle: productId == null
+          ? 'Recent changes to stock across your business'
+          : 'Recent stock changes for this product',
       applyPadding: false,
+      actions: [
+        FulusIconButton(
+          icon: FulusIcons.sync,
+          tooltip: 'Refresh activity',
+          onPressed: () {
+            final locationId = locationAsync.asData?.value;
+            if (locationId != null) {
+              ref.invalidate(stockMovementsProvider(locationId));
+              ref.invalidate(productsWithStockProvider(locationId));
+            } else {
+              ref.invalidate(currentLocationIdProvider);
+            }
+          },
+        ),
+      ],
       body: locationAsync.when(
         loading: () => const FulusLoadingIndicator(),
         error: (e, _) => FulusErrorState(
           message: "Couldn't load activity.",
+          reassurance: 'Your stock records were not changed.',
           onRetry: () => ref.invalidate(currentLocationIdProvider),
         ),
         data: (locationId) => _HistoryList(locationId: locationId, productId: productId),
@@ -61,8 +75,9 @@ class _HistoryList extends ConsumerWidget {
         onRetry: () => ref.invalidate(stockMovementsProvider(locationId)),
       ),
       data: (movements) {
-        final filtered =
-            productId == null ? movements : movements.where((m) => m.productLocalId == productId).toList();
+        final filtered = productId == null
+            ? movements
+            : movements.where((m) => m.productLocalId == productId).toList();
 
         if (filtered.isEmpty) {
           return const FulusEmptyState(
@@ -77,7 +92,7 @@ class _HistoryList extends ConsumerWidget {
         };
 
         return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xxl),
           itemCount: filtered.length,
           separatorBuilder: (_, __) => const FulusListDivider(),
           itemBuilder: (context, index) {

@@ -75,7 +75,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
       actions: [
         if (kDebugMode)
           FulusIconButton(icon: FulusIcons.bugReport, tooltip: 'Simulate error (debug)', onPressed: _toggleSimulatedError),
-        FulusIconButton(icon: FulusIcons.receipt, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
+        FulusIconButton(icon: FulusIcons.history, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
         FulusIconButton(icon: FulusIcons.receipt, tooltip: 'Receipts', onPressed: () => context.pushNamed('receiptHistory')),
       ],
       body: LayoutBuilder(

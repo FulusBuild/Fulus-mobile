@@ -140,7 +140,8 @@ class FulusButton extends StatelessWidget {
   }
 }
 
-/// Icon actions retain the full 48dp hit area while keeping the glyph quiet.
+/// Icon actions use a strong neutral surface so icon-only controls remain
+/// visually discoverable instead of disappearing into the page background.
 class FulusIconButton extends StatelessWidget {
   const FulusIconButton({
     super.key,
@@ -168,11 +169,14 @@ class FulusIconButton extends StatelessWidget {
       onPressed: action,
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        backgroundColor: filled ? AppColors.primaryOf(context) : Colors.transparent,
+        backgroundColor: filled ? AppColors.primaryOf(context) : AppColors.surfaceOf(context),
         foregroundColor: foreground,
         minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
         maximumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+        side: filled ? null : BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.7)),
+        elevation: filled ? 0 : 2,
+        shadowColor: Colors.black.withValues(alpha: 0.10),
         overlayColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
       ),
     );

@@ -33,10 +33,16 @@ class FirstRunSetupScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                Icons.check_circle_outline,
-                color: AppColors.primaryOf(context),
-                size: AppIconSize.hero,
+              Center(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryOf(context).withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: Icon(FulusIcons.check, color: AppColors.primaryOf(context), size: AppIconSize.emphasis),
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
@@ -53,11 +59,13 @@ class FirstRunSetupScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xxl),
               FulusButton(
                 label: 'Make a sale',
+                icon: FulusIcons.sell,
                 onPressed: () => _finish(context, ref, routeName: 'sell'),
               ),
               const SizedBox(height: AppSpacing.md),
               FulusButton(
                 label: 'Go to Home',
+                icon: FulusIcons.home,
                 variant: FulusButtonVariant.text,
                 onPressed: () => _finish(context, ref),
               ),

@@ -251,9 +251,9 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
   }
 
   Widget _buildBackButton() {
-    return IconButton(
+    return FulusIconButton(
+      icon: FulusIcons.arrowBack,
       tooltip: 'Back',
-      icon: const Icon(Icons.arrow_back_rounded),
       onPressed: () => setState(() {
         _selected = null;
         _pinController.clear();
@@ -352,7 +352,7 @@ class _IdentityRow extends StatelessWidget {
               ),
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
+          Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
         ],
       ),
     );

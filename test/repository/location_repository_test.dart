@@ -75,14 +75,6 @@ void main() {
     });
 
     test('an empty response leaves existing locations untouched', () async {
-      // Not a real scenario today (there is always at least the one
-      // seeded default location — migration 0016_locations on the
-      // backend), but insertOnConflictUpdate's whole point is to never
-      // delete on a re-sync, unlike InsertMode.insertOrReplace. This
-      // guards that choice directly rather than only through the
-      // "re-syncing updates rather than duplicating" case above, which
-      // wouldn't catch a regression to a delete-then-reinsert strategy
-      // if the response also happened to still contain that same row.
       when(() => locationsApi.getLocations()).thenAnswer(
         (_) async => const [LocationResponseDto(id: 'loc-1', name: 'Main Location')],
       );
@@ -130,7 +122,7 @@ void main() {
   });
 
   group('getLocationById', () {
-    test('returns the matching location', () async {
+    test('returns the matching active location', () async {
       when(() => locationsApi.getLocations()).thenAnswer(
         (_) async => const [LocationResponseDto(id: 'loc-1', name: 'Main Location')],
       );
@@ -143,6 +135,20 @@ void main() {
 
     test('returns null for an id with no local row', () async {
       final location = await repository.getLocationById('does-not-exist');
+      expect(location, isNull);
+    });
+
+    test('returns null for a soft-deleted location', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: 'loc-deleted',
+            name: 'Closed Location',
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+            deletedAt: Value(DateTime(2026, 6, 1)),
+          ));
+
+      final location = await repository.getLocationById('loc-deleted');
       expect(location, isNull);
     });
   });

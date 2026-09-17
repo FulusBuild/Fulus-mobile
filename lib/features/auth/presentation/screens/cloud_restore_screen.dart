@@ -2,13 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/utils/screen_exit.dart';
 import '../../../../data/remote/cloud_restore_coordinator.dart';
 import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../domain/entities/business_settings.dart';
@@ -134,6 +135,15 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
       ref.read(sessionProvider.notifier).state = owner;
 
+      // The restore snapshot is a complete business image, so the previous
+      // local pull cursor cannot describe this newly restored database. A
+      // stale cursor could otherwise be ahead of the snapshot and cause
+      // legitimate post-snapshot changes to be skipped. Start reconciliation
+      // from the beginning of the server change stream; canonical
+      // reconciliation is idempotent, so replaying older changes is safe.
+      final syncPreferences = await SharedPreferences.getInstance();
+      await syncPreferences.remove('fulus_sync_cursor_$businessId');
+
       await ref.read(syncConfigProvider).setEnabled(true);
       setState(() => _status = 'Reconciling with Fulus Cloud…');
       try {
@@ -145,11 +155,10 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
 
       if (!mounted) return;
-      showFulusSnackbar(
-        context,
-        message: 'Your Fulus business has been restored (${result.totalRows} records). Sync is ready.',
-      );
-      context.closeScreenOr('/');
+      // Do not pop back into the authentication stack. A restore establishes
+      // a real local session, so the router must be given the root location
+      // explicitly and allowed to rebuild the authenticated shell.
+      context.go('/');
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {

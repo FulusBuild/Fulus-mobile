@@ -98,9 +98,9 @@ void main() {
       );
       await triggers.start();
       await config.setEnabled(true);
-      await untilCalled(() => syncEngine.runOnce());
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
     });
 
     test('disabling sync after start stops connectivity listening', () async {
@@ -140,9 +140,9 @@ void main() {
         connectivity: connectivity,
       );
       await triggers.start();
-      await untilCalled(() => syncEngine.runOnce());
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
     });
 
@@ -219,7 +219,7 @@ void main() {
       await triggers.reconcileAfterRestore();
 
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
       expect(pulls, [1]);
     });
@@ -264,6 +264,49 @@ void main() {
       verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
     });
 
+    test('serializes a trigger already started by enabling sync during restore', () async {
+      SharedPreferences.setMockInitialValues({});
+      final config = await SyncConfig.load();
+      final runStarted = Completer<void>();
+      final releaseRun = Completer<void>();
+      var runCount = 0;
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      when(() => syncEngine.runOnce(manual: any(named: 'manual'))).thenAnswer((_) async {
+        runCount++;
+        if (!runStarted.isCompleted) runStarted.complete();
+        await releaseRun.future;
+      });
+
+      final pulls = <int>[];
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        pullFromServer: () async => pulls.add(1),
+        connectivity: connectivity,
+      );
+
+      await triggers.start();
+      unawaited(config.setEnabled(true));
+      await runStarted.future;
+
+      final restoreRun = triggers.reconcileAfterRestore();
+      await Future<void>.delayed(Duration.zero);
+      expect(runCount, 1);
+      expect(pulls, isEmpty);
+
+      releaseRun.complete();
+      await restoreRun;
+
+      expect(runCount, 1);
+      expect(pulls, [1]);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      triggers.dispose();
+    });
+
     test('retries readiness after startup initialization fails', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
@@ -297,12 +340,12 @@ void main() {
       verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
 
       connectivityChanges.add([ConnectivityResult.wifi]);
-      await untilCalled(() => syncEngine.runOnce());
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
 
       expect(initializationCalls, 2);
       expect(ready, isTrue);
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
 
       triggers.dispose();
       await connectivityChanges.close();
