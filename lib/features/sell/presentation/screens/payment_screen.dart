@@ -21,11 +21,11 @@ const _paymentMethods = <_PaymentMethodOption>[
 ];
 
 IconData _iconForMethod(String key) => switch (key) {
-      'cash' => Icons.payments_outlined,
-      'mobile_money' => Icons.account_balance_outlined,
-      'card' => Icons.credit_card_outlined,
-      'credit' => Icons.receipt_long_outlined,
-      _ => Icons.payment_outlined,
+      'cash' => FulusIcons.payments,
+      'mobile_money' => FulusIcons.accountBalance,
+      'card' => FulusIcons.creditCard,
+      'credit' => FulusIcons.receipt,
+      _ => FulusIcons.payment,
     };
 
 class PaymentScreen extends StatefulWidget {
@@ -189,7 +189,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                         ),
                                         const SizedBox(width: AppSpacing.xs),
                                         FulusIconButton(
-                                          icon: Icons.close,
+                                          icon: FulusIcons.close,
                                           tooltip: 'Remove payment',
                                           onPressed: () {
                                             FulusHaptics.selection();
@@ -215,7 +215,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 FulusHaptics.selection();
                                 setState(() => _splitPayment = true);
                               },
-                              icon: const Icon(Icons.call_split_outlined),
+                              icon: FulusIcons.callSplit.icon,
                               label: const Text('Split payment'),
                             ),
                           ),
@@ -419,7 +419,7 @@ class _AmountDueHeader extends StatelessWidget {
                   style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ),
-              Icon(Icons.lock_outline, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
+              Icon(FulusIcons.lock, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -545,7 +545,7 @@ class _PaymentMethodTile extends StatelessWidget {
             AnimatedSwitcher(
               duration: AppMotion.fast,
               child: selected
-                  ? Icon(Icons.check_circle, key: const ValueKey('selected'), size: AppIconSize.compact, color: primary)
+                  ? Icon(FulusIcons.check, key: const ValueKey('selected'), size: AppIconSize.compact, color: primary)
                   : const SizedBox(key: ValueKey('unselected'), width: AppIconSize.compact),
             ),
           ],
