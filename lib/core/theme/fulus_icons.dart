@@ -72,6 +72,7 @@ abstract final class FulusIcons {
   static const payments = Symbols.payments;
   static const swap = Symbols.swap_vert;
   static const history = Symbols.history;
+  static const print = Symbols.print;
 }
 
 /// Default visual treatment for Fulus Material Symbols.
