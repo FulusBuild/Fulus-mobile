@@ -29,26 +29,26 @@ class StockOverviewStats extends StatelessWidget {
         FulusStatCard(
           label: 'Stock value',
           value: formatMoney(value, compact: true),
-          icon: Icons.payments_outlined,
+          icon: FulusIcons.payments,
         ),
         FulusStatCard(
           label: 'Low stock',
           value: '$lowStockCount',
-          icon: Icons.trending_down,
+          icon: FulusIcons.arrowDown,
           valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
           onTap: onTapLowStock,
         ),
         FulusStatCard(
           label: 'Out of stock',
           value: '$outOfStock',
-          icon: Icons.remove_shopping_cart_outlined,
+          icon: FulusIcons.removeShoppingCart,
           valueColor: outOfStock > 0 ? AppColors.errorOf(context) : null,
           onTap: onTapOutOfStock,
         ),
         FulusStatCard(
           label: 'Products',
           value: '${products.length}',
-          icon: Icons.inventory_2_outlined,
+          icon: FulusIcons.stock,
         ),
       ],
     );
