@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Walkthrough Phases 6–9 (prep, cart, payment, success) share one
@@ -34,6 +35,18 @@ class FirstSaleIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryOf(context).withValues(alpha: .10),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Icon(FulusIcons.sell, color: AppColors.primaryOf(context), size: AppIconSize.emphasis),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   "You've created your first product.",
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
@@ -47,6 +60,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xl),
                 FulusButton(
                   label: "Let's go",
+                  icon: FulusIcons.sell,
                   onPressed: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
                 ),
               ],
