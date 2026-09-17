@@ -71,7 +71,7 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
           final transactions = snap.data!.transactions;
           if (transactions.isEmpty) {
             return FulusEmptyState(
-              icon: Icons.receipt_long_outlined,
+              icon: FulusIcons.receipt,
               headline: 'No sales in this period.',
               body: 'Sales you record will show up here.',
             );
@@ -96,7 +96,7 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
   /// one explicit tap further from here, and only offered at all when
   /// the sale is still in a voidable state — browsing the report and
   /// accidentally landing on "confirm void" was the wrong shape for a
-  /// screen whose whole purpose is auditability, not action.
+  /// screen whose whole purpose was auditability, not action.
   void _showDetail(BuildContext context, SaleRecord record) {
     showFulusBottomSheet<void>(
       context: context,

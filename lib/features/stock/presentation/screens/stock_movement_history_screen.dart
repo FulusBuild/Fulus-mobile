@@ -68,7 +68,7 @@ class _HistoryList extends ConsumerWidget {
           return const FulusEmptyState(
             headline: 'No activity yet.',
             body: 'Stock you record will show up here.',
-            icon: Icons.history,
+            icon: FulusIcons.history,
           );
         }
 

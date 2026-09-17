@@ -232,10 +232,6 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
       final candidate = '$prefix-$suffix';
       if (!existing.contains(candidate)) return candidate;
     }
-    // 20 collisions against a 9000-value space is astronomically
-    // unlikely — this fallback exists so the function still has a
-    // total, honest return value rather than an unreachable-in-practice
-    // assumption with no way out.
     return '$prefix-${DateTime.now().millisecondsSinceEpoch}';
   }
 
@@ -270,7 +266,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           FulusButton(
             label: _moreDetailsOpen ? 'Hide more details' : 'More details',
             variant: FulusButtonVariant.text,
-            icon: _moreDetailsOpen ? Icons.expand_less : Icons.expand_more,
+            icon: _moreDetailsOpen ? FulusIcons.chevronUp : FulusIcons.chevronDown,
             onPressed: () => setState(() => _moreDetailsOpen = !_moreDetailsOpen),
           ),
           if (_moreDetailsOpen) ...[
@@ -279,7 +275,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
               label: 'Barcode',
               controller: _barcodeController,
               suffixIcon: IconButton(
-                icon: const Icon(Icons.qr_code_scanner_outlined),
+                icon: const Icon(FulusIcons.scan),
                 tooltip: 'Scan barcode',
                 onPressed: () async {
                   final scanned = await BarcodeScanScreen.scan(context, title: 'Scan product barcode');
@@ -305,7 +301,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                       color: AppColors.surfaceOf(context),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.image_outlined, color: AppColors.textSecondaryOf(context)),
+                    child: Icon(FulusIcons.image, color: AppColors.textSecondaryOf(context)),
                   ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -320,7 +316,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                 ),
                 if (_photoPath != null)
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(FulusIcons.close),
                     tooltip: 'Remove photo',
                     onPressed: () => setState(() => _photoPath = null),
                   ),

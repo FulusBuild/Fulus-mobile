@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart';
 
+import 'employee_mapper.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/report.dart';
 import '../../domain/repositories/reports_repository.dart';
 import '../../domain/usecases/reports_engine.dart';
 import '../local/database/database.dart';
-import 'employee_mapper.dart';
 import 'sale_reversal_adjustments.dart';
 
 /// Same integration posture as receipt_repository_impl.dart: this is

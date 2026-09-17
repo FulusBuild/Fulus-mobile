@@ -57,7 +57,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                           if (categories.isEmpty)
                             FulusCard(
                               child: FulusEmptyState(
-                                icon: Icons.sell_outlined,
+                                icon: FulusIcons.sell,
                                 headline: 'No categories yet',
                                 body: 'Create your first category to make products easier to find while selling and managing stock.',
                                 actionLabel: 'Add category',
@@ -81,7 +81,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                             width: wide ? null : double.infinity,
                             child: FulusButton(
                               label: 'Add category',
-                              icon: Icons.add,
+                              icon: FulusIcons.add,
                               onPressed: () => _openAddSheet(context),
                             ),
                           ),
@@ -125,7 +125,7 @@ class _CategoryOverview extends StatelessWidget {
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(Icons.category_outlined, color: AppColors.primaryOf(context), size: 28),
+            child: Icon(FulusIcons.category, color: AppColors.primaryOf(context), size: 28),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -173,7 +173,7 @@ class _CategoryRow extends StatelessWidget {
               color: AppColors.surfaceAltOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(Icons.sell_outlined, color: AppColors.primaryOf(context)),
+            child: Icon(FulusIcons.sell, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

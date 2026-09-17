@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'design_tokens.dart';
+import 'fulus_icons.dart';
 
 /// Product-wide Material foundation for Fulus.
 ///
@@ -33,17 +34,18 @@ class AppTheme {
       fontFamilyFallback: const ['system-ui', 'sans-serif'],
       scaffoldBackgroundColor: AppColors.backgroundLight,
       textTheme: _textTheme(AppColors.textPrimaryLight, AppColors.textSecondaryLight),
+      iconTheme: fulusIconTheme,
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.textPrimaryLight, AppColors.borderLight),
       textButtonTheme: _textButtonTheme(AppColors.primary),
       cardTheme: _cardTheme(AppColors.surfaceLight),
-      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.primary),
+      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.primary, AppColors.mutedLight),
       appBarTheme: _appBarTheme(AppColors.backgroundLight, AppColors.textPrimaryLight),
       dividerTheme: const DividerThemeData(color: AppColors.borderLight, thickness: 1, space: 1),
       chipTheme: _chipTheme(colorScheme, AppColors.borderLight),
       listTileTheme: _listTileTheme(AppColors.textPrimaryLight),
       dialogTheme: _dialogTheme(AppColors.surfaceLight, AppColors.textPrimaryLight),
-      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceLight),
+      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceLight, AppColors.borderLight),
       floatingActionButtonTheme: _fabTheme(colorScheme),
       snackBarTheme: _snackBarTheme(colorScheme),
       pageTransitionsTheme: _pageTransitionsTheme,
@@ -72,17 +74,18 @@ class AppTheme {
       fontFamilyFallback: const ['system-ui', 'sans-serif'],
       scaffoldBackgroundColor: AppColors.backgroundDark,
       textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
+      iconTheme: fulusIconTheme,
       elevatedButtonTheme: _elevatedButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.darkTextPrimary, AppColors.borderDark),
       textButtonTheme: _textButtonTheme(AppColors.darkPrimary),
       cardTheme: _cardTheme(AppColors.surfaceDark),
-      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkPrimary),
+      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkPrimary, AppColors.darkMuted),
       appBarTheme: _appBarTheme(AppColors.backgroundDark, AppColors.darkTextPrimary),
       dividerTheme: const DividerThemeData(color: AppColors.borderDark, thickness: 1, space: 1),
       chipTheme: _chipTheme(colorScheme, AppColors.borderDark),
       listTileTheme: _listTileTheme(AppColors.darkTextPrimary),
       dialogTheme: _dialogTheme(AppColors.surfaceDark, AppColors.darkTextPrimary),
-      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceDark),
+      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceDark, AppColors.borderDark),
       floatingActionButtonTheme: _fabTheme(colorScheme),
       snackBarTheme: _snackBarTheme(colorScheme),
       pageTransitionsTheme: _pageTransitionsTheme,
@@ -187,14 +190,14 @@ class AppTheme {
     );
   }
 
-  static BottomSheetThemeData _bottomSheetTheme(Color surface) {
+  static BottomSheetThemeData _bottomSheetTheme(Color surface, Color dragHandle) {
     return BottomSheetThemeData(
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       modalElevation: 0,
       showDragHandle: true,
-      dragHandleColor: AppColors.borderLight,
+      dragHandleColor: dragHandle,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
@@ -236,13 +239,13 @@ class AppTheme {
     );
   }
 
-  static InputDecorationTheme _inputDecorationTheme(Color surface, Color border, Color focus) {
+  static InputDecorationTheme _inputDecorationTheme(Color surface, Color border, Color focus, Color muted) {
     return InputDecorationTheme(
       floatingLabelBehavior: FloatingLabelBehavior.auto,
       filled: true,
       fillColor: surface,
-      labelStyle: AppTypography.caption.copyWith(color: AppColors.mutedLight),
-      hintStyle: AppTypography.body.copyWith(color: AppColors.mutedLight),
+      labelStyle: AppTypography.caption.copyWith(color: muted),
+      hintStyle: AppTypography.body.copyWith(color: muted),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         borderSide: BorderSide(color: border),

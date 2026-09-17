@@ -79,13 +79,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     return _engine.resolvePeriod(_periodKind);
   }
 
-  // Fetched once per period change rather than inline in build(): a
-  // Future created directly inside build() is a new Future on every
-  // rebuild, which resets every FutureBuilder below back to its loading
-  // state — including on rebuilds that have nothing to do with the
-  // report data (e.g. this screen rebuilding for an unrelated reason
-  // higher in the tree). Caching here means these only refetch when
-  // [_periodKind] genuinely changes.
   late Future<SalesReport> _salesFuture;
   late Future<InventoryReport> _inventoryFuture;
   late Future<CustomerReport> _customersFuture;
@@ -102,11 +95,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   void _loadAll() {
     final repo = ref.read(reportsRepositoryProvider);
     final period = _period;
-    // Employee data isolation — same "sees business-wide" check used
-    // throughout Home/Money; see money_screen.dart's identical block
-    // for the full reasoning. Only Sales is scoped here — see this
-    // pass's own summary for why Inventory/Customer/Finance/Employee
-    // aren't.
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
@@ -115,14 +103,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     _customersFuture = repo.getCustomerReport(period);
     _financeFuture = repo.getFinanceReport(period);
     _employeesFuture = repo.getEmployeeReport(period);
-    // FinanceStatsRepository, not ReportsRepository — the confirmed
-    // inflow bug was fixed at its source there (see
-    // CashFlowReport.customerRepaymentsInflow's own doc comment), not
-    // duplicated into a second implementation here. getCashFlow needs
-    // a locationId reports_repository_impl.dart's own methods don't —
-    // chained off the same activeLocationIdProvider Stock/Sell already
-    // read from, rather than adding a second, competing notion of
-    // "current location" to this screen.
     _cashFlowFuture = ref.read(activeLocationIdProvider.future).then(
           (locationId) => ref.read(financeStatsRepositoryProvider).getCashFlow(
                 dateFrom: period.start,
@@ -132,13 +112,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
         );
   }
 
-  /// One retry for every tab's data (including cash flow) rather than
-  /// independent ones per fetch — matches [_loadAll] itself, which
-  /// already fetches everything together. A tab whose data loaded fine
-  /// re-fetches unnecessarily when a sibling tab retries, but that's
-  /// one cheap extra read, not a user-visible cost, and keeps this
-  /// screen's one existing "how do I reload" mechanism the only one
-  /// instead of adding more.
   void _retry() => setState(_loadAll);
 
   Future<void> _onPeriodSelectionChanged(Set<ReportPeriodKind> selection) async {
@@ -151,9 +124,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
         lastDate: now,
         initialDateRange: _customRange ?? DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
       );
-      // Cancelling the picker leaves whatever was selected before —
-      // never silently falls through to "Today", which would be a
-      // surprising, unrequested period change.
       if (picked == null || !mounted) return;
       setState(() {
         _customRange = picked;
@@ -168,14 +138,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     });
   }
 
-  /// Sends the owner into Money History pre-filtered to exactly the
-  /// transactions behind whichever stat card they tapped — Volume 8's
-  /// "each row tappable through to the actual list of transactions
-  /// behind it" rule, reused here rather than building Reports its own
-  /// second transaction-list screen. Sets Money's own shared period
-  /// state ([moneyPeriodKindProvider]/[customMoneyRangeProvider]) to
-  /// match this screen's period first, so History opens already
-  /// showing the same date range the tapped number was computed over.
   void _openMoneyHistory({MoneyTransactionType? type, String? category}) {
     ref.read(moneyPeriodKindProvider.notifier).state = _periodKind;
     ref.read(customMoneyRangeProvider.notifier).state =
@@ -234,11 +196,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     }
   }
 
-  /// Built from whichever `Future` the currently-open tab already
-  /// depends on — by the time the export action is reachable that tab
-  /// has necessarily already loaded (its own `FutureBuilder` would
-  /// still be showing a spinner otherwise), so awaiting it again here
-  /// resolves immediately rather than re-fetching.
   Future<_ExportPayload> _buildExportPayload(String currencySymbol) async {
     switch (_tabs.index) {
       case 0:
@@ -320,10 +277,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    // See dataRefreshSignalProvider's own doc comment in
-    // app/providers.dart — every tab here is a one-shot Future fetched
-    // in initState/_loadAll, so none of them notice a sale, refund,
-    // stock change, or money entry made elsewhere on their own.
     ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
       if (previous != null && previous != next) setState(_loadAll);
     });
@@ -438,12 +391,6 @@ class _ReportScaffold extends StatelessWidget {
   }
 }
 
-/// [onTap], when supplied, renders a trailing chevron and makes the
-/// whole row tappable — gap-closure pass ("Reports drill-down").
-/// `onTap: null` (the default) renders exactly as before: a plain,
-/// non-interactive figure, for the several stat cards (Gross profit,
-/// Net profit, Cost of goods sold...) that are computed aggregates
-/// with no single underlying list to drill into.
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.label, required this.value, this.onTap});
   final String label;
@@ -468,14 +415,8 @@ class _StatCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(label, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))),
-                ),
-                Text(
-                  value,
-                  style:
-                      AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
-                ),
+                Expanded(child: Text(label, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)))),
+                Text(value, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
                 if (onTap != null) ...[
                   const SizedBox(width: AppSpacing.xs),
                   Icon(Icons.chevron_right, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
@@ -489,9 +430,6 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-/// Shared loading/error handling every tab below delegates to, so the
-/// hasError/hasData/empty branching only needs writing once. [isEmpty]
-/// is evaluated only once data has actually arrived.
 class _ReportTabBuilder<T> extends StatelessWidget {
   const _ReportTabBuilder({
     required this.future,
@@ -521,9 +459,7 @@ class _ReportTabBuilder<T> extends StatelessWidget {
             onRetry: onRetry,
           );
         }
-        if (!snap.hasData) {
-          return const FulusLoadingIndicator();
-        }
+        if (!snap.hasData) return const FulusLoadingIndicator();
         final data = snap.data as T;
         if (isEmpty(data)) {
           return FulusEmptyState(
@@ -566,10 +502,6 @@ class _SalesTab extends StatelessWidget {
         _StatCard(
           label: 'Revenue',
           value: formatMoney(r.totalRevenue, symbol: currencySymbol),
-          // Was onOpenMoneyHistory — that screen has no receipt
-          // number, cashier, or void/refund status, which is exactly
-          // what "where did this number come from" needs. Money
-          // History is still one tap away from here if wanted (below).
           onTap: () => _openTransactions(context),
         ),
         _StatCard(
@@ -578,8 +510,10 @@ class _SalesTab extends StatelessWidget {
           onTap: () => _openTransactions(context),
         ),
         _StatCard(label: 'Discounts given', value: formatMoney(r.totalDiscount, symbol: currencySymbol)),
+        const SizedBox(height: AppSpacing.sm),
+        _SalesChart(report: r, currencySymbol: currencySymbol, period: period),
         if (r.topProducts.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
           Text('Top products', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
           for (final p in r.topProducts.take(5))
             _StatCard(
@@ -590,6 +524,188 @@ class _SalesTab extends StatelessWidget {
         ],
       ]),
     );
+  }
+}
+
+class _SalesChart extends StatelessWidget {
+  const _SalesChart({required this.report, required this.currencySymbol, required this.period});
+  final SalesReport report;
+  final String currencySymbol;
+  final ReportPeriod period;
+
+  @override
+  Widget build(BuildContext context) {
+    final oneDay = period.start.year == period.end.year &&
+        period.start.month == period.end.month &&
+        period.start.day == period.end.day;
+    final buckets = <String, double>{};
+
+    if (oneDay) {
+      for (final point in report.byHour) {
+        buckets['${point.hour.toString().padLeft(2, '0')}:00'] = point.total;
+      }
+      for (var hour = 0; hour < 24; hour++) {
+        buckets.putIfAbsent('${hour.toString().padLeft(2, '0')}:00', () => 0);
+      }
+    } else {
+      for (final sale in report.transactions) {
+        final local = sale.saleDate.toLocal();
+        final key = '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}';
+        buckets[key] = (buckets[key] ?? 0) + sale.total;
+      }
+      if (buckets.isEmpty) {
+        var cursor = DateTime(period.start.year, period.start.month, period.start.day);
+        final end = DateTime(period.end.year, period.end.month, period.end.day);
+        while (!cursor.isAfter(end)) {
+          buckets['${cursor.day.toString().padLeft(2, '0')}/${cursor.month.toString().padLeft(2, '0')}'] = 0;
+          cursor = cursor.add(const Duration(days: 1));
+        }
+      }
+    }
+
+    final labels = buckets.keys.toList();
+    final values = buckets.values.toList();
+    final maxValue = values.fold<double>(0, (max, value) => value > max ? value : max);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: AppElevation.cardOf(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            oneDay ? 'Sales by hour' : 'Sales trend',
+            style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            oneDay ? 'Revenue recorded throughout today.' : 'Revenue recorded across the selected period.',
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            height: 190,
+            child: _SalesChartPainterWidget(
+              labels: labels,
+              values: values,
+              maxValue: maxValue,
+              currencySymbol: currencySymbol,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SalesChartPainterWidget extends StatelessWidget {
+  const _SalesChartPainterWidget({required this.labels, required this.values, required this.maxValue, required this.currencySymbol});
+  final List<String> labels;
+  final List<double> values;
+  final double maxValue;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _SalesChartPainter(
+        labels: labels,
+        values: values,
+        maxValue: maxValue,
+        textColor: AppColors.textSecondaryOf(context),
+        lineColor: AppColors.primaryOf(context),
+        fillColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
+        gridColor: AppColors.borderOf(context),
+        currencySymbol: currencySymbol,
+      ),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _SalesChartPainter extends CustomPainter {
+  _SalesChartPainter({
+    required this.labels,
+    required this.values,
+    required this.maxValue,
+    required this.textColor,
+    required this.lineColor,
+    required this.fillColor,
+    required this.gridColor,
+    required this.currencySymbol,
+  });
+
+  final List<String> labels;
+  final List<double> values;
+  final double maxValue;
+  final Color textColor;
+  final Color lineColor;
+  final Color fillColor;
+  final Color gridColor;
+  final String currencySymbol;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const left = 52.0;
+    const right = 8.0;
+    const top = 10.0;
+    const bottom = 30.0;
+    final chart = Rect.fromLTWH(left, top, size.width - left - right, size.height - top - bottom);
+    final textStyle = TextStyle(fontSize: 10, color: textColor);
+
+    final gridPaint = Paint()..color = gridColor.withValues(alpha: 0.45)..strokeWidth = 1;
+    for (var i = 0; i <= 3; i++) {
+      final y = chart.bottom - chart.height * (i / 3);
+      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
+      final value = maxValue * (i / 3);
+      final label = value == 0 ? '0' : _compact(value);
+      final tp = TextPainter(text: TextSpan(text: label, style: textStyle), textDirection: TextDirection.ltr)..layout(maxWidth: left - 6);
+      tp.paint(canvas, Offset(left - tp.width - 6, y - tp.height / 2));
+    }
+
+    if (values.isEmpty) return;
+    final count = values.length;
+    final step = count <= 1 ? 0.0 : chart.width / (count - 1);
+    final points = <Offset>[];
+    for (var i = 0; i < count; i++) {
+      final normalized = maxValue <= 0 ? 0.0 : values[i] / maxValue;
+      points.add(Offset(chart.left + step * i, chart.bottom - normalized * chart.height));
+    }
+
+    final fillPath = Path()..moveTo(points.first.dx, chart.bottom);
+    for (final point in points) fillPath.lineTo(point.dx, point.dy);
+    fillPath.lineTo(points.last.dx, chart.bottom);
+    fillPath.close();
+    canvas.drawPath(fillPath, Paint()..color = fillColor);
+
+    final linePath = Path()..moveTo(points.first.dx, points.first.dy);
+    for (final point in points.skip(1)) linePath.lineTo(point.dx, point.dy);
+    canvas.drawPath(linePath, Paint()..color = lineColor..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+
+    final maxLabels = size.width < 500 ? 6 : 10;
+    final labelEvery = count <= maxLabels ? 1 : (count / maxLabels).ceil();
+    for (var i = 0; i < count; i += labelEvery) {
+      final tp = TextPainter(text: TextSpan(text: labels[i], style: textStyle), textDirection: TextDirection.ltr)..layout();
+      var x = points[i].dx - tp.width / 2;
+      x = x.clamp(chart.left - tp.width / 2, chart.right - tp.width / 2).toDouble();
+      tp.paint(canvas, Offset(x, chart.bottom + 7));
+    }
+  }
+
+  String _compact(double value) {
+    if (value >= 1000000) return '${currencySymbol}${(value / 1000000).toStringAsFixed(1)}m';
+    if (value >= 1000) return '${currencySymbol}${(value / 1000).toStringAsFixed(0)}k';
+    return '${currencySymbol}${value.toStringAsFixed(0)}';
+  }
+
+  @override
+  bool shouldRepaint(covariant _SalesChartPainter oldDelegate) {
+    return oldDelegate.labels != labels || oldDelegate.values != values || oldDelegate.maxValue != maxValue || oldDelegate.lineColor != lineColor;
   }
 }
 
@@ -628,31 +744,19 @@ class _InventoryTab extends StatelessWidget {
       emptyHeadline: 'No products yet.',
       emptyBody: 'Add products in Stock to see their value and status here.',
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        _StatCard(
-          label: 'Stock value (at cost)',
-          value: formatMoney(r.totalStockValue, symbol: currencySymbol),
-          onTap: () => context.go('/stock'),
-        ),
+        _StatCard(label: 'Stock value (at cost)', value: formatMoney(r.totalStockValue, symbol: currencySymbol), onTap: () => context.go('/stock')),
         _StatCard(label: 'Low stock', value: '${r.lowStockCount}', onTap: () => context.go('/stock')),
         _StatCard(label: 'Out of stock', value: '${r.outOfStockCount}', onTap: () => context.go('/stock')),
         _StatCard(label: 'Total products', value: '${r.totalProducts}', onTap: () => context.go('/stock')),
         if (r.notSoldInThirtyDays.isNotEmpty)
-          _StatCard(
-            label: 'Not sold in 30 days',
-            value: '${r.notSoldInThirtyDays.length}',
-            onTap: () => _showNotSold(context, r.notSoldInThirtyDays),
-          ),
+          _StatCard(label: 'Not sold in 30 days', value: '${r.notSoldInThirtyDays.length}', onTap: () => _showNotSold(context, r.notSoldInThirtyDays)),
       ]),
     );
   }
 }
 
 class _CustomersTab extends StatelessWidget {
-  const _CustomersTab({
-    required this.future,
-    required this.currencySymbol,
-    required this.onRetry,
-  });
+  const _CustomersTab({required this.future, required this.currencySymbol, required this.onRetry});
   final Future<CustomerReport> future;
   final String currencySymbol;
   final VoidCallback onRetry;
@@ -666,35 +770,17 @@ class _CustomersTab extends StatelessWidget {
       emptyHeadline: 'Nothing to report yet.',
       emptyBody: 'Customer activity — new customers, credit, and top spenders — will show up here.',
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        _StatCard(
-          label: 'Outstanding credit',
-          value: formatMoney(r.totalOutstandingCredit, symbol: currencySymbol),
-          onTap: () => context.pushNamed('moneyCustomers'),
-        ),
-        _StatCard(
-          label: 'New customers',
-          value: '${r.newCustomersThisPeriod}',
-          onTap: () => context.pushNamed('moneyCustomers'),
-        ),
+        _StatCard(label: 'Outstanding credit', value: formatMoney(r.totalOutstandingCredit, symbol: currencySymbol), onTap: () => context.pushNamed('moneyCustomers')),
+        _StatCard(label: 'New customers', value: '${r.newCustomersThisPeriod}', onTap: () => context.pushNamed('moneyCustomers')),
         for (final c in r.topCustomers.take(5))
-          _StatCard(
-            label: c.customerName,
-            value: formatMoney(c.totalSpend, symbol: currencySymbol),
-            onTap: () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': c.customerId}),
-          ),
+          _StatCard(label: c.customerName, value: formatMoney(c.totalSpend, symbol: currencySymbol), onTap: () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': c.customerId})),
       ]),
     );
   }
 }
 
 class _FinanceTab extends StatelessWidget {
-  const _FinanceTab({
-    required this.future,
-    required this.cashFlowFuture,
-    required this.currencySymbol,
-    required this.onRetry,
-    required this.onOpenMoneyHistory,
-  });
+  const _FinanceTab({required this.future, required this.cashFlowFuture, required this.currencySymbol, required this.onRetry, required this.onOpenMoneyHistory});
   final Future<FinanceReport> future;
   final Future<CashFlowReport> cashFlowFuture;
   final String currencySymbol;
@@ -712,84 +798,36 @@ class _FinanceTab extends StatelessWidget {
       builder: (context, r) {
         final trend = r.profitTrendPercent;
         return _ReportScaffold(insights: r.insights, children: [
-          _StatCard(
-            label: 'Revenue',
-            value: formatMoney(r.totalRevenue, symbol: currencySymbol),
-            onTap: () => onOpenMoneyHistory(),
-          ),
+          _StatCard(label: 'Revenue', value: formatMoney(r.totalRevenue, symbol: currencySymbol), onTap: () => onOpenMoneyHistory()),
           _StatCard(label: 'Cost of goods sold', value: formatMoney(r.totalCostOfGoodsSold, symbol: currencySymbol)),
           _StatCard(label: 'Gross profit', value: formatMoney(r.grossProfit, symbol: currencySymbol)),
-          _StatCard(
-            label: 'Expenses',
-            value: formatMoney(r.totalExpenses, symbol: currencySymbol),
-            onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense),
-          ),
+          _StatCard(label: 'Expenses', value: formatMoney(r.totalExpenses, symbol: currencySymbol), onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense)),
           _StatCard(label: 'Net profit', value: formatMoney(r.netProfit, symbol: currencySymbol)),
-          if (trend != null)
-            _StatCard(label: 'Vs. last period', value: '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)}%'),
+          if (trend != null) _StatCard(label: 'Vs. last period', value: '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)}%'),
           if (r.expenseBreakdown.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
             Text('Expenses by category', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
             for (final e in r.expenseBreakdown)
-              _StatCard(
-                label: e.category,
-                value: formatMoney(e.total, symbol: currencySymbol),
-                onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense, category: e.category),
-              ),
+              _StatCard(label: e.category, value: formatMoney(e.total, symbol: currencySymbol), onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense, category: e.category)),
           ],
           const SizedBox(height: AppSpacing.sm),
           Text('Cash flow', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
-          // Own FutureBuilder, not folded into the FinanceReport one
-          // above — money actually moving (this) and profit already
-          // earned (everything above) are different questions with
-          // different sources; a slow or failed cash-flow fetch
-          // shouldn't blank out a Finance tab that otherwise loaded
-          // fine.
           FutureBuilder<CashFlowReport>(
             future: cashFlowFuture,
             builder: (context, snap) {
-              if (snap.hasError) {
-                return Text(
-                  "Couldn't load cash flow for this period.",
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                );
-              }
-              if (!snap.hasData) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
+              if (snap.hasError) return Text("Couldn't load cash flow for this period.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)));
+              if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.md), child: Center(child: CircularProgressIndicator()));
               final cf = snap.data!;
-              return Column(
-                children: [
-                  _StatCard(label: 'Money in', value: formatMoney(cf.inflow, symbol: currencySymbol)),
-                  _StatCard(
-                    label: '· from sales',
-                    value: formatMoney(cf.salesInflow, symbol: currencySymbol),
-                  ),
-                  _StatCard(
-                    label: '· from customer repayments',
-                    value: formatMoney(cf.customerRepaymentsInflow, symbol: currencySymbol),
-                  ),
-                  if (cf.manualIncomeInflow > 0)
-                    _StatCard(
-                      label: '· other income',
-                      value: formatMoney(cf.manualIncomeInflow, symbol: currencySymbol),
-                    ),
-                  _StatCard(label: 'Money out', value: formatMoney(cf.outflow, symbol: currencySymbol)),
-                  _StatCard(
-                    label: '· expenses',
-                    value: formatMoney(cf.expensesOutflow, symbol: currencySymbol),
-                  ),
-                  if (cf.supplierPaymentsOutflow > 0)
-                    _StatCard(
-                      label: '· supplier payments',
-                      value: formatMoney(cf.supplierPaymentsOutflow, symbol: currencySymbol),
-                    ),
-                  _StatCard(label: 'Net cash flow', value: formatMoney(cf.netCashFlow, symbol: currencySymbol)),
-                ],
-              );
+              return Column(children: [
+                _StatCard(label: 'Money in', value: formatMoney(cf.inflow, symbol: currencySymbol)),
+                _StatCard(label: '· from sales', value: formatMoney(cf.salesInflow, symbol: currencySymbol)),
+                _StatCard(label: '· from customer repayments', value: formatMoney(cf.customerRepaymentsInflow, symbol: currencySymbol)),
+                if (cf.manualIncomeInflow > 0) _StatCard(label: '· other income', value: formatMoney(cf.manualIncomeInflow, symbol: currencySymbol)),
+                _StatCard(label: 'Money out', value: formatMoney(cf.outflow, symbol: currencySymbol)),
+                _StatCard(label: '· expenses', value: formatMoney(cf.expensesOutflow, symbol: currencySymbol)),
+                if (cf.supplierPaymentsOutflow > 0) _StatCard(label: '· supplier payments', value: formatMoney(cf.supplierPaymentsOutflow, symbol: currencySymbol)),
+                _StatCard(label: 'Net cash flow', value: formatMoney(cf.netCashFlow, symbol: currencySymbol)),
+              ]);
             },
           ),
         ]);
@@ -813,11 +851,7 @@ class _EmployeesTab extends StatelessWidget {
       emptyBody: 'Attendance and performance for your team will show up here.',
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
         for (final p in r.performance)
-          _StatCard(
-            label: p.employeeName,
-            value: '${p.daysPresent} present, ${p.daysAbsent} absent',
-            onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': p.employeeId}),
-          ),
+          _StatCard(label: p.employeeName, value: '${p.daysPresent} present, ${p.daysAbsent} absent', onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': p.employeeId})),
       ]),
     );
   }

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
-import '../../../../core/ux/consumer_polish.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -23,14 +22,14 @@ class CartScreen extends StatelessWidget {
         if (cartState is CartFailure) {
           return FulusScreen(
             title: 'Cart',
-            body: FulusErrorState(message: cartState.message),
+            body: FulusErrorState(
+              message: cartState.message,
+              onRetry: () => context.read<CartCubit>().retryInitialization(),
+            ),
           );
         }
         if (cartState is! CartLoaded) {
-          return const FulusScreen(
-            title: 'Cart',
-            body: FulusLoadingIndicator(),
-          );
+          return const FulusScreen(title: 'Cart', body: FulusLoadingIndicator());
         }
         if (cartState.items.isEmpty) {
           return FulusScreen(
@@ -38,7 +37,7 @@ class CartScreen extends StatelessWidget {
             body: FulusEmptyState(
               headline: 'Your cart is empty',
               body: 'Add a product from Sell to start a sale.',
-              icon: Icons.shopping_cart_outlined,
+              icon: FulusIcons.shoppingCart,
               actionLabel: 'Back to Sell',
               onAction: () => Navigator.of(context).pop(),
             ),
@@ -56,18 +55,14 @@ class CartScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ListView(
-                      padding: EdgeInsets.fromLTRB(
-                        inset,
-                        AppSpacing.lg,
-                        inset,
-                        AppSpacing.md,
-                      ),
+                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.md),
                       children: [
                         _CartIntro(itemCount: cartState.items.length),
                         const SizedBox(height: AppSpacing.md),
-                        wide
-                            ? _WideCartList(state: cartState)
-                            : _CompactCartList(state: cartState),
+                        if (wide)
+                          _WideCartList(state: cartState)
+                        else
+                          _CompactCartList(state: cartState),
                         const SizedBox(height: AppSpacing.sm),
                         _CustomerRow(customer: cartState.customer),
                       ],
@@ -86,7 +81,6 @@ class CartScreen extends StatelessWidget {
 
 class _CartIntro extends StatelessWidget {
   const _CartIntro({required this.itemCount});
-
   final int itemCount;
 
   @override
@@ -96,16 +90,12 @@ class _CartIntro extends StatelessWidget {
         Expanded(
           child: Text(
             '$itemCount ${itemCount == 1 ? 'item' : 'items'}',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondaryOf(context),
-            ),
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
           ),
         ),
         Text(
           'Swipe left to remove',
-          style: AppTypography.caption.copyWith(
-            color: AppColors.textSecondaryOf(context),
-          ),
+          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
         ),
       ],
     );
@@ -114,7 +104,6 @@ class _CartIntro extends StatelessWidget {
 
 class _CompactCartList extends StatelessWidget {
   const _CompactCartList({required this.state});
-
   final CartLoaded state;
 
   @override
@@ -130,8 +119,7 @@ class _CompactCartList extends StatelessWidget {
                 ? null
                 : state.catalog[state.items[i].productLocalId]?.product.unit,
           ),
-          if (i < state.items.length - 1)
-            const SizedBox(height: AppSpacing.sm),
+          if (i < state.items.length - 1) const SizedBox(height: AppSpacing.sm),
         ],
       ],
     );
@@ -140,7 +128,6 @@ class _CompactCartList extends StatelessWidget {
 
 class _WideCartList extends StatelessWidget {
   const _WideCartList({required this.state});
-
   final CartLoaded state;
 
   @override
@@ -158,8 +145,7 @@ class _WideCartList extends StatelessWidget {
                   ? null
                   : state.catalog[state.items[i].productLocalId]?.product.unit,
             ),
-            if (i < state.items.length - 1)
-              Divider(height: 1, color: AppColors.borderOf(context)),
+            if (i < state.items.length - 1) Divider(height: 1, color: AppColors.borderOf(context)),
           ],
         ],
       ),
@@ -168,12 +154,7 @@ class _WideCartList extends StatelessWidget {
 }
 
 class _CartLineTile extends StatelessWidget {
-  const _CartLineTile({
-    super.key,
-    required this.item,
-    required this.currencySymbol,
-    this.unit,
-  });
+  const _CartLineTile({super.key, required this.item, required this.currencySymbol, this.unit});
 
   final DraftCartItem item;
   final String currencySymbol;
@@ -191,10 +172,7 @@ class _CartLineTile extends StatelessWidget {
           color: AppColors.errorOf(context),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: Icon(
-          Icons.delete_outline,
-          color: AppColors.errorOnOf(context),
-        ),
+        child: Icon(FulusIcons.delete, color: AppColors.errorOnOf(context)),
       ),
       onDismissed: (_) => _remove(context),
       child: FulusCard(
@@ -243,10 +221,7 @@ class _CartLineTile extends StatelessWidget {
                 SizedBox(
                   width: compact ? 76 : 92,
                   child: Text(
-                    formatMoney(
-                      item.lineTotal - item.lineDiscount,
-                      symbol: currencySymbol,
-                    ),
+                    formatMoney(item.lineTotal - item.lineDiscount, symbol: currencySymbol),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
@@ -293,7 +268,6 @@ class _CartLineTile extends StatelessWidget {
 
 class _CompactQuantity extends StatelessWidget {
   const _CompactQuantity({required this.item, this.unit});
-
   final DraftCartItem item;
   final String? unit;
 
@@ -301,20 +275,15 @@ class _CompactQuantity extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minWidth: 44),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.surfaceAltOf(context),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
-        '×${item.quantity}${unit == null ? '' : ' $unit'}',
+        unit == null ? '×${item.quantity}' : '×${item.quantity} $unit',
         textAlign: TextAlign.center,
-        style: AppTypography.label.copyWith(
-          color: AppColors.textPrimaryOf(context),
-        ),
+        style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context)),
       ),
     );
   }
@@ -339,11 +308,7 @@ class _QuantityStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _StepButton(
-            icon: Icons.remove,
-            semanticsLabel: 'Decrease ${item.description}',
-            onTap: () => cubit.decrementItem(item),
-          ),
+          _StepButton(icon: FulusIcons.remove, semanticsLabel: 'Decrease ${item.description}', onTap: () => cubit.decrementItem(item)),
           FulusPressable(
             semanticsLabel: 'Edit quantity for ${item.description}',
             onPressed: () => _editQuantity(context, cubit),
@@ -354,28 +319,13 @@ class _QuantityStepper extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    '${item.quantity}',
-                    style: AppTypography.label.copyWith(
-                      color: AppColors.textPrimaryOf(context),
-                    ),
-                  ),
-                  if (unit != null)
-                    Text(
-                      unit!,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondaryOf(context),
-                      ),
-                    ),
+                  Text('${item.quantity}', style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context))),
+                  if (unit != null) Text(unit!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                 ],
               ),
             ),
           ),
-          _StepButton(
-            icon: Icons.add,
-            semanticsLabel: 'Increase ${item.description}',
-            onTap: () => _increment(context, cubit),
-          ),
+          _StepButton(icon: FulusIcons.add, semanticsLabel: 'Increase ${item.description}', onTap: () => _increment(context, cubit)),
         ],
       ),
     );
@@ -387,9 +337,7 @@ class _QuantityStepper extends StatelessWidget {
       FulusHaptics.selection();
     } on StateError catch (e) {
       FulusHaptics.error();
-      if (context.mounted) {
-        showFulusSnackbar(context, message: e.message);
-      }
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
   }
 
@@ -400,47 +348,27 @@ class _QuantityStepper extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Quantity'),
         scrollable: true,
-        content: FulusTextField(
-          label: 'Quantity',
-          controller: controller,
-          keyboardType: TextInputType.number,
-        ),
+        content: FulusTextField(label: 'Quantity', controller: controller, keyboardType: TextInputType.number),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FulusButton(
-            label: 'Update',
-            onPressed: () => Navigator.of(dialogContext).pop(
-              int.tryParse(controller.text.trim()),
-            ),
-          ),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FulusButton(label: 'Update', onPressed: () => Navigator.of(dialogContext).pop(int.tryParse(controller.text.trim()))),
         ],
       ),
     );
     controller.dispose();
-
     if (result == null || !context.mounted) return;
     try {
       await cubit.setItemQuantity(item, result);
       FulusHaptics.selection();
     } on StateError catch (e) {
       FulusHaptics.error();
-      if (context.mounted) {
-        showFulusSnackbar(context, message: e.message);
-      }
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
   }
 }
 
 class _StepButton extends StatelessWidget {
-  const _StepButton({
-    required this.icon,
-    required this.onTap,
-    required this.semanticsLabel,
-  });
-
+  const _StepButton({required this.icon, required this.onTap, required this.semanticsLabel});
   final IconData icon;
   final VoidCallback onTap;
   final String semanticsLabel;
@@ -453,11 +381,7 @@ class _StepButton extends StatelessWidget {
       child: SizedBox(
         width: AppTouchTarget.minimum - 4,
         height: AppTouchTarget.minimum,
-        child: Icon(
-          icon,
-          size: AppIconSize.compact,
-          color: AppColors.textPrimaryOf(context),
-        ),
+        child: Icon(icon, size: AppIconSize.compact, color: AppColors.textPrimaryOf(context)),
       ),
     );
   }
@@ -465,7 +389,6 @@ class _StepButton extends StatelessWidget {
 
 class _CustomerRow extends StatelessWidget {
   const _CustomerRow({required this.customer});
-
   final Customer? customer;
 
   @override
@@ -482,10 +405,7 @@ class _CustomerRow extends StatelessWidget {
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(
-              Icons.person_outline,
-              color: AppColors.primaryOf(context),
-            ),
+            child: Icon(FulusIcons.person, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -501,17 +421,12 @@ class _CustomerRow extends StatelessWidget {
                 ),
                 Text(
                   customer?.phone ?? 'Optional for this sale',
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textSecondaryOf(context),
-                  ),
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.chevron_right,
-            color: AppColors.textSecondaryOf(context),
-          ),
+          Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
         ],
       ),
     );
@@ -520,53 +435,36 @@ class _CustomerRow extends StatelessWidget {
 
 class _TotalsFooter extends StatelessWidget {
   const _TotalsFooter({required this.state});
-
   final CartLoaded state;
 
   @override
   Widget build(BuildContext context) {
-    final inset = fulusHorizontalInset(context);
     return SafeArea(
       top: false,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.fromLTRB(
-          inset,
+          fulusHorizontalInset(context),
           AppSpacing.md,
-          inset,
+          fulusHorizontalInset(context),
           AppSpacing.md,
         ),
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
-          border: Border(
-            top: BorderSide(color: AppColors.borderOf(context)),
-          ),
+          border: Border(top: BorderSide(color: AppColors.borderOf(context))),
           boxShadow: AppElevation.liftOf(context),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _TotalRow(
-              label: 'Subtotal',
-              value: state.subtotal,
-              currencySymbol: state.currencySymbol,
-            ),
+            _TotalRow(label: 'Subtotal', value: state.subtotal, currencySymbol: state.currencySymbol),
             _DiscountRow(state: state),
             if (state.draftCart.tax > 0)
-              _TotalRow(
-                label: 'Tax',
-                value: state.draftCart.tax,
-                currencySymbol: state.currencySymbol,
-              ),
+              _TotalRow(label: 'Tax', value: state.draftCart.tax, currencySymbol: state.currencySymbol),
             const SizedBox(height: AppSpacing.xs),
             Divider(height: 1, color: AppColors.borderOf(context)),
             const SizedBox(height: AppSpacing.sm),
-            _TotalRow(
-              label: 'Total',
-              value: state.total,
-              currencySymbol: state.currencySymbol,
-              emphasized: true,
-            ),
+            _TotalRow(label: 'Total', value: state.total, currencySymbol: state.currencySymbol, emphasized: true),
             const SizedBox(height: AppSpacing.md),
             SizedBox(
               width: double.infinity,
@@ -576,10 +474,7 @@ class _TotalsFooter extends StatelessWidget {
                   final cubit = context.read<CartCubit>();
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: cubit,
-                        child: const PaymentScreen(),
-                      ),
+                      builder: (_) => BlocProvider.value(value: cubit, child: const PaymentScreen()),
                     ),
                   );
                 },
@@ -594,7 +489,6 @@ class _TotalsFooter extends StatelessWidget {
 
 class _DiscountRow extends StatelessWidget {
   const _DiscountRow({required this.state});
-
   final CartLoaded state;
 
   @override
@@ -615,24 +509,14 @@ class _DiscountRow extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Discount',
-              style: AppTypography.body.copyWith(
-                color: AppColors.primaryOf(context),
-              ),
-            ),
+            Text('Discount', style: AppTypography.body.copyWith(color: AppColors.primaryOf(context))),
             Flexible(
               child: Text(
-                hasDiscount
-                    ? '-${formatMoney(state.discount, symbol: state.currencySymbol)}'
-                    : 'Add',
+                hasDiscount ? '-${formatMoney(state.discount, symbol: state.currencySymbol)}' : 'Add',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.primaryOf(context),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTypography.body.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -643,12 +527,7 @@ class _DiscountRow extends StatelessWidget {
 }
 
 class _TotalRow extends StatelessWidget {
-  const _TotalRow({
-    required this.label,
-    required this.value,
-    required this.currencySymbol,
-    this.emphasized = false,
-  });
+  const _TotalRow({required this.label, required this.value, required this.currencySymbol, this.emphasized = false});
 
   final String label;
   final double value;
@@ -657,28 +536,26 @@ class _TotalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: AppTypography.body.copyWith(
-            color: AppColors.textSecondaryOf(context),
-            fontWeight: emphasized ? FontWeight.w700 : FontWeight.w400,
-          ),
-        ),
-        Flexible(
-          child: Text(
-            formatMoney(value, symbol: currencySymbol),
-            textAlign: TextAlign.right,
-            style: (emphasized ? AppTypography.subheading : AppTypography.body).copyWith(
-              color: AppColors.textPrimaryOf(context),
-              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
-              fontFeatures: const [FontFeature.tabularFigures()],
+    final style = emphasized
+        ? AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))
+        : AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: style),
+          Flexible(
+            child: Text(
+              formatMoney(value, symbol: currencySymbol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

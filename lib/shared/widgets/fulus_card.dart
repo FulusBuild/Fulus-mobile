@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_icons.dart';
 
 /// Shared content surface. Cards stay quiet; hierarchy comes from spacing,
 /// typography and interaction rather than heavy borders.
@@ -23,9 +24,6 @@ class FulusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.xl);
-    // Workspace surfaces use a barely-there outline by default. It keeps
-    // adjacent cards visually separated without turning the UI into a grid
-    // of heavy borders. `outlined` remains available for stronger emphasis.
     final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.55);
     return Container(
       decoration: BoxDecoration(
@@ -97,7 +95,7 @@ class FulusStatCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(trend == FulusTrend.up ? Icons.arrow_upward : Icons.arrow_downward, size: AppIconSize.dense, color: AppColors.mutedOf(context)),
+                  Icon(trend == FulusTrend.up ? FulusIcons.arrowUp : FulusIcons.arrowDown, size: AppIconSize.dense, color: AppColors.mutedOf(context)),
                   const SizedBox(width: AppSpacing.xs),
                   Flexible(child: Text(trendLabel!, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context)))),
                 ],

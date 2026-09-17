@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_icons.dart';
 import 'fulus_button.dart';
 
 /// "No products yet. Add your first product to start selling." —
@@ -9,13 +10,6 @@ import 'fulus_button.dart';
 /// assets exist in this codebase yet — see [icon]'s own doc) plus a
 /// headline, an optional body line, and at most one action button, per
 /// 8.1's "one specific action, or none" rule.
-///
-/// Copy is entirely the caller's responsibility — 8.1's rules ("never
-/// blame the user," "state what's missing, then what happens next,"
-/// "reserve alarming words for real problems") are about what
-/// [headline]/[body] should say, which only the screen calling this
-/// knows. This widget only lays the pattern out consistently, the same
-/// way across every screen that needs it.
 class FulusEmptyState extends StatelessWidget {
   const FulusEmptyState({
     super.key,
@@ -23,17 +17,13 @@ class FulusEmptyState extends StatelessWidget {
     this.body,
     this.actionLabel,
     this.onAction,
-    this.icon = Icons.inbox_outlined,
+    this.icon = FulusIcons.inbox,
   });
 
   final String headline;
   final String? body;
   final String? actionLabel;
   final VoidCallback? onAction;
-
-  /// Material icon standing in for this state's Bible illustration
-  /// (Volume 9's "Seven Contexts" figure) until real illustration
-  /// assets exist in this codebase.
   final IconData icon;
 
   @override
