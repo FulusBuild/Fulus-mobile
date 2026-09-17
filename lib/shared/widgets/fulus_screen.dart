@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../core/theme/fulus_icons.dart';
 
 /// Shared page composition for secondary and detail screens.
 /// Keeps the workspace visually consistent across phone and tablet widths.
@@ -115,11 +116,15 @@ class _PageHeader extends StatelessWidget {
                     width: AppTouchTarget.minimum,
                     height: AppTouchTarget.minimum,
                     child: leading ?? (showBack
-                        ? const BackButton()
-                        : IconButton(
+                        ? FulusIconButton(
+                            icon: FulusIcons.arrowBack,
+                            tooltip: 'Go back',
+                            onPressed: () => Navigator.of(context).maybePop(),
+                          )
+                        : FulusIconButton(
+                            icon: FulusIcons.menu,
                             tooltip: 'Open navigation',
                             onPressed: FulusAppShell.openDrawer,
-                            icon: const Icon(Icons.menu_rounded),
                           )),
                   ),
                 if (showMenu) ...[
