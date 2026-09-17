@@ -5,7 +5,6 @@ import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
 import '../../core/ux/consumer_polish.dart';
 import 'fulus_button.dart';
-import 'fulus_brand_logo.dart';
 
 /// Shared page composition for secondary and detail screens.
 /// Keeps the workspace visually consistent across phone and tablet widths.
@@ -147,11 +146,7 @@ class _PageHeader extends StatelessWidget {
                             onPressed: FulusAppShell.openDrawer,
                           )),
                   ),
-                if (showMenu) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  const FulusBrandLogo(size: 40, padding: 7),
-                  const SizedBox(width: AppSpacing.md),
-                ],
+                if (showMenu) const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
