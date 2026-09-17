@@ -109,22 +109,25 @@ class AppColors {
   static Color selectedTintOf(BuildContext context) => isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
 }
 
+/// Product typography stays deliberately restrained: regular body text, medium
+/// hierarchy, and semibold emphasis. Strong weights are reserved for values
+/// that genuinely need visual priority.
 class AppTypography {
   AppTypography._();
-  static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w800, height: 1.08, letterSpacing: -1.0);
-  static const title = TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.12, letterSpacing: -0.6);
-  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.18, letterSpacing: -0.3);
-  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.1);
+  static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w600, height: 1.08, letterSpacing: -1.0);
+  static const title = TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.12, letterSpacing: -0.6);
+  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w600, height: 1.18, letterSpacing: -0.3);
+  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w500, height: 1.3, letterSpacing: -0.1);
   static const bodyLarge = TextStyle(fontSize: 18, height: 1.5);
   static const body = TextStyle(fontSize: 16, height: 1.5);
   static const caption = TextStyle(fontSize: 14, height: 1.45);
-  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: 0.2);
-  static const buttonLabel = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.2, letterSpacing: 0.1);
+  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.3, letterSpacing: 0.2);
+  static const buttonLabel = TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.2, letterSpacing: 0.1);
   static const mono = TextStyle(fontFamily: 'Space Mono', fontFamilyFallback: ['monospace'], fontSize: 16, height: 1.25, fontFeatures: [FontFeature.tabularFigures()]);
 }
 class AppSpacing { AppSpacing._(); static const xs=4.0; static const sm=8.0; static const md=12.0; static const lg=16.0; static const xl=24.0; static const xxl=32.0; static const xxxl=48.0; }
 class AppRadius { AppRadius._(); static const sm=10.0; static const md=14.0; static const lg=18.0; static const xl=24.0; static const pill=999.0; }
-class AppElevation { AppElevation._(); static const cardLight=[BoxShadow(offset:Offset(0,1),blurRadius:2,color:Color(0x0A000000)),BoxShadow(offset:Offset(0,4),blurRadius:14,color:Color(0x08000000))]; static const liftLight=[BoxShadow(offset:Offset(0,10),blurRadius:26,color:Color(0x18000000))]; static const cardDark=[BoxShadow(offset:Offset(0,2),blurRadius:6,color:Color(0x55000000))]; static const liftDark=[BoxShadow(offset:Offset(0,10),blurRadius:26,color:Color(0x77000000))]; static List<BoxShadow> cardOf(BuildContext context)=>isDark(context)?cardDark:cardLight; static List<BoxShadow> liftOf(BuildContext context)=>isDark(context)?liftDark:liftLight; static List<BoxShadow> subtleOf(BuildContext context)=>cardOf(context); static bool isDark(BuildContext context)=>AppColors.isDark(context); }
+class AppElevation { AppElevation._(); static const cardLight=[BoxShadow(offset:Offset(0,1),blurRadius:2,color:Color(0x0A000000)),BoxShadow(offset:Offset(0,4),blurRadius:14,color:Color(0x08000000))]; static const liftLight=[BoxShadow(offset:Offset(0,10),blurRadius:26,color:Color(0x18000000)]; static const cardDark=[BoxShadow(offset:Offset(0,2),blurRadius:6,color:Color(0x55000000))]; static const liftDark=[BoxShadow(offset:Offset(0,10),blurRadius:26,color:Color(0x77000000)]; static List<BoxShadow> cardOf(BuildContext context)=>isDark(context)?cardDark:cardLight; static List<BoxShadow> liftOf(BuildContext context)=>isDark(context)?liftDark:liftLight; static List<BoxShadow> subtleOf(BuildContext context)=>cardOf(context); static bool isDark(BuildContext context)=>AppColors.isDark(context); }
 class AppOpacity { AppOpacity._(); static const groundShadow=.06; static const subtleTintDark=.08; static const badgeTintDark=.14; static const disabled=.4; static const scrim=.45; }
 class AppTouchTarget { AppTouchTarget._(); static const minimum=48.0; }
 class AppMotion { AppMotion._(); static const fast=Duration(milliseconds:150); static const standard=Duration(milliseconds:220); static const ceiling=Duration(milliseconds:320); static const curveStandard=Cubic(.4,0,.2,1); static const curveDecelerate=Cubic(0,0,.2,1); }
