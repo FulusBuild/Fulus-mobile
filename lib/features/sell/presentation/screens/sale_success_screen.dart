@@ -48,7 +48,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
       final notifications = ref.read(notificationServiceProvider);
       final proceed = await showFulusPermissionPrimer(
         context,
-        icon: Icons.notifications_outlined,
+        icon: FulusIcons.notifications,
         message:
             "We'll ask to send notifications next — this lets us tell you if a blocked payment finishes going through, or if something needs your attention.",
       );
@@ -126,7 +126,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
-                                  Icons.check,
+                                  FulusIcons.check,
                                   color: AppColors.onPrimaryOf(context),
                                   size: AppIconSize.emphasis,
                                 ),
