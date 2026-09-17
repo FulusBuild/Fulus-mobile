@@ -21,10 +21,16 @@ class FulusBrandLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Small shell logos used beside page titles previously had too much
+    // internal padding, making the F mark look visibly smaller than the
+    // adjacent title even though the blue tile itself was correctly sized.
+    // Keep the drawer/account mark unchanged, but let compact 32–40dp marks
+    // use the available visual area more effectively.
+    final effectivePadding = size <= 40 ? padding.clamp(4.0, 6.0) : padding;
     return Container(
       width: size,
       height: size,
-      padding: EdgeInsets.all(padding),
+      padding: EdgeInsets.all(effectivePadding),
       decoration: BoxDecoration(
         color: backgroundColor ?? AppColors.primaryOf(context),
         borderRadius: BorderRadius.circular(AppRadius.md),
