@@ -39,7 +39,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       leading: Icon(icon),
       title: Text(title),
       subtitle: subtitle == null ? null : Text(subtitle),
-      trailing: trailing ?? const Icon(Icons.chevron_right),
+      trailing: trailing ?? const Icon(FulusIcons.chevronRight),
       onTap: onTap,
     );
   }
@@ -93,7 +93,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                       children: [
                         if (canManageBackup)
                           _row(
-                            icon: Icons.backup_outlined,
+                            icon: FulusIcons.backup,
                             title: 'Backup',
                             subtitle: 'Back up and restore your business data',
                             onTap: () => context.pushNamed('moreSettingsBackup'),
@@ -102,7 +102,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                           const FulusListDivider(),
                         if (canManageSettings)
                           _row(
-                            icon: Icons.print_outlined,
+                            icon: Symbols.print,
                             title: 'Printers',
                             subtitle: 'Receipt and printing settings',
                             onTap: () => context.pushNamed('moreSettingsPrinters'),
@@ -111,7 +111,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                           const FulusListDivider(),
                         if (canManageSettings)
                           _row(
-                            icon: Icons.sync_outlined,
+                            icon: FulusIcons.sync,
                             title: 'Sync',
                             subtitle: 'Local and cloud synchronization status',
                             onTap: () => context.pushNamed('moreSyncDetail'),
@@ -120,7 +120,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                           const FulusListDivider(),
                         if (canManageSettings)
                           _row(
-                            icon: Icons.storefront_outlined,
+                            icon: FulusIcons.locations,
                             title: 'Locations',
                             subtitle: 'Manage the places where this business operates',
                             onTap: () => context.pushNamed('moreSettingsLocations'),
@@ -137,7 +137,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                     _group(
                       children: [
                         _row(
-                          icon: Icons.cloud_outlined,
+                          icon: FulusIcons.cloud,
                           title: 'Fulus Cloud',
                           subtitle: 'Connect this business for server-authoritative sync',
                           onTap: () => context.pushNamed('moreSettingsCloud'),
@@ -153,7 +153,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   _group(
                     children: [
                       _row(
-                        icon: Icons.password_outlined,
+                        icon: FulusIcons.lock,
                         title: 'Change approval PIN',
                         subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
                         onTap: () => _openChangePinSheet(context),
@@ -170,7 +170,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   _group(
                     children: [
                       _row(
-                        icon: Icons.logout,
+                        icon: FulusIcons.logout,
                         title: 'Log out',
                         subtitle: 'Your data on this device stays put — sign back in any time.',
                         trailing: const SizedBox.shrink(),
@@ -232,10 +232,10 @@ class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
       builder: (context, snap) {
         final active = snap.data ?? false;
         return FulusListRow(
-          leading: const Icon(Icons.lock_outline),
+          leading: const Icon(FulusIcons.lock),
           title: const Text('App Lock'),
           subtitle: Text(active ? 'On — a PIN is required to open Fulus' : 'Off'),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(FulusIcons.chevronRight),
           onTap: () async {
             await showModalBottomSheet<void>(
               context: context,
