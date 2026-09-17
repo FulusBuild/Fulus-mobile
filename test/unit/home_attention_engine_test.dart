@@ -71,7 +71,7 @@ void main() {
     expect(result, isEmpty);
   });
 
-  test('sync reminder is below the next operational action', () {
+  test('sync status is never surfaced as a Home attention action', () {
     final result = engine.prioritize(
       canViewDashboardStats: true,
       dayStatus: ShopDayStatus.open,
@@ -81,13 +81,11 @@ void main() {
       hasTodayActivity: false,
     );
 
-    expect(result.map((item) => item.kind), [
-      HomeAttentionKind.startSelling,
-      HomeAttentionKind.unsyncedItems,
-    ]);
+    expect(result.map((item) => item.kind), [HomeAttentionKind.startSelling]);
+    expect(result.map((item) => item.label), ['Start selling']);
   });
 
-  test('singular sync and credit copy stays consumer-friendly', () {
+  test('sync status does not replace a business attention action', () {
     final result = engine.prioritize(
       canViewDashboardStats: true,
       dayStatus: ShopDayStatus.closed,
@@ -98,7 +96,7 @@ void main() {
       hasTodayActivity: true,
     );
 
-    expect(result.map((item) => item.label), ['Review credit', 'Sync 1 item']);
+    expect(result.map((item) => item.label), ['Review credit']);
   });
 
   test('attention list stays deliberately small', () {
