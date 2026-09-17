@@ -112,7 +112,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Fulus', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                        Text('Fulus', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
                         Text('Your business, in your hands', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.mutedOf(context))),
                       ],
@@ -160,14 +160,14 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     radius: 21,
                     backgroundColor: AppColors.primaryOf(context).withValues(alpha: .10),
                     foregroundColor: AppColors.primaryOf(context),
-                    child: Text((displayBusinessName.isNotEmpty ? displayBusinessName[0] : displayUserName[0]).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800)),
+                    child: Text((displayBusinessName.isNotEmpty ? displayBusinessName[0] : displayUserName[0]).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(displayBusinessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text(displayBusinessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
                         Text(displayUserName, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.mutedOf(context))),
                       ],
                     ),
@@ -190,7 +190,7 @@ class _DrawerSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
-        child: Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.1, color: AppColors.mutedOf(context))),
+        child: Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w500, letterSpacing: 1.1, color: AppColors.mutedOf(context))),
       );
 }
 
@@ -221,7 +221,7 @@ class _DrawerItem extends StatelessWidget {
                 children: [
                   Icon(icon, size: AppIconSize.base, color: foreground),
                   const SizedBox(width: AppSpacing.md),
-                  Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? primary : null))),
+                  Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: selected ? primary : null))),
                   if (selected) Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: primary),
                 ],
               ),
