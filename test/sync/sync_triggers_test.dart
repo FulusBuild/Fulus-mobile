@@ -98,9 +98,9 @@ void main() {
       );
       await triggers.start();
       await config.setEnabled(true);
-      await untilCalled(() => syncEngine.runOnce());
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
     });
 
     test('disabling sync after start stops connectivity listening', () async {
@@ -140,9 +140,9 @@ void main() {
         connectivity: connectivity,
       );
       await triggers.start();
-      await untilCalled(() => syncEngine.runOnce());
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
     });
 
@@ -219,7 +219,7 @@ void main() {
       await triggers.reconcileAfterRestore();
 
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
       expect(pulls, [1]);
     });
@@ -337,12 +337,12 @@ void main() {
       verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
 
       connectivityChanges.add([ConnectivityResult.wifi]);
-      await untilCalled(() => syncEngine.runOnce());
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
 
       expect(initializationCalls, 2);
       expect(ready, isTrue);
       verify(() => connectivity.checkConnectivity()).called(1);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
 
       triggers.dispose();
       await connectivityChanges.close();
