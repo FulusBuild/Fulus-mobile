@@ -131,7 +131,6 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
         content: FulusTextField(
           label: 'Customer name',
           controller: controller,
-          autofocus: true,
         ),
         actions: [
           TextButton(
