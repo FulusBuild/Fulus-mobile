@@ -300,7 +300,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   unawaited(syncTriggers.start());
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
-  final printerRepository = PrinterRepositoryImpl(printerRepository: printerRepository);
+  final printerRepository = PrinterRepositoryImpl(db: database);
   final receiptPrinterService = ReceiptPrinterService(printerRepository: printerRepository);
   final printerDiscoveryService = PrinterDiscoveryService();
   final barcodeScannerService = BarcodeScannerService();
