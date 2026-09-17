@@ -313,7 +313,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                           suffixIcon: IconButton(
                             tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                             onPressed: _busy ? null : () => setState(() => _obscurePassword = !_obscurePassword),
-                            icon: Icon(_obscurePassword ? FulusIcons.visibility : FulusIcons.visibility),
+                            icon: Icon(_obscurePassword ? FulusIcons.visibility : FulusIcons.visibilityOff),
                           ),
                         ),
                         if (_error != null) ...[
