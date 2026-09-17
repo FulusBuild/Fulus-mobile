@@ -72,6 +72,10 @@ abstract final class FulusIcons {
   static const bugReport = Symbols.bug_report;
   static const localShipping = Symbols.local_shipping;
   static const payments = Symbols.payments;
+  static const accountBalance = Symbols.account_balance;
+  static const creditCard = Symbols.credit_card;
+  static const payment = Symbols.payment;
+  static const callSplit = Symbols.call_split;
   static const swap = Symbols.swap_vert;
   static const history = Symbols.history;
   static const print = Symbols.print;
