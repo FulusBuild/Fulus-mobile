@@ -40,7 +40,7 @@ class CartScreen extends StatelessWidget {
             body: FulusEmptyState(
               headline: 'Your cart is empty',
               body: 'Add a product from Sell to start a sale.',
-              icon: Icons.shopping_cart_outlined,
+              icon: FulusIcons.shoppingCart,
               actionLabel: 'Back to Sell',
               onAction: () => Navigator.of(context).pop(),
             ),
@@ -194,7 +194,7 @@ class _CartLineTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Icon(
-          Icons.delete_outline,
+          FulusIcons.delete,
           color: AppColors.errorOnOf(context),
         ),
       ),
@@ -342,7 +342,7 @@ class _QuantityStepper extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _StepButton(
-            icon: Icons.remove,
+            icon: FulusIcons.remove,
             semanticsLabel: 'Decrease ${item.description}',
             onTap: () => cubit.decrementItem(item),
           ),
@@ -374,7 +374,7 @@ class _QuantityStepper extends StatelessWidget {
             ),
           ),
           _StepButton(
-            icon: Icons.add,
+            icon: FulusIcons.add,
             semanticsLabel: 'Increase ${item.description}',
             onTap: () => _increment(context, cubit),
           ),
@@ -485,7 +485,7 @@ class _CustomerRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(
-              Icons.person_outline,
+              FulusIcons.person,
               color: AppColors.primaryOf(context),
             ),
           ),
@@ -511,7 +511,7 @@ class _CustomerRow extends StatelessWidget {
             ),
           ),
           Icon(
-            Icons.chevron_right,
+            FulusIcons.chevronRight,
             color: AppColors.textSecondaryOf(context),
           ),
         ],
