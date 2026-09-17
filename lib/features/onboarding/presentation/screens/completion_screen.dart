@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/theme/fulus_icons.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Walkthrough Phase 11. `walkthroughStep` is already
@@ -21,12 +22,11 @@ import '../../../../shared/widgets/widgets.dart';
 /// pushed stack (the earlier comment's assumption was wrong): since
 /// go_router 3.0, `go`/`goNamed` only ever reconciles go_router's own
 /// declarative pages, leaving any plain-Navigator pushes sitting on top
-/// untouched. Every button here silently updated go_router's state
-/// while this whole chain stayed on screen, looking frozen. The
-/// `popUntil` below unwinds that plain-Navigator chain first (the same
-/// pattern SaleSuccessScreen's own "New sale" action already uses
-/// successfully), so `goNamed` then has a clean stack to resolve
-/// against.
+/// untouched. Every button here silently updated go_router's state while
+/// this whole chain stayed on screen, looking frozen. The `popUntil`
+/// below unwinds that plain-Navigator chain first (the same pattern
+/// SaleSuccessScreen's own "New sale" action already uses successfully),
+/// so `goNamed` then has a clean stack to resolve against.
 class CompletionScreen extends ConsumerWidget {
   const CompletionScreen({super.key});
 
@@ -43,7 +43,17 @@ class CompletionScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context), size: 56),
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryOf(context).withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: Icon(FulusIcons.check, color: AppColors.primaryOf(context), size: 40),
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
               "You're ready to run your business with Fulus.",
@@ -58,30 +68,35 @@ class CompletionScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.xl),
             FulusButton(
               label: 'Add more products',
+              icon: FulusIcons.add,
               variant: FulusButtonVariant.secondary,
               onPressed: () => _goAndClose(context, 'stockAddProduct'),
             ),
             const SizedBox(height: AppSpacing.sm),
             FulusButton(
               label: 'Explore inventory',
+              icon: FulusIcons.stock,
               variant: FulusButtonVariant.secondary,
               onPressed: () => _goAndClose(context, 'stock'),
             ),
             const SizedBox(height: AppSpacing.sm),
             FulusButton(
               label: 'View reports',
+              icon: FulusIcons.reports,
               variant: FulusButtonVariant.secondary,
               onPressed: () => _goAndClose(context, 'moreReports'),
             ),
             const SizedBox(height: AppSpacing.sm),
             FulusButton(
               label: 'Add customers',
+              icon: FulusIcons.customers,
               variant: FulusButtonVariant.secondary,
               onPressed: () => _goAndClose(context, 'moneyCustomers'),
             ),
             const SizedBox(height: AppSpacing.lg),
             FulusButton(
               label: 'Start using Fulus',
+              icon: FulusIcons.home,
               onPressed: () => _goAndClose(context, 'home'),
             ),
           ],
