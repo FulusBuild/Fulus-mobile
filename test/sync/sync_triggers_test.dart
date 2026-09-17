@@ -293,13 +293,13 @@ void main() {
 
       final restoreRun = triggers.reconcileAfterRestore();
       await Future<void>.delayed(Duration.zero);
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       expect(pulls, isEmpty);
 
       releaseRun.complete();
       await restoreRun;
 
-      verify(() => syncEngine.runOnce()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       expect(pulls, [1]);
       triggers.dispose();
     });
