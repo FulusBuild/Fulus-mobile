@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_shell.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
+import '../../core/ux/consumer_polish.dart';
 import 'fulus_button.dart';
 import 'fulus_brand_logo.dart';
 
@@ -18,10 +19,17 @@ class FulusScreen extends StatelessWidget {
     this.leading,
     this.floatingActionButton,
     this.bottomNavigationBar,
-    this.padding = const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+    this.padding = _defaultPadding,
     this.applyPadding = true,
     this.showMenu = true,
   });
+
+  static const _defaultPadding = EdgeInsets.fromLTRB(
+    AppSpacing.lg,
+    AppSpacing.md,
+    AppSpacing.lg,
+    AppSpacing.xxl,
+  );
 
   final String? title;
   final String? subtitle;
@@ -38,7 +46,15 @@ class FulusScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasHeader = title != null;
     final canPop = Navigator.of(context).canPop();
-    final content = applyPadding ? Padding(padding: padding, child: body) : body;
+    final adaptivePadding = padding == _defaultPadding
+        ? EdgeInsets.fromLTRB(
+            FulusLayout.horizontalInset(context),
+            padding.top,
+            FulusLayout.horizontalInset(context),
+            padding.bottom,
+          )
+        : padding;
+    final content = applyPadding ? Padding(padding: adaptivePadding, child: body) : body;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundOf(context),
@@ -60,7 +76,7 @@ class FulusScreen extends StatelessWidget {
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1120),
+                  constraints: const BoxConstraints(maxWidth: FulusLayout.maxContentWidth),
                   child: content,
                 ),
               ),
@@ -93,7 +109,9 @@ class _PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final muted = AppColors.mutedOf(context);
     final foreground = AppColors.textPrimaryOf(context);
-    final isWide = MediaQuery.sizeOf(context).width >= 700;
+    final width = FulusLayout.width(context);
+    final isWide = width >= FulusLayout.wideBreakpoint;
+    final inset = FulusLayout.horizontalInset(context);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -102,13 +120,13 @@ class _PageHeader extends StatelessWidget {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1120),
+          constraints: const BoxConstraints(maxWidth: FulusLayout.maxContentWidth),
           child: Padding(
             padding: EdgeInsets.fromLTRB(
-              isWide ? AppSpacing.lg : AppSpacing.lg,
-              isWide ? AppSpacing.md : AppSpacing.xs,
-              isWide ? AppSpacing.lg : AppSpacing.lg,
-              isWide ? AppSpacing.md : AppSpacing.xs,
+              inset,
+              width >= FulusLayout.tabletBreakpoint ? AppSpacing.md : AppSpacing.xs,
+              inset,
+              width >= FulusLayout.tabletBreakpoint ? AppSpacing.md : AppSpacing.xs,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
