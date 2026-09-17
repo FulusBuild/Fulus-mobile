@@ -37,6 +37,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
   _AccountMode _mode = _AccountMode.signIn;
   bool _busy = false;
   bool _awaitingVerification = false;
+  bool _obscurePassword = true;
   String? _error;
 
   @override
@@ -280,8 +281,8 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     creating
-                        ? 'One account for your business. Your work stays on this device and backs up automatically.'
-                        : 'Sign in to your Fulus account to bring your business back to this device.',
+                        ? 'Create one account for your business. Your work stays on this device and backs up automatically.'
+                        : 'Sign in to bring your Fulus business back to this device.',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
@@ -306,8 +307,14 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                         FulusTextField(
                           label: 'Password',
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           enabled: !_busy,
+                          helperText: creating ? 'Use at least 8 characters.' : null,
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                            onPressed: _busy ? null : () => setState(() => _obscurePassword = !_obscurePassword),
+                            icon: Icon(_obscurePassword ? FulusIcons.visibility : FulusIcons.visibility),
+                          ),
                         ),
                         if (_error != null) ...[
                           const SizedBox(height: AppSpacing.md),
