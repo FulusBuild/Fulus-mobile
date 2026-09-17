@@ -44,7 +44,7 @@ class ManageLocationsScreen extends ConsumerWidget {
       subtitle: 'Choose where you are working',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addLocation(context, ref),
-        icon: const Icon(Icons.add),
+        icon: const Icon(FulusIcons.add),
         label: const Text('Add location'),
       ),
       body: locationsAsync.when(
@@ -117,7 +117,7 @@ class _LocationCard extends StatelessWidget {
               color: isActive ? AppColors.selectedTintOf(context) : AppColors.surfaceAltOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(Icons.storefront_outlined, size: AppIconSize.base, color: isActive ? primary : AppColors.textSecondaryOf(context)),
+            child: Icon(FulusIcons.locations, size: AppIconSize.base, color: isActive ? primary : AppColors.textSecondaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -128,14 +128,14 @@ class _LocationCard extends StatelessWidget {
                 Text(location.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
                 const SizedBox(height: AppSpacing.xs),
                 if (isActive)
-                  const FulusStatusPill(label: 'Active', icon: Icons.check_circle_outline)
+                  const FulusStatusPill(label: 'Active', icon: FulusIcons.check)
                 else
                   Text('Tap to switch here', style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context))),
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Icon(isActive ? Icons.check_circle : Icons.chevron_right, color: isActive ? primary : AppColors.mutedOf(context)),
+          Icon(isActive ? FulusIcons.check : FulusIcons.chevronRight, color: isActive ? primary : AppColors.mutedOf(context)),
         ],
       ),
     );
