@@ -269,11 +269,13 @@ void main() {
       final config = await SyncConfig.load();
       final runStarted = Completer<void>();
       final releaseRun = Completer<void>();
+      var runCount = 0;
       when(() => connectivity.checkConnectivity())
           .thenAnswer((_) async => [ConnectivityResult.wifi]);
       when(() => connectivity.onConnectivityChanged)
           .thenAnswer((_) => const Stream.empty());
       when(() => syncEngine.runOnce(manual: any(named: 'manual'))).thenAnswer((_) async {
+        runCount++;
         if (!runStarted.isCompleted) runStarted.complete();
         await releaseRun.future;
       });
@@ -293,14 +295,15 @@ void main() {
 
       final restoreRun = triggers.reconcileAfterRestore();
       await Future<void>.delayed(Duration.zero);
-      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      expect(runCount, 1);
       expect(pulls, isEmpty);
 
       releaseRun.complete();
       await restoreRun;
 
-      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      expect(runCount, 1);
       expect(pulls, [1]);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
       triggers.dispose();
     });
 
