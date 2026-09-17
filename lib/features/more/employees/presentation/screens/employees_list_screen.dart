@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
-import '../../../../../domain/entities/employee.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
@@ -21,16 +20,17 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Team',
+      subtitle: 'People, access and attendance',
       actions: [
         FulusIconButton(
-          icon: Icons.person_off_outlined,
+          icon: FulusIcons.staff,
           tooltip: 'Deactivated team members',
           onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
         ),
       ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEmployeeSheet(context),
-        icon: const Icon(Icons.person_add_outlined),
+        icon: const Icon(FulusIcons.person),
         label: const Text('Add member'),
       ),
       body: StreamBuilder<List<Employee>>(
@@ -47,7 +47,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
           if (!snapshot.hasData) return const FulusLoadingIndicator();
           if (employees.isEmpty) {
             return FulusEmptyState(
-              icon: Icons.people_outline,
+              icon: FulusIcons.staff,
               headline: 'No team members yet',
               body: 'Add your first team member to manage attendance and access.',
               actionLabel: 'Add team member',
@@ -117,7 +117,7 @@ class _TeamOverview extends StatelessWidget {
               color: AppColors.selectedTintOf(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(Icons.groups_outlined, color: AppColors.primaryOf(context)),
+            child: Icon(FulusIcons.staff, color: AppColors.primaryOf(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -256,12 +256,12 @@ class _EmployeeTile extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     FulusIconButton(
-                      icon: Icons.event_available_outlined,
+                      icon: FulusIcons.calendar,
                       tooltip: 'Mark attendance',
                       onPressed: () => _markToday(context, ref),
                     ),
                     FulusIconButton(
-                      icon: Icons.edit_outlined,
+                      icon: FulusIcons.edit,
                       tooltip: 'Edit',
                       onPressed: onEdit,
                     ),
@@ -274,7 +274,7 @@ class _EmployeeTile extends ConsumerWidget {
                       Padding(
                         padding: const EdgeInsets.only(right: AppSpacing.xs),
                         child: Icon(
-                          Icons.no_accounts_outlined,
+                          FulusIcons.person,
                           color: AppColors.warningOf(context),
                           size: AppIconSize.compact,
                         ),
@@ -287,16 +287,16 @@ class _EmployeeTile extends ConsumerWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     FulusIconButton(
-                      icon: Icons.event_available_outlined,
+                      icon: FulusIcons.calendar,
                       tooltip: 'Mark attendance',
                       onPressed: () => _markToday(context, ref),
                     ),
                     FulusIconButton(
-                      icon: Icons.edit_outlined,
+                      icon: FulusIcons.edit,
                       tooltip: 'Edit',
                       onPressed: onEdit,
                     ),
-                    Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryOf(context)),
+                    Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
                   ],
                 ),
         );
@@ -314,7 +314,7 @@ class _EmployeeTile extends ConsumerWidget {
           for (final status in AttendanceStatus.values)
             FulusListRow(
               onTap: () => Navigator.of(context).pop(status),
-              leading: Icon(Icons.circle_outlined, color: AppColors.primaryOf(context)),
+              leading: Icon(FulusIcons.check, color: AppColors.primaryOf(context)),
               title: Text(status.name),
             ),
         ],
