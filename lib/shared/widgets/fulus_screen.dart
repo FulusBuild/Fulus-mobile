@@ -105,9 +105,9 @@ class _PageHeader extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 1120),
           child: Padding(
             padding: EdgeInsets.fromLTRB(
-              isWide ? AppSpacing.lg : AppSpacing.sm,
+              isWide ? AppSpacing.lg : AppSpacing.lg,
               isWide ? AppSpacing.md : AppSpacing.xs,
-              isWide ? AppSpacing.lg : AppSpacing.md,
+              isWide ? AppSpacing.lg : AppSpacing.lg,
               isWide ? AppSpacing.md : AppSpacing.xs,
             ),
             child: Row(
@@ -131,7 +131,7 @@ class _PageHeader extends StatelessWidget {
                   ),
                 if (showMenu) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  const FulusBrandLogo(size: 32, padding: 7),
+                  const FulusBrandLogo(size: 40, padding: 7),
                   const SizedBox(width: AppSpacing.md),
                 ],
                 Expanded(
