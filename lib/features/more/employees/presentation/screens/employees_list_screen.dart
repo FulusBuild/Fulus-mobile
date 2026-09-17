@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../domain/entities/employee.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
