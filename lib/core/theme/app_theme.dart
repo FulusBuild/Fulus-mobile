@@ -45,7 +45,7 @@ class AppTheme {
       chipTheme: _chipTheme(colorScheme, AppColors.borderLight),
       listTileTheme: _listTileTheme(AppColors.textPrimaryLight),
       dialogTheme: _dialogTheme(AppColors.surfaceLight, AppColors.textPrimaryLight),
-      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceLight),
+      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceLight, AppColors.borderLight),
       floatingActionButtonTheme: _fabTheme(colorScheme),
       snackBarTheme: _snackBarTheme(colorScheme),
       pageTransitionsTheme: _pageTransitionsTheme,
@@ -85,7 +85,7 @@ class AppTheme {
       chipTheme: _chipTheme(colorScheme, AppColors.borderDark),
       listTileTheme: _listTileTheme(AppColors.darkTextPrimary),
       dialogTheme: _dialogTheme(AppColors.surfaceDark, AppColors.darkTextPrimary),
-      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceDark),
+      bottomSheetTheme: _bottomSheetTheme(AppColors.surfaceDark, AppColors.borderDark),
       floatingActionButtonTheme: _fabTheme(colorScheme),
       snackBarTheme: _snackBarTheme(colorScheme),
       pageTransitionsTheme: _pageTransitionsTheme,
@@ -190,14 +190,14 @@ class AppTheme {
     );
   }
 
-  static BottomSheetThemeData _bottomSheetTheme(Color surface) {
+  static BottomSheetThemeData _bottomSheetTheme(Color surface, Color dragHandle) {
     return BottomSheetThemeData(
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       modalElevation: 0,
       showDragHandle: true,
-      dragHandleColor: AppColors.borderLight,
+      dragHandleColor: dragHandle,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
