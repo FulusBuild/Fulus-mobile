@@ -12,7 +12,7 @@ import '../widgets/receipt_preview_sheet.dart';
 /// The sale is already committed before this screen appears. This screen
 /// confirms the result, keeps receipt actions close at hand, and makes the
 /// ordinary repeat-sale path return directly to Sell rather than dumping the
-/// cashier at the app root.
+/// cashier at an empty Cart screen.
 class SaleSuccessScreen extends ConsumerStatefulWidget {
   const SaleSuccessScreen({
     super.key,
@@ -72,21 +72,21 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
       return;
     }
 
-    // This screen is presented by the Sell flow with the platform Navigator.
-    // Going through go_router here can target the shell's router location
-    // without unwinding the Navigator that actually owns this page, which
-    // makes the button appear to do nothing. Pop the completed page instead;
-    // the committed sale has already cleared its draft cart, so the Sell
-    // page underneath is a fresh basket and is immediately ready for input.
+    // Payment replaced the Cart page with this success page, so there are two
+    // Navigator entries between this screen and Sell. Return to the actual
+    // selling workspace rather than showing a now-empty cart and asking the
+    // cashier to press "Back to Sell" themselves.
     if (!context.mounted) return;
-    Navigator.of(context).pop();
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
+    if (navigator.canPop()) navigator.pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return FulusScreen(
-      title: 'Sale Complete',
+      title: 'Sale complete',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final contentWidth = constraints.maxWidth >= 760 ? 680.0 : double.infinity;
@@ -182,7 +182,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FulusButton(
-                        label: _isFirstSale ? 'View what changed' : 'New Sale',
+                        label: _isFirstSale ? 'View what changed' : 'New sale',
                         onPressed: () => _continue(context),
                       ),
                     ),
