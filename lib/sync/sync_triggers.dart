@@ -142,15 +142,17 @@ class SyncTriggers with WidgetsBindingObserver {
         );
       }
 
-      // Reconciliation is intentionally serialized here: restore must have
-      // one authoritative engine/pull cycle before any lifecycle/connectivity-
-      // triggered cycle can start, otherwise two pulls can race on the same
-      // cursor and readiness can be advertised against a different cycle than
-      // the restore flow awaited.
+      // If a normal trigger already owns the cycle, restore can safely
+      // piggyback on it: the normal cycle already performs the queue drain and
+      // server pull, and _connectivityRun serializes all other triggers behind
+      // that same work. Starting a second cycle here would duplicate the run
+      // and pull unnecessarily.
       final active = _connectivityRun;
       if (active != null) {
         await active;
+        return;
       }
+
       final run = _runAndCheckStuck();
       _connectivityRun = run;
       try {
