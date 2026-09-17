@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 
-/// Canonical Fulus brand mark used throughout the workspace shell.
+/// Canonical Fulus brand mark used in onboarding and account surfaces.
 ///
-/// The source artwork is transparent; the container supplies the single
-/// Fulus-blue brand background so the mark reads consistently in the drawer,
-/// account surfaces, and other shell-level UI.
+/// Workspace headers intentionally use a text-first wordmark, so compact
+/// shell sizes collapse to no mark. Larger branding remains available for
+/// onboarding and dedicated account surfaces.
 class FulusBrandLogo extends StatelessWidget {
   const FulusBrandLogo({
     super.key,
@@ -21,16 +21,12 @@ class FulusBrandLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Small shell logos used beside page titles previously had too much
-    // internal padding, making the F mark look visibly smaller than the
-    // adjacent title even though the blue tile itself was correctly sized.
-    // Keep the drawer/account mark unchanged, but let compact 32–40dp marks
-    // use the available visual area more effectively.
-    final effectivePadding = size <= 40 ? padding.clamp(4.0, 6.0) : padding;
+    if (size <= 48) return const SizedBox.shrink();
+
     return Container(
       width: size,
       height: size,
-      padding: EdgeInsets.all(effectivePadding),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: backgroundColor ?? AppColors.primaryOf(context),
         borderRadius: BorderRadius.circular(AppRadius.md),
