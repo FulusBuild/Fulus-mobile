@@ -29,6 +29,8 @@ abstract final class FulusIcons {
   static const upload = Symbols.upload_file;
   static const add = Symbols.add;
   static const remove = Symbols.remove;
+  static const shoppingCart = Symbols.shopping_cart;
+  static const removeShoppingCart = Symbols.remove_shopping_cart;
   static const arrowForward = Symbols.arrow_forward;
   static const arrowBack = Symbols.arrow_back;
   static const arrowUp = Symbols.arrow_upward;
