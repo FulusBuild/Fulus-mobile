@@ -44,6 +44,7 @@ class SyncTriggers with WidgetsBindingObserver {
   bool _started = false;
   Future<void>? _connectivityRun;
   Future<void>? _readinessRun;
+  bool _restoreReconciliationInProgress = false;
 
   Future<void> start() async {
     if (_started) return;
@@ -125,32 +126,44 @@ class SyncTriggers with WidgetsBindingObserver {
         'Cannot reconcile a restored business while sync is disabled.',
       );
     }
-    final results = await _connectivity.checkConnectivity();
-    if (!_hasConnectivity(results)) {
-      throw StateError(
-        'Fulus Cloud initial reconciliation requires an internet connection.',
-      );
-    }
+    if (_restoreReconciliationInProgress) return;
 
-    // Enabling sync immediately before this call also fires _onConfigChanged,
-    // which can start the normal trigger path concurrently. Reconciliation is
-    // intentionally serialized here: restore must have one authoritative
-    // engine/pull cycle before any lifecycle/connectivity-triggered cycle can
-    // start, otherwise two pulls can race on the same cursor and readiness can
-    // be advertised against a different cycle than the restore flow awaited.
-    final active = _connectivityRun;
-    if (active != null) {
-      await active;
-      return;
-    }
-    final run = _runAndCheckStuck();
-    _connectivityRun = run;
+    // Enabling sync immediately before this call fires _onConfigChanged and
+    // can start the normal trigger path concurrently. Mark the restore phase
+    // before doing any asynchronous work so that normal readiness-gated
+    // triggers stand down instead of calling onNotReady -> reconcileAfterRestore
+    // recursively and waiting on their own in-flight Future.
+    _restoreReconciliationInProgress = true;
     try {
-      await run;
-    } finally {
-      if (identical(_connectivityRun, run)) {
-        _connectivityRun = null;
+      final results = await _connectivity.checkConnectivity();
+      if (!_hasConnectivity(results)) {
+        throw StateError(
+          'Fulus Cloud initial reconciliation requires an internet connection.',
+        );
       }
+
+      // If a normal trigger already owns the cycle, restore can safely
+      // piggyback on it: the normal cycle already performs the queue drain and
+      // server pull, and _connectivityRun serializes all other triggers behind
+      // that same work. Starting a second cycle here would duplicate the run
+      // and pull unnecessarily.
+      final active = _connectivityRun;
+      if (active != null) {
+        await active;
+        return;
+      }
+
+      final run = _runAndCheckStuck();
+      _connectivityRun = run;
+      try {
+        await run;
+      } finally {
+        if (identical(_connectivityRun, run)) {
+          _connectivityRun = null;
+        }
+      }
+    } finally {
+      _restoreReconciliationInProgress = false;
     }
   }
 
@@ -160,6 +173,11 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> _ensureReady() async {
+    // Restore owns the initial reconciliation. A normal trigger that happens
+    // to fire while restore is enabling sync must stand down; otherwise it can
+    // enter onNotReady and recursively invoke reconcileAfterRestore.
+    if (_restoreReconciliationInProgress) return;
+
     final ready = _isReady;
     if (ready == null || await ready()) return;
     final initialize = _onNotReady;

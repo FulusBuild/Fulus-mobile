@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// Shared content surface. Cards stay quiet; hierarchy comes from spacing,
 /// typography and interaction rather than heavy borders.
@@ -120,9 +121,7 @@ class FulusStatGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : minTileWidth;
-        final rawColumns = (availableWidth / minTileWidth).floor();
-        final byWidth = rawColumns.clamp(1, 4);
-        final columns = byWidth < cards.length ? byWidth : cards.length;
+        final columns = FulusLayout.columns(availableWidth, minTileWidth: minTileWidth, maxColumns: 4).clamp(1, cards.length);
         final rows = <Widget>[];
         for (var i = 0; i < cards.length; i += columns) {
           if (rows.isNotEmpty) rows.add(SizedBox(height: spacing));

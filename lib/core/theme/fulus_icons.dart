@@ -9,7 +9,7 @@ import 'package:material_symbols_icons/symbols.dart';
 /// normal Flutter IconData type.
 abstract final class FulusIcons {
   static const home = Symbols.home;
-  static const sell = Symbols.point_of_sale;
+  static const sell = Symbols.shopping_cart;
   static const stock = Symbols.inventory_2;
   static const money = Symbols.payments;
   static const reports = Symbols.bar_chart;
