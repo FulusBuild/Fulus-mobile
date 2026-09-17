@@ -39,7 +39,7 @@ class AppTheme {
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.textPrimaryLight, AppColors.borderLight),
       textButtonTheme: _textButtonTheme(AppColors.primary),
       cardTheme: _cardTheme(AppColors.surfaceLight),
-      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.primary),
+      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceLight, AppColors.borderLight, AppColors.primary, AppColors.mutedLight),
       appBarTheme: _appBarTheme(AppColors.backgroundLight, AppColors.textPrimaryLight),
       dividerTheme: const DividerThemeData(color: AppColors.borderLight, thickness: 1, space: 1),
       chipTheme: _chipTheme(colorScheme, AppColors.borderLight),
@@ -79,7 +79,7 @@ class AppTheme {
       outlinedButtonTheme: _outlinedButtonTheme(AppColors.darkTextPrimary, AppColors.borderDark),
       textButtonTheme: _textButtonTheme(AppColors.darkPrimary),
       cardTheme: _cardTheme(AppColors.surfaceDark),
-      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkPrimary),
+      inputDecorationTheme: _inputDecorationTheme(AppColors.surfaceDark, AppColors.borderDark, AppColors.darkPrimary, AppColors.darkMuted),
       appBarTheme: _appBarTheme(AppColors.backgroundDark, AppColors.darkTextPrimary),
       dividerTheme: const DividerThemeData(color: AppColors.borderDark, thickness: 1, space: 1),
       chipTheme: _chipTheme(colorScheme, AppColors.borderDark),
@@ -239,13 +239,13 @@ class AppTheme {
     );
   }
 
-  static InputDecorationTheme _inputDecorationTheme(Color surface, Color border, Color focus) {
+  static InputDecorationTheme _inputDecorationTheme(Color surface, Color border, Color focus, Color muted) {
     return InputDecorationTheme(
       floatingLabelBehavior: FloatingLabelBehavior.auto,
       filled: true,
       fillColor: surface,
-      labelStyle: AppTypography.caption.copyWith(color: AppColors.mutedLight),
-      hintStyle: AppTypography.body.copyWith(color: AppColors.mutedLight),
+      labelStyle: AppTypography.caption.copyWith(color: muted),
+      hintStyle: AppTypography.body.copyWith(color: muted),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         borderSide: BorderSide(color: border),
