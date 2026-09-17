@@ -38,14 +38,9 @@ class _DiagnosticDetailScreenState extends ConsumerState<DiagnosticDetailScreen>
         eventAsync.maybeWhen(
           data: (event) => event == null
               ? const SizedBox.shrink()
-              : IconButton(
-                  icon: _sharing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.ios_share),
+              : FulusIconButton(
+                  icon: FulusIcons.share,
+                  tooltip: 'Share diagnostics',
                   onPressed: _sharing ? null : () => _showShareOptions(context, event),
                 ),
           orElse: () => const SizedBox.shrink(),
@@ -326,8 +321,10 @@ class _TechnicalDetailsSectionState extends State<_TechnicalDetailsSection> {
                   'Technical details',
                   style: AppTypography.label.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
-                Icon(_expanded ? Icons.expand_less : Icons.expand_more,
-                    color: AppColors.textSecondaryOf(context)),
+                Icon(
+                  _expanded ? FulusIcons.chevronUp : FulusIcons.chevronDown,
+                  color: AppColors.textSecondaryOf(context),
+                ),
               ],
             ),
             if (_expanded) ...[
