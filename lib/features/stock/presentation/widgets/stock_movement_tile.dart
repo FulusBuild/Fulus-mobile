@@ -44,15 +44,15 @@ class StockMovementTile extends StatelessWidget {
   (IconData, String, Color) _presentation(BuildContext context) {
     switch (movement.movementType) {
       case StockMovementType.stockIn:
-        return (Icons.arrow_downward, 'Stock in', AppColors.primaryOf(context));
+        return (FulusIcons.arrowDown, 'Stock in', AppColors.primaryOf(context));
       case StockMovementType.stockOut:
-        return (Icons.arrow_upward, movement.reason ?? 'Stock out', AppColors.errorOf(context));
+        return (FulusIcons.arrowUp, movement.reason ?? 'Stock out', AppColors.errorOf(context));
       case StockMovementType.adjustment:
-        return (Icons.tune, 'Adjusted', AppColors.warningOf(context));
+        return (FulusIcons.settings, 'Adjusted', AppColors.warningOf(context));
       case StockMovementType.sale:
-        return (Icons.point_of_sale, 'Sold', AppColors.textPrimaryOf(context));
+        return (FulusIcons.sell, 'Sold', AppColors.textPrimaryOf(context));
       case StockMovementType.transfer:
-        return (Icons.sync_alt, 'Transferred', AppColors.infoOf(context));
+        return (FulusIcons.sync, 'Transferred', AppColors.infoOf(context));
     }
   }
 
