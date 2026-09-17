@@ -30,7 +30,8 @@ class LocationRepositoryImpl implements LocationRepository {
 
   @override
   Future<Location?> getLocationById(String localId) async {
-    final query = _db.select(_db.locations)..where((l) => l.localId.equals(localId));
+    final query = _db.select(_db.locations)
+      ..where((l) => l.localId.equals(localId) & l.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     return row?.toDomain();
   }
