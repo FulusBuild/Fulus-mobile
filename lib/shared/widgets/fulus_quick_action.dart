@@ -27,11 +27,11 @@ class FulusQuickAction extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Quick actions are commonly placed four-up inside an Expanded
-              // row. Keep the visual rhythm intact on small phones without
-              // allowing long/localized labels to collide with their
-              // neighbours. The touch target itself remains 48dp.
-              final iconSize = constraints.maxWidth < 72 ? 44.0 : 48.0;
+              // Scale the decorative icon with the tile's available width,
+              // while keeping the interaction target independent and at
+              // least 48dp. This follows the shared responsive grid rather
+              // than the physical device type.
+              final iconSize = (constraints.maxWidth * .32).clamp(40.0, 48.0).toDouble();
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
