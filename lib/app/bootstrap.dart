@@ -292,10 +292,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       await syncCoordinator.pullAndApply(businessId: businessId);
     },
   );
-  await syncTriggers.start();
+
+  // Sync is a background concern. A persisted cloud-sync session must never
+  // hold the app's bootstrap gate hostage to network/auth/reconciliation
+  // work. The trigger object is fully wired before this call and owns its
+  // own retries when startup readiness is not yet available.
+  unawaited(syncTriggers.start());
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
-  final printerRepository = PrinterRepositoryImpl(db: database);
+  final printerRepository = PrinterRepositoryImpl(printerRepository: printerRepository);
   final receiptPrinterService = ReceiptPrinterService(printerRepository: printerRepository);
   final printerDiscoveryService = PrinterDiscoveryService();
   final barcodeScannerService = BarcodeScannerService();
