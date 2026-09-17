@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/theme/fulus_icons.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Bulk-import screen for `ImportProductsFromCsv`. Supports picking a
@@ -43,7 +42,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
         type: FileType.custom,
         allowedExtensions: ['csv'],
       );
-      if (result.isEmpty) return; // canceled
+      if (result.isEmpty) return;
       final bytes = await result.single.readAsBytes();
       _contentController.text = utf8.decode(bytes, allowMalformed: true);
       setState(() {});
