@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -12,38 +13,21 @@ import '../../core/errors/failure.dart';
 import '../../core/theme/design_tokens.dart';
 import '../widgets/widgets.dart';
 
-/// Gap fix — Volume 6 product photos: `Product.photoPath` and
-/// `ProductRepository.updateProduct(photoPath: ...)` already existed
-/// fully wired; `CameraService` (device_services/camera/) already
-/// existed too. Nothing anywhere called either. This screen is that
-/// missing caller — shared, not Product-specific, matching
-/// BarcodeScanScreen's own "one screen, multiple callers" shape.
+/// Shared product/receipt photo flow. A person can either take a new photo
+/// with the camera or choose an existing image from the phone. Both paths
+/// copy the selected image into the app's permanent documents directory so
+/// Product.photoPath / receipt attachments never depend on a transient
+/// picker or camera cache path.
 ///
-/// The captured `XFile` gets copied into the app's own permanent
-/// documents directory before this screen returns a path — `XFile`'s
-/// own path can be a transient cache location depending on platform,
-/// and `Product.photoPath`'s own doc comment says "a local file path,"
-/// implying something this device can keep relying on, not a path that
-/// might be cleaned up by the OS the way a cache directory can be.
-///
-/// **Gap-closure pass addendum** (Receipt Photo Attachment on
-/// Expenses, this screen's second caller after Product Photo Capture):
-/// added a preview step between capture and returning — a shot that's
-/// blurry or has glare across the numbers is exactly the failure mode
-/// a receipt photo exists to avoid, and there was previously no way to
-/// notice that before it was already saved and this screen had already
-/// popped. Retake keeps the same live `CameraController` rather than
-/// tearing it down and recreating it (`CameraService.capturePhoto` is
-/// a plain `controller.takePicture()` — the controller stays valid for
-/// another shot afterward), and best-effort deletes the discarded
-/// file it's replacing so a string of retakes doesn't leave orphaned
-/// photos behind in the documents directory.
+/// The captured/selected image gets a preview step before this screen returns.
+/// Retake/choose again keeps the existing flow simple and lets a person check
+/// that the product image is actually the one they intended to use.
 class PhotoCaptureScreen extends ConsumerStatefulWidget {
-  const PhotoCaptureScreen({super.key, this.title = 'Take a photo'});
+  const PhotoCaptureScreen({super.key, this.title = 'Add a photo'});
 
   final String title;
 
-  static Future<String?> capture(BuildContext context, {String title = 'Take a photo'}) {
+  static Future<String?> capture(BuildContext context, {String title = 'Add a photo'}) {
     return Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => PhotoCaptureScreen(title: title)),
     );
@@ -59,10 +43,6 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
   _CaptureState _state = _CaptureState.checking;
   CameraController? _controller;
   String? _errorMessage;
-
-  /// Set once a shot has been captured and copied to disk, cleared
-  /// again on retake — only meaningful while [_state] is
-  /// [_CaptureState.preview].
   String? _previewPath;
 
   @override
@@ -87,18 +67,24 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
         _state = _CaptureState.ready;
       });
     } on DeviceFailure catch (f) {
-      // DeviceFailure's concrete variants (_PermissionDenied,
-      // _ConnectionFailed, etc.) are private to failure.dart — callers
-      // outside that file can't `is`-check or pattern-match which one
-      // this is, only read its message. So this shows that message
-      // directly instead of trying to pick between two prewritten
-      // strings for a distinction this file can't actually see.
       if (!mounted) return;
       setState(() {
         _state = _CaptureState.denied;
         _errorMessage = f.message;
       });
     }
+  }
+
+  Future<String?> _copyToPermanentStorage(String sourcePath) async {
+    final documentsDir = await getApplicationDocumentsDirectory();
+    final photosDir = Directory(p.join(documentsDir.path, 'photos'));
+    if (!await photosDir.exists()) {
+      await photosDir.create(recursive: true);
+    }
+    final extension = p.extension(sourcePath).isEmpty ? '.jpg' : p.extension(sourcePath);
+    final destination = p.join(photosDir.path, '${Ulid()}$extension');
+    await File(sourcePath).copy(destination);
+    return destination;
   }
 
   Future<void> _capture() async {
@@ -108,19 +94,12 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
     try {
       final service = ref.read(cameraServiceProvider);
       final captured = await service.capturePhoto(controller);
-      final documentsDir = await getApplicationDocumentsDirectory();
-      final photosDir = Directory(p.join(documentsDir.path, 'photos'));
-      if (!await photosDir.exists()) {
-        await photosDir.create(recursive: true);
-      }
-      final destination = p.join(photosDir.path, '${Ulid()}${p.extension(captured.path)}');
-      await File(captured.path).copy(destination);
-      if (mounted) {
-        setState(() {
-          _previewPath = destination;
-          _state = _CaptureState.preview;
-        });
-      }
+      final destination = await _copyToPermanentStorage(captured.path);
+      if (!mounted) return;
+      setState(() {
+        _previewPath = destination;
+        _state = _CaptureState.preview;
+      });
     } catch (_) {
       if (mounted) {
         setState(() => _state = _CaptureState.ready);
@@ -129,10 +108,30 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
     }
   }
 
-  /// Back to a live preview for another shot — the controller from
-  /// [_setUp] is still initialized (see this class's own doc comment),
-  /// so there's no camera-reinitialization flicker here, just a state
-  /// change.
+  Future<void> _pickFromPhone() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      final sourcePath = result?.files.single.path;
+      if (sourcePath == null || sourcePath.isEmpty) return;
+
+      if (mounted) setState(() => _state = _CaptureState.saving);
+      final destination = await _copyToPermanentStorage(sourcePath);
+      if (!mounted) return;
+      setState(() {
+        _previewPath = destination;
+        _state = _CaptureState.preview;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = _CaptureState.ready);
+        showFulusSnackbar(context, message: "Couldn't choose that image. Please try again.");
+      }
+    }
+  }
+
   Future<void> _retake() async {
     final discarded = _previewPath;
     setState(() {
@@ -143,9 +142,7 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
       try {
         await File(discarded).delete();
       } catch (_) {
-        // Harmless clutter, not a correctness problem — the user
-        // already told us they don't want this shot; failing loudly
-        // about cleanup would only confuse them.
+        // Best-effort cleanup only; the chosen replacement remains usable.
       }
     }
   }
@@ -159,12 +156,17 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: Text(widget.title), backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+      ),
       body: switch (_state) {
         _CaptureState.checking => const Center(child: CircularProgressIndicator(color: Colors.white)),
         _CaptureState.denied => _MessageBody(
-            icon: Icons.camera_alt_outlined,
-            message: _errorMessage ?? 'Camera access needed to take a photo.',
+            icon: FulusIcons.camera,
+            message: _errorMessage ?? 'Camera access is unavailable.',
+            onPick: _pickFromPhone,
             onSkip: () => Navigator.of(context).pop(),
           ),
         _CaptureState.ready || _CaptureState.saving => Stack(
@@ -172,27 +174,61 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
             children: [
               if (_controller != null) CameraPreview(_controller!),
               Positioned(
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
                 bottom: AppSpacing.xl,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: _state == _CaptureState.saving
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : FloatingActionButton(onPressed: _capture, child: const Icon(Icons.camera_alt)),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: FulusButton(
+                          label: 'Choose from phone',
+                          icon: FulusIcons.image,
+                          variant: FulusButtonVariant.secondary,
+                          onPressed: _state == _CaptureState.saving ? null : _pickFromPhone,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _state == _CaptureState.saving
+                          ? const SizedBox(
+                              height: 56,
+                              child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                            )
+                          : FloatingActionButton(
+                              onPressed: _capture,
+                              tooltip: 'Take photo',
+                              child: const Icon(FulusIcons.camera),
+                            ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-        _CaptureState.preview => _PreviewBody(path: _previewPath!, onRetake: _retake, onConfirm: _confirm),
+        _CaptureState.preview => _PreviewBody(
+            path: _previewPath!,
+            onRetake: _retake,
+            onConfirm: _confirm,
+          ),
       },
     );
   }
 }
 
 class _MessageBody extends StatelessWidget {
-  const _MessageBody({required this.icon, required this.message, required this.onSkip});
+  const _MessageBody({
+    required this.icon,
+    required this.message,
+    required this.onPick,
+    required this.onSkip,
+  });
+
   final IconData icon;
   final String message;
+  final VoidCallback onPick;
   final VoidCallback onSkip;
 
   @override
@@ -207,7 +243,17 @@ class _MessageBody extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(message, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.lg),
-            FulusButton(label: 'Skip for now', onPressed: onSkip),
+            FulusButton(
+              label: 'Choose from phone',
+              icon: FulusIcons.image,
+              onPressed: onPick,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FulusButton(
+              label: 'Skip for now',
+              variant: FulusButtonVariant.text,
+              onPressed: onSkip,
+            ),
           ],
         ),
       ),
@@ -232,7 +278,11 @@ class _PreviewBody extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: FulusButton(label: 'Retake', variant: FulusButtonVariant.secondary, onPressed: onRetake),
+                child: FulusButton(
+                  label: 'Choose again',
+                  variant: FulusButtonVariant.secondary,
+                  onPressed: onRetake,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(child: FulusButton(label: 'Use photo', onPressed: onConfirm)),
