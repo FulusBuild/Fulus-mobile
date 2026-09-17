@@ -88,3 +88,9 @@ const fulusIconTheme = IconThemeData(
   grade: 0,
   opticalSize: 24,
 );
+
+/// Convenience widget adapter for places that need an icon widget rather than
+/// the raw IconData value from the shared vocabulary.
+extension FulusIconDataWidget on IconData {
+  Widget get icon => Icon(this);
+}
