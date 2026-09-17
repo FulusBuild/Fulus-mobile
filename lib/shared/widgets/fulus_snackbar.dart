@@ -22,6 +22,10 @@ void showFulusSnackbar(
       content: Text(message, style: AppTypography.body.copyWith(color: AppColors.neutral0)),
       backgroundColor: AppColors.neutral900,
       duration: const Duration(seconds: 4),
+      // Flutter treats a SnackBar with an action as persistent by default.
+      // Fulus uses actions such as Undo as optional recovery affordances,
+      // not as permission to keep the confirmation on screen indefinitely.
+      persist: false,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       action: actionLabel == null
