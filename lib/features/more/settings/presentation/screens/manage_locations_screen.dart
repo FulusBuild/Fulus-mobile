@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
-import '../../../../../core/ux/consumer_polish.dart';
 import '../../../../../domain/entities/location.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
