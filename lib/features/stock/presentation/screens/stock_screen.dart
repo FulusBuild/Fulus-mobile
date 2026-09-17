@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
@@ -28,10 +29,14 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     final locationAsync = ref.watch(currentLocationIdProvider);
     return FulusScreen(
       title: 'Stock',
+      subtitle: 'See what you have and record stock changes',
       applyPadding: false,
       actions: [
-        FulusIconButton(icon: FulusIcons.category, tooltip: 'Categories', onPressed: () => context.pushNamed('stockCategories')),
-        FulusIconButton(icon: FulusIcons.upload, tooltip: 'Bulk import', onPressed: () => context.pushNamed('stockBulkImport')),
+        FulusIconButton(
+          icon: FulusIcons.more,
+          tooltip: 'More stock options',
+          onPressed: () => _showStockActions(context),
+        ),
       ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.pushNamed('stockRecordMovement'),
@@ -46,6 +51,36 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           onRetry: () => ref.invalidate(currentLocationIdProvider),
         ),
         data: (locationId) => _StockBody(locationId: locationId, searchController: _searchController),
+      ),
+    );
+  }
+
+  void _showStockActions(BuildContext context) {
+    showFulusBottomSheet<void>(
+      context: context,
+      title: 'Stock options',
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FulusListRow(
+            leading: const Icon(FulusIcons.category),
+            title: const Text('Categories'),
+            subtitle: const Text('Organize and manage product categories'),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              context.pushNamed('stockCategories');
+            },
+          ),
+          FulusListRow(
+            leading: const Icon(FulusIcons.upload),
+            title: const Text('Import products'),
+            subtitle: const Text('Add many products from a file'),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              context.pushNamed('stockBulkImport');
+            },
+          ),
+        ],
       ),
     );
   }
@@ -76,6 +111,11 @@ class _StockBody extends ConsumerWidget {
         final categories = categoriesAsync.asData?.value ?? const <Category>[];
         final categoryById = {for (final c in categories) c.localId: c};
         final filtered = applyStockFilter(products, filter);
+        final trackedProducts = products.where((p) => p.product.tracksStock);
+        final totalUnits = trackedProducts.fold<double>(0, (sum, p) => sum + p.currentStock);
+        final totalValue = totalStockValue(products);
+        final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
+        final outOfStock = outOfStockCount(products);
 
         if (products.isEmpty) {
           return FulusEmptyState(
@@ -90,7 +130,7 @@ class _StockBody extends ConsumerWidget {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
                 child: FulusSearchField(
                   controller: searchController,
                   hintText: 'Search products, SKU, barcode…',
@@ -98,17 +138,46 @@ class _StockBody extends ConsumerWidget {
                 ),
               ),
             ),
-            if (categories.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: FulusChipRow(children: [
-                    FulusChip(label: 'All', selected: filter.categoryId == null, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: null)),
-                    for (final category in categories)
-                      FulusChip(label: category.name, selected: filter.categoryId == category.localId, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: category.localId)),
-                  ]),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
+                child: FulusCard(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _InventoryMetric(
+                          label: 'Stock available',
+                          value: totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1),
+                          suffix: 'units',
+                        ),
+                      ),
+                      Container(width: 1, height: 42, color: AppColors.borderOf(context)),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.md),
+                          child: _InventoryMetric(
+                            label: 'Stock value',
+                            value: formatMoney(totalValue, symbol: '₦', compact: true),
+                            suffix: 'at cost',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: FulusChipRow(children: [
+                  FulusChip(label: 'All', selected: filter.categoryId == null, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: null)),
+                  for (final category in categories)
+                    FulusChip(label: category.name, selected: filter.categoryId == category.localId, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: category.localId)),
+                ]),
+              ),
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
@@ -117,11 +186,11 @@ class _StockBody extends ConsumerWidget {
                     Expanded(
                       child: FulusChipRow(children: [
                         FulusChip(label: 'All', selected: !filter.lowStockOnly && !filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false)),
-                        FulusChip(label: 'Low stock', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
-                        FulusChip(label: 'Out of stock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
+                        FulusChip(label: 'Low stock · $lowStockCount', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
+                        FulusChip(label: 'Out of stock · $outOfStock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
                       ]),
                     ),
-                    FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort', onPressed: () => _showSortSheet(context, ref, filter)),
+                    FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
                   ],
                 ),
               ),
@@ -184,6 +253,37 @@ class _StockBody extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _InventoryMetric extends StatelessWidget {
+  const _InventoryMetric({required this.label, required this.value, required this.suffix});
+  final String label;
+  final String value;
+  final String suffix;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
+        const SizedBox(height: 3),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
+              const SizedBox(width: 4),
+              Text(suffix, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
