@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'database_connection.dart';
 
 import '../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../domain/entities/app_notification.dart';
@@ -205,10 +202,7 @@ class AppDatabase extends _$AppDatabase {
   /// AppDatabase.open() itself uses, rather than duplicating the
   /// path-construction logic in a second place where it could drift out
   /// of sync with this one.
-  static Future<String> resolveDatabasePath() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    return p.join(dbFolder.path, 'fulus_mobile.sqlite');
-  }
+  static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
   int get schemaVersion => 11;
@@ -447,44 +441,4 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final path = await AppDatabase.resolveDatabasePath();
-    final file = File(path);
-
-    // One-time migration for installs upgrading across the BMS -> Fulus
-    // rename. This file is the on-device source of truth for sales,
-    // stock, customers, and the offline sync queue — not cosmetic
-    // branding. If nothing exists yet under the new filename but the old
-    // 'bms_mobile.sqlite' does, move it over so an upgrading till keeps
-    // its local data instead of silently starting from an empty database
-    // (which, on a device that's ever gone offline, could mean losing
-    // sales that haven't synced to the backend yet). A genuinely fresh
-    // install has neither file, so this is a no-op for new installs.
-    if (!await file.exists()) {
-      final legacyFile = File(p.join(file.parent.path, 'bms_mobile.sqlite'));
-      if (await legacyFile.exists()) {
-        await legacyFile.rename(file.path);
-      }
-    }
-
-    return NativeDatabase.createInBackground(
-      file,
-      setup: (database) {
-        // Perf: not on by default (drift's own docs require opting in
-        // via `setup`). Without it, sqlite3 uses the default
-        // rollback-journal mode, where a writer briefly blocks readers.
-        // This app's UI reads happen almost entirely through drift's
-        // reactive `.watch()` streams while a background SyncEngine can
-        // write to the same file at the same time — WAL lets those
-        // proceed independently. Connection-level only — no schema
-        // change, no migration needed. Confirmed compatible with the
-        // existing backup/restore path: BackupRepositoryImpl already
-        // uses `VACUUM INTO` (self-contained snapshot regardless of
-        // journal mode) and already defensively clears stray -wal/-shm
-        // sidecars before reopening — see that class's own comments.
-        database.execute('PRAGMA journal_mode=WAL');
-      },
-    );
-  });
-}
+QueryExecutor _openConnection() => openDatabaseConnection();
