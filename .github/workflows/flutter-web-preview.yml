@@ -49,14 +49,17 @@ jobs:
         run: |
           set -euo pipefail
           DRIFT_VERSION="$(python3 - <<'PY'
-          import re
-          text = open("pubspec.lock", encoding="utf-8").read()
-          match = re.search(r'^  drift:\\n(?:    .*\\n)*?    version: "([^"]+)"', text, re.M)
-          if not match:
-              raise SystemExit("Could not resolve drift version from pubspec.lock")
-          print(match.group(1))
+          text = open("pubspec.lock", encoding="utf-8").read().splitlines()
+          for i, line in enumerate(text):
+              if line.strip() == "drift:":
+                  for child in text[i + 1: i + 20]:
+                      if child.strip().startswith("version:"):
+                          print(child.split('"')[1])
+                          raise SystemExit
+          raise SystemExit("Could not resolve drift version from pubspec.lock")
           PY
           )"
+"
           echo "Resolved drift=$DRIFT_VERSION"
 
           mkdir -p web
