@@ -51,7 +51,7 @@ jobs:
           DRIFT_VERSION="$(python3 - <<'PY'
           import re
           text = open("pubspec.lock", encoding="utf-8").read()
-          match = re.search(r"^  drift:\n(?:    .*\n)*?    version: "([^"]+)"", text, re.M)
+          match = re.search(r'^  drift:\\n(?:    .*\\n)*?    version: "([^"]+)"', text, re.M)
           if not match:
               raise SystemExit("Could not resolve drift version from pubspec.lock")
           print(match.group(1))
