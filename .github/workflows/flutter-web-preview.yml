@@ -1,0 +1,102 @@
+name: Fulus Flutter Web Preview
+
+on:
+  push:
+    branches:
+      - main
+      - feat/flutter-web-preview
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: fulus-web-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.9"
+
+jobs:
+  build:
+    name: Build Flutter web preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Enable web platform
+        run: flutter create --platforms=web .
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate Dart code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Prepare Drift web assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          DRIFT_VERSION="$(python3 - <<'PY'
+          text = open("pubspec.lock", encoding="utf-8").read().splitlines()
+          for i, line in enumerate(text):
+              if line.strip() == "drift:":
+                  for child in text[i + 1: i + 20]:
+                      if child.strip().startswith("version:"):
+                          print(child.split('"')[1])
+                          raise SystemExit
+          raise SystemExit("Could not resolve drift version from pubspec.lock")
+          PY
+          )"
+"
+          echo "Resolved drift=$DRIFT_VERSION"
+
+          mkdir -p web
+
+          WASM_URL="https://github.com/simolus3/drift/releases/download/drift-$DRIFT_VERSION/sqlite3.wasm"
+          WORKER_URL="https://github.com/simolus3/drift/releases/download/drift-$DRIFT_VERSION/drift_worker.js"
+
+          echo "Downloading $WASM_URL"
+          curl --fail --show-error --location --retry 3 --retry-all-errors "$WASM_URL" -o web/sqlite3.wasm
+
+          echo "Downloading $WORKER_URL"
+          curl --fail --show-error --location --retry 3 --retry-all-errors "$WORKER_URL" -o web/drift_worker.js
+
+          file web/sqlite3.wasm
+          file web/drift_worker.js
+          test -s web/sqlite3.wasm
+          test -s web/drift_worker.js
+
+      - name: Build web preview
+        run: flutter build web --release --base-href "/Fulus-mobile/"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/web
+
+  deploy:
+    name: Deploy Flutter web preview
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
