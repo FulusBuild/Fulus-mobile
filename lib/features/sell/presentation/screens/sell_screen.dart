@@ -356,6 +356,7 @@ class _ProductRow extends StatelessWidget {
   }
 
   Future<void> _add(BuildContext context) async {
+    final product = entry.product;
     final controller = TextEditingController(text: '1');
     final quantity = await showDialog<int>(
       context: context,
@@ -369,7 +370,6 @@ class _ProductRow extends StatelessWidget {
               label: 'Quantity',
               controller: controller,
               keyboardType: TextInputType.number,
-              autofocus: true,
             ),
             if (product.tracksStock)
               Padding(
