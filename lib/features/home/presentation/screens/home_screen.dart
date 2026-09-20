@@ -96,7 +96,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _HomeHeader(
                         displayName: _displayName(ref),
                         businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
-                        onAccountTap: () => _openAccountSheet(context),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       FutureBuilder<HomeHeroState>(
@@ -254,12 +253,10 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.displayName,
     required this.businessName,
-    required this.onAccountTap,
   });
 
   final String displayName;
   final String businessName;
-  final VoidCallback onAccountTap;
 
   @override
   Widget build(BuildContext context) {
@@ -316,11 +313,7 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        FulusIconButton(
-          icon: FulusIcons.swap,
-          tooltip: 'Switch account',
-          onPressed: onAccountTap,
-        ),
+        FulusSyncStatusIndicator(),
       ],
     );
   }
