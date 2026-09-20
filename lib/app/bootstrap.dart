@@ -119,7 +119,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final onboardingState = await OnboardingState.load();
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
-  apiClient = ApiClient(baseUrl: baseUrl, secureStorage: secureStorage, onSessionExpired: () async {});
+  apiClient = ApiClient(
+    baseUrl: baseUrl,
+    secureStorage: secureStorage,
+    onSessionExpired: () async {},
+  );
 
   final fulusFunctionBaseUrl = '${SupabaseConfig.url}/functions/v1/fulus-api';
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
@@ -132,6 +136,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     staffAccessApi: fulusStaffAccessApi,
   );
   final authApi = AuthApi(apiClient);
+  apiClient.setOnSessionExpired(() async {
+    fulusConnectionState.clearSyncReady();
+  });
   final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
 
   final auditRepository = AuditRepositoryImpl(db: database);
@@ -272,7 +279,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       platform: Platform.operatingSystem,
       appVersion: package.version,
     );
-    await syncTriggers.reconcileAfterRestore();
+    await syncTriggers.reconcileForReadiness();
     fulusConnectionState.markSyncReady();
   }
 
