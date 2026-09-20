@@ -54,7 +54,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       currentAuthUserId: widget.currentAuthUserId,
       isOwner: showBusinessWide,
     );
-    _noticesFuture = repo.getSecondaryNotices(max: 3);
+    _noticesFuture = repo.getSecondaryNotices(max: 4);
     _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
           _reportsEngine.resolvePeriod(ReportPeriodKind.today),
           currentAuthUserId: widget.currentAuthUserId,
@@ -462,28 +462,39 @@ class _HomeQuickActions extends StatelessWidget {
           ),
           itemBuilder: (context, index) {
             final action = actions[index];
-            return FulusCard(
-              onTap: action.onTap,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  Icon(action.icon, size: AppIconSize.base, color: AppColors.primaryOf(context)),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      action.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.label.copyWith(
-                        color: AppColors.textPrimaryOf(context),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+            return Material(
+              color: AppColors.surfaceAltOf(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: InkWell(
+                onTap: action.onTap,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(
+                        action.icon,
+                        size: AppIconSize.base,
+                        color: AppColors.primaryOf(context),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          action.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.label.copyWith(
+                            color: AppColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           },
@@ -505,24 +516,32 @@ class _AttentionSection extends StatelessWidget {
       children: [
         FulusSectionHeader(title: 'Needs attention'),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 92,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: selection.shown.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (context, index) {
-              final notice = selection.shown[index];
-              switch (notice.type) {
-                case SecondaryNoticeType.lowStock:
-                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.stock, onTap: () => context.goNamed('stock'));
-                case SecondaryNoticeType.pendingCredit:
-                  return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: FulusIcons.payments, onTap: () => context.pushNamed('moneyCustomers'));
-                case SecondaryNoticeType.unsyncedItems:
-                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.cloudUpload, onTap: () => context.pushNamed('moreSyncDetail'));
-              }
-            },
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 760 ? 4 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: selection.shown.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                childAspectRatio: columns == 4 ? 1.65 : 1.8,
+              ),
+              itemBuilder: (context, index) {
+                final notice = selection.shown[index];
+                switch (notice.type) {
+                  case SecondaryNoticeType.lowStock:
+                    return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.stock, onTap: () => context.goNamed('stock'));
+                  case SecondaryNoticeType.pendingCredit:
+                    return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: FulusIcons.payments, onTap: () => context.pushNamed('moneyCustomers'));
+                  case SecondaryNoticeType.unsyncedItems:
+                    return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.cloudUpload, onTap: () => context.pushNamed('moreSyncDetail'));
+                }
+              },
+            );
+          },
         ),
       ],
     );
@@ -540,24 +559,46 @@ class _AttentionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 176,
-      child: FulusCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.primaryOf(context)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-                  Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                ],
-              ),
+      child: Material(
+        color: AppColors.surfaceAltOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(icon, size: AppIconSize.compact, color: AppColors.primaryOf(context)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.subheading.copyWith(
+                          color: AppColors.textPrimaryOf(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondaryOf(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
