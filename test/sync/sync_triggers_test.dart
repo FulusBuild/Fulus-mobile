@@ -396,6 +396,7 @@ void main() {
           if (initializationCalls == 1) {
             throw StateError('startup initialization failed');
           }
+          await triggers.reconcileForReadiness();
           ready = true;
         },
         connectivity: connectivity,
