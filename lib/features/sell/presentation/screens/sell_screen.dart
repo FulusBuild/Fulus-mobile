@@ -310,6 +310,7 @@ class _ProductRow extends StatelessWidget {
     final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
     return FulusCard(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      onTap: out ? null : () => _add(context),
       child: Row(
         children: [
           ClipRRect(
@@ -344,16 +345,73 @@ class _ProductRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          FulusIconButton(icon: FulusIcons.add, tooltip: out ? 'Out of stock' : 'Add ${product.name}', onPressed: out ? null : () => _add(context)),
+          Icon(
+            FulusIcons.chevronRight,
+            size: AppIconSize.compact,
+            color: out ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context),
+          ),
         ],
       ),
     );
   }
 
   Future<void> _add(BuildContext context) async {
+    final product = entry.product;
+    final controller = TextEditingController(text: '1');
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Add ${product.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FulusTextField(
+              label: 'Quantity',
+              controller: controller,
+              keyboardType: TextInputType.number,
+            ),
+            if (product.tracksStock)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  '${entry.currentStock} available',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondaryOf(dialogContext),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FulusButton(
+            label: 'Add to cart',
+            onPressed: () => Navigator.of(dialogContext).pop(
+              int.tryParse(controller.text.trim()),
+            ),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (quantity == null || !context.mounted) return;
     try {
-      await context.read<CartCubit>().addProduct(entry.product.localId);
+      await context.read<CartCubit>().addProductQuantity(
+            product.localId,
+            quantity,
+          );
       FulusHaptics.selection();
+      if (context.mounted) {
+        showFulusSnackbar(
+          context,
+          message: '${quantity} × ${product.name} added to the cart.',
+        );
+      }
     } on StateError catch (e) {
       FulusHaptics.error();
       if (context.mounted) showFulusSnackbar(context, message: e.message);
@@ -372,11 +430,11 @@ class _CartSummaryBar extends StatelessWidget {
       top: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
-        child: FulusButton(
+        child: _SwipeToCart(
           label: state.itemCount == 1
-              ? 'View cart · 1 item · ${state.currencySymbol}${state.total.toStringAsFixed(2)}'
-              : 'View cart · ${state.itemCount} items · ${state.currencySymbol}${state.total.toStringAsFixed(2)}',
-          onPressed: () {
+              ? 'Swipe to view cart · 1 item · ${state.currencySymbol}${state.total.toStringAsFixed(2)}'
+              : 'Swipe to view cart · ${state.itemCount} items · ${state.currencySymbol}${state.total.toStringAsFixed(2)}',
+          onComplete: () {
             final cubit = context.read<CartCubit>();
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -385,6 +443,120 @@ class _CartSummaryBar extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _SwipeToCart extends StatefulWidget {
+  const _SwipeToCart({required this.label, required this.onComplete});
+
+  final String label;
+  final VoidCallback onComplete;
+
+  @override
+  State<_SwipeToCart> createState() => _SwipeToCartState();
+}
+
+class _SwipeToCartState extends State<_SwipeToCart> {
+  double _progress = 0;
+  bool _dragging = false;
+
+  static const _thumbSize = 48.0;
+  static const _trackHeight = 56.0;
+  static const _completionThreshold = 0.78;
+
+  void _updateDrag(DragUpdateDetails details, double width) {
+    final travel = (width - _thumbSize).clamp(1.0, double.infinity).toDouble();
+    setState(() {
+      _progress = (_progress + details.delta.dx / travel).clamp(0.0, 1.0);
+    });
+  }
+
+  void _finishDrag() {
+    final completed = _progress >= _completionThreshold;
+    if (completed) {
+      setState(() {
+        _progress = 1;
+        _dragging = false;
+      });
+      FulusHaptics.selection();
+      widget.onComplete();
+      return;
+    }
+
+    setState(() {
+      _progress = 0;
+      _dragging = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    final onPrimary = AppColors.onPrimaryOf(context);
+    final track = AppColors.selectedTintOf(context);
+    return Semantics(
+      label: widget.label,
+      hint: 'Swipe from left to right to open the cart',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final travel = (width - _thumbSize).clamp(1.0, double.infinity);
+          final left = travel * _progress;
+
+          return Container(
+            height: _trackHeight,
+            decoration: BoxDecoration(
+              color: track,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: primary.withValues(alpha: 0.18)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: _thumbSize + AppSpacing.sm),
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.label.copyWith(color: primary),
+                  ),
+                ),
+                AnimatedPositioned(
+                  duration: _dragging ? Duration.zero : AppMotion.fast,
+                  curve: AppMotion.curveStandard,
+                  left: left,
+                  top: (_trackHeight - _thumbSize) / 2,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragStart: (_) => setState(() => _dragging = true),
+                    onHorizontalDragUpdate: (details) => _updateDrag(details, width),
+                    onHorizontalDragEnd: (_) => _finishDrag(),
+                    child: Container(
+                      width: _thumbSize,
+                      height: _thumbSize,
+                      decoration: BoxDecoration(
+                        color: primary,
+                        shape: BoxShape.circle,
+                        boxShadow: AppElevation.cardOf(context),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        FulusIcons.chevronRight,
+                        size: AppIconSize.base,
+                        color: onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

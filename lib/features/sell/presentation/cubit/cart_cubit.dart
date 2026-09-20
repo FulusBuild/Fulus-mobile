@@ -191,25 +191,45 @@ class CartCubit extends Cubit<CartState> {
     ));
   }
 
-  Future<void> addProduct(String productLocalId) async {
+  Future<void> addProduct(String productLocalId) => addProductQuantity(productLocalId, 1);
+
+  Future<void> addProductQuantity(String productLocalId, int quantity) async {
+    if (quantity <= 0) throw StateError('Enter a whole number greater than 0.');
+
     final current = state;
     if (current is! CartLoaded) return;
     final productWithStock = current.catalog[productLocalId];
     if (productWithStock == null || !productWithStock.product.isActive) {
       throw StateError('That product is no longer available.');
     }
-    final alreadyInCart = current.items.where((i) => i.productLocalId == productLocalId).fold<int>(0, (sum, i) => sum + i.quantity);
-    if (productWithStock.product.tracksStock && alreadyInCart >= productWithStock.currentStock) {
+
+    final existingLine = current.items.where((i) => i.productLocalId == productLocalId).toList();
+    final existingQuantity = existingLine.fold<int>(0, (sum, i) => sum + i.quantity);
+    final requestedTotal = existingQuantity + quantity;
+    if (productWithStock.product.tracksStock && requestedTotal > productWithStock.currentStock) {
       throw StateError('Only ${productWithStock.currentStock} in stock.');
     }
-    final existingLine = current.items.where((i) => i.productLocalId == productLocalId).toList();
+
     if (existingLine.isNotEmpty) {
       final line = existingLine.first;
-      await _draftCartRepository.updateItemQuantity(itemLocalId: line.localId, quantity: line.quantity + 1);
+      await _draftCartRepository.updateItemQuantity(
+        itemLocalId: line.localId,
+        quantity: line.quantity + quantity,
+      );
     } else {
-      await _draftCartRepository.addItem(draftCartLocalId: _draftCartId!, productLocalId: productLocalId, quantity: 1, lineDiscount: 0.0);
+      await _draftCartRepository.addItem(
+        draftCartLocalId: _draftCartId!,
+        productLocalId: productLocalId,
+        quantity: quantity,
+        lineDiscount: 0.0,
+      );
     }
-    _diagnosticLogger?.breadcrumb('Product added to cart', category: DiagnosticCategory.sales, data: {'Product ID': productLocalId});
+
+    _diagnosticLogger?.breadcrumb(
+      'Product added to cart',
+      category: DiagnosticCategory.sales,
+      data: {'Product ID': productLocalId, 'Quantity': '$quantity'},
+    );
   }
 
   Future<void> addQuickSaleItem({required String description, required double unitPrice}) async {

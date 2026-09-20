@@ -208,6 +208,24 @@ void main() {
       expect(state.items.single.quantity, 2);
     });
 
+    test('addProductQuantity adds the requested number of units in one operation', () async {
+      await cubit.addProductQuantity(plentyProductId, 200);
+      final state = await waitFor(cubit, (s) => s.itemCount == 200);
+
+      expect(state.items, hasLength(1));
+      expect(state.items.single.quantity, 200);
+    });
+
+    test('addProductQuantity rejects a quantity that would exceed stock', () async {
+      await expectLater(
+        cubit.addProductQuantity(limitedProductId, 3),
+        throwsStateError,
+      );
+
+      final state = cubit.state as CartLoaded;
+      expect(state.items, isEmpty);
+    });
+
     test('throws once adding another unit would exceed available stock',
         () async {
       await cubit.addProduct(limitedProductId); // 1 of 2
