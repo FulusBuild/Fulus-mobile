@@ -384,7 +384,8 @@ class _FulusCloudConnectionScreenState
   Widget build(BuildContext context) {
     final connection = ref.watch(fulusConnectionStateProvider);
     final connected = connection.isSyncReady;
-    final needsReauthentication = connection.isConnected && !connection.isSyncReady;
+    final cloudSyncEnabled = ref.watch(syncConfigProvider).isEnabled;
+    final needsReauthentication = cloudSyncEnabled && !connection.isSyncReady;
     final isWide = MediaQuery.sizeOf(context).width >= 700;
 
     return FulusScreen(
