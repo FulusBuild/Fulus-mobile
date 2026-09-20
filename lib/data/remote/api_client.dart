@@ -276,12 +276,26 @@ class _AuthInterceptor extends Interceptor {
       final retryOptions = err.requestOptions;
       retryOptions.extra['auth_refresh_attempted'] = true;
       retryOptions.headers['Authorization'] = 'Bearer $accessToken';
-      final retryResponse = await _dio.fetch(retryOptions);
-      handler.resolve(retryResponse);
+
+      // Keep the refresh transaction separate from the replayed application
+      // request. A 400/500 from the application endpoint is not evidence that
+      // Supabase rejected the refresh token and must not destroy durable auth.
+      try {
+        final retryResponse = await _dio.fetch(retryOptions);
+        handler.resolve(retryResponse);
+      } on DioException catch (retryError) {
+        // A second 401 after a successful refresh means the newly refreshed
+        // session is not accepted by the API. Other application failures are
+        // ordinary request failures and should simply propagate.
+        if (retryError.response?.statusCode == 401) {
+          await _expireSession();
+        }
+        handler.next(retryError);
+      }
     } on DioException catch (refreshError) {
-      // Only an explicit authentication rejection invalidates the durable
-      // refresh token. Network/server failures must preserve it so the next
-      // connectivity-triggered recovery can try again.
+      // Only an explicit rejection from the Supabase refresh endpoint
+      // invalidates the durable refresh token. Network/server failures must
+      // preserve it so the next connectivity-triggered recovery can retry.
       if (_isRefreshTokenRejected(refreshError)) {
         await _expireSession();
       }
