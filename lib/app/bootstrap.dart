@@ -137,7 +137,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
   final authApi = AuthApi(apiClient);
   apiClient.setOnSessionExpired(() async {
-    fulusConnectionState.clearSyncReady();
+    fulusConnectionState.clearSessionAuthentication();
   });
   final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
 
@@ -268,6 +268,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       publishableKey: SupabaseConfig.publishableKey,
     );
     if (session == null) return;
+    fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
     if (active.length != 1) return;
