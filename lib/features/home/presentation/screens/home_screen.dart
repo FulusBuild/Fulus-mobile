@@ -409,26 +409,7 @@ class _HomeSalesCard extends ConsumerWidget {
               ],
             ],
           ),
-          if (state is NotYetOpenedHero) ...[
-            const SizedBox(height: AppSpacing.lg),
-            FulusButton(
-              label: 'Open shop',
-              onPressed: () async {
-                final opened = await showOpeningFloatSheet(context);
-                if (opened && context.mounted) {
-                  showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
-                  ref.read(dataRefreshSignalProvider.notifier).state++;
-                }
-              },
-            ),
-          ] else if (state is OpenHero) ...[
-            const SizedBox(height: AppSpacing.lg),
-            FulusButton(
-              label: 'Close shop',
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => context.pushNamed('moneyDailyClosingCount'),
-            ),
-          ],
+
         ],
       ),
     );
