@@ -114,8 +114,7 @@ class AuthApi {
       final status = e.response?.statusCode;
       final rejected = status == 400 || status == 401;
       if (rejected) {
-        await _client.clearServerRefreshToken();
-        _client.setAccessToken(null);
+        await _client.expireServerSession();
       }
       return null;
     }
