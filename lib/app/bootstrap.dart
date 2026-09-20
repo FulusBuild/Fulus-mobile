@@ -305,7 +305,21 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // hold the app's bootstrap gate hostage to network/auth/reconciliation
   // work. The trigger object is fully wired before this call and owns its
   // own retries when startup readiness is not yet available.
-  unawaited(syncTriggers.start());
+  unawaited(
+    syncTriggers.start().catchError((Object error, StackTrace stackTrace) {
+      unawaited(
+        diagnosticLogger.captureError(
+          error: error,
+          stackTrace: stackTrace,
+          severity: DiagnosticSeverity.error,
+          category: DiagnosticCategory.synchronization,
+          component: 'SyncTriggers',
+          operation: 'start',
+          title: 'Cloud Sync startup failed',
+        ),
+      );
+    }),
+  );
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
   final printerRepository = PrinterRepositoryImpl(db: database);
