@@ -86,6 +86,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
             supabaseUrl: SupabaseConfig.url,
             publishableKey: SupabaseConfig.publishableKey,
           );
+      ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
 
       if (!mounted) return;
       await Navigator.of(context).push<void>(
@@ -177,6 +178,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
             supabaseUrl: SupabaseConfig.url,
             publishableKey: SupabaseConfig.publishableKey,
           );
+      ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
       await _finishNewAccount(
         name: _nameController.text.trim(),
         businessName: _businessController.text.trim(),
