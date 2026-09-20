@@ -9,7 +9,6 @@ import '../core/theme/fulus_icons.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
-import '../shared/widgets/fulus_button.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
