@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
 import '../core/config/supabase_config.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
+import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
