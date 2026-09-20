@@ -207,7 +207,7 @@ class _AuthInterceptor extends Interceptor {
   String? _accessToken;
   String? _supabaseUrl;
   String? _publishableKey;
-  bool _isRefreshing = false;
+  Future<String>? _refreshRun;
 
   void configureServerAuth({
     required String supabaseUrl,
@@ -244,60 +244,103 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode != 401 || _isRefreshing) {
+    if (err.response?.statusCode != 401) {
+      handler.next(err);
+      return;
+    }
+
+    // A request that has already been retried with a refreshed token must not
+    // start an unbounded refresh/retry loop. At this point the new token was
+    // accepted by Supabase, but the API still rejected this request.
+    if (err.requestOptions.extra['auth_refresh_attempted'] == true) {
+      await _expireSession();
       handler.next(err);
       return;
     }
 
     final refreshToken = await _secureStorage.getRefreshToken();
-    final supabaseUrl = _supabaseUrl ?? SupabaseConfig.url;
-    final publishableKey = _publishableKey ?? SupabaseConfig.publishableKey;
-    if (refreshToken == null) {
-      await _onSessionExpired();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      await _expireSession();
       handler.next(err);
       return;
     }
 
-    _isRefreshing = true;
     try {
-      final refreshClient = Dio(BaseOptions(
-        baseUrl: supabaseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 15),
-      ));
-      final response = await refreshClient.post(
-        '/auth/v1/token?grant_type=refresh_token',
-        data: {'refresh_token': refreshToken},
-        options: Options(headers: {
-          'apikey': publishableKey,
-          'content-type': 'application/json',
-        }),
-      );
-
-      final data = Map<String, dynamic>.from(response.data as Map);
-      final newAccessToken = data['access_token'] as String?;
-      final newRefreshToken = data['refresh_token'] as String?;
-      if (newAccessToken == null || newAccessToken.isEmpty) {
-        throw StateError('Supabase refresh returned no access token.');
-      }
-
-      setAccessToken(newAccessToken);
-      if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-        await _secureStorage.setRefreshToken(newRefreshToken);
-      }
-
+      final accessToken = await _refreshAccessToken(refreshToken);
       final retryOptions = err.requestOptions;
-      retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+      retryOptions.extra['auth_refresh_attempted'] = true;
+      retryOptions.headers['Authorization'] = 'Bearer $accessToken';
       final retryResponse = await _dio.fetch(retryOptions);
       handler.resolve(retryResponse);
-    } catch (_) {
-      await _secureStorage.deleteRefreshToken();
-      setAccessToken(null);
-      await _onSessionExpired();
+    } on DioException catch (refreshError) {
+      // Only an explicit authentication rejection invalidates the durable
+      // refresh token. Network/server failures must preserve it so the next
+      // connectivity-triggered recovery can try again.
+      if (_isRefreshTokenRejected(refreshError)) {
+        await _expireSession();
+      }
+      handler.next(refreshError);
+    } catch (refreshError) {
+      // A malformed refresh response is a local/session failure, not a
+      // transient transport failure.
+      await _expireSession();
       handler.next(err);
-    } finally {
-      _isRefreshing = false;
     }
+  }
+
+  Future<String> _refreshAccessToken(String refreshToken) {
+    final active = _refreshRun;
+    if (active != null) return active;
+
+    final run = _performRefresh(refreshToken);
+    late Future<String> tracked;
+    tracked = run.whenComplete(() {
+      if (identical(_refreshRun, tracked)) _refreshRun = null;
+    });
+    _refreshRun = tracked;
+    return tracked;
+  }
+
+  Future<String> _performRefresh(String refreshToken) async {
+    final supabaseUrl = _supabaseUrl ?? SupabaseConfig.url;
+    final publishableKey = _publishableKey ?? SupabaseConfig.publishableKey;
+    final refreshClient = Dio(BaseOptions(
+      baseUrl: supabaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    final response = await refreshClient.post(
+      '/auth/v1/token?grant_type=refresh_token',
+      data: {'refresh_token': refreshToken},
+      options: Options(headers: {
+        'apikey': publishableKey,
+        'content-type': 'application/json',
+      }),
+    );
+
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final newAccessToken = data['access_token'] as String?;
+    final newRefreshToken = data['refresh_token'] as String?;
+    if (newAccessToken == null || newAccessToken.isEmpty) {
+      throw StateError('Supabase refresh returned no access token.');
+    }
+
+    setAccessToken(newAccessToken);
+    if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+      await _secureStorage.setRefreshToken(newRefreshToken);
+    }
+    return newAccessToken;
+  }
+
+  bool _isRefreshTokenRejected(DioException error) {
+    final status = error.response?.statusCode;
+    return status == 400 || status == 401;
+  }
+
+  Future<void> _expireSession() async {
+    await _secureStorage.deleteRefreshToken();
+    setAccessToken(null);
+    await _onSessionExpired();
   }
 }
 
