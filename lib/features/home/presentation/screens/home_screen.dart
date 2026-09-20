@@ -344,6 +344,9 @@ class _AttentionSection extends StatelessWidget {
                   return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.stock, onTap: () => context.goNamed('stock'));
                 case SecondaryNoticeType.pendingCredit:
                   return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: FulusIcons.payments, onTap: () => context.pushNamed('moneyCustomers'));
+                case SecondaryNoticeType.unsyncedItems:
+                  // Filtered above; keep the switch exhaustive for the enum.
+                  return const SizedBox.shrink();
               }
             },
           ),
@@ -398,19 +401,6 @@ class _NoticeSkeleton extends StatelessWidget {
   const _NoticeSkeleton();
   @override
   Widget build(BuildContext context) => const SizedBox(height: 92, child: Row(children: [Expanded(child: FulusSkeletonBox()), SizedBox(width: AppSpacing.sm), Expanded(child: FulusSkeletonBox())]));
-}
-
-String _roleLabel(AuthRole role) {
-  switch (role) {
-    case AuthRole.owner:
-      return 'Owner';
-    case AuthRole.manager:
-      return 'Manager';
-    case AuthRole.cashier:
-      return 'Cashier';
-    case AuthRole.employee:
-      return 'Employee';
-  }
 }
 
 final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings());
