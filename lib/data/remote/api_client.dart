@@ -66,6 +66,12 @@ class ApiClient {
   Future<void> clearServerRefreshToken() =>
       _secureStorage.deleteRefreshToken();
 
+  /// Invalidates the active cloud session and notifies the application state
+  /// layer. Used by startup refresh when Supabase permanently rejects the
+  /// durable refresh token, keeping startup and in-flight 401 expiry on the
+  /// same lifecycle path.
+  Future<void> expireServerSession() => _authInterceptor.expireSession();
+
   void setOnSessionExpired(Future<void> Function() callback) =>
       _authInterceptor.setOnSessionExpired(callback);
 
@@ -342,6 +348,8 @@ class _AuthInterceptor extends Interceptor {
     setAccessToken(null);
     await _onSessionExpired();
   }
+
+  Future<void> expireSession() => _expireSession();
 }
 
 class _RetryInterceptor extends Interceptor {
