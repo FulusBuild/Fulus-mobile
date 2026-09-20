@@ -111,9 +111,9 @@ class AppColors {
 
 class AppTypography {
   AppTypography._();
-  static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w800, height: 1.08, letterSpacing: -1.0);
+  static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w500, height: 1.08, letterSpacing: -1.0);
   static const title = TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.12, letterSpacing: -0.6);
-  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.18, letterSpacing: -0.3);
+  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w600, height: 1.18, letterSpacing: -0.3);
   static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.1);
   static const bodyLarge = TextStyle(fontSize: 18, height: 1.5);
   static const body = TextStyle(fontSize: 16, height: 1.5);
