@@ -108,9 +108,15 @@ class AuthApi {
       await _client.setServerAccessToken(session.accessToken);
       await _client.persistServerRefreshToken(session.refreshToken);
       return session;
-    } on DioException {
-      await _client.clearServerRefreshToken();
-      _client.setAccessToken(null);
+    } on DioException catch (e) {
+      // A refresh token is durable recovery state. Do not destroy it because
+      // the device is offline or Supabase is temporarily unavailable.
+      final status = e.response?.statusCode;
+      final rejected = status == 400 || status == 401;
+      if (rejected) {
+        await _client.clearServerRefreshToken();
+        _client.setAccessToken(null);
+      }
       return null;
     }
   }
