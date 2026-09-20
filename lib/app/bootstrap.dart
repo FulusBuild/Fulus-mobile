@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
 import '../core/config/supabase_config.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
+import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
@@ -119,7 +120,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final onboardingState = await OnboardingState.load();
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
-  apiClient = ApiClient(baseUrl: baseUrl, secureStorage: secureStorage, onSessionExpired: () async {});
+  apiClient = ApiClient(
+    baseUrl: baseUrl,
+    secureStorage: secureStorage,
+    onSessionExpired: () async {},
+  );
 
   final fulusFunctionBaseUrl = '${SupabaseConfig.url}/functions/v1/fulus-api';
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
@@ -132,6 +137,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     staffAccessApi: fulusStaffAccessApi,
   );
   final authApi = AuthApi(apiClient);
+  apiClient.setOnSessionExpired(() async {
+    fulusConnectionState.clearSessionAuthentication();
+  });
   final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
 
   final auditRepository = AuditRepositoryImpl(db: database);
@@ -261,6 +269,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       publishableKey: SupabaseConfig.publishableKey,
     );
     if (session == null) return;
+    fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
     if (active.length != 1) return;
@@ -272,7 +281,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       platform: Platform.operatingSystem,
       appVersion: package.version,
     );
-    await syncTriggers.reconcileAfterRestore();
+    await syncTriggers.reconcileForReadiness();
     fulusConnectionState.markSyncReady();
   }
 
@@ -297,7 +306,21 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // hold the app's bootstrap gate hostage to network/auth/reconciliation
   // work. The trigger object is fully wired before this call and owns its
   // own retries when startup readiness is not yet available.
-  unawaited(syncTriggers.start());
+  unawaited(
+    syncTriggers.start().catchError((Object error, StackTrace stackTrace) {
+      unawaited(
+        diagnosticLogger.captureError(
+          error: error,
+          stackTrace: stackTrace,
+          severity: DiagnosticSeverity.error,
+          category: DiagnosticCategory.synchronization,
+          component: 'SyncTriggers',
+          operation: 'start',
+          title: 'Cloud Sync startup failed',
+        ),
+      );
+    }),
+  );
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
   final printerRepository = PrinterRepositoryImpl(db: database);

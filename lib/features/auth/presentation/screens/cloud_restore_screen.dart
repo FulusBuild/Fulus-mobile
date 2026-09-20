@@ -84,6 +84,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // session prevents duplicate credential entry and, importantly, keeps
       // authentication separate from the destructive local restore step.
       final connection = ref.read(fulusConnectionStateProvider);
+      connection.markSessionAuthenticated();
       await connection.refresh();
 
       final active = connection.membershipContext?.memberships
@@ -147,7 +148,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       await ref.read(syncConfigProvider).setEnabled(true);
       setState(() => _status = 'Reconciling with Fulus Cloud…');
       try {
-        await ref.read(syncTriggersProvider).reconcileAfterRestore();
+        await ref.read(syncTriggersProvider).reconcileForReadiness();
         connection.markSyncReady();
       } catch (_) {
         connection.clearSyncReady();

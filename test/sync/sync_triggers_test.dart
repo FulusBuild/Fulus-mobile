@@ -184,6 +184,41 @@ void main() {
       verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
     });
 
+    test('startup readiness initialization reconciles without a circular await', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      var ready = false;
+      var initializationCalls = 0;
+      late final SyncTriggers triggers;
+      triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => ready,
+        onNotReady: () async {
+          initializationCalls++;
+          await triggers.reconcileForReadiness();
+          ready = true;
+        },
+        connectivity: connectivity,
+      );
+
+      await expectLater(triggers.start(), completes);
+
+      expect(initializationCalls, 1);
+      expect(ready, isTrue);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
+      triggers.dispose();
+    });
+
     test('manual sync reports a clear readiness failure', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
@@ -307,6 +342,37 @@ void main() {
       triggers.dispose();
     });
 
+    test('concurrent restore reconciliations await the same in-flight run', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      final runStarted = Completer<void>();
+      final releaseRun = Completer<void>();
+      when(() => syncEngine.runOnce(manual: any(named: 'manual'))).thenAnswer((_) async {
+        if (!runStarted.isCompleted) runStarted.complete();
+        await releaseRun.future;
+      });
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      final first = triggers.reconcileAfterRestore();
+      await runStarted.future;
+      final second = triggers.reconcileAfterRestore();
+
+      releaseRun.complete();
+      await Future.wait([first, second]);
+
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
+      triggers.dispose();
+    });
+
     test('retries readiness after startup initialization fails', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
@@ -320,7 +386,9 @@ void main() {
 
       var initializationCalls = 0;
       var ready = false;
-      final triggers = SyncTriggers(
+      final readinessCompleted = Completer<void>();
+      late final SyncTriggers triggers;
+      triggers = SyncTriggers(
         syncEngine: syncEngine,
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
@@ -330,7 +398,11 @@ void main() {
           if (initializationCalls == 1) {
             throw StateError('startup initialization failed');
           }
+          await triggers.reconcileForReadiness();
           ready = true;
+          if (!readinessCompleted.isCompleted) {
+            readinessCompleted.complete();
+          }
         },
         connectivity: connectivity,
       );
@@ -341,6 +413,7 @@ void main() {
 
       connectivityChanges.add([ConnectivityResult.wifi]);
       await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
+      await readinessCompleted.future;
 
       expect(initializationCalls, 2);
       expect(ready, isTrue);

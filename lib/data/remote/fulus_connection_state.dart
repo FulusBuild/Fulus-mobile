@@ -27,14 +27,19 @@ class FulusConnectionState extends ChangeNotifier {
   String? _selectedBusinessId;
   bool _loading = false;
   bool _syncReady = false;
+  bool _sessionAuthenticated = false;
 
   FulusMembershipContext? get membershipContext => _membershipContext;
   String? get selectedBusinessId => _selectedBusinessId;
   bool get isLoading => _loading;
   FulusRegisteredDevice? get registeredDevice => _registeredDevice;
   bool get isDeviceAuthorized => _registeredDevice?.status == 'active';
+  bool get isSessionAuthenticated => _sessionAuthenticated;
   bool get isSyncReady =>
-      _syncReady && isConnected && isDeviceAuthorized;
+      _syncReady &&
+      _sessionAuthenticated &&
+      isConnected &&
+      isDeviceAuthorized;
 
   bool get isConnected =>
       _selectedBusinessId != null && _selectedBusinessId!.isNotEmpty;
@@ -55,6 +60,26 @@ class FulusConnectionState extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  /// Records that the current API client has a valid authenticated
+  /// cloud session. This is deliberately separate from business/device
+  /// connectivity: a business can remain selected while its cloud session
+  /// has expired and is waiting for re-authentication.
+  void markSessionAuthenticated() {
+    if (_sessionAuthenticated) return;
+    _sessionAuthenticated = true;
+    notifyListeners();
+  }
+
+  /// Invalidates only cloud-session readiness. Local business state and the
+  /// selected cloud business remain intact so a later re-authentication can
+  /// resume the same device without reconnecting the business from scratch.
+  void clearSessionAuthentication() {
+    if (!_sessionAuthenticated && !_syncReady) return;
+    _sessionAuthenticated = false;
+    _syncReady = false;
+    notifyListeners();
   }
 
   void markSyncReady() {
@@ -199,6 +224,7 @@ class FulusConnectionState extends ChangeNotifier {
     _selectedBusinessId = null;
     _registeredDevice = null;
     _syncReady = false;
+    _sessionAuthenticated = false;
     unawaited(_syncOnboardingBusiness(null));
     notifyListeners();
   }

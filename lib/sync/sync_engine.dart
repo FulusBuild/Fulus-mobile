@@ -122,8 +122,13 @@ class SyncEngine {
         await _markAttentionNeeded(item.id, error: e.message);
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
       } on AuthFailure catch (e, st) {
-        await _markAttentionNeeded(item.id, error: e.message);
+        // Authentication is a session-level condition, not a permanent
+        // queue-item failure. Keep the item retryable and stop this drain
+        // cycle until the session is restored; otherwise one expired session
+        // would permanently park every queued write as attention-needed.
+        await _resetAfterAuthenticationFailure(item.id, error: e.message);
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
+        return;
       } catch (e, st) {
         final classified = SyncFailure.classify(e);
         await _handleClassifiedFailure(item, classified, st);
@@ -179,6 +184,19 @@ class SyncEngine {
 
   Future<void> _removeFromQueue(String id) async {
     await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
+  }
+
+  Future<void> _resetAfterAuthenticationFailure(
+    String id, {
+    required String error,
+  }) async {
+    await (_db.update(_db.syncQueueItems)..where((q) => q.id.equals(id))).write(
+      SyncQueueItemsCompanion(
+        syncAttempts: const Value(0),
+        lastError: Value(error),
+        lastAttemptedAt: const Value(null),
+      ),
+    );
   }
 
   Future<void> _recordAttempt(

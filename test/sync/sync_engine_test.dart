@@ -139,6 +139,52 @@ void main() {
   });
 
   test(
+      'an authentication failure stays retryable and stops the current drain',
+      () async {
+    final now = DateTime.now();
+    await seedItem(id: 'q1', entityLocalId: 'needs-auth', enqueuedAt: now);
+    await seedItem(
+      id: 'q2',
+      entityLocalId: 'must-wait-for-auth',
+      enqueuedAt: now.add(const Duration(seconds: 1)),
+    );
+
+    final handler = _ScriptedHandler((item) async {
+      if (item.entityLocalId == 'needs-auth') {
+        throw const AuthFailure.sessionExpired();
+      }
+    });
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      maxAttemptsBeforeAttentionNeeded: 5,
+    );
+
+    await engine.runOnce();
+
+    expect(handler.attemptedIds, ['needs-auth']);
+
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(2));
+    final authRow = remaining.firstWhere((r) => r.entityLocalId == 'needs-auth');
+    expect(authRow.syncAttempts, 0);
+    expect(authRow.lastError, 'Please sign in again to continue.');
+    expect(authRow.lastAttemptedAt, isNull);
+
+    // Once the session is restored, the item is immediately eligible again
+    // rather than being trapped behind the normal transient-failure backoff.
+    final successHandler = _ScriptedHandler((_) async {});
+    final recoveredEngine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': successHandler},
+    );
+    await recoveredEngine.runOnce();
+
+    expect(successHandler.attemptedIds, ['needs-auth', 'must-wait-for-auth']);
+    expect(await allQueueItems(), isEmpty);
+  });
+
+  test(
       'a transient failure increments attempts by one and the run continues '
       'to later independent items', () async {
     final now = DateTime.now();
