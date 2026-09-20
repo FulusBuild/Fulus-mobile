@@ -430,11 +430,11 @@ class _CartSummaryBar extends StatelessWidget {
       top: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
-        child: FulusButton(
+        child: _SwipeToCart(
           label: state.itemCount == 1
-              ? 'View cart · 1 item · ${state.currencySymbol}${state.total.toStringAsFixed(2)}'
-              : 'View cart · ${state.itemCount} items · ${state.currencySymbol}${state.total.toStringAsFixed(2)}',
-          onPressed: () {
+              ? 'Swipe to view cart · 1 item · ${state.currencySymbol}${state.total.toStringAsFixed(2)}'
+              : 'Swipe to view cart · ${state.itemCount} items · ${state.currencySymbol}${state.total.toStringAsFixed(2)}',
+          onComplete: () {
             final cubit = context.read<CartCubit>();
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -443,6 +443,120 @@ class _CartSummaryBar extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _SwipeToCart extends StatefulWidget {
+  const _SwipeToCart({required this.label, required this.onComplete});
+
+  final String label;
+  final VoidCallback onComplete;
+
+  @override
+  State<_SwipeToCart> createState() => _SwipeToCartState();
+}
+
+class _SwipeToCartState extends State<_SwipeToCart> {
+  double _progress = 0;
+  bool _dragging = false;
+
+  static const _thumbSize = 48.0;
+  static const _trackHeight = 56.0;
+  static const _completionThreshold = 0.78;
+
+  void _updateDrag(DragUpdateDetails details, double width) {
+    final travel = (width - _thumbSize).clamp(1.0, double.infinity);
+    setState(() {
+      _progress = (_progress + details.delta.dx / travel).clamp(0.0, 1.0);
+    });
+  }
+
+  void _finishDrag() {
+    final completed = _progress >= _completionThreshold;
+    if (completed) {
+      setState(() {
+        _progress = 1;
+        _dragging = false;
+      });
+      FulusHaptics.selection();
+      widget.onComplete();
+      return;
+    }
+
+    setState(() {
+      _progress = 0;
+      _dragging = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    final onPrimary = AppColors.onPrimaryOf(context);
+    final track = AppColors.selectedTintOf(context);
+    return Semantics(
+      label: widget.label,
+      hint: 'Swipe from left to right to open the cart',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final travel = (width - _thumbSize).clamp(1.0, double.infinity);
+          final left = travel * _progress;
+
+          return Container(
+            height: _trackHeight,
+            decoration: BoxDecoration(
+              color: track,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: primary.withValues(alpha: 0.18)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: _thumbSize + AppSpacing.sm),
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.label.copyWith(color: primary),
+                  ),
+                ),
+                AnimatedPositioned(
+                  duration: _dragging ? Duration.zero : AppMotion.fast,
+                  curve: AppMotion.curveStandard,
+                  left: left,
+                  top: (_trackHeight - _thumbSize) / 2,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragStart: (_) => setState(() => _dragging = true),
+                    onHorizontalDragUpdate: (details) => _updateDrag(details, width),
+                    onHorizontalDragEnd: (_) => _finishDrag(),
+                    child: Container(
+                      width: _thumbSize,
+                      height: _thumbSize,
+                      decoration: BoxDecoration(
+                        color: primary,
+                        shape: BoxShape.circle,
+                        boxShadow: AppElevation.cardOf(context),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        FulusIcons.chevronRight,
+                        size: AppIconSize.base,
+                        color: onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
