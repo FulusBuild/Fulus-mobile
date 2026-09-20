@@ -467,7 +467,7 @@ class _SwipeToCartState extends State<_SwipeToCart> {
   static const _completionThreshold = 0.78;
 
   void _updateDrag(DragUpdateDetails details, double width) {
-    final travel = (width - _thumbSize).clamp(1.0, double.infinity);
+    final travel = (width - _thumbSize).clamp(1.0, double.infinity).toDouble();
     setState(() {
       _progress = (_progress + details.delta.dx / travel).clamp(0.0, 1.0);
     });
