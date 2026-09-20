@@ -206,9 +206,6 @@ void main() {
           initializationCalls++;
           await triggers.reconcileForReadiness();
           ready = true;
-          if (!readinessCompleted.isCompleted) {
-            readinessCompleted.complete();
-          }
         },
         connectivity: connectivity,
       );
@@ -403,6 +400,9 @@ void main() {
           }
           await triggers.reconcileForReadiness();
           ready = true;
+          if (!readinessCompleted.isCompleted) {
+            readinessCompleted.complete();
+          }
         },
         connectivity: connectivity,
       );
