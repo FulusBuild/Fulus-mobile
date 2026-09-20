@@ -29,6 +29,7 @@ on:
         options:
           - none
           - debug
+          - release
 
       run_fulus_e2e:
         description: "Run the live Fulus sync contract test (requires FULUS_E2E_* secrets)"
