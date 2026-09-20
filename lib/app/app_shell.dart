@@ -8,6 +8,7 @@ import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
+import '../features/auth/presentation/screens/identity_picker_screen.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
 import '../shared/widgets/fulus_button.dart';
 import '../sync/sync_status.dart';
@@ -51,7 +52,6 @@ class FulusAppShell extends StatelessWidget {
             child: Stack(
               children: [
                 content,
-                const Positioned(top: 0, right: 0, child: SafeArea(child: _SyncStatusIndicator())),
               ],
             ),
           ),
@@ -112,7 +112,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Fulus', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                        Text('Fulus', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
                         Text('Your business, in your hands', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.mutedOf(context))),
                       ],
@@ -167,10 +167,20 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(displayBusinessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text(displayBusinessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
                         Text(displayUserName, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.mutedOf(context))),
                       ],
                     ),
+                  ),
+                  FulusIconButton(
+                    icon: Icons.person_outline,
+                    tooltip: 'Switch user',
+                    onPressed: () {
+                      _close(context);
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const IdentityPickerScreen()),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -261,8 +271,8 @@ class _OfflineBanner extends ConsumerWidget {
 
 final _isOnlineProvider = StreamProvider.autoDispose<bool>((ref) => Connectivity().onConnectivityChanged.map((results) => results.any((r) => r != ConnectivityResult.none)));
 
-class _SyncStatusIndicator extends ConsumerWidget {
-  const _SyncStatusIndicator();
+class FulusSyncStatusIndicator extends ConsumerWidget {
+  const FulusSyncStatusIndicator({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(_shellSyncStatusProvider).value;

@@ -14,7 +14,6 @@ import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../money/domain/money_transaction.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
-import '../../../money/presentation/widgets/opening_float_sheet.dart';
 import '../../../money/presentation/widgets/transaction_tile.dart';
 
 /// Owner/manager workspace home. Data and permissions remain repository-backed;
@@ -93,7 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.xxxl),
                     children: [
-                      _HomeHeader(onAccountTap: () => _openAccountSheet(context)),
+                      const _HomeHeader(),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
                         '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
@@ -216,51 +215,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (isOwner) return profile?.businessName.trim().isNotEmpty == true ? profile!.businessName.trim() : 'there';
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
-
-  void _openAccountSheet(BuildContext context) {
-    final user = ref.read(sessionProvider);
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          MediaQuery.viewInsetsOf(sheetContext).bottom + AppSpacing.lg,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (user != null) ...[
-              Text('Signed in as', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(sheetContext))),
-              const SizedBox(height: AppSpacing.xs),
-              Text('${user.fullName} · ${_roleLabel(user.role)}', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(sheetContext))),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: 'Switch account',
-                variant: FulusButtonVariant.secondary,
-                onPressed: () async {
-                  Navigator.of(sheetContext).pop();
-                  await ref.read(authRepositoryProvider).logout();
-                  ref.read(sessionProvider.notifier).state = null;
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.onAccountTap});
-  final VoidCallback onAccountTap;
+  const _HomeHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -274,21 +232,21 @@ class _HomeHeader extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         const FulusBrandLogo(size: 32, padding: 7),
         const SizedBox(width: AppSpacing.sm),
-        Text('Fulus', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
+        Text('Fulus', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
         const Spacer(),
-        FulusIconButton(icon: FulusIcons.swap, tooltip: 'Switch account', onPressed: onAccountTap),
+        const FulusSyncStatusIndicator(),
       ],
     );
   }
 }
 
-class _HomeSalesCard extends ConsumerWidget {
+class _HomeSalesCard extends StatelessWidget {
   const _HomeSalesCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
   final String currencySymbol;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final (label, amount, count) = switch (state) {
       NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => ('Yesterday', yesterdayTotal, yesterdaySalesCount),
       OpenHero(:final todayTotal, :final todaySalesCount) => ('Today’s sales', todayTotal, todaySalesCount),
@@ -311,7 +269,7 @@ class _HomeSalesCard extends ConsumerWidget {
             children: [
               Expanded(child: Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600))),
               if (trend != null)
-                Text(trend, style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w700)),
+                Text(trend, style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w500)),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -322,20 +280,7 @@ class _HomeSalesCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text('$count sale${count == 1 ? '' : 's'} today', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-          if (state is NotYetOpenedHero) ...[
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(width: double.infinity, child: FulusButton(label: 'Open shop', onPressed: () async {
-              final opened = await showOpeningFloatSheet(context);
-              if (opened && context.mounted) {
-                showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
-                ref.read(dataRefreshSignalProvider.notifier).state++;
-              }
-            })),
-          ] else if (state is OpenHero) ...[
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(width: double.infinity, child: FulusButton(label: 'Close shop', variant: FulusButtonVariant.secondary, onPressed: () => context.pushNamed('moneyDailyClosingCount'))),
           ],
-        ],
       ),
     );
   }
@@ -379,6 +324,8 @@ class _AttentionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shown = selection.shown.where((notice) => notice.type != SecondaryNoticeType.unsyncedItems).toList();
+    if (shown.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -388,17 +335,18 @@ class _AttentionSection extends StatelessWidget {
           height: 92,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: selection.shown.length,
+            itemCount: shown.length,
             separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
             itemBuilder: (context, index) {
-              final notice = selection.shown[index];
+              final notice = shown[index];
               switch (notice.type) {
                 case SecondaryNoticeType.lowStock:
                   return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.stock, onTap: () => context.goNamed('stock'));
                 case SecondaryNoticeType.pendingCredit:
                   return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: FulusIcons.payments, onTap: () => context.pushNamed('moneyCustomers'));
                 case SecondaryNoticeType.unsyncedItems:
-                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.cloudUpload, onTap: () => context.pushNamed('moreSyncDetail'));
+                  // Filtered above; keep the switch exhaustive for the enum.
+                  return const SizedBox.shrink();
               }
             },
           ),
@@ -453,19 +401,6 @@ class _NoticeSkeleton extends StatelessWidget {
   const _NoticeSkeleton();
   @override
   Widget build(BuildContext context) => const SizedBox(height: 92, child: Row(children: [Expanded(child: FulusSkeletonBox()), SizedBox(width: AppSpacing.sm), Expanded(child: FulusSkeletonBox())]));
-}
-
-String _roleLabel(AuthRole role) {
-  switch (role) {
-    case AuthRole.owner:
-      return 'Owner';
-    case AuthRole.manager:
-      return 'Manager';
-    case AuthRole.cashier:
-      return 'Cashier';
-    case AuthRole.employee:
-      return 'Employee';
-  }
 }
 
 final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings());

@@ -111,15 +111,15 @@ class AppColors {
 
 class AppTypography {
   AppTypography._();
-  static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w800, height: 1.08, letterSpacing: -1.0);
-  static const title = TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.12, letterSpacing: -0.6);
-  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.18, letterSpacing: -0.3);
-  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.1);
+  static const display = TextStyle(fontSize: 36, fontWeight: FontWeight.w600, height: 1.08, letterSpacing: -1.0);
+  static const title = TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.12, letterSpacing: -0.6);
+  static const heading = TextStyle(fontSize: 22, fontWeight: FontWeight.w600, height: 1.18, letterSpacing: -0.3);
+  static const subheading = TextStyle(fontSize: 18, fontWeight: FontWeight.w500, height: 1.3, letterSpacing: -0.1);
   static const bodyLarge = TextStyle(fontSize: 18, height: 1.5);
   static const body = TextStyle(fontSize: 16, height: 1.5);
   static const caption = TextStyle(fontSize: 14, height: 1.45);
-  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: 0.2);
-  static const buttonLabel = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.2, letterSpacing: 0.1);
+  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.3, letterSpacing: 0.2);
+  static const buttonLabel = TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.2, letterSpacing: 0.1);
   static const mono = TextStyle(fontFamily: 'Space Mono', fontFamilyFallback: ['monospace'], fontSize: 16, height: 1.25, fontFeatures: [FontFeature.tabularFigures()]);
 }
 class AppSpacing { AppSpacing._(); static const xs=4.0; static const sm=8.0; static const md=12.0; static const lg=16.0; static const xl=24.0; static const xxl=32.0; static const xxxl=48.0; }
