@@ -272,8 +272,17 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
-    if (active.length != 1) return;
-    fulusConnectionState.selectBusiness(active.first.businessId);
+    if (active.isEmpty) return;
+
+    // Preserve a previously selected active business across startup/session
+    // restoration. Only choose automatically when there is exactly one active
+    // membership; with multiple memberships, an already-valid selection is
+    // sufficient and must not be discarded.
+    final selectedBusinessId = fulusConnectionState.selectedBusinessId;
+    if (selectedBusinessId == null) {
+      if (active.length != 1) return;
+      fulusConnectionState.selectBusiness(active.single.businessId);
+    }
     final package = await PackageInfo.fromPlatform();
     await fulusConnectionState.registerDevice(
       deviceClientId: deviceClientId,
