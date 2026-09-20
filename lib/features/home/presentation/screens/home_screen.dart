@@ -93,20 +93,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.xxxl),
                     children: [
-                      _HomeHeader(onAccountTap: () => _openAccountSheet(context)),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+                      _HomeHeader(
+                        displayName: _displayName(ref),
+                        businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
+                        onAccountTap: () => _openAccountSheet(context),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        showBusinessWide ? 'Here’s what is happening in your business today.' : 'Here’s what is happening on your shift today.',
-                        style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
                       FutureBuilder<HomeHeroState>(
                         future: _heroFuture,
                         builder: (context, snapshot) {
@@ -259,11 +251,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.onAccountTap});
+  const _HomeHeader({
+    required this.displayName,
+    required this.businessName,
+    required this.onAccountTap,
+  });
+
+  final String displayName;
+  final String businessName;
   final VoidCallback onAccountTap;
 
   @override
   Widget build(BuildContext context) {
+    final name = displayName.trim().isEmpty ? 'there' : displayName.trim();
+    final initial = name.substring(0, 1).toUpperCase();
+
     return Row(
       children: [
         FulusIconButton(
@@ -271,12 +273,54 @@ class _HomeHeader extends StatelessWidget {
           tooltip: 'Open navigation',
           onPressed: FulusAppShell.openDrawer,
         ),
-        const SizedBox(width: AppSpacing.xs),
-        const FulusBrandLogo(size: 32, padding: 7),
+        const SizedBox(width: AppSpacing.md),
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.selectedTintOf(context),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            initial,
+            style: AppTypography.subheading.copyWith(
+              color: AppColors.primaryOf(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         const SizedBox(width: AppSpacing.sm),
-        Text('Fulus', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-        const Spacer(),
-        FulusIconButton(icon: FulusIcons.swap, tooltip: 'Switch account', onPressed: onAccountTap),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.subheading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (businessName.trim().isNotEmpty)
+                Text(
+                  businessName.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        FulusIconButton(
+          icon: FulusIcons.swap,
+          tooltip: 'Switch account',
+          onPressed: onAccountTap,
+        ),
       ],
     );
   }
@@ -286,6 +330,12 @@ class _HomeSalesCard extends ConsumerWidget {
   const _HomeSalesCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
   final String currencySymbol;
+
+  String _businessName(WidgetRef ref) {
+    final profile = ref.read(_businessProfileProvider).value;
+    final value = profile?.businessName.trim();
+    return value?.isNotEmpty == true ? value! : 'Today';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -302,38 +352,82 @@ class _HomeSalesCard extends ConsumerWidget {
       trend = '${delta >= 0 ? '+' : ''}${delta.round()}% vs yesterday';
     }
 
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAltOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600))),
-              if (trend != null)
-                Text(trend, style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w700)),
-            ],
+          Text(
+            _businessName(ref),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.subheading.copyWith(
+              color: AppColors.textSecondaryOf(context),
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           FittedBox(
-            alignment: Alignment.centerLeft,
             fit: BoxFit.scaleDown,
-            child: Text(formatMoney(amount, symbol: currencySymbol), style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context), fontFeatures: const [FontFeature.tabularFigures()])),
+            child: Text(
+              formatMoney(amount, symbol: currencySymbol),
+              style: AppTypography.display.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontSize: 38,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text('$count sale${count == 1 ? '' : 's'} today', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '$count sale${count == 1 ? '' : 's'}',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
+              ),
+              if (trend != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  trend,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.primaryOf(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
           if (state is NotYetOpenedHero) ...[
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(width: double.infinity, child: FulusButton(label: 'Open shop', onPressed: () async {
-              final opened = await showOpeningFloatSheet(context);
-              if (opened && context.mounted) {
-                showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
-                ref.read(dataRefreshSignalProvider.notifier).state++;
-              }
-            })),
+            const SizedBox(height: AppSpacing.lg),
+            FulusButton(
+              label: 'Open shop',
+              onPressed: () async {
+                final opened = await showOpeningFloatSheet(context);
+                if (opened && context.mounted) {
+                  showFulusSnackbar(context, message: 'Shop opened. Have a great day!');
+                  ref.read(dataRefreshSignalProvider.notifier).state++;
+                }
+              },
+            ),
           ] else if (state is OpenHero) ...[
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(width: double.infinity, child: FulusButton(label: 'Close shop', variant: FulusButtonVariant.secondary, onPressed: () => context.pushNamed('moneyDailyClosingCount'))),
+            const SizedBox(height: AppSpacing.lg),
+            FulusButton(
+              label: 'Close shop',
+              variant: FulusButtonVariant.secondary,
+              onPressed: () => context.pushNamed('moneyDailyClosingCount'),
+            ),
           ],
         ],
       ),
@@ -348,13 +442,14 @@ class _HomeQuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions = <({IconData icon, String label, VoidCallback onTap})>[
       (icon: FulusIcons.sell, label: 'Sell', onTap: () => context.goNamed('sell')),
-      (icon: FulusIcons.stock, label: 'Stock', onTap: () => context.goNamed('stock')),
-      (icon: FulusIcons.money, label: 'Money', onTap: () => context.goNamed('money')),
-      (icon: FulusIcons.reports, label: 'Reports', onTap: () => context.pushNamed('moreReports')),
+      (icon: FulusIcons.money, label: 'Receive', onTap: () => context.pushNamed('moneyAddIncome')),
+      (icon: FulusIcons.payments, label: 'Credit', onTap: () => context.pushNamed('moneyCustomers')),
+      (icon: FulusIcons.money, label: 'Expense', onTap: () => context.pushNamed('moneyAddExpense')),
     ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 620 ? 4 : 2;
+        final columns = constraints.maxWidth >= 760 ? 4 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -363,9 +458,35 @@ class _HomeQuickActions extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: AppSpacing.sm,
             mainAxisSpacing: AppSpacing.sm,
-            childAspectRatio: columns == 2 ? 2.0 : 1.35,
+            childAspectRatio: columns == 4 ? 1.9 : 2.2,
           ),
-          itemBuilder: (context, index) => FulusQuickAction(icon: actions[index].icon, label: actions[index].label, onTap: actions[index].onTap),
+          itemBuilder: (context, index) {
+            final action = actions[index];
+            return FulusCard(
+              onTap: action.onTap,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Icon(action.icon, size: AppIconSize.base, color: AppColors.primaryOf(context)),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      action.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.label.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
