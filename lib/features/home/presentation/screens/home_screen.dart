@@ -215,7 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (isOwner) return profile?.businessName.trim().isNotEmpty == true ? profile!.businessName.trim() : 'there';
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
-
+}
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
