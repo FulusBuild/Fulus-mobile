@@ -8,6 +8,7 @@ import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
+import '../features/auth/presentation/screens/identity_picker_screen.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
@@ -50,7 +51,6 @@ class FulusAppShell extends StatelessWidget {
             child: Stack(
               children: [
                 content,
-                const Positioned(top: 0, right: 0, child: SafeArea(child: _SyncStatusIndicator())),
               ],
             ),
           ),
@@ -171,6 +171,16 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  FulusIconButton(
+                    icon: Icons.person_outline,
+                    tooltip: 'Switch user',
+                    onPressed: () {
+                      _close(context);
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const IdentityPickerScreen()),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -260,8 +270,8 @@ class _OfflineBanner extends ConsumerWidget {
 
 final _isOnlineProvider = StreamProvider.autoDispose<bool>((ref) => Connectivity().onConnectivityChanged.map((results) => results.any((r) => r != ConnectivityResult.none)));
 
-class _SyncStatusIndicator extends ConsumerWidget {
-  const _SyncStatusIndicator();
+class FulusSyncStatusIndicator extends ConsumerWidget {
+  const FulusSyncStatusIndicator({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(_shellSyncStatusProvider).value;
