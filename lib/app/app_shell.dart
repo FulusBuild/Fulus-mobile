@@ -118,11 +118,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  FulusIconButton(
-                    icon: FulusIcons.close,
-                    tooltip: 'Close navigation',
-                    onPressed: () => _close(context),
-                  ),
+
                 ],
               ),
             ),
