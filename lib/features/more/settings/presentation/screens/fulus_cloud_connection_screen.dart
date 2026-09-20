@@ -188,6 +188,7 @@ class _FulusCloudConnectionScreenState
             supabaseUrl: SupabaseConfig.url,
             publishableKey: SupabaseConfig.publishableKey,
           );
+      ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
       if (!mounted) return;
       setState(() => _awaitingVerification = false);
       await _provisionBusiness();
@@ -205,6 +206,77 @@ class _FulusCloudConnectionScreenState
           _error = error.toString().replaceFirst('Bad state: ', '');
         });
       }
+    }
+  }
+
+  Future<void> _reauthenticate() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Enter your Fulus account email and password.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    final connection = ref.read(fulusConnectionStateProvider);
+    try {
+      await ref.read(authApiProvider).connectServer(
+            email: email,
+            password: password,
+            supabaseUrl: SupabaseConfig.url,
+            publishableKey: SupabaseConfig.publishableKey,
+          );
+      connection.markSessionAuthenticated();
+      await connection.refresh();
+
+      final active = connection.membershipContext?.memberships
+              .where((membership) => membership.status == 'active')
+              .toList(growable: false) ??
+          const [];
+      final selected = connection.selectedBusinessId;
+      if (selected == null ||
+          !active.any((membership) => membership.businessId == selected)) {
+        if (active.length != 1) {
+          throw StateError(
+            'Your account has multiple active businesses. Select the business again before reconnecting.',
+          );
+        }
+        connection.selectBusiness(active.single.businessId);
+      }
+
+      await _registerDevice(connection);
+      await ref.read(syncConfigProvider).setEnabled(true);
+      try {
+        await ref.read(syncTriggersProvider).reconcileForReadiness();
+        connection.markSyncReady();
+      } catch (_) {
+        connection.clearSyncReady();
+        rethrow;
+      }
+
+      if (mounted) {
+        showFulusSnackbar(
+          context,
+          message: 'Fulus Cloud is connected again. Pending changes will resume syncing automatically.',
+        );
+        setState(() {});
+      }
+    } on Failure catch (failure) {
+      connection.clearSyncReady();
+      if (mounted) setState(() => _error = failure.message);
+    } catch (error) {
+      connection.clearSyncReady();
+      if (mounted) {
+        setState(
+          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -311,7 +383,8 @@ class _FulusCloudConnectionScreenState
   @override
   Widget build(BuildContext context) {
     final connection = ref.watch(fulusConnectionStateProvider);
-    final connected = connection.isConnected && connection.isDeviceAuthorized;
+    final connected = connection.isSyncReady;
+    final needsReauthentication = connection.isConnected && !connection.isSyncReady;
     final isWide = MediaQuery.sizeOf(context).width >= 700;
 
     return FulusScreen(
@@ -401,7 +474,52 @@ class _FulusCloudConnectionScreenState
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  if (connected) ...[
+                  if (needsReauthentication) ...[
+                    FulusSectionHeader(
+                      title: 'Reconnect Fulus Cloud',
+                      subtitle: 'Your business is still connected, but the cloud session needs to be restored',
+                    ),
+                    FulusCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Your local business is safe. Sign in again to restore cloud sync. Pending queued changes will remain on this device until the session is restored.',
+                            style: AppTypography.body.copyWith(
+                              color: AppColors.textSecondaryOf(context),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          FulusTextField(
+                            label: 'Email',
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            enabled: !_busy,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          FulusTextField(
+                            label: 'Password',
+                            controller: _passwordController,
+                            obscureText: true,
+                            enabled: !_busy,
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Text(
+                              _error!,
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          FulusButton(
+                            label: 'Reconnect account',
+                            loading: _busy,
+                            onPressed: _busy ? null : _reauthenticate,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (connected) ...[
                     FulusSectionHeader(
                       title: 'Account & Backup',
                       subtitle: 'Cloud backup for this business',
