@@ -241,7 +241,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     final syncTriggers = ref.read(syncTriggersProvider);
     await syncConfig.setEnabled(true);
     try {
-      await syncTriggers.reconcileAfterRestore();
+      await syncTriggers.reconcileForReadiness();
       connection.markSyncReady();
     } catch (_) {
       connection.clearSyncReady();
