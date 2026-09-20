@@ -228,7 +228,7 @@ class CartCubit extends Cubit<CartState> {
     _diagnosticLogger?.breadcrumb(
       'Product added to cart',
       category: DiagnosticCategory.sales,
-      data: {'Product ID': productLocalId, 'Quantity': quantity},
+      data: {'Product ID': productLocalId, 'Quantity': '$quantity'},
     );
   }
 
