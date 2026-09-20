@@ -208,46 +208,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
 
-  void _openAccountSheet(BuildContext context) {
-    final user = ref.read(sessionProvider);
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          MediaQuery.viewInsetsOf(sheetContext).bottom + AppSpacing.lg,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (user != null) ...[
-              Text('Signed in as', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(sheetContext))),
-              const SizedBox(height: AppSpacing.xs),
-              Text('${user.fullName} · ${_roleLabel(user.role)}', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(sheetContext))),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: 'Switch account',
-                variant: FulusButtonVariant.secondary,
-                onPressed: () async {
-                  Navigator.of(sheetContext).pop();
-                  await ref.read(authRepositoryProvider).logout();
-                  ref.read(sessionProvider.notifier).state = null;
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
