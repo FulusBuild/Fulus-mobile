@@ -206,6 +206,9 @@ void main() {
           initializationCalls++;
           await triggers.reconcileForReadiness();
           ready = true;
+          if (!readinessCompleted.isCompleted) {
+            readinessCompleted.complete();
+          }
         },
         connectivity: connectivity,
       );
@@ -386,6 +389,7 @@ void main() {
 
       var initializationCalls = 0;
       var ready = false;
+      final readinessCompleted = Completer<void>();
       late final SyncTriggers triggers;
       triggers = SyncTriggers(
         syncEngine: syncEngine,
@@ -409,6 +413,7 @@ void main() {
 
       connectivityChanges.add([ConnectivityResult.wifi]);
       await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
+      await readinessCompleted.future;
 
       expect(initializationCalls, 2);
       expect(ready, isTrue);
