@@ -84,6 +84,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // session prevents duplicate credential entry and, importantly, keeps
       // authentication separate from the destructive local restore step.
       final connection = ref.read(fulusConnectionStateProvider);
+      connection.markSessionAuthenticated();
       await connection.refresh();
 
       final active = connection.membershipContext?.memberships
