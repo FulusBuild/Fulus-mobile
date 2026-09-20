@@ -168,7 +168,7 @@ void main() {
     expect(remaining, hasLength(2));
     final authRow = remaining.firstWhere((r) => r.entityLocalId == 'needs-auth');
     expect(authRow.syncAttempts, 0);
-    expect(authRow.lastError, 'Your session has expired. Please sign in again.');
+    expect(authRow.lastError, 'Please sign in again to continue.');
     expect(authRow.lastAttemptedAt, isNull);
 
     // Once the session is restored, the item is immediately eligible again
