@@ -10,6 +10,7 @@ import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../features/auth/presentation/screens/identity_picker_screen.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
+import '../shared/widgets/fulus_button.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
