@@ -45,6 +45,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void>? _connectivityRun;
   Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
+  Future<void>? _restoreReconciliationRun;
 
   Future<void> start() async {
     if (_started) return;
@@ -126,13 +127,25 @@ class SyncTriggers with WidgetsBindingObserver {
         'Cannot reconcile a restored business while sync is disabled.',
       );
     }
-    if (_restoreReconciliationInProgress) return;
 
-    // Enabling sync immediately before this call fires _onConfigChanged and
-    // can start the normal trigger path concurrently. Mark the restore phase
-    // before doing any asynchronous work so that normal readiness-gated
-    // triggers stand down instead of calling onNotReady -> reconcileAfterRestore
-    // recursively and waiting on their own in-flight Future.
+    final activeRestore = _restoreReconciliationRun;
+    if (activeRestore != null) {
+      await activeRestore;
+      return;
+    }
+
+    final run = _reconcileAfterRestore();
+    _restoreReconciliationRun = run;
+    try {
+      await run;
+    } finally {
+      if (identical(_restoreReconciliationRun, run)) {
+        _restoreReconciliationRun = null;
+      }
+    }
+  }
+
+  Future<void> _reconcileAfterRestore() async {
     _restoreReconciliationInProgress = true;
     try {
       final results = await _connectivity.checkConnectivity();
@@ -142,29 +155,41 @@ class SyncTriggers with WidgetsBindingObserver {
         );
       }
 
-      // If a normal trigger already owns the cycle, restore can safely
-      // piggyback on it: the normal cycle already performs the queue drain and
-      // server pull, and _connectivityRun serializes all other triggers behind
-      // that same work. Starting a second cycle here would duplicate the run
-      // and pull unnecessarily.
+      // A normal trigger may already own the connectivity cycle. It is safe
+      // to wait for that cycle unless it is waiting on this restore through
+      // onNotReady. Bootstrap readiness initialization uses
+      // reconcileForReadiness() instead, so it never creates that cycle.
       final active = _connectivityRun;
       if (active != null) {
         await active;
         return;
       }
 
-      final run = _runAndCheckStuck();
-      _connectivityRun = run;
-      try {
-        await run;
-      } finally {
-        if (identical(_connectivityRun, run)) {
-          _connectivityRun = null;
-        }
-      }
+      await _runAndCheckStuck();
     } finally {
       _restoreReconciliationInProgress = false;
     }
+  }
+
+  /// Performs the readiness reconciliation without waiting on any normal
+  /// trigger or readiness future. This is used by bootstrap's onNotReady hook
+  /// and therefore must never call reconcileAfterRestore() or await
+  /// _connectivityRun/_readinessRun.
+  Future<void> reconcileForReadiness() async {
+    if (!_syncConfig.isEnabled) {
+      throw StateError(
+        'Cannot reconcile for readiness while sync is disabled.',
+      );
+    }
+
+    final results = await _connectivity.checkConnectivity();
+    if (!_hasConnectivity(results)) {
+      throw StateError(
+        'Fulus Cloud initial reconciliation requires an internet connection.',
+      );
+    }
+
+    await _runAndCheckStuck();
   }
 
   Future<void> notifyEnqueued() async {
@@ -172,25 +197,27 @@ class SyncTriggers with WidgetsBindingObserver {
     await _runIfOnline();
   }
 
-  Future<void> _ensureReady() async {
+  Future<bool> _ensureReady() async {
     // Restore owns the initial reconciliation. A normal trigger that happens
-    // to fire while restore is enabling sync must stand down; otherwise it can
-    // enter onNotReady and recursively invoke reconcileAfterRestore.
-    if (_restoreReconciliationInProgress) return;
+    // to fire while restore is enabling sync must stand down.
+    if (_restoreReconciliationInProgress) return false;
 
     final ready = _isReady;
-    if (ready == null || await ready()) return;
+    if (ready == null || await ready()) return false;
     final initialize = _onNotReady;
-    if (initialize == null) return;
+    if (initialize == null) return false;
     final active = _readinessRun;
     if (active != null) {
       await active;
-      return;
+      return true;
     }
     final run = initialize();
     _readinessRun = run;
     try {
       await run;
+      // onNotReady owns the initial reconciliation. The caller must not run
+      // another queue/pull cycle immediately after it completes.
+      return true;
     } finally {
       if (identical(_readinessRun, run)) {
         _readinessRun = null;
@@ -213,9 +240,10 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void> _runIfOnlineOnce({required bool requireReady}) async {
     if (!_syncConfig.isEnabled) return;
     if (requireReady) {
-      await _ensureReady();
+      final initialized = await _ensureReady();
       final ready = _isReady;
       if (ready != null && !await ready()) return;
+      if (initialized) return;
     }
     final results = await _connectivity.checkConnectivity();
     if (_hasConnectivity(results)) {
