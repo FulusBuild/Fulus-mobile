@@ -240,13 +240,13 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-class _HomeSalesCard extends ConsumerWidget {
+class _HomeSalesCard extends StatelessWidget {
   const _HomeSalesCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
   final String currencySymbol;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final (label, amount, count) = switch (state) {
       NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => ('Yesterday', yesterdayTotal, yesterdaySalesCount),
       OpenHero(:final todayTotal, :final todaySalesCount) => ('Today’s sales', todayTotal, todaySalesCount),
