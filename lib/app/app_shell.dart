@@ -10,6 +10,7 @@ import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
 import '../features/auth/presentation/screens/identity_picker_screen.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
+import '../shared/widgets/fulus_button.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
@@ -111,7 +112,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Fulus', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                        Text('Fulus', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
                         Text('Your business, in your hands', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.mutedOf(context))),
                       ],
@@ -166,7 +167,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(displayBusinessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text(displayBusinessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
                         Text(displayUserName, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.mutedOf(context))),
                       ],
                     ),
