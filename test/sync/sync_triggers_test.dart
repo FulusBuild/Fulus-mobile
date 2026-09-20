@@ -196,7 +196,8 @@ void main() {
 
       var ready = false;
       var initializationCalls = 0;
-      final triggers = SyncTriggers(
+      late final SyncTriggers triggers;
+      triggers = SyncTriggers(
         syncEngine: syncEngine,
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
