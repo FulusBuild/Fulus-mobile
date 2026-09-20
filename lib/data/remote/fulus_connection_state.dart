@@ -224,6 +224,7 @@ class FulusConnectionState extends ChangeNotifier {
     _selectedBusinessId = null;
     _registeredDevice = null;
     _syncReady = false;
+    _sessionAuthenticated = false;
     unawaited(_syncOnboardingBusiness(null));
     notifyListeners();
   }
