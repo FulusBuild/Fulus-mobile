@@ -129,7 +129,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     await seedLocation(db, localId: locationId);
     await seedUser(db, localId: 'user-cashier-1');
-    await seedProduct(localId: plentyProductId, sku: 'SKU-PLENTY', stock: 100);
+    await seedProduct(localId: plentyProductId, sku: 'SKU-PLENTY', stock: 500);
     await seedProduct(localId: limitedProductId, sku: 'SKU-LIMITED', stock: 2);
 
     final syncQueue = SyncQueue(db);
