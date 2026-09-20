@@ -147,7 +147,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       await ref.read(syncConfigProvider).setEnabled(true);
       setState(() => _status = 'Reconciling with Fulus Cloud…');
       try {
-        await ref.read(syncTriggersProvider).reconcileAfterRestore();
+        await ref.read(syncTriggersProvider).reconcileForReadiness();
         connection.markSyncReady();
       } catch (_) {
         connection.clearSyncReady();
