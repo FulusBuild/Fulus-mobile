@@ -9,10 +9,10 @@ create index if not exists idx_sync_changes_business_entity
   on public.sync_changes (business_id, entity_type, entity_id, sequence);
 
 create index if not exists idx_sync_operations_business_created_at
-  on public.sync_operations (business_id, created_at desc);
+  on public.sync_operations (business_id, received_at desc);
 
 create index if not exists idx_idempotency_keys_business_created_at
   on public.idempotency_keys (business_id, created_at desc);
 
 create index if not exists idx_idempotency_keys_business_operation
-  on public.idempotency_keys (business_id, operation_type, operation_id);
+  on public.idempotency_keys (business_id, operation_type, key);
