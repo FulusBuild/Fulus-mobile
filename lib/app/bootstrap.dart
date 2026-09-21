@@ -161,7 +161,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final cashDrawerShiftsApi = CashDrawerShiftsApi(apiClient);
   final locationsApi = LocationsApi(apiClient);
   final businessSettingsApi = BusinessSettingsApi(apiClient);
-  final syncQueue = SyncQueue(database);
+  final syncQueue = SyncQueue(
+    database,
+    baseCursorProvider: () {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      return businessId == null
+          ? null
+          : syncPreferences.getInt('fulus_sync_cursor_$businessId');
+    },
+  );
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
