@@ -73,12 +73,32 @@ class SyncStatusNotifier {
   static String _pushKey(String businessId) => 'fulus_sync_last_push_$businessId';
   static String _pullKey(String businessId) => 'fulus_sync_last_pull_$businessId';
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
+  static String _recoveryKey(String businessId) => 'fulus_sync_recovery_$businessId';
+  static String _recoveryErrorKey(String businessId) => 'fulus_sync_recovery_error_$businessId';
 
   SyncHealthSnapshot healthFor(String businessId) => SyncHealthSnapshot(
         lastPushAt: _readDate(_preferences.getString(_pushKey(businessId))),
         lastPullAt: _readDate(_preferences.getString(_pullKey(businessId))),
         cursor: _preferences.getInt(_cursorKey(businessId)) ?? 0,
+        recoveryState: _preferences.getString(_recoveryKey(businessId)) ?? 'idle',
+        lastError: _preferences.getString(_recoveryErrorKey(businessId)),
       );
+
+  Future<void> markRecoveryStarted(String businessId) async {
+    await _preferences.setString(_recoveryKey(businessId), 'recovering');
+    await _preferences.remove(_recoveryErrorKey(businessId));
+  }
+
+  Future<void> markRecoveryCompleted(String businessId, int boundary) async {
+    await _preferences.setInt(_cursorKey(businessId), boundary);
+    await _preferences.setString(_recoveryKey(businessId), 'idle');
+    await _preferences.remove(_recoveryErrorKey(businessId));
+  }
+
+  Future<void> markRecoveryFailed(String businessId, Object error) async {
+    await _preferences.setString(_recoveryKey(businessId), 'blocked');
+    await _preferences.setString(_recoveryErrorKey(businessId), error.toString());
+  }
 
   Future<int> unresolvedConflictCount() async {
     final rows = await (_db.select(_db.syncConflictRecords)
