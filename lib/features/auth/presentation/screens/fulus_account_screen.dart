@@ -240,16 +240,12 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     );
 
     final syncConfig = ref.read(syncConfigProvider);
-    final syncTriggers = ref.read(syncTriggersProvider);
     await syncConfig.setEnabled(true);
-    try {
-      await syncTriggers.reconcileForReadiness();
-      connection.markSyncReady();
-    } catch (_) {
-      connection.clearSyncReady();
-      rethrow;
-    }
 
+    // Local account/business creation is complete at this point. Do not make
+    // entering the app depend on the first cloud reconciliation completing;
+    // SyncTriggers observes the enabled config and performs that work in the
+    // background, including readiness and retry handling.
     if (!mounted) return;
     showFulusSnackbar(
       context,
