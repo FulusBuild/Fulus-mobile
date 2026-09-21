@@ -139,6 +139,7 @@ Deno.serve(async req => {
       id: typeof b.id === "string" ? b.id : null,
       item: rawItem,
       operation_id: operationId,
+      base_cursor: typeof b.base_cursor === 'number' ? Math.trunc(b.base_cursor) : null,
     };
     const hashBytes = await crypto.subtle.digest(
       "SHA-256",
@@ -159,11 +160,12 @@ Deno.serve(async req => {
       target_operation: operation,
       target_id: targetId,
       target_item: rawItem,
+      target_base_cursor: typeof b.base_cursor === 'number' ? Math.trunc(b.base_cursor) : null,
       target_request_hash: requestHash,
     });
     if (error) {
-      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" ? 409 : 400;
-      const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : "CATALOG_WRITE_FAILED";
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" || error.code === "P0008" ? 409 : 400;
+      const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : error.code === "P0008" ? "SYNC_CONFLICT" : "CATALOG_WRITE_FAILED";
       return out({ error: { code, message: error.message } }, status);
     }
     return out({ data }, 200);
@@ -206,6 +208,7 @@ Deno.serve(async req => {
         target_notes: typeof rawPayload.notes === "string" ? rawPayload.notes : null,
         target_credit_limit: Number(rawPayload.credit_limit ?? 0),
         target_is_active: rawPayload.is_active !== false,
+        target_base_cursor: typeof rawPayload.base_cursor === 'number' ? Math.trunc(rawPayload.base_cursor) : null,
         target_request_hash: requestHash,
       }));
     } else if (action === "expense_update") {
@@ -224,6 +227,7 @@ Deno.serve(async req => {
         target_description: typeof rawPayload.description === "string" ? rawPayload.description : null,
         target_expense_date: typeof rawPayload.expense_date === "string" ? rawPayload.expense_date : new Date().toISOString(),
         target_payment_method: typeof rawPayload.payment_method === "string" ? rawPayload.payment_method : null,
+        target_base_cursor: typeof rawPayload.base_cursor === 'number' ? Math.trunc(rawPayload.base_cursor) : null,
         target_request_hash: requestHash,
       }));
     } else {
@@ -239,7 +243,7 @@ Deno.serve(async req => {
 
     if (error) {
       const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" ? 409 : 400;
-      const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : "COMMAND_FAILED";
+      const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : error.code === "P0008" ? "SYNC_CONFLICT" : "COMMAND_FAILED";
       return out({ error: { code, message: error.message } }, status);
     }
     return out({ data }, data?.status === "already_applied" ? 200 : 200);
