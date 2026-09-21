@@ -377,6 +377,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       }
       await syncRecovery.recover(businessId: businessId);
     },
+    onRecoveryReconciled: () async {
+      fulusConnectionState.markSyncReady();
+    },
     onPushSuccess: () async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
