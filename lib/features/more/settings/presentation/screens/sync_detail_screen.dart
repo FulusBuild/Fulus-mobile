@@ -65,7 +65,9 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                       ),
                       statusAsync.when(
                         data: (status) => _StatusCard(
-                          status: connection.isSyncReady ? status : const SyncStatus.cloudUnavailable(),
+                          status: status.kind == SyncStatusKind.disabled || connection.isSyncReady
+                              ? status
+                              : const SyncStatus.cloudUnavailable(),
                           syncingNow: _syncingNow,
                           onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
                         ),
