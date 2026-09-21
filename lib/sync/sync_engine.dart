@@ -136,6 +136,9 @@ class SyncEngine {
         final message = isConflict
             ? _conflictResolver.annotate(e.message)
             : e.message;
+        if (isConflict) {
+          await _recordConflict(item, e, message);
+        }
         await _markAttentionNeeded(item.id, error: message);
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
       } on ValidationFailure catch (e, st) {
@@ -199,6 +202,29 @@ class SyncEngine {
             ? 'retry'
             : 'attentionNeeded',
       },
+    );
+  }
+
+  Future<void> _recordConflict(
+    SyncQueueItem item,
+    BusinessRuleFailure failure,
+    String message,
+  ) async {
+    final existing = await (_db.select(_db.syncConflictRecords)
+          ..where((c) => c.operationId.equals(item.id))
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null) return;
+    await _db.into(_db.syncConflictRecords).insert(
+      SyncConflictRecordsCompanion.insert(
+        id: item.id + ':conflict',
+        operationId: item.id,
+        entityType: item.entityType,
+        entityLocalId: item.entityLocalId,
+        code: Value(failure.code),
+        message: message,
+        createdAt: DateTime.now(),
+      ),
     );
   }
 
