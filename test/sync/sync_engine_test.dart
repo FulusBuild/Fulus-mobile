@@ -8,6 +8,22 @@ import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Records every entityLocalId it was asked to sync, and does whatever
+/// [onSync] scripts for that call — letting each test control success
+/// vs. a specific thrown failure per item, per call, directly.
+class _ScriptedHandler implements SyncHandler {
+  _ScriptedHandler(this.onSync);
+
+  final Future<void> Function(SyncQueueItem item) onSync;
+  final List<String> attemptedIds = [];
+
+  @override
+  Future<void> sync(SyncQueueItem item) async {
+    attemptedIds.add(item.entityLocalId);
+    await onSync(item);
+  }
+}
+
 void main() {
   late AppDatabase db;
 
