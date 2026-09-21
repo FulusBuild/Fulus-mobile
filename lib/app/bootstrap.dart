@@ -260,7 +260,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
-  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService);
+  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences);
   late final SyncTriggers syncTriggers;
 
   Future<void> initializeCloudSync() async {
@@ -314,7 +314,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (businessId == null || registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
         throw StateError('Fulus Cloud is not ready for canonical pull.');
       }
-      await syncCoordinator.pullAndApply(businessId: businessId);
+      final cursor = await syncCoordinator.pullAndApply(businessId: businessId);
+      await syncStatusNotifier.recordPullSuccess(businessId, cursor);
     },
   );
 
