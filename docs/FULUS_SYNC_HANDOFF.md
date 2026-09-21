@@ -25,7 +25,7 @@ Then inspect relevant client and Supabase paths rather than relying solely on th
 - PR: #56
 - PR status: open, ready for review, not merged
 - Production Supabase project: bejcuvoxemwomcatgyxz
-- Last verified HEAD: 9f2d2b226feed2df408f5de43d54eb5b46fb5e1a
+- Last verified HEAD: a423cd10a918939646637dd6302bb935196e0901
 
 The branch contains substantial sync hardening. Do not restart or replace it with a new architecture.
 
@@ -105,7 +105,8 @@ Implemented in the current branch:
 - production deployment of fulus-sync-state version 3 with JWT verification enabled;
 - production verification that repository and deployed fulus-sync-state source match exactly;
 - production `pg_cron` retention job `fulus-sync-change-retention` is active daily at 03:30 UTC;
-- duplicate sync-path indexes were removed and remaining `staff_invites` FK indexes were added.
+- duplicate sync-path indexes were removed and remaining `staff_invites` FK indexes were added;
+- `fulus-api` v41 and `fulus-sync-state` v4 enforce authenticated-user/device binding and match repository source exactly.
 
 The first genuinely incomplete work is now verification and scale hardening:
 
