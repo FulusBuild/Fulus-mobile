@@ -559,6 +559,10 @@ class SyncQueueItems extends Table {
   // (lowest).
   IntColumn get priority => integer()();
   DateTimeColumn get enqueuedAt => dateTime()();
+  /// Last server change-feed cursor observed when this mutation was created.
+  /// Null means the mutation predates cloud sync on this device; such first-time
+  /// uploads have no remote base revision to compare against.
+  IntColumn get baseCursor => integer().nullable()();
   // syncAttempts: a per-item counter that, once it crosses a threshold
   // across separate sync RUNS (not within one run), demotes this
   // specific item to attentionNeeded and lets the queue proceed past it,
