@@ -236,8 +236,6 @@ class _HomeHeader extends StatelessWidget {
           onPressed: FulusAppShell.openDrawer,
         ),
         const SizedBox(width: AppSpacing.xs),
-        const FulusBrandLogo(size: 32, padding: 7),
-        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             businessName.isEmpty ? 'Business' : businessName,
