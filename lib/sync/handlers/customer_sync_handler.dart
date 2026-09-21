@@ -40,8 +40,8 @@ class CustomerSyncHandler implements SyncHandler {
     }
 
     final isUpdate = item.operation == 'update';
-    final serverId = customer.serverId;
-    if (isUpdate && (serverId == null || serverId.isEmpty)) {
+    final existingServerId = customer.serverId;
+    if (isUpdate && (existingServerId == null || existingServerId.isEmpty)) {
       throw StateError(
         'Cannot sync customer update before its create has synced.',
       );
@@ -63,7 +63,7 @@ class CustomerSyncHandler implements SyncHandler {
         'address': customer.address,
         'notes': customer.notes,
         'credit_limit': customer.creditLimit ?? 0,
-        if (isUpdate) 'server_id': serverId,
+        if (isUpdate) 'server_id': existingServerId,
         if (isUpdate) 'is_active': customer.deletedAt == null,
       },
     );
