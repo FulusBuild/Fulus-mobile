@@ -17,7 +17,7 @@ class CloudSyncRecovery {
     required CloudRestoreApi restoreApi,
     required CloudSyncBootstrapCoordinator bootstrapCoordinator,
     required Future<void> Function() onStarted,
-    required Future<void> Function(int boundary),
+    required Future<void> Function(int boundary) onCompleted,
     required Future<void> Function(Object error) onFailed,
   })  : _db = db,
         _restoreApi = restoreApi,
