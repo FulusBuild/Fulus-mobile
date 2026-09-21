@@ -92,7 +92,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.xxxl),
                     children: [
-                      const _HomeHeader(),
+                      _HomeHeader(
+                        businessName:
+                            ref.watch(_businessProfileProvider).value?.businessName.trim() ??
+                                '',
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
                         '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
@@ -218,7 +222,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
+  const _HomeHeader({required this.businessName});
+
+  final String businessName;
 
   @override
   Widget build(BuildContext context) {
@@ -230,9 +236,17 @@ class _HomeHeader extends StatelessWidget {
           onPressed: FulusAppShell.openDrawer,
         ),
         const SizedBox(width: AppSpacing.xs),
-        const FulusBrandLogo(size: 32, padding: 7),
-        const SizedBox(width: AppSpacing.sm),
-        Text('Fulus', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Text(
+            businessName.isEmpty ? 'Business' : businessName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.subheading.copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         const Spacer(),
         const FulusSyncStatusIndicator(),
       ],
