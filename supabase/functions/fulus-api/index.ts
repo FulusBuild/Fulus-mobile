@@ -73,35 +73,79 @@ Deno.serve(async req => {
 
   if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
     const entity = typeof b.entity === "string" ? b.entity : null;
-    if (!entity || !["products", "categories", "suppliers", "expense_categories"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
-    // `user_has_permission` is deliberately called through the service-role client.
-    // The function is explicitly revoked from authenticated users and safely
-    // scopes the check by the already-validated caller uid.
-    const { data: allowed, error: pe } = await serviceDb.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage" });
+    if (!entity || !["products", "categories", "suppliers"].includes(entity)) {
+      return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
+    }
+
+    const { data: allowed, error: pe } = await serviceDb.rpc("user_has_permission", {
+      target_business_id: bid,
+      target_user_id: uid,
+      target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage",
+    });
     if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
+
     if (action === "catalog_list") {
-      const { data, error } = await serviceDb.from(entity).select("*").eq("business_id", bid).is("deleted_at", null).order("updated_at", { ascending: false }).limit(Math.min(Math.max(Number(b.limit ?? 100), 1), 500));
+      const { data, error } = await serviceDb
+        .from(entity)
+        .select("*")
+        .eq("business_id", bid)
+        .is("deleted_at", null)
+        .order("updated_at", { ascending: false })
+        .limit(Math.min(Math.max(Number(b.limit ?? 100), 1), 500));
       if (error) return out({ error: { code: "CATALOG_READ_FAILED", message: "Unable to read catalog" } }, 500);
       return out({ data: { entity, items: data ?? [], server_authoritative: true } });
     }
-    const id = typeof b.id === "string" ? b.id : null;
-    if (action === "catalog_delete") {
-      if (!id) return out({ error: { code: "INVALID_CATALOG_DELETE", message: "id is required" } }, 400);
-      const { data, error } = await serviceDb.from(entity).update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).eq("business_id", bid).select("*").maybeSingle();
-      if (error) return out({ error: { code: "CATALOG_DELETE_FAILED", message: error.message } }, 500);
-      if (!data) return out({ error: { code: "NOT_FOUND", message: "Catalog item not found" } }, 404);
-      return out({ data: { entity, item: data, server_authoritative: true } });
+
+    if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for catalog writes" } }, 400);
+    const operationId = typeof b.operation_id === "string" ? b.operation_id : null;
+    if (!operationId) return out({ error: { code: "INVALID_CATALOG_OPERATION", message: "operation_id is required" } }, 400);
+
+    const { data: device, error: deviceError } = await serviceDb
+      .from("devices")
+      .select("id,status")
+      .eq("business_id", bid)
+      .eq("device_client_id", dc)
+      .maybeSingle();
+    if (deviceError) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+    if (!device || device.status !== "active") {
+      return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
     }
-    const input = b.item && typeof b.item === "object" ? b.item as Record<string, unknown> : {};
-    const fields: Record<string, string[]> = { categories: ["name", "description"], suppliers: ["name", "phone", "email", "address"], products: ["name", "sku", "barcode", "category_id", "supplier_id", "cost_price", "selling_price", "low_stock_threshold", "is_active"], expense_categories: ["name"] };
-    const row: Record<string, unknown> = { business_id: bid };
-    for (const f of fields[entity]) if (f in input) row[f] = input[f];
-    if (typeof row.name !== "string" || !row.name.trim()) return out({ error: { code: "INVALID_CATALOG_ITEM", message: "name is required" } }, 400);
-    row.name = (row.name as string).trim();
-    const { data, error } = id ? await serviceDb.from(entity).update(row).eq("id", id).eq("business_id", bid).select("*").maybeSingle() : await serviceDb.from(entity).insert(row).select("*").single();
-    if (error) return out({ error: { code: "CATALOG_WRITE_FAILED", message: error.message } }, 400);
-    return out({ data: { entity, item: data, server_authoritative: true } }, id ? 200 : 201);
+
+    const rawItem = b.item && typeof b.item === "object" ? b.item as Record<string, unknown> : {};
+    const requestEnvelope = {
+      action,
+      entity,
+      id: typeof b.id === "string" ? b.id : null,
+      item: rawItem,
+      operation_id: operationId,
+    };
+    const hashBytes = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(JSON.stringify(requestEnvelope)),
+    );
+    const requestHash = Array.from(new Uint8Array(hashBytes))
+      .map(x => x.toString(16).padStart(2, "0"))
+      .join("");
+
+    const targetId = typeof b.id === "string" ? b.id : null;
+    const operation = action === "catalog_delete" ? "delete" : "upsert";
+    const { data, error } = await serviceDb.rpc("cloud_catalog_mutate", {
+      target_business_id: bid,
+      target_user_id: uid,
+      target_device_id: device.id,
+      target_operation_id: operationId,
+      target_entity: entity,
+      target_operation: operation,
+      target_id: targetId,
+      target_item: rawItem,
+      target_request_hash: requestHash,
+    });
+    if (error) {
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 400;
+      return out({ error: { code: "CATALOG_WRITE_FAILED", message: error.message } }, status);
+    }
+    return out({ data }, 200);
   }
 
   if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for commands" } }, 400);
