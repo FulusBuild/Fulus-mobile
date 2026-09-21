@@ -46,6 +46,7 @@ class CategorySyncHandler implements SyncHandler {
       'name': category.name,
       'description': category.description,
       if (category.serverId != null) 'server_id': category.serverId,
+      if (item.baseCursor != null) 'base_cursor': item.baseCursor,
     };
 
     final result = await _fulusSyncApi.submitOperation(
@@ -53,7 +54,12 @@ class CategorySyncHandler implements SyncHandler {
       operationType: operationType,
       operationId: item.id,
       deviceClientId: device.deviceClientId,
-      payload: isDelete ? {'server_id': category.serverId} : payload,
+      payload: isDelete
+          ? {
+              'server_id': category.serverId,
+              if (item.baseCursor != null) 'base_cursor': item.baseCursor,
+            }
+          : payload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
     final serverId = (data['entity_id'] as String?) ?? category.serverId;
