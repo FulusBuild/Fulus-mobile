@@ -117,6 +117,21 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
           };
       }
 
+      if (operationType == 'customer.update' ||
+          operationType == 'expense.update' ||
+          operationType == 'expense_category.create') {
+        body
+          ..remove('operation_type')
+          ..remove('payload')
+          ..['action'] = switch (operationType) {
+            'customer.update' => 'customer_update',
+            'expense.update' => 'expense_update',
+            'expense_category.create' => 'expense_category_create',
+            _ => throw StateError('Unsupported Fulus operation: $operationType'),
+          }
+          ..['payload'] = rawPayload;
+      }
+
       if (operationType.startsWith('product.') ||
           operationType.startsWith('category.') ||
           operationType.startsWith('supplier.') ||
