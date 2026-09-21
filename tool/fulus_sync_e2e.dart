@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 
 /// Live contract test for the Fulus authoritative sync API.
+/// Catalog mutations deliberately include an operation_id so the production idempotency contract is exercised.
 ///
 /// Required environment:
 ///   FULUS_API_URL       Edge Function URL
