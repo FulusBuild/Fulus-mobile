@@ -27,6 +27,7 @@ class CloudRestoreCoordinator {
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: null,
+        transactional: false,
       );
 
       await _db.delete(_db.businessSettings).go();
