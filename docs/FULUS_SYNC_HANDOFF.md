@@ -25,7 +25,7 @@ Then inspect relevant client and Supabase paths rather than relying solely on th
 - PR: #56
 - PR status: open, ready for review, not merged
 - Production Supabase project: bejcuvoxemwomcatgyxz
-- Last verified HEAD: 9da43b575e2b8564a3aee4a79a5e4cc5431119f7
+- Last verified HEAD: 9f2d2b226feed2df408f5de43d54eb5b46fb5e1a
 
 The branch contains substantial sync hardening. Do not restart or replace it with a new architecture.
 
