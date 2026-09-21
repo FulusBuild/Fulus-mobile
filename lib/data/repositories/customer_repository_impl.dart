@@ -50,45 +50,53 @@ class CustomerRepositoryImpl implements CustomerRepository {
   @override
   Future<Customer> updateCustomer(String localId, CustomerDraft draft) async {
     final updated = draft.toCustomerEntity(localId: localId);
-    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
-      CustomersCompanion(
-        name: Value(updated.name),
-        phone: Value(updated.phone),
-        email: Value(updated.email),
-        address: Value(updated.address),
-        notes: Value(updated.notes),
-        creditLimit: Value(updated.creditLimit),
-        loyaltyThreshold: Value(updated.loyaltyThreshold),
-        syncStatus: const Value(SyncStatus.pending),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
+    await _db.transaction(() async {
+      await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+        CustomersCompanion(
+          name: Value(updated.name),
+          phone: Value(updated.phone),
+          email: Value(updated.email),
+          address: Value(updated.address),
+          notes: Value(updated.notes),
+          creditLimit: Value(updated.creditLimit),
+          loyaltyThreshold: Value(updated.loyaltyThreshold),
+          syncStatus: const Value(SyncStatus.pending),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
+    });
     return (await getCustomerById(localId))!;
   }
 
   @override
   Future<void> archiveCustomer(String localId) async {
-    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
-      CustomersCompanion(
-        deletedAt: Value(DateTime.now()),
-        syncStatus: const Value(SyncStatus.pending),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+        CustomersCompanion(
+          deletedAt: Value(now),
+          syncStatus: const Value(SyncStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
+    });
   }
 
   @override
   Future<void> restoreCustomer(String localId) async {
-    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
-      CustomersCompanion(
-        deletedAt: const Value(null),
-        syncStatus: const Value(SyncStatus.pending),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+        CustomersCompanion(
+          deletedAt: const Value(null),
+          syncStatus: const Value(SyncStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateCustomer(localId));
+    });
   }
 
   @override
