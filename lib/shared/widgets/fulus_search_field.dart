@@ -4,70 +4,128 @@ import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
 
 class FulusSearchField extends StatefulWidget {
-  const FulusSearchField({super.key,this.controller,this.hintText='Search…',this.onChanged,this.onClear,this.autofocus=false});
-  final TextEditingController? controller; final String hintText; final ValueChanged<String>? onChanged; final VoidCallback? onClear; final bool autofocus;
-  @override State<FulusSearchField> createState()=>_FulusSearchFieldState();
+  const FulusSearchField({
+    super.key,
+    this.controller,
+    this.hintText = 'Search…',
+    this.onChanged,
+    this.onClear,
+    this.autofocus = false,
+  });
+
+  final TextEditingController? controller;
+  final String hintText;
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onClear;
+  final bool autofocus;
+
+  @override
+  State<FulusSearchField> createState() => _FulusSearchFieldState();
 }
-class _FulusSearchFieldState extends State<FulusSearchField>{
-  late TextEditingController _controller=widget.controller??TextEditingController();
+
+class _FulusSearchFieldState extends State<FulusSearchField> {
+  late TextEditingController _controller =
+      widget.controller ?? TextEditingController();
   late final FocusNode _focusNode;
-  @override void initState(){
+
+  @override
+  void initState() {
     super.initState();
-    _focusNode=FocusNode();
+    _focusNode = FocusNode();
     _controller.addListener(_onTextChanged);
   }
-  @override void didUpdateWidget(FulusSearchField oldWidget){super.didUpdateWidget(oldWidget);if(widget.controller!=oldWidget.controller){_controller.removeListener(_onTextChanged);if(oldWidget.controller==null)_controller.dispose();_controller=widget.controller??TextEditingController();_controller.addListener(_onTextChanged);}}
-  void _onTextChanged(){if(mounted)setState((){});}
-  @override void dispose(){
+
+  @override
+  void didUpdateWidget(FulusSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      _controller.removeListener(_onTextChanged);
+      if (oldWidget.controller == null) _controller.dispose();
+      _controller = widget.controller ?? TextEditingController();
+      _controller.addListener(_onTextChanged);
+    }
+  }
+
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
     _controller.removeListener(_onTextChanged);
     _focusNode.dispose();
-    if(widget.controller==null)_controller.dispose();
+    if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
-  @override Widget build(BuildContext context){
-    final primary=AppColors.primaryOf(context);
-    final secondary=AppColors.textSecondaryOf(context);
-    final divider=AppColors.borderOf(context);
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    final secondary = AppColors.textSecondaryOf(context);
+    final divider = AppColors.borderOf(context);
+
     return SizedBox(
-      width:double.infinity,
-      height:AppTouchTarget.minimum,
-      child:TextField(
-        controller:_controller,
-        focusNode:_focusNode,
-        onChanged:widget.onChanged,
-        autofocus:widget.autofocus,
-        textInputAction:TextInputAction.search,
-        style:AppTypography.body.copyWith(color:AppColors.textPrimaryOf(context),fontWeight:FontWeight.w500),
-        cursorColor:primary,
-        decoration:InputDecoration(
-          hintText:widget.hintText,
-          hintStyle:AppTypography.body.copyWith(color:secondary),
-          filled:true,
-          fillColor:AppColors.surfaceAltOf(context),
-          prefixIcon:IconButton(
-            tooltip:'Search',
-            onPressed:_focusNode.requestFocus,
-            icon:Icon(FulusIcons.search,size:AppIconSize.base,color:secondary),
+      width: double.infinity,
+      height: AppTouchTarget.minimum,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        onChanged: widget.onChanged,
+        autofocus: widget.autofocus,
+        textInputAction: TextInputAction.search,
+        style: AppTypography.body.copyWith(
+          color: AppColors.textPrimaryOf(context),
+          fontWeight: FontWeight.w500,
+        ),
+        cursorColor: primary,
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          hintStyle: AppTypography.body.copyWith(color: secondary),
+          filled: true,
+          fillColor: AppColors.surfaceAltOf(context),
+          prefixIcon: IconButton(
+            tooltip: 'Search',
+            onPressed: _focusNode.requestFocus,
+            icon: Icon(
+              FulusIcons.search,
+              size: AppIconSize.base,
+              color: secondary,
+            ),
           ),
-          suffixIcon:_controller.text.isEmpty?null:IconButton(
-            tooltip:'Clear search',
-            icon:const Icon(FulusIcons.close),
-            color:secondary,
-            onPressed:(){
-              _controller.clear();
-              widget.onChanged?.call('');
-              widget.onClear?.call();
-              _focusNode.requestFocus();
-            },
+          suffixIcon: _controller.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  icon: const Icon(FulusIcons.close),
+                  color: secondary,
+                  onPressed: () {
+                    _controller.clear();
+                    widget.onChanged?.call('');
+                    widget.onClear?.call();
+                    _focusNode.requestFocus();
+                  },
+                ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            borderSide: BorderSide(color: divider.withValues(alpha: .55)),
           ),
-          border:OutlineInputBorder(borderRadius:BorderRadius.circular(AppRadius.pill),borderSide:BorderSide(color:divider.withValues(alpha:.55))),
-          enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(AppRadius.pill),borderSide:BorderSide(color:divider.withValues(alpha:.55))),
-          focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(AppRadius.pill),borderSide:BorderSide(color:primary,width:1.5)),
-          contentPadding:const EdgeInsets.symmetric(horizontal:AppSpacing.lg),
-          floatingLabelBehavior:FloatingLabelBehavior.never,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            borderSide: BorderSide(color: divider.withValues(alpha: .55)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            borderSide: BorderSide(
+              color: primary,
+              width: 1.5,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+          ),
+          floatingLabelBehavior: FloatingLabelBehavior.never,
         ),
       ),
     );
   }
-}
 }
