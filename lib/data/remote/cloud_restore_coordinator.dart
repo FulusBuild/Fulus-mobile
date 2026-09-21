@@ -26,6 +26,16 @@ class CloudRestoreCoordinator {
   }) async {
     return _db.transaction(() async {
       onProgress?.call('Preparing local database restore…');
+
+      // The sync queue belongs to the previous physical installation, not to
+      // the cloud business snapshot. Restore replaces the local business
+      // records, so any old queued operation would now point at rows that no
+      // longer exist (or at a different business). Keep it inside the same
+      // transaction so a failed restore preserves the old queue together with
+      // the old local data, while a successful restore starts with a clean
+      // outbound queue.
+      await _db.delete(_db.syncQueueItems).go();
+
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: null,
