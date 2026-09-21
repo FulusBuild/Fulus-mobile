@@ -379,7 +379,7 @@ void main() {
     });
 
     test('machine-readable sync conflicts are persisted as durable records', () async {
-      await seedItem(id: 'q-conflict', entityLocalId: 'customer-1', enqueuedAt: DateTime.now());
+      await seedItem(id: 'q-conflict', entityLocalId: 'customer-1', entityType: 'customer', enqueuedAt: DateTime.now());
       final handler = _ScriptedHandler((_) async {
         throw const BusinessRuleFailure(
           'SYNC_CONFLICT: Customer changed on another device.',
