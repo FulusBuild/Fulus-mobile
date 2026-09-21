@@ -73,12 +73,14 @@ Future<void> main() async {
       throw StateError('initial product.create returned no data.item.id');
     }
     stdout.writeln('PASS: product.create');
-    final currentCursor = await _readCurrentCursor(
+    final productChangeSequence = await _findChangeSequence(
       dio,
       businessId: businessId,
+      entityType: 'product',
+      entityId: serverId,
     );
-    if (currentCursor > 0) {
-      final staleCursor = currentCursor - 1;
+    if (productChangeSequence > 0) {
+      final staleCursor = productChangeSequence - 1;
       final staleUpdate = await _submitCatalog(
         dio,
         businessId: businessId,
@@ -110,7 +112,7 @@ Future<void> main() async {
         action: 'catalog_upsert',
         entity: 'products',
         operationId: 'e2e-valid-update-$suffix',
-        baseCursor: currentCursor,
+        baseCursor: productChangeSequence,
         item: {
           ...createPayload,
           'name': 'Fulus E2E valid update $suffix',
@@ -279,29 +281,54 @@ Future<Response<dynamic>> _submitCatalog(
   );
 }
 
-Future<int> _readCurrentCursor(
+Future<int> _findChangeSequence(
   Dio dio, {
   required String businessId,
+  required String entityType,
+  required String entityId,
 }) async {
-  final response = await dio.get(
-    '',
-    queryParameters: {
-      'business_id': businessId,
-      'cursor': 0,
-      'limit': 500,
-    },
+  var cursor = 0;
+  const limit = 500;
+  for (var page = 0; page < 20; page++) {
+    final response = await dio.get(
+      '',
+      queryParameters: {
+        'business_id': businessId,
+        'cursor': cursor,
+        'limit': limit,
+      },
+    );
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      throw StateError(
+        'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
+      );
+    }
+    final root = response.data;
+    final data = root is Map ? root['data'] : null;
+    if (data is! Map) {
+      throw StateError('E2E change-feed response did not contain data.');
+    }
+    final changes = data['changes'];
+    if (changes is! List) {
+      throw StateError('E2E change-feed response did not contain changes.');
+    }
+    for (final raw in changes) {
+      if (raw is Map &&
+          raw['entity_type'] == entityType &&
+          raw['entity_id'] == entityId) {
+        final sequence = raw['sequence'];
+        if (sequence is num) return sequence.toInt();
+      }
+    }
+    final next = data['next_cursor'];
+    final hasMore = data['has_more'] == true;
+    if (!hasMore || next is! num || next.toInt() <= cursor) break;
+    cursor = next.toInt();
+  }
+  throw StateError(
+    'E2E could not locate the test entity in the retained change feed.',
   );
-  final status = response.statusCode ?? 0;
-  if (status < 200 || status >= 300) {
-    throw StateError('E2E cursor read failed with HTTP $status: ${response.data}');
-  }
-  final root = response.data;
-  final data = root is Map ? root['data'] : null;
-  final cursor = data is Map ? data['next_cursor'] : null;
-  if (cursor is! num) {
-    throw StateError('E2E cursor response did not contain next_cursor: ${response.data}');
-  }
-  return cursor.toInt();
 }
 
 Future<Response<dynamic>> _submitSyncOperation(
