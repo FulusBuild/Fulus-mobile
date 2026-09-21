@@ -378,6 +378,26 @@ void main() {
       expect(remaining.single.lastError, contains('already exists'));
     });
 
+    test('machine-readable sync conflicts are persisted as durable records', () async {
+      await seedItem(id: 'q-conflict', entityLocalId: 'customer-1', enqueuedAt: DateTime.now());
+      final handler = _ScriptedHandler((_) async {
+        throw const BusinessRuleFailure(
+          'SYNC_CONFLICT: Customer changed on another device.',
+          code: 'SYNC_CONFLICT',
+        );
+      });
+      final engine = SyncEngine(db: db, handlersByEntityType: {'customer': handler});
+
+      await engine.runOnce();
+
+      final conflicts = await db.select(db.syncConflictRecords).get();
+      expect(conflicts, hasLength(1));
+      expect(conflicts.single.operationId, 'q-conflict');
+      expect(conflicts.single.entityType, 'customer');
+      expect(conflicts.single.code, 'SYNC_CONFLICT');
+      expect(conflicts.single.resolvedAt, isNull);
+    });
+
     test('an ordinary BusinessRuleFailure is left exactly as the handler reported it', () async {
       await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
       final handler = _ScriptedHandler((_) async {
