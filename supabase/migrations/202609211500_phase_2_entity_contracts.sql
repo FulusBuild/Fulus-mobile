@@ -133,7 +133,7 @@ begin
     select 1 from public.devices
     where id=target_device_id and business_id=target_business_id and status='active'
   ) then
-    raise exception using errcode='42501', message='Device is not registered or active'
+    raise exception using errcode='42501', message='Device is not registered or active';
   end if;
   if target_amount is null or target_amount <= 0 then
     raise exception using errcode='22023', message='Expense amount must be greater than zero';
