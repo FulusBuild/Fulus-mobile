@@ -69,8 +69,13 @@ class ExpenseSyncHandler implements SyncHandler {
     );
     final data = result['data'];
     if (data is! Map) throw StateError('Fulus expense sync returned no response data.');
-    final serverId = (data['entity_id'] ?? data['id'])?.toString();
-    if (serverId == null || serverId.isEmpty) throw StateError('Fulus expense sync returned no server entity ID.');
-    await _expenseRepository.markSynced(localId: expense.localId, serverId: serverId);
+    final responseServerId = (data['entity_id'] ?? data['id'])?.toString();
+    if (responseServerId == null || responseServerId.isEmpty) {
+      throw StateError('Fulus expense sync returned no server entity ID.');
+    }
+    await _expenseRepository.markSynced(
+      localId: expense.localId,
+      serverId: responseServerId,
+    );
   }
 }
