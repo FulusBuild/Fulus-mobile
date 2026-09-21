@@ -127,6 +127,12 @@ class ApiClient {
       return const AuthFailure.sessionExpired();
     }
 
+    if (status == 410 && code == 'SYNC_CURSOR_TOO_OLD') {
+      return BusinessRuleFailure(
+        message ?? 'Cloud history is too old for incremental sync. A fresh reconciliation is required.',
+      );
+    }
+
     switch (status) {
       case 409:
         return BusinessRuleFailure(
