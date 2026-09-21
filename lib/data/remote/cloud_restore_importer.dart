@@ -152,7 +152,13 @@ class CloudRestoreImporter {
 
       await _verifyCounts(expectedCounts, importedCounts);
       await _verifyForeignKeys();
-    });
+    }
+
+    if (transactional) {
+      await _db.transaction(runImport);
+    } else {
+      await runImport();
+    }
 
     return CloudRestoreResult(
       importedCounts,
