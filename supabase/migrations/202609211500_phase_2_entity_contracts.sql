@@ -49,6 +49,7 @@ declare
   customer_row public.customers%rowtype;
   response jsonb;
 begin
+  perform set_config('request.jwt.claim.sub', target_user_id::text, true);
   if not public.has_permission(target_business_id, 'customers.manage') then
     raise exception using errcode='42501', message='Customer management permission required';
   end if;
@@ -126,6 +127,7 @@ declare
   expense_row public.expenses%rowtype;
   response jsonb;
 begin
+  perform set_config('request.jwt.claim.sub', target_user_id::text, true);
   if not public.has_permission(target_business_id, 'finance.manage') then
     raise exception using errcode='42501', message='Finance permission required';
   end if;
@@ -210,6 +212,7 @@ declare
   row_data public.expense_categories%rowtype;
   response jsonb;
 begin
+  perform set_config('request.jwt.claim.sub', target_user_id::text, true);
   if not public.has_permission(target_business_id, 'finance.manage') then
     raise exception using errcode='42501', message='Finance permission required';
   end if;
