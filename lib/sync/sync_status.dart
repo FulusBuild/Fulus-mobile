@@ -65,11 +65,15 @@ class SyncHealthSnapshot extends Equatable {
     this.lastPushAt,
     this.lastPullAt,
     this.cursor = 0,
+    this.recoveryState = 'idle',
+    this.lastError,
   });
 
   final DateTime? lastPushAt;
   final DateTime? lastPullAt;
   final int cursor;
+  final String recoveryState;
+  final String? lastError;
 
   @override
   List<Object?> get props => [lastPushAt, lastPullAt, cursor];
