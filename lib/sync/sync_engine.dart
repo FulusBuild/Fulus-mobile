@@ -130,7 +130,10 @@ class SyncEngine {
       } on SyncFailure catch (e, st) {
         await _handleClassifiedFailure(item, e, st);
       } on BusinessRuleFailure catch (e, st) {
-        final message = _conflictResolver.looksLikeConflict(e.message)
+        final isConflict = e.code == 'IDEMPOTENCY_CONFLICT' ||
+            e.code == 'SYNC_CONFLICT' ||
+            _conflictResolver.looksLikeConflict(e.message);
+        final message = isConflict
             ? _conflictResolver.annotate(e.message)
             : e.message;
         await _markAttentionNeeded(item.id, error: message);
