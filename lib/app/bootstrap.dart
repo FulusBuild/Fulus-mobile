@@ -18,6 +18,9 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
+import '../data/remote/cloud_restore_api.dart';
+import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
+import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
 import '../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
 import '../data/remote/fulus_category_canonical_reconciler.dart';
@@ -131,6 +134,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusDeviceRegistration = FulusDeviceRegistration(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusSyncApi = FulusSyncApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  final cloudRestoreApi = CloudRestoreApi(apiClient);
   final fulusStaffAccessApi = FulusStaffAccessApi(client: apiClient, functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api');
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
