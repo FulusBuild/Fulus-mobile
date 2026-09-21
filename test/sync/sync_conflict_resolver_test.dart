@@ -1,6 +1,6 @@
-import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart' hide isNotNull;
 import 'package:mocktail/mocktail.dart';
 
 import 'package:fulus_mobile/data/local/database/database.dart';
