@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
@@ -262,6 +263,44 @@ void main() {
       verify(() => syncEngine.runOnce(manual: false)).called(1);
       verifyNever(() => syncEngine.runOnce(manual: true));
       triggers.dispose();
+    });
+
+    test('restores Sync Ready only after stale-cursor recovery and pull succeed', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {});
+
+      var pullCalls = 0;
+      var recoveryCalls = 0;
+      var ready = false;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => true,
+        pullFromServer: () async {
+          pullCalls++;
+          if (pullCalls == 1) {
+            throw const BusinessRuleFailure(
+              'stale cursor',
+              code: 'SYNC_CURSOR_TOO_OLD',
+            );
+          }
+        },
+        onCursorTooOldRecovery: () async {
+          recoveryCalls++;
+        },
+        onRecoveryReconciled: () async {
+          ready = true;
+        },
+      );
+
+      await triggers.syncNow();
+
+      expect(pullCalls, 2);
+      expect(recoveryCalls, 1);
+      expect(ready, isTrue);
+      verify(() => syncEngine.runOnce(manual: true)).called(1);
     });
 
     test('manual sync reports failure through the health callback', () async {
