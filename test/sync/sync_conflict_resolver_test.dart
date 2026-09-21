@@ -22,8 +22,11 @@ void main() {
   late MockFulusSyncApi api;
   late MockFulusConnectionState connectionState;
   late CustomerRepositoryImpl customers;
+  late SharedPreferences preferences;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    preferences = await SharedPreferences.getInstance();
     db = AppDatabase.forTesting(NativeDatabase.memory());
     api = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
@@ -112,6 +115,7 @@ void main() {
       db: db,
       reconciler: reconciler,
       connectionState: connectionState,
+      preferences: preferences,
     );
 
     await resolver.keepCloudVersion('operation-1:conflict');
@@ -167,11 +171,10 @@ void main() {
       db: db,
       reconciler: FulusCanonicalTypedReconciler(api: api, handlers: const {}),
       connectionState: connectionState,
-      preferences: await SharedPreferences.getInstance(),
+      preferences: preferences,
     );
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('fulus_sync_cursor_business-1', 12);
+    await preferences.setInt('fulus_sync_cursor_business-1', 12);
 
     await resolver.keepLocalVersion('operation-2:conflict');
 
