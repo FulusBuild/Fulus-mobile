@@ -73,6 +73,53 @@ Future<void> main() async {
       throw StateError('initial product.create returned no data.item.id');
     }
     stdout.writeln('PASS: product.create');
+    final currentCursor = await _readCurrentCursor(
+      dio,
+      businessId: businessId,
+    );
+    if (currentCursor > 0) {
+      final staleCursor = currentCursor - 1;
+      final staleUpdate = await _submitCatalog(
+        dio,
+        businessId: businessId,
+        action: 'catalog_upsert',
+        entity: 'products',
+        operationId: 'e2e-conflict-$suffix',
+        baseCursor: staleCursor,
+        item: {
+          ...createPayload,
+          'name': 'Fulus E2E stale update $suffix',
+        },
+        id: serverId,
+      );
+      final staleStatus = staleUpdate.statusCode ?? 0;
+      final staleCode = staleUpdate.data is Map &&
+              (staleUpdate.data as Map)['error'] is Map
+          ? ((staleUpdate.data as Map)['error'] as Map)['code']
+          : null;
+      if (staleStatus != 409 || staleCode != 'SYNC_CONFLICT') {
+        throw StateError(
+          'expected optimistic concurrency conflict, got HTTP $staleStatus: ${staleUpdate.data}',
+        );
+      }
+      stdout.writeln('PASS: stale catalog update rejected as SYNC_CONFLICT');
+
+      final validUpdate = await _submitCatalog(
+        dio,
+        businessId: businessId,
+        action: 'catalog_upsert',
+        entity: 'products',
+        operationId: 'e2e-valid-update-$suffix',
+        baseCursor: currentCursor,
+        item: {
+          ...createPayload,
+          'name': 'Fulus E2E valid update $suffix',
+        },
+        id: serverId,
+      );
+      _expect2xx(validUpdate, 'valid product.update after concurrency check');
+      stdout.writeln('PASS: valid catalog update accepted at current cursor');
+    }
 
     final idempotencyPayload = {
       'kind': 'e2e-idempotency-probe',
@@ -216,6 +263,7 @@ Future<Response<dynamic>> _submitCatalog(
   required String operationId,
   Map<String, dynamic>? item,
   String? id,
+  int? baseCursor,
 }) {
   return dio.post(
     '',
@@ -224,10 +272,36 @@ Future<Response<dynamic>> _submitCatalog(
       'action': action,
       'entity': entity,
       'operation_id': operationId,
+      if (baseCursor != null) 'base_cursor': baseCursor,
       if (item != null) 'item': item,
       if (id != null) 'id': id,
     },
   );
+}
+
+Future<int> _readCurrentCursor(
+  Dio dio, {
+  required String businessId,
+}) async {
+  final response = await dio.get(
+    '',
+    queryParameters: {
+      'business_id': businessId,
+      'cursor': 0,
+      'limit': 500,
+    },
+  );
+  final status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    throw StateError('E2E cursor read failed with HTTP $status: ${response.data}');
+  }
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final cursor = data is Map ? data['next_cursor'] : null;
+  if (cursor is! num) {
+    throw StateError('E2E cursor response did not contain next_cursor: ${response.data}');
+  }
+  return cursor.toInt();
 }
 
 Future<Response<dynamic>> _submitSyncOperation(
