@@ -5,7 +5,7 @@ import 'api_client.dart';
 import 'fulus_canonical_reconciler_typed.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
-class FulusSyncApi implements FulusCanonicalEntityFetcher {
+class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEntityFetcher {
   FulusSyncApi({
     required ApiClient client,
     required String functionBaseUrl,
