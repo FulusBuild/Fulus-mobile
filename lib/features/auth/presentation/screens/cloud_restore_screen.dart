@@ -167,7 +167,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // and still appear to hang until the app is restarted. The session
       // provider has already been updated above, so popping this temporary
       // restore route lets the reactive ShellGate reveal the business.
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {
