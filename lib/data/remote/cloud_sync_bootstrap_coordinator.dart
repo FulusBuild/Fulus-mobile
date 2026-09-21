@@ -62,15 +62,13 @@ class CloudSyncBootstrapCoordinator {
       final localRole = cloudRole == 'admin' ? AuthRole.manager : AuthRole.owner;
       final now = DateTime.now();
 
-      await _db.into(_db.users).insert(
-        UsersCompanion.insert(
-          localId: ownerId,
-          fullName: ownerName,
+      await (_db.update(_db.users)..where((u) => u.localId.equals(ownerId))).write(
+        UsersCompanion(
+          fullName: Value(ownerName),
           email: Value(ownerEmail),
-          role: localRole,
+          role: Value(localRole),
           isActive: const Value(true),
-          createdAt: user.createdAt,
-          updatedAt: now,
+          updatedAt: Value(now),
         ),
       );
       await _db.delete(_db.sessions).go();
