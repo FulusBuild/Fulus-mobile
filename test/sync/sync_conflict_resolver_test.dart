@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart' hide isNotNull;
+import 'package:flutter_test/flutter_test.dart' hide isNotNull, isNull;
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -151,7 +151,7 @@ void main() {
         priority: 1,
         enqueuedAt: DateTime.utc(2026, 9, 21),
         baseCursor: const Value(4),
-        syncAttempts: 5,
+        syncAttempts: const Value(5),
         lastError: const Value('SYNC_CONFLICT'),
       ),
     );
