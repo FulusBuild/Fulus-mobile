@@ -109,6 +109,12 @@ class SyncTriggers with WidgetsBindingObserver {
     }
     final ready = _isReady;
     if (ready != null && !await ready()) {
+      final initialized = await _ensureReady();
+      if (initialized || await ready()) {
+        // Readiness initialization owns the first reconciliation. If it
+        // completed successfully, there is nothing else to run here.
+        if (initialized) return;
+      }
       throw StateError(
         'Fulus Cloud is not ready: authentication, business membership, '
         'and active device registration are required before syncing.',
