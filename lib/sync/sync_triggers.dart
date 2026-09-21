@@ -179,8 +179,17 @@ class SyncTriggers with WidgetsBindingObserver {
       // reconcileForReadiness() instead, so it never creates that cycle.
       final active = _connectivityRun;
       if (active != null) {
-        await active;
-        return;
+        // A normal trigger may be blocked in readiness initialization. Waiting
+        // for that future is not enough: while restore is active, that trigger
+        // can intentionally stand down. Restore must still perform its own
+        // authoritative reconciliation against the freshly imported snapshot.
+        try {
+          await active;
+        } catch (_) {
+          // Give the restore-owned reconciliation a chance to recover from a
+          // transient readiness failure. If it also fails, its error is
+          // propagated to the restore flow.
+        }
       }
 
       await _runAndCheckStuck();
