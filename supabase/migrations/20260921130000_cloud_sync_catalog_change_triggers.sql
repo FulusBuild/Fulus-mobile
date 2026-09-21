@@ -64,8 +64,3 @@ drop trigger if exists suppliers_sync_change_trigger on public.suppliers;
 create trigger suppliers_sync_change_trigger
 after insert or update or delete on public.suppliers
 for each row execute function public.fulus_catalog_sync_change_trigger();
-
-drop trigger if exists expense_categories_sync_change_trigger on public.expense_categories;
-create trigger expense_categories_sync_change_trigger
-after insert or update or delete on public.expense_categories
-for each row execute function public.fulus_catalog_sync_change_trigger();
