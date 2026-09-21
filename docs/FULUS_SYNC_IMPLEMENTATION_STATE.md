@@ -6,14 +6,14 @@ Repository: FulusBuild/Fulus-mobile
 Working branch: feat/cloud-sync-v1-hardening-v2
 Open PR: #56
 PR state: open, ready for review, not merged
-Current branch HEAD before this final state-document commit: 5a16ac262a88986fb42e55a0db8662721277af17
+Current branch HEAD at last state update: 9da43b575e2b8564a3aee4a79a5e4cc5431119f7
 Production Supabase project: bejcuvoxemwomcatgyxz
 
 This is a resume contract, not permission to trust old claims blindly. A new session MUST verify the repository, CI, deployed database/functions, and relevant code before extending the implementation.
 
 ## Current objective
 
-Continue Fulus Cloud Sync toward production-grade local-first convergence. Phase 4 recovery/bootstrap and bounded canonical batching are now implemented in the branch and deployed for the canonical-read function. Remaining work is crash/E2E verification, retention/compaction scheduling, full audit, and CI.
+Continue Fulus Cloud Sync toward production-grade local-first convergence. Phase 4 recovery/bootstrap and bounded canonical batching are now implemented in the branch and deployed for the canonical-read function. Remaining work is live recovery/E2E verification, failure/replay verification, full audit, and final CI. Retention scheduling and the remaining duplicate/FK index cleanup are now implemented and production-applied.
 
 Do not stop merely because CI becomes green.
 
@@ -99,6 +99,20 @@ Implemented:
 - FulusCanonicalTypedReconciler batches simple entities while retaining per-entity canonical handlers;
 - FulusSyncCoordinator can apply a feed page as one reconciliation batch and only advances the cursor after the whole page succeeds.
 
+### Phase 4D — retention/compaction
+Implemented and production-applied:
+- `pg_cron` is enabled in production;
+- `prune_sync_changes()` retains 90 days of change-feed history and deletes in bounded 5,000-row batches;
+- a daily `fulus-sync-change-retention` job runs at 03:30 UTC;
+- idempotency records are intentionally not pruned, preserving long-offline retry safety;
+- the pruning function has no public/authenticated/anon execute grant;
+- the current production feed is only one row old and a manual prune verification deleted 0 rows.
+
+### Phase 5D — production index cleanup
+Implemented and production-applied:
+- removed three duplicate `sale_items`/`return_items` indexes identified by the performance advisor;
+- added the three remaining `staff_invites` foreign-key indexes reported by the advisor.
+
 ### Sync Health
 Implemented:
 - recovery state and last recovery error are persisted;
@@ -118,8 +132,8 @@ Production Supabase:
 GitHub:
 - PR #56 remains open and unmerged;
 - no review threads or submitted reviews are currently reported;
-- the current CI workflow file has PR triggers, but the GitHub connector has not returned a workflow run for the current branch commits yet;
-- the only current commit status observed is the Vercel build-rate-limit failure, not a code/test conclusion.
+- the current head has GitHub Actions run #1395 / ID 35623779866 pending;
+- the only external commit status currently reported is the Vercel build-rate-limit failure, which is not a Flutter/test conclusion.
 
 ## Remaining work — first genuinely incomplete items
 
@@ -128,9 +142,10 @@ GitHub:
    - run the live fulus_sync_e2e.dart contract test against production.
 2. Recovery integration verification
    - prove a real stale cursor receives 410, performs bootstrap, resumes from sync_boundary, and reaches Sync Ready.
-3. Retention/compaction
-   - the architecture requires a retention/compaction policy; the production database currently has no scheduled pg_cron extension;
-   - implement a safe pruning mechanism and verify stale-cursor recovery against retained history before calling scale complete.
+3. Live recovery/E2E verification
+   - prove a real stale cursor receives 410, performs bootstrap, resumes from sync_boundary, and reaches Sync Ready;
+   - run the live `tool/fulus_sync_e2e.dart` contract test against production;
+   - add/verify crash and timeout-after-commit coverage.
 4. Full final audits
    - architecture;
    - client flow;
