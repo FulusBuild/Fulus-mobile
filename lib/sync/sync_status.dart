@@ -43,6 +43,7 @@ class SyncStatus extends Equatable {
           kind: SyncStatusKind.attentionNeeded,
           attentionCount: attentionCount,
           pendingCount: pendingCount,
+          conflictCount: conflictCount,
         );
 
   final SyncStatusKind kind;
