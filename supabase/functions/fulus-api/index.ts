@@ -32,6 +32,26 @@ Deno.serve(async req => {
     if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
     const cursor = Number(u.searchParams.get("cursor") ?? "0"), limit = Number(u.searchParams.get("limit") ?? "100");
     if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 500) return out({ error: { code: "INVALID_SYNC_CURSOR", message: "Invalid cursor or limit" } }, 400);
+    const { data: oldestRows, error: oldestError } = await serviceDb
+      .from("sync_changes")
+      .select("sequence")
+      .eq("business_id", bid)
+      .order("sequence", { ascending: true })
+      .limit(1);
+    if (oldestError) return out({ error: { code: "SYNC_CURSOR_CHECK_FAILED", message: "Unable to validate sync cursor" } }, 500);
+    const oldestSequence = oldestRows?.length ? Number(oldestRows[0].sequence) : null;
+    if (cursor > 0 && oldestSequence != null && cursor < oldestSequence - 1) {
+      return out({
+        error: {
+          code: "SYNC_CURSOR_TOO_OLD",
+          message: "The stored sync cursor is older than the retained change feed. A bootstrap/restore reconciliation is required before incremental sync can continue.",
+          cursor,
+          oldest_sequence: oldestSequence,
+          bootstrap_required: true,
+        },
+      }, 410);
+    }
+
     const { data: changes, error: ce } = await serviceDb.from("sync_changes").select("sequence,entity_type,entity_id,operation,payload,created_at").eq("business_id", bid).gt("sequence", cursor).order("sequence", { ascending: true }).limit(limit);
     if (ce) return out({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
     const rows = changes ?? [];
