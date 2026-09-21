@@ -20,6 +20,38 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
   final String _functionBaseUrl;
   final String _canonicalStateFunctionUrl;
 
+  Future<List<FulusCanonicalEntityResponse>> fetchCanonicalEntities({
+    required String businessId,
+    required String entityType,
+    required List<String> entityIds,
+    required String deviceClientId,
+  }) async {
+    if (entityIds.isEmpty) return const [];
+    try {
+      final response = await _client.dio.get(
+        _canonicalStateFunctionUrl,
+        queryParameters: {
+          'business_id': businessId,
+          'entity_type': entityType,
+          'entity_ids': entityIds.join(','),
+        },
+        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+      );
+      final root = Map<String, dynamic>.from(response.data as Map);
+      final raw = root['data'];
+      if (raw is! Map || raw['entities'] is! List) {
+        throw const FormatException('Invalid canonical batch response.');
+      }
+      return (raw['entities'] as List)
+          .map((item) => FulusCanonicalEntityResponse.fromJson({
+                'data': Map<String, dynamic>.from(item as Map),
+              }))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
+
   @override
   Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
     required String businessId,
