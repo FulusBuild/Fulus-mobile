@@ -74,6 +74,34 @@ Deno.serve(async req => {
   if (!bid) return out({ error: { code: "INVALID_COMMAND", message: "business_id is required" } }, 400);
   if (!(members ?? []).some(m => m.business_id === bid)) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
 
+  if (action === "restore_snapshot") {
+    if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for recovery" } }, 400);
+    const { data: device, error: de } = await serviceDb
+      .from("devices")
+      .select("id,status")
+      .eq("business_id", bid)
+      .eq("device_client_id", dc)
+      .eq("registered_by", uid)
+      .maybeSingle();
+    if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+    if (!device || device.status !== "active") {
+      return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+    }
+    const { data, error } = await serviceDb.rpc("build_fulus_restore_snapshot", {
+      p_business_id: bid,
+      p_user_id: uid,
+    });
+    if (error) {
+      return out({
+        error: {
+          code: error.code === "42501" ? "FORBIDDEN" : "RESTORE_SNAPSHOT_FAILED",
+          message: error.message,
+        },
+      }, error.code === "42501" ? 403 : 500);
+    }
+    return out({ data, server_authoritative: true });
+  }
+
   if (action === "register_device") {
     const cid = typeof b.device_client_id === "string" ? b.device_client_id : null;
     if (!cid) return out({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "device_client_id is required" } }, 400);
