@@ -205,7 +205,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
@@ -408,6 +408,9 @@ class AppDatabase extends _$AppDatabase {
           // own NINTH NOTE above and permission_tables.dart's own doc
           // comment on UserPermissions.
           await m.createTable(userPermissions);
+        }
+        if (from < 12) {
+          await m.addColumn(syncQueueItems, syncQueueItems.baseCursor);
         }
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
