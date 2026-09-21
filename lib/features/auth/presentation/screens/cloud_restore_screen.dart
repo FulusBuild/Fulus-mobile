@@ -146,19 +146,14 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       await syncPreferences.remove('fulus_sync_cursor_$businessId');
 
       await ref.read(syncConfigProvider).setEnabled(true);
-      setState(() => _status = 'Reconciling with Fulus Cloud…');
-      try {
-        await ref.read(syncTriggersProvider).reconcileForReadiness();
-        connection.markSyncReady();
-      } catch (_) {
-        connection.clearSyncReady();
-        rethrow;
-      }
 
+      // Restoring the local business is the account-entry operation. Cloud
+      // reconciliation is deliberately a background concern: waiting for a
+      // network round-trip here can leave the user stranded on this screen
+      // even though the local owner session and restored business are already
+      // valid. SyncTriggers observes the enabled config and performs the
+      // readiness reconciliation in the background.
       if (!mounted) return;
-      // Do not pop back into the authentication stack. A restore establishes
-      // a real local session, so the router must be given the root location
-      // explicitly and allowed to rebuild the authenticated shell.
       context.go('/');
     } on Failure catch (failure) {
       if (mounted) {
