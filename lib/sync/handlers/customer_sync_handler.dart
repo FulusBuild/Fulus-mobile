@@ -64,6 +64,7 @@ class CustomerSyncHandler implements SyncHandler {
         'notes': customer.notes,
         'credit_limit': customer.creditLimit ?? 0,
         if (isUpdate) 'server_id': existingServerId,
+        if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
         if (isUpdate) 'is_active': customer.deletedAt == null,
       },
     );
