@@ -16,6 +16,7 @@ class SyncStatus extends Equatable {
     required this.kind,
     this.pendingCount = 0,
     this.attentionCount = 0,
+    this.conflictCount = 0,
   });
 
   const SyncStatus.disabled() : this._(kind: SyncStatusKind.disabled);
@@ -37,6 +38,7 @@ class SyncStatus extends Equatable {
   const SyncStatus.attentionNeeded({
     required int attentionCount,
     required int pendingCount,
+    this.conflictCount = 0,
   }) : this._(
           kind: SyncStatusKind.attentionNeeded,
           attentionCount: attentionCount,
@@ -51,8 +53,11 @@ class SyncStatus extends Equatable {
   /// Number of queued writes that have exhausted automatic retry attempts.
   final int attentionCount;
 
+  /// Number of unresolved optimistic-concurrency conflicts retained locally.
+  final int conflictCount;
+
   @override
-  List<Object?> get props => [kind, pendingCount, attentionCount];
+  List<Object?> get props => [kind, pendingCount, attentionCount, conflictCount];
 }
 
 
