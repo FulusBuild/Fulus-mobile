@@ -73,6 +73,7 @@ import '../domain/usecases/global_search.dart';
 import '../domain/usecases/import_products_from_csv.dart';
 import '../sync/sync_config.dart';
 import '../sync/sync_engine.dart';
+import '../sync/sync_conflict_resolver.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
@@ -439,6 +440,12 @@ final fulusSyncApiProvider = Provider<FulusSyncApi>((ref) {
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   throw UnimplementedError(
     'syncEngineProvider must be overridden in bootstrap.dart.',
+  );
+});
+
+final syncConflictResolverProvider = Provider<SyncConflictResolver>((ref) {
+  throw UnimplementedError(
+    'syncConflictResolverProvider must be overridden in bootstrap.dart.',
   );
 });
 
