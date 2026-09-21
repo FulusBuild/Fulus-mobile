@@ -47,22 +47,26 @@ class SyncEngine {
       _rerunRequested = true;
       return active;
     }
-    final run = _runOnce(manual: manual);
+
     late Future<void> tracked;
-    tracked = run.whenComplete(() {
-      if (!identical(_activeRun, tracked)) return;
-      _activeRun = null;
-      if (_rerunRequested) {
-        _rerunRequested = false;
-        // Work may have been enqueued after this drain captured its queue
-        // snapshot. Start one follow-up drain after the current future has
-        // settled so the newly-enqueued item cannot be stranded behind an
-        // already-running cycle.
-        unawaited(runOnce());
+    tracked = _runUntilSettled(manual: manual).whenComplete(() {
+      if (identical(_activeRun, tracked)) {
+        _activeRun = null;
       }
     });
     _activeRun = tracked;
     return tracked;
+  }
+
+  Future<void> _runUntilSettled({required bool manual}) async {
+    do {
+      _rerunRequested = false;
+      await _runOnce(manual: manual);
+      // A trigger may have arrived while the queue snapshot was being
+      // drained. Keep that follow-up drain inside the same returned Future so
+      // callers cannot observe completion while newly-enqueued work is still
+      // pending.
+    } while (_rerunRequested);
   }
 
   Future<void> _runOnce({required bool manual}) async {
