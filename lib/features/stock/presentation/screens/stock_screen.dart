@@ -184,7 +184,16 @@ class _StockBody extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(horizontal: inset),
                     child: FulusChipRow(children: [
                       for (final category in categories)
-                        FulusChip(label: category.name, selected: filter.categoryId == category.localId, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(categoryId: category.localId)),
+                        FulusChip(
+                          label: category.name,
+                          selected: filter.categoryId == category.localId,
+                          onTap: () => ref.read(stockFilterProvider.notifier).state =
+                              filter.copyWith(
+                                categoryId: filter.categoryId == category.localId
+                                    ? null
+                                    : category.localId,
+                              ),
+                        ),
                     ]),
                   ),
                 ),
