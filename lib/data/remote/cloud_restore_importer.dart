@@ -96,6 +96,7 @@ class CloudRestoreImporter {
   Future<CloudRestoreResult> importSnapshot(
     Map<String, dynamic> snapshot, {
     String? ownerCloudUserId,
+    bool transactional = true,
   }) async {
     final version = snapshot['version'];
     if (version is! num || version.toInt() < 3) {
@@ -105,7 +106,7 @@ class CloudRestoreImporter {
     final importedCounts = <String, int>{};
     final expectedCounts = <String, int>{};
 
-    await _db.transaction(() async {
+    Future<void> runImport() async {
       await _clearPortableData();
 
       final tableInfoCache = <String, _TableInfo>{};
