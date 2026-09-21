@@ -37,6 +37,14 @@ begin
   if target_operation not in ('upsert','delete') then
     raise exception using errcode='22023',message='Unsupported catalog operation';
   end if;
+  if not exists (
+    select 1 from public.business_memberships bm
+    where bm.business_id = target_business_id
+      and bm.user_id = target_user_id
+      and bm.status = 'active'
+  ) then
+    raise exception using errcode='42501', message='Business membership required';
+  end if;
   if not public.has_permission(target_business_id,'catalog.manage') then
     raise exception using errcode='42501',message='Catalog permission required';
   end if;
