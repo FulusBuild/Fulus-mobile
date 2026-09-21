@@ -6,7 +6,7 @@ Repository: FulusBuild/Fulus-mobile
 Working branch: feat/cloud-sync-v1-hardening-v2
 Open PR: #56
 PR state: open, ready for review, not merged
-Current branch HEAD at last state update: a423cd10a918939646637dd6302bb935196e0901
+Current branch HEAD at last state update: bc57e54de45abc921932df21646eacf63f1544b1
 Production Supabase project: bejcuvoxemwomcatgyxz
 
 This is a resume contract, not permission to trust old claims blindly. A new session MUST verify the repository, CI, deployed database/functions, and relevant code before extending the implementation.
