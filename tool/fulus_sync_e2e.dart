@@ -38,8 +38,6 @@ Future<void> main() async {
 
   _printIdentityFingerprint('business_id', businessId);
   _printIdentityFingerprint('device_client_id', deviceClientId);
-  await _preflightDevice(dio, businessId: businessId);
-
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final createOperationId = 'e2e-create-$suffix';
@@ -47,6 +45,21 @@ Future<void> main() async {
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
+  var ephemeralDeviceId = false;
+
+  try {
+    final preflight = await _preflightDevice(dio, businessId: businessId);
+    if (preflight == _PreflightResult.cursorTooOld) {
+      final freshDeviceId = 'e2e-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
+      await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
+      dio.options.headers['x-fulus-device-id'] = freshDeviceId;
+      ephemeralDeviceId = true;
+      if (await _preflightDevice(dio, businessId: businessId) != _PreflightResult.ok) {
+        throw StateError('fresh E2E device did not pass sync preflight');
+      }
+      stdout.writeln('PASS: stale cursor recovery established with fresh device');
+    }
+
 
   try {
     final createPayload = {
@@ -370,7 +383,9 @@ String _fingerprint(String value) {
   return hash.toRadixString(16).padLeft(16, '0');
 }
 
-Future<void> _preflightDevice(
+enum _PreflightResult { ok, cursorTooOld }
+
+Future<_PreflightResult> _preflightDevice(
   Dio dio, {
   required String businessId,
 }) async {
@@ -379,12 +394,37 @@ Future<void> _preflightDevice(
     queryParameters: {'business_id': businessId},
   );
   final status = response.statusCode ?? 0;
+  if (status == 410 && response.data is Map && (response.data as Map)['error'] is Map && ((response.data as Map)['error'] as Map)['code'] == 'SYNC_CURSOR_TOO_OLD') {
+    stdout.writeln('PASS: stale sync cursor correctly rejected with SYNC_CURSOR_TOO_OLD');
+    return _PreflightResult.cursorTooOld;
+  }
   if (status < 200 || status >= 300) {
     throw StateError(
       'E2E device preflight failed with HTTP $status: ${response.data}',
     );
   }
   stdout.writeln('PASS: device authorization preflight');
+  return _PreflightResult.ok;
+}
+
+Future<void> _registerEphemeralDevice(
+  Dio dio, {
+  required String businessId,
+  required String deviceClientId,
+}) async {
+  final response = await dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'action': 'register_device',
+      'device_client_id': deviceClientId,
+      'device_name': 'Fulus CI E2E ephemeral device',
+      'platform': 'ci',
+      'app_version': 'e2e',
+    },
+  );
+  _expect2xx(response, 'register ephemeral E2E device');
+  stdout.writeln('PASS: ephemeral E2E device registered');
 }
 
 String _required(String name) {
