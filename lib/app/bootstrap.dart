@@ -355,6 +355,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isReady: () async => fulusConnectionState.isSyncReady,
     onNotReady: initializeCloudSync,
     onSyncSuccess: fulusConnectionState.clearSyncError,
+    onCursorTooOldRecovery: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId == null) {
+        throw StateError('Fulus Cloud business context is missing during cursor recovery.');
+      }
+      await syncRecovery.recover(businessId: businessId);
+    },
     onPushSuccess: () async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
