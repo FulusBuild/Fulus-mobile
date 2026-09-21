@@ -22,10 +22,9 @@ class CustomerSyncHandler implements SyncHandler {
 
   @override
   Future<void> sync(SyncQueueItem item) async {
-    if (item.operation != 'create') {
+    if (item.operation != 'create' && item.operation != 'update') {
       throw StateError(
-        'CustomerSyncHandler does not support operation "${item.operation}" '
-        'yet — only "create" is implemented.',
+        'CustomerSyncHandler does not support this operation.',
       );
     }
 
@@ -40,9 +39,17 @@ class CustomerSyncHandler implements SyncHandler {
       throw StateError('Fulus Cloud device authorization is required for customer sync.');
     }
 
+    final isUpdate = item.operation == 'update';
+    final serverId = customer.serverId;
+    if (isUpdate && (serverId == null || serverId.isEmpty)) {
+      throw StateError(
+        'Cannot sync customer update before its create has synced.',
+      );
+    }
+
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
-      operationType: 'customer.create',
+      operationType: isUpdate ? 'customer.update' : 'customer.create',
       operationId: item.id,
       clientReference: customer.localId,
       deviceClientId: device!.deviceClientId,
@@ -56,6 +63,8 @@ class CustomerSyncHandler implements SyncHandler {
         'address': customer.address,
         'notes': customer.notes,
         'credit_limit': customer.creditLimit ?? 0,
+        if (isUpdate) 'server_id': serverId,
+        if (isUpdate) 'is_active': customer.deletedAt == null,
       },
     );
 
