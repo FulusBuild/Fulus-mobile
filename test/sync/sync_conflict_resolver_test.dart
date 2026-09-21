@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart' hide isNotNull;
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/fulus_canonical_reconciler_typed.dart';
@@ -123,5 +124,67 @@ void main() {
             .getSingle();
     expect(conflict.resolvedAt, isNotNull);
     expect(conflict.resolution, 'kept_authoritative_cloud_version');
+  });
+
+  test('rebases a local conflict and leaves it unresolved until push succeeds', () async {
+    final customer = await customers.createCustomer(
+      const CustomerDraft(name: 'Local Customer'),
+    );
+    await customers.markSynced(
+      localId: customer.localId,
+      serverId: 'server-customer-2',
+    );
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(customer.localId)))
+        .go();
+
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'operation-2',
+        entityType: 'customer',
+        entityLocalId: customer.localId,
+        operation: 'update',
+        priority: 1,
+        enqueuedAt: DateTime.utc(2026, 9, 21),
+        baseCursor: const Value(4),
+        syncAttempts: 5,
+        lastError: const Value('SYNC_CONFLICT'),
+      ),
+    );
+    await db.into(db.syncConflictRecords).insert(
+      SyncConflictRecordsCompanion.insert(
+        id: 'operation-2:conflict',
+        operationId: 'operation-2',
+        entityType: 'customer',
+        entityLocalId: customer.localId,
+        code: const Value('SYNC_CONFLICT'),
+        message: 'Customer changed on another device.',
+        createdAt: DateTime.utc(2026, 9, 21),
+      ),
+    );
+
+    final resolver = SyncConflictResolver(
+      db: db,
+      reconciler: FulusCanonicalTypedReconciler(api: api, handlers: const {}),
+      connectionState: connectionState,
+      preferences: await SharedPreferences.getInstance(),
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('fulus_sync_cursor_business-1', 12);
+
+    await resolver.keepLocalVersion('operation-2:conflict');
+
+    final queue = await (db.select(db.syncQueueItems)
+          ..where((q) => q.id.equals('operation-2')))
+        .getSingle();
+    final conflict = await (db.select(db.syncConflictRecords)
+          ..where((c) => c.id.equals('operation-2:conflict')))
+        .getSingle();
+
+    expect(queue.baseCursor, 12);
+    expect(queue.syncAttempts, 0);
+    expect(queue.lastError, isNull);
+    expect(conflict.resolvedAt, isNull);
   });
 }
