@@ -48,7 +48,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _started = false;
-  Future<void>? _connectivityRun;
+  Future<bool>? _connectivityRun;
   Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
@@ -179,17 +179,11 @@ class SyncTriggers with WidgetsBindingObserver {
       // reconcileForReadiness() instead, so it never creates that cycle.
       final active = _connectivityRun;
       if (active != null) {
-        // A normal trigger may be blocked in readiness initialization. Waiting
-        // for that future is not enough: while restore is active, that trigger
-        // can intentionally stand down. Restore must still perform its own
-        // authoritative reconciliation against the freshly imported snapshot.
-        try {
-          await active;
-        } catch (_) {
-          // Give the restore-owned reconciliation a chance to recover from a
-          // transient readiness failure. If it also fails, its error is
-          // propagated to the restore flow.
-        }
+        // A normal trigger may already own the reconciliation. Its result
+        // tells restore whether real sync work happened or whether the
+        // trigger stood down because restore was still establishing readiness.
+        final didReconcile = await active;
+        if (didReconcile) return;
       }
 
       await _runAndCheckStuck();
@@ -253,30 +247,35 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _runIfOnline({bool requireReady = true}) {
+  Future<void> _runIfOnline({bool requireReady = true}) async {
     final active = _connectivityRun;
-    if (active != null) return active;
+    if (active != null) {
+      await active;
+      return;
+    }
     final run = _runIfOnlineOnce(requireReady: requireReady);
     _connectivityRun = run;
-    return run.whenComplete(() {
+    try {
+      await run;
+    } finally {
       if (identical(_connectivityRun, run)) {
         _connectivityRun = null;
       }
-    });
+    }
   }
 
-  Future<void> _runIfOnlineOnce({required bool requireReady}) async {
-    if (!_syncConfig.isEnabled) return;
+  Future<bool> _runIfOnlineOnce({required bool requireReady}) async {
+    if (!_syncConfig.isEnabled) return false;
     if (requireReady) {
       final initialized = await _ensureReady();
       final ready = _isReady;
-      if (ready != null && !await ready()) return;
-      if (initialized) return;
+      if (ready != null && !await ready()) return false;
+      if (initialized) return true;
     }
     final results = await _connectivity.checkConnectivity();
-    if (_hasConnectivity(results)) {
-      await _runAndCheckStuck();
-    }
+    if (!_hasConnectivity(results)) return false;
+    await _runAndCheckStuck();
+    return true;
   }
 
   Future<void> _runAndCheckStuck() async {
