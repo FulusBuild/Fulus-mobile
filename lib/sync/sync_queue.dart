@@ -58,6 +58,10 @@ class SyncTask {
         entityType: 'supplier', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
+  factory SyncTask.updateSupplier(String localId) => SyncTask(
+        entityType: 'supplier', entityLocalId: localId, operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
   factory SyncTask.createLocation(String localId) => SyncTask(
         entityType: 'location', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
