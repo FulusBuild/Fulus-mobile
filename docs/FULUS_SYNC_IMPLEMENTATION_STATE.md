@@ -6,14 +6,14 @@ Repository: FulusBuild/Fulus-mobile
 Working branch: feat/cloud-sync-v1-hardening-v2
 Open PR: #56
 PR state: open, ready for review, not merged
-Current branch HEAD at handoff creation: 7e526b9305ce23be00b01d741d6efe289bbf87f7
+Current branch HEAD before this state-document commit: a9aee6628149087c0afa6c77bae03957580af4c4
 Production Supabase project: bejcuvoxemwomcatgyxz
 
 This is a resume contract, not permission to trust old claims blindly. A new session MUST verify the repository, CI, deployed database/functions, and relevant code before extending the implementation.
 
 ## Current objective
 
-Continue Fulus Cloud Sync toward production-grade local-first convergence. The next incomplete architectural layer is Phase 4 recovery/bootstrap, followed by remaining scale, health, and production verification work.
+Continue Fulus Cloud Sync toward production-grade local-first convergence. Phase 4 recovery/bootstrap and bounded canonical batching are now implemented in the branch and deployed for the canonical-read function. Remaining work is crash/E2E verification, retention/compaction scheduling, full audit, and CI.
 
 Do not stop merely because CI becomes green.
 
@@ -67,90 +67,82 @@ The handoff documents themselves were then committed in three documentation comm
 
 The next session MUST inspect the newest workflow run for the current HEAD before making claims about CI.
 
-## Immediate next actions
+## Current session implementation
 
 ### Phase 4A — cursor-too-old recovery
-The server already detects a stale/too-old sync cursor and returns a machine-readable recovery-required response.
+Implemented:
+- machine-readable SYNC_CURSOR_TOO_OLD is classified by ApiClient;
+- SyncTriggers now catches the protocol signal and invokes explicit recovery;
+- CloudSyncRecovery blocks bootstrap when outbound queue items or unresolved conflicts exist;
+- authoritative restore snapshot now contains sync_boundary;
+- CloudSyncBootstrapCoordinator imports the snapshot atomically and recreates the active local identity/session;
+- bootstrap preserves local-only/unexported tables such as attendance, leave, supplier ledger, and tax remittance data;
+- cursor is replaced only after the bootstrap transaction commits;
+- the coordinator then performs the normal delta pull from the snapshot boundary;
+- Sync Health records recovery state (idle, recovering, blocked) and the last recovery error;
+- Sync Ready is cleared while recovery runs.
 
-This is NOT complete recovery.
-
-Implement and verify:
-1. client recognizes SYNC_CURSOR_TOO_OLD;
-2. coordinator enters an explicit recovery state;
-3. local cursor is NOT silently advanced;
-4. device obtains an authoritative bootstrap/snapshot;
-5. bootstrap is reconciled safely;
-6. pending local mutations are preserved or explicitly reconciled according to policy;
-7. cursor is replaced only after bootstrap succeeds;
-8. Sync Ready is reached only after reconciliation;
-9. repeated recovery is idempotent;
-10. app kill during bootstrap resumes safely.
-
-### Phase 4B — bootstrap/snapshot
-Design the smallest production-safe protocol compatible with the current architecture:
-- authoritative snapshot or bounded bootstrap;
-- server-side business scoping;
-- stable snapshot cursor/sequence boundary;
-- bounded payloads;
-- resumability if practical;
-- local import/reconciliation;
-- post-bootstrap delta pull;
-- no skipped changes between snapshot boundary and final cursor.
-
-Do not invent a second synchronization architecture.
+### Phase 4B — snapshot boundary
+Implemented and production-applied:
+- restore snapshot version is now 6;
+- sync_boundary is the per-business max sync_changes.sequence from the same PostgreSQL statement snapshot as the exported business rows;
+- expense categories are included now that the production table exists;
+- production RPC definition was verified directly;
+- production migrations sync_bootstrap_boundary and bootstrap_snapshot_expense_categories are applied.
 
 ### Phase 4C — batch canonical reads
-Replace avoidable one-entity-at-a-time canonical fetches with bounded batching where the existing server contract supports it. Preserve per-entity reconciliation and error isolation.
+Implemented:
+- fulus-sync-state supports entity_ids batches capped at 100 for simple entities;
+- the function is deployed as version 3 with JWT verification enabled;
+- repository source and deployed function source are byte-for-byte identical;
+- FulusSyncApi implements the batch transport contract;
+- FulusCanonicalTypedReconciler batches simple entities while retaining per-entity canonical handlers;
+- FulusSyncCoordinator can apply a feed page as one reconciliation batch and only advances the cursor after the whole page succeeds.
 
-### Phase 4D — failure/replay
-Add tests for:
-- timeout after server commit;
-- replay with same operation ID;
-- replay with different request;
-- app kill during push;
-- app kill after server acceptance but before local queue removal;
-- app kill during pull;
-- app kill during bootstrap;
-- token expiry with queued work;
-- revoked device;
-- network loss during recovery.
+### Sync Health
+Implemented:
+- recovery state and last recovery error are persisted;
+- Sync Health UI displays recovery state/error alongside push/pull/cursor facts.
 
-### Phase 5 — scale
-Then implement/verify:
-- bounded change-feed pages;
-- batch canonical reads;
-- snapshot/bootstrap;
-- cursor retention/compaction;
-- observability;
-- per-business isolation;
-- sensible rate limits.
+## Current verification truth
 
-Do not optimize by weakening correctness.
+Production Supabase:
+- project: bejcuvoxemwomcatgyxz
+- fulus-api: version 39, repository source matches deployed source exactly, verify_jwt=true;
+- fulus-sync-state: version 3, repository source matches deployed source exactly, verify_jwt=true;
+- latest migrations applied: sync_bootstrap_boundary, bootstrap_snapshot_expense_categories;
+- production restore snapshot RPC returned version 6, a valid sync_boundary, and an expense_categories array for a real owner-authorized business;
+- production security advisor still reports diagnostic_events RLS-without-policy (INFO) and leaked-password protection disabled (WARN);
+- production performance advisor still reports several non-sync-path findings plus multiple permissive-policy warnings and duplicate indexes outside the completed sync-path cleanup.
 
-### Phase 6 — authoritative Sync Health
-Sync Health must expose facts from the actual sync system:
-- cloud connection;
-- device authorization;
-- Sync Ready;
-- last successful push;
-- last successful pull;
-- pending;
-- retrying;
-- blocked/attention;
-- conflicts;
-- last sync error;
-- current cursor;
-- recovery/bootstrap state if active.
+GitHub:
+- PR #56 remains open and unmerged;
+- no review threads or submitted reviews are currently reported;
+- the current CI workflow file has PR triggers, but the GitHub connector has not returned a workflow run for the current branch commits yet;
+- the only current commit status observed is the Vercel build-rate-limit failure, not a code/test conclusion.
 
-### Phase 7 — final verification
-Perform all five independently:
-1. architecture audit;
-2. client-flow audit;
-3. server-flow audit;
-4. failure/recovery audit;
-5. final diff + CI + integration/E2E + production audit.
+## Remaining work — first genuinely incomplete items
 
-Only after all five pass should an APK be built.
+1. Crash/replay verification
+   - add focused tests for app kill during bootstrap, push replay, pull replay, and timeout-after-commit;
+   - run the live fulus_sync_e2e.dart contract test against production.
+2. Recovery integration verification
+   - prove a real stale cursor receives 410, performs bootstrap, resumes from sync_boundary, and reaches Sync Ready.
+3. Retention/compaction
+   - the architecture requires a retention/compaction policy; the production database currently has no scheduled pg_cron extension;
+   - implement a safe pruning mechanism and verify stale-cursor recovery against retained history before calling scale complete.
+4. Full final audits
+   - architecture;
+   - client flow;
+   - server flow;
+   - failure/recovery;
+   - scale/performance;
+   - Sync Health;
+   - production database/function/security;
+   - final diff;
+   - full CI;
+   - E2E/integration.
+5. APK remains blocked until all audits above pass.
 
 ## Critical invariants
 
