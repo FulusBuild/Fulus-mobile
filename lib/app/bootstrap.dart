@@ -264,7 +264,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   late final SyncTriggers syncTriggers;
 
   Future<void> initializeCloudSync() async {
-    final session = await authApi.restoreServerSession(
+    try {
+      final session = await authApi.restoreServerSession(
       supabaseUrl: SupabaseConfig.url,
       publishableKey: SupabaseConfig.publishableKey,
     );
@@ -292,6 +293,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     );
     await syncTriggers.reconcileForReadiness();
     fulusConnectionState.markSyncReady();
+    } catch (error) {
+      fulusConnectionState.markSyncError(error);
+      rethrow;
+    }
   }
 
   syncTriggers = SyncTriggers(
@@ -300,6 +305,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncStatusNotifier: syncStatusNotifier,
     isReady: () async => fulusConnectionState.isSyncReady,
     onNotReady: initializeCloudSync,
+    onSyncSuccess: fulusConnectionState.clearSyncError,
+    onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
       final businessId = fulusConnectionState.selectedBusinessId;
