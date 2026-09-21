@@ -6,7 +6,7 @@ Repository: FulusBuild/Fulus-mobile
 Working branch: feat/cloud-sync-v1-hardening-v2
 Open PR: #56
 PR state: open, ready for review, not merged
-Current branch HEAD at last state update: 9f2d2b226feed2df408f5de43d54eb5b46fb5e1a
+Current branch HEAD at last state update: a423cd10a918939646637dd6302bb935196e0901
 Production Supabase project: bejcuvoxemwomcatgyxz
 
 This is a resume contract, not permission to trust old claims blindly. A new session MUST verify the repository, CI, deployed database/functions, and relevant code before extending the implementation.
@@ -113,6 +113,12 @@ Implemented and production-applied:
 - removed three duplicate `sale_items`/`return_items` indexes identified by the performance advisor;
 - added the three remaining `staff_invites` foreign-key indexes reported by the advisor.
 
+### Phase 4E — device authorization hardening
+Implemented and production-deployed:
+- `fulus-api` and `fulus-sync-state` now require the active device's `registered_by` to match the authenticated user;
+- deployed versions are 41 and 4 respectively;
+- repository and deployed function sources were compared directly and match byte-for-byte.
+
 ### Sync Health
 Implemented:
 - recovery state and last recovery error are persisted;
@@ -122,8 +128,8 @@ Implemented:
 
 Production Supabase:
 - project: bejcuvoxemwomcatgyxz
-- fulus-api: version 39, repository source matches deployed source exactly, verify_jwt=true;
-- fulus-sync-state: version 3, repository source matches deployed source exactly, verify_jwt=true;
+- fulus-api: version 41, repository source matches deployed source exactly, verify_jwt=true; device lookups are bound to the authenticated user;
+- fulus-sync-state: version 4, repository source matches deployed source exactly, verify_jwt=true; canonical reads are bound to the authenticated user/device;
 - latest migrations applied: sync_bootstrap_boundary, bootstrap_snapshot_expense_categories;
 - production restore snapshot RPC returned version 6, a valid sync_boundary, and an expense_categories array for a real owner-authorized business;
 - production security advisor still reports diagnostic_events RLS-without-policy (INFO) and leaked-password protection disabled (WARN);
@@ -132,7 +138,7 @@ Production Supabase:
 GitHub:
 - PR #56 remains open and unmerged;
 - no review threads or submitted reviews are currently reported;
-- the current head has GitHub Actions run #1398 / ID 35623922532 pending;
+- the current head has GitHub Actions run #1404 / ID 35624142709 pending;
 - the only external commit status currently reported is the Vercel build-rate-limit failure, which is not a Flutter/test conclusion.
 
 ## Remaining work — first genuinely incomplete items
