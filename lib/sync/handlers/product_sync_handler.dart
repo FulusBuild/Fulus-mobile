@@ -30,9 +30,9 @@ class ProductSyncHandler implements SyncHandler {
   Future<void> sync(SyncQueueItem item) async {
     switch (item.operation) {
       case 'create':
-        await _syncCreate(item.entityLocalId, operationId: item.id);
+        await _syncCreate(item.entityLocalId, operationId: item.id, baseCursor: item.baseCursor);
       case 'update':
-        await _syncUpdate(item.entityLocalId, operationId: item.id);
+        await _syncUpdate(item.entityLocalId, operationId: item.id, baseCursor: item.baseCursor);
       default:
         throw StateError(
           'ProductSyncHandler does not support operation "${item.operation}".',
@@ -40,7 +40,7 @@ class ProductSyncHandler implements SyncHandler {
     }
   }
 
-  Future<void> _syncCreate(String localId, {String? operationId}) async {
+  Future<void> _syncCreate(String localId, {String? operationId, int? baseCursor}) async {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
     final businessId = _fulusConnectionState.selectedBusinessId;
@@ -88,7 +88,7 @@ class ProductSyncHandler implements SyncHandler {
     await _productRepository.markSynced(localId: localId, serverId: serverId);
   }
 
-  Future<void> _syncUpdate(String localId, {String? operationId}) async {
+  Future<void> _syncUpdate(String localId, {String? operationId, int? baseCursor}) async {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
     final serverId = product.serverId;
@@ -117,7 +117,7 @@ class ProductSyncHandler implements SyncHandler {
       ...product.toUpdateDto().toJson(),
       'category_id': categoryId,
       'supplier_id': supplierId,
-      if (item.baseCursor != null) 'base_cursor': item.baseCursor,
+      if (baseCursor != null) 'base_cursor': baseCursor,
     };
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
