@@ -80,7 +80,7 @@ Deno.serve(async req => {
   if (["catalog_list", "catalog_upsert", "catalog_delete"].includes(String(action))) {
     const entity = typeof b.entity === "string" ? b.entity : null;
     if (!entity || !["products", "categories", "suppliers", "expense_categories"].includes(entity)) return out({ error: { code: "INVALID_CATALOG_REQUEST", message: "Unsupported catalog entity" } }, 400);
-    const { data: allowed, error: pe } = await userDb.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage" });
+    // `user_has_permission` is deliberately called through the service-role client.\n    // The function is explicitly revoked from authenticated users and safely\n    // scopes the check by the already-validated caller uid.\n    const { data: allowed, error: pe } = await db.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: action === "catalog_list" ? "catalog.read" : "catalog.manage" });
     if (pe) return out({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to verify catalog permission" } }, 500);
     if (!allowed) return out({ error: { code: "FORBIDDEN", message: "Insufficient catalog permission" } }, 403);
     if (action === "catalog_list") {
