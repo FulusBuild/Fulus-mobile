@@ -275,8 +275,6 @@ class _MoneyHeader extends StatelessWidget {
           onPressed: FulusAppShell.openDrawer,
         ),
         const SizedBox(width: AppSpacing.xs),
-        const FulusBrandLogo(size: 32, padding: 7),
-        const SizedBox(width: AppSpacing.sm),
         Text(
           'Money',
           style: AppTypography.subheading.copyWith(
