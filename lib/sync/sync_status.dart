@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 /// actionable information; queue counts remain an implementation detail.
 enum SyncStatusKind {
   disabled,
+  cloudUnavailable,
   settled,
   pending,
   syncing,
@@ -18,6 +19,9 @@ class SyncStatus extends Equatable {
   });
 
   const SyncStatus.disabled() : this._(kind: SyncStatusKind.disabled);
+
+  const SyncStatus.cloudUnavailable()
+      : this._(kind: SyncStatusKind.cloudUnavailable);
 
   const SyncStatus.settled() : this._(kind: SyncStatusKind.settled);
 
