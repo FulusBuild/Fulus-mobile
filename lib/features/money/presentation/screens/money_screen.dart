@@ -152,7 +152,11 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       const MoneyPeriodFilterBar(),
                       const SizedBox(height: AppSpacing.xl),
-                      FulusSectionHeader(title: 'Money summary'),
+                      FulusSectionHeader(
+                        title: 'Money summary',
+                        action: 'See all',
+                        onActionTap: () => context.pushNamed('moneyHistory'),
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       FutureBuilder<MoneySummary>(
                         future: _summaryFuture,
@@ -433,43 +437,32 @@ class _MoneySummary extends StatelessWidget {
     final net = summary.net;
     final netUp = net >= summary.previousNet;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 520;
+    return FulusCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.lg,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 360;
 
-        final moneyIn = Expanded(
-          child: _MoneyStat(
-            label: 'Money in',
-            value: formatMoney(summary.moneyIn, symbol: currencySymbol),
-            valueColor: AppColors.primaryOf(context),
-          ),
-        );
-        final moneyOut = Expanded(
-          child: _MoneyStat(
-            label: 'Money out',
-            value: formatMoney(summary.moneyOut, symbol: currencySymbol),
-            valueColor: AppColors.errorOf(context),
-          ),
-        );
-
-        return Column(
-          children: [
-            wide
-                ? Row(
-                    children: [
-                      moneyIn,
-                      const SizedBox(width: AppSpacing.md),
-                      moneyOut,
-                    ],
-                  )
-                : Column(
-                    children: [
-                      moneyIn,
-                      const SizedBox(height: AppSpacing.sm),
-                      moneyOut,
-                    ],
-                  ),
-            const SizedBox(height: AppSpacing.sm),
+          final stats = [
+            _MoneyStat(
+              label: 'Money in',
+              value: formatMoney(
+                summary.moneyIn,
+                symbol: currencySymbol,
+              ),
+              valueColor: AppColors.primaryOf(context),
+            ),
+            _MoneyStat(
+              label: 'Money out',
+              value: formatMoney(
+                summary.moneyOut,
+                symbol: currencySymbol,
+              ),
+              valueColor: AppColors.errorOf(context),
+            ),
             _MoneyStat(
               label: 'Net',
               value: formatMoney(
@@ -482,9 +475,35 @@ class _MoneySummary extends StatelessWidget {
                   : AppColors.errorOf(context),
               trend: netUp ? 'vs previous period' : 'below previous period',
             ),
-          ],
-        );
-      },
+          ];
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < stats.length; i++) ...[
+                if (i > 0)
+                  Container(
+                    width: 1,
+                    margin: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
+                    color: AppColors.borderOf(context),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact
+                          ? AppSpacing.xs
+                          : AppSpacing.sm,
+                    ),
+                    child: stats[i],
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -504,40 +523,40 @@ class _MoneyStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: AppTypography.caption.copyWith(
+            color: AppColors.textSecondaryOf(context),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        FittedBox(
+          alignment: Alignment.centerLeft,
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: AppTypography.subheading.copyWith(
+              color: valueColor,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        if (trend != null) ...[
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            label,
+            trend!,
+            maxLines: 2,
             style: AppTypography.caption.copyWith(
               color: AppColors.textSecondaryOf(context),
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          FittedBox(
-            alignment: Alignment.centerLeft,
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: AppTypography.subheading.copyWith(
-                color: valueColor,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          if (trend != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              trend!,
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondaryOf(context),
-              ),
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 }
@@ -547,18 +566,27 @@ class _SummarySkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      children: [
-        Row(
-          children: [
-            Expanded(child: FulusStatCardSkeleton()),
-            SizedBox(width: AppSpacing.md),
-            Expanded(child: FulusStatCardSkeleton()),
-          ],
-        ),
-        SizedBox(height: AppSpacing.sm),
-        FulusStatCardSkeleton(),
-      ],
+    return FulusCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.lg,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Expanded(child: FulusStatCardSkeleton()),
+          Container(
+            width: 1,
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          ),
+          const Expanded(child: FulusStatCardSkeleton()),
+          Container(
+            width: 1,
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          ),
+          const Expanded(child: FulusStatCardSkeleton()),
+        ],
+      ),
     );
   }
 }
