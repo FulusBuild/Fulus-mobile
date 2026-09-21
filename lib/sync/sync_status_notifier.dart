@@ -80,6 +80,13 @@ class SyncStatusNotifier {
         cursor: _preferences.getInt(_cursorKey(businessId)) ?? 0,
       );
 
+  Future<int> unresolvedConflictCount() async {
+    final rows = await (_db.select(_db.syncConflictRecords)
+          ..where((c) => c.resolvedAt.isNull()))
+        .get();
+    return rows.length;
+  }
+
   Future<void> recordPushSuccess(String businessId) async {
     await _preferences.setString(_pushKey(businessId), DateTime.now().toUtc().toIso8601String());
   }
