@@ -137,6 +137,12 @@ begin
   ) then
     raise exception using errcode='42501', message='Device is not registered or active';
   end if;
+  if not exists (
+    select 1 from public.locations
+    where id=target_location_id and business_id=target_business_id and status='active'
+  ) then
+    raise exception using errcode='22023', message='Location does not belong to this business';
+  end if;
   if target_amount is null or target_amount <= 0 then
     raise exception using errcode='22023', message='Expense amount must be greater than zero';
   end if;
