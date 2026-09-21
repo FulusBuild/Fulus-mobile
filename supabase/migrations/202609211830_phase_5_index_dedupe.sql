@@ -1,0 +1,3 @@
+drop index if exists public.idx_sync_operations_business_received_at;
+drop index if exists public.idx_idempotency_keys_business_created_at;
+drop index if exists public.idx_idempotency_keys_business_operation;
