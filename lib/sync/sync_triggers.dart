@@ -25,6 +25,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<bool> Function()? isReady,
     Future<void> Function()? onNotReady,
     void Function()? onSyncSuccess,
+    Future<void> Function()? onPushSuccess,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Connectivity? connectivity,
   })  : _syncEngine = syncEngine,
@@ -34,6 +35,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _isReady = isReady,
         _onNotReady = onNotReady,
         _onSyncSuccess = onSyncSuccess,
+        _onPushSuccess = onPushSuccess,
         _onSyncFailure = onSyncFailure,
         _connectivity = connectivity ?? Connectivity();
 
@@ -44,6 +46,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<bool> Function()? _isReady;
   final Future<void> Function()? _onNotReady;
   final void Function()? _onSyncSuccess;
+  final Future<void> Function()? _onPushSuccess;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -291,14 +294,7 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> _runSyncCycle({bool manual = false}) async {
     await _syncEngine.runOnce(manual: manual);
-    // A successful drain is a real push checkpoint even when the queue was
-    // already empty; this timestamp is operational telemetry, not business data.
-    final ready = _isReady;
-    if (ready != null && await ready()) {
-      // The selected business is intentionally not owned by SyncTriggers.
-      // Health recording for the push side is performed by the notifier's
-      // caller-specific business context in bootstrap.
-    }
+    await _onPushSuccess?.call();
     final pull = _pullFromServer;
     if (pull != null) {
       // Pull failures are intentionally propagated. A reconciliation failure
