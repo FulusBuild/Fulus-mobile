@@ -52,10 +52,13 @@ Future<void> main() async {
       final freshDeviceId = 'e2e-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
       await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
       dio.options.headers['x-fulus-device-id'] = freshDeviceId;
-      if (await _preflightDevice(dio, businessId: businessId) != _PreflightResult.ok) {
-        throw StateError('fresh E2E device did not pass sync preflight');
-      }
-      stdout.writeln('PASS: stale cursor recovery established with fresh device');
+      // A newly registered device also starts at cursor 0. Because the
+      // retained feed is already compacted, it must enter bootstrap/restore
+      // rather than pretending incremental sync is sufficient. The contract
+      // E2E therefore stops using the sync feed for preflight after verifying
+      // the guard and exercises authenticated command/idempotency paths with
+      // the fresh device.
+      stdout.writeln('PASS: fresh device registered after stale-cursor guard');
     }
 
 
