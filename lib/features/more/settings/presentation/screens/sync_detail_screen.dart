@@ -177,6 +177,9 @@ class _StatusCard extends StatelessWidget {
     };
 
     final settled = status.kind == SyncStatusKind.settled;
+    final displayBody = status.conflictCount > 0
+        ? '${status.conflictCount} change${status.conflictCount == 1 ? '' : 's'} need review because another device changed the same data.'
+        : body;
     return FulusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,12 +203,12 @@ class _StatusCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            body,
+            displayBody,
             style: AppTypography.body.copyWith(
               color: AppColors.textSecondaryOf(context),
             ),
           ),
-          if (onSyncNow != null && !settled) ...[
+          if (onSyncNow != null && !settled && status.conflictCount == 0) ...[
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
