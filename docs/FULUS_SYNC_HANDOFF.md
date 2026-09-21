@@ -25,7 +25,7 @@ Then inspect relevant client and Supabase paths rather than relying solely on th
 - PR: #56
 - PR status: open, ready for review, not merged
 - Production Supabase project: bejcuvoxemwomcatgyxz
-- Last code HEAD before the state/handoff documentation commits: a9aee6628149087c0afa6c77bae03957580af4c4
+- Last verified HEAD: 9da43b575e2b8564a3aee4a79a5e4cc5431119f7
 
 The branch contains substantial sync hardening. Do not restart or replace it with a new architecture.
 
@@ -93,7 +93,7 @@ If a recovery path only returns an error but does not recover, it is not impleme
 
 ## Current priority
 
-The Phase 4 recovery/bootstrap implementation has now been added. The next session must verify it end-to-end rather than assuming the code path is correct.
+Phase 4 recovery/bootstrap, bounded canonical batching, retention scheduling, and the remaining production index cleanup are now implemented. The next session must verify the complete lifecycle end-to-end rather than assuming the code path is correct.
 
 Implemented in the current branch:
 - stale cursor recovery from machine-readable SYNC_CURSOR_TOO_OLD;
@@ -103,7 +103,9 @@ Implemented in the current branch:
 - explicit Sync Health recovery state;
 - bounded canonical batch reads for simple entities;
 - production deployment of fulus-sync-state version 3 with JWT verification enabled;
-- production verification that repository and deployed fulus-sync-state source match exactly.
+- production verification that repository and deployed fulus-sync-state source match exactly;
+- production `pg_cron` retention job `fulus-sync-change-retention` is active daily at 03:30 UTC;
+- duplicate sync-path indexes were removed and remaining `staff_invites` FK indexes were added.
 
 The first genuinely incomplete work is now verification and scale hardening:
 
@@ -116,7 +118,7 @@ The first genuinely incomplete work is now verification and scale hardening:
    - token expiry with queued work;
    - revoked device;
    - network loss during recovery.
-3. Implement a real retention/compaction schedule. pg_cron is not currently enabled in production, so do not claim retention complete until an operationally safe scheduler/pruner is actually verified.
+3. Verify the production retention schedule and stale-cursor recovery together once retained history is present; the 90-day pruner and daily pg_cron job are already deployed.
 4. Run full architecture/client/server/failure/scale/health/security/diff/CI/E2E audits.
 5. Do not build or release an APK before those audits pass.
 
