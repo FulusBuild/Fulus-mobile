@@ -6,7 +6,7 @@ Repository: FulusBuild/Fulus-mobile
 Working branch: feat/cloud-sync-v1-hardening-v2
 Open PR: #56
 PR state: open, ready for review, not merged
-Current branch HEAD at last state update: 9da43b575e2b8564a3aee4a79a5e4cc5431119f7
+Current branch HEAD at last state update: 9f2d2b226feed2df408f5de43d54eb5b46fb5e1a
 Production Supabase project: bejcuvoxemwomcatgyxz
 
 This is a resume contract, not permission to trust old claims blindly. A new session MUST verify the repository, CI, deployed database/functions, and relevant code before extending the implementation.
@@ -132,7 +132,7 @@ Production Supabase:
 GitHub:
 - PR #56 remains open and unmerged;
 - no review threads or submitted reviews are currently reported;
-- the current head has GitHub Actions run #1395 / ID 35623779866 pending;
+- the current head has GitHub Actions run #1398 / ID 35623922532 pending;
 - the only external commit status currently reported is the Vercel build-rate-limit failure, which is not a Flutter/test conclusion.
 
 ## Remaining work — first genuinely incomplete items
