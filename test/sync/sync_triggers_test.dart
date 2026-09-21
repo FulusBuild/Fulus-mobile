@@ -243,7 +243,8 @@ void main() {
           .thenAnswer((_) async {});
 
       var ready = false;
-      final triggers = SyncTriggers(
+      late final SyncTriggers triggers;
+      triggers = SyncTriggers(
         syncEngine: syncEngine,
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
