@@ -281,7 +281,36 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
   final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences);
+  final syncBootstrapCoordinator = CloudSyncBootstrapCoordinator(database);
+  late final CloudSyncRecovery syncRecovery;
   late final SyncTriggers syncTriggers;
+
+  syncRecovery = CloudSyncRecovery(
+    db: database,
+    restoreApi: cloudRestoreApi,
+    bootstrapCoordinator: syncBootstrapCoordinator,
+    onStarted: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        fulusConnectionState.clearSyncReady();
+        await syncStatusNotifier.markRecoveryStarted(businessId);
+      }
+    },
+    onCompleted: (boundary) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.markRecoveryCompleted(businessId, boundary);
+        fulusConnectionState.clearSyncError();
+      }
+    },
+    onFailed: (error) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.markRecoveryFailed(businessId, error);
+        fulusConnectionState.markSyncError(error);
+      }
+    },
+  );
 
   Future<void> initializeCloudSync() async {
     try {
