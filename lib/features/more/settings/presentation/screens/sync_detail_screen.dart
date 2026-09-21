@@ -409,6 +409,12 @@ class _HealthCard extends StatelessWidget {
           _HealthLine(label: 'Last successful pull', value: _when(health.lastPullAt)),
           const FulusListDivider(),
           _HealthLine(label: 'Change cursor', value: health.cursor.toString()),
+          const FulusListDivider(),
+          _HealthLine(label: 'Recovery', value: health.recoveryState),
+          if (health.lastError != null) ...[
+            const FulusListDivider(),
+            _HealthLine(label: 'Last sync error', value: health.lastError!),
+          ],
         ],
       ),
     );
