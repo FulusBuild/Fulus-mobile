@@ -242,7 +242,10 @@ Before large scale, add:
 - canonical aggregate batching
 - snapshot/bootstrap for new devices
 - cursor-too-old recovery
-- retention/compaction strategy
+- 90-day `sync_changes` retention with bounded 5,000-row pruning batches;
+- daily pg_cron scheduling for feed compaction;
+- stale-cursor bootstrap when a device falls behind the retained window;
+- idempotency records are not pruned by the feed-retention job;
 - server-side observability
 - per-business isolation and rate limits
 
@@ -278,7 +281,7 @@ The architecture should allow these without changing the local-first application
 - cursor-too-old detection is implemented and returns a machine-readable recovery-required response
 - snapshot/bootstrap recovery
 - batch canonical reads
-- retention/compaction
+- 90-day change-feed retention/compaction with scheduled bounded pruning
 - authoritative sync health
 
 ### Phase 5 — production verification
