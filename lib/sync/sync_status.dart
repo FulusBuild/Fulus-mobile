@@ -54,3 +54,19 @@ class SyncStatus extends Equatable {
   @override
   List<Object?> get props => [kind, pendingCount, attentionCount];
 }
+
+
+class SyncHealthSnapshot extends Equatable {
+  const SyncHealthSnapshot({
+    this.lastPushAt,
+    this.lastPullAt,
+    this.cursor = 0,
+  });
+
+  final DateTime? lastPushAt;
+  final DateTime? lastPullAt;
+  final int cursor;
+
+  @override
+  List<Object?> get props => [lastPushAt, lastPullAt, cursor];
+}
