@@ -176,6 +176,19 @@ class CloudRestoreImporter {
     );
   }
 
+  String _restoreLabel(String remoteKey) => switch (remoteKey) {
+        'sale_items' => 'sale items',
+        'sale_payments' => 'sale payments',
+        'product_stock_levels' => 'stock levels',
+        'customer_ledger_entries' => 'customer ledger',
+        'inventory_movements' => 'stock movements',
+        'expense_categories' => 'expense categories',
+        'supplier_ledger_entries' => 'supplier ledger',
+        'cash_drawer_shifts' => 'cash drawer shifts',
+        'audit_events' => 'audit events',
+        _ => remoteKey,
+      };
+
   Future<_StaffRestoreCounts> _restoreStaff(
     Map<String, dynamic> snapshot, {
     String? ownerCloudUserId,
