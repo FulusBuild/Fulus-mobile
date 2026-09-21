@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import '../core/errors/failure.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
+
+import '../core/errors/failure.dart';
 
 import 'sync_config.dart';
 import 'sync_engine.dart';
