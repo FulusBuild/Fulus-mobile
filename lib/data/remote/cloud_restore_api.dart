@@ -5,15 +5,18 @@ import 'api_client.dart';
 
 /// Fetches the authoritative cloud snapshot used for stale-cursor recovery.
 class CloudRestoreApi {
-  CloudRestoreApi(this._client);
+  CloudRestoreApi({required ApiClient client, required String functionBaseUrl})
+      : _client = client,
+        _functionBaseUrl = functionBaseUrl;
 
   final ApiClient _client;
+  final String _functionBaseUrl;
 
   Future<Map<String, dynamic>> fetchSnapshot({
     required String businessId,
   }) async {
     final response = await _client.dio.post(
-      '/restore_snapshot',
+      _functionBaseUrl,
       data: <String, dynamic>{
         'action': 'restore_snapshot',
         'business_id': businessId,
