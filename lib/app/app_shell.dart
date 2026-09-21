@@ -271,10 +271,15 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
   const FulusSyncStatusIndicator({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(_shellSyncStatusProvider).value;
-    if (status == null) return const SizedBox.shrink();
+    final rawStatus = ref.watch(_shellSyncStatusProvider).value;
+    final connection = ref.watch(fulusConnectionStateProvider);
+    if (rawStatus == null) return const SizedBox.shrink();
+    final status = rawStatus.kind == SyncStatusKind.disabled || connection.isSyncReady
+        ? rawStatus
+        : const SyncStatus.cloudUnavailable();
     final (icon, color, badgeCount) = switch (status.kind) {
       SyncStatusKind.disabled => (FulusIcons.cloudOff, AppColors.textSecondaryOf(context), 0),
+      SyncStatusKind.cloudUnavailable => (FulusIcons.cloudOff, AppColors.textSecondaryOf(context), 0),
       SyncStatusKind.settled => (FulusIcons.cloudDone, AppColors.textSecondaryOf(context), 0),
       SyncStatusKind.pending => (FulusIcons.cloudUpload, AppColors.textSecondaryOf(context), status.pendingCount),
       SyncStatusKind.syncing => (FulusIcons.sync, AppColors.primaryOf(context), 0),

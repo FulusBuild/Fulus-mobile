@@ -42,6 +42,7 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(_syncDetailStatusProvider);
+    final connection = ref.watch(fulusConnectionStateProvider);
     return FulusScreen(
       title: 'Sync & backup',
       subtitle: 'See what is backed up and what Fulus is still working on',
@@ -64,7 +65,9 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                       ),
                       statusAsync.when(
                         data: (status) => _StatusCard(
-                          status: status,
+                          status: status.kind == SyncStatusKind.disabled || connection.isSyncReady
+                              ? status
+                              : const SyncStatus.cloudUnavailable(),
                           syncingNow: _syncingNow,
                           onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
                         ),
@@ -134,6 +137,12 @@ class _StatusCard extends StatelessWidget {
           AppColors.textSecondaryOf(context),
           'Cloud backup is off',
           'Your work is still safe on this device. Connect Fulus Cloud to back it up and use it across devices.',
+        ),
+      SyncStatusKind.cloudUnavailable => (
+          Icons.cloud_off_outlined,
+          AppColors.textSecondaryOf(context),
+          'Cloud backup is reconnecting',
+          'Your work is safe on this device. Fulus will resume backup automatically when Cloud is ready.',
         ),
       SyncStatusKind.settled => (
           Icons.cloud_done_outlined,

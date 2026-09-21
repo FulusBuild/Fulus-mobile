@@ -28,6 +28,7 @@ class FulusConnectionState extends ChangeNotifier {
   bool _loading = false;
   bool _syncReady = false;
   bool _sessionAuthenticated = false;
+  Object? _syncError;
 
   FulusMembershipContext? get membershipContext => _membershipContext;
   String? get selectedBusinessId => _selectedBusinessId;
@@ -35,6 +36,7 @@ class FulusConnectionState extends ChangeNotifier {
   FulusRegisteredDevice? get registeredDevice => _registeredDevice;
   bool get isDeviceAuthorized => _registeredDevice?.status == 'active';
   bool get isSessionAuthenticated => _sessionAuthenticated;
+  bool get hasSyncError => _syncError != null;
   bool get isSyncReady =>
       _syncReady &&
       _sessionAuthenticated &&
@@ -82,13 +84,26 @@ class FulusConnectionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void markSyncError(Object error) {
+    _syncError = error;
+    _syncReady = false;
+    notifyListeners();
+  }
+
+  void clearSyncError() {
+    if (_syncError == null) return;
+    _syncError = null;
+    notifyListeners();
+  }
+
   void markSyncReady() {
     if (!isConnected || !isDeviceAuthorized) {
       throw StateError(
         'Cannot mark Fulus Cloud sync ready without an active business and registered device.',
       );
     }
-    if (_syncReady) return;
+    if (_syncReady && _syncError == null) return;
+    _syncError = null;
     _syncReady = true;
     notifyListeners();
   }
@@ -110,6 +125,7 @@ class FulusConnectionState extends ChangeNotifier {
       throw StateError('Select an active business before registering the device.');
     }
     clearSyncReady();
+    clearSyncError();
     final device = await _deviceRegistration.register(
       businessId: businessId,
       deviceClientId: deviceClientId,

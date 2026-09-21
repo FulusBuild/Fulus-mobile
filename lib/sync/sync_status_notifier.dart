@@ -71,13 +71,19 @@ class SyncStatusNotifier {
   /// live-toggle one. A caller that flips the toggle and wants the
   /// indicator to reflect it immediately should re-subscribe (a screen
   /// rebuild does this naturally).
-  Stream<SyncStatus> watch() {
+  Stream<SyncStatus> watch() async* {
     if (!_syncConfig.isEnabled) {
-      return Stream.value(const SyncStatus.disabled());
+      yield const SyncStatus.disabled();
+      return;
     }
 
+    // Drift's watch query normally emits its initial result, but expose an
+    // explicit first snapshot as well. The sync screen must never remain in
+    // Riverpod's loading state simply because the database stream has not
+    // produced its first event yet.
     final query = _db.select(_db.syncQueueItems);
-    return query.watch().map(_toStatus);
+    yield _toStatus(await query.get());
+    yield* query.watch().map(_toStatus);
   }
 
   SyncStatus _toStatus(List<SyncQueueItem> items) {
