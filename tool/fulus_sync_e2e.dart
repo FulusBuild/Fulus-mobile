@@ -65,7 +65,6 @@ Future<void> main() async {
       entity: 'products',
       operationId: createOperationId,
       item: createPayload,
-      operationId: 'e2e-catalog-create-$suffix',
     );
     _expect2xx(create, 'initial product.create');
 
@@ -134,7 +133,6 @@ Future<void> main() async {
       entity: 'products',
       operationId: deleteOperationId,
       id: serverId,
-      operationId: 'e2e-catalog-delete-$suffix',
     );
     _expect2xx(delete, 'cleanup product.delete');
     cleanedUp = true;
@@ -149,7 +147,6 @@ Future<void> main() async {
           entity: 'products',
           operationId: '${deleteOperationId}-cleanup',
           id: serverId,
-          operationId: 'e2e-catalog-delete-$suffix',
         );
         if (cleanup.statusCode != null &&
             cleanup.statusCode! >= 200 &&
@@ -219,7 +216,6 @@ Future<Response<dynamic>> _submitCatalog(
   required String operationId,
   Map<String, dynamic>? item,
   String? id,
-  required String operationId,
 }) {
   return dio.post(
     '',
