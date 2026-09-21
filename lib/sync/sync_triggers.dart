@@ -227,7 +227,7 @@ class SyncTriggers with WidgetsBindingObserver {
     final active = _readinessRun;
     if (active != null) {
       await active;
-      return ready == null || await ready();
+      return await ready();
     }
     final run = initialize();
     _readinessRun = run;
@@ -236,7 +236,7 @@ class SyncTriggers with WidgetsBindingObserver {
       // onNotReady owns the initial reconciliation. Only report success
       // when it actually established readiness; initialization may also
       // legitimately return early (for example while offline or signed out).
-      return ready == null || await ready();
+      return await ready();
     } finally {
       if (identical(_readinessRun, run)) {
         _readinessRun = null;
