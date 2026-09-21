@@ -229,7 +229,15 @@ class SyncEngine {
   }
 
   Future<void> _removeFromQueue(String id) async {
-    await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
+    await _db.transaction(() async {
+      await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
+      await (_db.update(_db.syncConflictRecords)..where((c) => c.operationId.equals(id) & c.resolvedAt.isNull())).write(
+        SyncConflictRecordsCompanion(
+          resolvedAt: Value(DateTime.now()),
+          resolution: const Value('operation_applied_after_conflict'),
+        ),
+      );
+    });
   }
 
   Future<void> _resetAfterAuthenticationFailure(
