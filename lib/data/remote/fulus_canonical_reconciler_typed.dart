@@ -14,6 +14,23 @@ abstract interface class FulusCanonicalEntityFetcher {
   });
 }
 
+/// Optional transport capability for bounded canonical reads.
+///
+/// The implementation must preserve the request's business/device
+/// authorization and return one canonical response per requested ID. Missing
+/// rows are represented as delete responses so callers can converge local
+/// state without issuing one HTTP request per change-feed event.
+abstract interface class FulusCanonicalBatchEntityFetcher {
+  static const maxBatchSize = 100;
+
+  Future<List<FulusCanonicalEntityResponse>> fetchCanonicalEntities({
+    required String businessId,
+    required String entityType,
+    required List<String> entityIds,
+    required String deviceClientId,
+  });
+}
+
 /// Routes canonical server state to entity-owned reconciliation callbacks.
 ///
 /// This class intentionally has no knowledge of Drift tables or SQL. Each
@@ -44,45 +61,88 @@ class FulusCanonicalTypedReconciler {
       }
       return;
     }
-    final grouped = <String, List<FulusSyncChange>>{};
-    for (final change in changes) {
-      grouped.putIfAbsent(change.entityType, () => <FulusSyncChange>[]).add(change);
-    }
-    for (final entry in grouped.entries) {
-      final entityType = entry.key;
-      final group = entry.value;
+
+    // Preserve feed sequence across entity types. Grouping the entire page by
+    // type would reorder dependent changes (for example, a product change
+    // followed by a sale change). Only contiguous same-type runs are batched.
+    var start = 0;
+    while (start < changes.length) {
+      final entityType = changes[start].entityType;
+      var end = start + 1;
+      while (end < changes.length && changes[end].entityType == entityType) {
+        end++;
+      }
+
+      final group = changes.sublist(start, end);
       const batchable = {
-        'customer', 'category', 'supplier', 'expense_category', 'expense',
-        'income_record', 'cash_drawer_shift', 'location', 'customer_ledger',
+        'customer',
+        'category',
+        'supplier',
+        'expense_category',
+        'expense',
+        'income_record',
+        'cash_drawer_shift',
+        'location',
+        'customer_ledger',
         'stock_movement',
       };
+
       if (!batchable.contains(entityType) || group.length == 1) {
         for (final change in group) {
-          await reconcile(change, businessId: businessId, deviceClientId: deviceClientId);
+          await reconcile(
+            change,
+            businessId: businessId,
+            deviceClientId: deviceClientId,
+          );
         }
-        continue;
+      } else {
+        for (var offset = 0;
+            offset < group.length;
+            offset += FulusCanonicalBatchEntityFetcher.maxBatchSize) {
+          final chunk = group
+              .skip(offset)
+              .take(FulusCanonicalBatchEntityFetcher.maxBatchSize)
+              .toList(growable: false);
+          final entityIds = <String>{
+            for (final change in chunk) change.entityId,
+          }.toList(growable: false);
+
+          final responses = await batchFetcher.fetchCanonicalEntities(
+            businessId: businessId,
+            entityType: entityType,
+            entityIds: entityIds,
+            deviceClientId: deviceClientId,
+          );
+          final byId = {
+            for (final response in responses) response.entityId: response,
+          };
+
+          for (final change in chunk) {
+            final response = byId[change.entityId];
+            if (response == null) {
+              throw StateError(
+                'Canonical batch response omitted '
+                '${change.entityType}:${change.entityId}',
+              );
+            }
+            final handler = _handlers[change.entityType];
+            if (handler == null) {
+              throw StateError(
+                'Unsupported canonical sync entity: ${change.entityType}',
+              );
+            }
+            if (response.entityType != change.entityType ||
+                response.entityId != change.entityId) {
+              throw StateError(
+                'Canonical batch response does not match the change.',
+              );
+            }
+            await handler(response);
+          }
+        }
       }
-      final responses = await batchFetcher.fetchCanonicalEntities(
-        businessId: businessId,
-        entityType: entityType,
-        entityIds: group.map((change) => change.entityId).toSet().toList(),
-        deviceClientId: deviceClientId,
-      );
-      final byId = {for (final response in responses) response.entityId: response};
-      for (final change in group) {
-        final response = byId[change.entityId];
-        if (response == null) {
-          throw StateError('Canonical batch response omitted ' + change.entityType + ':' + change.entityId);
-        }
-        final handler = _handlers[change.entityType];
-        if (handler == null) {
-          throw StateError('Unsupported canonical sync entity: ' + change.entityType);
-        }
-        if (response.entityType != change.entityType || response.entityId != change.entityId) {
-          throw StateError('Canonical batch response does not match the change.');
-        }
-        await handler(response);
-      }
+
+      start = end;
     }
   }
 
