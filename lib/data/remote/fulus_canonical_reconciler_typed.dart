@@ -29,6 +29,63 @@ class FulusCanonicalTypedReconciler {
   final FulusCanonicalEntityFetcher _api;
   final Map<String, Future<void> Function(FulusCanonicalEntityResponse)> _handlers;
 
+  Future<void> reconcileChanges(
+    List<FulusSyncChange> changes, {
+    required String businessId,
+    required String deviceClientId,
+  }) async {
+    if (changes.isEmpty) return;
+    final batchFetcher = _api is FulusCanonicalBatchEntityFetcher
+        ? _api as FulusCanonicalBatchEntityFetcher
+        : null;
+    if (batchFetcher == null) {
+      for (final change in changes) {
+        await reconcile(change, businessId: businessId, deviceClientId: deviceClientId);
+      }
+      return;
+    }
+    final grouped = <String, List<FulusSyncChange>>{};
+    for (final change in changes) {
+      grouped.putIfAbsent(change.entityType, () => <FulusSyncChange>[]).add(change);
+    }
+    for (final entry in grouped.entries) {
+      final entityType = entry.key;
+      final group = entry.value;
+      const batchable = {
+        'customer', 'category', 'supplier', 'expense_category', 'expense',
+        'income_record', 'cash_drawer_shift', 'location', 'customer_ledger',
+        'stock_movement',
+      };
+      if (!batchable.contains(entityType) || group.length == 1) {
+        for (final change in group) {
+          await reconcile(change, businessId: businessId, deviceClientId: deviceClientId);
+        }
+        continue;
+      }
+      final responses = await batchFetcher.fetchCanonicalEntities(
+        businessId: businessId,
+        entityType: entityType,
+        entityIds: group.map((change) => change.entityId).toSet().toList(),
+        deviceClientId: deviceClientId,
+      );
+      final byId = {for (final response in responses) response.entityId: response};
+      for (final change in group) {
+        final response = byId[change.entityId];
+        if (response == null) {
+          throw StateError('Canonical batch response omitted ' + change.entityType + ':' + change.entityId);
+        }
+        final handler = _handlers[change.entityType];
+        if (handler == null) {
+          throw StateError('Unsupported canonical sync entity: ' + change.entityType);
+        }
+        if (response.entityType != change.entityType || response.entityId != change.entityId) {
+          throw StateError('Canonical batch response does not match the change.');
+        }
+        await handler(response);
+      }
+    }
+  }
+
   Future<void> reconcile(
     FulusSyncChange change, {
     required String businessId,
