@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../core/notifications/notification_service.dart';
 import '../data/local/database/database.dart';
 import 'sync_config.dart';
@@ -43,14 +45,17 @@ class SyncStatusNotifier {
     required AppDatabase db,
     required SyncConfig syncConfig,
     required NotificationService notificationService,
+    required SharedPreferences preferences,
     this.attentionThreshold = defaultSyncAttentionThreshold,
   })  : _db = db,
         _syncConfig = syncConfig,
-        _notificationService = notificationService;
+        _notificationService = notificationService,
+        _preferences = preferences;
 
   final AppDatabase _db;
   final SyncConfig _syncConfig;
   final NotificationService _notificationService;
+  final SharedPreferences _preferences;
   final int attentionThreshold;
 
   /// Tracks whether the current "stuck" episode has already produced a
@@ -64,6 +69,27 @@ class SyncStatusNotifier {
   /// again rather than being silently suppressed forever by an episode
   /// that resolved hours or days earlier.
   bool _alreadyNotifiedForCurrentEpisode = false;
+
+  static String _pushKey(String businessId) => 'fulus_sync_last_push_$businessId';
+  static String _pullKey(String businessId) => 'fulus_sync_last_pull_$businessId';
+  static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
+
+  SyncHealthSnapshot healthFor(String businessId) => SyncHealthSnapshot(
+        lastPushAt: _readDate(_preferences.getString(_pushKey(businessId))),
+        lastPullAt: _readDate(_preferences.getString(_pullKey(businessId))),
+        cursor: _preferences.getInt(_cursorKey(businessId)) ?? 0,
+      );
+
+  Future<void> recordPushSuccess(String businessId) async {
+    await _preferences.setString(_pushKey(businessId), DateTime.now().toUtc().toIso8601String());
+  }
+
+  Future<void> recordPullSuccess(String businessId, int cursor) async {
+    await _preferences.setString(_pullKey(businessId), DateTime.now().toUtc().toIso8601String());
+    await _preferences.setInt(_cursorKey(businessId), cursor);
+  }
+
+  DateTime? _readDate(String? raw) => raw == null ? null : DateTime.tryParse(raw);
 
   /// Evaluated once per call, not itself reactive to SyncConfig changing
   /// mid-stream — see SyncConfig's own doc comment on why enabling sync
