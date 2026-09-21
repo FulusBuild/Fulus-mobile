@@ -22,8 +22,10 @@ class ExpenseCategoryRepositoryImpl implements ExpenseCategoryRepository {
   Future<ExpenseCategory> createExpenseCategory(ExpenseCategoryDraft draft) async {
     final localId = Ulid().toString();
     final category = draft.toEntity(localId: localId);
-    await _db.into(_db.expenseCategories).insert(category.toDriftCompanion());
-    await _syncQueue.enqueue(SyncTask.createExpenseCategory(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.expenseCategories).insert(category.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createExpenseCategory(localId));
+    });
     return category;
   }
 
