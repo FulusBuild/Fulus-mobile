@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/local/database/database.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
@@ -16,13 +17,16 @@ class SyncConflictResolver {
     required AppDatabase db,
     required FulusCanonicalTypedReconciler reconciler,
     required FulusConnectionState connectionState,
+    required SharedPreferences preferences,
   })  : _db = db,
         _reconciler = reconciler,
-        _connectionState = connectionState;
+        _connectionState = connectionState,
+        _preferences = preferences;
 
   final AppDatabase _db;
   final FulusCanonicalTypedReconciler _reconciler;
   final FulusConnectionState _connectionState;
+  final SharedPreferences _preferences;
 
   Future<void> keepCloudVersion(String conflictId) async {
     final conflict = await (_db.select(_db.syncConflictRecords)
@@ -74,6 +78,44 @@ class SyncConflictResolver {
         ),
       );
     });
+  }
+
+
+
+  /// Keeps the local edit, but rebases its optimistic-concurrency cursor to
+  /// the latest server cursor observed by this device. The conflict remains
+  /// unresolved until the queued mutation is actually accepted by Cloud.
+  Future<void> keepLocalVersion(String conflictId) async {
+    final conflict = await (_db.select(_db.syncConflictRecords)
+          ..where((c) => c.id.equals(conflictId))
+          ..where((c) => c.resolvedAt.isNull()))
+        .getSingleOrNull();
+    if (conflict == null) return;
+
+    final businessId = _connectionState.selectedBusinessId;
+    final device = _connectionState.registeredDevice;
+    if (businessId == null || device == null || !_connectionState.isDeviceAuthorized) {
+      throw StateError('Fulus Cloud is not ready to retry this conflict.');
+    }
+
+    final cursor = _preferences.getInt('fulus_sync_cursor_$businessId') ?? 0;
+    final queue = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.id.equals(conflict.operationId)))
+        .getSingleOrNull();
+    if (queue == null) {
+      throw StateError('The conflicted local change is no longer queued.');
+    }
+
+    await (_db.update(_db.syncQueueItems)
+          ..where((q) => q.id.equals(conflict.operationId)))
+        .write(
+      SyncQueueItemsCompanion(
+        baseCursor: Value(cursor),
+        syncAttempts: const Value(0),
+        lastAttemptedAt: const Value(null),
+        lastError: const Value(null),
+      ),
+    );
   }
 
   Future<String?> _serverEntityId(String entityType, String localId) async {
