@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   const entityType = params.get("entity_type");
   const entityId = params.get("entity_id");
   const deviceClientId = req.headers.get("x-fulus-device-id");
-  if (!businessId || !entityType || !entityId || !deviceClientId) {
+  if (!businessId || !entityType || (!entityId && !params.get("entity_ids")) || !deviceClientId) {
     return out({
       error: {
         code: "INVALID_CANONICAL_REQUEST",
@@ -93,6 +93,31 @@ Deno.serve(async (req) => {
   }
   if (!device || device.status !== "active") {
     return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+  }
+
+  const rawEntityIds = params.get("entity_ids");
+  if (rawEntityIds) {
+    const entityIds = [...new Set(rawEntityIds.split(",").map((value) => value.trim()).filter(Boolean))];
+    if (entityIds.length === 0 || entityIds.length > 100 || !SIMPLE_ENTITIES[entityType]) {
+      return out({ error: { code: "INVALID_CANONICAL_BATCH_REQUEST", message: "entity_ids must contain 1 to 100 supported simple entity IDs" } }, 400);
+    }
+    const { data: rows, error } = await db
+      .from(SIMPLE_ENTITIES[entityType])
+      .select("*")
+      .eq("business_id", businessId)
+      .in("id", entityIds);
+    if (error) {
+      return out({ error: { code: "CANONICAL_BATCH_READ_FAILED", message: "Unable to read canonical entity batch" } }, 500);
+    }
+    const byId = new Map((rows ?? []).map((row) => [String(row.id), row]));
+    const entities = entityIds.map((id) => ({
+      entity_type: entityType,
+      entity_id: id,
+      operation: byId.has(id) ? "upsert" : "delete",
+      row: byId.get(id) ?? null,
+      server_authoritative: true,
+    }));
+    return out({ data: { entity_type: entityType, entities, server_authoritative: true } });
   }
 
   if (entityType === "sale") {
