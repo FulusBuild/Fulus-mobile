@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
+import '../../../../../data/local/database/database.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../../sync/sync_status.dart';
@@ -85,6 +86,8 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       _HealthCard(health: health),
                       const SizedBox(height: AppSpacing.lg),
+                      const _ConflictCard(),
+                      const SizedBox(height: AppSpacing.lg),
                       const FulusSectionHeader(
                         title: 'How Fulus protects your work',
                         subtitle: 'Cloud backup never replaces your local-first workflow',
@@ -127,6 +130,125 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
 final _syncDetailStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
   return ref.watch(syncStatusNotifierProvider).watch();
 });
+
+final _unresolvedConflictsProvider =
+    StreamProvider.autoDispose<List<SyncConflictRecord>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.syncConflictRecords)
+        ..where((c) => c.resolvedAt.isNull())
+        ..orderBy([(c) => OrderingTerm.desc(c.createdAt)]))
+      .watch();
+});
+
+class _ConflictCard extends ConsumerStatefulWidget {
+  const _ConflictCard();
+
+  @override
+  ConsumerState<_ConflictCard> createState() => _ConflictCardState();
+}
+
+class _ConflictCardState extends ConsumerState<_ConflictCard> {
+  String? _resolvingId;
+
+  Future<void> _keepCloud(SyncConflictRecord conflict) async {
+    if (_resolvingId != null) return;
+    setState(() => _resolvingId = conflict.id);
+    try {
+      await ref.read(syncConflictResolverProvider).keepCloudVersion(conflict.id);
+      if (!mounted) return;
+      showFulusSnackbar(
+        context,
+        message: 'The cloud version is now saved on this device.',
+      );
+      ref.invalidate(_syncDetailStatusProvider);
+    } catch (_) {
+      if (!mounted) return;
+      showFulusSnackbar(
+        context,
+        message: 'Fulus could not refresh this change yet. Your local data is still safe.',
+      );
+    } finally {
+      if (mounted) setState(() => _resolvingId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final conflictsAsync = ref.watch(_unresolvedConflictsProvider);
+    return conflictsAsync.when(
+      data: (conflicts) {
+        if (conflicts.isEmpty) return const SizedBox.shrink();
+        return FulusCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Changes need review',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Another device changed the same data. You can accept the current Cloud version to clear the local conflict.',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ...conflicts.map(
+                (conflict) => Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceOf(context),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${conflict.entityType} • ${conflict.entityLocalId}',
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textPrimaryOf(context),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          conflict.message,
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textSecondaryOf(context),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        FulusButton(
+                          label: _resolvingId == conflict.id
+                              ? 'Refreshing…'
+                              : 'Use Cloud version',
+                          loading: _resolvingId == conflict.id,
+                          onPressed: _resolvingId == null
+                              ? () => _keepCloud(conflict)
+                              : null,
+                          variant: FulusButtonVariant.secondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
 
 class _StatusCard extends StatelessWidget {
   const _StatusCard({required this.status, required this.syncingNow, required this.onSyncNow});
