@@ -149,6 +149,13 @@ Deno.serve(async req => {
     return out({ data }, 200);
   }
 
+  const oid = typeof b.operation_id === "string" ? b.operation_id : null;
+  if (!oid) return out({ error: { code: "INVALID_COMMAND", message: "operation_id is required" } }, 400);
+  const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
+  if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+  if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+
+  let data: any, error: any;
   if (action === "customer_update" || action === "expense_update" || action === "expense_category_create") {
     const rawPayload = b.payload && typeof b.payload === "object" ? b.payload as Record<string, unknown> : {};
     const hashBytes = await crypto.subtle.digest(
@@ -217,13 +224,6 @@ Deno.serve(async req => {
     return out({ data }, data?.status === "already_applied" ? 200 : 200);
   }
 
-  const oid = typeof b.operation_id === "string" ? b.operation_id : null;
-  if (!oid) return out({ error: { code: "INVALID_COMMAND", message: "operation_id is required" } }, 400);
-  const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
-  if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
-  if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
-
-  let data: any, error: any;
   if (action === "sale_payment") ({ data, error } = await serviceDb.rpc("fulus_api_record_sale_payment", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : "cash", target_device_id: d.id }));
   else if (action === "sale_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_sale_atomic", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null, target_client_reference: b.client_reference, target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(), target_discount: Number(b.discount ?? 0), target_tax: Number(b.tax ?? 0), target_amount_paid: Number(b.amount_paid ?? 0), target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_notes: typeof b.notes === "string" ? b.notes : null, target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
   else if (action === "customer_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_customer", { target_user_id: uid, target_business_id: bid, target_name: b.name, target_phone: typeof b.phone === "string" ? b.phone : null, target_email: typeof b.email === "string" ? b.email : null, target_address: typeof b.address === "string" ? b.address : null, target_credit_limit: Number(b.credit_limit ?? 0) }));
