@@ -41,8 +41,10 @@ class LocationRepositoryImpl implements LocationRepository {
     final localId = Ulid().toString();
     final location = draft.toLocationEntity(localId: localId);
 
-    await _db.into(_db.locations).insert(location.toDriftCompanion());
-    await _syncQueue.enqueue(SyncTask.createLocation(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.locations).insert(location.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createLocation(localId));
+    });
 
     return location;
   }
