@@ -27,6 +27,23 @@ void main() {
     expect(rows.single.operation, 'update');
   });
 
+  test('defers enqueue trigger until an outer transaction commits', () async {
+    var callbackSawCommittedRow = false;
+    queue.setOnEnqueued(() async {
+      callbackSawCommittedRow =
+          (await db.select(db.syncQueueItems).get()).isNotEmpty;
+    });
+
+    await db.transaction(() async {
+      await queue.enqueue(SyncTask.createProduct('product-1'));
+      expect(await db.select(db.syncQueueItems).get(), hasLength(1));
+      expect(callbackSawCommittedRow, isFalse);
+    });
+
+    await Future<void>.delayed(Duration.zero);
+    expect(callbackSawCommittedRow, isTrue);
+  });
+
   test('keeps create and update operations distinct', () async {
     await queue.enqueue(SyncTask.createProduct('product-1'));
     await queue.enqueue(SyncTask.updateProduct('product-1'));
