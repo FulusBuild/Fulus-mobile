@@ -151,6 +151,23 @@ class _ConflictCard extends ConsumerStatefulWidget {
 class _ConflictCardState extends ConsumerState<_ConflictCard> {
   String? _resolvingId;
 
+  Future<void> _keepLocal(SyncConflictRecord conflict) async {
+    if (_resolvingId != null) return;
+    setState(() => _resolvingId = conflict.id);
+    try {
+      await ref.read(syncConflictResolverProvider).keepLocalVersion(conflict.id);
+      await ref.read(syncTriggersProvider).syncNow();
+      if (!mounted) return;
+      showFulusSnackbar(context, message: 'Your local version was sent back to Cloud.');
+      ref.invalidate(_syncDetailStatusProvider);
+    } catch (_) {
+      if (!mounted) return;
+      showFulusSnackbar(context, message: 'Fulus could not send your local version yet. It remains safe on this device.');
+    } finally {
+      if (mounted) setState(() => _resolvingId = null);
+    }
+  }
+
   Future<void> _keepCloud(SyncConflictRecord conflict) async {
     if (_resolvingId != null) return;
     setState(() => _resolvingId = conflict.id);
@@ -226,15 +243,29 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
-                        FulusButton(
-                          label: _resolvingId == conflict.id
-                              ? 'Refreshing…'
-                              : 'Use Cloud version',
-                          loading: _resolvingId == conflict.id,
-                          onPressed: _resolvingId == null
-                              ? () => _keepCloud(conflict)
-                              : null,
-                          variant: FulusButtonVariant.secondary,
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            FulusButton(
+                              label: _resolvingId == conflict.id
+                                  ? 'Working…'
+                                  : 'Use Cloud version',
+                              loading: _resolvingId == conflict.id,
+                              onPressed: _resolvingId == null
+                                  ? () => _keepCloud(conflict)
+                                  : null,
+                              variant: FulusButtonVariant.secondary,
+                            ),
+                            FulusButton(
+                              label: 'Keep my version',
+                              loading: false,
+                              onPressed: _resolvingId == null
+                                  ? () => _keepLocal(conflict)
+                                  : null,
+                              variant: FulusButtonVariant.secondary,
+                            ),
+                          ],
                         ),
                       ],
                     ),
