@@ -35,6 +35,14 @@ class SyncConflictResolver {
       throw StateError('Fulus Cloud is not ready to resolve this conflict.');
     }
 
+    final serverEntityId = await _serverEntityId(
+      conflict.entityType,
+      conflict.entityLocalId,
+    );
+    if (serverEntityId == null || serverEntityId.isEmpty) {
+      throw StateError('The conflicted record no longer has a server identity.');
+    }
+
     // The sequence is deliberately synthetic: reconciliation uses the entity
     // identity to fetch canonical state. Cursor acknowledgement belongs to
     // FulusSyncCoordinator, not to a manual conflict-resolution action.
@@ -42,7 +50,7 @@ class SyncConflictResolver {
       FulusSyncChange(
         sequence: 0,
         entityType: conflict.entityType,
-        entityId: conflict.entityLocalId,
+        entityId: serverEntityId,
         operation: 'upsert',
         payload: null,
         createdAt: conflict.createdAt,
@@ -64,5 +72,47 @@ class SyncConflictResolver {
         ),
       );
     });
+  }
+
+  Future<String?> _serverEntityId(String entityType, String localId) async {
+    switch (entityType) {
+      case 'customer':
+        return (await (_db.select(_db.customers)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'expense':
+        return (await (_db.select(_db.expenses)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'product':
+        return (await (_db.select(_db.products)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'category':
+        return (await (_db.select(_db.categories)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'supplier':
+        return (await (_db.select(_db.suppliers)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'cash_drawer_shift':
+        return (await (_db.select(_db.cashDrawerShifts)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'location':
+        return (await (_db.select(_db.locations)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      default:
+        return null;
+    }
   }
 }
