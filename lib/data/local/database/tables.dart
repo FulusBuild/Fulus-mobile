@@ -589,6 +589,24 @@ class SyncQueueItems extends Table {
 /// address/phone/email/tin close a real gap against the backend's
 /// BusinessProfile (app/models/settings.py), which has all four (used
 /// on printed receipts/invoices per that model's own docstring).
+/// Durable record of a server-side optimistic-concurrency conflict.
+/// Queue rows are retry state; these records are the user-visible conflict
+/// history and remain after the queue item is parked for attention.
+class SyncConflictRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get operationId => text()();
+  TextColumn get entityType => text()();
+  TextColumn get entityLocalId => text()();
+  TextColumn get code => text().nullable()();
+  TextColumn get message => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
+  TextColumn get resolution => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('BusinessSettingRow')
 class BusinessSettings extends Table {
   TextColumn get id => text()(); // always the fixed value 'singleton'
