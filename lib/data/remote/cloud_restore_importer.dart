@@ -97,6 +97,7 @@ class CloudRestoreImporter {
     Map<String, dynamic> snapshot, {
     String? ownerCloudUserId,
     bool transactional = true,
+    void Function(String status)? onProgress,
   }) async {
     final version = snapshot['version'];
     if (version is! num || version.toInt() < 3) {
@@ -107,6 +108,7 @@ class CloudRestoreImporter {
     final expectedCounts = <String, int>{};
 
     Future<void> runImport() async {
+      onProgress?.call('Clearing existing local business data…');
       await _clearPortableData();
 
       final tableInfoCache = <String, _TableInfo>{};
@@ -124,6 +126,7 @@ class CloudRestoreImporter {
         expectedCounts[remoteKey] = raw.length;
         if (raw.isEmpty) {
           importedCounts[remoteKey] = 0;
+          onProgress?.call('${_restoreLabel(remoteKey)}: 0 rows');
           continue;
         }
 
@@ -133,16 +136,21 @@ class CloudRestoreImporter {
         }
 
         var count = 0;
+        onProgress?.call('Restoring ${_restoreLabel(remoteKey)} (0/${raw.length})…');
         for (final value in raw) {
           if (value is! Map) {
             throw FormatException('$remoteKey contains a non-object row.');
           }
           await _insertRow(localTable, info, Map<String, dynamic>.from(value));
           count++;
+          if (count == raw.length || count % 10 == 0) {
+            onProgress?.call('Restoring ${_restoreLabel(remoteKey)} ($count/${raw.length})…');
+          }
         }
         importedCounts[remoteKey] = count;
       }
 
+      onProgress?.call('Restoring staff and permissions…');
       final staffCounts = await _restoreStaff(
         snapshot,
         ownerCloudUserId: ownerCloudUserId,
@@ -150,7 +158,9 @@ class CloudRestoreImporter {
       expectedCounts.addAll(staffCounts.expected);
       importedCounts.addAll(staffCounts.imported);
 
+      onProgress?.call('Verifying restored row counts…');
       await _verifyCounts(expectedCounts, importedCounts);
+      onProgress?.call('Verifying restored database integrity…');
       await _verifyForeignKeys();
     }
 
