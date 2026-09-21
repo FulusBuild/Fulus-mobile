@@ -68,7 +68,6 @@ void main() {
 
     expect(api.requests, [
       ['c1', 'c2'],
-      ['c3'],
     ]);
     expect(reconciled, [
       'customer:c1',
