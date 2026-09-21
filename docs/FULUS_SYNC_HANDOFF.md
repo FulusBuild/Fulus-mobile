@@ -25,7 +25,7 @@ Then inspect relevant client and Supabase paths rather than relying solely on th
 - PR: #56
 - PR status: open, ready for review, not merged
 - Production Supabase project: bejcuvoxemwomcatgyxz
-- Last verified HEAD recorded in the state document.
+- Last code HEAD before the state/handoff documentation commits: a9aee6628149087c0afa6c77bae03957580af4c4
 
 The branch contains substantial sync hardening. Do not restart or replace it with a new architecture.
 
@@ -93,36 +93,45 @@ If a recovery path only returns an error but does not recover, it is not impleme
 
 ## Current priority
 
-The immediate unfinished layer is Phase 4 recovery/bootstrap.
+The Phase 4 recovery/bootstrap implementation has now been added. The next session must verify it end-to-end rather than assuming the code path is correct.
 
-The server can already report a stale cursor using a machine-readable SYNC_CURSOR_TOO_OLD response. The missing architectural step is actual client recovery.
+Implemented in the current branch:
+- stale cursor recovery from machine-readable SYNC_CURSOR_TOO_OLD;
+- authoritative snapshot sync boundary in the restore RPC;
+- atomic bootstrap/import with local-only data preservation;
+- post-bootstrap delta pull;
+- explicit Sync Health recovery state;
+- bounded canonical batch reads for simple entities;
+- production deployment of fulus-sync-state version 3 with JWT verification enabled;
+- production verification that repository and deployed fulus-sync-state source match exactly.
 
-Implement:
+The first genuinely incomplete work is now verification and scale hardening:
 
-stale cursor
--> explicit recovery state
--> authoritative snapshot/bootstrap
--> safe local reconciliation
--> cursor replacement at known sequence boundary
--> delta pull after boundary
--> Sync Ready
+1. Prove stale-cursor recovery against the live service:
+   stale cursor -> 410 -> bootstrap -> boundary cursor -> delta pull -> Sync Ready.
+2. Add/run crash and replay tests:
+   - process death during bootstrap;
+   - push timeout after server commit;
+   - pull replay after local apply but before cursor persistence;
+   - token expiry with queued work;
+   - revoked device;
+   - network loss during recovery.
+3. Implement a real retention/compaction schedule. pg_cron is not currently enabled in production, so do not claim retention complete until an operationally safe scheduler/pruner is actually verified.
+4. Run full architecture/client/server/failure/scale/health/security/diff/CI/E2E audits.
+5. Do not build or release an APK before those audits pass.
 
-Requirements:
-- no silent data loss;
-- no skipped feed changes;
-- preserve or explicitly reconcile legitimate local pending mutations;
-- bounded/resumable work where practical;
-- safe after process death;
-- idempotent retry;
-- clear Sync Health state.
+### Exact next engineering action
 
-Then continue through:
-- batch canonical reads;
-- replay/crash recovery;
-- token/device recovery;
-- retention/compaction;
-- authoritative Sync Health;
-- final five audits.
+Inspect and test the current recovery path first, beginning with:
+- lib/data/remote/cloud_sync_recovery.dart
+- lib/data/remote/cloud_sync_bootstrap_coordinator.dart
+- lib/sync/sync_triggers.dart
+- lib/data/remote/fulus_sync_coordinator.dart
+- supabase/functions/fulus-api/index.ts
+- supabase/functions/fulus-sync-state/index.ts
+- the two bootstrap migrations
+
+Then add focused integration coverage for SYNC_CURSOR_TOO_OLD and bootstrap boundary convergence before touching retention.
 
 ## Architecture constraints
 
