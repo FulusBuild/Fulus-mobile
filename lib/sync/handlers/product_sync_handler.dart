@@ -117,6 +117,7 @@ class ProductSyncHandler implements SyncHandler {
       ...product.toUpdateDto().toJson(),
       'category_id': categoryId,
       'supplier_id': supplierId,
+      if (operationId != null) 'base_cursor': item.baseCursor,
     };
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
