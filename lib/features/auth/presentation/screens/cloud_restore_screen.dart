@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
@@ -160,7 +159,15 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // valid. SyncTriggers observes the enabled config and performs the
       // readiness reconciliation in the background.
       if (!mounted) return;
-      context.go('/');
+
+      // This screen was opened by FulusAccountScreen with a plain
+      // MaterialPageRoute, not as a go_router route. Changing the router
+      // location here leaves that MaterialPageRoute sitting on top of the
+      // new shell, which is exactly why restore can reach "Restore complete"
+      // and still appear to hang until the app is restarted. The session
+      // provider has already been updated above, so popping this temporary
+      // restore route lets the reactive ShellGate reveal the business.
+      Navigator.of(context).pop();
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {
