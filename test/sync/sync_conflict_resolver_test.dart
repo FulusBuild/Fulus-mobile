@@ -187,7 +187,7 @@ void main() {
 
     expect(queue.baseCursor, 12);
     expect(queue.syncAttempts, 0);
-    expect(queue.lastError, isNull);
-    expect(conflict.resolvedAt, isNull);
+    expect(queue.lastError == null, isTrue);
+    expect(conflict.resolvedAt == null, isTrue);
   });
 }
