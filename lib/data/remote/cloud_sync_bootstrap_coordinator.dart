@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/entities/auth_user.dart';
 import '../local/database/database.dart';
 import 'cloud_restore_importer.dart';
 
