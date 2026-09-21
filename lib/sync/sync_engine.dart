@@ -210,12 +210,11 @@ class SyncEngine {
     BusinessRuleFailure failure,
     String message,
   ) async {
-    final existing = await (_db.select(_db.syncConflictRecords)
-          ..where((c) => c.operationId.equals(item.id))
-          ..limit(1))
-        .getSingleOrNull();
-    if (existing != null) return;
-    await _db.into(_db.syncConflictRecords).insert(
+    // The operation id is the durable identity of this parked conflict.
+    // Upsert makes repeated delivery idempotent while ensuring a machine-
+    // readable conflict can never be lost because a stale duplicate row was
+    // observed during a concurrent drain.
+    await _db.into(_db.syncConflictRecords).insertOnConflictUpdate(
       SyncConflictRecordsCompanion.insert(
         id: item.id + ':conflict',
         operationId: item.id,
