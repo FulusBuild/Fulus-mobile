@@ -23,8 +23,10 @@ class SupplierRepositoryImpl implements SupplierRepository {
     final localId = Ulid().toString();
     final supplier = draft.toSupplierEntity(localId: localId);
 
-    await _db.into(_db.suppliers).insert(supplier.toDriftCompanion());
-    await _syncQueue.enqueue(SyncTask.createSupplier(localId));
+    await _db.transaction(() async {
+      await _db.into(_db.suppliers).insert(supplier.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createSupplier(localId));
+    });
 
     return supplier;
   }
