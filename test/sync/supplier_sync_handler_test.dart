@@ -60,6 +60,11 @@ void main() {
       localId: created.localId,
       serverId: 'server-supplier-1',
     );
+    // A successful create would have been removed by SyncEngine. Emulate
+    // that settled state before testing the update operation.
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(created.localId)))
+        .go();
 
     final updated = await supplierRepository.updateSupplier(
       created.localId,
