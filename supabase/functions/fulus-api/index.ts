@@ -126,6 +126,7 @@ Deno.serve(async req => {
       .select("id,status")
       .eq("business_id", bid)
       .eq("device_client_id", dc)
+      .eq("registered_by", uid)
       .maybeSingle();
     if (deviceError) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
     if (!device || device.status !== "active") {
