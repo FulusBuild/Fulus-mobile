@@ -1,6 +1,3 @@
-import 'package:dio/dio.dart';
-
-import '../../core/errors/failure.dart';
 import 'api_client.dart';
 
 /// Fetches the authoritative cloud snapshot used for stale-cursor recovery.
