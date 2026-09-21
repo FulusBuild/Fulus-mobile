@@ -37,6 +37,7 @@ class FulusCustomerCanonicalReconciler {
       outstandingBalance: dto.outstandingBalance,
       duplicateWarning: dto.duplicateWarning,
       updatedAt: _parseUpdatedAt(json),
+      deletedAt: json['is_active'] == false ? _parseUpdatedAt(json) : null,
     );
   }
 
