@@ -106,9 +106,11 @@ class SyncTask {
 }
 
 class SyncQueue {
-  SyncQueue(this._db);
+  SyncQueue(this._db, {int? Function()? baseCursorProvider})
+      : _baseCursorProvider = baseCursorProvider;
 
   final AppDatabase _db;
+  final int? Function()? _baseCursorProvider;
   Future<void> Function()? _onEnqueued;
 
   void setOnEnqueued(Future<void> Function() callback) {
@@ -261,6 +263,7 @@ class SyncQueue {
             operation: task.operation,
             priority: task.priority,
             enqueuedAt: DateTime.now(),
+            baseCursor: Value(_baseCursorProvider?.call()),
           ),
         );
       }
@@ -285,6 +288,7 @@ class SyncQueue {
           operation: task.operation,
           priority: task.priority,
           enqueuedAt: DateTime.now(),
+          baseCursor: Value(_baseCursorProvider?.call()),
         ),
       );
     });
