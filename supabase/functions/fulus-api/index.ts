@@ -27,7 +27,7 @@ Deno.serve(async req => {
     if (!bid) return out({ data: { user_id: uid, memberships: members ?? [], device_client_id: dc, server_authoritative: true } });
     if (!(members ?? []).some(m => m.business_id === bid)) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
     if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for sync" } }, 400);
-    const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
+    const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).eq("registered_by", uid).maybeSingle();
     if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
     if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
     const cursor = Number(u.searchParams.get("cursor") ?? "0"), limit = Number(u.searchParams.get("limit") ?? "100");
@@ -173,7 +173,7 @@ Deno.serve(async req => {
 
   const oid = typeof b.operation_id === "string" ? b.operation_id : null;
   if (!oid) return out({ error: { code: "INVALID_COMMAND", message: "operation_id is required" } }, 400);
-  const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
+  const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).eq("registered_by", uid).maybeSingle();
   if (de) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
   if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
 
