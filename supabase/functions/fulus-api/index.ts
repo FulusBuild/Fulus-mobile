@@ -142,8 +142,9 @@ Deno.serve(async req => {
       target_request_hash: requestHash,
     });
     if (error) {
-      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 400;
-      return out({ error: { code: "CATALOG_WRITE_FAILED", message: error.message } }, status);
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" ? 409 : 400;
+      const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : "CATALOG_WRITE_FAILED";
+      return out({ error: { code, message: error.message } }, status);
     }
     return out({ data }, 200);
   }
