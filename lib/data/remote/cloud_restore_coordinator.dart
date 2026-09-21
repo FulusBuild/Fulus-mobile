@@ -22,22 +22,28 @@ class CloudRestoreCoordinator {
     required String ownerCloudUserId,
     required String ownerEmail,
     required BusinessSettingsResponseDto settings,
+    void Function(String status)? onProgress,
   }) async {
     return _db.transaction(() async {
+      onProgress?.call('Preparing local database restore…');
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: null,
         transactional: false,
+        onProgress: onProgress,
       );
 
+      onProgress?.call('Restoring business settings…');
       await _db.delete(_db.businessSettings).go();
       await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
+      onProgress?.call('Restoring owner session…');
       await _normalizeOwner(
         ownerCloudUserId: ownerCloudUserId,
         ownerEmail: ownerEmail,
         snapshot: snapshot,
       );
 
+      onProgress?.call('Running final database verification…');
       final fkViolations = await _db.customSelect('PRAGMA foreign_key_check').get();
       if (fkViolations.isNotEmpty) {
         throw StateError(
@@ -45,6 +51,7 @@ class CloudRestoreCoordinator {
         );
       }
 
+      onProgress?.call('Committing restored business…');
       return result;
     });
   }
