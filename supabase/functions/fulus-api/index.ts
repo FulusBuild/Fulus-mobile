@@ -246,7 +246,38 @@ Deno.serve(async req => {
 
   if (action === "sale_payment") ({ data, error } = await serviceDb.rpc("fulus_api_record_sale_payment", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : "cash", target_device_id: d.id }));
   else if (action === "sale_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_sale_atomic", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null, target_client_reference: b.client_reference, target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(), target_discount: Number(b.discount ?? 0), target_tax: Number(b.tax ?? 0), target_amount_paid: Number(b.amount_paid ?? 0), target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_notes: typeof b.notes === "string" ? b.notes : null, target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
-  else if (action === "customer_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_customer", { target_user_id: uid, target_business_id: bid, target_name: b.name, target_phone: typeof b.phone === "string" ? b.phone : null, target_email: typeof b.email === "string" ? b.email : null, target_address: typeof b.address === "string" ? b.address : null, target_credit_limit: Number(b.credit_limit ?? 0), target_notes: typeof b.notes === "string" ? b.notes : null }));
+  else if (action === "customer_create") {
+    const requestEnvelope = {
+      action,
+      operation_id: oid,
+      name: b.name,
+      phone: typeof b.phone === "string" ? b.phone : null,
+      email: typeof b.email === "string" ? b.email : null,
+      address: typeof b.address === "string" ? b.address : null,
+      credit_limit: Number(b.credit_limit ?? 0),
+      notes: typeof b.notes === "string" ? b.notes : null,
+    };
+    const hashBytes = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(JSON.stringify(requestEnvelope)),
+    );
+    const requestHash = Array.from(new Uint8Array(hashBytes))
+      .map(x => x.toString(16).padStart(2, "0"))
+      .join("");
+    ({ data, error } = await serviceDb.rpc("fulus_api_create_customer", {
+      target_user_id: uid,
+      target_business_id: bid,
+      target_name: b.name,
+      target_phone: typeof b.phone === "string" ? b.phone : null,
+      target_email: typeof b.email === "string" ? b.email : null,
+      target_address: typeof b.address === "string" ? b.address : null,
+      target_credit_limit: Number(b.credit_limit ?? 0),
+      target_notes: typeof b.notes === "string" ? b.notes : null,
+      target_device_id: d.id,
+      target_operation_id: oid,
+      target_request_hash: requestHash,
+    }));
+  }
   else if (action === "customer_repayment") ({ data, error } = await serviceDb.rpc("fulus_api_record_customer_repayment", { target_user_id: uid, target_business_id: bid, target_customer_id: b.customer_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_note: typeof b.note === "string" ? b.note : null, target_device_id: d.id }));
   else if (action === "expense_create") ({ data, error } = await serviceDb.rpc("fulus_api_record_expense", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_amount: Number(b.amount), target_category: typeof b.category === "string" ? b.category : "general", target_description: typeof b.description === "string" ? b.description : null, target_operation_id: oid, target_device_id: d.id, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null }));
   else if (action === "return_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_return_atomic", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_client_reference: oid, target_reason: typeof b.reason === "string" ? b.reason : "Customer return", target_refund_amount: Number(b.refund_amount ?? 0), target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
