@@ -125,11 +125,15 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         ownerCloudUserId: ownerCloudUserId,
         ownerEmail: widget.ownerEmail,
         settings: settings,
+        onProgress: (status) {
+          if (mounted) setState(() => _status = status);
+        },
       );
       if (result.totalRows == 0) {
         throw StateError('The cloud business has no restorable business data.');
       }
 
+      setState(() => _status = 'Restoring your local session…');
       final owner = await ref.read(authRepositoryProvider).restoreSession();
       if (owner == null || owner.id != ownerCloudUserId || !owner.isActive) {
         throw StateError('Restore completed without a valid local owner session.');
@@ -142,10 +146,12 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // legitimate post-snapshot changes to be skipped. Start reconciliation
       // from the beginning of the server change stream; canonical
       // reconciliation is idempotent, so replaying older changes is safe.
+      setState(() => _status = 'Preparing cloud sync…');
       final syncPreferences = await SharedPreferences.getInstance();
       await syncPreferences.remove('fulus_sync_cursor_$businessId');
 
       await ref.read(syncConfigProvider).setEnabled(true);
+      setState(() => _status = 'Restore complete. Opening your business…');
 
       // Restoring the local business is the account-entry operation. Cloud
       // reconciliation is deliberately a background concern: waiting for a
