@@ -43,6 +43,10 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(_syncDetailStatusProvider);
     final connection = ref.watch(fulusConnectionStateProvider);
+    final selectedBusinessId = connection.selectedBusinessId;
+    final health = selectedBusinessId == null
+        ? const SyncHealthSnapshot()
+        : ref.read(syncStatusNotifierProvider).healthFor(selectedBusinessId);
     return FulusScreen(
       title: 'Sync & backup',
       subtitle: 'See what is backed up and what Fulus is still working on',
@@ -78,6 +82,8 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                           onRetry: () => ref.invalidate(_syncDetailStatusProvider),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _HealthCard(health: health),
                       const SizedBox(height: AppSpacing.lg),
                       const FulusSectionHeader(
                         title: 'How Fulus protects your work',
@@ -213,6 +219,71 @@ class _StatusCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _HealthCard extends StatelessWidget {
+  const _HealthCard({required this.health});
+
+  final SyncHealthSnapshot health;
+
+  String _when(DateTime? value) {
+    if (value == null) return 'Not yet recorded';
+    return value.toLocal().toString().substring(0, 16);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FulusCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cloud health',
+            style: AppTypography.body.copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _HealthLine(label: 'Last successful backup', value: _when(health.lastPushAt)),
+          const FulusListDivider(),
+          _HealthLine(label: 'Last successful pull', value: _when(health.lastPullAt)),
+          const FulusListDivider(),
+          _HealthLine(label: 'Change cursor', value: health.cursor.toString()),
+        ],
+      ),
+    );
+  }
+}
+
+class _HealthLine extends StatelessWidget {
+  const _HealthLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: AppTypography.caption.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
