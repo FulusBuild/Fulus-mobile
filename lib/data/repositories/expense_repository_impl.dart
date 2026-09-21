@@ -154,14 +154,16 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required String localId,
     required String? photoPath,
   }) async {
-    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
-      ExpensesCompanion(
-        receiptPhotoPath: Value(photoPath),
-        syncStatus: const Value(SyncStatus.pending),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await _syncQueue.enqueue(SyncTask.updateExpense(localId));
+    await _db.transaction(() async {
+      await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
+        ExpensesCompanion(
+          receiptPhotoPath: Value(photoPath),
+          syncStatus: const Value(SyncStatus.pending),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateExpense(localId));
+    });
   }
 
   @override
