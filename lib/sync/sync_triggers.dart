@@ -24,6 +24,8 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function()? pullFromServer,
     Future<bool> Function()? isReady,
     Future<void> Function()? onNotReady,
+    void Function()? onSyncSuccess,
+    void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Connectivity? connectivity,
   })  : _syncEngine = syncEngine,
         _syncConfig = syncConfig,
@@ -31,6 +33,8 @@ class SyncTriggers with WidgetsBindingObserver {
         _pullFromServer = pullFromServer,
         _isReady = isReady,
         _onNotReady = onNotReady,
+        _onSyncSuccess = onSyncSuccess,
+        _onSyncFailure = onSyncFailure,
         _connectivity = connectivity ?? Connectivity();
 
   final SyncEngine _syncEngine;
@@ -39,6 +43,8 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function()? _pullFromServer;
   final Future<bool> Function()? _isReady;
   final Future<void> Function()? _onNotReady;
+  final void Function()? _onSyncSuccess;
+  final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _started = false;
@@ -108,8 +114,14 @@ class SyncTriggers with WidgetsBindingObserver {
         'and active device registration are required before syncing.',
       );
     }
-    await _runSyncCycle(manual: true);
-    await _syncStatusNotifier.checkForStuckSyncAndNotify();
+    try {
+      await _runSyncCycle(manual: true);
+      await _syncStatusNotifier.checkForStuckSyncAndNotify();
+      _onSyncSuccess?.call();
+    } catch (error, stackTrace) {
+      _onSyncFailure?.call(error, stackTrace);
+      rethrow;
+    }
   }
 
   /// Runs the first reconciliation after a restore before the connection is
@@ -252,8 +264,14 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> _runAndCheckStuck() async {
-    await _runSyncCycle();
-    await _syncStatusNotifier.checkForStuckSyncAndNotify();
+    try {
+      await _runSyncCycle();
+      await _syncStatusNotifier.checkForStuckSyncAndNotify();
+      _onSyncSuccess?.call();
+    } catch (error, stackTrace) {
+      _onSyncFailure?.call(error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> _runSyncCycle({bool manual = false}) async {
