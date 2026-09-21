@@ -150,23 +150,29 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       await syncPreferences.remove('fulus_sync_cursor_$businessId');
 
       await ref.read(syncConfigProvider).setEnabled(true);
-      setState(() => _status = 'Restore complete. Opening your business…');
 
-      // Restoring the local business is the account-entry operation. Cloud
-      // reconciliation is deliberately a background concern: waiting for a
-      // network round-trip here can leave the user stranded on this screen
-      // even though the local owner session and restored business are already
-      // valid. SyncTriggers observes the enabled config and performs the
-      // readiness reconciliation in the background.
+      // Restore is not complete when the local snapshot has been imported.
+      // The restored database and the cloud cursor must be reconciled before
+      // the app advertises the business as Sync Ready. SyncTriggers already
+      // serializes a concurrent normal trigger with reconcileAfterRestore(),
+      // so this also closes the startup/restore race instead of allowing the
+      // background trigger to silently finish after this screen has exited.
+      setState(() => _status = 'Checking cloud sync…');
+      try {
+        await ref.read(syncTriggersProvider).reconcileAfterRestore();
+        connection.markSyncReady();
+      } catch (_) {
+        connection.clearSyncReady();
+        rethrow;
+      }
+
+      setState(() => _status = 'Restore complete. Opening your business…');
       if (!mounted) return;
 
       // This screen was opened by FulusAccountScreen with a plain
-      // MaterialPageRoute, not as a go_router route. Changing the router
-      // location here leaves that MaterialPageRoute sitting on top of the
-      // new shell, which is exactly why restore can reach "Restore complete"
-      // and still appear to hang until the app is restarted. The session
-      // provider has already been updated above, so popping this temporary
-      // restore route lets the reactive ShellGate reveal the business.
+      // MaterialPageRoute, not as a go_router route. Return a success result
+      // so the account-entry route can also be removed and the reactive
+      // ShellGate can reveal the restored business.
       Navigator.of(context).pop(true);
     } on Failure catch (failure) {
       if (mounted) {
