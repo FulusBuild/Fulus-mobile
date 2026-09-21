@@ -40,7 +40,7 @@ Deno.serve(async req => {
       .limit(1);
     if (oldestError) return out({ error: { code: "SYNC_CURSOR_CHECK_FAILED", message: "Unable to validate sync cursor" } }, 500);
     const oldestSequence = oldestRows?.length ? Number(oldestRows[0].sequence) : null;
-    if (cursor > 0 && oldestSequence != null && cursor < oldestSequence - 1) {
+    if (oldestSequence != null && cursor < oldestSequence - 1) {
       return out({
         error: {
           code: "SYNC_CURSOR_TOO_OLD",
