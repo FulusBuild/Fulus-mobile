@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart' hide isNotNull, isNull;
 import 'package:mocktail/mocktail.dart';
@@ -126,7 +126,7 @@ void main() {
         await (db.select(db.syncConflictRecords)
               ..where((c) => c.id.equals('operation-1:conflict')))
             .getSingle();
-    expect(conflict.resolvedAt, isNotNull);
+    expect(conflict.resolvedAt != null, isTrue);
     expect(conflict.resolution, 'kept_authoritative_cloud_version');
   });
 
