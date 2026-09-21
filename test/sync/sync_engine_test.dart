@@ -197,8 +197,7 @@ void main() {
     );
 
     final handler = _ScriptedHandler((item) async {
-      if (item.entityLocalId == 'flaky') {
-        throw Exception('Connection reset');
+      if (item.entityLocalId == 'flaky') {        throw Exception('Connection reset');
       }
     });
     final engine = SyncEngine(
@@ -397,8 +396,7 @@ void main() {
       'a queue item enqueued during an active drain triggers a follow-up drain',
       () async {
     final firstStarted = Completer<void>();
-    final secondProcessed = Completer<void>();
-    late SyncEngine engine;
+    final secondProcessed = Completer<void>();    late SyncEngine engine;
 
     await seedItem(
       id: 'q1',
