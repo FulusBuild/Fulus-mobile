@@ -12,6 +12,7 @@ import '../data/remote/fulus_sync_api.dart';
 /// The original local mutation is removed only after canonical reconciliation
 /// succeeds. If the app dies between those two steps, the same canonical read
 /// can safely be replayed on the next attempt.
+/// Conflict choices are explicit: cloud acceptance reconciles immediately; local acceptance rebases the queued mutation and leaves the conflict parked until the server accepts it.
 class SyncConflictResolver {
   SyncConflictResolver({
     required AppDatabase db,
