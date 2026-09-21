@@ -66,11 +66,43 @@ void main() {
     expect(updated!.serverId, 'server-expense-1');
   });
 
-  test('throws for an operation other than create', () async {
+  test('pushes an expense update through Fulus Cloud', () async {
     final expense = await expenseRepository.recordExpense(ExpenseDraft(
       locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1),
     ));
-    await expectLater(handler.sync(itemFor(expense, operation: 'update')), throwsA(isA<StateError>()));
+    await expenseRepository.markSynced(
+      localId: expense.localId,
+      serverId: 'server-expense-1',
+    );
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(expense.localId)))
+        .go();
+    final updated = await expenseRepository.updateExpense(
+      localId: expense.localId,
+      description: 'Generator fuel',
+      amount: 4500,
+      expenseDate: DateTime(2026, 7, 2),
+    );
+
+    when(() => fulusSyncApi.submitOperation(
+      businessId: any(named: 'businessId'),
+      operationType: any(named: 'operationType'),
+      operationId: any(named: 'operationId'),
+      deviceClientId: any(named: 'deviceClientId'),
+      clientReference: any(named: 'clientReference'),
+      payload: any(named: 'payload'),
+    )).thenAnswer((_) async => {'data': {'entity_id': 'server-expense-1'}});
+
+    await handler.sync(itemFor(updated, operation: 'update'));
+
+    verify(() => fulusSyncApi.submitOperation(
+      businessId: 'business-1',
+      operationType: 'expense.update',
+      operationId: 'q1',
+      deviceClientId: 'device-client-1',
+      clientReference: updated.localId,
+      payload: any(named: 'payload'),
+    )).called(1);
   });
 
   test('throws when the queue item has outlived its local row', () async {
