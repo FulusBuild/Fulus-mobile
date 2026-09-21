@@ -48,6 +48,7 @@ class CloudSyncBootstrapCoordinator {
         snapshot,
         ownerCloudUserId: ownerId,
         transactional: false,
+        preserveUnexportedLocalTables: true,
       );
 
       // users/sessions are device-local authentication state and are not part
