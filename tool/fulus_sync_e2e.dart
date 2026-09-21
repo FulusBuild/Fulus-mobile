@@ -41,6 +41,8 @@ Future<void> main() async {
 
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
+  final createOperationId = 'e2e-create-$suffix';
+  final deleteOperationId = 'e2e-delete-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
@@ -60,6 +62,7 @@ Future<void> main() async {
       businessId: businessId,
       action: 'catalog_upsert',
       entity: 'products',
+      operationId: createOperationId,
       item: createPayload,
       operationId: 'e2e-catalog-create-$suffix',
     );
@@ -128,6 +131,7 @@ Future<void> main() async {
       businessId: businessId,
       action: 'catalog_delete',
       entity: 'products',
+      operationId: deleteOperationId,
       id: serverId,
       operationId: 'e2e-catalog-delete-$suffix',
     );
@@ -142,6 +146,7 @@ Future<void> main() async {
           businessId: businessId,
           action: 'catalog_delete',
           entity: 'products',
+          operationId: '${deleteOperationId}-cleanup',
           id: serverId,
           operationId: 'e2e-catalog-delete-$suffix',
         );
@@ -210,6 +215,7 @@ Future<Response<dynamic>> _submitCatalog(
   required String businessId,
   required String action,
   required String entity,
+  required String operationId,
   Map<String, dynamic>? item,
   String? id,
   required String operationId,
