@@ -89,11 +89,17 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
 
       if (!mounted) return;
-      await Navigator.of(context).push<void>(
+      final restored = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => CloudRestoreScreen(ownerEmail: email),
         ),
       );
+      if (restored == true && mounted) {
+        // CloudRestoreScreen returns only after the local owner session and
+        // business have been restored. Pop this account-entry route too so
+        // the reactive ShellGate can reveal the newly restored business.
+        Navigator.of(context).pop();
+      }
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } catch (error) {
