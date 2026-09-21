@@ -57,7 +57,7 @@ Deno.serve(async req => {
   if (action === "register_device") {
     const cid = typeof b.device_client_id === "string" ? b.device_client_id : null;
     if (!cid) return out({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "device_client_id is required" } }, 400);
-    const { data, error } = await serviceDb.rpc("fulus_api_register_device", { target_user_id: uid, target_business_id: bid, target_user_id: uid, target_device_client_id: cid, target_device_name: typeof b.device_name === "string" ? b.device_name : null, target_platform: typeof b.platform === "string" ? b.platform : null, target_app_version: typeof b.app_version === "string" ? b.app_version : null });
+    const { data, error } = await serviceDb.rpc("fulus_api_register_device", { target_user_id: uid, target_business_id: bid, target_device_client_id: cid, target_device_name: typeof b.device_name === "string" ? b.device_name : null, target_platform: typeof b.platform === "string" ? b.platform : null, target_app_version: typeof b.app_version === "string" ? b.app_version : null });
     if (error) return out({ error: { code: "DEVICE_REGISTRATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
     return out({ data: { device: data, server_authoritative: true } }, 201);
   }
@@ -149,7 +149,74 @@ Deno.serve(async req => {
     return out({ data }, 200);
   }
 
-  if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for commands" } }, 400);
+  if (action === "customer_update" || action === "expense_update" || action === "expense_category_create") {
+    const rawPayload = b.payload && typeof b.payload === "object" ? b.payload as Record<string, unknown> : {};
+    const hashBytes = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(JSON.stringify({
+        action,
+        operation_id: oid,
+        payload: rawPayload,
+      })),
+    );
+    const requestHash = Array.from(new Uint8Array(hashBytes))
+      .map(x => x.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (action === "customer_update") {
+      const customerId = typeof rawPayload.server_id === "string" ? rawPayload.server_id : null;
+      if (!customerId) return out({ error: { code: "INVALID_CUSTOMER_UPDATE", message: "server_id is required" } }, 400);
+      ({ data, error } = await serviceDb.rpc("fulus_api_update_customer", {
+        target_user_id: uid,
+        target_business_id: bid,
+        target_device_id: d.id,
+        target_operation_id: oid,
+        target_customer_id: customerId,
+        target_name: typeof rawPayload.name === "string" ? rawPayload.name : "",
+        target_phone: typeof rawPayload.phone === "string" ? rawPayload.phone : null,
+        target_email: typeof rawPayload.email === "string" ? rawPayload.email : null,
+        target_address: typeof rawPayload.address === "string" ? rawPayload.address : null,
+        target_notes: typeof rawPayload.notes === "string" ? rawPayload.notes : null,
+        target_credit_limit: Number(rawPayload.credit_limit ?? 0),
+        target_is_active: rawPayload.is_active !== false,
+        target_request_hash: requestHash,
+      }));
+    } else if (action === "expense_update") {
+      const expenseId = typeof rawPayload.server_id === "string" ? rawPayload.server_id : null;
+      const locationId = typeof rawPayload.location_id === "string" ? rawPayload.location_id : null;
+      if (!expenseId || !locationId) return out({ error: { code: "INVALID_EXPENSE_UPDATE", message: "server_id and location_id are required" } }, 400);
+      ({ data, error } = await serviceDb.rpc("fulus_api_update_expense", {
+        target_user_id: uid,
+        target_business_id: bid,
+        target_device_id: d.id,
+        target_operation_id: oid,
+        target_expense_id: expenseId,
+        target_location_id: locationId,
+        target_amount: Number(rawPayload.amount),
+        target_category: typeof rawPayload.category === "string" ? rawPayload.category : "general",
+        target_description: typeof rawPayload.description === "string" ? rawPayload.description : null,
+        target_expense_date: typeof rawPayload.expense_date === "string" ? rawPayload.expense_date : new Date().toISOString(),
+        target_request_hash: requestHash,
+      }));
+    } else {
+      ({ data, error } = await serviceDb.rpc("fulus_api_create_expense_category", {
+        target_user_id: uid,
+        target_business_id: bid,
+        target_device_id: d.id,
+        target_operation_id: oid,
+        target_name: typeof rawPayload.name === "string" ? rawPayload.name : "",
+        target_request_hash: requestHash,
+      }));
+    }
+
+    if (error) {
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" ? 409 : 400;
+      const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : "COMMAND_FAILED";
+      return out({ error: { code, message: error.message } }, status);
+    }
+    return out({ data }, data?.status === "already_applied" ? 200 : 200);
+  }
+
   const oid = typeof b.operation_id === "string" ? b.operation_id : null;
   if (!oid) return out({ error: { code: "INVALID_COMMAND", message: "operation_id is required" } }, 400);
   const { data: d, error: de } = await serviceDb.from("devices").select("id,status").eq("business_id", bid).eq("device_client_id", dc).maybeSingle();
