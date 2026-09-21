@@ -6,7 +6,7 @@ Repository: FulusBuild/Fulus-mobile
 Working branch: feat/cloud-sync-v1-hardening-v2
 Open PR: #56
 PR state: open, ready for review, not merged
-Last verified branch HEAD: 05e1ae6a74b13f2c9cd35aa2ff9a25853f9e04fb
+Current branch HEAD at handoff creation: 7e526b9305ce23be00b01d741d6efe289bbf87f7
 Production Supabase project: bejcuvoxemwomcatgyxz
 
 This is a resume contract, not permission to trust old claims blindly. A new session MUST verify the repository, CI, deployed database/functions, and relevant code before extending the implementation.
@@ -63,8 +63,7 @@ These items MUST still be independently verified before being called production-
 
 The previously observed run #1351 / ID 35614605680 was cancelled because it was superseded. It is NOT evidence of success or failure.
 
-At the last repository verification, PR #56 had advanced beyond that run to HEAD:
-05e1ae6a74b13f2c9cd35aa2ff9a25853f9e04fb
+The handoff documents themselves were then committed in three documentation commits. The current HEAD recorded above is the source point for the next session.
 
 The next session MUST inspect the newest workflow run for the current HEAD before making claims about CI.
 
