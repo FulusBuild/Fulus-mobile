@@ -39,12 +39,10 @@ class SyncStatus extends Equatable {
     required int attentionCount,
     required int pendingCount,
     int conflictCount = 0,
-  }) : this._(
-          kind: SyncStatusKind.attentionNeeded,
-          attentionCount: attentionCount,
-          pendingCount: pendingCount,
-          conflictCount: conflictCount,
-        );
+  })  : kind = SyncStatusKind.attentionNeeded,
+        pendingCount = pendingCount,
+        attentionCount = attentionCount,
+        conflictCount = conflictCount;
 
   final SyncStatusKind kind;
 
