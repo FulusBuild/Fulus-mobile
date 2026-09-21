@@ -223,6 +223,7 @@ Deno.serve(async req => {
         target_category: typeof rawPayload.category === "string" ? rawPayload.category : "general",
         target_description: typeof rawPayload.description === "string" ? rawPayload.description : null,
         target_expense_date: typeof rawPayload.expense_date === "string" ? rawPayload.expense_date : new Date().toISOString(),
+        target_payment_method: typeof rawPayload.payment_method === "string" ? rawPayload.payment_method : null,
         target_request_hash: requestHash,
       }));
     } else {
