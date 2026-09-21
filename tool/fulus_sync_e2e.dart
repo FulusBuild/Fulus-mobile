@@ -45,7 +45,6 @@ Future<void> main() async {
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
-  var ephemeralDeviceId = false;
 
   try {
     final preflight = await _preflightDevice(dio, businessId: businessId);
@@ -53,7 +52,6 @@ Future<void> main() async {
       final freshDeviceId = 'e2e-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
       await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
       dio.options.headers['x-fulus-device-id'] = freshDeviceId;
-      ephemeralDeviceId = true;
       if (await _preflightDevice(dio, businessId: businessId) != _PreflightResult.ok) {
         throw StateError('fresh E2E device did not pass sync preflight');
       }
@@ -61,7 +59,6 @@ Future<void> main() async {
     }
 
 
-  try {
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
