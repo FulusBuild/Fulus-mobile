@@ -428,5 +428,3 @@ void main() {
     expect(await allQueueItems(), isEmpty);
   });
 }
-
-}
