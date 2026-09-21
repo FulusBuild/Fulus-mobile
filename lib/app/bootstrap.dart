@@ -335,6 +335,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (businessId == null || registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
         throw StateError('Fulus Cloud is not ready for canonical pull.');
       }
+      // Never apply inbound canonical state while an unresolved local
+      // optimistic-concurrency conflict exists. The rejected local mutation
+      // must remain visible until the user explicitly resolves it; otherwise
+      // a later pull could silently overwrite the local edit before resolution.
+      if (await syncStatusNotifier.unresolvedConflictCount() > 0) return;
       final cursor = await syncCoordinator.pullAndApply(businessId: businessId);
       await syncStatusNotifier.recordPullSuccess(businessId, cursor);
     },
