@@ -306,6 +306,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isReady: () async => fulusConnectionState.isSyncReady,
     onNotReady: initializeCloudSync,
     onSyncSuccess: fulusConnectionState.clearSyncError,
+    onPushSuccess: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.recordPushSuccess(businessId);
+      }
+    },
     onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
