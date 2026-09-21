@@ -197,7 +197,7 @@ Deno.serve(async req => {
       const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : error.code === "P0008" ? "SYNC_CONFLICT" : "CATALOG_WRITE_FAILED";
       return out({ error: { code, message: error.message } }, status);
     }
-    return out({ data }, 200);
+    return out(data, 200);
   }
 
   const oid = typeof b.operation_id === "string" ? b.operation_id : null;
