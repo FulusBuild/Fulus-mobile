@@ -116,6 +116,13 @@ class FulusCanonicalTypedReconciler {
           final byId = {
             for (final response in responses) response.entityId: response,
           };
+          if (responses.length != entityIds.length ||
+              byId.length != entityIds.length ||
+              byId.keys.any((id) => !entityIds.contains(id))) {
+            throw StateError(
+              'Canonical batch response does not exactly match the requested IDs.',
+            );
+          }
 
           for (final change in chunk) {
             final response = byId[change.entityId];
