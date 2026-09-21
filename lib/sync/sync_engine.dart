@@ -230,8 +230,10 @@ class SyncEngine {
 
   Future<void> _removeFromQueue(String id) async {
     await _db.transaction(() async {
+      final queueRow = await (_db.select(_db.syncQueueItems)
+            ..where((q) => q.id.equals(id)))
+          .getSingleOrNull();
       await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
-      final queueRow = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(id))).getSingleOrNull();
       if (queueRow != null) {
         await (_db.update(_db.syncConflictRecords)
               ..where((c) => c.entityType.equals(queueRow.entityType))
