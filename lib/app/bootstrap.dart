@@ -134,7 +134,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusDeviceRegistration = FulusDeviceRegistration(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusSyncApi = FulusSyncApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
-  final cloudRestoreApi = CloudRestoreApi(apiClient);
+  late final CloudRestoreApi cloudRestoreApi;
   final fulusStaffAccessApi = FulusStaffAccessApi(client: apiClient, functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api');
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
@@ -151,6 +151,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
   await authRepository.restoreSession();
+  cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final approvalPinRepository = ApprovalPinRepositoryImpl(authApi: authApi, secureStorage: secureStorage, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository);
 
   final salesApi = SalesApi(apiClient);
