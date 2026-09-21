@@ -248,6 +248,21 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         deviceClientId: registeredDevice.deviceClientId,
       );
     },
+    applyChanges: (changes) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId == null) {
+        throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
+      }
+      final registeredDevice = fulusConnectionState.registeredDevice;
+      if (registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
+        throw StateError('Fulus Cloud device registration is not ready.');
+      }
+      await canonicalReconciler.reconcileChanges(
+        changes,
+        businessId: businessId,
+        deviceClientId: registeredDevice.deviceClientId,
+      );
+    },
   );
 
   final syncEngine = SyncEngine(
