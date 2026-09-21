@@ -234,6 +234,53 @@ void main() {
       verifyNever(() => syncEngine.runOnce(manual: true));
     });
 
+    test('manual sync can retry cloud readiness before syncing', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      var ready = false;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => ready,
+        onNotReady: () async {
+          await triggers.reconcileForReadiness();
+          ready = true;
+        },
+        connectivity: connectivity,
+      );
+
+      await triggers.syncNow();
+
+      expect(ready, isTrue);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      verifyNever(() => syncEngine.runOnce(manual: true));
+      triggers.dispose();
+    });
+
+    test('manual sync reports failure through the health callback', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => syncEngine.runOnce(manual: true))
+          .thenThrow(StateError('cloud unavailable'));
+
+      Object? reportedError;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        onSyncFailure: (error, _) => reportedError = error,
+      );
+
+      await expectLater(triggers.syncNow(), throwsA(isA<StateError>()));
+      expect(reportedError, isA<StateError>());
+    });
+
     test('restore reconciliation runs before readiness is required', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
