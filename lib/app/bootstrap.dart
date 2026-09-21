@@ -271,6 +271,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     db: database,
     reconciler: canonicalReconciler,
     connectionState: fulusConnectionState,
+    preferences: syncPreferences,
   );
 
   final notificationRepository = NotificationRepositoryImpl(db: database);
