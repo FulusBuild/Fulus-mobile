@@ -134,8 +134,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
 
       if (operationType.startsWith('product.') ||
           operationType.startsWith('category.') ||
-          operationType.startsWith('supplier.') ||
-          operationType.startsWith('expense_category.')) {
+          operationType.startsWith('supplier.')) {
         final dot = operationType.indexOf('.');
         final entity = operationType.substring(0, dot);
         final operation = operationType.substring(dot + 1);
