@@ -106,6 +106,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'cash_difference': shift.cashDifference,
         'closing_note': shift.closingNote,
         'closed_at': shift.closedAt!.toIso8601String(),
+        if (item.baseCursor != null) 'base_cursor': item.baseCursor,
       },
     );
 
