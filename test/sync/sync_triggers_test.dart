@@ -390,6 +390,44 @@ void main() {
       triggers.dispose();
     });
 
+    test('restore reconciliation runs after a trigger blocked in readiness', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      final readinessStarted = Completer<void>();
+      final releaseReadiness = Completer<void>();
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => false,
+        onNotReady: () async {
+          if (!readinessStarted.isCompleted) readinessStarted.complete();
+          await releaseReadiness.future;
+        },
+        connectivity: connectivity,
+      );
+
+      unawaited(triggers.start());
+      await readinessStarted.future;
+
+      final restore = triggers.reconcileAfterRestore();
+      await Future<void>.delayed(Duration.zero);
+      verifyNever(() => syncEngine.runOnce(manual: false));
+
+      releaseReadiness.complete();
+      await restore;
+
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      triggers.dispose();
+    });
+
     test('concurrent restore reconciliations await the same in-flight run', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
