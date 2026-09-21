@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+
 import '../data/local/database/database.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
 import '../data/remote/fulus_connection_state.dart';
