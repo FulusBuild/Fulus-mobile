@@ -63,7 +63,7 @@ begin
 
   if idem.operation_type <> 'catalog.' || target_entity || '.' || target_operation
      or idem.request_hash <> target_request_hash then
-    raise exception using errcode='22023', message='Operation id was already used with a different request';
+    raise exception using errcode='P0009', message='Operation id was already used with a different request';
   end if;
 
   if idem.completed_at is not null and idem.response_body is not null then
