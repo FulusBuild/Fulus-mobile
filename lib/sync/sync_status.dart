@@ -38,7 +38,7 @@ class SyncStatus extends Equatable {
   const SyncStatus.attentionNeeded({
     required int attentionCount,
     required int pendingCount,
-    this.conflictCount = 0,
+    int conflictCount = 0,
   }) : this._(
           kind: SyncStatusKind.attentionNeeded,
           attentionCount: attentionCount,
