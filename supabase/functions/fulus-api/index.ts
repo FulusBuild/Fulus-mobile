@@ -242,7 +242,7 @@ Deno.serve(async req => {
     }
 
     if (error) {
-      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" ? 409 : 400;
+      const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "P0009" || error.code === "P0008" ? 409 : 400;
       const code = error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : error.code === "P0008" ? "SYNC_CONFLICT" : "COMMAND_FAILED";
       return out({ error: { code, message: error.message } }, status);
     }
