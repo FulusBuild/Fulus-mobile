@@ -69,9 +69,42 @@ void main() {
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
   });
 
-  test('throws for an operation other than create', () async {
-    final customer = await customerRepository.createCustomer(const CustomerDraft(name: 'Test Customer'));
-    await expectLater(handler.sync(queueItemFor(customer, operation: 'update')), throwsA(isA<StateError>()));
+  test('pushes a customer update through Fulus Cloud', () async {
+    final customer = await customerRepository.createCustomer(
+      const CustomerDraft(name: 'Test Customer', phone: '+2348000000000'),
+    );
+    await customerRepository.markSynced(
+      localId: customer.localId,
+      serverId: 'server-customer-1',
+    );
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(customer.localId)))
+        .go();
+    final updated = await customerRepository.updateCustomer(
+      customer.localId,
+      const CustomerDraft(name: 'Updated Customer', phone: '+2348111111111'),
+    );
+
+    stubCloudAuthorization();
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {'data': {'entity_id': 'server-customer-1'}});
+
+    await handler.sync(queueItemFor(updated, operation: 'update'));
+
+    verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'customer.update',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: updated.localId,
+          payload: any(named: 'payload'),
+        )).called(1);
   });
 
   test('throws when the queue item has outlived its local row', () async {
