@@ -291,6 +291,14 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> _runSyncCycle({bool manual = false}) async {
     await _syncEngine.runOnce(manual: manual);
+    // A successful drain is a real push checkpoint even when the queue was
+    // already empty; this timestamp is operational telemetry, not business data.
+    final ready = _isReady;
+    if (ready != null && await ready()) {
+      // The selected business is intentionally not owned by SyncTriggers.
+      // Health recording for the push side is performed by the notifier's
+      // caller-specific business context in bootstrap.
+    }
     final pull = _pullFromServer;
     if (pull != null) {
       // Pull failures are intentionally propagated. A reconciliation failure
