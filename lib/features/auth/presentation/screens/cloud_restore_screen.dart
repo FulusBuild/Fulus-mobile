@@ -161,8 +161,9 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       try {
         await ref.read(syncTriggersProvider).reconcileAfterRestore();
         connection.markSyncReady();
-      } catch (_) {
+      } catch (error) {
         connection.clearSyncReady();
+        connection.markSyncError(error);
         rethrow;
       }
 
