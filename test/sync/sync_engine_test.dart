@@ -22,6 +22,45 @@ class _ScriptedHandler implements SyncHandler {
     attemptedIds.add(item.entityLocalId);
     await onSync(item);
   }
+
+  test(
+      'a queue item enqueued during an active drain triggers a follow-up drain',
+      () async {
+    final firstStarted = Completer<void>();
+    final secondProcessed = Completer<void>();
+    late SyncEngine engine;
+
+    await seedItem(
+      id: 'q1',
+      entityLocalId: 'first',
+      enqueuedAt: DateTime.now(),
+    );
+
+    final handler = _ScriptedHandler((item) async {
+      if (item.entityLocalId == 'first') {
+        firstStarted.complete();
+        await seedItem(
+          id: 'q2',
+          entityLocalId: 'enqueued-during-drain',
+          enqueuedAt: DateTime.now().add(const Duration(seconds: 1)),
+        );
+        engine.runOnce();
+      } else if (item.entityLocalId == 'enqueued-during-drain') {
+        secondProcessed.complete();
+      }
+    });
+
+    engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    final firstRun = engine.runOnce();
+    await firstStarted.future;
+    await firstRun;
+    await secondProcessed.future;
+
+    expect(handler.attemptedIds, ['first', 'enqueued-during-drain']);
+    expect(await allQueueItems(), isEmpty);
+  });
+
 }
 
 void main() {
