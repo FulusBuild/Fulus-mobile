@@ -105,6 +105,7 @@ import '../sync/handlers/stock_movement_sync_handler.dart';
 import '../sync/handlers/supplier_sync_handler.dart';
 import '../sync/sync_config.dart';
 import '../sync/sync_engine.dart';
+import '../sync/sync_conflict_resolver.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
@@ -264,6 +265,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     maxAttemptsBeforeAttentionNeeded: defaultSyncAttentionThreshold,
     diagnosticLogger: diagnosticLogger,
+  );
+
+  final syncConflictResolver = SyncConflictResolver(
+    db: database,
+    reconciler: canonicalReconciler,
+    connectionState: fulusConnectionState,
   );
 
   final notificationRepository = NotificationRepositoryImpl(db: database);
@@ -440,6 +447,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       notificationRepositoryProvider.overrideWithValue(notificationRepository),
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
+      syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],
   );
