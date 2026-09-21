@@ -113,6 +113,10 @@ class SaleRepositoryImpl implements SaleRepository {
         // future fix," not something invented for this case.
         await (_db.update(_db.sales)..where((s) => s.localId.equals(localId)))
             .write(const SalesCompanion(syncStatus: Value(SyncStatus.attentionNeeded)));
+      } else {
+        // The business rows and their durable outbox entry must commit as one
+        // local transaction. SyncQueue defers its trigger until after commit.
+        await _syncQueue.enqueue(SyncTask.createSale(localId));
       }
     });
     _diagnosticLogger?.breadcrumb(
