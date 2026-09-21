@@ -278,7 +278,7 @@ class _MoneyHeader extends StatelessWidget {
         const FulusBrandLogo(size: 32, padding: 7),
         const SizedBox(width: AppSpacing.sm),
         Text(
-          'Fulus',
+          'Money',
           style: AppTypography.subheading.copyWith(
             color: AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w600,
