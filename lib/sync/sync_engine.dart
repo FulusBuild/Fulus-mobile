@@ -231,12 +231,19 @@ class SyncEngine {
   Future<void> _removeFromQueue(String id) async {
     await _db.transaction(() async {
       await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
-      await (_db.update(_db.syncConflictRecords)..where((c) => c.operationId.equals(id) & c.resolvedAt.isNull())).write(
-        SyncConflictRecordsCompanion(
-          resolvedAt: Value(DateTime.now()),
-          resolution: const Value('operation_applied_after_conflict'),
-        ),
-      );
+      final queueRow = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(id))).getSingleOrNull();
+      if (queueRow != null) {
+        await (_db.update(_db.syncConflictRecords)
+              ..where((c) => c.entityType.equals(queueRow.entityType))
+              ..where((c) => c.entityLocalId.equals(queueRow.entityLocalId))
+              ..where((c) => c.resolvedAt.isNull()))
+            .write(
+          SyncConflictRecordsCompanion(
+            resolvedAt: Value(DateTime.now()),
+            resolution: const Value('superseded_by_successful_entity_update'),
+          ),
+        );
+      }
     });
   }
 
