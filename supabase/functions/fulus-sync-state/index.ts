@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
     .select("id,status")
     .eq("business_id", businessId)
     .eq("device_client_id", deviceClientId)
+    .eq("registered_by", userId)
     .maybeSingle();
   if (deviceError) {
     return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
