@@ -18,6 +18,60 @@ void main() {
     await db.close();
   });
 
+  test('clears stale outbound sync work from the previous local installation', () async {
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'stale-queue-item',
+        entityType: 'sale',
+        entityLocalId: 'old-local-sale',
+        operation: 'create',
+        priority: 1,
+        enqueuedAt: DateTime(2026, 9, 20),
+      ),
+    );
+    expect(await db.select(db.syncQueueItems).get(), hasLength(1));
+
+    const ownerId = 'owner-cloud-id';
+    final snapshot = <String, dynamic>{
+      'version': 6,
+      'membership': {'user_id': ownerId, 'role_name': 'owner'},
+      'profile': {'id': ownerId, 'full_name': 'Amina Yusuf'},
+      'business_memberships': [
+        {
+          'id': 'membership-owner',
+          'user_id': ownerId,
+          'role_id': 'role-owner',
+          'status': 'active',
+          'created_at': '2026-09-13T00:00:00Z',
+          'updated_at': '2026-09-13T00:00:00Z',
+        },
+      ],
+      'roles': [
+        {'id': 'role-owner', 'name': 'owner'},
+      ],
+      'permissions': [],
+      'role_permissions': [],
+      'location_memberships': [],
+    };
+    const settings = BusinessSettingsResponseDto(
+      id: 'business-id',
+      businessName: 'Amina Store',
+      vatEnabled: false,
+      vatRate: 0,
+      currencySymbol: '₦',
+      receiptFooter: 'Thank you',
+    );
+
+    await coordinator.restore(
+      snapshot: snapshot,
+      ownerCloudUserId: ownerId,
+      ownerEmail: 'amina@example.com',
+      settings: settings,
+    );
+
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
+  });
+
   test('restores owner identity, settings, and current session', () async {
     const ownerId = 'owner-cloud-id';
     final snapshot = <String, dynamic>{
