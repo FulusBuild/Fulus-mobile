@@ -246,6 +246,8 @@ Before large scale, add:
 - server-side observability
 - per-business isolation and rate limits
 
+Current hardening also covers sync-path foreign-key indexes and duplicate-index cleanup; remaining advisor findings are outside the sync critical path or require broader product-level policy decisions.
+
 The architecture should allow these without changing the local-first application model.
 
 ## 11. Implementation sequence
@@ -267,12 +269,14 @@ The architecture should allow these without changing the local-first application
 ### Phase 3 — concurrency
 - server revisions/update tokens
 - expected-revision commands
+- durable mutation base cursors
 - dirty-local protection
-- explicit conflict records/resolution
+- durable conflict records
+- explicit "Use Cloud version" conflict resolution that reconciles canonical state before clearing the parked mutation
 
 ### Phase 4 — recovery and scale
-- cursor-too-old recovery
-- snapshot/bootstrap
+- cursor-too-old detection is implemented and returns a machine-readable recovery-required response
+- snapshot/bootstrap recovery
 - batch canonical reads
 - retention/compaction
 - authoritative sync health
