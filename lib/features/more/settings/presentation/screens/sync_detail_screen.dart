@@ -205,7 +205,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceOf(context),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Column(
