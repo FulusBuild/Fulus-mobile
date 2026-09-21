@@ -172,7 +172,11 @@ final class ValidationFailure extends Failure {
 /// audit to already meet the Bible's plain-language bar — not rewritten
 /// just because the implementation language changed.
 final class BusinessRuleFailure extends Failure {
-  const BusinessRuleFailure(super.message);
+  const BusinessRuleFailure(super.message, {this.code});
+
+  /// Machine-readable server error code when this failure originated in the
+  /// cloud sync transport. Local business rules leave it null.
+  final String? code;
 }
 
 /// Stage 15 (Device Services) — printer/scanner/camera failures. Added
