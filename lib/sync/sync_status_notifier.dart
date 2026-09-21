@@ -108,12 +108,18 @@ class SyncStatusNotifier {
     // Riverpod's loading state simply because the database stream has not
     // produced its first event yet.
     final query = _db.select(_db.syncQueueItems);
-    yield _toStatus(await query.get());
-    yield* query.watch().map(_toStatus);
+    yield await _toStatus(await query.get());
+    await for (final items in query.watch()) {
+      yield await _toStatus(items);
+    }
   }
 
-  SyncStatus _toStatus(List<SyncQueueItem> items) {
-    if (items.isEmpty) return const SyncStatus.settled();
+  Future<SyncStatus> _toStatus(List<SyncQueueItem> items) async {
+    final unresolvedConflicts = await (_db.select(_db.syncConflictRecords)
+          ..where((c) => c.resolvedAt.isNull()))
+        .get();
+    final conflictCount = unresolvedConflicts.length;
+    if (items.isEmpty && conflictCount == 0) return const SyncStatus.settled();
 
     final attentionCount =
         items.where((i) => i.syncAttempts >= attentionThreshold).length;
@@ -122,6 +128,7 @@ class SyncStatusNotifier {
       return SyncStatus.attentionNeeded(
         attentionCount: attentionCount,
         pendingCount: items.length,
+        conflictCount: conflictCount,
       );
     }
 
@@ -133,6 +140,14 @@ class SyncStatusNotifier {
     // to wait on." A future pass wiring SyncEngine to expose that flag
     // reactively (e.g. via its own small stream) can upgrade this to a
     // true SyncStatus.syncing without this class's own shape changing.
+    if (conflictCount > 0) {
+      return SyncStatus.attentionNeeded(
+        attentionCount: attentionCount,
+        pendingCount: items.length,
+        conflictCount: conflictCount,
+      );
+    }
+
     return SyncStatus.pending(items.length);
   }
 
