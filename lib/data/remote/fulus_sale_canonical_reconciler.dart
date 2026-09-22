@@ -58,7 +58,8 @@ class FulusSaleCanonicalReconciler {
   SaleCanonicalItem _mapItem(Map<String, dynamic> row) {
     return SaleCanonicalItem(
       serverId: _string(row['id']),
-      productServerId: _string(row['product_id']),
+      productServerId: _nullableString(row['product_id']),
+      description: _nullableString(row['description']) ?? '',
       quantity: _integer(row['quantity']),
       unitPrice: _number(row['unit_price']),
       costPriceAtSale: _number(row['cost_price_at_sale']),
