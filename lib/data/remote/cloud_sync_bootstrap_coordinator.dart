@@ -42,7 +42,9 @@ class CloudSyncBootstrapCoordinator {
       final ownerName = user.fullName;
       final activeLocationId = session.activeLocationId;
 
-      // Re-check the destructive-recovery preconditions inside the same
+      // Final recovery safety gate: this is intentionally inside the
+      // transaction that will replace cloud-owned rows. Re-check the
+      // destructive-recovery preconditions inside the same
       // database transaction that replaces cloud-owned rows. The caller's
       // preflight closes the common case, but a local mutation can be queued
       // between that read and bootstrap. Drift serializes operations on this
