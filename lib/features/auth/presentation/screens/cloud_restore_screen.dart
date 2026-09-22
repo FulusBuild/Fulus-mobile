@@ -100,6 +100,12 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
       final businessId = active.single.businessId;
       connection.selectBusiness(businessId);
+      connection.clearSyncReady();
+
+      // A restore creates a new authoritative local dataset. Discard health
+      // metadata from any previous dataset before reconciliation so an old
+      // stale cursor or blocked recovery state cannot poison this restore.
+      await ref.read(syncStatusNotifierProvider).resetForAuthoritativeRestore(businessId);
 
       setState(() => _status = 'Downloading your business data…');
       final snapshot = await CloudRestoreApi(ref.read(apiClientProvider))
