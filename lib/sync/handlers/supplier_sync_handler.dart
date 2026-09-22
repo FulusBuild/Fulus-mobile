@@ -38,10 +38,15 @@ class SupplierSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for supplier sync.');
     }
 
-    final isDelete = item.operation == 'update' && supplier.deletedAt != null;
-    final operationType = isDelete
-        ? 'supplier.delete'
-        : 'supplier.${item.operation}';
+    final isDelete = supplier.deletedAt != null;
+    if (isDelete && supplier.serverId == null) {
+      if (item.operation == 'update') {
+        throw StateError('Cannot sync supplier deletion before its create has synced.');
+      }
+      throw StateError('Supplier create cannot be followed by delete without a server identity.');
+    }
+
+    final operationType = isDelete ? 'supplier.delete' : 'supplier.${item.operation}';
     final payload = <String, dynamic>{
       'name': supplier.name,
       'phone': supplier.phone,
