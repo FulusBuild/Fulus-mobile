@@ -383,7 +383,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         throw StateError('Failed to persist the local Cloud Sync business binding.');
       }
     } else if (boundBusinessId != selectedBusinessId) {
-      await syncRecovery.recover(businessId: selectedBusinessId);
+      try {
+        await syncRecovery.recover(businessId: selectedBusinessId);
+      } catch (_) {
+        // Do not leave the connection state pointing at business B while the
+        // local database still contains business A. Recovery is authoritative;
+        // if it cannot complete, roll the selection back and keep sync blocked.
+        fulusConnectionState.selectBusiness(boundBusinessId);
+        rethrow;
+      }
       final persisted = await syncPreferences.setString(
         localCloudBusinessKey,
         selectedBusinessId,
