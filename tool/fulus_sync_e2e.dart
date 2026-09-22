@@ -147,9 +147,14 @@ Future<void> main() async {
       stdout.writeln('PASS: valid catalog update accepted at current cursor');
     }
 
+    final stockProductId = serverId;
+    final stockLocationId = e2eLocationId;
+    if (stockProductId == null || stockLocationId == null) {
+      throw StateError('E2E stock concurrency fixture is missing server product/location identity.');
+    }
     final stockResults = await Future.wait([
-      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: serverId, locationId: e2eLocationId, newQuantity: 101),
-      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-b-$suffix', productId: serverId!, locationId: e2eLocationId!, newQuantity: 202),
+      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: stockProductId, locationId: stockLocationId, newQuantity: 101),
+      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-b-$suffix', productId: stockProductId, locationId: stockLocationId, newQuantity: 202),
     ]);
     for (final response in stockResults) {
       _expect2xx(response, 'concurrent absolute stock adjustment');
