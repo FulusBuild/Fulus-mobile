@@ -302,6 +302,7 @@ Future<int> _findChangeSequence(
 }) async {
   var cursor = 0;
   const limit = 500;
+  var recoveredFromRetention = false;
   for (var page = 0; page < 20; page++) {
     final response = await dio.get(
       '',
@@ -312,6 +313,21 @@ Future<int> _findChangeSequence(
       },
     );
     final status = response.statusCode ?? 0;
+    if (status == 410 && !recoveredFromRetention) {
+      final root = response.data;
+      final error = root is Map ? root['error'] : null;
+      final oldest = error is Map ? error['oldest_sequence'] : null;
+      final bootstrapRequired = error is Map && error['bootstrap_required'] == true;
+      if (bootstrapRequired && oldest is num) {
+        // The E2E has already exercised the 410 guard in preflight. For this
+        // assertion we need to inspect the retained feed after a successful
+        // mutation, so resume from the first retained sequence rather than
+        // treating an intentionally compacted history as a test failure.
+        cursor = max(0, oldest.toInt() - 1);
+        recoveredFromRetention = true;
+        continue;
+      }
+    }
     if (status < 200 || status >= 300) {
       throw StateError(
         'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
