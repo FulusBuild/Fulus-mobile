@@ -9,10 +9,10 @@ Continue PR #56 as an engineering continuation. Goal: production-grade local-fir
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR #56: open, unmerged
-Current HEAD: bb70db8ea76ec410d6c090dbdc9ba4bbc0799184
+Current HEAD: d0cf09668c2eb39758f0b9745ccd6d9e9cd32d74
 Supabase: bejcuvoxemwomcatgyxz
 
-CI #1431 / 35690922113 is running for the latest recovery-hardening changes; the preceding full CI was GREEN. It passed dependency resolution, Dart generation, static analysis, Flutter tests, and the live Fulus sync contract test. APK build remains intentionally skipped.
+CI #1431 / 35690922113 was cancelled by subsequent branch updates; the last completed full CI was GREEN before the latest recovery-hardening and RLS-performance changes. It passed dependency resolution, Dart generation, static analysis, Flutter tests, and the live Fulus sync contract test. APK build remains intentionally skipped.
 
 Recovery hardening now keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, reports failures from the recovery-start lifecycle callback, and rechecks pending outbox/conflicts inside the atomic bootstrap transaction. The authoritative restore boundary is persisted before the post-bootstrap delta pull.
 
@@ -38,7 +38,7 @@ Obsolete 9-argument catalog mutation overload removed; only the 10-argument bigi
 Remaining advisor findings:
 - diagnostic_events RLS without policy (INFO);
 - leaked-password protection disabled (WARN);
-- broad RLS performance warnings and unused-index notices.
+- broad multiple-permissive-policy warnings and unused-index notices remain after the auth.uid() initplan optimization.
 Do not treat unused-index notices as automatic deletion instructions.
 
 ## Next work — continue, do not stop at green CI
