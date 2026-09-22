@@ -281,5 +281,4 @@ begin
   update public.idempotency_keys set response_status=200,response_body=result,completed_at=now() where id=idem.id;
   return result;
 end;
-$function$
-
+$function$;
