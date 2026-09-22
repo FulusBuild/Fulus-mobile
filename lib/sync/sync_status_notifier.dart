@@ -88,6 +88,18 @@ class SyncStatusNotifier {
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
 
+  /// Clears persisted sync-health metadata before an authoritative local
+  /// restore. The restored snapshot is a new local dataset, so a cursor,
+  /// push/pull timestamps, or a previous recovery failure from the old
+  /// dataset must not be presented as the health of the restored business.
+  Future<void> resetForAuthoritativeRestore(String businessId) async {
+    await _preferences.remove(_pushKey(businessId));
+    await _preferences.remove(_pullKey(businessId));
+    await _preferences.remove(_cursorKey(businessId));
+    await _preferences.setString(_recoveryKey(businessId), 'idle');
+    await _preferences.remove(_recoveryErrorKey(businessId));
+  }
+
   /// Records the authoritative restore boundary while recovery is still
   /// reconciling. Sync is not considered fully recovered until the
   /// post-bootstrap delta pull succeeds.
