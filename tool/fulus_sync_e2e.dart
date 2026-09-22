@@ -86,6 +86,11 @@ Future<void> main() async {
       'low_stock_threshold': 5,
       'is_active': true,
       'tracks_stock': true,
+      // Product creation now requires the authoritative stock location.
+      // Seed a non-zero quantity so this E2E proves initial local stock
+      // survives the first cloud reconciliation instead of being reset to 0.
+      'initial_stock': 17,
+      'location_id': e2eLocationId,
     };
 
     final create = await _submitCatalog(
@@ -103,6 +108,41 @@ Future<void> main() async {
       throw StateError('initial product.create returned no data.item.id');
     }
     stdout.writeln('PASS: product.create');
+
+    final initialSnapshot = await dio.post(
+      '',
+      data: {'action': 'restore_snapshot', 'business_id': businessId},
+    );
+    _expect2xx(initialSnapshot, 'restore snapshot after product.create');
+    final initialSnapshotData = initialSnapshot.data is Map
+        ? (initialSnapshot.data as Map)['data']
+        : null;
+    final initialStockLevels = initialSnapshotData is Map
+        ? initialSnapshotData['product_stock_levels']
+        : null;
+    if (initialStockLevels is! List) {
+      throw StateError('Initial product snapshot did not contain product_stock_levels.');
+    }
+    final initialMatches = initialStockLevels.where((raw) {
+      if (raw is! Map) return false;
+      return raw['product_id'] == serverId &&
+          raw['location_id'] == e2eLocationId;
+    }).toList();
+    if (initialMatches.length != 1) {
+      throw StateError(
+        'Expected exactly one initial stock level for the E2E product/location, '
+        'got ${initialMatches.length}.',
+      );
+    }
+    final initialCommittedStock = (initialMatches.single as Map)['current_stock'];
+    if (initialCommittedStock is! num || initialCommittedStock.toInt() != 17) {
+      throw StateError(
+        'Initial product stock was not preserved authoritatively: '
+        '$initialCommittedStock',
+      );
+    }
+    stdout.writeln('PASS: product.create preserves initial stock at its location');
+
     final productChangeSequence = await _findChangeSequence(
       dio,
       businessId: businessId,
