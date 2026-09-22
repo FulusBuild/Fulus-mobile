@@ -234,16 +234,38 @@ class SyncEngine {
           .getSingleOrNull();
       await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
       if (queueRow != null) {
-        await (_db.update(_db.syncConflictRecords)
+        final conflicts = await (_db.select(_db.syncConflictRecords)
               ..where((c) => c.entityType.equals(queueRow.entityType))
               ..where((c) => c.entityLocalId.equals(queueRow.entityLocalId))
               ..where((c) => c.resolvedAt.isNull()))
-            .write(
-          SyncConflictRecordsCompanion(
-            resolvedAt: Value(DateTime.now()),
-            resolution: const Value('superseded_by_successful_entity_update'),
-          ),
-        );
+            .get();
+
+        // A newer successful mutation supersedes older parked mutations for
+        // the same local entity. Resolve the conflict record and remove its
+        // stale outbox row together, otherwise a manual retry could later
+        // replay an obsolete mutation over the already-accepted state.
+        for (final conflict in conflicts) {
+          final conflictedQueue = await (_db.select(_db.syncQueueItems)
+                ..where((q) => q.id.equals(conflict.operationId)))
+              .getSingleOrNull();
+          if (conflictedQueue != null &&
+              conflictedQueue.enqueuedAt.isAfter(queueRow.enqueuedAt)) {
+            continue;
+          }
+          if (conflictedQueue != null && conflictedQueue.id != queueRow.id) {
+            await (_db.delete(_db.syncQueueItems)
+                  ..where((q) => q.id.equals(conflictedQueue.id)))
+                .go();
+          }
+          await (_db.update(_db.syncConflictRecords)
+                ..where((c) => c.id.equals(conflict.id)))
+              .write(
+            SyncConflictRecordsCompanion(
+              resolvedAt: Value(DateTime.now()),
+              resolution: const Value('superseded_by_successful_entity_update'),
+            ),
+          );
+        }
       }
     });
   }
