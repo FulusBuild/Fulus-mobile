@@ -349,10 +349,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // restoration. Only choose automatically when there is exactly one active
     // membership; with multiple memberships, an already-valid selection is
     // sufficient and must not be discarded.
-    final selectedBusinessId = fulusConnectionState.selectedBusinessId;
+    var selectedBusinessId = fulusConnectionState.selectedBusinessId;
     if (selectedBusinessId == null) {
       if (active.length != 1) return;
       fulusConnectionState.selectBusiness(active.single.businessId);
+      selectedBusinessId = fulusConnectionState.selectedBusinessId;
+    }
+    if (selectedBusinessId == null) {
+      throw StateError('No active business is available for Cloud Sync.');
     }
     final package = await PackageInfo.fromPlatform();
     await fulusConnectionState.registerDevice(
