@@ -45,6 +45,7 @@ Future<void> main() async {
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
+  String? e2eLocationId;
 
   try {
     final preflight = await _preflightDevice(dio, businessId: businessId);
@@ -66,6 +67,10 @@ Future<void> main() async {
       stdout.writeln('PASS: fresh device registered after stale-cursor guard');
     }
 
+    e2eLocationId = await _findFirstLocationId(dio, businessId: businessId);
+    if (e2eLocationId == null) {
+      throw StateError('Live sync E2E business has no location for stock-adjustment verification.');
+    }
 
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
@@ -74,6 +79,7 @@ Future<void> main() async {
       'selling_price': 150,
       'low_stock_threshold': 5,
       'is_active': true,
+      'tracks_stock': true,
     };
 
     final create = await _submitCatalog(
@@ -140,6 +146,20 @@ Future<void> main() async {
       _expect2xx(validUpdate, 'valid product.update after concurrency check');
       stdout.writeln('PASS: valid catalog update accepted at current cursor');
     }
+
+    final stockResults = await Future.wait([
+      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: serverId!, locationId: e2eLocationId!, newQuantity: 101),
+      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-b-$suffix', productId: serverId!, locationId: e2eLocationId!, newQuantity: 202),
+    ]);
+    for (final response in stockResults) {
+      _expect2xx(response, 'concurrent absolute stock adjustment');
+      final data = response.data is Map ? (response.data as Map)['data'] : null;
+      final current = data is Map ? data['current_stock'] : null;
+      if (current is! num || (current.toInt() != 101 && current.toInt() != 202)) {
+        throw StateError('Concurrent absolute stock adjustment returned invalid authoritative stock: ${response.data}');
+      }
+    }
+    stdout.writeln('PASS: concurrent absolute stock adjustments serialize to requested targets');
 
     final idempotencyPayload = {
       'kind': 'e2e-idempotency-probe',
@@ -229,6 +249,27 @@ Future<void> main() async {
   }
 
   stdout.writeln('PASS: Fulus live sync contract E2E');
+}
+
+Future<String?> _findFirstLocationId(Dio dio, {required String businessId}) async {
+  final response = await dio.post('', data: {'action': 'restore_snapshot', 'business_id': businessId});
+  _expect2xx(response, 'restore snapshot for stock-adjustment E2E');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final locations = data is Map ? data['locations'] : null;
+  if (locations is! List || locations.isEmpty) return null;
+  final first = locations.first;
+  if (first is! Map) return null;
+  final id = first['id'];
+  return id is String && id.isNotEmpty ? id : null;
+}
+
+Future<Response<dynamic>> _submitInventorySet(Dio dio, {required String businessId, required String operationId, required String productId, required String locationId, required int newQuantity}) {
+  return dio.post('', data: {
+    'action': 'inventory_set', 'business_id': businessId, 'operation_id': operationId,
+    'client_reference': operationId, 'product_id': productId, 'location_id': locationId,
+    'new_quantity': newQuantity, 'reason': 'Fulus concurrent stock-adjustment E2E',
+  });
 }
 
 Future<String> _resolveAccessToken() async {
