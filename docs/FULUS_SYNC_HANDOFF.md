@@ -9,10 +9,10 @@ Continue PR #56 as an engineering continuation. Goal: production-grade local-fir
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR #56: open, unmerged
-Current HEAD: d0cf09668c2eb39758f0b9745ccd6d9e9cd32d74
+Current HEAD: 590d6849c7fb1697d5f42c6a42e135b24cd2ad58
 Supabase: bejcuvoxemwomcatgyxz
 
-CI #1431 / 35690922113 was cancelled by subsequent branch updates; the last completed full CI was GREEN before the latest recovery-hardening and RLS-performance changes. It passed dependency resolution, Dart generation, static analysis, Flutter tests, and the live Fulus sync contract test. APK build remains intentionally skipped.
+CI #1438 / 35692814138 was running during this handoff refresh; APK build remains intentionally skipped.
 
 Recovery hardening now keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, reports failures from the recovery-start lifecycle callback, and rechecks pending outbox/conflicts inside the atomic bootstrap transaction. The authoritative restore boundary is persisted before the post-bootstrap delta pull.
 
@@ -25,7 +25,7 @@ local mutation -> local transaction -> durable outbox -> scheduler/retry -> auth
 Recovery:
 stale cursor -> SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> pending/conflict preflight -> authoritative restore snapshot -> atomic bootstrap/import -> persist snapshot boundary -> delta pull -> Sync Ready only after successful reconciliation.
 
-The bootstrap transaction preserves local-only tables and recreates local authentication/session state. Process death during that transaction rolls the database transaction back. A process death after commit but before SharedPreferences cursor persistence can cause a safe recovery replay; the snapshot remains authoritative and bootstrap is transactional.
+The bootstrap transaction preserves local-only tables and recreates local authentication/session state. The local cloud-owned Drift dataset is single-business; a durable business binding now forces authoritative snapshot recovery when the selected active business changes, preventing cross-business row mixing. Process death during that transaction rolls the database transaction back. A process death after commit but before SharedPreferences cursor persistence can cause a safe recovery replay; the snapshot remains authoritative and bootstrap is transactional.
 
 ## Production
 
@@ -46,7 +46,7 @@ Do not treat unused-index notices as automatic deletion instructions.
 1. Prove the complete stale-cursor recovery path through a real client session, including replay after a process restart.
 2. Add/run crash and replay coverage: process death during bootstrap; timeout after server commit; pull replay before cursor persistence; token expiry with queued work; revoked device; network loss during recovery.
 3. Prove multi-device convergence: device A mutation -> server -> device B pull -> canonical reconciliation -> cursor; concurrent edit -> durable conflict -> explicit resolution.
-4. Audit multi-business isolation. Current recovery preflight checks the local sync queue/conflicts globally because queue rows do not currently carry business_id; determine whether this is an intentional single-active-business invariant or requires scoping.
+4. Verify the new single-business local binding across startup and business switching.
 5. Perform final architecture, client, server, failure/recovery, scale, Sync Health, production DB/security, final diff, full CI, and E2E/integration audits.
 6. APK remains blocked until all audits pass.
 
