@@ -9,7 +9,7 @@ Continue PR #56 as an engineering continuation. Goal: production-grade local-fir
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR #56: open, unmerged
-Current HEAD: aedc5f8a24250fc43bb45e559204479db1a159df
+Current HEAD: 8fbf596008dd5fa004202ba8a0774ce410fac89e
 Supabase: bejcuvoxemwomcatgyxz
 
 CI #1423 / 35689037116 is GREEN. It passed dependency resolution, Dart generation, static analysis, Flutter tests, and the live Fulus sync contract test. APK build remains intentionally skipped.
