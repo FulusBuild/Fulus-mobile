@@ -126,6 +126,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
           operationType == 'expense.create' ||
           operationType == 'return.create' ||
           operationType == 'stock_movement.create' ||
+          operationType == 'stock_adjustment.create' ||
           operationType == 'location.create' ||
           operationType == 'income.create' ||
           operationType == 'cash_drawer_shift.create' ||
@@ -140,7 +141,8 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
             'customer.repayment' => 'customer_repayment',
             'expense.create' => 'expense_create',
             'return.create' => 'return_create',
-            'stock_movement.create' => 'inventory_adjust',\n            'stock_adjustment.create' => 'inventory_set',
+            'stock_movement.create' => 'inventory_adjust',
+            'stock_adjustment.create' => 'inventory_set',\n            'stock_adjustment.create' => 'inventory_set',
             'location.create' => 'location_create',
             'income.create' => 'income_create',
             'cash_drawer_shift.create' => 'cash_drawer_open',
@@ -227,7 +229,8 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
       result['data'] = {...data, 'entity_id': data['id']};
     } else if (operationType == 'return.create' && data['id'] != null) {
       result['data'] = {...data, 'entity_id': data['id']};
-    } else if (operationType == 'stock_movement.create' &&
+    } else if ((operationType == 'stock_movement.create' ||
+            operationType == 'stock_adjustment.create') &&
         data['movement_id'] != null) {
       result['data'] = {...data, 'entity_id': data['movement_id']};
     } else if (operationType == 'location.create' && data['location_id'] != null) {
