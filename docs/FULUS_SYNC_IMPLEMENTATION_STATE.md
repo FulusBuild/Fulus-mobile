@@ -3,8 +3,8 @@
 Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
-PR: #56 open/unmerged
-HEAD at this refresh: 5756b54b5eabbe9f8a23018216c363eb71445e95
+PR: #57 open/unmerged
+HEAD at this refresh: bbd259b9ecea1bbd8057edac454c0fe53810d50b
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
@@ -49,14 +49,14 @@ Verified handler/API coverage includes:
 
 Sale-generated stock movements remain server-derived and are not submitted independently. Stock transfer is not exposed by the current stock-movement UI and therefore is not a supported V1 user mutation.
 
-### Phase 3 — Concurrency: IMPLEMENTED
+### Phase 3 — Concurrency: VERIFIED at supported-contract level
 - Base-cursor/revision protection for mutable entities where required.
 - Durable sync_conflict_records.
 - Explicit cloud/local conflict resolution.
 - Idempotency request-hash protection.
 - Cash-drawer close concurrency protection.
 
-### Phase 4 — Recovery/scale: IMPLEMENTED
+### Phase 4 — Recovery/scale: VERIFIED at code/test level; live stale-cursor/recovery boundary verified
 - Stale cursor detection and authoritative snapshot.
 - Atomic restore/import.
 - Local-only table preservation.
@@ -68,7 +68,7 @@ Sale-generated stock movements remain server-derived and are not submitted indep
 - Daily pg_cron retention.
 - Multi-business local isolation.
 
-### Phase 5 — Production/security/performance: IMPLEMENTED
+### Phase 5 — Production/security/performance: VERIFIED
 - JWT and membership authorization.
 - Device ownership binding.
 - RPC execute lockdown.
@@ -101,13 +101,13 @@ Automated client coverage includes:
 
 The main CI run #1442 / 35693603162 was GREEN on the prior hardening HEAD. New commits after that run require a fresh CI result before merge.
 
-The live server E2E verifies stale-cursor signaling, authoritative snapshot availability, idempotency/concurrency contracts and retention behavior. It is not a substitute for a physical-device/process-death test.
+The live server E2E on the current merge ref passed: fresh auth, stale-cursor rejection, authoritative restore boundary, ephemeral device registration, product create, stale/current catalog concurrency, concurrent absolute stock targets, idempotent replay, conflicting replay rejection, and cleanup. Physical-device/process-death behavior remains covered by transaction/readiness invariants and automated tests rather than by the live script.
 
 ## Final release gates
 
-Before merging PR #56:
-1. Fresh CI must be GREEN on the current HEAD.
-2. Live sync E2E must pass on the current backend/client contract.
+Before merging PR #57:
+1. CI #1453 is GREEN on the current HEAD.
+2. Live sync E2E passed on the current merge ref.
 3. Architecture audit.
 4. Client-flow audit.
 5. Server-flow audit.
