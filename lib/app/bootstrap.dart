@@ -448,7 +448,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // optimistic-concurrency conflict exists. The rejected local mutation
       // must remain visible until the user explicitly resolves it; otherwise
       // a later pull could silently overwrite the local edit before resolution.
-      if (await syncStatusNotifier.unresolvedConflictCount() > 0) return;
+      if (await syncStatusNotifier.unresolvedConflictCount() > 0) {
+        throw const BusinessRuleFailure(
+          'Cloud pull is paused until the pending local sync conflict is resolved.',
+          code: 'SYNC_CONFLICT_PENDING',
+        );
+      }
       final cursor = await syncCoordinator.pullAndApply(businessId: businessId);
       await syncStatusNotifier.recordPullSuccess(businessId, cursor);
     },
