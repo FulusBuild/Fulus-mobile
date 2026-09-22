@@ -79,7 +79,7 @@ void main() {
         operationId: 'stale-operation',
         entityType: 'sale',
         entityLocalId: 'old-local-sale',
-        code: 'SYNC_CONFLICT',
+        code: const Value('SYNC_CONFLICT'),
         message: 'Old local conflict',
         createdAt: DateTime(2026, 9, 20),
       ),
