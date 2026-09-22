@@ -32,8 +32,11 @@ class CloudSyncRecovery {
   final Future<void> Function(Object error) _onFailed;
 
   Future<void> recover({required String businessId}) async {
-    await _onStarted();
     try {
+      // Lifecycle callbacks are part of recovery: if readiness/health state
+      // cannot be persisted, recovery must be reported as failed rather than
+      // escaping before the failure callback is installed.
+      await _onStarted();
       final pending = await _db.select(_db.syncQueueItems).get();
       if (pending.isNotEmpty) {
         throw const BusinessRuleFailure(
