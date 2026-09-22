@@ -699,7 +699,14 @@ class CloudRestoreImporter {
         final parsed = int.tryParse(value);
         if (parsed != null) return parsed;
         final date = DateTime.tryParse(value);
-        if (date != null) return date.millisecondsSinceEpoch;
+        if (date != null) {
+          // Drift's default dateTime() storage is Unix seconds, not Dart
+          // milliseconds. Restore snapshots carry PostgreSQL timestamps as
+          // ISO-8601 strings, so converting them to milliseconds would make
+          // Drift interpret the value as a date tens of thousands of years
+          // in the future.
+          return date.millisecondsSinceEpoch ~/ 1000;
+        }
       }
     }
     if (sqliteType.contains('REAL') || sqliteType.contains('DOUBLE') || sqliteType.contains('FLOAT')) {
