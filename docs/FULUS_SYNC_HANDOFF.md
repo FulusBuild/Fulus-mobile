@@ -1,13 +1,13 @@
 # Fulus Cloud Sync — Fresh Session Handoff
 
 ## Mission
-Continue PR #56 to production-grade local-first convergence with durable offline mutations, authenticated/device-scoped push, idempotent authoritative writes, canonical pull, explicit concurrency conflicts, crash-safe recovery, and trustworthy Sync Health.
+Continue PR #57 to production-grade local-first convergence with durable offline mutations, authenticated/device-scoped push, idempotent authoritative writes, canonical pull, explicit concurrency conflicts, crash-safe recovery, and trustworthy Sync Health.
 
 ## Current state
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
-PR #56: open, unmerged
-HEAD at this refresh: 9e8362a3bc74c93bf61b9dfb9f939b32fe5bea78
+PR #57: open, unmerged
+HEAD at this refresh: bbd259b9ecea1bbd8057edac454c0fe53810d50b
 Supabase: bejcuvoxemwomcatgyxz
 
 A complete phase audit on 2026-09-22 found and closed the one genuine V1 contract gap: absolute stock adjustments were locally queueable but rejected by the cloud handler. The server now exposes an authoritative absolute-target stock command, the API exposes inventory_set, the client maps stock_adjustment.create, and the handler reconciles the returned stock.
@@ -68,7 +68,7 @@ Live server E2E covers stale-cursor contract, authoritative snapshot availabilit
 9. Production migration/function/version verification.
 10. Multi-device convergence and replay verification at the available integration-test level.
 
-Do not merge PR #56 or trigger the APK until these gates are genuinely green.
+Do not merge PR #57 or trigger the APK until these gates are genuinely green.
 
 ## Operating rules
 Source and live production state outrank this handoff. Do not redo completed work. Do not advance cursors before reconciliation. Do not silently overwrite unresolved mutations. Do not delete indexes merely because advisor statistics say unused. Do not perform destructive resets. Continue dependent work without stopping for progress reports.
