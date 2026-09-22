@@ -110,6 +110,12 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       setState(() => _status = 'Downloading your business data…');
       final snapshot = await CloudRestoreApi(ref.read(apiClientProvider))
           .fetchSnapshot(businessId: businessId);
+      final snapshotBoundary = snapshot['sync_boundary'];
+      if (snapshotBoundary is! num || snapshotBoundary.toInt() < 0) {
+        throw const FormatException(
+          'Restore snapshot did not contain a valid sync boundary.',
+        );
+      }
 
       final ownerCloudUserId = (snapshot['membership'] is Map)
           ? (snapshot['membership'] as Map)['user_id']?.toString()
@@ -145,15 +151,23 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
       ref.read(sessionProvider.notifier).state = owner;
 
-      // The restore snapshot is a complete business image, so the previous
-      // local pull cursor cannot describe this newly restored database. A
-      // stale cursor could otherwise be ahead of the snapshot and cause
-      // legitimate post-snapshot changes to be skipped. Start reconciliation
-      // from the beginning of the server change stream; canonical
-      // reconciliation is idempotent, so replaying older changes is safe.
+      // The restore snapshot is a complete business image and carries the
+      // exact change-feed boundary from the same server-side snapshot.
+      // Persist that boundary before reconciliation so the first pull starts
+      // strictly after the imported image. Resetting to cursor 0 is unsafe
+      // once retention has advanced: it can immediately produce
+      // SYNC_CURSOR_TOO_OLD and trigger a redundant destructive recovery.
       setState(() => _status = 'Preparing cloud sync…');
       final syncPreferences = await SharedPreferences.getInstance();
-      await syncPreferences.remove('fulus_sync_cursor_$businessId');
+      final persistedBoundary = await syncPreferences.setInt(
+        'fulus_sync_cursor_$businessId',
+        snapshotBoundary.toInt(),
+      );
+      if (!persistedBoundary) {
+        throw StateError(
+          'Failed to persist the Cloud Sync restore snapshot boundary.',
+        );
+      }
 
       await ref.read(syncConfigProvider).setEnabled(true);
 
