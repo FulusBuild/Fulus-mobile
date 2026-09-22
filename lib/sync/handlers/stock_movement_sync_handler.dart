@@ -43,7 +43,37 @@ class StockMovementSyncHandler implements SyncHandler {
       throw StateError('Stock transfers are not supported by the Fulus Cloud command API yet.');
     }
     if (movement.movementType == StockMovementType.adjustment) {
-      throw StateError('Absolute stock adjustments require a server-side absolute-target command.');
+      final newQuantity = movement.newQuantity;
+      if (newQuantity == null || newQuantity < 0) {
+        throw StateError('Stock adjustment target quantity must be non-negative.');
+      }
+      final result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'stock_adjustment.create',
+        operationId: item.id,
+        deviceClientId: device.deviceClientId,
+        clientReference: movement.localId,
+        payload: {
+          'business_id': businessId,
+          'product_id': productId,
+          'location_id': locationId,
+          'new_quantity': newQuantity,
+          'reason': movement.reason ?? 'Stock adjustment',
+          'operation_id': item.id,
+        },
+      );
+      final data = result['data'];
+      if (data is! Map) throw StateError('Fulus stock adjustment returned no response data.');
+      final currentStock = (data['current_stock'] as num?)?.toInt();
+      if (currentStock != null) {
+        await _productRepository.reconcileStockLevel(
+          productLocalId: movement.productLocalId,
+          locationId: movement.locationId,
+          currentStock: currentStock,
+        );
+      }
+      await _stockMovementRepository.markSettled(localId: movement.localId);
+      return;
     }
 
     final businessId = _fulusConnectionState.selectedBusinessId;
