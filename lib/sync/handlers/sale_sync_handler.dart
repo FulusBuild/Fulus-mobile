@@ -118,7 +118,18 @@ class SaleSyncHandler implements SyncHandler {
     for (final line in sale.items) {
       final localProductId = line.productLocalId;
       if (localProductId == null) {
-        throw StateError('Sale item has no productLocalId.');
+        final description = line.description.trim();
+        if (description.isEmpty) {
+          throw StateError('Quick Sale item has no description.');
+        }
+        items.add({
+          'product_id': null,
+          'description': description,
+          'quantity': line.quantity,
+          'unit_price': line.unitPrice,
+          'cost_price_at_sale': line.costPriceAtSale,
+        });
+        continue;
       }
       final product = await (_db.select(_db.products)
             ..where((p) => p.localId.equals(localProductId)))
