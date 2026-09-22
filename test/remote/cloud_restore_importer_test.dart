@@ -164,6 +164,13 @@ void main() {
           'selling_price': 20,
         },
       ],
+      'customers': [
+        {
+          'id': 'customer-1',
+          'name': 'Customer One',
+          'phone': '08000000001',
+        },
+      ],
       'sales': [
         {
           'id': 'sale-1',
@@ -174,6 +181,16 @@ void main() {
           'total': 20,
         },
       ],
+      'sale_items': [
+        {
+          'id': 'sale-item-1',
+          'sale_id': 'sale-1',
+          'product_id': 'product-1',
+          'quantity': 1,
+          'unit_price': 20,
+          'cost_price_at_sale': 10,
+        },
+      ],
       'sale_payments': [
         {
           'id': 'payment-1',
@@ -181,6 +198,17 @@ void main() {
           'amount': 20,
           'payment_method': 'cash',
           'created_at': '2026-09-22T10:01:00Z',
+        },
+      ],
+      'customer_ledger_entries': [
+        {
+          'id': 'ledger-1',
+          'customer_id': 'customer-1',
+          'sale_id': 'sale-1',
+          'entry_type': 'creditSale',
+          'amount': 20,
+          'operation_id': 'ledger-op-1',
+          'created_at': '2026-09-22T10:01:30Z',
         },
       ],
       'expenses': [
@@ -204,13 +232,31 @@ void main() {
           'created_at': '2026-09-22T10:03:00Z',
         },
       ],
+      'return_items': [
+        {
+          'id': 'return-item-1',
+          'return_id': 'return-1',
+          'sale_item_id': 'sale-item-1',
+          'product_id': 'product-1',
+          'quantity': 1,
+          'amount': 20,
+        },
+      ],
     };
 
     await CloudRestoreImporter(db).importSnapshot(snapshot);
 
+    final saleItem = (await db.select(db.saleItems).get()).single;
+    expect(saleItem.saleLocalId, 'sale-1');
+    expect(saleItem.productLocalId, 'product-1');
+
     final payment = (await db.select(db.salePayments).get()).single;
     expect(payment.method, 'cash');
     expect(payment.recordedAt, DateTime.parse('2026-09-22T10:01:00Z').toLocal());
+
+    final ledger = (await db.select(db.customerLedgerEntries).get()).single;
+    expect(ledger.customerLocalId, 'customer-1');
+    expect(ledger.saleLocalId, 'sale-1');
 
     final expense = (await db.select(db.expenses).get()).single;
     expect(expense.description, '');
@@ -221,6 +267,10 @@ void main() {
     expect(returnRow.refundMethod, 'cash');
     expect(returnRow.inventoryRestored, isTrue);
     expect(returnRow.isVoid, isFalse);
+
+    final returnItem = (await db.select(db.returnItems).get()).single;
+    expect(returnItem.returnLocalId, 'return-1');
+    expect(returnItem.productLocalId, 'product-1');
   });
 
   test('rejects unsupported snapshot versions', () async {
