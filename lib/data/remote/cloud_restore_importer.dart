@@ -561,6 +561,17 @@ class CloudRestoreImporter {
     }
 
     if (table == 'return_requests') {
+      // The server names the parent sale \"sale_id\" while the local
+      // return table deliberately uses \"original_sale_local_id\".
+      // The generic *_local_id adapter cannot infer this because the
+      // local name contains \"original\". Keep the relationship explicit
+      // so real production return rows can be restored without weakening
+      // the local foreign key.
+      if (!normalized.containsKey('original_sale_local_id') &&
+          remote.containsKey('sale_id')) {
+        normalized['original_sale_local_id'] = remote['sale_id'];
+      }
+
       // The server return ledger is authoritative for sale/reason/amount.
       // Legacy returns predate persisted refund_method and used the cash
       // ledger for refunds, so "cash" is the honest compatibility value.
