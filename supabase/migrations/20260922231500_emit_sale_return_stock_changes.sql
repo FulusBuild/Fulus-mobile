@@ -132,7 +132,8 @@ $block$;
          'new_quantity', current_quantity,
          'movement_type', 'return',
          'reason', 'return'
-       );
+       )
+     );
 $replacement$
   );
 
