@@ -10,7 +10,6 @@ import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/sync/handlers/product_sync_handler.dart';
-import 'package:fulus_mobile/sync/sync_queue.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
