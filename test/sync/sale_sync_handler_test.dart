@@ -1,6 +1,9 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
+import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
+import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
+import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
@@ -16,6 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSalesApi extends Mock implements SalesApi {}
+class MockFulusSyncApi extends Mock implements FulusSyncApi {}
+class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 
 class _FakeAuthRepository implements AuthRepository {
   @override
@@ -47,6 +52,8 @@ class _FakeAuthRepository implements AuthRepository {
 void main() {
   late AppDatabase db;
   late MockSalesApi salesApi;
+  late MockFulusSyncApi fulusSyncApi;
+  late MockFulusConnectionState connectionState;
   late SaleRepositoryImpl saleRepository;
   late SaleSyncHandler handler;
 
@@ -57,6 +64,10 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     salesApi = MockSalesApi();
+    fulusSyncApi = MockFulusSyncApi();
+    connectionState = MockFulusConnectionState();
+    when(() => connectionState.selectedBusinessId).thenReturn(null);
+    when(() => connectionState.registeredDevice).thenReturn(null);
     saleRepository = SaleRepositoryImpl(
       db: db,
       syncQueue: SyncQueue(db),
@@ -65,6 +76,8 @@ void main() {
     );
     handler = SaleSyncHandler(
       db: db,
+      fulusSyncApi: fulusSyncApi,
+      fulusConnectionState: connectionState,
       salesApi: salesApi,
       saleRepository: saleRepository,
     );
@@ -140,6 +153,67 @@ void main() {
       syncAttempts: 0,
     );
   }
+
+  test('pushes a Quick Sale through Fulus Cloud without a catalog product', () async {
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-1')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+          'data': {'entity_id': 'server-sale-quick'},
+        });
+
+    final sale = await saleRepository.createSale(
+      SaleDraft(
+        items: const [
+          SaleItem(
+            localId: 'quick-1',
+            productLocalId: null,
+            description: 'Phone charger',
+            quantity: 1,
+            unitPrice: 500,
+            costPriceAtSale: 0,
+          ),
+        ],
+        locationId: locationId,
+        amountPaid: 500,
+      ),
+    );
+
+    await handler.sync(queueItemFor(sale));
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    final items = captured['items'] as List;
+    final item = items.single as Map<String, dynamic>;
+    expect(item['product_id'], isNull);
+    expect(item['description'], 'Phone charger');
+    expect(item['quantity'], 1);
+    expect(item['unit_price'], 500);
+    expect(captured['location_id'], 'server-location-1');
+
+    final updated = await saleRepository.getSaleByLocalId(sale.localId);
+    expect(updated!.serverId, 'server-sale-quick');
+  });
 
   test('never falls back to the legacy Sales API when Fulus Cloud is unavailable', () async {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
