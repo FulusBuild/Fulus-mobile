@@ -127,8 +127,7 @@ begin
 
   return v_snapshot;
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.apply_inventory_adjustment(target_business_id uuid, target_product_id uuid, target_location_id uuid, target_quantity_delta integer, target_reason text, target_operation_id text, target_device_id uuid DEFAULT NULL::uuid)
  RETURNS jsonb
@@ -204,8 +203,7 @@ begin
   update public.idempotency_keys set response_status=200,response_body=result,completed_at=now() where id=idem.id;
   return result;
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.set_inventory_quantity(target_business_id uuid, target_product_id uuid, target_location_id uuid, target_new_quantity integer, target_reason text, target_operation_id text, target_device_id uuid)
  RETURNS jsonb
