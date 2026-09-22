@@ -125,8 +125,8 @@ begin
           'created_by', t.created_by,
           'device_id', t.device_id,
           'payment_method', t.payment_method,
-          'created_at', t.created_at,
-          'updated_at', t.updated_at
+          'created_at', t.expense_date,
+          'updated_at', t.expense_date
         ) order by t.id
       )
       from public.expenses t
