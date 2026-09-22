@@ -64,7 +64,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     String? saleLocalId,
   }) async {
     if (amount <= 0) throw ArgumentError.value(amount, 'amount', 'must be > 0');
-    final result = await _db.transaction(() async {
+    return _db.transaction(() async {
       final customer = await _requireCustomer(customerLocalId);
       final effect = engine.computeRepaymentEffect(currentBalance: customer.outstandingBalance, repaymentAmount: amount);
       final now = DateTime.now();
@@ -83,11 +83,14 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
         updatedAt: now,
       );
       await _db.into(_db.customerLedgerEntries).insert(entry.toDriftCompanion(syncStatus: SyncStatus.pending));
+      final syncQueue = _syncQueue;
+      if (syncQueue != null) {
+        // The durable outbox row must commit with the balance and ledger entry.
+        // SyncQueue defers its trigger until after the surrounding transaction commits.
+        await syncQueue.enqueue(SyncTask.recordCustomerRepayment(entry.localId));
+      }
       return (entry: entry, newBalance: effect.newBalance, excessAmount: effect.excessAmount);
     });
-    final syncQueue = _syncQueue;
-    if (syncQueue != null) await syncQueue.enqueue(SyncTask.recordCustomerRepayment(result.entry.localId));
-    return result;
   }
 
   @override
