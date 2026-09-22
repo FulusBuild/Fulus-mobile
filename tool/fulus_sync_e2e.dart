@@ -195,6 +195,51 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: concurrent absolute stock adjustments serialize to requested targets');
 
+    final inventoryReplay = await _submitInventorySet(
+      dio,
+      businessId: businessId,
+      operationId: 'e2e-inventory-replay-$suffix',
+      productId: stockProductId,
+      locationId: stockLocationId,
+      newQuantity: 303,
+    );
+    _expect2xx(inventoryReplay, 'inventory idempotency first submission');
+
+    final inventorySameReplay = await _submitInventorySet(
+      dio,
+      businessId: businessId,
+      operationId: 'e2e-inventory-replay-$suffix',
+      productId: stockProductId,
+      locationId: stockLocationId,
+      newQuantity: 303,
+    );
+    _expect2xx(inventorySameReplay, 'inventory idempotency same replay');
+
+    final inventoryConflictingReplay = await _submitInventorySet(
+      dio,
+      businessId: businessId,
+      operationId: 'e2e-inventory-replay-$suffix',
+      productId: stockProductId,
+      locationId: stockLocationId,
+      newQuantity: 404,
+    );
+    final inventoryConflictStatus = inventoryConflictingReplay.statusCode ?? 0;
+    final inventoryConflictData = inventoryConflictingReplay.data;
+    final inventoryConflictError = inventoryConflictData is Map
+        ? inventoryConflictData['error']
+        : null;
+    final inventoryConflictCode = inventoryConflictError is Map
+        ? inventoryConflictError['code']
+        : null;
+    if (inventoryConflictStatus != 409 ||
+        inventoryConflictCode != 'IDEMPOTENCY_CONFLICT') {
+      throw StateError(
+        'conflicting inventory idempotency replay expected HTTP 409 IDEMPOTENCY_CONFLICT, '
+        'got HTTP $inventoryConflictStatus: $inventoryConflictData',
+      );
+    }
+    stdout.writeln('PASS: conflicting inventory replay rejected');
+
     final idempotencyPayload = {
       'kind': 'e2e-idempotency-probe',
       'product_id': serverId,

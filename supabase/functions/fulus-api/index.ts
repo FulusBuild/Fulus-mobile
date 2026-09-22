@@ -327,6 +327,6 @@ Deno.serve(async req => {
     ({ data, error } = await serviceDb.rpc("accept_sync_operation", { target_business_id: bid, target_device_id: d.id, target_user_id: uid, target_operation_id: oid, target_operation_type: typeof b.operation_type === "string" ? b.operation_type : "", target_client_reference: typeof b.client_reference === "string" ? b.client_reference : null, target_request_hash: hash }));
   } else return out({ error: { code: "UNSUPPORTED_COMMAND", message: "Unsupported Fulus Cloud command" } }, 400);
 
-  if (error) return out({ error: { code: error.code === "P0008" ? "SYNC_CONFLICT" : "COMMAND_FAILED", message: error.message } }, error.code === "42501" ? 403 : error.code === "P0008" || error.code === "22013" ? 409 : error.code === "P0002" ? 404 : 400);
+  if (error) return out({ error: { code: error.code === "P0009" ? "IDEMPOTENCY_CONFLICT" : error.code === "P0008" ? "SYNC_CONFLICT" : "COMMAND_FAILED", message: error.message } }, error.code === "42501" ? 403 : error.code === "P0009" || error.code === "P0008" || error.code === "22013" ? 409 : error.code === "P0002" ? 404 : 400);
   return out({ data }, data?.status === "already_applied" ? 200 : 201);
 });
