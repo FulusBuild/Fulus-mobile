@@ -95,12 +95,25 @@ class CloudSyncBootstrapCoordinator {
           updatedAt: Value(now),
         ),
       );
+
+      // The authoritative snapshot may legitimately no longer contain the
+      // location that was active before recovery (for example after that
+      // location was deleted or after switching businesses). Never reinsert
+      // a stale foreign key into the rebuilt session; the normal location
+      // resolver can select a valid active location on the next app pass.
+      final restoredLocationId = activeLocationId == null
+          ? null
+          : await (_db.select(_db.locations)
+                ..where((location) => location.localId.equals(activeLocationId)))
+              .getSingleOrNull()
+              .then((location) => location?.localId);
+
       await _db.delete(_db.sessions).go();
       await _db.into(_db.sessions).insert(
         SessionsCompanion.insert(
           id: 'current',
           userId: ownerId,
-          activeLocationId: Value(activeLocationId),
+          activeLocationId: Value(restoredLocationId),
         ),
       );
 
