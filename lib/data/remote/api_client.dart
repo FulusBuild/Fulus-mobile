@@ -133,6 +133,18 @@ class ApiClient {
         code: code,
       );
     }
+    if (code == 'BUSINESS_PROVISIONING_UNAVAILABLE') {
+      return BusinessRuleFailure(
+        message ?? 'Business setup is temporarily unavailable. Please try again.',
+        code: code,
+      );
+    }
+    if (code == 'BUSINESS_ALREADY_LINKED') {
+      return BusinessRuleFailure(
+        message ?? 'This account is already linked to a Fulus business. Sign in to continue.',
+        code: code,
+      );
+    }
 
     switch (status) {
       case 409:
