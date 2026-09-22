@@ -110,6 +110,34 @@ void main() {
     );
   });
 
+  test('does not duplicate a seed task already enqueued by a local mutation', () async {
+    final now = DateTime.now();
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'seeded-product',
+        name: 'Seeded product',
+        sku: 'SEED-1',
+        costPrice: 100,
+        sellingPrice: 150,
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+    await queue.enqueue(SyncTask.createProduct('seeded-product'));
+
+    await queue.seedExistingBusinessData();
+
+    final rows = await db.select(db.syncQueueItems).get();
+    final matching = rows.where(
+      (row) =>
+          row.entityType == 'product' &&
+          row.entityLocalId == 'seeded-product' &&
+          row.operation == 'create',
+    );
+    expect(matching, hasLength(1));
+  });
+
   test('keeps create and update operations distinct', () async {
     await queue.enqueue(SyncTask.createProduct('product-1'));
     await queue.enqueue(SyncTask.updateProduct('product-1'));
