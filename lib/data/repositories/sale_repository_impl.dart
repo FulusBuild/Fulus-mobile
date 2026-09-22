@@ -104,11 +104,7 @@ class SaleRepositoryImpl implements SaleRepository {
 
       // The business rows and their durable outbox entry must commit as one
       // local transaction. SyncQueue defers its trigger until after commit.
-      await _syncQueue.enqueue(SyncTask.createSale(localId)); else {
-        // The business rows and their durable outbox entry must commit as one
-        // local transaction. SyncQueue defers its trigger until after commit.
-        await _syncQueue.enqueue(SyncTask.createSale(localId));
-      }
+      await _syncQueue.enqueue(SyncTask.createSale(localId));
     });
     _diagnosticLogger?.breadcrumb(
       'Sale transaction committed',
