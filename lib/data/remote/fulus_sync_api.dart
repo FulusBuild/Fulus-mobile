@@ -129,6 +129,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
           operationType == 'stock_adjustment.create' ||
           operationType == 'location.create' ||
           operationType == 'income.create' ||
+          operationType == 'expense_category.create' ||
           operationType == 'cash_drawer_shift.create' ||
           operationType == 'cash_drawer_shift.close') {
         body
@@ -145,6 +146,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
             'stock_adjustment.create' => 'inventory_set',
             'location.create' => 'location_create',
             'income.create' => 'income_create',
+            'expense_category.create' => 'expense_category_create',
             'cash_drawer_shift.create' => 'cash_drawer_open',
             'cash_drawer_shift.close' => 'cash_drawer_close',
             _ => throw StateError('Unsupported Fulus operation: $operationType'),
