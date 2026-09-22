@@ -58,7 +58,8 @@ class AuthApi {
       final body = e.response?.data;
       if (body is Map && body['code'] == 'email_exists') {
         throw const BusinessRuleFailure(
-          'An account with this email already exists. Sign in or resend the verification email.',
+          'An account with this email already exists. Sign in to finish setup.',
+          code: 'email_exists',
         );
       }
       throw _client.mapError(e);
@@ -84,11 +85,58 @@ class AuthApi {
   }
 
   Future<Map<String, dynamic>> createCloudBusiness({required String name, required String functionBaseUrl, required String publishableKey, String currencyCode = 'NGN', String timezone = 'Africa/Lagos', String locationName = 'Main', String? businessProvisionFunctionUrl}) async {
-    try {
-      final endpoint = businessProvisionFunctionUrl ?? functionBaseUrl;
-      final response = await Dio(BaseOptions(baseUrl: endpoint)).post('', data: {'name': name, 'currency_code': currencyCode, 'timezone': timezone, 'location_name': locationName}, options: Options(headers: {'apikey': publishableKey, 'Authorization': 'Bearer ${_client.serverAccessToken}', 'content-type': 'application/json'}));
-      return Map<String, dynamic>.from(response.data as Map);
-    } on DioException catch (e) { throw _client.mapError(e); }
+    final endpoint = businessProvisionFunctionUrl ?? functionBaseUrl;
+    final dio = Dio(BaseOptions(
+      baseUrl: endpoint,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    const retryDelays = <Duration>[
+      Duration.zero,
+      Duration(seconds: 1),
+      Duration(seconds: 2),
+      Duration(seconds: 4),
+    ];
+
+    DioException? lastError;
+    for (var attempt = 0; attempt < retryDelays.length; attempt++) {
+      if (attempt > 0) await Future<void>.delayed(retryDelays[attempt]);
+      try {
+        final response = await dio.post(
+          '',
+          data: {
+            'name': name,
+            'currency_code': currencyCode,
+            'timezone': timezone,
+            'location_name': locationName,
+          },
+          options: Options(headers: {
+            'apikey': publishableKey,
+            'Authorization': 'Bearer ${_client.serverAccessToken}',
+            'content-type': 'application/json',
+          }),
+        );
+        return Map<String, dynamic>.from(response.data as Map);
+      } on DioException catch (error) {
+        lastError = error;
+        if (!_isProvisionRetryable(error) || attempt == retryDelays.length - 1) {
+          throw _client.mapError(error);
+        }
+      }
+    }
+
+    throw _client.mapError(lastError!);
+  }
+
+  bool _isProvisionRetryable(DioException error) {
+    final status = error.response?.statusCode;
+    return error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        status == 500 ||
+        status == 502 ||
+        status == 503 ||
+        status == 504;
   }
 
   Future<Map<String, dynamic>> registerCloudDevice({required String businessId, required String deviceClientId, required String deviceName, required String platform, required String appVersion, required String functionBaseUrl, required String publishableKey}) async {

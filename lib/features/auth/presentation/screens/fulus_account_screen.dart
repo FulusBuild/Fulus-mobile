@@ -9,6 +9,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'cloud_restore_screen.dart';
@@ -148,7 +149,28 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       }
 
       await _finishNewAccount(name: name, businessName: business);
-    } on Failure catch (failure) {
+    } on BusinessRuleFailure catch (failure) {
+      // A previous attempt may have created the Auth account and local
+      // business before cloud provisioning/device registration failed.
+      // Never strand that account behind "email already exists": if local
+      // onboarding progress is present, authenticate with the supplied
+      // credentials and resume the idempotent setup flow.
+      if (failure.code == 'email_exists' && await _hasLocalSetupProgress()) {
+        try {
+          await ref.read(authApiProvider).connectServer(
+                email: email,
+                password: password,
+                supabaseUrl: SupabaseConfig.url,
+                publishableKey: SupabaseConfig.publishableKey,
+              );
+          ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
+          await _finishNewAccount(name: name, businessName: business);
+          return;
+        } on Failure catch (resumeFailure) {
+          if (mounted) setState(() => _error = resumeFailure.message);
+          return;
+        }
+      }
       if (mounted) {
         setState(() {
           _error = failure.message;
@@ -198,6 +220,18 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     }
   }
 
+  Future<bool> _hasLocalSetupProgress() async {
+    final hasOwner =
+        await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
+    final hasBusiness =
+        await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
+    // Only auto-resume when both halves of this account's local
+    // onboarding already exist. A lone local business or owner can be a
+    // legitimate pre-cloud/on-device state and must not silently bind to
+    // whichever cloud email was typed into this form.
+    return hasOwner && hasBusiness;
+  }
+
   Future<void> _finishNewAccount({required String name, required String businessName}) async {
     if (name.isEmpty || businessName.isEmpty) {
       throw StateError('Your name and business name are required to finish setup.');
@@ -206,16 +240,31 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     final authRepository = ref.read(authRepositoryProvider);
     final businessRepository = ref.read(businessSettingsRepositoryProvider);
 
-    final owner = await authRepository.createFirstOwner(fullName: name);
+    // This method is intentionally resumable. Account creation can be
+    // interrupted after local identity/business creation but before cloud
+    // provisioning, device registration, or the first sync. Re-running it
+    // must continue from durable local state instead of creating duplicates.
+    final localIdentities = await authRepository.listLocalIdentities();
+    final ownerCandidates = localIdentities
+        .where((identity) => identity.role == AuthRole.owner)
+        .toList(growable: false);
+    final owner = ownerCandidates.isNotEmpty
+        ? ownerCandidates.first
+        : await authRepository.createFirstOwner(fullName: name);
     if (!mounted) return;
     ref.read(sessionProvider.notifier).state = owner;
 
-    await businessRepository.createBusiness(
-      businessName: businessName,
-      category: BusinessCategory.retailShop,
-      currencySymbol: '₦',
-    );
+    if (!await businessRepository.hasBeenConfigured()) {
+      await businessRepository.createBusiness(
+        businessName: businessName,
+        category: BusinessCategory.retailShop,
+        currencySymbol: '₦',
+      );
+    }
 
+    // Server provisioning is an ensure operation: a retry after a
+    // successful cloud transaction returns the existing business instead of
+    // treating the already-linked account as a failure.
     await ref.read(authApiProvider).createCloudBusiness(
           name: businessName,
           functionBaseUrl: SupabaseConfig.functionBaseUrl,
