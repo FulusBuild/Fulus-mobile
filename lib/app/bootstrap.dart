@@ -320,7 +320,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         // otherwise pull would reuse the stale pre-recovery cursor and can
         // immediately trigger another SYNC_CURSOR_TOO_OLD recovery.
         await syncCoordinator.setCursor(businessId, boundary);
-        await syncStatusNotifier.markRecoveryCompleted(businessId, boundary);
+        await syncStatusNotifier.markRecoveryBoundaryPersisted(businessId, boundary);
         fulusConnectionState.clearSyncError();
       }
     },
@@ -384,6 +384,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       await syncRecovery.recover(businessId: businessId);
     },
     onRecoveryReconciled: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.markRecoveryCompleted(businessId);
+      }
       fulusConnectionState.markSyncReady();
     },
     onPushSuccess: () async {
