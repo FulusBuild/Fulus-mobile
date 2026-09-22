@@ -52,25 +52,6 @@ class ProductSyncHandler implements SyncHandler {
     final stock = await (_db.select(_db.productStockLevels)
           ..where((s) => s.productLocalId.equals(localId)))
         .getSingleOrNull();
-    if (product.deletedAt != null) {
-      final result = await _fulusSyncApi.submitOperation(
-        businessId: businessId,
-        operationType: 'product.delete',
-        operationId: operationId ?? localId,
-        deviceClientId: device.deviceClientId,
-        payload: {
-          'server_id': serverId,
-          if (baseCursor != null) 'base_cursor': baseCursor,
-        },
-      );
-      final data = Map<String, dynamic>.from(result['data'] as Map);
-      if ((data['entity_id'] as String?) != serverId) {
-        throw StateError('Fulus product delete returned an unexpected entity ID.');
-      }
-      await _productRepository.markSynced(localId: localId, serverId: serverId);
-      return;
-    }
-
     final categoryId = await _resolveCatalogServerId(
       localId: product.categoryId,
       entityType: 'category',
@@ -140,6 +121,25 @@ class ProductSyncHandler implements SyncHandler {
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
+    }
+
+    if (product.deletedAt != null) {
+      final result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'product.delete',
+        operationId: operationId ?? localId,
+        deviceClientId: device.deviceClientId,
+        payload: {
+          'server_id': serverId,
+          if (baseCursor != null) 'base_cursor': baseCursor,
+        },
+      );
+      final data = Map<String, dynamic>.from(result['data'] as Map);
+      if ((data['entity_id'] as String?) != serverId) {
+        throw StateError('Fulus product delete returned an unexpected entity ID.');
+      }
+      await _productRepository.markSynced(localId: localId, serverId: serverId);
+      return;
     }
 
     final categoryId = await _resolveCatalogServerId(
