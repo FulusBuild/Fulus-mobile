@@ -398,6 +398,54 @@ void main() {
       expect(conflicts.single.resolvedAt, isNull);
     });
 
+    test('successful newer mutation removes older conflicted outbox item', () async {
+      final base = DateTime(2026, 1, 1);
+      await seedItem(
+        id: 'q-old',
+        entityType: 'customer',
+        entityLocalId: 'customer-1',
+        enqueuedAt: base,
+        syncAttempts: 5,
+        lastAttemptedAt: base,
+      );
+      await db.into(db.syncConflictRecords).insert(
+        SyncConflictRecordsCompanion.insert(
+          id: 'q-old:conflict',
+          operationId: 'q-old',
+          entityType: 'customer',
+          entityLocalId: 'customer-1',
+          code: const Value('SYNC_CONFLICT'),
+          message: const Value('Customer changed on another device.'),
+          createdAt: base.add(const Duration(seconds: 1)),
+        ),
+      );
+      await seedItem(
+        id: 'q-new',
+        entityType: 'customer',
+        entityLocalId: 'customer-1',
+        enqueuedAt: base.add(const Duration(minutes: 1)),
+      );
+
+      final handler = _ScriptedHandler((item) async {
+        expect(item.id, 'q-new');
+      });
+      final engine = SyncEngine(
+        db: db,
+        handlersByEntityType: {'customer': handler},
+      );
+
+      await engine.runOnce();
+
+      expect(await allQueueItems(), isEmpty);
+      final conflicts = await db.select(db.syncConflictRecords).get();
+      expect(conflicts, hasLength(1));
+      expect(conflicts.single.resolvedAt, isNotNull);
+      expect(
+        conflicts.single.resolution,
+        'superseded_by_successful_entity_update',
+      );
+    });
+
     test('an ordinary BusinessRuleFailure is left exactly as the handler reported it', () async {
       await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
       final handler = _ScriptedHandler((_) async {
