@@ -303,6 +303,32 @@ void main() {
       verify(() => syncEngine.runOnce(manual: true)).called(1);
     });
 
+    test('pull failure does not report a successful sync cycle', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {});
+
+      Object? reportedError;
+      var successCalls = 0;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        pullFromServer: () async => throw const BusinessRuleFailure(
+          'pull blocked',
+          code: 'SYNC_CONFLICT_PENDING',
+        ),
+        onSyncSuccess: () => successCalls++,
+        onSyncFailure: (error, _) => reportedError = error,
+      );
+
+      await expectLater(triggers.syncNow(), throwsA(isA<BusinessRuleFailure>()));
+      expect(reportedError, isA<BusinessRuleFailure>());
+      expect(successCalls, 0);
+      verify(() => syncEngine.runOnce(manual: true)).called(1);
+      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).never();
+    });
+
     test('manual sync reports failure through the health callback', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
