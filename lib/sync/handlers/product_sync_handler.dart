@@ -6,6 +6,10 @@ import '../../domain/repositories/product_repository.dart';
 import '../sync_handler.dart';
 
 /// Pushes product catalog changes through the authoritative Fulus Cloud API.
+///
+/// Product category/supplier references may be local IDs for offline-created
+/// rows or server IDs for rows reconciled from the cloud. The cloud API expects
+/// server UUIDs, so resolve either representation before a product write.
 class ProductSyncHandler implements SyncHandler {
   ProductSyncHandler({
     required ProductRepository productRepository,
@@ -48,6 +52,25 @@ class ProductSyncHandler implements SyncHandler {
     final stock = await (_db.select(_db.productStockLevels)
           ..where((s) => s.productLocalId.equals(localId)))
         .getSingleOrNull();
+    if (product.deletedAt != null) {
+      final result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'product.delete',
+        operationId: operationId ?? localId,
+        deviceClientId: device.deviceClientId,
+        payload: {
+          'server_id': serverId,
+          if (baseCursor != null) 'base_cursor': baseCursor,
+        },
+      );
+      final data = Map<String, dynamic>.from(result['data'] as Map);
+      if ((data['entity_id'] as String?) != serverId) {
+        throw StateError('Fulus product delete returned an unexpected entity ID.');
+      }
+      await _productRepository.markSynced(localId: localId, serverId: serverId);
+      return;
+    }
+
     final categoryId = await _resolveCatalogServerId(
       localId: product.categoryId,
       entityType: 'category',
@@ -83,9 +106,6 @@ class ProductSyncHandler implements SyncHandler {
       throw StateError('Fulus product create returned no server entity ID.');
     }
 
-    // If the item was archived before its first cloud create, the queue's
-    // create/update coalescing means this create item owns the whole lifecycle.
-    // Finish it with a second stable idempotent delete operation.
     if (product.deletedAt != null) {
       final deleteResult = await _fulusSyncApi.submitOperation(
         businessId: businessId,
@@ -120,25 +140,6 @@ class ProductSyncHandler implements SyncHandler {
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
-    }
-
-    if (product.deletedAt != null) {
-      final result = await _fulusSyncApi.submitOperation(
-        businessId: businessId,
-        operationType: 'product.delete',
-        operationId: operationId ?? localId,
-        deviceClientId: device.deviceClientId,
-        payload: {
-          'server_id': serverId,
-          if (baseCursor != null) 'base_cursor': baseCursor,
-        },
-      );
-      final data = Map<String, dynamic>.from(result['data'] as Map);
-      if ((data['entity_id'] as String?) != serverId) {
-        throw StateError('Fulus product delete returned an unexpected entity ID.');
-      }
-      await _productRepository.markSynced(localId: localId, serverId: serverId);
-      return;
     }
 
     final categoryId = await _resolveCatalogServerId(
