@@ -49,6 +49,11 @@ Future<void> main() async {
   try {
     final preflight = await _preflightDevice(dio, businessId: businessId);
     if (preflight == _PreflightResult.cursorTooOld) {
+      await _verifyAuthoritativeRecoverySnapshot(
+        dio,
+        businessId: businessId,
+      );
+      stdout.writeln('PASS: authoritative restore snapshot exposes a valid recovery boundary');
       final freshDeviceId = 'e2e-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
       await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
       dio.options.headers['x-fulus-device-id'] = freshDeviceId;
@@ -421,6 +426,32 @@ Future<_PreflightResult> _preflightDevice(
   }
   stdout.writeln('PASS: device authorization preflight');
   return _PreflightResult.ok;
+}
+
+Future<void> _verifyAuthoritativeRecoverySnapshot(
+  Dio dio, {
+  required String businessId,
+}) async {
+  final response = await dio.post(
+    '',
+    data: {
+      'action': 'restore_snapshot',
+      'business_id': businessId,
+    },
+  );
+  _expect2xx(response, 'authoritative restore snapshot');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  if (data is! Map) {
+    throw StateError('restore_snapshot response did not contain data.');
+  }
+  final boundary = data['sync_boundary'];
+  if (boundary is! num || boundary.toInt() < 0) {
+    throw StateError('restore_snapshot returned an invalid sync_boundary.');
+  }
+  if (data['business'] is! Map) {
+    throw StateError('restore_snapshot response did not contain business state.');
+  }
 }
 
 Future<void> _registerEphemeralDevice(
