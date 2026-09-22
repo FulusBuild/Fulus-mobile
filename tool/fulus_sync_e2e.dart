@@ -78,6 +78,57 @@ Future<void> main() async {
       throw StateError('Live sync E2E business has no location for stock-adjustment verification.');
     }
 
+    // Exercise the two finance/sales paths that are easy to miss in catalog-only E2E:
+    // miscellaneous income and a Quick Sale line with no catalog product.
+    final incomeOperationId = 'e2e-income-$suffix';
+    final incomeResponse = await dio.post('', data: {
+      'action': 'income_create',
+      'business_id': businessId,
+      'operation_id': incomeOperationId,
+      'client_reference': incomeOperationId,
+      'location_id': e2eLocationId,
+      'source': 'E2E miscellaneous income $suffix',
+      'amount': 12345,
+      'income_date': DateTime.now().toUtc().toIso8601String(),
+      'notes': 'Cloud Sync V1 income contract',
+    });
+    _expect2xx(incomeResponse, 'income.create');
+    final incomeData = incomeResponse.data is Map ? incomeResponse.data['data'] : null;
+    if (incomeData is! Map || incomeData['income_id'] is! String) {
+      throw StateError('income.create returned no income_id: ${incomeResponse.data}');
+    }
+    stdout.writeln('PASS: income.create');
+
+    final quickSaleOperationId = 'e2e-quick-sale-$suffix';
+    final quickSaleResponse = await dio.post('', data: {
+      'action': 'sale_create',
+      'business_id': businessId,
+      'operation_id': quickSaleOperationId,
+      'client_reference': quickSaleOperationId,
+      'location_id': e2eLocationId,
+      'sale_date': DateTime.now().toUtc().toIso8601String(),
+      'discount': 0,
+      'tax': 0,
+      'amount_paid': 321,
+      'payment_method': 'cash',
+      'notes': 'Cloud Sync V1 Quick Sale contract',
+      'items': [
+        {
+          'product_id': null,
+          'description': 'E2E Quick Sale $suffix',
+          'quantity': 1,
+          'unit_price': 321,
+          'cost_price_at_sale': 0,
+        },
+      ],
+    });
+    _expect2xx(quickSaleResponse, 'sale.create Quick Sale');
+    final quickSaleData = quickSaleResponse.data is Map ? quickSaleResponse.data['data'] : null;
+    if (quickSaleData is! Map || quickSaleData['sale_id'] is! String) {
+      throw StateError('Quick Sale returned no sale_id: ${quickSaleResponse.data}');
+    }
+    stdout.writeln('PASS: sale.create Quick Sale');
+
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
