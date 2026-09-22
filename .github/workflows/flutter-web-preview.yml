@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: fulus-web-preview-${{ github.ref }}
@@ -80,24 +78,9 @@ jobs:
       - name: Build web preview
         run: flutter build web --release --base-href "/Fulus-mobile/"
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+      - name: Upload web preview artifact
+        uses: actions/upload-artifact@v4
         with:
-          enablement: true
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
+          name: fulus-web-preview
           path: build/web
 
-  deploy:
-    name: Deploy Flutter web preview
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
