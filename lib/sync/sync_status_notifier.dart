@@ -127,8 +127,19 @@ class SyncStatusNotifier {
     return rows.length;
   }
 
+  /// Records a successful outbound reconciliation only when the durable
+  /// outbox is actually empty. SyncEngine deliberately returns normally when
+  /// retryable or attention-needed items remain queued so independent work can
+  /// continue; treating that normal return as a push success would make the
+  /// UI report a backup that did not finish and can also make stale-cursor
+  /// recovery appear mysteriously blocked by the same queued work.
   Future<void> recordPushSuccess(String businessId) async {
-    await _preferences.setString(_pushKey(businessId), DateTime.now().toUtc().toIso8601String());
+    final pending = await _db.select(_db.syncQueueItems).get();
+    if (pending.isNotEmpty) return;
+    await _preferences.setString(
+      _pushKey(businessId),
+      DateTime.now().toUtc().toIso8601String(),
+    );
   }
 
   Future<void> recordPullSuccess(String businessId, int cursor) async {
