@@ -4,7 +4,7 @@ Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR: #56 open/unmerged
-HEAD: bb70db8ea76ec410d6c090dbdc9ba4bbc0799184
+HEAD: d0cf09668c2eb39758f0b9745ccd6d9e9cd32d74
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
@@ -36,7 +36,7 @@ Production functions:
 
 GitHub:
 - PR #56 open/unmerged.
-- CI #1431 / 35690922113 is running for the latest recovery-hardening changes; the preceding full CI was GREEN.
+- CI #1431 / 35690922113 was cancelled by subsequent branch updates; the last completed full CI was GREEN before the latest recovery-hardening and RLS-performance changes.
 - Generate Dart code GREEN.
 - Static analysis GREEN.
 - Flutter tests GREEN.
@@ -47,7 +47,7 @@ Supabase:
 - `cloud_catalog_mutate` has exactly one production signature: uuid,uuid,uuid,text,text,text,uuid,jsonb,bigint,text.
 - `service_role` can execute that contract.
 - Security advisor: `diagnostic_events` RLS-without-policy INFO; leaked-password protection WARN.
-- Performance advisor: broad RLS optimization and unused-index notices remain. Do not delete indexes solely from current unused statistics without workload evidence.
+- Performance advisor: the six auth.uid() per-row RLS initplan findings were eliminated by migration `supabase/migrations/202609220540_optimize_sync_related_rls_auth_uid_initplan.sql`. Remaining findings are broad multiple-permissive-policy and unused-index notices; do not delete indexes solely from current unused statistics without workload evidence.
 
 ## Remaining work
 
