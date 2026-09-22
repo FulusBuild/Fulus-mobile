@@ -95,7 +95,6 @@ class ProductSyncHandler implements SyncHandler {
         deviceClientId: device.deviceClientId,
         payload: {
           'server_id': serverId,
-          if (baseCursor != null) 'base_cursor': baseCursor,
         },
       );
       final deleteData = Map<String, dynamic>.from(deleteResult['data'] as Map);
