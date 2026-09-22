@@ -42,6 +42,22 @@ class StockMovementSyncHandler implements SyncHandler {
     if (movement.movementType == StockMovementType.transfer) {
       throw StateError('Stock transfers are not supported by the Fulus Cloud command API yet.');
     }
+    final businessId = _fulusConnectionState.selectedBusinessId;
+    final device = _fulusConnectionState.registeredDevice;
+    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+      throw StateError('Fulus Cloud device authorization is required for stock sync.');
+    }
+    final product = await (_db.select(_db.products)
+          ..where((p) => p.localId.equals(movement.productLocalId)))
+        .getSingleOrNull();
+    final productId = product?.serverId;
+    if (productId == null || productId.isEmpty) throw StateError('Stock movement product has no server identity yet.');
+    final location = await (_db.select(_db.locations)
+          ..where((l) => l.localId.equals(movement.locationId)))
+        .getSingleOrNull();
+    final locationId = location?.serverId;
+    if (locationId == null || locationId.isEmpty) throw StateError('Stock movement location has no server identity yet.');
+
     if (movement.movementType == StockMovementType.adjustment) {
       final newQuantity = movement.newQuantity;
       if (newQuantity == null || newQuantity < 0) {
@@ -75,22 +91,6 @@ class StockMovementSyncHandler implements SyncHandler {
       await _stockMovementRepository.markSettled(localId: movement.localId);
       return;
     }
-
-    final businessId = _fulusConnectionState.selectedBusinessId;
-    final device = _fulusConnectionState.registeredDevice;
-    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
-      throw StateError('Fulus Cloud device authorization is required for stock sync.');
-    }
-    final product = await (_db.select(_db.products)
-          ..where((p) => p.localId.equals(movement.productLocalId)))
-        .getSingleOrNull();
-    final productId = product?.serverId;
-    if (productId == null || productId.isEmpty) throw StateError('Stock movement product has no server identity yet.');
-    final location = await (_db.select(_db.locations)
-          ..where((l) => l.localId.equals(movement.locationId)))
-        .getSingleOrNull();
-    final locationId = location?.serverId;
-    if (locationId == null || locationId.isEmpty) throw StateError('Stock movement location has no server identity yet.');
 
     final quantity = movement.quantity;
     if (quantity == null || quantity <= 0) throw StateError('Stock movement quantity must be positive.');
