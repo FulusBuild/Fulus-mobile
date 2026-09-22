@@ -146,8 +146,11 @@ class SyncQueue {
   /// Only entity types with a real sync handler are seeded. Device-only
   /// tables (for example users, permissions, diagnostics, and local stock
   /// level projections) are intentionally not treated as cloud records.
-  /// Soft-deleted rows are skipped because they were already deleted locally
-  /// before the first cloud connection and must not be recreated remotely.
+  /// Pre-cloud archived rows are intentionally seeded too. Product/category/
+  /// supplier/customer handlers complete those lifecycles by creating the
+  /// server row first and then applying the archive/delete operation with a
+  /// second stable operation ID. Skipping such rows would permanently lose
+  /// valid local history at first cloud connection.
   Future<void> seedExistingBusinessData() async {
     final tasks = <SyncTask>[];
 
@@ -160,7 +163,7 @@ class SyncQueue {
     }
 
     Future<List<String>> idsForLocations() async => (await _db.select(_db.locations).get())
-        .where((row) => row.serverId == null && row.deletedAt == null)
+        .where((row) => row.serverId == null)
         .map((row) => row.localId)
         .toList();
     Future<List<String>> idsForCategories() async => (await _db.select(_db.categories).get())
