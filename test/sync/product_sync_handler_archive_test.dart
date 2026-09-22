@@ -51,6 +51,76 @@ void main() {
 
   tearDown(() async => db.close());
 
+  test('creates then archives a pre-sync product without reusing the stale create cursor', () async {
+    final now = DateTime(2026, 9, 22);
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'p-pre-sync',
+        name: 'Archived before cloud',
+        sku: 'ARCHIVE-PRE-1',
+        costPrice: 10,
+        sellingPrice: 20,
+        isActive: const Value(false),
+        deletedAt: Value(now),
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'queue-product-create',
+        entityType: 'product',
+        entityLocalId: 'p-pre-sync',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: now,
+        baseCursor: const Value(10),
+      ),
+    );
+
+    var call = 0;
+    when(() => api.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) async {
+      call++;
+      if (call == 1) {
+        return {
+          'data': {'entity_id': 'server-pre-sync'},
+        };
+      }
+      return {
+        'data': {'entity_id': 'server-pre-sync', 'status': 'deleted'},
+      };
+    });
+
+    final item = await db.select(db.syncQueueItems).getSingle();
+    await handler.sync(item);
+
+    verify(() => api.submitOperation(
+          businessId: 'business-1',
+          operationType: 'product.create',
+          operationId: 'queue-product-create',
+          deviceClientId: 'device-client-1',
+          payload: any(named: 'payload'),
+        )).called(1);
+    verify(() => api.submitOperation(
+          businessId: 'business-1',
+          operationType: 'product.delete',
+          operationId: 'queue-product-create:delete',
+          deviceClientId: 'device-client-1',
+          payload: {
+            'server_id': 'server-pre-sync',
+          },
+        )).called(1);
+  });
+
   test('archives an already-synced product through catalog.delete', () async {
     final now = DateTime(2026, 9, 22);
     await db.into(db.products).insert(
