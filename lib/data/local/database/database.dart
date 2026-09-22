@@ -153,6 +153,7 @@ part 'database.g.dart';
     TaxRemittances,
     CashDrawerShifts,
     SyncQueueItems,
+    SyncConflictRecords,
     BusinessSettings,
     AuditLogs,
     // Stage 11 (Employees) — see tables/employee_tables.dart's own doc
@@ -205,7 +206,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {
@@ -408,6 +409,12 @@ class AppDatabase extends _$AppDatabase {
           // own NINTH NOTE above and permission_tables.dart's own doc
           // comment on UserPermissions.
           await m.createTable(userPermissions);
+        }
+        if (from < 12) {
+          await m.addColumn(syncQueueItems, syncQueueItems.baseCursor);
+        }
+        if (from < 13) {
+          await m.createTable(syncConflictRecords);
         }
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so

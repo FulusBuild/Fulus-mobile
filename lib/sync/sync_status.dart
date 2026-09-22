@@ -16,6 +16,7 @@ class SyncStatus extends Equatable {
     required this.kind,
     this.pendingCount = 0,
     this.attentionCount = 0,
+    this.conflictCount = 0,
   });
 
   const SyncStatus.disabled() : this._(kind: SyncStatusKind.disabled);
@@ -37,11 +38,11 @@ class SyncStatus extends Equatable {
   const SyncStatus.attentionNeeded({
     required int attentionCount,
     required int pendingCount,
-  }) : this._(
-          kind: SyncStatusKind.attentionNeeded,
-          attentionCount: attentionCount,
-          pendingCount: pendingCount,
-        );
+    int conflictCount = 0,
+  })  : kind = SyncStatusKind.attentionNeeded,
+        pendingCount = pendingCount,
+        attentionCount = attentionCount,
+        conflictCount = conflictCount;
 
   final SyncStatusKind kind;
 
@@ -51,6 +52,29 @@ class SyncStatus extends Equatable {
   /// Number of queued writes that have exhausted automatic retry attempts.
   final int attentionCount;
 
+  /// Number of unresolved optimistic-concurrency conflicts retained locally.
+  final int conflictCount;
+
   @override
-  List<Object?> get props => [kind, pendingCount, attentionCount];
+  List<Object?> get props => [kind, pendingCount, attentionCount, conflictCount];
+}
+
+
+class SyncHealthSnapshot extends Equatable {
+  const SyncHealthSnapshot({
+    this.lastPushAt,
+    this.lastPullAt,
+    this.cursor = 0,
+    this.recoveryState = 'idle',
+    this.lastError,
+  });
+
+  final DateTime? lastPushAt;
+  final DateTime? lastPullAt;
+  final int cursor;
+  final String recoveryState;
+  final String? lastError;
+
+  @override
+  List<Object?> get props => [lastPushAt, lastPullAt, cursor, recoveryState, lastError];
 }

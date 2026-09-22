@@ -18,6 +18,9 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
+import '../data/remote/cloud_restore_api.dart';
+import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
+import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
 import '../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
 import '../data/remote/fulus_category_canonical_reconciler.dart';
@@ -105,6 +108,7 @@ import '../sync/handlers/stock_movement_sync_handler.dart';
 import '../sync/handlers/supplier_sync_handler.dart';
 import '../sync/sync_config.dart';
 import '../sync/sync_engine.dart';
+import '../sync/sync_conflict_resolver.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
@@ -130,6 +134,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusDeviceRegistration = FulusDeviceRegistration(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusSyncApi = FulusSyncApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  late final CloudRestoreApi cloudRestoreApi;
   final fulusStaffAccessApi = FulusStaffAccessApi(client: apiClient, functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api');
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
@@ -146,6 +151,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
   await authRepository.restoreSession();
+  cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final approvalPinRepository = ApprovalPinRepositoryImpl(authApi: authApi, secureStorage: secureStorage, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository);
 
   final salesApi = SalesApi(apiClient);
@@ -161,7 +167,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final cashDrawerShiftsApi = CashDrawerShiftsApi(apiClient);
   final locationsApi = LocationsApi(apiClient);
   final businessSettingsApi = BusinessSettingsApi(apiClient);
-  final syncQueue = SyncQueue(database);
+  final syncQueue = SyncQueue(
+    database,
+    baseCursorProvider: () {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      return businessId == null
+          ? null
+          : syncPreferences.getInt('fulus_sync_cursor_$businessId');
+    },
+  );
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
@@ -235,6 +249,21 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         deviceClientId: registeredDevice.deviceClientId,
       );
     },
+    applyChanges: (changes) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId == null) {
+        throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
+      }
+      final registeredDevice = fulusConnectionState.registeredDevice;
+      if (registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
+        throw StateError('Fulus Cloud device registration is not ready.');
+      }
+      await canonicalReconciler.reconcileChanges(
+        changes,
+        businessId: businessId,
+        deviceClientId: registeredDevice.deviceClientId,
+      );
+    },
   );
 
   final syncEngine = SyncEngine(
@@ -258,10 +287,51 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     diagnosticLogger: diagnosticLogger,
   );
 
+  final syncConflictResolver = SyncConflictResolver(
+    db: database,
+    reconciler: canonicalReconciler,
+    connectionState: fulusConnectionState,
+    preferences: syncPreferences,
+  );
+
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
-  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService);
+  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences);
+  final syncBootstrapCoordinator = CloudSyncBootstrapCoordinator(database);
+  late final CloudSyncRecovery syncRecovery;
   late final SyncTriggers syncTriggers;
+
+  syncRecovery = CloudSyncRecovery(
+    db: database,
+    restoreApi: cloudRestoreApi,
+    bootstrapCoordinator: syncBootstrapCoordinator,
+    onStarted: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        fulusConnectionState.clearSyncReady();
+        await syncStatusNotifier.markRecoveryStarted(businessId);
+      }
+    },
+    onCompleted: (boundary) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        // The restore transaction has committed at this point. Persist its
+        // authoritative sync boundary before the post-bootstrap delta pull;
+        // otherwise pull would reuse the stale pre-recovery cursor and can
+        // immediately trigger another SYNC_CURSOR_TOO_OLD recovery.
+        await syncCoordinator.setCursor(businessId, boundary);
+        await syncStatusNotifier.markRecoveryBoundaryPersisted(businessId, boundary);
+        fulusConnectionState.clearSyncError();
+      }
+    },
+    onFailed: (error) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.markRecoveryFailed(businessId, error);
+        fulusConnectionState.markSyncError(error);
+      }
+    },
+  );
 
   Future<void> initializeCloudSync() async {
     try {
@@ -279,10 +349,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // restoration. Only choose automatically when there is exactly one active
     // membership; with multiple memberships, an already-valid selection is
     // sufficient and must not be discarded.
-    final selectedBusinessId = fulusConnectionState.selectedBusinessId;
+    var selectedBusinessId = fulusConnectionState.selectedBusinessId;
     if (selectedBusinessId == null) {
       if (active.length != 1) return;
       fulusConnectionState.selectBusiness(active.single.businessId);
+      selectedBusinessId = fulusConnectionState.selectedBusinessId;
+    }
+    if (selectedBusinessId == null) {
+      throw StateError('No active business is available for Cloud Sync.');
     }
     final package = await PackageInfo.fromPlatform();
     await fulusConnectionState.registerDevice(
@@ -291,6 +365,42 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       platform: Platform.operatingSystem,
       appVersion: package.version,
     );
+
+    // The local Drift database is intentionally single-business: its
+    // cloud-owned tables do not carry business_id, so an incremental pull
+    // cannot safely switch the database from business A to business B.
+    // Bind the local cloud dataset to the active business and require an
+    // authoritative snapshot when that binding changes. This prevents a
+    // multi-business account from mixing rows from different businesses.
+    const localCloudBusinessKey = 'fulus_local_cloud_business_id';
+    final boundBusinessId = syncPreferences.getString(localCloudBusinessKey);
+    if (boundBusinessId == null) {
+      final persisted = await syncPreferences.setString(
+        localCloudBusinessKey,
+        selectedBusinessId,
+      );
+      if (!persisted) {
+        throw StateError('Failed to persist the local Cloud Sync business binding.');
+      }
+    } else if (boundBusinessId != selectedBusinessId) {
+      try {
+        await syncRecovery.recover(businessId: selectedBusinessId);
+      } catch (_) {
+        // Do not leave the connection state pointing at business B while the
+        // local database still contains business A. Recovery is authoritative;
+        // if it cannot complete, roll the selection back and keep sync blocked.
+        fulusConnectionState.selectBusiness(boundBusinessId);
+        rethrow;
+      }
+      final persisted = await syncPreferences.setString(
+        localCloudBusinessKey,
+        selectedBusinessId,
+      );
+      if (!persisted) {
+        throw StateError('Failed to persist the switched Cloud Sync business binding.');
+      }
+    }
+
     await syncTriggers.reconcileForReadiness();
     fulusConnectionState.markSyncReady();
     } catch (error) {
@@ -306,6 +416,26 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isReady: () async => fulusConnectionState.isSyncReady,
     onNotReady: initializeCloudSync,
     onSyncSuccess: fulusConnectionState.clearSyncError,
+    onCursorTooOldRecovery: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId == null) {
+        throw StateError('Fulus Cloud business context is missing during cursor recovery.');
+      }
+      await syncRecovery.recover(businessId: businessId);
+    },
+    onRecoveryReconciled: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.markRecoveryCompleted(businessId);
+      }
+      fulusConnectionState.markSyncReady();
+    },
+    onPushSuccess: () async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId != null) {
+        await syncStatusNotifier.recordPushSuccess(businessId);
+      }
+    },
     onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
@@ -314,7 +444,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (businessId == null || registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
         throw StateError('Fulus Cloud is not ready for canonical pull.');
       }
-      await syncCoordinator.pullAndApply(businessId: businessId);
+      // Never apply inbound canonical state while an unresolved local
+      // optimistic-concurrency conflict exists. The rejected local mutation
+      // must remain visible until the user explicitly resolves it; otherwise
+      // a later pull could silently overwrite the local edit before resolution.
+      if (await syncStatusNotifier.unresolvedConflictCount() > 0) return;
+      final cursor = await syncCoordinator.pullAndApply(businessId: businessId);
+      await syncStatusNotifier.recordPullSuccess(businessId, cursor);
     },
   );
 
@@ -425,6 +561,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       notificationRepositoryProvider.overrideWithValue(notificationRepository),
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
+      syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
       syncTriggersProvider.overrideWithValue(syncTriggers),
     ],
   );

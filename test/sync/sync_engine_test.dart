@@ -196,8 +196,7 @@ void main() {
     );
 
     final handler = _ScriptedHandler((item) async {
-      if (item.entityLocalId == 'flaky') {
-        throw Exception('Connection reset');
+      if (item.entityLocalId == 'flaky') {        throw Exception('Connection reset');
       }
     });
     final engine = SyncEngine(
@@ -379,6 +378,26 @@ void main() {
       expect(remaining.single.lastError, contains('already exists'));
     });
 
+    test('machine-readable sync conflicts are persisted as durable records', () async {
+      await seedItem(id: 'q-conflict', entityLocalId: 'customer-1', entityType: 'customer', enqueuedAt: DateTime.now());
+      final handler = _ScriptedHandler((_) async {
+        throw const BusinessRuleFailure(
+          'SYNC_CONFLICT: Customer changed on another device.',
+          code: 'SYNC_CONFLICT',
+        );
+      });
+      final engine = SyncEngine(db: db, handlersByEntityType: {'customer': handler});
+
+      await engine.runOnce();
+
+      final conflicts = await db.select(db.syncConflictRecords).get();
+      expect(conflicts, hasLength(1));
+      expect(conflicts.single.operationId, 'q-conflict');
+      expect(conflicts.single.entityType, 'customer');
+      expect(conflicts.single.code, 'SYNC_CONFLICT');
+      expect(conflicts.single.resolvedAt, isNull);
+    });
+
     test('an ordinary BusinessRuleFailure is left exactly as the handler reported it', () async {
       await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
       final handler = _ScriptedHandler((_) async {
@@ -391,5 +410,41 @@ void main() {
       final remaining = await allQueueItems();
       expect(remaining.single.lastError, 'Insufficient stock.');
     });
+  });
+  test(
+      'a queue item enqueued during an active drain triggers a follow-up drain',
+      () async {
+    final firstStarted = Completer<void>();
+    final secondProcessed = Completer<void>();    late SyncEngine engine;
+
+    await seedItem(
+      id: 'q1',
+      entityLocalId: 'first',
+      enqueuedAt: DateTime.now(),
+    );
+
+    final handler = _ScriptedHandler((item) async {
+      if (item.entityLocalId == 'first') {
+        firstStarted.complete();
+        await seedItem(
+          id: 'q2',
+          entityLocalId: 'enqueued-during-drain',
+          enqueuedAt: DateTime.now().add(const Duration(seconds: 1)),
+        );
+        engine.runOnce();
+      } else if (item.entityLocalId == 'enqueued-during-drain') {
+        secondProcessed.complete();
+      }
+    });
+
+    engine = SyncEngine(db: db, handlersByEntityType: {'widget': handler});
+
+    final firstRun = engine.runOnce();
+    await firstStarted.future;
+    await firstRun;
+    await secondProcessed.future;
+
+    expect(handler.attemptedIds, ['first', 'enqueued-during-drain']);
+    expect(await allQueueItems(), isEmpty);
   });
 }

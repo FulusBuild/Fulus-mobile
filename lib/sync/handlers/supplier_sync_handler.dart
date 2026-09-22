@@ -48,6 +48,7 @@ class SupplierSyncHandler implements SyncHandler {
       'email': supplier.email,
       'address': supplier.address,
       if (supplier.serverId != null) 'server_id': supplier.serverId,
+      if (item.baseCursor != null) 'base_cursor': item.baseCursor,
     };
 
     final result = await _fulusSyncApi.submitOperation(
@@ -55,7 +56,12 @@ class SupplierSyncHandler implements SyncHandler {
       operationType: operationType,
       operationId: item.id,
       deviceClientId: device.deviceClientId,
-      payload: isDelete ? {'server_id': supplier.serverId} : payload,
+      payload: isDelete
+          ? {
+              'server_id': supplier.serverId,
+              if (item.baseCursor != null) 'base_cursor': item.baseCursor,
+            }
+          : payload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
     final serverId = (data['entity_id'] as String?) ?? supplier.serverId;

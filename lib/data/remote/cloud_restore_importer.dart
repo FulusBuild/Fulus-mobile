@@ -97,6 +97,7 @@ class CloudRestoreImporter {
     Map<String, dynamic> snapshot, {
     String? ownerCloudUserId,
     bool transactional = true,
+    bool preserveUnexportedLocalTables = false,
     void Function(String status)? onProgress,
   }) async {
     final version = snapshot['version'];
@@ -109,7 +110,7 @@ class CloudRestoreImporter {
 
     Future<void> runImport() async {
       onProgress?.call('Clearing existing local business data…');
-      await _clearPortableData();
+      await _clearPortableData(preserveUnexportedLocalTables: preserveUnexportedLocalTables);
 
       final tableInfoCache = <String, _TableInfo>{};
       for (final localTable in _importOrder) {
@@ -159,7 +160,7 @@ class CloudRestoreImporter {
       importedCounts.addAll(staffCounts.imported);
 
       onProgress?.call('Verifying restored row counts…');
-      await _verifyCounts(expectedCounts, importedCounts);
+      await _verifyCounts(expectedCounts, importedCounts, preserveUnexportedLocalTables: preserveUnexportedLocalTables);
       onProgress?.call('Verifying restored database integrity…');
       await _verifyForeignKeys();
     }
@@ -379,8 +380,9 @@ class CloudRestoreImporter {
 
   Future<void> _verifyCounts(
     Map<String, int> expected,
-    Map<String, int> imported,
-  ) async {
+    Map<String, int> imported, {
+    required bool preserveUnexportedLocalTables,
+  }) async {
     for (final entry in expected.entries) {
       if (entry.value != imported[entry.key]) {
         throw StateError(
@@ -390,6 +392,7 @@ class CloudRestoreImporter {
     }
 
     for (final entry in _tableMap.entries) {
+      if (preserveUnexportedLocalTables && !expected.containsKey(entry.key)) continue;
       final raw = await _db.customSelect(
         'SELECT COUNT(*) AS count FROM ${_quoteIdentifier(entry.value)}',
       ).getSingle();
@@ -411,8 +414,15 @@ class CloudRestoreImporter {
     }
   }
 
-  Future<void> _clearPortableData() async {
+  Future<void> _clearPortableData({required bool preserveUnexportedLocalTables}) async {
+    const preserved = {
+      'attendance_records',
+      'leave_records',
+      'supplier_ledger_entries',
+      'tax_remittances',
+    };
     for (final table in _clearOrder) {
+      if (preserveUnexportedLocalTables && preserved.contains(table)) continue;
       if (await _tableExists(table)) {
         await _db.customStatement('DELETE FROM ${_quoteIdentifier(table)}');
       }

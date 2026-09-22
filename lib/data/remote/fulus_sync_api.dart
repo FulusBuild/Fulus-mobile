@@ -5,7 +5,7 @@ import 'api_client.dart';
 import 'fulus_canonical_reconciler_typed.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
-class FulusSyncApi implements FulusCanonicalEntityFetcher {
+class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEntityFetcher {
   FulusSyncApi({
     required ApiClient client,
     required String functionBaseUrl,
@@ -19,6 +19,38 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
   final ApiClient _client;
   final String _functionBaseUrl;
   final String _canonicalStateFunctionUrl;
+
+  Future<List<FulusCanonicalEntityResponse>> fetchCanonicalEntities({
+    required String businessId,
+    required String entityType,
+    required List<String> entityIds,
+    required String deviceClientId,
+  }) async {
+    if (entityIds.isEmpty) return const [];
+    try {
+      final response = await _client.dio.get(
+        _canonicalStateFunctionUrl,
+        queryParameters: {
+          'business_id': businessId,
+          'entity_type': entityType,
+          'entity_ids': entityIds.join(','),
+        },
+        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+      );
+      final root = Map<String, dynamic>.from(response.data as Map);
+      final raw = root['data'];
+      if (raw is! Map || raw['entities'] is! List) {
+        throw const FormatException('Invalid canonical batch response.');
+      }
+      return (raw['entities'] as List)
+          .map((item) => FulusCanonicalEntityResponse.fromJson({
+                'data': Map<String, dynamic>.from(item as Map),
+              }))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw _client.mapError(e);
+    }
+  }
 
   @override
   Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
@@ -117,10 +149,24 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher {
           };
       }
 
+      if (operationType == 'customer.update' ||
+          operationType == 'expense.update' ||
+          operationType == 'expense_category.create') {
+        body
+          ..remove('operation_type')
+          ..remove('payload')
+          ..['action'] = switch (operationType) {
+            'customer.update' => 'customer_update',
+            'expense.update' => 'expense_update',
+            'expense_category.create' => 'expense_category_create',
+            _ => throw StateError('Unsupported Fulus operation: $operationType'),
+          }
+          ..['payload'] = rawPayload;
+      }
+
       if (operationType.startsWith('product.') ||
           operationType.startsWith('category.') ||
-          operationType.startsWith('supplier.') ||
-          operationType.startsWith('expense_category.')) {
+          operationType.startsWith('supplier.')) {
         final dot = operationType.indexOf('.');
         final entity = operationType.substring(0, dot);
         final operation = operationType.substring(dot + 1);

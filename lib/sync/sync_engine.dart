@@ -39,17 +39,34 @@ class SyncEngine {
 
   Future<void>? _activeRun;
   bool _isRunning = false;
+  bool _rerunRequested = false;
 
   Future<void> runOnce({bool manual = false}) {
     final active = _activeRun;
-    if (active != null) return active;
-    final run = _runOnce(manual: manual);
+    if (active != null) {
+      _rerunRequested = true;
+      return active;
+    }
+
     late Future<void> tracked;
-    tracked = run.whenComplete(() {
-      if (identical(_activeRun, tracked)) _activeRun = null;
+    tracked = _runUntilSettled(manual: manual).whenComplete(() {
+      if (identical(_activeRun, tracked)) {
+        _activeRun = null;
+      }
     });
     _activeRun = tracked;
     return tracked;
+  }
+
+  Future<void> _runUntilSettled({required bool manual}) async {
+    do {
+      _rerunRequested = false;
+      await _runOnce(manual: manual);
+      // A trigger may have arrived while the queue snapshot was being
+      // drained. Keep that follow-up drain inside the same returned Future so
+      // callers cannot observe completion while newly-enqueued work is still
+      // pending.
+    } while (_rerunRequested);
   }
 
   Future<void> _runOnce({required bool manual}) async {
@@ -113,9 +130,15 @@ class SyncEngine {
       } on SyncFailure catch (e, st) {
         await _handleClassifiedFailure(item, e, st);
       } on BusinessRuleFailure catch (e, st) {
-        final message = _conflictResolver.looksLikeConflict(e.message)
+        final isConflict = e.code == 'IDEMPOTENCY_CONFLICT' ||
+            e.code == 'SYNC_CONFLICT' ||
+            _conflictResolver.looksLikeConflict(e.message);
+        final message = isConflict
             ? _conflictResolver.annotate(e.message)
             : e.message;
+        if (isConflict) {
+          await _recordConflict(item, e, message);
+        }
         await _markAttentionNeeded(item.id, error: message);
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
       } on ValidationFailure catch (e, st) {
@@ -182,8 +205,47 @@ class SyncEngine {
     );
   }
 
+  Future<void> _recordConflict(
+    SyncQueueItem item,
+    BusinessRuleFailure failure,
+    String message,
+  ) async {
+    // The operation id is the durable identity of this parked conflict.
+    // Upsert makes repeated delivery idempotent while ensuring a machine-
+    // readable conflict can never be lost because a stale duplicate row was
+    // observed during a concurrent drain.
+    await _db.into(_db.syncConflictRecords).insertOnConflictUpdate(
+      SyncConflictRecordsCompanion.insert(
+        id: item.id + ':conflict',
+        operationId: item.id,
+        entityType: item.entityType,
+        entityLocalId: item.entityLocalId,
+        code: Value(failure.code),
+        message: message,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
   Future<void> _removeFromQueue(String id) async {
-    await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
+    await _db.transaction(() async {
+      final queueRow = await (_db.select(_db.syncQueueItems)
+            ..where((q) => q.id.equals(id)))
+          .getSingleOrNull();
+      await (_db.delete(_db.syncQueueItems)..where((q) => q.id.equals(id))).go();
+      if (queueRow != null) {
+        await (_db.update(_db.syncConflictRecords)
+              ..where((c) => c.entityType.equals(queueRow.entityType))
+              ..where((c) => c.entityLocalId.equals(queueRow.entityLocalId))
+              ..where((c) => c.resolvedAt.isNull()))
+            .write(
+          SyncConflictRecordsCompanion(
+            resolvedAt: Value(DateTime.now()),
+            resolution: const Value('superseded_by_successful_entity_update'),
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _resetAfterAuthenticationFailure(

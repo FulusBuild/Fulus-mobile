@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 
 /// Live contract test for the Fulus authoritative sync API.
+/// Catalog mutations deliberately include an operation_id so the production idempotency contract is exercised.
 ///
 /// Required environment:
 ///   FULUS_API_URL       Edge Function URL
@@ -37,15 +38,35 @@ Future<void> main() async {
 
   _printIdentityFingerprint('business_id', businessId);
   _printIdentityFingerprint('device_client_id', deviceClientId);
-  await _preflightDevice(dio, businessId: businessId);
-
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
+  final createOperationId = 'e2e-create-$suffix';
+  final deleteOperationId = 'e2e-delete-$suffix';
   final sku = 'E2E-$suffix';
   String? serverId;
   var cleanedUp = false;
 
   try {
+    final preflight = await _preflightDevice(dio, businessId: businessId);
+    if (preflight == _PreflightResult.cursorTooOld) {
+      await _verifyAuthoritativeRecoverySnapshot(
+        dio,
+        businessId: businessId,
+      );
+      stdout.writeln('PASS: authoritative restore snapshot exposes a valid recovery boundary');
+      final freshDeviceId = 'e2e-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
+      await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
+      dio.options.headers['x-fulus-device-id'] = freshDeviceId;
+      // A newly registered device also starts at cursor 0. Because the
+      // retained feed is already compacted, it must enter bootstrap/restore
+      // rather than pretending incremental sync is sufficient. The contract
+      // E2E therefore stops using the sync feed for preflight after verifying
+      // the guard and exercises authenticated command/idempotency paths with
+      // the fresh device.
+      stdout.writeln('PASS: fresh device registered after stale-cursor guard');
+    }
+
+
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
@@ -60,6 +81,7 @@ Future<void> main() async {
       businessId: businessId,
       action: 'catalog_upsert',
       entity: 'products',
+      operationId: createOperationId,
       item: createPayload,
     );
     _expect2xx(create, 'initial product.create');
@@ -69,6 +91,55 @@ Future<void> main() async {
       throw StateError('initial product.create returned no data.item.id');
     }
     stdout.writeln('PASS: product.create');
+    final productChangeSequence = await _findChangeSequence(
+      dio,
+      businessId: businessId,
+      entityType: 'product',
+      entityId: serverId,
+    );
+    if (productChangeSequence > 0) {
+      final staleCursor = productChangeSequence - 1;
+      final staleUpdate = await _submitCatalog(
+        dio,
+        businessId: businessId,
+        action: 'catalog_upsert',
+        entity: 'products',
+        operationId: 'e2e-conflict-$suffix',
+        baseCursor: staleCursor,
+        item: {
+          ...createPayload,
+          'name': 'Fulus E2E stale update $suffix',
+        },
+        id: serverId,
+      );
+      final staleStatus = staleUpdate.statusCode ?? 0;
+      final staleCode = staleUpdate.data is Map &&
+              (staleUpdate.data as Map)['error'] is Map
+          ? ((staleUpdate.data as Map)['error'] as Map)['code']
+          : null;
+      if (staleStatus != 409 || staleCode != 'SYNC_CONFLICT') {
+        throw StateError(
+          'expected optimistic concurrency conflict, got HTTP $staleStatus: ${staleUpdate.data}',
+        );
+      }
+      stdout.writeln('PASS: stale catalog update rejected as SYNC_CONFLICT');
+
+      final validUpdate = await _submitCatalog(
+        dio,
+        businessId: businessId,
+        action: 'catalog_upsert',
+        entity: 'products',
+        operationId: 'e2e-valid-update-$suffix',
+        baseCursor: productChangeSequence,
+        item: {
+          ...createPayload,
+          'name': 'Fulus E2E valid update $suffix',
+        },
+        id: serverId,
+      );
+      _expect2xx(validUpdate, 'valid product.update after concurrency check');
+      stdout.writeln('PASS: valid catalog update accepted at current cursor');
+    }
 
     final idempotencyPayload = {
       'kind': 'e2e-idempotency-probe',
@@ -127,6 +198,7 @@ Future<void> main() async {
       businessId: businessId,
       action: 'catalog_delete',
       entity: 'products',
+      operationId: deleteOperationId,
       id: serverId,
     );
     _expect2xx(delete, 'cleanup product.delete');
@@ -140,6 +212,7 @@ Future<void> main() async {
           businessId: businessId,
           action: 'catalog_delete',
           entity: 'products',
+          operationId: '${deleteOperationId}-cleanup',
           id: serverId,
         );
         if (cleanup.statusCode != null &&
@@ -207,8 +280,10 @@ Future<Response<dynamic>> _submitCatalog(
   required String businessId,
   required String action,
   required String entity,
+  required String operationId,
   Map<String, dynamic>? item,
   String? id,
+  int? baseCursor,
 }) {
   return dio.post(
     '',
@@ -216,9 +291,77 @@ Future<Response<dynamic>> _submitCatalog(
       'business_id': businessId,
       'action': action,
       'entity': entity,
+      'operation_id': operationId,
+      if (baseCursor != null) 'base_cursor': baseCursor,
       if (item != null) 'item': item,
       if (id != null) 'id': id,
     },
+  );
+}
+
+Future<int> _findChangeSequence(
+  Dio dio, {
+  required String businessId,
+  required String entityType,
+  required String entityId,
+}) async {
+  var cursor = 0;
+  const limit = 500;
+  var recoveredFromRetention = false;
+  for (var page = 0; page < 20; page++) {
+    final response = await dio.get(
+      '',
+      queryParameters: {
+        'business_id': businessId,
+        'cursor': cursor,
+        'limit': limit,
+      },
+    );
+    final status = response.statusCode ?? 0;
+    if (status == 410 && !recoveredFromRetention) {
+      final root = response.data;
+      final error = root is Map ? root['error'] : null;
+      final oldest = error is Map ? error['oldest_sequence'] : null;
+      final bootstrapRequired = error is Map && error['bootstrap_required'] == true;
+      if (bootstrapRequired && oldest is num) {
+        // The E2E has already exercised the 410 guard in preflight. For this
+        // assertion we need to inspect the retained feed after a successful
+        // mutation, so resume from the first retained sequence rather than
+        // treating an intentionally compacted history as a test failure.
+        cursor = max(0, oldest.toInt() - 1);
+        recoveredFromRetention = true;
+        continue;
+      }
+    }
+    if (status < 200 || status >= 300) {
+      throw StateError(
+        'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
+      );
+    }
+    final root = response.data;
+    final data = root is Map ? root['data'] : null;
+    if (data is! Map) {
+      throw StateError('E2E change-feed response did not contain data.');
+    }
+    final changes = data['changes'];
+    if (changes is! List) {
+      throw StateError('E2E change-feed response did not contain changes.');
+    }
+    for (final raw in changes) {
+      if (raw is Map &&
+          raw['entity_type'] == entityType &&
+          raw['entity_id'] == entityId) {
+        final sequence = raw['sequence'];
+        if (sequence is num) return sequence.toInt();
+      }
+    }
+    final next = data['next_cursor'];
+    final hasMore = data['has_more'] == true;
+    if (!hasMore || next is! num || next.toInt() <= cursor) break;
+    cursor = next.toInt();
+  }
+  throw StateError(
+    'E2E could not locate the test entity in the retained change feed.',
   );
 }
 
@@ -261,7 +404,9 @@ String _fingerprint(String value) {
   return hash.toRadixString(16).padLeft(16, '0');
 }
 
-Future<void> _preflightDevice(
+enum _PreflightResult { ok, cursorTooOld }
+
+Future<_PreflightResult> _preflightDevice(
   Dio dio, {
   required String businessId,
 }) async {
@@ -270,12 +415,63 @@ Future<void> _preflightDevice(
     queryParameters: {'business_id': businessId},
   );
   final status = response.statusCode ?? 0;
+  if (status == 410 && response.data is Map && (response.data as Map)['error'] is Map && ((response.data as Map)['error'] as Map)['code'] == 'SYNC_CURSOR_TOO_OLD') {
+    stdout.writeln('PASS: stale sync cursor correctly rejected with SYNC_CURSOR_TOO_OLD');
+    return _PreflightResult.cursorTooOld;
+  }
   if (status < 200 || status >= 300) {
     throw StateError(
       'E2E device preflight failed with HTTP $status: ${response.data}',
     );
   }
   stdout.writeln('PASS: device authorization preflight');
+  return _PreflightResult.ok;
+}
+
+Future<void> _verifyAuthoritativeRecoverySnapshot(
+  Dio dio, {
+  required String businessId,
+}) async {
+  final response = await dio.post(
+    '',
+    data: {
+      'action': 'restore_snapshot',
+      'business_id': businessId,
+    },
+  );
+  _expect2xx(response, 'authoritative restore snapshot');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  if (data is! Map) {
+    throw StateError('restore_snapshot response did not contain data.');
+  }
+  final boundary = data['sync_boundary'];
+  if (boundary is! num || boundary.toInt() < 0) {
+    throw StateError('restore_snapshot returned an invalid sync_boundary.');
+  }
+  if (data['business'] is! Map) {
+    throw StateError('restore_snapshot response did not contain business state.');
+  }
+}
+
+Future<void> _registerEphemeralDevice(
+  Dio dio, {
+  required String businessId,
+  required String deviceClientId,
+}) async {
+  final response = await dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'action': 'register_device',
+      'device_client_id': deviceClientId,
+      'device_name': 'Fulus CI E2E ephemeral device',
+      'platform': 'ci',
+      'app_version': 'e2e',
+    },
+  );
+  _expect2xx(response, 'register ephemeral E2E device');
+  stdout.writeln('PASS: ephemeral E2E device registered');
 }
 
 String _required(String name) {

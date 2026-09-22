@@ -10,13 +10,16 @@ class FulusSyncCoordinator {
     required FulusSyncApi api,
     required SharedPreferences preferences,
     required Future<void> Function(FulusSyncChange change) applyChange,
+    Future<void> Function(List<FulusSyncChange> changes)? applyChanges,
   })  : _api = api,
         _preferences = preferences,
-        _applyChange = applyChange;
+        _applyChange = applyChange,
+        _applyChanges = applyChanges;
 
   final FulusSyncApi _api;
   final SharedPreferences _preferences;
   final Future<void> Function(FulusSyncChange change) _applyChange;
+  final Future<void> Function(List<FulusSyncChange> changes)? _applyChanges;
 
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
 
@@ -36,20 +39,44 @@ class FulusSyncCoordinator {
       );
       if (page.changes.isEmpty) return cursor;
 
-      for (final change in page.changes) {
-        if (change.sequence <= cursor) continue;
-        // Apply first, persist cursor second. Replaying a successfully applied
-        // change after a crash is safe because reconciliation is idempotent;
-        // skipping an unapplied change is never safe.
-        await _applyChange(change);
-        cursor = change.sequence;
-        await _preferences.setInt(_cursorKey(businessId), cursor);
+      final unapplied = page.changes.where((change) => change.sequence > cursor).toList(growable: false);
+      if (unapplied.isNotEmpty) {
+        final applyChanges = _applyChanges;
+        if (applyChanges != null) {
+          await applyChanges(unapplied);
+          for (final change in unapplied) {
+            cursor = change.sequence;
+            await _preferences.setInt(_cursorKey(businessId), cursor);
+          }
+        } else {
+          for (final change in unapplied) {
+            // Apply first, persist cursor second. Replaying a successfully applied
+            // change after a crash is safe because reconciliation is idempotent;
+            // skipping an unapplied change is never safe.
+            await _applyChange(change);
+            cursor = change.sequence;
+            await _preferences.setInt(_cursorKey(businessId), cursor);
+          }
+        }
       }
 
       if (!page.hasMore) return cursor;
       // page.nextCursor is only a pagination hint. Never persist it as an
       // acknowledgement because a process could have died before applying
       // one of the returned changes.
+    }
+  }
+
+  /// Sets the acknowledged cursor to an authoritative restore snapshot boundary.
+  /// The bootstrap transaction must commit before this is called; after it
+  /// succeeds, the next pull starts strictly after the snapshot boundary.
+  Future<void> setCursor(String businessId, int cursor) async {
+    if (cursor < 0) {
+      throw ArgumentError.value(cursor, 'cursor', 'must be non-negative');
+    }
+    final persisted = await _preferences.setInt(_cursorKey(businessId), cursor);
+    if (!persisted) {
+      throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
     }
   }
 

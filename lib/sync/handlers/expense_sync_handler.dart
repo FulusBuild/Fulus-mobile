@@ -24,10 +24,11 @@ class ExpenseSyncHandler implements SyncHandler {
 
   @override
   Future<void> sync(SyncQueueItem item) async {
-    if (item.operation != 'create') throw StateError('ExpenseSyncHandler supports only create.');
+    if (item.operation != 'create' && item.operation != 'update') {
+      throw StateError('ExpenseSyncHandler does not support this operation.');
+    }
     final expense = await _expenseRepository.getExpenseById(item.entityLocalId);
     if (expense == null) throw StateError('No local expense found for ${item.entityLocalId}.');
-    if (expense.serverId?.isNotEmpty == true) return;
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || businessId.isEmpty || device?.status != 'active') {
@@ -42,9 +43,15 @@ class ExpenseSyncHandler implements SyncHandler {
       final row = await (_db.select(_db.expenseCategories)..where((c) => c.localId.equals(categoryId))).getSingleOrNull();
       category = row?.name ?? category;
     }
+    final isUpdate = item.operation == 'update';
+    final serverId = expense.serverId;
+    if (isUpdate && (serverId == null || serverId.isEmpty)) {
+      throw StateError('Cannot sync expense update before its create has synced.');
+    }
+
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
-      operationType: 'expense.create',
+      operationType: isUpdate ? 'expense.update' : 'expense.create',
       operationId: item.id,
       clientReference: expense.localId,
       deviceClientId: device!.deviceClientId,
@@ -56,13 +63,20 @@ class ExpenseSyncHandler implements SyncHandler {
         'description': expense.description,
         'location_id': locationId,
         'expense_date': expense.expenseDate.toIso8601String(),
+        if (isUpdate) 'server_id': serverId,
+        if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
         if (expense.paymentMethod != null) 'payment_method': expense.paymentMethod,
       },
     );
     final data = result['data'];
     if (data is! Map) throw StateError('Fulus expense sync returned no response data.');
-    final serverId = (data['entity_id'] ?? data['id'])?.toString();
-    if (serverId == null || serverId.isEmpty) throw StateError('Fulus expense sync returned no server entity ID.');
-    await _expenseRepository.markSynced(localId: expense.localId, serverId: serverId);
+    final responseServerId = (data['entity_id'] ?? data['id'])?.toString();
+    if (responseServerId == null || responseServerId.isEmpty) {
+      throw StateError('Fulus expense sync returned no server entity ID.');
+    }
+    await _expenseRepository.markSynced(
+      localId: expense.localId,
+      serverId: responseServerId,
+    );
   }
 }

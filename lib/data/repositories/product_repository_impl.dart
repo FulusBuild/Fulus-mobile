@@ -170,8 +170,10 @@ class ProductRepositoryImpl implements ProductRepository {
       final duplicate = await (_db.select(_db.products)..where((p) => p.barcode.equals(barcode) & p.localId.equals(localId).not() & p.deletedAt.isNull())).getSingleOrNull();
       if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
-    await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(name: name == null ? const Value.absent() : Value(name), sku: sku == null ? const Value.absent() : Value(sku), barcode: barcode == null ? const Value.absent() : Value(barcode), categoryId: categoryId == null ? const Value.absent() : Value(categoryId), supplierId: supplierId == null ? const Value.absent() : Value(supplierId), costPrice: costPrice == null ? const Value.absent() : Value(costPrice), sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice), lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold), isActive: isActive == null ? const Value.absent() : Value(isActive), syncStatus: Value(SyncStatus.pending), updatedAt: Value(DateTime.now())));
-    await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+    await _db.transaction(() async {
+      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(name: name == null ? const Value.absent() : Value(name), sku: sku == null ? const Value.absent() : Value(sku), barcode: barcode == null ? const Value.absent() : Value(barcode), categoryId: categoryId == null ? const Value.absent() : Value(categoryId), supplierId: supplierId == null ? const Value.absent() : Value(supplierId), costPrice: costPrice == null ? const Value.absent() : Value(costPrice), sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice), lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold), isActive: isActive == null ? const Value.absent() : Value(isActive), syncStatus: Value(SyncStatus.pending), updatedAt: Value(DateTime.now())));
+      await _syncQueue.enqueue(SyncTask.updateProduct(localId));
+    });
   }
 
   @override

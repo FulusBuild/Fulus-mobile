@@ -71,7 +71,7 @@ void main() {
     when(() => locationRepository.getLocationById('loc-1')).thenAnswer((_) async => location);
   });
 
-  SyncQueueItem item(String operation) => SyncQueueItem(
+  SyncQueueItem item(String operation, {int? baseCursor}) => SyncQueueItem(
         id: operation == 'create' ? 'open-op-1' : 'close-op-1',
         entityType: 'cash_drawer_shift',
         entityLocalId: shift.localId,
@@ -79,6 +79,7 @@ void main() {
         priority: 1,
         enqueuedAt: DateTime.now(),
         syncAttempts: 0,
+        baseCursor: baseCursor,
       );
 
   test('pushes shift open through Fulus Cloud and uses server location id', () async {
@@ -119,16 +120,17 @@ void main() {
           'data': {'shift_id': 'shift-server-1'},
         });
 
-    await handler.sync(item('close'));
+    await handler.sync(item('close', baseCursor: 41));
 
-    verify(() => fulusSyncApi.submitOperation(
+    final captured = verify(() => fulusSyncApi.submitOperation(
           businessId: 'business-1',
           operationType: 'cash_drawer_shift.close',
           operationId: 'close-op-1',
           deviceClientId: 'device-client-1',
           clientReference: shift.localId,
-          payload: any(named: 'payload'),
-        )).called(1);
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['base_cursor'], 41);
     verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1')).called(1);
   });
 

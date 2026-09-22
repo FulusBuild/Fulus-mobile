@@ -127,10 +127,18 @@ class ApiClient {
       return const AuthFailure.sessionExpired();
     }
 
+    if (status == 410 && code == 'SYNC_CURSOR_TOO_OLD') {
+      return BusinessRuleFailure(
+        message ?? 'Cloud history is too old for incremental sync. A fresh reconciliation is required.',
+        code: code,
+      );
+    }
+
     switch (status) {
       case 409:
         return BusinessRuleFailure(
           message ?? 'This operation conflicts with existing data.',
+          code: code,
         );
       case 422:
         return ValidationFailure(fieldErrors: _extractFieldErrors(body));
@@ -142,9 +150,10 @@ class ApiClient {
         if (parsed != null) return AuthFailure.accountLocked(lockedUntil: parsed);
         return BusinessRuleFailure(
           message ?? 'Too many attempts. Please wait and try again.',
+          code: code,
         );
       case >= 400 && < 500:
-        return BusinessRuleFailure(message ?? 'That couldn\'t be completed.');
+        return BusinessRuleFailure(message ?? 'That couldn\'t be completed.', code: code);
       case >= 500:
         return const NetworkFailure.serverUnavailable();
       default:

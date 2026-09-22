@@ -119,6 +119,33 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b2'), 3);
   });
 
+  test('setCursor persists an authoritative restore snapshot boundary', () async {
+    SharedPreferences.setMockInitialValues({'fulus_sync_cursor_b1': 4});
+    final preferences = await SharedPreferences.getInstance();
+    final coordinator = FulusSyncCoordinator(
+      api: MockFulusSyncApi(),
+      preferences: preferences,
+      applyChange: (_) async {},
+    );
+
+    await coordinator.setCursor('b1', 27);
+
+    expect(coordinator.cursorFor('b1'), 27);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 27);
+  });
+
+  test('setCursor rejects a negative restore boundary', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final coordinator = FulusSyncCoordinator(
+      api: MockFulusSyncApi(),
+      preferences: preferences,
+      applyChange: (_) async {},
+    );
+
+    expect(() => coordinator.setCursor('b1', -1), throwsArgumentError);
+  });
+
   test('resetCursor removes only the selected business cursor', () async {
     SharedPreferences.setMockInitialValues({
       'fulus_sync_cursor_b1': 7,

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 
+import '../core/errors/failure.dart';
+
 import 'sync_config.dart';
 import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
@@ -25,6 +27,9 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<bool> Function()? isReady,
     Future<void> Function()? onNotReady,
     void Function()? onSyncSuccess,
+    Future<void> Function()? onPushSuccess,
+    Future<void> Function()? onCursorTooOldRecovery,
+    Future<void> Function()? onRecoveryReconciled,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Connectivity? connectivity,
   })  : _syncEngine = syncEngine,
@@ -34,6 +39,9 @@ class SyncTriggers with WidgetsBindingObserver {
         _isReady = isReady,
         _onNotReady = onNotReady,
         _onSyncSuccess = onSyncSuccess,
+        _onPushSuccess = onPushSuccess,
+        _onCursorTooOldRecovery = onCursorTooOldRecovery,
+        _onRecoveryReconciled = onRecoveryReconciled,
         _onSyncFailure = onSyncFailure,
         _connectivity = connectivity ?? Connectivity();
 
@@ -44,6 +52,9 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<bool> Function()? _isReady;
   final Future<void> Function()? _onNotReady;
   final void Function()? _onSyncSuccess;
+  final Future<void> Function()? _onPushSuccess;
+  final Future<void> Function()? _onCursorTooOldRecovery;
+  final Future<void> Function()? _onRecoveryReconciled;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -291,12 +302,30 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> _runSyncCycle({bool manual = false}) async {
     await _syncEngine.runOnce(manual: manual);
+    await _onPushSuccess?.call();
     final pull = _pullFromServer;
     if (pull != null) {
       // Pull failures are intentionally propagated. A reconciliation failure
       // is a real sync failure and must remain observable to the caller and
       // diagnostic layer rather than being silently converted into success.
-      await pull();
+      var recoveredFromStaleCursor = false;
+      try {
+        await pull();
+      } on BusinessRuleFailure catch (error) {
+        if (error.code != 'SYNC_CURSOR_TOO_OLD') rethrow;
+        final recover = _onCursorTooOldRecovery;
+        if (recover == null) rethrow;
+        await recover();
+        recoveredFromStaleCursor = true;
+        await pull();
+      }
+      // Recovery deliberately clears Sync Ready while bootstrap replaces local
+      // cloud-owned state. Readiness is restored only after the post-bootstrap
+      // delta pull succeeds, so the UI can never advertise readiness before
+      // authoritative reconciliation has completed.
+      if (recoveredFromStaleCursor) {
+        await _onRecoveryReconciled?.call();
+      }
     }
   }
 

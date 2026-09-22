@@ -58,6 +58,10 @@ class SyncTask {
         entityType: 'supplier', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
       );
+  factory SyncTask.updateSupplier(String localId) => SyncTask(
+        entityType: 'supplier', entityLocalId: localId, operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
   factory SyncTask.createLocation(String localId) => SyncTask(
         entityType: 'location', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.stockAndCustomerWrites,
@@ -102,9 +106,11 @@ class SyncTask {
 }
 
 class SyncQueue {
-  SyncQueue(this._db);
+  SyncQueue(this._db, {int? Function()? baseCursorProvider})
+      : _baseCursorProvider = baseCursorProvider;
 
   final AppDatabase _db;
+  final int? Function()? _baseCursorProvider;
   Future<void> Function()? _onEnqueued;
 
   void setOnEnqueued(Future<void> Function() callback) {
@@ -257,6 +263,7 @@ class SyncQueue {
             operation: task.operation,
             priority: task.priority,
             enqueuedAt: DateTime.now(),
+            baseCursor: Value(_baseCursorProvider?.call()),
           ),
         );
       }
@@ -281,11 +288,21 @@ class SyncQueue {
           operation: task.operation,
           priority: task.priority,
           enqueuedAt: DateTime.now(),
+          baseCursor: Value(_baseCursorProvider?.call()),
         ),
       );
     });
 
     final callback = _onEnqueued;
-    if (callback != null) unawaited(callback());
+    if (callback != null) {
+      // Repository mutations may enqueue from inside their outer Drift
+      // transaction. Run the trigger only on the next event-loop turn and in
+      // the root zone, after that outer transaction has committed. This keeps
+      // the outbox write atomic without allowing SyncEngine to query a closed
+      // transaction context.
+      Zone.root.run(() {
+        Timer.run(() => unawaited(callback()));
+      });
+    }
   }
 }
