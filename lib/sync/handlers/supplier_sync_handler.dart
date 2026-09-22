@@ -38,7 +38,14 @@ class SupplierSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for supplier sync.');
     }
 
-    final isDelete = item.operation == 'update' && supplier.deletedAt != null;
+    final isDelete = supplier.deletedAt != null;
+    if (isDelete && supplier.serverId == null && item.operation == 'update') {
+      throw StateError(
+        'Cannot sync supplier deletion before its create has synced.',
+      );
+    }
+
+    final operationId = item.id;
     final operationType = isDelete
         ? 'supplier.delete'
         : 'supplier.${item.operation}';
@@ -54,7 +61,7 @@ class SupplierSyncHandler implements SyncHandler {
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: operationType,
-      operationId: item.id,
+      operationId: operationId,
       deviceClientId: device.deviceClientId,
       payload: isDelete
           ? {
@@ -67,6 +74,20 @@ class SupplierSyncHandler implements SyncHandler {
     final serverId = (data['entity_id'] as String?) ?? supplier.serverId;
     if (serverId == null) {
       throw StateError('Fulus supplier sync returned no server entity ID.');
+    }
+
+    if (isDelete && item.operation == 'create') {
+      final deleteResult = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'supplier.delete',
+        operationId: '${operationId}:delete',
+        deviceClientId: device.deviceClientId,
+        payload: {'server_id': serverId},
+      );
+      final deleteData = Map<String, dynamic>.from(deleteResult['data'] as Map);
+      if ((deleteData['entity_id'] as String?) != serverId) {
+        throw StateError('Fulus supplier delete returned an unexpected entity ID.');
+      }
     }
 
     await _supplierRepository.markSynced(

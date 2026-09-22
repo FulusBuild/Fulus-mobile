@@ -73,10 +73,11 @@ class ProductSyncHandler implements SyncHandler {
       'is_active': product.isActive,
       'initial_stock': stock?.currentStock ?? 0,
     };
+    final createOperationId = operationId ?? localId;
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'product.create',
-      operationId: operationId ?? localId,
+      operationId: createOperationId,
       deviceClientId: device.deviceClientId,
       payload: payload,
     );
@@ -85,6 +86,24 @@ class ProductSyncHandler implements SyncHandler {
     if (serverId == null) {
       throw StateError('Fulus product create returned no server entity ID.');
     }
+
+    if (product.deletedAt != null) {
+      final deleteResult = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'product.delete',
+        operationId: '${createOperationId}:delete',
+        deviceClientId: device.deviceClientId,
+        payload: {
+          'server_id': serverId,
+          if (baseCursor != null) 'base_cursor': baseCursor,
+        },
+      );
+      final deleteData = Map<String, dynamic>.from(deleteResult['data'] as Map);
+      if ((deleteData['entity_id'] as String?) != serverId) {
+        throw StateError('Fulus product delete returned an unexpected entity ID.');
+      }
+    }
+
     await _productRepository.markSynced(localId: localId, serverId: serverId);
   }
 
@@ -102,6 +121,25 @@ class ProductSyncHandler implements SyncHandler {
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
+    }
+
+    if (product.deletedAt != null) {
+      final result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'product.delete',
+        operationId: operationId ?? localId,
+        deviceClientId: device.deviceClientId,
+        payload: {
+          'server_id': serverId,
+          if (baseCursor != null) 'base_cursor': baseCursor,
+        },
+      );
+      final data = Map<String, dynamic>.from(result['data'] as Map);
+      if ((data['entity_id'] as String?) != serverId) {
+        throw StateError('Fulus product delete returned an unexpected entity ID.');
+      }
+      await _productRepository.markSynced(localId: localId, serverId: serverId);
+      return;
     }
 
     final categoryId = await _resolveCatalogServerId(

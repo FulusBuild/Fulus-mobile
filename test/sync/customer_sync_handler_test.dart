@@ -69,6 +69,51 @@ void main() {
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
   });
 
+  test('archives an offline-created customer after cloud create', () async {
+    final customer = await customerRepository.createCustomer(
+      const CustomerDraft(name: 'Offline Archived', phone: '+2348000000000'),
+    );
+    await customerRepository.archiveCustomer(customer.localId);
+
+    stubCloudAuthorization();
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) async {
+      final operationType = invocation.namedArguments[#operationType] as String;
+      return {
+        'data': {
+          'entity_id': 'server-customer-1',
+          'status': operationType == 'customer.create' ? 'applied' : 'updated',
+        },
+      };
+    });
+
+    await handler.sync(queueItemFor(customer));
+
+    verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'customer.create',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: customer.localId,
+          payload: any(named: 'payload'),
+        )).called(1);
+    verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'customer.update',
+          operationId: 'q1:archive',
+          deviceClientId: 'device-client-1',
+          clientReference: customer.localId,
+          payload: any(named: 'payload'),
+        )).called(1);
+    expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
+  });
+
   test('pushes a customer update through Fulus Cloud', () async {
     final customer = await customerRepository.createCustomer(
       const CustomerDraft(name: 'Test Customer', phone: '+2348000000000'),

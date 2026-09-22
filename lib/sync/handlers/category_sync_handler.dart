@@ -38,7 +38,14 @@ class CategorySyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for category sync.');
     }
 
-    final isDelete = item.operation == 'update' && category.deletedAt != null;
+    final isDelete = category.deletedAt != null;
+    if (isDelete && category.serverId == null && item.operation == 'update') {
+      throw StateError(
+        'Cannot sync category deletion before its create has synced.',
+      );
+    }
+
+    final operationId = item.id;
     final operationType = isDelete
         ? 'category.delete'
         : 'category.${item.operation}';
@@ -52,7 +59,7 @@ class CategorySyncHandler implements SyncHandler {
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: operationType,
-      operationId: item.id,
+      operationId: operationId,
       deviceClientId: device.deviceClientId,
       payload: isDelete
           ? {
@@ -65,6 +72,20 @@ class CategorySyncHandler implements SyncHandler {
     final serverId = (data['entity_id'] as String?) ?? category.serverId;
     if (serverId == null) {
       throw StateError('Fulus category sync returned no server entity ID.');
+    }
+
+    if (isDelete && item.operation == 'create') {
+      final deleteResult = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'category.delete',
+        operationId: '${operationId}:delete',
+        deviceClientId: device.deviceClientId,
+        payload: {'server_id': serverId},
+      );
+      final deleteData = Map<String, dynamic>.from(deleteResult['data'] as Map);
+      if ((deleteData['entity_id'] as String?) != serverId) {
+        throw StateError('Fulus category delete returned an unexpected entity ID.');
+      }
     }
 
     await _categoryRepository.markSynced(
