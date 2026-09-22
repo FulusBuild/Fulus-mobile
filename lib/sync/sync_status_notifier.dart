@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/errors/failure.dart';
 import '../core/notifications/notification_service.dart';
 import '../data/local/database/database.dart';
 import 'sync_config.dart';
@@ -117,7 +118,8 @@ class SyncStatusNotifier {
 
   Future<void> markRecoveryFailed(String businessId, Object error) async {
     await _preferences.setString(_recoveryKey(businessId), 'blocked');
-    await _preferences.setString(_recoveryErrorKey(businessId), error.toString());
+    final message = error is Failure ? error.message : error.toString();
+    await _preferences.setString(_recoveryErrorKey(businessId), message);
   }
 
   Future<int> unresolvedConflictCount() async {
@@ -127,8 +129,19 @@ class SyncStatusNotifier {
     return rows.length;
   }
 
+  /// Records a successful outbound reconciliation only when the durable
+  /// outbox is actually empty. SyncEngine deliberately returns normally when
+  /// retryable or attention-needed items remain queued so independent work can
+  /// continue; treating that normal return as a push success would make the
+  /// UI report a backup that did not finish and can also make stale-cursor
+  /// recovery appear mysteriously blocked by the same queued work.
   Future<void> recordPushSuccess(String businessId) async {
-    await _preferences.setString(_pushKey(businessId), DateTime.now().toUtc().toIso8601String());
+    final pending = await _db.select(_db.syncQueueItems).get();
+    if (pending.isNotEmpty) return;
+    await _preferences.setString(
+      _pushKey(businessId),
+      DateTime.now().toUtc().toIso8601String(),
+    );
   }
 
   Future<void> recordPullSuccess(String businessId, int cursor) async {
