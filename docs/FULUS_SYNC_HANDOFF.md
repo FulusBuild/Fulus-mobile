@@ -7,7 +7,7 @@ Close and prove every Cloud Sync V1 phase. Do not stop at green CI; verify imple
 Repository: FulusBuild/Fulus-mobile
 Audit branch: audit/cloud-sync-v1-completion
 PR: #58
-Current HEAD: 5bcac523a6622987be6cfafbadd0af0a9573d574f
+Current HEAD: bb2d0a7314ff17af67af10a91397a05009f1d26c
 Base: main at 4114ee538b1622df95c72faabbc301d584232fea
 Production project: bejcuvoxemwomcatgyxz
 
@@ -18,7 +18,7 @@ PR #57 was already merged. This audit then found:
 Those are fixed. The production absolute-target function was replaced with one atomic locked-target implementation, and migration fix_absolute_stock_adjustment_atomic_target is applied.
 
 ## Latest verification
-CI #1468 / 35703729612 is GREEN on HEAD 5bcac523a6622987be6cfafbadd0af0a9573d574f.
+CI #1468 / 35704604492 is GREEN on HEAD bb2d0a7314ff17af67af10a91397a05009f1d26c.
 
 Passed:
 - dependency resolution
