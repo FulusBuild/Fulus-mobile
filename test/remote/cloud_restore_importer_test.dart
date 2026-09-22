@@ -216,6 +216,7 @@ void main() {
     expect(expense.description, '');
 
     final returnRow = (await db.select(db.returnRequests).get()).single;
+    expect(returnRow.originalSaleLocalId, 'sale-1');
     expect(returnRow.returnReason, 'Damaged');
     expect(returnRow.refundMethod, 'cash');
     expect(returnRow.inventoryRestored, isTrue);
