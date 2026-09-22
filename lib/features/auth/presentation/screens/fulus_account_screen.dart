@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../../app/providers.dart';
@@ -30,6 +31,7 @@ class FulusAccountScreen extends ConsumerStatefulWidget {
 enum _AccountMode { signIn, create }
 
 class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
+  static const _pendingSignupEmailKey = 'fulus_pending_signup_email';
   final _nameController = TextEditingController();
   final _businessController = TextEditingController();
   final _emailController = TextEditingController();
@@ -131,6 +133,13 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     });
 
     try {
+      // Persist the signup identity before the network call. If Auth creates
+      // the account but the process dies before local/cloud provisioning
+      // finishes, the next attempt can safely resume only for this exact
+      // email instead of binding an unrelated cloud account to local data.
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_pendingSignupEmailKey, email);
+
       final result = await ref.read(authApiProvider).signUpServer(
             email: email,
             password: password,
@@ -155,7 +164,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       // Never strand that account behind "email already exists": if local
       // onboarding progress is present, authenticate with the supplied
       // credentials and resume the idempotent setup flow.
-      if (failure.code == 'email_exists' && await _hasLocalSetupProgress()) {
+      if (failure.code == 'email_exists' && await _hasLocalSetupProgress(email)) {
         try {
           await ref.read(authApiProvider).connectServer(
                 email: email,
@@ -220,7 +229,11 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     }
   }
 
-  Future<bool> _hasLocalSetupProgress() async {
+  Future<bool> _hasLocalSetupProgress(String email) async {
+    final preferences = await SharedPreferences.getInstance();
+    final pendingEmail = preferences.getString(_pendingSignupEmailKey)?.trim().toLowerCase();
+    if (pendingEmail != email.trim().toLowerCase()) return false;
+
     final hasOwner =
         await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
     final hasBusiness =
@@ -293,6 +306,13 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       platform: Platform.operatingSystem,
       appVersion: package.version,
     );
+
+    // Cloud provisioning and device registration have completed, so the
+    // durable resume marker is no longer needed. If sync itself is delayed,
+    // the cloud account is already fully linked and can be handled by the
+    // normal background sync lifecycle.
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_pendingSignupEmailKey);
 
     final syncConfig = ref.read(syncConfigProvider);
     await syncConfig.setEnabled(true);
