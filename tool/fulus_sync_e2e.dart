@@ -148,7 +148,7 @@ Future<void> main() async {
     }
 
     final stockResults = await Future.wait([
-      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: serverId!, locationId: e2eLocationId!, newQuantity: 101),
+      _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: serverId, locationId: e2eLocationId, newQuantity: 101),
       _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-b-$suffix', productId: serverId!, locationId: e2eLocationId!, newQuantity: 202),
     ]);
     for (final response in stockResults) {
