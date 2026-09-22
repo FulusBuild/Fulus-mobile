@@ -1,10 +1,7 @@
 name: Fulus Flutter Web Preview
 
 on:
-  push:
-    branches:
-      - main
-      - feat/flutter-web-preview
+  # Temporarily paused: run manually with workflow_dispatch when needed.
   workflow_dispatch:
 
 permissions:
