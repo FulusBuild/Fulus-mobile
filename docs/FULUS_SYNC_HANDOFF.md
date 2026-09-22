@@ -9,12 +9,12 @@ Continue PR #56 as an engineering continuation. Goal: production-grade local-fir
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR #56: open, unmerged
-Current HEAD: 8fbf596008dd5fa004202ba8a0774ce410fac89e
+Current HEAD: bb70db8ea76ec410d6c090dbdc9ba4bbc0799184
 Supabase: bejcuvoxemwomcatgyxz
 
-CI #1423 / 35689037116 is GREEN. It passed dependency resolution, Dart generation, static analysis, Flutter tests, and the live Fulus sync contract test. APK build remains intentionally skipped.
+CI #1431 / 35690922113 is running for the latest recovery-hardening changes; the preceding full CI was GREEN. It passed dependency resolution, Dart generation, static analysis, Flutter tests, and the live Fulus sync contract test. APK build remains intentionally skipped.
 
-The latest code fix repaired a malformed `lib/app/bootstrap.dart` introduced during cursor hardening and preserved the intended change: after the authoritative restore transaction commits, `FulusSyncCoordinator.setCursor(businessId, boundary)` persists the snapshot boundary before the post-bootstrap delta pull.
+Recovery hardening now keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, reports failures from the recovery-start lifecycle callback, and rechecks pending outbox/conflicts inside the atomic bootstrap transaction. The authoritative restore boundary is persisted before the post-bootstrap delta pull.
 
 Coordinator tests cover authoritative boundary persistence and rejection of negative boundaries.
 
