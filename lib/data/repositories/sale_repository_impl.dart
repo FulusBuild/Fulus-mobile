@@ -71,12 +71,9 @@ class SaleRepositoryImpl implements SaleRepository {
       cashierUserId: _authRepository.currentUser?.id,
     );
 
-    // Volume 5's Quick Sale — checked directly against
-    // backend/app/schemas/sale.py's SaleItemCreate: product_id is
-    // required, no default. A sale containing one of these lines
-    // genuinely cannot sync as currently designed — see
-    // tables.dart's SaleItems.productLocalId doc comment.
-    final hasQuickSaleItem = sale.items.any((item) => item.productLocalId == null);
+    // Quick Sale lines are first-class cloud sale items. They carry no
+    // catalog product ID, but their description, price, quantity and
+    // captured cost are persisted by the cloud sale transaction.
 
     // 1. Write locally FIRST, synchronously, inside one transaction —
     //    this is what makes the sale exist and be usable (cart cleared,
@@ -105,15 +102,9 @@ class SaleRepositoryImpl implements SaleRepository {
       _diagnosticLogger?.breadcrumb('Inventory update completed', category: DiagnosticCategory.inventory);
       await _recordCreditSaleIfNeeded(sale, draft.payments);
 
-      if (hasQuickSaleItem) {
-        // Marked attentionNeeded directly, at creation — not enqueued.
-        // Enqueueing a sync task for a sale that can never succeed
-        // against this backend would just retry forever; attentionNeeded
-        // is this schema's existing convention for "needs a human/
-        // future fix," not something invented for this case.
-        await (_db.update(_db.sales)..where((s) => s.localId.equals(localId)))
-            .write(const SalesCompanion(syncStatus: Value(SyncStatus.attentionNeeded)));
-      } else {
+      // The business rows and their durable outbox entry must commit as one
+      // local transaction. SyncQueue defers its trigger until after commit.
+      await _syncQueue.enqueue(SyncTask.createSale(localId)); else {
         // The business rows and their durable outbox entry must commit as one
         // local transaction. SyncQueue defers its trigger until after commit.
         await _syncQueue.enqueue(SyncTask.createSale(localId));
@@ -125,15 +116,8 @@ class SaleRepositoryImpl implements SaleRepository {
       data: {'Sale ID': localId},
     );
 
-    // 2. Enqueue for sync — skipped entirely for a sale that can never
-    //    sync (see above). Does NOT await a network call otherwise —
-    //    hands off to the sync queue and returns immediately
-    //    (Architecture Section 4's single most important structural
-    //    rule for this layer).
-    if (!hasQuickSaleItem) {
-      await _syncQueue.enqueue(SyncTask.createSale(localId));
-    }
-
+    // 2. The durable outbox entry was committed with the sale transaction
+    // above. No network call is awaited here.
     return sale;
   }
 
