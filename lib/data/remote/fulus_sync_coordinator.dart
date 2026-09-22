@@ -67,6 +67,19 @@ class FulusSyncCoordinator {
     }
   }
 
+  /// Sets the acknowledged cursor to an authoritative restore snapshot boundary.
+  /// The bootstrap transaction must commit before this is called; after it
+  /// succeeds, the next pull starts strictly after the snapshot boundary.
+  Future<void> setCursor(String businessId, int cursor) async {
+    if (cursor < 0) {
+      throw ArgumentError.value(cursor, 'cursor', 'must be non-negative');
+    }
+    final persisted = await _preferences.setInt(_cursorKey(businessId), cursor);
+    if (!persisted) {
+      throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
+    }
+  }
+
   Future<void> resetCursor(String businessId) =>
       _preferences.remove(_cursorKey(businessId));
 }
