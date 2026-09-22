@@ -149,9 +149,6 @@ Future<void> main() async {
 
     final stockProductId = serverId;
     final stockLocationId = e2eLocationId;
-    if (stockProductId == null || stockLocationId == null) {
-      throw StateError('E2E stock concurrency fixture is missing server product/location identity.');
-    }
     final stockResults = await Future.wait([
       _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: stockProductId, locationId: stockLocationId, newQuantity: 101),
       _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-b-$suffix', productId: stockProductId, locationId: stockLocationId, newQuantity: 202),
