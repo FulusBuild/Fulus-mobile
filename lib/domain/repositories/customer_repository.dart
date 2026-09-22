@@ -22,26 +22,18 @@ abstract class CustomerRepository {
   Future<Customer?> getCustomerById(String localId);
 
   /// Feature (customer management): edits an existing customer's
-  /// details — name/phone/email/address/notes/creditLimit. Local-only,
-  /// same as [archiveCustomer]/[restoreCustomer] and for the identical
-  /// reason (CustomerSyncHandler only implements 'create' today, see
-  /// that class's own doc comment) — no sync task enqueued. [localId]
-  /// must already exist; throws if it doesn't rather than silently
-  /// creating a row, since a caller editing a customer always has one
-  /// in hand already (the profile screen it's editing from).
+  /// details — name/phone/email/address/notes/creditLimit. The mutation is
+  /// local-first and enqueues an authoritative cloud update. [localId]
+  /// must already exist; throws if it doesn't rather than silently creating
+  /// a row.
   Future<Customer> updateCustomer(String localId, CustomerDraft draft);
 
-  /// Soft delete: sets `deletedAt`, same convention as every other
-  /// SyncableColumns table — [watchCustomers] already filters on it.
-  /// Local-only, deliberately: [CustomerSyncHandler] only implements
-  /// the 'create' operation today (see that class's own comment) and
-  /// would throw on anything else, so this doesn't enqueue a sync task.
-  /// The archive is real on this device; it just doesn't reach the
-  /// backend or other devices yet.
+  /// Soft delete: sets `deletedAt` and enqueues a customer update so the
+  /// server's active flag converges with the local archive state.
   Future<void> archiveCustomer(String localId);
 
-  /// The reverse of [archiveCustomer] — clears `deletedAt`. Same
-  /// local-only constraint applies.
+  /// The reverse of [archiveCustomer] — clears `deletedAt` and enqueues
+  /// a customer update so the server can restore the customer.
   Future<void> restoreCustomer(String localId);
 
   /// Applies a canonical server snapshot without enqueueing an outbound
