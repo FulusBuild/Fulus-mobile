@@ -310,3 +310,60 @@ Fulus Cloud Sync v1 is complete when a business can:
 - restore a business and reach Sync Ready only after reconciliation.
 
 This document is the architecture target. Individual bug fixes must be evaluated against it rather than becoming isolated sync behavior.
+## 13. 100k-user scale target
+
+The target is not merely "100,000 registered accounts". The system should be engineered so 100,000 accounts can be supported without changing the local-first contract, while capacity is proven with measured workload tests before making a production capacity claim.
+
+### Scale invariants
+
+- Mobile devices never hold a server database connection; sync uses the HTTP/API boundary.
+- Every server sync page is bounded. The current change-feed API caps a page at 500 rows.
+- Incremental reads are indexed by (business_id, sequence).
+- Retention pruning is batch-bounded and indexed by (created_at, sequence).
+- Canonical reconciliation must be batched; no per-row HTTP request for a large pull.
+- Restore/bootstrap is bounded by the business being restored, never a global-user snapshot.
+- Financial mutations remain short, transactional, and idempotent.
+- Edge/serverless database access must use serverless-safe connection pooling and small application-side pools.
+- Per-business authorization is checked before data access; one tenant must not create work proportional to all tenants.
+- Observability must expose latency, error rate, connection pressure, lock contention, feed lag, queue depth, and database growth before capacity is exhausted.
+
+### Growth hazards that must not be allowed
+
+1. Unbounded SELECT * responses from sync endpoints.
+2. Offset pagination for change feeds.
+3. Full-table scans on the hot incremental-sync path.
+4. N+1 canonical reads after a change-feed page.
+5. Long-running transactions around sync batches.
+6. One database connection per active app/device.
+7. Global work performed for every tenant request.
+8. Permanent unbounded growth without an explicit retention/archival strategy for high-volume operational tables.
+9. Restore responses so large that one HTTP request becomes the bottleneck for a large business.
+
+### Capacity gates
+
+Before declaring 100k-user readiness, run a staging/load test that models:
+- 100,000 accounts;
+- realistic active-device distribution across businesses;
+- concurrent sync push/pull traffic;
+- offline bursts followed by reconnect storms;
+- concurrent inventory writes against the same product/location;
+- duplicate and conflicting retries;
+- stale-cursor/bootstrap recovery;
+- large-business restore;
+- 90-day change-feed retention;
+- connection, CPU, memory, I/O, lock-wait and p95/p99 latency measurements.
+
+The result must identify the tested throughput and resource headroom rather than claiming that a user count alone proves capacity.
+
+### Operational scaling path
+
+The local-first mobile architecture can remain stable while the server tier scales independently:
+- increase database compute when measured CPU/I/O/lock pressure requires it;
+- use transaction pooling for horizontally scaling/serverless workloads;
+- add read replicas only for read workloads that justify them;
+- partition/archive high-volume history when measured table growth warrants it;
+- keep sync writes on the authoritative primary database;
+- keep API operations short and idempotent so retries remain safe during horizontal scaling.
+
+The 100k target therefore becomes a measurable capacity program, not a promise based on architecture diagrams alone.
+
