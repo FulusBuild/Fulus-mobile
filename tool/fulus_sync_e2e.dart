@@ -153,13 +153,45 @@ Future<void> main() async {
       _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-a-$suffix', productId: stockProductId, locationId: stockLocationId, newQuantity: 101),
       _submitInventorySet(dio, businessId: businessId, operationId: 'e2e-stock-b-$suffix', productId: stockProductId, locationId: stockLocationId, newQuantity: 202),
     ]);
-    for (final response in stockResults) {
+    const requestedTargets = [101, 202];
+    for (var i = 0; i < stockResults.length; i++) {
+      final response = stockResults[i];
       _expect2xx(response, 'concurrent absolute stock adjustment');
       final data = response.data is Map ? (response.data as Map)['data'] : null;
       final current = data is Map ? data['current_stock'] : null;
-      if (current is! num || (current.toInt() != 101 && current.toInt() != 202)) {
-        throw StateError('Concurrent absolute stock adjustment returned invalid authoritative stock: ${response.data}');
+      if (current is! num || current.toInt() != requestedTargets[i]) {
+        throw StateError(
+          'Concurrent absolute stock adjustment did not return its requested '
+          'authoritative target $${requestedTargets[i]}: $${response.data}',
+        );
       }
+    }
+
+    final snapshot = await dio.post(
+      '',
+      data: {'action': 'restore_snapshot', 'business_id': businessId},
+    );
+    _expect2xx(snapshot, 'restore snapshot after concurrent stock adjustment');
+    final snapshotData = snapshot.data is Map ? (snapshot.data as Map)['data'] : null;
+    final stockLevels = snapshotData is Map ? snapshotData['product_stock_levels'] : null;
+    if (stockLevels is! List) {
+      throw StateError('Recovery snapshot did not contain product_stock_levels.');
+    }
+    final matchingStock = stockLevels.where((raw) {
+      if (raw is! Map) return false;
+      return raw['product_id'] == stockProductId && raw['location_id'] == stockLocationId;
+    }).toList();
+    if (matchingStock.length != 1) {
+      throw StateError(
+        'Expected exactly one stock level for the E2E product/location, got $${matchingStock.length}.',
+      );
+    }
+    final committedStock = (matchingStock.single as Map)['current_stock'];
+    if (committedStock is! num ||
+        (committedStock.toInt() != 101 && committedStock.toInt() != 202)) {
+      throw StateError(
+        'Concurrent absolute stock adjustment committed invalid stock: $${committedStock}',
+      );
     }
     stdout.writeln('PASS: concurrent absolute stock adjustments serialize to requested targets');
 
