@@ -366,6 +366,33 @@ class _FulusCloudConnectionScreenState
     );
   }
 
+  Future<void> _retryCloudSync() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(syncTriggersProvider).syncNow();
+      if (!mounted) return;
+      showFulusSnackbar(
+        context,
+        message: 'Fulus Cloud is connected again. Pending changes will resume syncing automatically.',
+      );
+      setState(() {});
+    } on Failure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _disconnect() async {
     ref.read(fulusConnectionStateProvider).disconnect();
     await ref.read(apiClientProvider).clearServerRefreshToken();
@@ -517,6 +544,37 @@ class _FulusCloudConnectionScreenState
                             label: 'Reconnect account',
                             loading: _busy,
                             onPressed: _busy ? null : _reauthenticate,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (cloudSyncEnabled && connection.isSessionAuthenticated) ...[
+                    FulusSectionHeader(
+                      title: 'Fulus Cloud needs to reconnect',
+                      subtitle: 'Your account is still signed in, but this device is not ready to sync',
+                    ),
+                    FulusCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Your local business is safe. Fulus will restore the cloud connection and continue any pending backup without replacing your local data.',
+                            style: AppTypography.body.copyWith(
+                              color: AppColors.textSecondaryOf(context),
+                            ),
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Text(
+                              _error!,
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          FulusButton(
+                            label: 'Reconnect & sync',
+                            loading: _busy,
+                            onPressed: _busy ? null : _retryCloudSync,
                           ),
                         ],
                       ),
