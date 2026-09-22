@@ -72,6 +72,10 @@ class ProductSyncHandler implements SyncHandler {
       'low_stock_threshold': product.lowStockThreshold,
       'is_active': product.isActive,
       'initial_stock': stock?.currentStock ?? 0,
+      // The server must seed this exact location atomically with product creation.
+      // Without it, a product created offline/local-first is created in Cloud with
+      // stock 0 and the next pull legitimately overwrites the local quantity.
+      'location_id': stock == null ? null : (await _resolveLocationServerId(productLocalId: localId, locationLocalId: stock.locationLocalId)),
     };
     final createOperationId = operationId ?? localId;
     final result = await _fulusSyncApi.submitOperation(
@@ -188,6 +192,18 @@ class ProductSyncHandler implements SyncHandler {
       );
     }
     return serverId;
+  }
+
+  Future<String?> _resolveLocationServerId({required String productLocalId, required String locationLocalId}) async {
+    final localRow = await (_db.select(_db.locations)
+          ..where((l) => l.localId.equals(locationLocalId)))
+        .getSingleOrNull();
+    if (localRow?.serverId?.isNotEmpty == true) return localRow!.serverId;
+    if (localRow != null) return null;
+    final serverRow = await (_db.select(_db.locations)
+          ..where((l) => l.serverId.equals(locationLocalId)))
+        .getSingleOrNull();
+    return serverRow?.serverId;
   }
 
   Future<String?> _resolveCategoryServerId(String localId) async {
