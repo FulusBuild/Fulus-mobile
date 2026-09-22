@@ -7,8 +7,7 @@ import '../../domain/repositories/stock_movement_repository.dart';
 import '../sync_handler.dart';
 
 /// Pushes stock-in/out through Fulus Cloud. Sale movements are server-derived.
-/// Absolute adjustments are deliberately blocked until the server exposes an
-/// absolute-target command; converting them to a local delta is unsafe.
+/// Absolute adjustments use the server's serialized absolute-target command.
 class StockMovementSyncHandler implements SyncHandler {
   StockMovementSyncHandler({
     required AppDatabase db,
@@ -47,6 +46,7 @@ class StockMovementSyncHandler implements SyncHandler {
     if (businessId == null || businessId.isEmpty || device == null || device.status != 'active') {
       throw StateError('Fulus Cloud device authorization is required for stock sync.');
     }
+    final deviceClientId = device.deviceClientId;
     final product = await (_db.select(_db.products)
           ..where((p) => p.localId.equals(movement.productLocalId)))
         .getSingleOrNull();
@@ -67,7 +67,7 @@ class StockMovementSyncHandler implements SyncHandler {
         businessId: businessId,
         operationType: 'stock_adjustment.create',
         operationId: item.id,
-        deviceClientId: device.deviceClientId,
+        deviceClientId: deviceClientId,
         clientReference: movement.localId,
         payload: {
           'business_id': businessId,
@@ -99,7 +99,7 @@ class StockMovementSyncHandler implements SyncHandler {
       businessId: businessId,
       operationType: 'stock_movement.create',
       operationId: item.id,
-      deviceClientId: device!.deviceClientId,
+      deviceClientId: deviceClientId,
       clientReference: movement.localId,
       payload: {
         'business_id': businessId,
