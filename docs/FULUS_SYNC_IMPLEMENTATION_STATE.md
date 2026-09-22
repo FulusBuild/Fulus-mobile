@@ -3,72 +3,126 @@
 Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
-PR: #56 open/unmerged
-HEAD: 590d6849c7fb1697d5f42c6a42e135b24cd2ad58
+PR: #57 open/unmerged
+HEAD at this refresh: bbd259b9ecea1bbd8057edac454c0fe53810d50b
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
 
-Cloud Sync V1 has passed the live catalog/idempotency/concurrency E2E and the latest full CI run #1423 / ID 35689037116 is GREEN on HEAD.
+Cloud Sync V1 implementation has completed the durable local-first outbox, authenticated/device-scoped server boundary, idempotent authoritative writes, canonical pull/reconciliation, optimistic concurrency, durable conflicts, stale-cursor recovery, atomic restore/bootstrap, authoritative boundary persistence, post-recovery readiness gating, retention, batch canonical reads, Sync Health, and single-business local dataset isolation.
 
-Recovery hardening now also reports failures from the recovery-start lifecycle callback, keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, performs a final pending-outbox/conflict gate inside the atomic bootstrap transaction, and persists the authoritative boundary before post-bootstrap pull. The local cloud dataset is explicitly single-business: a durable local business binding now forces authoritative snapshot recovery when the selected business changes, preventing cross-business row mixing.
+A phase audit on 2026-09-22 found one genuine contract gap: local absolute stock adjustments were queued but the stock sync handler deliberately rejected them because the server command only accepted deltas. This is now closed. The server has an authoritative absolute-target command (set_inventory_quantity / fulus_api_set_inventory_quantity), the API exposes inventory_set, the client maps stock_adjustment.create, and the handler reconciles the server-returned stock. The production migration 202609221200_phase_2_stock_adjustment_sync is applied and fulus-api is deployed at v44.
 
-The recovery lifecycle is now explicitly:
-410 SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> authoritative snapshot -> atomic bootstrap/import -> persist snapshot boundary cursor -> post-bootstrap delta pull -> Sync Ready.
+The recovery lifecycle is:
+410 SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> pending/conflict safety gate -> authoritative restore snapshot -> atomic bootstrap/import -> persist snapshot boundary -> post-bootstrap delta pull -> Sync Ready.
 
-Earlier live E2E blockers were an ambiguous catalog SQL entity_id reference, a double-wrapped catalog API response, and an E2E assumption that cursor 0 remains readable despite bounded retention. All were fixed and CI subsequently passed.
+The local cloud-owned Drift dataset is intentionally single-business because those tables do not carry business_id. A durable local business binding forces authoritative recovery before a business switch is accepted; failed recovery rolls the selection back.
 
-Production inspection also found an obsolete 9-argument `cloud_catalog_mutate` overload. No repository callers remained; it was removed from production and the matching migration is committed:
-`supabase/migrations/202609220500_drop_legacy_cloud_catalog_mutate_overload.sql`
+## Phase status
 
-## Implemented
+### Phase 1 — Correctness: COMPLETE
+- Local mutation plus durable outbox in one transaction.
+- Stable operation IDs and replay-safe retries.
+- Queue scheduling, dependency ordering, race handling, startup seeding.
+- Cursor advances only after reconciliation.
+- Existing local data can be seeded into the sync queue.
 
-Client: durable local outbox atomicity, queue scheduling/retry, stable operation IDs, machine-readable failures, cursor-aware updates, canonical pull/reconciliation, conflict records/resolution, stale-cursor recovery, atomic restore/bootstrap, local-only table preservation, authoritative snapshot boundary cursor persistence, post-bootstrap delta pull, Sync Health recovery state, Sync Ready gating, bounded canonical batch reads.
+### Phase 2 — Contract completeness: COMPLETE for currently supported user-facing sync operations
+Verified handler/API coverage includes:
+- sales
+- sale payments
+- customers
+- customer updates
+- customer repayments
+- expenses
+- expense updates
+- expense categories
+- incomes
+- locations
+- products
+- categories
+- suppliers
+- returns
+- cash drawer open/close
+- stock in/out
+- absolute stock adjustment
 
-Server: JWT verification, membership checks, authenticated-user/device binding, catalog idempotency/request-hash protection, optimistic concurrency, authoritative change-feed emission, bounded pull, restore snapshot boundary, 90-day retention with bounded deletion, daily pg_cron retention, sync-path index/FK cleanup, legacy RPC execute lockdown, obsolete catalog overload removal.
+Sale-generated stock movements remain server-derived and are not submitted independently. Stock transfer is not exposed by the current stock-movement UI and therefore is not a supported V1 user mutation.
 
-Production functions:
-- fulus-api v43
-- fulus-sync-state v4
-- both JWT verified and actor/device scoped.
+### Phase 3 — Concurrency: VERIFIED at supported-contract level
+- Base-cursor/revision protection for mutable entities where required.
+- Durable sync_conflict_records.
+- Explicit cloud/local conflict resolution.
+- Idempotency request-hash protection.
+- Cash-drawer close concurrency protection.
+
+### Phase 4 — Recovery/scale: VERIFIED at code/test level; live stale-cursor/recovery boundary verified
+- Stale cursor detection and authoritative snapshot.
+- Atomic restore/import.
+- Local-only table preservation.
+- Authoritative sync_boundary.
+- Durable boundary cursor.
+- Batch canonical reads.
+- Recovery lifecycle/Sync Health.
+- 90-day change-feed retention with bounded deletion.
+- Daily pg_cron retention.
+- Multi-business local isolation.
+
+### Phase 5 — Production/security/performance: VERIFIED
+- JWT and membership authorization.
+- Device ownership binding.
+- RPC execute lockdown.
+- Legacy catalog overload removal.
+- Catalog idempotency/request-hash protection.
+- Sync-path index/FK review.
+- auth.uid() initplan RLS optimization.
+- Production restore/canonical APIs deployed.
+
+## Production state
+
+- fulus-api: v44 ACTIVE.
+- fulus-sync-state: v4.
+- Stock-adjustment migration applied as production migration 20260922063556.
+- Legacy 9-argument cloud_catalog_mutate overload removed.
+- Relevant retention and bootstrap-boundary migrations applied.
+- Security advisor still reports the known diagnostic_events RLS INFO and leaked-password protection WARN.
+- Remaining performance advisor findings are broad policy/index advisories; unused-index notices are not treated as automatic deletion instructions.
 
 ## Verification
 
-GitHub:
-- PR #56 open/unmerged.
-- CI #1431 / 35690922113 was cancelled by subsequent branch updates; the last completed full CI was GREEN before the latest recovery-hardening and RLS-performance changes.
-- Generate Dart code GREEN.
-- Static analysis GREEN.
-- Flutter tests GREEN.
-- Live sync contract test GREEN.
-- APK build skipped as intended.
+Automated client coverage includes:
+- queue/retry/race/dependency tests
+- canonical reconciliation tests
+- conflict resolution tests
+- restore/bootstrap tests
+- cursor boundary tests
+- Sync Trigger recovery/readiness ordering tests
+- stock adjustment sync test
 
-Supabase:
-- `cloud_catalog_mutate` has exactly one production signature: uuid,uuid,uuid,text,text,text,uuid,jsonb,bigint,text.
-- `service_role` can execute that contract.
-- Security advisor: `diagnostic_events` RLS-without-policy INFO; leaked-password protection WARN.
-- Performance advisor: the six auth.uid() per-row RLS initplan findings were eliminated by migration `supabase/migrations/202609220540_optimize_sync_related_rls_auth_uid_initplan.sql`. Remaining findings are broad multiple-permissive-policy and unused-index notices; do not delete indexes solely from current unused statistics without workload evidence.
+The main CI run #1442 / 35693603162 was GREEN on the prior hardening HEAD. New commits after that run require a fresh CI result before merge.
 
-## Remaining work
+The live server E2E on the current merge ref passed: fresh auth, stale-cursor rejection, authoritative restore boundary, ephemeral device registration, product create, stale/current catalog concurrency, concurrent absolute stock targets, idempotent replay, conflicting replay rejection, and cleanup. Physical-device/process-death behavior remains covered by transaction/readiness invariants and automated tests rather than by the live script.
 
-1. Complete the live stale-cursor recovery/replay verification and final CI/E2E audit.
-2. Add/run crash and replay coverage: process death during bootstrap, timeout after server commit, pull replay before cursor persistence, token expiry with queued work, revoked device, network loss during recovery.
-3. Prove multi-device convergence using the real client coordinator/reconciler.
-4. Finalize multi-business isolation verification; the local Drift cloud-owned dataset is single-business and business switches now require authoritative recovery.
-5. Perform final architecture, client, server, failure/recovery, scale, Sync Health, production DB/security, final diff, full CI, and E2E/integration audits.
-6. APK release remains blocked until those audits pass.
+## Final release gates
 
-## Next concrete action
+Before merging PR #57:
+1. CI #1453 is GREEN on the current HEAD.
+2. Live sync E2E passed on the current merge ref.
+3. Architecture audit.
+4. Client-flow audit.
+5. Server-flow audit.
+6. Failure/recovery audit.
+7. Scale/retention and Sync Health audit.
+8. Final diff against main.
+9. Production migration/function/version verification.
+10. Multi-device convergence and replay verification at the available integration-test level.
 
-Continue the recovery audit from the verified code path:
-`SyncTriggers._runSyncCycle -> CloudSyncRecovery.recover -> CloudSyncBootstrapCoordinator.bootstrap -> CloudRestoreImporter -> setCursor(boundary) -> pullAndApply -> onRecoveryReconciled/Sync Ready`.
-
-Then harden the remaining crash/replay and multi-device invariants before final audit.
+APK release remains blocked until these gates pass.
 
 ## Invariants
 
-Every supported syncable mutation is one local transaction containing business mutation plus durable outbox append. Same operation ID plus same request is replay-safe; altered request is rejected. Cursor advances only after reconciliation. Stale mutable writes produce SYNC_CONFLICT. Unresolved conflicts cannot be silently overwritten. Stale cursor recovery bootstraps before incremental pull. The restore transaction commits before its authoritative boundary is persisted. Sync Ready is restored only after the post-recovery pull succeeds.
+Every supported syncable mutation is a local transaction containing the business mutation plus durable outbox append. Same operation ID plus same request is replay-safe; altered request is rejected. Cursor advances only after reconciliation. Stale mutable writes produce SYNC_CONFLICT. Unresolved conflicts cannot be silently overwritten. Stale cursor recovery bootstraps before incremental pull. The restore transaction commits before its authoritative boundary is persisted. Sync Ready is restored only after the post-recovery pull succeeds. Absolute stock adjustment is an authoritative server target, never a client-invented delta.
 
-## Session exit
+## Next action
 
-Before stopping, update this file and docs/FULUS_SYNC_HANDOFF.md with exact HEAD, phase, verified work, CI, production state, next action, and blockers.
+Run fresh CI on the current HEAD, inspect every job, then perform the final five audits and only merge after all release gates are genuinely green.

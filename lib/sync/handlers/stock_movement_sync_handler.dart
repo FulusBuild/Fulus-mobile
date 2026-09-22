@@ -7,8 +7,7 @@ import '../../domain/repositories/stock_movement_repository.dart';
 import '../sync_handler.dart';
 
 /// Pushes stock-in/out through Fulus Cloud. Sale movements are server-derived.
-/// Absolute adjustments are deliberately blocked until the server exposes an
-/// absolute-target command; converting them to a local delta is unsafe.
+/// Absolute adjustments use the server's serialized absolute-target command.
 class StockMovementSyncHandler implements SyncHandler {
   StockMovementSyncHandler({
     required AppDatabase db,
@@ -42,15 +41,12 @@ class StockMovementSyncHandler implements SyncHandler {
     if (movement.movementType == StockMovementType.transfer) {
       throw StateError('Stock transfers are not supported by the Fulus Cloud command API yet.');
     }
-    if (movement.movementType == StockMovementType.adjustment) {
-      throw StateError('Absolute stock adjustments require a server-side absolute-target command.');
-    }
-
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
-    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+    if (businessId == null || businessId.isEmpty || device == null || device.status != 'active') {
       throw StateError('Fulus Cloud device authorization is required for stock sync.');
     }
+    final deviceClientId = device.deviceClientId;
     final product = await (_db.select(_db.products)
           ..where((p) => p.localId.equals(movement.productLocalId)))
         .getSingleOrNull();
@@ -62,6 +58,40 @@ class StockMovementSyncHandler implements SyncHandler {
     final locationId = location?.serverId;
     if (locationId == null || locationId.isEmpty) throw StateError('Stock movement location has no server identity yet.');
 
+    if (movement.movementType == StockMovementType.adjustment) {
+      final newQuantity = movement.newQuantity;
+      if (newQuantity == null || newQuantity < 0) {
+        throw StateError('Stock adjustment target quantity must be non-negative.');
+      }
+      final result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'stock_adjustment.create',
+        operationId: item.id,
+        deviceClientId: deviceClientId,
+        clientReference: movement.localId,
+        payload: {
+          'business_id': businessId,
+          'product_id': productId,
+          'location_id': locationId,
+          'new_quantity': newQuantity,
+          'reason': movement.reason ?? 'Stock adjustment',
+          'operation_id': item.id,
+        },
+      );
+      final data = result['data'];
+      if (data is! Map) throw StateError('Fulus stock adjustment returned no response data.');
+      final currentStock = (data['current_stock'] as num?)?.toInt();
+      if (currentStock != null) {
+        await _productRepository.reconcileStockLevel(
+          productLocalId: movement.productLocalId,
+          locationId: movement.locationId,
+          currentStock: currentStock,
+        );
+      }
+      await _stockMovementRepository.markSettled(localId: movement.localId);
+      return;
+    }
+
     final quantity = movement.quantity;
     if (quantity == null || quantity <= 0) throw StateError('Stock movement quantity must be positive.');
     final delta = movement.movementType == StockMovementType.stockIn ? quantity : -quantity;
@@ -69,7 +99,7 @@ class StockMovementSyncHandler implements SyncHandler {
       businessId: businessId,
       operationType: 'stock_movement.create',
       operationId: item.id,
-      deviceClientId: device!.deviceClientId,
+      deviceClientId: deviceClientId,
       clientReference: movement.localId,
       payload: {
         'business_id': businessId,

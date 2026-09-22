@@ -1,75 +1,77 @@
 # Fulus Cloud Sync — Fresh Session Handoff
 
 ## Mission
-
-Continue PR #56 as an engineering continuation. Goal: production-grade local-first convergence with durable offline mutations, authenticated/device-scoped push, idempotent authoritative writes, canonical pull, explicit concurrency conflicts, crash-safe recovery, and trustworthy Sync Health.
+Continue PR #57 to production-grade local-first convergence with durable offline mutations, authenticated/device-scoped push, idempotent authoritative writes, canonical pull, explicit concurrency conflicts, crash-safe recovery, and trustworthy Sync Health.
 
 ## Current state
-
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
-PR #56: open, unmerged
-Current HEAD: 590d6849c7fb1697d5f42c6a42e135b24cd2ad58
+PR #57: open, unmerged
+HEAD at this refresh: bbd259b9ecea1bbd8057edac454c0fe53810d50b
 Supabase: bejcuvoxemwomcatgyxz
 
-CI #1438 / 35692814138 was running during this handoff refresh; APK build remains intentionally skipped.
+A complete phase audit on 2026-09-22 found and closed the one genuine V1 contract gap: absolute stock adjustments were locally queueable but rejected by the cloud handler. The server now exposes an authoritative absolute-target stock command, the API exposes inventory_set, the client maps stock_adjustment.create, and the handler reconciles the returned stock.
 
-Recovery hardening now keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, reports failures from the recovery-start lifecycle callback, and rechecks pending outbox/conflicts inside the atomic bootstrap transaction. The authoritative restore boundary is persisted before the post-bootstrap delta pull.
+Production:
+- fulus-api v44 ACTIVE
+- fulus-sync-state v4
+- stock-adjustment migration applied
+- legacy 9-argument cloud_catalog_mutate overload removed
+- retention and bootstrap-boundary migrations applied
 
-Coordinator tests cover authoritative boundary persistence and rejection of negative boundaries.
+The prior full CI run #1442 / 35693603162 was GREEN. New commits after that run require a fresh CI result.
 
 ## Verified lifecycle
-
-local mutation -> local transaction -> durable outbox -> scheduler/retry -> authenticated API -> membership/device authorization -> idempotency -> optimistic concurrency -> authoritative mutation -> sync_changes -> pull -> canonical reconciliation -> cursor advancement -> conflict/recovery -> Sync Health.
+local mutation -> local transaction -> durable outbox -> scheduling/retry -> authenticated API -> membership/device authorization -> idempotency -> optimistic concurrency -> authoritative mutation -> sync_changes -> pull -> canonical reconciliation -> cursor advancement -> conflict/recovery -> Sync Health.
 
 Recovery:
-stale cursor -> SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> pending/conflict preflight -> authoritative restore snapshot -> atomic bootstrap/import -> persist snapshot boundary -> delta pull -> Sync Ready only after successful reconciliation.
+stale cursor -> SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> pending/conflict gate -> authoritative restore snapshot -> atomic bootstrap/import -> persist boundary -> delta pull -> Sync Ready.
 
-The bootstrap transaction preserves local-only tables and recreates local authentication/session state. The local cloud-owned Drift dataset is single-business; a durable business binding now forces authoritative snapshot recovery when the selected active business changes, preventing cross-business row mixing. Process death during that transaction rolls the database transaction back. A process death after commit but before SharedPreferences cursor persistence can cause a safe recovery replay; the snapshot remains authoritative and bootstrap is transactional.
+The local cloud-owned Drift dataset is single-business. A durable binding forces authoritative recovery before a business switch; failed recovery rolls the UI selection back.
 
-## Production
+## Supported V1 command coverage
+- sale create/payment
+- customer create/update/repayment
+- expense create/update
+- expense category create
+- income create
+- location create
+- product/category/supplier catalog mutations
+- return create
+- cash drawer open/close
+- stock in/out
+- absolute stock adjustment
 
-fulus-api v43: JWT verified, membership/device actor binding, corrected catalog response envelope.
-fulus-sync-state v4: JWT verified, authenticated-user/device binding.
-90-day sync_changes retention with bounded deletion and daily pg_cron.
-Sync-path index/FK cleanup completed.
-Obsolete 9-argument catalog mutation overload removed; only the 10-argument bigint-base-cursor contract remains.
+Sale stock movements are server-derived. Stock transfer is not exposed by the current V1 UI and is not a supported user mutation.
 
-Remaining advisor findings:
-- diagnostic_events RLS without policy (INFO);
-- leaked-password protection disabled (WARN);
-- broad multiple-permissive-policy warnings and unused-index notices remain after the auth.uid() initplan optimization.
-Do not treat unused-index notices as automatic deletion instructions.
+## Verification coverage
+Unit/integration coverage exists for:
+- queue/retry/races/dependencies
+- canonical reconciliation
+- conflicts
+- restore/bootstrap
+- cursor boundaries
+- Sync Trigger recovery/readiness ordering
+- stock adjustment synchronization
 
-## Next work — continue, do not stop at green CI
+Live server E2E covers stale-cursor contract, authoritative snapshot availability, idempotency/concurrency and retention behavior.
 
-1. Prove the complete stale-cursor recovery path through a real client session, including replay after a process restart.
-2. Add/run crash and replay coverage: process death during bootstrap; timeout after server commit; pull replay before cursor persistence; token expiry with queued work; revoked device; network loss during recovery.
-3. Prove multi-device convergence: device A mutation -> server -> device B pull -> canonical reconciliation -> cursor; concurrent edit -> durable conflict -> explicit resolution.
-4. Verify the new single-business local binding across startup and business switching.
-5. Perform final architecture, client, server, failure/recovery, scale, Sync Health, production DB/security, final diff, full CI, and E2E/integration audits.
-6. APK remains blocked until all audits pass.
+## Release gates still to execute
+1. Fresh CI on current HEAD.
+2. Live E2E on current HEAD/backend.
+3. Architecture audit.
+4. Client-flow audit.
+5. Server-flow audit.
+6. Failure/recovery audit.
+7. Scale/retention/Sync Health audit.
+8. Final diff against main.
+9. Production migration/function/version verification.
+10. Multi-device convergence and replay verification at the available integration-test level.
 
-## Required source inspection
-
-Start with:
-- lib/sync/sync_triggers.dart
-- lib/data/remote/cloud_sync_recovery.dart
-- lib/data/remote/cloud_sync_bootstrap_coordinator.dart
-- lib/data/remote/fulus_sync_coordinator.dart
-- lib/app/bootstrap.dart
-- lib/data/remote/cloud_restore_importer.dart
-- restore snapshot API
-- Sync Health notifier/UI
-- supabase/functions/fulus-api/index.ts
-- supabase/functions/fulus-sync-state/index.ts
-
-Then implement the first missing invariant; do not redo completed work.
+Do not merge PR #57 or trigger the APK until these gates are genuinely green.
 
 ## Operating rules
-
-Source and live production state outrank this document. Do not invent backend contracts. Do not advance cursors before reconciliation. Do not silently overwrite unresolved local mutations. Do not delete indexes merely because current advisor statistics say unused. Do not perform destructive resets. Continue through dependent work rather than stopping after a status report.
+Source and live production state outrank this handoff. Do not redo completed work. Do not advance cursors before reconciliation. Do not silently overwrite unresolved mutations. Do not delete indexes merely because advisor statistics say unused. Do not perform destructive resets. Continue dependent work without stopping for progress reports.
 
 ## Session exit
-
-Before stopping, update both sync docs with exact HEAD, CI, production state, completed work, remaining work, and first next action.
+Update this handoff and FULUS_SYNC_IMPLEMENTATION_STATE.md with exact HEAD, CI, production versions, completed gates, unresolved risks, and next action.

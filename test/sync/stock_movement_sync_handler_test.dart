@@ -78,15 +78,28 @@ void main() {
     expect(stored.syncStatus, SyncStatus.settled);
   });
 
-  test('rejects adjustments instead of inventing a delta', () async {
+  test('pushes absolute stock adjustments and reconciles returned stock', () async {
     final movement = await stockMovementRepository.recordAdjustment(const StockAdjustmentDraft(
       productLocalId: productLocalId, locationId: locationId, newQuantity: 42, reason: 'Recount',
     ));
-    await expectLater(handler.sync(itemFor(movement.localId)), throwsA(isA<StateError>()));
-    verifyNever(() => fulusSyncApi.submitOperation(
+    when(() => fulusSyncApi.submitOperation(
       businessId: any(named: 'businessId'), operationType: any(named: 'operationType'), operationId: any(named: 'operationId'),
       deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
-    ));
+    )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-adjustment-1', 'current_stock': 42}});
+    when(() => productRepository.reconcileStockLevel(
+      productLocalId: productLocalId, locationId: locationId, currentStock: 42,
+    )).thenAnswer((_) async {});
+    await handler.sync(itemFor(movement.localId));
+    verify(() => fulusSyncApi.submitOperation(
+      businessId: 'business-1', operationType: 'stock_adjustment.create', operationId: 'q1', deviceClientId: 'device-client-1',
+      clientReference: movement.localId,
+      payload: any(named: 'payload'),
+    )).called(1);
+    verify(() => productRepository.reconcileStockLevel(
+      productLocalId: productLocalId, locationId: locationId, currentStock: 42,
+    )).called(1);
+    final stored = await (db.select(db.stockMovements)..where((m) => m.localId.equals(movement.localId))).getSingle();
+    expect(stored.syncStatus, SyncStatus.settled);
   });
 
   test('throws for an operation other than create', () async {
