@@ -502,9 +502,114 @@ class CloudRestoreImporter {
     String table,
     Map<String, dynamic> remote,
   ) {
-    if (table != 'audit_logs') return remote;
-
     final normalized = Map<String, dynamic>.from(remote);
+
+    // The cloud inventory ledger is intentionally delta-based:
+    // inventory_movements.quantity_delta is the authoritative server field.
+    // The local Drift table is richer because it also records the command
+    // vocabulary (in/out/adjustment/sale). Restore therefore needs an
+    // explicit compatibility translation rather than assuming the two
+    // schemas are identical. New snapshots may already contain the richer
+    // fields; older/current production snapshots contain quantity_delta.
+    if (table == 'stock_movements') {
+      final delta = _asInt(remote['quantity_delta']);
+      final operationType = remote['operation_type']?.toString();
+      final reason = remote['reason']?.toString() ?? '';
+
+      if (!normalized.containsKey('movement_type')) {
+        if (operationType == 'inventory.set' ||
+            operationType == 'inventory.adjust') {
+          normalized['movement_type'] = 'adjustment';
+        } else if (reason.toLowerCase().startsWith('sale ')) {
+          normalized['movement_type'] = 'sale';
+        } else if (delta != null && delta > 0) {
+          normalized['movement_type'] = 'in';
+        } else if (delta != null && delta < 0) {
+          normalized['movement_type'] = 'out';
+        }
+      }
+
+      if (!normalized.containsKey('quantity') &&
+          delta != null &&
+          normalized['movement_type'] != 'adjustment') {
+        normalized['quantity'] = delta.abs();
+      }
+
+      // Absolute inventory.set commands can be reconstructed exactly from
+      // the server's post-command current_stock. For legacy delta
+      // adjustments, current_stock is still the authoritative resulting
+      // quantity, so preserving it as the local adjustment target avoids
+      // fabricating a delta the device cannot safely recompute.
+      if (!normalized.containsKey('new_quantity') &&
+          normalized['movement_type'] == 'adjustment' &&
+          remote['current_stock'] != null) {
+        normalized['new_quantity'] = remote['current_stock'];
+      }
+    }
+
+    if (table == 'sale_payments') {
+      // The server stores payment_method/created_at; the local child table
+      // deliberately calls those method/recorded_at.
+      if (!normalized.containsKey('method') &&
+          remote.containsKey('payment_method')) {
+        normalized['method'] = remote['payment_method'];
+      }
+      if (!normalized.containsKey('recorded_at') &&
+          remote.containsKey('created_at')) {
+        normalized['recorded_at'] = remote['created_at'];
+      }
+    }
+
+    if (table == 'return_requests') {
+      // The server names the parent sale \"sale_id\" while the local
+      // return table deliberately uses \"original_sale_local_id\".
+      // The generic *_local_id adapter cannot infer this because the
+      // local name contains \"original\". Keep the relationship explicit
+      // so real production return rows can be restored without weakening
+      // the local foreign key.
+      if (!normalized.containsKey('original_sale_local_id') &&
+          remote.containsKey('sale_id')) {
+        normalized['original_sale_local_id'] = remote['sale_id'];
+      }
+
+      // The server return ledger is authoritative for sale/reason/amount.
+      // Legacy returns predate persisted refund_method and used the cash
+      // ledger for refunds, so "cash" is the honest compatibility value.
+      if (!normalized.containsKey('return_reason') &&
+          remote.containsKey('reason')) {
+        normalized['return_reason'] = remote['reason'];
+      }
+      if (!normalized.containsKey('refund_method')) {
+        normalized['refund_method'] =
+            remote['refund_method']?.toString() ?? 'cash';
+      }
+      if (!normalized.containsKey('inventory_restored')) {
+        normalized['inventory_restored'] =
+            remote['inventory_restored'] ?? remote['status'] == 'completed';
+      }
+      if (!normalized.containsKey('is_void')) {
+        normalized['is_void'] = remote['is_void'] ?? false;
+      }
+      if (!normalized.containsKey('completed_at') &&
+          remote['status'] == 'completed' &&
+          remote['created_at'] != null) {
+        normalized['completed_at'] = remote['created_at'];
+      }
+    }
+
+    if (table == 'expenses') {
+      // Old server rows may have no location_id because the original
+      // expense schema allowed it to be absent. New writes always carry it.
+      // The snapshot RPC enriches it from the cash ledger when possible;
+      // this client fallback keeps older snapshots importable.
+      if (!normalized.containsKey('description') ||
+          normalized['description'] == null) {
+        normalized['description'] = '';
+      }
+    }
+
+    if (table != 'audit_logs') return normalized;
+
     final entityType = remote['entity_type']?.toString().trim();
     final action = remote['action']?.toString().trim();
 
@@ -522,6 +627,13 @@ class CloudRestoreImporter {
     }
 
     return normalized;
+  }
+
+  int? _asInt(Object? value) {
+    if (value is int) return value;
+    if (value is num && value == value.toInt()) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   String _auditModule(String? entityType, String? action) {
@@ -587,7 +699,14 @@ class CloudRestoreImporter {
         final parsed = int.tryParse(value);
         if (parsed != null) return parsed;
         final date = DateTime.tryParse(value);
-        if (date != null) return date.millisecondsSinceEpoch;
+        if (date != null) {
+          // Drift's default dateTime() storage is Unix seconds, not Dart
+          // milliseconds. Restore snapshots carry PostgreSQL timestamps as
+          // ISO-8601 strings, so converting them to milliseconds would make
+          // Drift interpret the value as a date tens of thousands of years
+          // in the future.
+          return date.millisecondsSinceEpoch ~/ 1000;
+        }
       }
     }
     if (sqliteType.contains('REAL') || sqliteType.contains('DOUBLE') || sqliteType.contains('FLOAT')) {
