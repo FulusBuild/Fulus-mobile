@@ -361,6 +361,34 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       platform: Platform.operatingSystem,
       appVersion: package.version,
     );
+
+    // The local Drift database is intentionally single-business: its
+    // cloud-owned tables do not carry business_id, so an incremental pull
+    // cannot safely switch the database from business A to business B.
+    // Bind the local cloud dataset to the active business and require an
+    // authoritative snapshot when that binding changes. This prevents a
+    // multi-business account from mixing rows from different businesses.
+    const localCloudBusinessKey = 'fulus_local_cloud_business_id';
+    final boundBusinessId = syncPreferences.getString(localCloudBusinessKey);
+    if (boundBusinessId == null) {
+      final persisted = await syncPreferences.setString(
+        localCloudBusinessKey,
+        selectedBusinessId,
+      );
+      if (!persisted) {
+        throw StateError('Failed to persist the local Cloud Sync business binding.');
+      }
+    } else if (boundBusinessId != selectedBusinessId) {
+      await syncRecovery.recover(businessId: selectedBusinessId);
+      final persisted = await syncPreferences.setString(
+        localCloudBusinessKey,
+        selectedBusinessId,
+      );
+      if (!persisted) {
+        throw StateError('Failed to persist the switched Cloud Sync business binding.');
+      }
+    }
+
     await syncTriggers.reconcileForReadiness();
     fulusConnectionState.markSyncReady();
     } catch (error) {
