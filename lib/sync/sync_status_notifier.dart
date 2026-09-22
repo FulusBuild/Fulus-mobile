@@ -35,8 +35,7 @@ const int defaultSyncAttentionThreshold = 5;
 ///
 /// What this class deliberately does NOT do: decide when a drain
 /// attempt happens (sync_triggers.dart), run the drain itself
-/// (sync_engine.dart), or resolve conflicts (Section 9 — not built in
-/// this stage; see HANDOVER-2.md's own note on that gap). This is a
+/// (sync_engine.dart), or resolve conflicts (sync_conflict_resolver.dart). This is a
 /// read-model over state those other classes already produce, plus one
 /// small piece of judgment (has this been stuck long enough, and have I
 /// already said so) layered on top.
