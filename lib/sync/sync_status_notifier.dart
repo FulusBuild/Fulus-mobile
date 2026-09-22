@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/errors/failure.dart';
 import '../core/notifications/notification_service.dart';
 import '../data/local/database/database.dart';
 import 'sync_config.dart';
@@ -117,7 +118,8 @@ class SyncStatusNotifier {
 
   Future<void> markRecoveryFailed(String businessId, Object error) async {
     await _preferences.setString(_recoveryKey(businessId), 'blocked');
-    await _preferences.setString(_recoveryErrorKey(businessId), error.toString());
+    final message = error is Failure ? error.message : error.toString();
+    await _preferences.setString(_recoveryErrorKey(businessId), message);
   }
 
   Future<int> unresolvedConflictCount() async {
