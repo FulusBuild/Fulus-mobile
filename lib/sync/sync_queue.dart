@@ -252,12 +252,19 @@ class SyncQueue {
 
     if (tasks.isEmpty) return;
 
-    final existingRows = await _db.select(_db.syncQueueItems).get();
-    final existingKeys = existingRows
-        .map((row) => '${row.entityType}|${row.entityLocalId}|${row.operation}')
-        .toSet();
-
+    // Re-check existing queue rows inside the same transaction that inserts
+    // seed rows. The first-time cloud-connection flow can run while a local
+    // mutation is being committed; taking the snapshot outside this
+    // transaction could race that enqueue and create two queue rows with
+    // different operation IDs for the same business mutation. For catalog
+    // creates in particular, that would defeat server idempotency and could
+    // duplicate a cloud record.
     await _db.transaction(() async {
+      final existingRows = await _db.select(_db.syncQueueItems).get();
+      final existingKeys = existingRows
+          .map((row) => '${row.entityType}|${row.entityLocalId}|${row.operation}')
+          .toSet();
+
       for (final task in tasks) {
         final key = '${task.entityType}|${task.entityLocalId}|${task.operation}';
         if (!existingKeys.add(key)) continue;
