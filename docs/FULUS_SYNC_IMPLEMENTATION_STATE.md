@@ -4,23 +4,26 @@ Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR: #56 open/unmerged
-HEAD before docs refresh: 6b5a3c51e86a2ba04185c328ddb9cbe5f5fb82bb
+HEAD: c67b42ddbc3aa48f72766eff49487c9638aaf74d
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
 
-Cloud Sync V1 is past the live E2E contract blocker. CI run #1418 / ID 35688023237 passed on commit 6e8bca79d05ed54d2f89938734024f07fa61023f.
+Cloud Sync V1 has passed the live catalog/idempotency/concurrency E2E and the latest full CI run #1423 / ID 35689037116 is GREEN on HEAD.
 
-The live E2E now completes the catalog/idempotency/concurrency contract. Previous failures were caused by an ambiguous SQL entity_id reference, a double-wrapped catalog API response, and an E2E assumption that cursor 0 must remain readable despite bounded retention.
+The latest recovery-hardening change restores the full `lib/app/bootstrap.dart` wiring after a bad partial file update, and persists the authoritative restore snapshot `sync_boundary` through `FulusSyncCoordinator.setCursor()` before the post-bootstrap delta pull. Coordinator tests cover boundary persistence and negative-boundary rejection.
 
-After the green checkpoint, production inspection found an obsolete 9-argument cloud_catalog_mutate overload still executable by service_role. No repository callers remain. It was removed from production and the matching migration was committed:
-supabase/migrations/202609220500_drop_legacy_cloud_catalog_mutate_overload.sql
+The recovery lifecycle is now explicitly:
+410 SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> authoritative snapshot -> atomic bootstrap/import -> persist snapshot boundary cursor -> post-bootstrap delta pull -> Sync Ready.
 
-Production now exposes only the 10-argument catalog mutation contract with bigint base_cursor.
+Earlier live E2E blockers were an ambiguous catalog SQL entity_id reference, a double-wrapped catalog API response, and an E2E assumption that cursor 0 remains readable despite bounded retention. All were fixed and CI subsequently passed.
+
+Production inspection also found an obsolete 9-argument `cloud_catalog_mutate` overload. No repository callers remained; it was removed from production and the matching migration is committed:
+`supabase/migrations/202609220500_drop_legacy_cloud_catalog_mutate_overload.sql`
 
 ## Implemented
 
-Client: durable local outbox atomicity, queue scheduling/retry, stable operation IDs, machine-readable failures, cursor-aware updates, canonical pull/reconciliation, conflict records/resolution, stale-cursor recovery, atomic restore/bootstrap, local-only table preservation, snapshot boundary cursor, post-bootstrap delta pull, Sync Health recovery state, Sync Ready gating, bounded canonical batch reads.
+Client: durable local outbox atomicity, queue scheduling/retry, stable operation IDs, machine-readable failures, cursor-aware updates, canonical pull/reconciliation, conflict records/resolution, stale-cursor recovery, atomic restore/bootstrap, local-only table preservation, authoritative snapshot boundary cursor persistence, post-bootstrap delta pull, Sync Health recovery state, Sync Ready gating, bounded canonical batch reads.
 
 Server: JWT verification, membership checks, authenticated-user/device binding, catalog idempotency/request-hash protection, optimistic concurrency, authoritative change-feed emission, bounded pull, restore snapshot boundary, 90-day retention with bounded deletion, daily pg_cron retention, sync-path index/FK cleanup, legacy RPC execute lockdown, obsolete catalog overload removal.
 
@@ -33,30 +36,38 @@ Production functions:
 
 GitHub:
 - PR #56 open/unmerged.
-- CI #1418 / 35688023237 green.
+- CI #1423 / 35689037116 GREEN.
+- Generate Dart code GREEN.
+- Static analysis GREEN.
+- Flutter tests GREEN.
+- Live sync contract test GREEN.
 - APK build skipped as intended.
 
 Supabase:
-- cloud_catalog_mutate has exactly one production signature: uuid,uuid,uuid,text,text,text,uuid,jsonb,bigint,text.
-- service_role can execute that contract.
-- Security advisor: diagnostic_events RLS-without-policy INFO; leaked-password protection WARN.
+- `cloud_catalog_mutate` has exactly one production signature: uuid,uuid,uuid,text,text,text,uuid,jsonb,bigint,text.
+- `service_role` can execute that contract.
+- Security advisor: `diagnostic_events` RLS-without-policy INFO; leaked-password protection WARN.
 - Performance advisor: broad RLS optimization and unused-index notices remain. Do not delete indexes solely from current unused statistics without workload evidence.
 
 ## Remaining work
 
-1. Prove full stale-cursor recovery through the real client: 410 -> bootstrap -> sync_boundary -> delta pull -> Sync Ready.
+1. Prove the full stale-cursor recovery path against a real client session, including a recovery-time process restart/replay boundary.
 2. Add/run crash and replay tests: process death during bootstrap, timeout after server commit, pull replay before cursor persistence, token expiry with queued work, revoked device, network loss during recovery.
 3. Prove multi-device convergence using the real client coordinator/reconciler.
-4. Perform final architecture, client, server, failure/recovery, scale, Sync Health, production DB/security, final diff, CI, and E2E audits.
-5. APK release remains blocked until those audits pass.
+4. Audit multi-business isolation and recovery gating; current recovery outbox/conflict preflight is local-database-wide because sync queue rows do not currently carry a business_id.
+5. Perform final architecture, client, server, failure/recovery, scale, Sync Health, production DB/security, final diff, full CI, and E2E/integration audits.
+6. APK release remains blocked until those audits pass.
 
 ## Next concrete action
 
-Trace SyncTriggers -> CloudSyncRecovery -> CloudSyncBootstrapCoordinator -> restore/import -> FulusSyncCoordinator -> Sync Health, then add/strengthen integration coverage proving stale-cursor recovery reaches Sync Ready.
+Continue the recovery audit from the verified code path:
+`SyncTriggers._runSyncCycle -> CloudSyncRecovery.recover -> CloudSyncBootstrapCoordinator.bootstrap -> CloudRestoreImporter -> setCursor(boundary) -> pullAndApply -> onRecoveryReconciled/Sync Ready`.
+
+Then harden the remaining crash/replay and multi-device invariants before final audit.
 
 ## Invariants
 
-Every supported syncable mutation is one local transaction containing business mutation plus durable outbox append. Same operation ID plus same request is replay-safe; altered request is rejected. Cursor advances only after reconciliation. Stale mutable writes produce SYNC_CONFLICT. Unresolved conflicts cannot be silently overwritten. Stale cursor recovery must bootstrap before incremental pull. Sync Ready means reconciliation completed.
+Every supported syncable mutation is one local transaction containing business mutation plus durable outbox append. Same operation ID plus same request is replay-safe; altered request is rejected. Cursor advances only after reconciliation. Stale mutable writes produce SYNC_CONFLICT. Unresolved conflicts cannot be silently overwritten. Stale cursor recovery bootstraps before incremental pull. The restore transaction commits before its authoritative boundary is persisted. Sync Ready is restored only after the post-recovery pull succeeds.
 
 ## Session exit
 
