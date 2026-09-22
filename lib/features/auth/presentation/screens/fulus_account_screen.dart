@@ -9,6 +9,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'cloud_restore_screen.dart';
@@ -241,7 +242,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     // must continue from durable local state instead of creating duplicates.
     final localIdentities = await authRepository.listLocalIdentities();
     final ownerCandidates = localIdentities
-        .where((identity) => identity.role.name == 'owner')
+        .where((identity) => identity.role == AuthRole.owner)
         .toList(growable: false);
     final owner = ownerCandidates.isNotEmpty
         ? ownerCandidates.first
