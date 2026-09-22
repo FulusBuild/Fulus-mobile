@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 
 import '../../lib/data/local/database/database.dart';
