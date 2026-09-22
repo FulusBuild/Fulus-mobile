@@ -42,6 +42,28 @@ class CloudSyncBootstrapCoordinator {
       final ownerName = user.fullName;
       final activeLocationId = session.activeLocationId;
 
+      // Re-check the destructive-recovery preconditions inside the same
+      // database transaction that replaces cloud-owned rows. The caller's
+      // preflight closes the common case, but a local mutation can be queued
+      // between that read and bootstrap. Drift serializes operations on this
+      // database executor, so keeping this final gate inside the bootstrap
+      // transaction prevents recovery from importing a snapshot over a newly
+      // queued local mutation.
+      final pending = await _db.select(_db.syncQueueItems).get();
+      if (pending.isNotEmpty) {
+        throw const StateError(
+          'Cloud Sync recovery cannot replace local state while new outbound work is queued.',
+        );
+      }
+      final unresolvedConflicts = await (_db.select(_db.syncConflictRecords)
+            ..where((c) => c.resolvedAt.isNull()))
+          .get();
+      if (unresolvedConflicts.isNotEmpty) {
+        throw const StateError(
+          'Cloud Sync recovery cannot replace local state while an unresolved conflict exists.',
+        );
+      }
+
       // The snapshot importer owns the cloud business tables. It is deliberately
       // run inside this outer transaction so a process death or import failure
       // restores the previous local state instead of leaving a half-bootstrap.
