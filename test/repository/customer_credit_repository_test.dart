@@ -183,6 +183,37 @@ void main() {
     });
   });
 
+  test('rolls back the local repayment when outbox enqueue fails', () async {
+    final customerId = await createTestCustomer();
+    await creditRepository.recordCreditSale(
+      customerLocalId: customerId,
+      amount: 5000,
+      saleLocalId: 'sale-1',
+    );
+
+    final throwingQueue = _ThrowingSyncQueue(db);
+    final repository = CustomerCreditRepositoryImpl(
+      db: db,
+      syncQueue: throwingQueue,
+    );
+
+    await expectLater(
+      repository.recordRepayment(
+        customerLocalId: customerId,
+        amount: 2000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final customer = await customerRepository.getCustomerById(customerId);
+    expect(customer!.outstandingBalance, 5000);
+    final entries = await (db.select(db.customerLedgerEntries)
+          ..where((e) => e.customerLocalId.equals(customerId)))
+        .get();
+    expect(entries, hasLength(1));
+    expect(entries.single.entryType, 'creditSale');
+  });
+
   group('recordRefundAdjustment', () {
     test('reduces the balance the same way a repayment does', () async {
       final customerId = await createTestCustomer();
@@ -281,4 +312,13 @@ void main() {
       expect(entries.last.entryType, CustomerLedgerEntryType.creditSale);
     });
   });
+}
+
+class _ThrowingSyncQueue extends SyncQueue {
+  _ThrowingSyncQueue(super.db);
+
+  @override
+  Future<void> enqueue(SyncTask task) async {
+    throw StateError('simulated outbox failure');
+  }
 }
