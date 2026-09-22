@@ -225,7 +225,11 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
         await ref.read(authRepositoryProvider).hasAnyOwnerAccount();
     final hasBusiness =
         await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
-    return hasOwner || hasBusiness;
+    // Only auto-resume when both halves of this account's local
+    // onboarding already exist. A lone local business or owner can be a
+    // legitimate pre-cloud/on-device state and must not silently bind to
+    // whichever cloud email was typed into this form.
+    return hasOwner && hasBusiness;
   }
 
   Future<void> _finishNewAccount({required String name, required String businessName}) async {
