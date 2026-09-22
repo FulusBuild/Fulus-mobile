@@ -4,14 +4,14 @@ Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR: #56 open/unmerged
-HEAD: 8fbf596008dd5fa004202ba8a0774ce410fac89e
+HEAD: bb70db8ea76ec410d6c090dbdc9ba4bbc0799184
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
 
 Cloud Sync V1 has passed the live catalog/idempotency/concurrency E2E and the latest full CI run #1423 / ID 35689037116 is GREEN on HEAD.
 
-The latest recovery-hardening change restores the full `lib/app/bootstrap.dart` wiring after a bad partial file update, and persists the authoritative restore snapshot `sync_boundary` through `FulusSyncCoordinator.setCursor()` before the post-bootstrap delta pull. Coordinator tests cover boundary persistence and negative-boundary rejection.
+Recovery hardening now also reports failures from the recovery-start lifecycle callback, keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, and performs a final pending-outbox/conflict gate inside the atomic bootstrap transaction so a mutation queued after the initial preflight cannot be overwritten by restore. `SyncStatusSnapshot` equality now includes recovery state/error.
 
 The recovery lifecycle is now explicitly:
 410 SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> authoritative snapshot -> atomic bootstrap/import -> persist snapshot boundary cursor -> post-bootstrap delta pull -> Sync Ready.
@@ -36,7 +36,7 @@ Production functions:
 
 GitHub:
 - PR #56 open/unmerged.
-- CI #1423 / 35689037116 GREEN.
+- CI #1431 / 35690922113 is running for the latest recovery-hardening changes; the preceding full CI was GREEN.
 - Generate Dart code GREEN.
 - Static analysis GREEN.
 - Flutter tests GREEN.
