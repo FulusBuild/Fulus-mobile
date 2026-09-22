@@ -1,47 +1,27 @@
 # Copy-Paste Resume Prompt
 
-Continue the Fulus Cloud Sync implementation from the repository state. Do not restart completed work.
+Continue Fulus Cloud Sync PR #56 from the repository state. Do not restart completed work.
 
 First read:
 - docs/FULUS_CLOUD_SYNC_V1_ARCHITECTURE.md
 - docs/FULUS_SYNC_IMPLEMENTATION_STATE.md
 - docs/FULUS_SYNC_HANDOFF.md
 
-Then independently verify the current branch, HEAD, PR, diff against main, latest CI, relevant client/server code, and production Supabase state. Treat the repository as the source of truth if any handoff statement is stale.
+Current branch: feat/cloud-sync-v1-hardening-v2
+Current documented HEAD: fa864f9601966e4b8ee21346e6244b1ce6657b4e
+Production fulus-api: v44
+Production fulus-sync-state: v4
 
-Find the first genuinely incomplete architectural invariant and implement it completely. Do not stop to give progress reports. Iterate through implementation, focused tests, broader tests, CI, review, and fixes continuously.
+The 2026-09-22 phase audit found and closed the absolute stock-adjustment sync gap. Stock adjustments now use an authoritative server absolute-target command; never reconstruct an adjustment as a client delta.
 
-For every syncable feature trace:
+Trace every supported syncable feature through:
+local mutation -> transaction/outbox -> scheduling -> API -> authorization -> idempotency -> concurrency -> authoritative write -> change feed -> cursor -> canonical read -> reconciliation -> conflict/recovery -> retry/replay -> Sync Health.
 
-local mutation
--> transaction/outbox
--> scheduling
--> API
--> authorization
--> idempotency
--> concurrency
--> authoritative write
--> change feed
--> cursor
--> canonical read
--> reconciliation
--> conflict/recovery
--> retry/replay
--> Sync Health
+Recovery invariant:
+410 SYNC_CURSOR_TOO_OLD -> authoritative snapshot -> atomic bootstrap -> durable boundary -> post-bootstrap delta pull -> Sync Ready.
 
-Do not call a feature complete if only one side of this lifecycle exists.
+Do not declare V1 complete merely because CI is green. Execute and document the final architecture, client-flow, server-flow, failure/recovery, scale/Sync Health, production, diff, CI, E2E, and multi-device/replay audits. APK remains blocked until those gates pass.
 
-The current priority is Phase 4 recovery/bootstrap. The server already has machine-readable stale-cursor detection; implement the actual client bootstrap/recovery lifecycle, including safe cursor boundaries, preservation/reconciliation of pending local work, interruption safety, retry safety, and eventual Sync Ready.
+Do not stop to give progress reports. Continue implementation, tests, CI, production verification, and fixes until the release gates are actually satisfied.
 
-After that continue through batch canonical reads, crash/replay recovery, token/device recovery, scale/retention, authoritative Sync Health, and the final five audits.
-
-The five final audits are mandatory:
-1. architecture
-2. client flow
-3. server flow
-4. failure/recovery
-5. final diff/CI/integration/production
-
-Do not declare completion merely because CI is green. Do not build or release an APK until the five audits and integration verification pass.
-
-If the session ends before completion, update docs/FULUS_SYNC_IMPLEMENTATION_STATE.md with the exact HEAD, phase, completed checks, CI state, production state, unresolved risks, and the next concrete action.
+If a session ends before completion, update the sync state and handoff docs with exact HEAD, CI, production versions, completed gates, unresolved risks, and the next concrete action.
