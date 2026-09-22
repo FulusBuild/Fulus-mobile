@@ -5,7 +5,7 @@ Repository: FulusBuild/Fulus-mobile
 Audit branch: audit/cloud-sync-v1-completion
 PR: #58 (audit continuation)
 Main merge base: 4114ee538b1622df95c72faabbc301d584232fea
-Current code HEAD: 5bcac523a6622987be6cfafbadd0af0a9573d574f
+Current code HEAD: bb2d0a7314ff17af67af10a91397a05009f1d26c
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
@@ -19,7 +19,7 @@ Both gaps are now fixed:
 - Archived offline-created customers complete create -> archive update; catalog archive handlers also converge correctly.
 - Absolute stock targets are now serialized on the product/stock row and written directly to the requested absolute target inside one server transaction.
 - Production migration fix_absolute_stock_adjustment_atomic_target is applied.
-- Live E2E run #1468 / 35703729612 passed after the production fix.
+- Live E2E run #1468 / 35704604492 passed after the production fix.
 
 ## Phase status
 
@@ -106,9 +106,9 @@ Verified against production:
 ## Verification evidence
 
 Latest green CI:
-- Run #1468
-- Run ID 35703729612
-- HEAD 5bcac523a6622987be6cfafbadd0af0a9573d574f
+- Run #1469
+- Run ID 35704604492
+- HEAD bb2d0a7314ff17af67af10a91397a05009f1d26c
 - Resolve dependencies: PASS
 - Generate Dart code: PASS
 - Static analysis: PASS
