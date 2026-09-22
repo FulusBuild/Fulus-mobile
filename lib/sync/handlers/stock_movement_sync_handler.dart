@@ -44,7 +44,7 @@ class StockMovementSyncHandler implements SyncHandler {
     }
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
-    if (businessId == null || businessId.isEmpty || device?.status != 'active') {
+    if (businessId == null || businessId.isEmpty || device == null || device.status != 'active') {
       throw StateError('Fulus Cloud device authorization is required for stock sync.');
     }
     final product = await (_db.select(_db.products)
