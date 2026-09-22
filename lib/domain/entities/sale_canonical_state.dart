@@ -46,6 +46,7 @@ class SaleCanonicalItem {
   const SaleCanonicalItem({
     required this.serverId,
     required this.productServerId,
+    this.description = '',
     required this.quantity,
     required this.unitPrice,
     required this.costPriceAtSale,
@@ -53,7 +54,8 @@ class SaleCanonicalItem {
   });
 
   final String serverId;
-  final String productServerId;
+  final String? productServerId;
+  final String description;
   final int quantity;
   final double unitPrice;
   final double costPriceAtSale;
