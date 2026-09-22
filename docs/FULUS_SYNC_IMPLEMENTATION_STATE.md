@@ -4,14 +4,14 @@ Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR: #56 open/unmerged
-HEAD: d0cf09668c2eb39758f0b9745ccd6d9e9cd32d74
+HEAD: 590d6849c7fb1697d5f42c6a42e135b24cd2ad58
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
 
 Cloud Sync V1 has passed the live catalog/idempotency/concurrency E2E and the latest full CI run #1423 / ID 35689037116 is GREEN on HEAD.
 
-Recovery hardening now also reports failures from the recovery-start lifecycle callback, keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, and performs a final pending-outbox/conflict gate inside the atomic bootstrap transaction so a mutation queued after the initial preflight cannot be overwritten by restore. `SyncStatusSnapshot` equality now includes recovery state/error.
+Recovery hardening now also reports failures from the recovery-start lifecycle callback, keeps Sync Health in `recovering` until the post-bootstrap delta pull succeeds, performs a final pending-outbox/conflict gate inside the atomic bootstrap transaction, and persists the authoritative boundary before post-bootstrap pull. The local cloud dataset is explicitly single-business: a durable local business binding now forces authoritative snapshot recovery when the selected business changes, preventing cross-business row mixing.
 
 The recovery lifecycle is now explicitly:
 410 SYNC_CURSOR_TOO_OLD -> CloudSyncRecovery -> authoritative snapshot -> atomic bootstrap/import -> persist snapshot boundary cursor -> post-bootstrap delta pull -> Sync Ready.
@@ -51,10 +51,10 @@ Supabase:
 
 ## Remaining work
 
-1. Prove the full stale-cursor recovery path against a real client session, including a recovery-time process restart/replay boundary.
-2. Add/run crash and replay tests: process death during bootstrap, timeout after server commit, pull replay before cursor persistence, token expiry with queued work, revoked device, network loss during recovery.
+1. Complete the live stale-cursor recovery/replay verification and final CI/E2E audit.
+2. Add/run crash and replay coverage: process death during bootstrap, timeout after server commit, pull replay before cursor persistence, token expiry with queued work, revoked device, network loss during recovery.
 3. Prove multi-device convergence using the real client coordinator/reconciler.
-4. Audit multi-business isolation and recovery gating; current recovery outbox/conflict preflight is local-database-wide because sync queue rows do not currently carry a business_id.
+4. Finalize multi-business isolation verification; the local Drift cloud-owned dataset is single-business and business switches now require authoritative recovery.
 5. Perform final architecture, client, server, failure/recovery, scale, Sync Health, production DB/security, final diff, full CI, and E2E/integration audits.
 6. APK release remains blocked until those audits pass.
 
