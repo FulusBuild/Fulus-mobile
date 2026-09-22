@@ -326,7 +326,7 @@ void main() {
       expect(reportedError, isA<BusinessRuleFailure>());
       expect(successCalls, 0);
       verify(() => syncEngine.runOnce(manual: true)).called(1);
-      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).never();
+      verifyNever(() => syncStatusNotifier.checkForStuckSyncAndNotify());
     });
 
     test('manual sync reports failure through the health callback', () async {
