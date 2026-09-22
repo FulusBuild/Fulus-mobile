@@ -167,15 +167,15 @@ class SyncQueue {
         .map((row) => row.localId)
         .toList();
     Future<List<String>> idsForCategories() async => (await _db.select(_db.categories).get())
-        .where((row) => row.serverId == null && row.deletedAt == null)
+        .where((row) => row.serverId == null)
         .map((row) => row.localId)
         .toList();
     Future<List<String>> idsForSuppliers() async => (await _db.select(_db.suppliers).get())
-        .where((row) => row.serverId == null && row.deletedAt == null)
+        .where((row) => row.serverId == null)
         .map((row) => row.localId)
         .toList();
     Future<List<String>> idsForCustomers() async => (await _db.select(_db.customers).get())
-        .where((row) => row.serverId == null && row.deletedAt == null)
+        .where((row) => row.serverId == null)
         .map((row) => row.localId)
         .toList();
     Future<List<String>> idsForProducts() async => (await _db.select(_db.products).get())
