@@ -547,6 +547,56 @@ class CloudRestoreImporter {
       }
     }
 
+    if (table == 'sale_payments') {
+      // The server stores payment_method/created_at; the local child table
+      // deliberately calls those method/recorded_at.
+      if (!normalized.containsKey('method') &&
+          remote.containsKey('payment_method')) {
+        normalized['method'] = remote['payment_method'];
+      }
+      if (!normalized.containsKey('recorded_at') &&
+          remote.containsKey('created_at')) {
+        normalized['recorded_at'] = remote['created_at'];
+      }
+    }
+
+    if (table == 'return_requests') {
+      // The server return ledger is authoritative for sale/reason/amount.
+      // Legacy returns predate persisted refund_method and used the cash
+      // ledger for refunds, so "cash" is the honest compatibility value.
+      if (!normalized.containsKey('return_reason') &&
+          remote.containsKey('reason')) {
+        normalized['return_reason'] = remote['reason'];
+      }
+      if (!normalized.containsKey('refund_method')) {
+        normalized['refund_method'] =
+            remote['refund_method']?.toString() ?? 'cash';
+      }
+      if (!normalized.containsKey('inventory_restored')) {
+        normalized['inventory_restored'] =
+            remote['inventory_restored'] ?? remote['status'] == 'completed';
+      }
+      if (!normalized.containsKey('is_void')) {
+        normalized['is_void'] = remote['is_void'] ?? false;
+      }
+      if (!normalized.containsKey('completed_at') &&
+          remote['status'] == 'completed' &&
+          remote['created_at'] != null) {
+        normalized['completed_at'] = remote['created_at'];
+      }
+    }
+
+    if (table == 'expenses') {
+      // Old server rows may have no location_id because the original
+      // expense schema allowed it to be absent. New writes always carry it.
+      // The snapshot RPC enriches it from the cash ledger when possible;
+      // this client fallback keeps older snapshots importable.
+      if (!normalized.containsKey('description') ||
+          normalized['description'] == null) {
+        normalized['description'] = '';
+      }
+    }
+
     if (table != 'audit_logs') return normalized;
 
     final entityType = remote['entity_type']?.toString().trim();
