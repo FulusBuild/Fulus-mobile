@@ -47,7 +47,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
     if (customerId == null || customerId.isEmpty) {
       throw StateError('Customer ${ledger.customerLocalId} has not synced to Fulus Cloud yet.');
     }
-    final deviceClientId = await _secureStorage.ensureDeviceClientId(item.id);
+    final deviceClientId = _fulusConnectionState.registeredDevice?.deviceClientId ?? await _secureStorage.ensureDeviceClientId(item.id);
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'customer.repayment',
