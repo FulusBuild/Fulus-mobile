@@ -162,7 +162,7 @@ Future<void> main() async {
       if (current is! num || current.toInt() != requestedTargets[i]) {
         throw StateError(
           'Concurrent absolute stock adjustment did not return its requested '
-          'authoritative target $${requestedTargets[i]}: $${response.data}',
+          'authoritative target ${requestedTargets[i]}: ${response.data}',
         );
       }
     }
@@ -183,14 +183,14 @@ Future<void> main() async {
     }).toList();
     if (matchingStock.length != 1) {
       throw StateError(
-        'Expected exactly one stock level for the E2E product/location, got $${matchingStock.length}.',
+        'Expected exactly one stock level for the E2E product/location, got ${matchingStock.length}.',
       );
     }
     final committedStock = (matchingStock.single as Map)['current_stock'];
     if (committedStock is! num ||
         (committedStock.toInt() != 101 && committedStock.toInt() != 202)) {
       throw StateError(
-        'Concurrent absolute stock adjustment committed invalid stock: $${committedStock}',
+        'Concurrent absolute stock adjustment committed invalid stock: ${committedStock}',
       );
     }
     stdout.writeln('PASS: concurrent absolute stock adjustments serialize to requested targets');
