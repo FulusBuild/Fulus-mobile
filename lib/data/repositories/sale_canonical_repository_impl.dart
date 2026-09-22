@@ -37,15 +37,17 @@ class SaleCanonicalRepositoryImpl implements SaleCanonicalRepository {
 
       final productLocalIds = <String, String>{};
       for (final item in state.items) {
+        final productServerId = item.productServerId;
+        if (productServerId == null) continue; // Quick Sale: no catalog product.
         final product = await (_db.select(_db.products)
-              ..where((p) => p.serverId.equals(item.productServerId)))
+              ..where((p) => p.serverId.equals(productServerId)))
             .getSingleOrNull();
         if (product == null) {
           throw StateError(
-            'Canonical sale ${state.serverId} references unknown product ${item.productServerId}.',
+            'Canonical sale ${state.serverId} references unknown product $productServerId.',
           );
         }
-        productLocalIds[item.productServerId] = product.localId;
+        productLocalIds[productServerId] = product.localId;
       }
 
       final existing = await (_db.select(_db.sales)
@@ -120,8 +122,12 @@ class SaleCanonicalRepositoryImpl implements SaleCanonicalRepository {
               SaleItemsCompanion.insert(
                 localId: Ulid().toString(),
                 saleLocalId: localId,
-                productLocalId: Value(productLocalIds[item.productServerId]),
-                description: const Value(''),
+                productLocalId: Value(
+                  item.productServerId == null
+                      ? null
+                      : productLocalIds[item.productServerId],
+                ),
+                description: Value(item.description),
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 costPriceAtSale: item.costPriceAtSale,
