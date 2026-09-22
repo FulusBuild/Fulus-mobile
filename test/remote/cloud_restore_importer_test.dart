@@ -93,6 +93,62 @@ void main() {
     expect(permissions.map((row) => row.permission.name), containsAll(<String>['viewReports', 'manageEmployees']));
   });
 
+  test('translates cloud inventory movement deltas into local movement schema', () async {
+    final snapshot = <String, dynamic>{
+      'version': 6,
+      'locations': [
+        {'id': 'location-1', 'name': 'Main'},
+      ],
+      'products': [
+        {
+          'id': 'product-1',
+          'name': 'Test product',
+          'sku': 'TEST-1',
+          'cost_price': 10,
+          'selling_price': 20,
+          'low_stock_threshold': 2,
+          'is_active': true,
+          'tracks_stock': true,
+        },
+      ],
+      'inventory_movements': [
+        {
+          'id': 'movement-adjust',
+          'product_id': 'product-1',
+          'location_id': 'location-1',
+          'quantity_delta': 7,
+          'current_stock': 12,
+          'operation_type': 'inventory.set',
+          'reason': 'Physical count',
+          'operation_id': 'op-adjust',
+          'created_at': '2026-09-22T10:00:00Z',
+        },
+        {
+          'id': 'movement-sale',
+          'product_id': 'product-1',
+          'location_id': 'location-1',
+          'quantity_delta': -3,
+          'reason': 'sale INV-1',
+          'operation_id': 'op-sale',
+          'created_at': '2026-09-22T10:01:00Z',
+        },
+      ],
+    };
+
+    await CloudRestoreImporter(db).importSnapshot(snapshot);
+
+    final rows = await db.select(db.stockMovements).get();
+    final adjustment = rows.singleWhere((row) => row.localId == 'movement-adjust');
+    final sale = rows.singleWhere((row) => row.localId == 'movement-sale');
+
+    expect(adjustment.movementType, 'adjustment');
+    expect(adjustment.newQuantity, 12);
+    expect(adjustment.quantity, isNull);
+    expect(sale.movementType, 'sale');
+    expect(sale.quantity, 3);
+    expect(sale.newQuantity, isNull);
+  });
+
   test('rejects unsupported snapshot versions', () async {
     expect(
       () => CloudRestoreImporter(db).importSnapshot({'version': 2}),
