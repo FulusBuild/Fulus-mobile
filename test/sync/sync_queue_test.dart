@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:drift/drift.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 
 void main() {
@@ -42,6 +43,31 @@ void main() {
 
     await Future<void>.delayed(Duration.zero);
     expect(callbackSawCommittedRow, isTrue);
+  });
+
+  test('seeds a pre-cloud archived customer for create-then-archive lifecycle', () async {
+    final now = DateTime.now();
+    await db.into(db.customers).insert(
+      CustomersCompanion.insert(
+        localId: 'archived-customer',
+        name: 'Archived before cloud',
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: Value(now),
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+
+    await queue.seedExistingBusinessData();
+
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(
+      rows.any((row) =>
+          row.entityType == 'customer' &&
+          row.entityLocalId == 'archived-customer' &&
+          row.operation == 'create'),
+      isTrue,
+    );
   });
 
   test('keeps create and update operations distinct', () async {
