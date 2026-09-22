@@ -38,10 +38,15 @@ class CategorySyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for category sync.');
     }
 
-    final isDelete = item.operation == 'update' && category.deletedAt != null;
-    final operationType = isDelete
-        ? 'category.delete'
-        : 'category.${item.operation}';
+    final isDelete = category.deletedAt != null;
+    if (isDelete && category.serverId == null) {
+      if (item.operation == 'update') {
+        throw StateError('Cannot sync category deletion before its create has synced.');
+      }
+      throw StateError('Category create cannot be followed by delete without a server identity.');
+    }
+
+    final operationType = isDelete ? 'category.delete' : 'category.${item.operation}';
     final payload = <String, dynamic>{
       'name': category.name,
       'description': category.description,
