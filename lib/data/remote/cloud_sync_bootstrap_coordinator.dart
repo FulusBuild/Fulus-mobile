@@ -53,7 +53,7 @@ class CloudSyncBootstrapCoordinator {
       // queued local mutation.
       final pending = await _db.select(_db.syncQueueItems).get();
       if (pending.isNotEmpty) {
-        throw const StateError(
+        throw StateError(
           'Cloud Sync recovery cannot replace local state while new outbound work is queued.',
         );
       }
@@ -61,7 +61,7 @@ class CloudSyncBootstrapCoordinator {
             ..where((c) => c.resolvedAt.isNull()))
           .get();
       if (unresolvedConflicts.isNotEmpty) {
-        throw const StateError(
+        throw StateError(
           'Cloud Sync recovery cannot replace local state while an unresolved conflict exists.',
         );
       }
