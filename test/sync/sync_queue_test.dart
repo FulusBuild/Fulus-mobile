@@ -71,6 +71,45 @@ void main() {
     );
   });
 
+  test('seeds only repayment ledger entries because credit/refund entries are server-derived', () async {
+    final now = DateTime.now();
+    await db.into(db.customers).insert(
+      CustomersCompanion.insert(
+        localId: 'ledger-customer',
+        name: 'Ledger customer',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+
+    Future<void> insertLedger(String localId, String entryType) async {
+      await db.into(db.customerLedgerEntries).insert(
+        CustomerLedgerEntriesCompanion.insert(
+          localId: localId,
+          customerLocalId: 'ledger-customer',
+          entryType: entryType,
+          amount: 100,
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.pending,
+        ),
+      );
+    }
+
+    await insertLedger('credit-sale-ledger', 'creditSale');
+    await insertLedger('repayment-ledger', 'repayment');
+    await insertLedger('refund-ledger', 'refundAdjustment');
+
+    await queue.seedExistingBusinessData();
+
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(
+      rows.where((row) => row.entityType == 'customer_ledger').map((row) => row.entityLocalId),
+      ['repayment-ledger'],
+    );
+  });
+
   test('keeps create and update operations distinct', () async {
     await queue.enqueue(SyncTask.createProduct('product-1'));
     await queue.enqueue(SyncTask.updateProduct('product-1'));

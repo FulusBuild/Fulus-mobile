@@ -217,7 +217,10 @@ class SyncQueue {
             .toList();
     Future<List<String>> idsForCustomerLedger() async =>
         (await _db.select(_db.customerLedgerEntries).get())
-            .where((row) => row.serverId == null && row.deletedAt == null)
+            .where((row) =>
+                row.serverId == null &&
+                row.deletedAt == null &&
+                row.entryType == 'repayment')
             .map((row) => row.localId)
             .toList();
 
