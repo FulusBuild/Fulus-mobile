@@ -149,6 +149,79 @@ void main() {
     expect(sale.newQuantity, isNull);
   });
 
+  test('normalizes sale payments, legacy returns, and nullable expense descriptions', () async {
+    final snapshot = <String, dynamic>{
+      'version': 6,
+      'locations': [
+        {'id': 'location-1', 'name': 'Main'},
+      ],
+      'products': [
+        {
+          'id': 'product-1',
+          'name': 'Test product',
+          'sku': 'TEST-1',
+          'cost_price': 10,
+          'selling_price': 20,
+        },
+      ],
+      'sales': [
+        {
+          'id': 'sale-1',
+          'client_reference': 'sale-1',
+          'location_id': 'location-1',
+          'sale_date': '2026-09-22T10:00:00Z',
+          'subtotal': 20,
+          'total': 20,
+        },
+      ],
+      'sale_payments': [
+        {
+          'id': 'payment-1',
+          'sale_id': 'sale-1',
+          'amount': 20,
+          'payment_method': 'cash',
+          'created_at': '2026-09-22T10:01:00Z',
+        },
+      ],
+      'expenses': [
+        {
+          'id': 'expense-1',
+          'location_id': 'location-1',
+          'amount': 100,
+          'category': 'General',
+          'description': null,
+          'expense_date': '2026-09-22T10:02:00Z',
+        },
+      ],
+      'returns': [
+        {
+          'id': 'return-1',
+          'sale_id': 'sale-1',
+          'client_reference': 'return-1',
+          'reason': 'Damaged',
+          'refund_amount': 20,
+          'status': 'completed',
+          'created_at': '2026-09-22T10:03:00Z',
+        },
+      ],
+    };
+
+    await CloudRestoreImporter(db).importSnapshot(snapshot);
+
+    final payment = (await db.select(db.salePayments).get()).single;
+    expect(payment.method, 'cash');
+    expect(payment.recordedAt, DateTime.parse('2026-09-22T10:01:00Z').toLocal());
+
+    final expense = (await db.select(db.expenses).get()).single;
+    expect(expense.description, '');
+
+    final returnRow = (await db.select(db.returnRequests).get()).single;
+    expect(returnRow.returnReason, 'Damaged');
+    expect(returnRow.refundMethod, 'cash');
+    expect(returnRow.inventoryRestored, isTrue);
+    expect(returnRow.isVoid, isFalse);
+  });
+
   test('rejects unsupported snapshot versions', () async {
     expect(
       () => CloudRestoreImporter(db).importSnapshot({'version': 2}),
