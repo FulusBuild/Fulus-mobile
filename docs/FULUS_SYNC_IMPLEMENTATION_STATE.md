@@ -1,6 +1,6 @@
 # Fulus Sync Implementation State
 
-Last audited: 2026-09-22
+Last audited: 2026-09-22 (final post-merge verification)
 Repository: FulusBuild/Fulus-mobile
 Supabase project: bejcuvoxemwomcatgyxz
 
@@ -8,7 +8,7 @@ Supabase project: bejcuvoxemwomcatgyxz
 
 The Cloud Sync V1 implementation has undergone an independent second-pass audit after the earlier completion claim. The audit deliberately traced local mutation -> durable outbox -> handler -> Edge Function/RPC -> authoritative database mutation -> change feed -> pull -> canonical reconciliation, and separately checked recovery, concurrency, production state, and CI/live E2E evidence.
 
-The audit found and fixed additional material gaps rather than treating the previous completion claim as authoritative:
+The audit found and fixed additional material gaps rather than treating the previous completion claim as authoritative. The final restore-boundary and identity-safe resumable-signup hardening is now merged to `main`, and the production deployment was rechecked against the current source:
 
 1. Customer repayment local balance/ledger mutation and durable outbox enqueue are now atomic in one Drift transaction, with regression coverage.
 2. Initial cloud seeding now includes pre-cloud archived products/categories/suppliers/customers so create-then-archive lifecycle state is preserved remotely.
@@ -132,7 +132,7 @@ Production migration history records the connector-applied versions for these mi
 
 ## CI / live E2E evidence
 
-The final hardening CI is required to be green before merge.
+The final hardening CI gate is green for the merged Cloud Sync hardening work. APK jobs remain skipped.
 
 Required successful jobs:
 - Resolve dependencies
@@ -158,7 +158,7 @@ The live E2E covers:
 - conflicting generic replay;
 - product delete cleanup/change-feed behavior.
 
-The first hardening CI attempt exposed one real integration gap: the database correctly raised `P0009`, but the generic `fulus-api` action error mapper returned HTTP 400 `COMMAND_FAILED`. That mapper was fixed and production `fulus-api` was redeployed as version 45. The next CI/live E2E run is the final verification gate.
+The first hardening CI attempt exposed one real integration gap: the database correctly raised `P0009`, but the generic `fulus-api` action error mapper returned HTTP 400 `COMMAND_FAILED`. That mapper was fixed and production `fulus-api` was redeployed as version 45. The merged production state has now been independently rechecked: the four Cloud Sync-critical Edge Functions are byte-for-byte identical to `main`, the production migration ledger contains the latest restore/idempotency/retention hardening, the change-feed indexes are present, and the authoritative restore snapshot currently reports a live feed boundary. The remaining release gate is physical Android validation, not another claimed software completion pass.
 
 ## Final invariants
 
@@ -166,6 +166,6 @@ Every supported cloud mutation has a durable local intent and a verified server 
 
 ## Audit conclusion
 
-Cloud Sync V1 is not declared final until the current hardening branch's CI/live E2E passes after the production `fulus-api` version-45 deployment, the PR is merged, and main is re-verified at the merge commit.
+Cloud Sync V1 software implementation is complete on `main` after the restore-boundary and identity-safe signup hardening merges. Production parity and the documented server-contract E2E evidence have been rechecked, and the current production snapshot/change-feed boundary is valid. This does **not** claim a literal Android process-kill/restore test: physical-device validation remains the release gate.
 
-APK release/build remains intentionally skipped.
+Next release gate: build/install the APK from current `main` on a real device and verify fresh restore, offline mutation, online upload, pull, Sync Ready, app restart persistence, and stale-cursor recovery. APK release/build remains intentionally skipped in this audit session.
