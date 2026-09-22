@@ -36,6 +36,13 @@ class CloudRestoreCoordinator {
       // outbound queue.
       await _db.delete(_db.syncQueueItems).go();
 
+      // Restore replaces the cloud-owned local dataset with an authoritative
+      // snapshot. Optimistic-concurrency conflict records belong to the
+      // previous local dataset and cannot safely be carried across restore:
+      // keeping them would block the first post-restore pull/recovery even
+      // though the restored snapshot contains the authoritative state.
+      await _db.delete(_db.syncConflictRecords).go();
+
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: null,

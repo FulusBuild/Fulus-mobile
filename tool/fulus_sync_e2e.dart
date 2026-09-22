@@ -23,6 +23,12 @@ Future<void> main() async {
   final businessId = _required('FULUS_BUSINESS_ID');
   final deviceClientId = _required('FULUS_DEVICE_ID');
   final token = await _resolveAccessToken();
+  await _verifyBusinessProvisioningIdempotency(
+    authUrl: _required('FULUS_AUTH_URL'),
+    publishableKey: _required('FULUS_PUBLISHABLE_KEY'),
+    token: token,
+    businessId: businessId,
+  );
 
   final dio = Dio(BaseOptions(
     baseUrl: baseUrl,
@@ -620,4 +626,62 @@ String? _entityId(Response<dynamic> response) {
   if (item is! Map) return null;
   final value = item['id'];
   return value is String ? value : null;
+}
+
+
+Future<void> _verifyBusinessProvisioningIdempotency({
+  required String authUrl,
+  required String publishableKey,
+  required String token,
+  required String businessId,
+}) async {
+  final dio = Dio(BaseOptions(
+    baseUrl: '$authUrl/functions/v1/fulus-provision-business',
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'Authorization': 'Bearer $token',
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
+
+  Future<Response<dynamic>> provision() {
+    return dio.post(
+      '',
+      data: {
+        'name': 'Fulus E2E Test Business',
+        'currency_code': 'NGN',
+        'timezone': 'Africa/Lagos',
+        'location_name': 'Main',
+      },
+    );
+  }
+
+  final first = await provision();
+  _expect2xx(first, 'business provisioning idempotency first call');
+  final firstRoot = first.data;
+  final firstData = firstRoot is Map ? firstRoot['data'] : null;
+  final firstBusinessId = firstData is Map ? firstData['business_id'] : null;
+  final firstCreated = firstData is Map ? firstData['created'] : null;
+  if (firstBusinessId != businessId || firstCreated != false) {
+    throw StateError(
+      'business provisioning ensure returned unexpected first result: ' + first.data.toString(),
+    );
+  }
+
+  final replay = await provision();
+  _expect2xx(replay, 'business provisioning idempotency replay');
+  final replayRoot = replay.data;
+  final replayData = replayRoot is Map ? replayRoot['data'] : null;
+  final replayBusinessId = replayData is Map ? replayData['business_id'] : null;
+  final replayCreated = replayData is Map ? replayData['created'] : null;
+  if (replayBusinessId != businessId || replayCreated != false) {
+    throw StateError(
+      'business provisioning replay was not idempotent: ' + replay.data.toString(),
+    );
+  }
+
+  stdout.writeln('PASS: account business provisioning is idempotent for an existing cloud account');
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 
 import '../../lib/data/local/database/database.dart';
@@ -70,6 +71,61 @@ void main() {
     );
 
     expect(await db.select(db.syncQueueItems).get(), isEmpty);
+  });
+
+  test('clears stale conflict records from the previous local dataset', () async {
+    await db.into(db.syncConflictRecords).insert(
+      SyncConflictRecordsCompanion.insert(
+        id: 'stale-conflict',
+        operationId: 'stale-operation',
+        entityType: 'sale',
+        entityLocalId: 'old-local-sale',
+        code: const Value('SYNC_CONFLICT'),
+        message: 'Old local conflict',
+        createdAt: DateTime(2026, 9, 20),
+      ),
+    );
+    expect(await db.select(db.syncConflictRecords).get(), hasLength(1));
+
+    const ownerId = 'owner-cloud-id';
+    final snapshot = <String, dynamic>{
+      'version': 6,
+      'membership': {'user_id': ownerId, 'role_name': 'owner'},
+      'profile': {'id': ownerId, 'full_name': 'Amina Yusuf'},
+      'business_memberships': [
+        {
+          'id': 'membership-owner',
+          'user_id': ownerId,
+          'role_id': 'role-owner',
+          'status': 'active',
+          'created_at': '2026-09-13T00:00:00Z',
+          'updated_at': '2026-09-13T00:00:00Z',
+        },
+      ],
+      'roles': [
+        {'id': 'role-owner', 'name': 'owner'},
+      ],
+      'permissions': [],
+      'role_permissions': [],
+      'location_memberships': [],
+    };
+    const settings = BusinessSettingsResponseDto(
+      id: 'business-id',
+      businessName: 'Amina Store',
+      vatEnabled: false,
+      vatRate: 0,
+      currencySymbol: '₦',
+      receiptFooter: 'Thank you',
+    );
+
+    await coordinator.restore(
+      snapshot: snapshot,
+      ownerCloudUserId: ownerId,
+      ownerEmail: 'amina@example.com',
+      settings: settings,
+    );
+
+    expect(await db.select(db.syncConflictRecords).get(), isEmpty);
   });
 
   test('restores owner identity, settings, and current session', () async {
