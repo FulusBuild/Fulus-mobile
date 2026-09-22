@@ -58,7 +58,8 @@ class AuthApi {
       final body = e.response?.data;
       if (body is Map && body['code'] == 'email_exists') {
         throw const BusinessRuleFailure(
-          'An account with this email already exists. Sign in or resend the verification email.',
+          'An account with this email already exists. Sign in to finish setup.',
+          code: 'email_exists',
         );
       }
       throw _client.mapError(e);
