@@ -502,9 +502,53 @@ class CloudRestoreImporter {
     String table,
     Map<String, dynamic> remote,
   ) {
-    if (table != 'audit_logs') return remote;
-
     final normalized = Map<String, dynamic>.from(remote);
+
+    // The cloud inventory ledger is intentionally delta-based:
+    // inventory_movements.quantity_delta is the authoritative server field.
+    // The local Drift table is richer because it also records the command
+    // vocabulary (in/out/adjustment/sale). Restore therefore needs an
+    // explicit compatibility translation rather than assuming the two
+    // schemas are identical. New snapshots may already contain the richer
+    // fields; older/current production snapshots contain quantity_delta.
+    if (table == 'stock_movements') {
+      final delta = _asInt(remote['quantity_delta']);
+      final operationType = remote['operation_type']?.toString();
+      final reason = remote['reason']?.toString() ?? '';
+
+      if (!normalized.containsKey('movement_type')) {
+        if (operationType == 'inventory.set' ||
+            operationType == 'inventory.adjust') {
+          normalized['movement_type'] = 'adjustment';
+        } else if (reason.toLowerCase().startsWith('sale ')) {
+          normalized['movement_type'] = 'sale';
+        } else if (delta != null && delta > 0) {
+          normalized['movement_type'] = 'in';
+        } else if (delta != null && delta < 0) {
+          normalized['movement_type'] = 'out';
+        }
+      }
+
+      if (!normalized.containsKey('quantity') &&
+          delta != null &&
+          normalized['movement_type'] != 'adjustment') {
+        normalized['quantity'] = delta.abs();
+      }
+
+      // Absolute inventory.set commands can be reconstructed exactly from
+      // the server's post-command current_stock. For legacy delta
+      // adjustments, current_stock is still the authoritative resulting
+      // quantity, so preserving it as the local adjustment target avoids
+      // fabricating a delta the device cannot safely recompute.
+      if (!normalized.containsKey('new_quantity') &&
+          normalized['movement_type'] == 'adjustment' &&
+          remote['current_stock'] != null) {
+        normalized['new_quantity'] = remote['current_stock'];
+      }
+    }
+
+    if (table != 'audit_logs') return normalized;
+
     final entityType = remote['entity_type']?.toString().trim();
     final action = remote['action']?.toString().trim();
 
@@ -522,6 +566,13 @@ class CloudRestoreImporter {
     }
 
     return normalized;
+  }
+
+  int? _asInt(Object? value) {
+    if (value is int) return value;
+    if (value is num && value == value.toInt()) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   String _auditModule(String? entityType, String? action) {
