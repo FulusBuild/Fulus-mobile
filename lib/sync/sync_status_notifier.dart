@@ -89,8 +89,17 @@ class SyncStatusNotifier {
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
 
-  Future<void> markRecoveryCompleted(String businessId, int boundary) async {
+  /// Records the authoritative restore boundary while recovery is still
+  /// reconciling. Sync is not considered fully recovered until the
+  /// post-bootstrap delta pull succeeds.
+  Future<void> markRecoveryBoundaryPersisted(String businessId, int boundary) async {
     await _preferences.setInt(_cursorKey(businessId), boundary);
+    await _preferences.remove(_recoveryErrorKey(businessId));
+  }
+
+  /// Marks stale-cursor recovery fully reconciled after the post-bootstrap
+  /// delta pull has completed successfully.
+  Future<void> markRecoveryCompleted(String businessId) async {
     await _preferences.setString(_recoveryKey(businessId), 'idle');
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
