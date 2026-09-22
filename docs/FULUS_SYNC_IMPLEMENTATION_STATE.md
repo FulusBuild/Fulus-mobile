@@ -4,7 +4,7 @@ Last verified: 2026-09-22
 Repository: FulusBuild/Fulus-mobile
 Branch: feat/cloud-sync-v1-hardening-v2
 PR: #56 open/unmerged
-HEAD: c67b42ddbc3aa48f72766eff49487c9638aaf74d
+HEAD: 8fbf596008dd5fa004202ba8a0774ce410fac89e
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
