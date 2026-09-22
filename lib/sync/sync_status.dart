@@ -76,5 +76,5 @@ class SyncHealthSnapshot extends Equatable {
   final String? lastError;
 
   @override
-  List<Object?> get props => [lastPushAt, lastPullAt, cursor];
+  List<Object?> get props => [lastPushAt, lastPullAt, cursor, recoveryState, lastError];
 }
