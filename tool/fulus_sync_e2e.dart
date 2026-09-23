@@ -131,6 +131,46 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: sale.create Quick Sale');
 
+    final categoryOperationId = 'e2e-category-$suffix';
+    final categoryResponse = await _submitCatalog(
+      dio,
+      businessId: businessId,
+      action: 'catalog_upsert',
+      entity: 'categories',
+      operationId: categoryOperationId,
+      item: {
+        'name': 'Fulus E2E Category $suffix',
+        'description': 'Cloud Sync V1 category contract',
+      },
+    );
+    _expect2xx(categoryResponse, 'category.create');
+    final categoryId = _entityId(categoryResponse);
+    if (categoryId == null || categoryId.isEmpty) {
+      throw StateError('category.create returned no server entity ID: ${categoryResponse.data}');
+    }
+    stdout.writeln('PASS: category.create');
+
+    final supplierOperationId = 'e2e-supplier-$suffix';
+    final supplierResponse = await _submitCatalog(
+      dio,
+      businessId: businessId,
+      action: 'catalog_upsert',
+      entity: 'suppliers',
+      operationId: supplierOperationId,
+      item: {
+        'name': 'Fulus E2E Supplier $suffix',
+        'phone': '08000000002',
+        'email': null,
+        'address': 'Cloud Sync V1 supplier contract',
+      },
+    );
+    _expect2xx(supplierResponse, 'supplier.create');
+    final supplierId = _entityId(supplierResponse);
+    if (supplierId == null || supplierId.isEmpty) {
+      throw StateError('supplier.create returned no server entity ID: ${supplierResponse.data}');
+    }
+    stdout.writeln('PASS: supplier.create');
+
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
