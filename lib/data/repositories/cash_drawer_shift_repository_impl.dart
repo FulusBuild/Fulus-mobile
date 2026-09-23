@@ -102,6 +102,16 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
   }
 
   @override
+  Future<void> markAttentionNeeded(String localId) async {
+    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
+      CashDrawerShiftsCompanion(
+        syncStatus: const Value(SyncStatus.attentionNeeded),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  @override
   Future<void> reconcileServerState({
     required String serverId,
     required String cashierUserId,
