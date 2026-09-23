@@ -13,6 +13,7 @@ import '../../../../data/remote/cloud_restore_coordinator.dart';
 import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../../../sync/sync_user_message.dart';
 
 /// Restores a Fulus installation from the user's single Fulus Cloud business.
 ///
@@ -207,7 +208,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = error.toString().replaceFirst('Bad state: ', '');
+          _error = syncUserMessage(error);
           _status = 'Ready to restore your business.';
         });
       }
