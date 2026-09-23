@@ -125,6 +125,34 @@ void main() {
   });
 
   group('sync enabled', () {
+    test('periodic retry retries pending work without waiting for a connectivity event', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      var runCount = 0;
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+      });
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        retryInterval: const Duration(milliseconds: 10),
+      );
+
+      await triggers.start();
+      await Future<void>.delayed(const Duration(milliseconds: 35));
+
+      expect(runCount, greaterThanOrEqualTo(2));
+      triggers.dispose();
+    });
+
     test('start() checks connectivity and runs the engine when online', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
