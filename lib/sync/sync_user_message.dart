@@ -25,8 +25,14 @@ String syncUserMessage(Object error) {
     }
 
     // These Failure messages are already deliberately written for users.
-    if (error is NetworkFailure || error is AuthFailure || error is ValidationFailure) {
-      return error.message;
+    if (error is NetworkFailure) {
+      return 'Cloud backup is temporarily unavailable. Your work is safe on this device. Fulus will retry automatically.';
+    }
+    if (error is AuthFailure) {
+      return 'Your session needs to reconnect. Your work is safe on this device.';
+    }
+    if (error is ValidationFailure) {
+      return 'Cloud backup could not accept a change. Your work is safe on this device. Fulus will keep trying automatically.';
     }
   }
 
