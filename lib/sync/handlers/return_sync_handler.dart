@@ -5,6 +5,7 @@ import '../../data/remote/fulus_product_canonical_reconciler.dart';
 import '../../data/remote/fulus_customer_canonical_reconciler.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/customer_repository.dart';
+import '../../core/errors/failure.dart';
 import '../sync_error.dart';
 import '../../domain/repositories/return_repository.dart';
 import '../sync_handler.dart';
