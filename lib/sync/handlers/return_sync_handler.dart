@@ -83,7 +83,7 @@ class ReturnSyncHandler implements SyncHandler {
     }
     final data = result['data'];
     if (data is! Map) throw StateError('Fulus return sync returned no response data.');
-    final serverId = (data['entity_id'] ?? data['id'])?.toString();
+    final serverId = (data['entity_id'] ?? data['return_id'] ?? data['id'])?.toString();
     if (serverId == null || serverId.isEmpty) throw StateError('Fulus return sync returned no server entity ID.');
     await _returnRepository.markSynced(localId: request.localId, serverId: serverId);
   }
