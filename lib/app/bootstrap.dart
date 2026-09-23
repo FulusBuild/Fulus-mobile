@@ -178,7 +178,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  fulusConnectionState.setBusinessSwitchGuard(syncQueue.hasPendingItems);
+  fulusConnectionState.setBusinessSwitchGuard(() async {
+    if (await syncQueue.hasPendingItems()) return false;
+    // The local cloud dataset is single-business. Wait for any active push,
+    // pull, or recovery cycle before changing the selected business so an
+    // in-flight old-business pull can never write into the newly selected
+    // business's local dataset.
+    await syncTriggers.waitForIdle();
+    return !(await syncQueue.hasPendingItems());
+  });
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
