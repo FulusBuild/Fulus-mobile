@@ -107,7 +107,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+      if (mounted) setState(() => _error = syncUserMessage(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -190,7 +190,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
         });
       }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+      if (mounted) setState(() => _error = syncUserMessage(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -224,7 +224,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+      if (mounted) setState(() => _error = syncUserMessage(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
