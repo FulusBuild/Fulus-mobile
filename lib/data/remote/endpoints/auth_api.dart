@@ -146,26 +146,16 @@ class AuthApi {
     } on DioException catch (e) { throw _client.mapError(e); }
   }
 
-  Future<ServerAuthSessionDto?> restoreServerSession({required String supabaseUrl, required String publishableKey}) async {
-    final refreshToken = await _client.secureRefreshToken();
-    if (refreshToken == null) return null;
-    final authClient = Dio(BaseOptions(baseUrl: supabaseUrl));
-    try {
-      final response = await authClient.post('/auth/v1/token?grant_type=refresh_token', data: {'refresh_token': refreshToken}, options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}));
-      final session = ServerAuthSessionDto.fromJson(response.data as Map<String, dynamic>);
-      await _client.setServerAccessToken(session.accessToken);
-      await _client.persistServerRefreshToken(session.refreshToken);
-      return session;
-    } on DioException catch (e) {
-      // A refresh token is durable recovery state. Do not destroy it because
-      // the device is offline or Supabase is temporarily unavailable.
-      final status = e.response?.statusCode;
-      final rejected = status == 400 || status == 401;
-      if (rejected) {
-        await _client.expireServerSession();
-      }
-      return null;
-    }
+  Future<ServerAuthSessionDto?> restoreServerSession({
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final data = await _client.restoreServerSession(
+      supabaseUrl: supabaseUrl,
+      publishableKey: publishableKey,
+    );
+    if (data == null) return null;
+    return ServerAuthSessionDto.fromJson(data);
   }
 }
 
