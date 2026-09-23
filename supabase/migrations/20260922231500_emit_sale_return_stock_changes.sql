@@ -16,9 +16,14 @@ begin
     where n.nspname = 'public'
       and p.prokind = 'f'
       and p.proname = 'create_sale_atomic'
+    order by p.oid desc
     limit 1;
 
-  definition := pg_get_functiondef(fn.oid);
+  if fn.oid is not null then
+    definition := pg_get_functiondef(fn.oid);
+  else
+    definition := null;
+  end if;
   definition := replace(
     definition,
     '  ledger_id uuid;
@@ -82,7 +87,9 @@ $block$;
 $replacement$
   );
 
-  execute definition;
+  if definition is not null then
+    execute definition;
+  end if;
 
   select p.oid, n.nspname, p.proname
     into fn
@@ -93,12 +100,18 @@ $replacement$
       and p.proname = 'create_return_atomic'
     limit 1;
 
-  definition := pg_get_functiondef(fn.oid);
-  definition := replace(
-    definition,
-    'reversal numeric:=0; ledger_id uuid;',
-    'reversal numeric:=0; ledger_id uuid; movement_id uuid; current_quantity integer;'
-  );
+  if fn.oid is not null then
+    definition := pg_get_functiondef(fn.oid);
+  else
+    definition := null;
+  end if;
+  if definition is not null then
+    definition := replace(
+      definition,
+      'reversal numeric:=0; ledger_id uuid;',
+      'reversal numeric:=0; ledger_id uuid; movement_id uuid; current_quantity integer;'
+    );
+  end if;
 
   return_block := $block$
      insert into public.inventory_movements(business_id,product_id,location_id,quantity_delta,reason,operation_id,user_id,device_id)
@@ -137,5 +150,7 @@ $block$;
 $replacement$
   );
 
-  execute definition;
-end $$;
+  if definition is not null then
+    execute definition;
+  end if;
+end $;
