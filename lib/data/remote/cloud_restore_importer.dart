@@ -110,9 +110,14 @@ class CloudRestoreImporter {
 
     Future<void> runImport() async {
       onProgress?.call('Clearing existing local business data…');
-      await _clearPortableData(preserveUnexportedLocalTables: preserveUnexportedLocalTables);
+      await _clearPortableData(
+        preserveUnexportedLocalTables: preserveUnexportedLocalTables,
+        preserveUserId: ownerCloudUserId,
+      );
 
       final tableInfoCache = <String, _TableInfo>{};
+      var staffRestored = false;
+
       for (final localTable in _importOrder) {
         final remoteKey = _tableMap.entries
             .firstWhere((entry) => entry.value == localTable,
@@ -120,7 +125,18 @@ class CloudRestoreImporter {
             .key;
         if (remoteKey.isEmpty) continue;
         final raw = snapshot[remoteKey];
-        if (raw == null) continue;
+        if (raw == null) {
+          if (localTable == 'locations' && !staffRestored) {
+            final staffCounts = await _restoreStaff(
+              snapshot,
+              ownerCloudUserId: ownerCloudUserId,
+            );
+            expectedCounts.addAll(staffCounts.expected);
+            importedCounts.addAll(staffCounts.imported);
+            staffRestored = true;
+          }
+          continue;
+        }
         if (raw is! List) {
           throw FormatException('$remoteKey must be an array in a restore snapshot.');
         }
@@ -128,6 +144,15 @@ class CloudRestoreImporter {
         if (raw.isEmpty) {
           importedCounts[remoteKey] = 0;
           onProgress?.call('${_restoreLabel(remoteKey)}: 0 rows');
+          if (localTable == 'locations' && !staffRestored) {
+            final staffCounts = await _restoreStaff(
+              snapshot,
+              ownerCloudUserId: ownerCloudUserId,
+            );
+            expectedCounts.addAll(staffCounts.expected);
+            importedCounts.addAll(staffCounts.imported);
+            staffRestored = true;
+          }
           continue;
         }
 
@@ -149,15 +174,29 @@ class CloudRestoreImporter {
           }
         }
         importedCounts[remoteKey] = count;
+
+        // Users/employees must exist before sales because Sales.cashierUserId
+        // is a real SQLite foreign key. Locations are imported first so staff
+        // location memberships can also satisfy their foreign key.
+        if (localTable == 'locations' && !staffRestored) {
+          final staffCounts = await _restoreStaff(
+            snapshot,
+            ownerCloudUserId: ownerCloudUserId,
+          );
+          expectedCounts.addAll(staffCounts.expected);
+          importedCounts.addAll(staffCounts.imported);
+          staffRestored = true;
+        }
       }
 
-      onProgress?.call('Restoring staff and permissions…');
-      final staffCounts = await _restoreStaff(
-        snapshot,
-        ownerCloudUserId: ownerCloudUserId,
-      );
-      expectedCounts.addAll(staffCounts.expected);
-      importedCounts.addAll(staffCounts.imported);
+      if (!staffRestored) {
+        final staffCounts = await _restoreStaff(
+          snapshot,
+          ownerCloudUserId: ownerCloudUserId,
+        );
+        expectedCounts.addAll(staffCounts.expected);
+        importedCounts.addAll(staffCounts.imported);
+      }
 
       onProgress?.call('Verifying restored row counts…');
       await _verifyCounts(expectedCounts, importedCounts, preserveUnexportedLocalTables: preserveUnexportedLocalTables);
@@ -414,7 +453,10 @@ class CloudRestoreImporter {
     }
   }
 
-  Future<void> _clearPortableData({required bool preserveUnexportedLocalTables}) async {
+  Future<void> _clearPortableData({
+    required bool preserveUnexportedLocalTables,
+    String? preserveUserId,
+  }) async {
     const preserved = {
       'attendance_records',
       'leave_records',
@@ -423,9 +465,21 @@ class CloudRestoreImporter {
     };
     for (final table in _clearOrder) {
       if (preserveUnexportedLocalTables && preserved.contains(table)) continue;
-      if (await _tableExists(table)) {
-        await _db.customStatement('DELETE FROM ${_quoteIdentifier(table)}');
+      if (!await _tableExists(table)) continue;
+
+      // The signed-in Fulus identity is device-local authentication state,
+      // not business data. Keep that owner row alive during restore because
+      // Sales.cashierUserId has a real FK to Users and restored sales may
+      // legitimately belong to the owner.
+      if (table == 'users' && preserveUserId != null) {
+        await _db.customStatement(
+          'DELETE FROM "users" WHERE "local_id" <> ?',
+          variables: [Variable.withString(preserveUserId)],
+        );
+        continue;
       }
+
+      await _db.customStatement('DELETE FROM ${_quoteIdentifier(table)}');
     }
   }
 
