@@ -129,7 +129,7 @@ Deno.serve(async req => {
     const requestHash = Array.from(new Uint8Array(locationRequestHash))
       .map(x => x.toString(16).padStart(2, "0"))
       .join("");
-    const { data, error } = await serviceDb.rpc("fulus_api_create_location", { target_user_id: uid, target_business_id: bid, target_operation_id: operationId, target_name: name, target_code: typeof b.code === "string" ? b.code : null, target_address: typeof b.address === "string" ? b.address : null, target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos", target_request_hash: requestHash });
+    const { data, error } = await serviceDb.rpc("fulus_api_create_location", { target_user_id: uid, target_business_id: bid, target_device_id: dc, target_operation_id: operationId, target_name: name, target_code: typeof b.code === "string" ? b.code : null, target_address: typeof b.address === "string" ? b.address : null, target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos", target_request_hash: requestHash });
     if (error) return out({ error: { code: "LOCATION_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
     return out({ data: { ...data, server_authoritative: true } }, data?.status === "already_applied" ? 200 : 201);
   }
