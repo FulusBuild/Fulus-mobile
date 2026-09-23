@@ -505,6 +505,7 @@ class _MoneySummary extends StatelessWidget {
                     child: stats[i],
                   ),
                 ),
+                ],
               ],
             ),
           );
