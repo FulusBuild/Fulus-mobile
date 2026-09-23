@@ -283,6 +283,11 @@ class SyncQueue {
     });
   }
 
+  Future<bool> hasPendingItems() async {
+    final row = await (_db.select(_db.syncQueueItems)..limit(1)).getSingleOrNull();
+    return row != null;
+  }
+
   Future<void> enqueue(SyncTask task) async {
     await _db.transaction(() async {
       final existing = await (_db.select(_db.syncQueueItems)
