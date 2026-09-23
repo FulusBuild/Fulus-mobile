@@ -144,6 +144,41 @@ revoke all on function public.change_member_role(uuid,uuid,uuid,uuid)
 revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
   from public, anon, authenticated, service_role;
 
+-- Legacy location RPC/trigger compatibility objects. These signatures are
+-- referenced by later lockdown migrations but superseded by the actor-bound
+-- location command path. Keep the objects defined and non-callable while the
+-- fresh migration chain replays those historical hardening steps.
+create or replace function public.create_location(
+  target_business_id uuid,
+  target_operation_id text,
+  target_name text,
+  target_code text,
+  target_address text,
+  target_timezone text
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy location RPC is disabled';
+end;
+$function$;
+
+revoke all on function public.create_location(
+  uuid,text,text,text,text,text
+) from public, anon, authenticated, service_role;
+
+create or replace function public.emit_location_sync_change()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  return new;
+end;
+$function$;
+
+revoke all on function public.emit_location_sync_change()
+  from public, anon, authenticated, service_role;
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
