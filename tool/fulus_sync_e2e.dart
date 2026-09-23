@@ -456,6 +456,18 @@ Future<void> main() async {
     _expect2xx(salePayment, 'sale.payment');
     stdout.writeln('PASS: sale.payment');
 
+    final repayment = await dio.post('', data: {
+      'action': 'customer_repayment',
+      'business_id': businessId,
+      'operation_id': 'e2e-repayment-' + suffix,
+      'customer_id': customerId,
+      'amount': 50,
+      'payment_method': 'cash',
+      'note': 'Cloud Sync V1 mutation matrix repayment',
+    });
+    _expect2xx(repayment, 'customer.repayment');
+    stdout.writeln('PASS: customer.repayment');
+
     final returnResponse = await dio.post('', data: {
       'action': 'return_create',
       'business_id': businessId,
@@ -485,18 +497,6 @@ Future<void> main() async {
     });
     _expect2xx(customerUpdate, 'customer.update');
     stdout.writeln('PASS: customer.update');
-
-    final repayment = await dio.post('', data: {
-      'action': 'customer_repayment',
-      'business_id': businessId,
-      'operation_id': 'e2e-repayment-' + suffix,
-      'customer_id': customerId,
-      'amount': 50,
-      'payment_method': 'cash',
-      'note': 'Cloud Sync V1 mutation matrix repayment',
-    });
-    _expect2xx(repayment, 'customer.repayment');
-    stdout.writeln('PASS: customer.repayment');
 
     final expenseCategoryResponse = await dio.post('', data: {
       'action': 'expense_category_create',
