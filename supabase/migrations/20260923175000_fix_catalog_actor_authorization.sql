@@ -75,11 +75,12 @@ begin
   end;
 
   if target_id is not null and target_base_cursor is not null and exists (
-    select 1 from public.sync_changes
-    where business_id=target_business_id
-      and entity_type=feed_entity
-      and entity_id=target_id
-      and sequence > target_base_cursor
+    select 1
+    from public.sync_changes sc
+    where sc.business_id=target_business_id
+      and sc.entity_type=feed_entity
+      and sc.entity_id=target_id
+      and sc.sequence > target_base_cursor
   ) then
     raise exception using errcode='P0008',
       message='SYNC_CONFLICT: '||initcap(feed_entity)||
