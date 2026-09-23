@@ -387,3 +387,14 @@ behaves correctly under normal, duplicate, rejected, interrupted, concurrent, re
 > **Do not use CI to discover an integration contract you could have verified before CI.**
 >
 > **Prove the contract first. Let CI independently prove the implementation.**
+
+## 19. Permanent AI engineering and battle-test standards
+
+Before any future AI session performs substantial work, also read:
+
+- docs/FULUS_AI_ENGINEERING_STANDARD.md
+- docs/FULUS_BATTLE_TEST_PROTOCOL.md
+
+The engineering standard defines the permanent reliability and evidence rules for AI-assisted development. The battle-test protocol defines the adversarial methodology for trying to break Fulus across business workflows, data integrity, offline operation, synchronization, recovery, security, UX, scale, and cross-system behavior.
+
+These documents supplement this AGENTS.md protocol. If a future session finds a conflict, it must preserve the stricter data-integrity and evidence requirement and explicitly report the conflict rather than silently weakening the standard.
