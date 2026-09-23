@@ -498,13 +498,13 @@ Future<void> main() async {
     _expect2xx(repayment, 'customer.repayment');
     stdout.writeln('PASS: customer.repayment');
 
-    final categoryResponse = await dio.post('', data: {
+    final expenseCategoryResponse = await dio.post('', data: {
       'action': 'expense_category_create',
       'business_id': businessId,
       'operation_id': 'e2e-expense-category-' + suffix,
       'payload': {'name': 'E2E Category ' + suffix},
     });
-    _expect2xx(categoryResponse, 'expense_category.create');
+    _expect2xx(expenseCategoryResponse, 'expense_category.create');
     stdout.writeln('PASS: expense_category.create');
 
     final expenseResponse = await dio.post('', data: {
