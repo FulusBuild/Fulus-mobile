@@ -66,6 +66,38 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
+  Future<void>? _syncCycleRun;
+
+  /// Waits for any in-flight push/pull/recovery cycle to finish.
+  ///
+  /// Business switching must not race an active pull because the local Drift
+  /// database is single-business. A switch waits for the current cycle to
+  /// finish before rebinding the connection state.
+  Future<void> waitForIdle() async {
+    while (true) {
+      final syncCycle = _syncCycleRun;
+      if (syncCycle != null) {
+        await syncCycle;
+        continue;
+      }
+      final readiness = _readinessRun;
+      if (readiness != null) {
+        await readiness;
+        continue;
+      }
+      final connectivityRun = _connectivityRun;
+      if (connectivityRun != null) {
+        await connectivityRun;
+        continue;
+      }
+      final restore = _restoreReconciliationRun;
+      if (restore != null) {
+        await restore;
+        continue;
+      }
+      return;
+    }
+  }
 
   Future<void> start() async {
     if (_started) return;
@@ -304,6 +336,24 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> _runSyncCycle({bool manual = false}) async {
+    final active = _syncCycleRun;
+    if (active != null) {
+      await active;
+      return;
+    }
+
+    final run = _performSyncCycle(manual: manual);
+    _syncCycleRun = run;
+    try {
+      await run;
+    } finally {
+      if (identical(_syncCycleRun, run)) {
+        _syncCycleRun = null;
+      }
+    }
+  }
+
+  Future<void> _performSyncCycle({bool manual = false}) async {
     await _syncEngine.runOnce(manual: manual);
     await _onPushSuccess?.call();
     final pull = _pullFromServer;
