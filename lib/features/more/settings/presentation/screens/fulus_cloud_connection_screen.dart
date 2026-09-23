@@ -566,6 +566,36 @@ class _FulusCloudConnectionScreenState
                         ],
                       ),
                     ),
+                  ] else if (connected) ...[
+                    FulusSectionHeader(
+                      title: 'Account & Backup',
+                      subtitle: 'Cloud backup for this business',
+                    ),
+                    FulusCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FulusListRow(
+                            leading: const Icon(Icons.cloud_done_outlined),
+                            title: const Text('Fulus Cloud'),
+                            subtitle: const Text('Connected and syncing when online'),
+                            trailing: const Icon(Icons.check_circle_outline),
+                          ),
+                          const FulusListDivider(),
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: SizedBox(
+                              width: isWide ? 240 : double.infinity,
+                              child: FulusButton(
+                                label: 'Disconnect account',
+                                variant: FulusButtonVariant.secondary,
+                                onPressed: _busy ? null : _disconnect,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ] else if (cloudSyncEnabled && connection.isSessionAuthenticated) ...[
                     FulusSectionHeader(
                       title: 'Fulus Cloud needs to reconnect',
