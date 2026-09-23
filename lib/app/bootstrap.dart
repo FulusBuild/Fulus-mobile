@@ -507,6 +507,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       }
     },
     onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
+    onDeviceAuthorizationLost: () async {
+      fulusConnectionState.clearRegisteredDevice();
+      syncTriggers.scheduleReadinessRecovery();
+    },
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
       final businessId = fulusConnectionState.selectedBusinessId;
