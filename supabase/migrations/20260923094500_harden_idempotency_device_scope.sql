@@ -597,7 +597,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $func$
 declare
   idem public.idempotency_keys%rowtype;
   result jsonb;
@@ -661,7 +661,7 @@ begin
 
   return result;
 end;
-$;
+$func$;
 
 revoke execute on function public.fulus_api_create_location(
   uuid,uuid,uuid,text,text,text,text,text,text
