@@ -377,7 +377,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final hasPrevData = prevRevenue > 0 || prevExpenses > 0;
 
     final expenseRows = await (_db.select(_db.expenses)
-          ..where((e) => e.expenseDate.isBetweenValues(period.start, _endOfDay(period.end))))
+          ..where((e) =>
+              e.expenseDate.isBetweenValues(period.start, _endOfDay(period.end)) &
+              e.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
         .get();
     // Bug fix found while wiring the Finance tab's breakdown display up
     // to real data for the first time (gap-closure pass — "Reports
@@ -419,7 +421,11 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // full `total` here regardless.
     final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
     final salesTotal = sales.fold<double>(0, (s, r) => s + adjustments.netRevenue(r));
-    final income = await (_db.select(_db.incomeRecords)..where((i) => i.incomeDate.isBetweenValues(start, _endOfDay(end)))).get();
+    final income = await (_db.select(_db.incomeRecords)
+          ..where((i) =>
+              i.incomeDate.isBetweenValues(start, _endOfDay(end)) &
+              i.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
+        .get();
     final incomeTotal = income.fold<double>(0, (s, r) => s + r.amount);
     return salesTotal + incomeTotal;
   }
@@ -459,7 +465,11 @@ class ReportsRepositoryImpl implements ReportsRepository {
   }
 
   Future<double> _sumExpenses(DateTime start, DateTime end) async {
-    final rows = await (_db.select(_db.expenses)..where((e) => e.expenseDate.isBetweenValues(start, _endOfDay(end)))).get();
+    final rows = await (_db.select(_db.expenses)
+          ..where((e) =>
+              e.expenseDate.isBetweenValues(start, _endOfDay(end)) &
+              e.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
+        .get();
     return rows.fold<double>(0, (s, r) => s + r.amount);
   }
 
