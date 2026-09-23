@@ -79,6 +79,71 @@ revoke execute on function public.accept_sync_operation(
   uuid, uuid, uuid, text, text, text, text, jsonb
 ) from public, anon, authenticated, service_role;
 
+-- Legacy actor-suffixed staff overloads. Later migrations explicitly
+-- revoke these historical signatures after replacing them with server-bound
+-- wrappers. Define inert versions here so a fresh migration replay has the
+-- same objects available for lockdown.
+create or replace function public.create_staff_invite(
+  target_business_id uuid, target_role_id uuid, target_email text,
+  target_expires_hours integer, target_user_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy staff RPC overload is disabled';
+end;
+$function$;
+
+create or replace function public.claim_staff_invite(
+  target_token text, target_user_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy staff RPC overload is disabled';
+end;
+$function$;
+
+create or replace function public.set_member_status(
+  target_business_id uuid, target_membership_id uuid, target_status text,
+  target_user_id uuid
+) returns boolean language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy staff RPC overload is disabled';
+end;
+$function$;
+
+create or replace function public.change_member_role(
+  target_business_id uuid, target_membership_id uuid, target_role_id uuid,
+  target_user_id uuid
+) returns boolean language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy staff RPC overload is disabled';
+end;
+$function$;
+
+create or replace function public.set_role_permission(
+  target_business_id uuid, target_role_id uuid, target_permission_id uuid,
+  enabled boolean, target_user_id uuid
+) returns boolean language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy staff RPC overload is disabled';
+end;
+$function$;
+
+revoke all on function public.create_staff_invite(
+  uuid,uuid,text,integer,uuid
+) from public, anon, authenticated, service_role;
+revoke all on function public.claim_staff_invite(text,uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.set_member_status(uuid,uuid,text,uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.change_member_role(uuid,uuid,uuid,uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
+  from public, anon, authenticated, service_role;
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
