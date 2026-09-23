@@ -209,14 +209,15 @@ class ReturnRepositoryImpl implements ReturnRepository {
       updatedAt: now,
     );
 
-    // Persist the return and its outbox entry together. A local return
-    // must never exist without a durable sync intent.
+    // A return only becomes a cloud mutation when it is completed. The
+    // server-side return command is authoritative and completes the return
+    // atomically; syncing a still-pending local approval would make the two
+    // devices disagree about whether the return exists.
     await _db.transaction(() async {
       await _db.into(_db.returnRequests).insert(returnRequest.toDriftCompanion());
       for (final item in returnItems) {
         await _db.into(_db.returnItems).insert(item.toDriftCompanion());
       }
-      await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
     });
 
     // Same "no clientReference, a retry can create a genuine duplicate"
@@ -310,7 +311,12 @@ class ReturnRepositoryImpl implements ReturnRepository {
     // Completion is deliberately idempotent. A retry after a dropped
     // response must not restore inventory or reverse customer credit twice.
     if (currentStatus == ReturnStatus.completed) {
-      return getReturnById(returnLocalId).then((r) => r!);
+      final existing = await getReturnById(returnLocalId);
+      if (existing == null) throw StateError('Return not found after completion.');
+      if (existing.serverId == null || existing.serverId!.isEmpty) {
+        await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
+      }
+      return existing;
     }
     if (currentStatus != ReturnStatus.approved) {
       throw StateError('This return must be approved before it can be completed.');
@@ -379,7 +385,13 @@ class ReturnRepositoryImpl implements ReturnRepository {
       );
 
       final updatedRow = await _requireReturnRow(returnLocalId);
-      return updatedRow.toDomain(items: items);
+      final completed = updatedRow.toDomain(items: items);
+      if (updatedRow.serverId == null || updatedRow.serverId!.isEmpty) {
+        // Keep completion and its durable outbox intent in the same database
+        // transaction. SyncQueue defers its network trigger until commit.
+        await _syncQueue.enqueue(SyncTask.createReturn(returnLocalId));
+      }
+      return completed;
     });
   }
 
