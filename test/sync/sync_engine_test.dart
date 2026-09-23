@@ -135,7 +135,7 @@ void main() {
     expect(remaining, hasLength(1));
     expect(remaining.single.entityLocalId, 'rejected');
     expect(remaining.single.syncAttempts, 5);
-    expect(remaining.single.lastError, 'Insufficient stock.');
+    expect(remaining.single.lastError, '[BLOCKED] Insufficient stock.');
   });
 
   test(
@@ -216,11 +216,18 @@ void main() {
   });
 
   test(
-      'after crossing the attempts threshold, automatic runs skip the item '
-      'but a manual run still attempts it', () async {
-    await seedItem(id: 'q1', entityLocalId: 'always-fails', enqueuedAt: DateTime.now());
+      'retryable work continues automatically after the attention threshold',
+      () async {
+    final now = DateTime.now();
+    await seedItem(
+      id: 'q1',
+      entityLocalId: 'transient-after-threshold',
+      enqueuedAt: now,
+      syncAttempts: 2,
+      lastAttemptedAt: now.subtract(const Duration(hours: 1)),
+    );
 
-    final handler = _ScriptedHandler((_) async => throw Exception('down'));
+    final handler = _ScriptedHandler((_) async => throw Exception('server down'));
     final engine = SyncEngine(
       db: db,
       handlersByEntityType: {'widget': handler},
@@ -228,17 +235,40 @@ void main() {
     );
 
     await engine.runOnce();
-    await engine.runOnce();
 
-    expect(handler.attemptedIds, hasLength(2));
-    var row = (await allQueueItems()).single;
+    expect(handler.attemptedIds, ['transient-after-threshold']);
+    final row = (await allQueueItems()).single;
     expect(row.syncAttempts, 2);
+    expect(row.lastError, 'server down');
+  });
+
+  test(
+      'permanently blocked work is not retried automatically but manual retry remains possible',
+      () async {
+    final now = DateTime.now();
+    await seedItem(
+      id: 'q1',
+      entityLocalId: 'blocked',
+      enqueuedAt: now,
+      syncAttempts: 2,
+      lastAttemptedAt: now.subtract(const Duration(hours: 1)),
+    );
+    await (db.update(db.syncQueueItems)..where((q) => q.id.equals('q1'))).write(
+      const SyncQueueItemsCompanion(lastError: Value('[BLOCKED] permanent')),
+    );
+
+    final handler = _ScriptedHandler((_) async {});
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      maxAttemptsBeforeAttentionNeeded: 2,
+    );
 
     await engine.runOnce();
-    expect(handler.attemptedIds, hasLength(2));
+    expect(handler.attemptedIds, isEmpty);
 
     await engine.runOnce(manual: true);
-    expect(handler.attemptedIds, hasLength(3));
+    expect(handler.attemptedIds, ['blocked']);
   });
 
   test(
@@ -456,7 +486,7 @@ void main() {
       await engine.runOnce();
 
       final remaining = await allQueueItems();
-      expect(remaining.single.lastError, 'Insufficient stock.');
+      expect(remaining.single.lastError, '[BLOCKED] Insufficient stock.');
     });
   });
   test(
