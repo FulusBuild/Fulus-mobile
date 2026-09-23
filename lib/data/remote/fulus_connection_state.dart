@@ -22,6 +22,7 @@ class FulusConnectionState extends ChangeNotifier {
   final FulusBusinessContext _businessContext;
   final FulusDeviceRegistration _deviceRegistration;
   final FulusStaffAccessApi? _staffAccessApi;
+  Future<bool> Function()? _canSwitchBusiness;
   FulusRegisteredDevice? _registeredDevice;
   FulusMembershipContext? _membershipContext;
   String? _selectedBusinessId;
@@ -156,12 +157,16 @@ class FulusConnectionState extends ChangeNotifier {
     );
   }
 
+  void setBusinessSwitchGuard(Future<bool> Function()? guard) {
+    _canSwitchBusiness = guard;
+  }
+
   Future<StaffClaim> claimStaffInvite(String token) async {
     final api = _staffAccessApi;
     if (api == null) throw StateError('Fulus cloud staff access is unavailable.');
     final claim = await api.claimInvite(token);
     await refresh();
-    selectBusiness(claim.businessId);
+    await selectBusiness(claim.businessId);
     return claim;
   }
 
@@ -219,7 +224,7 @@ class FulusConnectionState extends ChangeNotifier {
     }
   }
 
-  void selectBusiness(String businessId) {
+  Future<void> selectBusiness(String businessId) async {
     final allowed = _membershipContext?.memberships.any(
           (m) => m.businessId == businessId && m.status == 'active',
         ) ??
@@ -228,6 +233,10 @@ class FulusConnectionState extends ChangeNotifier {
       throw ArgumentError('Business is not an active server membership.');
     }
     if (_selectedBusinessId == businessId) return;
+    final canSwitch = _canSwitchBusiness;
+    if (canSwitch != null && !await canSwitch()) {
+      throw StateError('Finish pending Cloud Sync work before switching businesses. Local business data is single-business and cannot be safely rebound while writes are queued.');
+    }
     _selectedBusinessId = businessId;
     _registeredDevice = null;
     _syncReady = false;
