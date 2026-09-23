@@ -675,6 +675,58 @@ Future<void> main() async {
       );
       _expect2xx(validUpdate, 'valid product.update after concurrency check');
       stdout.writeln('PASS: valid catalog update accepted at current cursor');
+
+      // Adversarial OCC race: two concurrent requests edit the same entity
+      // from the same observed cursor. Exactly one must commit; the second
+      // must re-check the feed after waiting on the entity row lock.
+      final concurrentBaseCursor = await _findChangeSequence(
+        dio,
+        businessId: businessId,
+        entityType: 'product',
+        entityId: serverId,
+      );
+      final concurrentCatalogResults = await Future.wait([
+        _submitCatalog(
+          dio,
+          businessId: businessId,
+          action: 'catalog_upsert',
+          entity: 'products',
+          operationId: 'e2e-concurrent-catalog-a-${suffix}',
+          baseCursor: concurrentBaseCursor,
+          item: {
+            ...createPayload,
+            'name': 'Fulus E2E concurrent A ${suffix}',
+          },
+          id: serverId,
+        ),
+        _submitCatalog(
+          dio,
+          businessId: businessId,
+          action: 'catalog_upsert',
+          entity: 'products',
+          operationId: 'e2e-concurrent-catalog-b-${suffix}',
+          baseCursor: concurrentBaseCursor,
+          item: {
+            ...createPayload,
+            'name': 'Fulus E2E concurrent B ${suffix}',
+          },
+          id: serverId,
+        ),
+      ]);
+      final concurrentStatuses =
+          concurrentCatalogResults.map((response) => response.statusCode ?? 0).toList();
+      final successCount =
+          concurrentStatuses.where((status) => status >= 200 && status < 300).length;
+      final conflictCount =
+          concurrentStatuses.where((status) => status == 409).length;
+      if (successCount != 1 || conflictCount != 1) {
+        throw StateError(
+          'Concurrent catalog OCC race expected exactly one success and one '
+          'HTTP 409 conflict, got $concurrentStatuses: '
+          '${concurrentCatalogResults.map((r) => r.data).toList()}',
+        );
+      }
+      stdout.writeln('PASS: concurrent catalog edits serialize with one conflict');
     }
 
     final stockProductId = serverId;
