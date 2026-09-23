@@ -364,8 +364,8 @@ Future<void> main() async {
       'notes': 'Cloud Sync V1 mutation matrix',
     });
     _expect2xx(customerResponse, 'customer.create');
-    final customerData = customerResponse.data is Map ? customerResponse.data['data'] : null;
-    final customerId = customerData is Map ? customerData['customer_id'] : null;
+    final customerData = _actionData(customerResponse);
+    final customerId = customerData?['customer_id'];
     if (customerId is! String || customerId.isEmpty) {
       throw StateError('customer.create returned no customer_id: ' + customerResponse.data.toString());
     }
@@ -396,8 +396,8 @@ Future<void> main() async {
       ],
     });
     _expect2xx(creditSale, 'sale.create credit mutation matrix');
-    final creditSaleData = creditSale.data is Map ? creditSale.data['data'] : null;
-    final creditSaleId = creditSaleData is Map ? creditSaleData['sale_id'] : null;
+    final creditSaleData = _actionData(creditSale);
+    final creditSaleId = creditSaleData?['sale_id'];
     if (creditSaleId is! String || creditSaleId.isEmpty) {
       throw StateError('credit sale returned no sale_id: ' + creditSale.data.toString());
     }
@@ -1058,6 +1058,18 @@ String _required(String name) {
     throw StateError('$name is required for the Fulus E2E contract test.');
   }
   return value;
+}
+
+Map<String, dynamic>? _actionData(Response<dynamic> response) {
+  final root = response.data;
+  if (root is! Map) return null;
+  final outer = root['data'];
+  if (outer is! Map) return null;
+  final nested = outer['data'];
+  if (nested is Map) {
+    return Map<String, dynamic>.from(nested);
+  }
+  return Map<String, dynamic>.from(outer);
 }
 
 void _expect2xx(Response<dynamic> response, String operation) {
