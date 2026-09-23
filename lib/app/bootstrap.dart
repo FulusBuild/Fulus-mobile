@@ -377,7 +377,21 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       supabaseUrl: SupabaseConfig.url,
       publishableKey: SupabaseConfig.publishableKey,
     );
-    if (session == null) return;
+    if (session == null) {
+      // Sync can only be enabled after a cloud connection was established.
+      // Therefore an enabled sync configuration with no durable refresh
+      // credential means the credential was actually lost (for example after
+      // secure-storage reset), not merely that the network is temporarily
+      // unavailable. Distinguish that case from transient restore failures so
+      // the UI can request one real sign-in rather than waiting forever.
+      if (syncConfig.isEnabled) {
+        final refreshToken = await apiClient.secureRefreshToken();
+        if (refreshToken == null || refreshToken.isEmpty) {
+          fulusConnectionState.markSessionExpired();
+        }
+      }
+      return;
+    }
     fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
