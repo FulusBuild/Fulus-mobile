@@ -246,7 +246,7 @@ class _FulusCloudConnectionScreenState
             'Your account has multiple active businesses. Select the business again before reconnecting.',
           );
         }
-        connection.selectBusiness(active.single.businessId);
+        await connection.selectBusiness(active.single.businessId);
       }
 
       await _registerDevice(connection);
@@ -310,7 +310,7 @@ class _FulusCloudConnectionScreenState
           'Business setup completed, but the new business connection is not ready yet. Please try again in a moment.',
         );
       }
-      connection.selectBusiness(active.single.businessId);
+      await connection.selectBusiness(active.single.businessId);
       await _finishCloudConnection(connection);
     } on Failure catch (failure) {
       if (mounted) setState(() => _error = syncUserMessage(failure));
