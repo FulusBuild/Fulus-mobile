@@ -950,12 +950,16 @@ Future<void> main() async {
     // merely in the device-management UI. Revoke the second ephemeral device
     // while the primary device remains authorized, then prove that a request
     // carrying the revoked device identity is rejected before command handling.
+    final secondServerDeviceIdForRevocation = secondServerDeviceId;
+    if (secondServerDeviceIdForRevocation == null) {
+      throw StateError('E2E second device registration returned no server device ID.');
+    }
     await _revokeEphemeralDevice(
       authUrl: _required('FULUS_AUTH_URL'),
       publishableKey: _required('FULUS_PUBLISHABLE_KEY'),
       accessToken: token,
       businessId: businessId,
-      deviceId: secondServerDeviceId,
+      deviceId: secondServerDeviceIdForRevocation,
     );
     dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
     final revokedProbe = await dio.post('', data: {
