@@ -29,6 +29,28 @@ void main() {
     expect(rows.single.operation, 'update');
   });
 
+  test('normalizes legacy dependency priorities before automatic drain', () async {
+    await queue.enqueue(SyncTask.createProduct('product-1'));
+    await queue.enqueue(SyncTask.createSale('sale-1'));
+
+    await (db.update(db.syncQueueItems)
+          ..where((q) => q.entityType.equals('product')))
+        .write(const SyncQueueItemsCompanion(priority: Value(99)));
+    await (db.update(db.syncQueueItems)
+          ..where((q) => q.entityType.equals('sale')))
+        .write(const SyncQueueItemsCompanion(priority: Value(99)));
+
+    await queue.normalizeDependencyPriorities();
+
+    final rows = await db.select(db.syncQueueItems).get();
+    final product = rows.singleWhere((row) => row.entityType == 'product');
+    final sale = rows.singleWhere((row) => row.entityType == 'sale');
+
+    expect(product.priority, SyncPriority.stockAndCustomerWrites);
+    expect(sale.priority, SyncPriority.salesAndPayments);
+  });
+
+
   test('defers enqueue trigger until an outer transaction commits', () async {
     var callbackSawCommittedRow = false;
     queue.setOnEnqueued(() async {
