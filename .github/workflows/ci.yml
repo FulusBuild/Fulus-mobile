@@ -63,25 +63,25 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t files < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
-          if [ "\${#files[@]}" -eq 0 ]; then
+          if [ "${files[@]}" = "" ]; then
             echo "::error::No Supabase migration files found."
             exit 1
           fi
           versions=()
-          for file in "\${files[@]}"; do
-            if [[ "\$file" != <->_* ]]; then
-              echo "::error file=supabase/migrations/\$file::Migration filename must begin with a numeric version followed by _."
+          for file in "${files[@]}"; do
+            if [[ ! "$file" =~ ^[0-9]+_.+\.sql$ ]]; then
+              echo "::error file=supabase/migrations/$file::Migration filename must begin with a numeric version followed by _."
               exit 1
             fi
-            version="\${file%%_*}"
-            versions+=("\$version")
+            version="${file%%_*}"
+            versions+=("$version")
           done
-          duplicates="\$(printf '%s\\n' "\${versions[@]}" | sort | uniq -d)"
-          if [ -n "\$duplicates" ]; then
-            echo "::error::Duplicate Supabase migration version(s): \$(echo "\$duplicates" | tr '\\n' ' ')"
+          duplicates="$(printf '%s\n' "${versions[@]}" | sort | uniq -d)"
+          if [ -n "$duplicates" ]; then
+            echo "::error::Duplicate Supabase migration version(s): $(echo "$duplicates" | tr '\n' ' ')"
             exit 1
           fi
-          echo "Validated \${#files[@]} migration files with unique versions."
+          echo "Validated ${#files[@]} migration files with unique versions."
 
   dependencies:
     name: Resolve dependencies
