@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
+import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
