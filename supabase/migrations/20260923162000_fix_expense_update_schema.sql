@@ -394,5 +394,5 @@ revoke execute on function public.fulus_api_update_expense(
   uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text,text
 ) from PUBLIC,anon,authenticated;
 revoke execute on function public.cloud_catalog_mutate(
-  uuid,uuid,uuid,text,text,text,uuid,jsonb,text
+  uuid,uuid,uuid,text,text,text,uuid,jsonb,bigint,text
 ) from PUBLIC,anon,authenticated;
