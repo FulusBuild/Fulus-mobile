@@ -10,9 +10,9 @@
 /// last tried, has enough time passed to try it again?
 ///
 /// Exponential backoff with a cap, not unbounded exponential growth —
-/// SyncEngine's [maxAttemptsBeforeAttentionNeeded] already provides the
-/// upper bound on ATTEMPT COUNT (an item stops being retried at all
-/// past that); this provides the upper bound on DELAY BETWEEN attempts,
+/// SyncEngine's [maxAttemptsBeforeAttentionNeeded] is an ATTENTION threshold,
+/// not a permanent retry limit for transient failures; retryable work keeps
+/// retrying with this capped delay. Permanent failures are parked separately.
 /// so a shop with patchy connectivity doesn't end up waiting literally
 /// hours between the 4th and 5th attempt just because 2^4 kept
 /// doubling unchecked.
