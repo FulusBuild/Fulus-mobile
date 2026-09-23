@@ -66,7 +66,6 @@ void main() {
       'expense_categories': [],
       'expenses': [],
       'income_records': [],
-      'supplier_ledger_entries': [],
       'returns': [],
       'return_items': [],
       'tax_remittances': [],
