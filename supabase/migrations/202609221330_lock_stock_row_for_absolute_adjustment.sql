@@ -13,7 +13,8 @@ begin
  if product_business_id is null or product_business_id<>target_business_id then raise exception using errcode='P0002',message='Product does not belong to this business'; end if;
  if not coalesce(tracks_stock,false) then raise exception using errcode='22023',message='Product does not track stock'; end if;
  if not exists(select 1 from locations l where l.id=target_location_id and l.business_id=target_business_id) then raise exception using errcode='P0002',message='Location does not belong to this business'; end if;
- insert into product_stock_levels(product_id,location_id,current_stock,updated_at) values(target_product_id,target_location_id,0,now()) on conflict(product_id,location_id) do nothing;\n select coalesce(ps.current_stock,0) into current_quantity from product_stock_levels ps where ps.product_id=target_product_id and ps.location_id=target_location_id for update;
+ insert into product_stock_levels(product_id,location_id,current_stock,updated_at) values(target_product_id,target_location_id,0,now()) on conflict(product_id,location_id) do nothing;
+ select coalesce(ps.current_stock,0) into current_quantity from product_stock_levels ps where ps.product_id=target_product_id and ps.location_id=target_location_id for update;
  quantity_delta:=target_new_quantity-coalesce(current_quantity,0);
  if quantity_delta=0 then return jsonb_build_object('status','already_applied','current_stock',current_quantity,'server_authoritative',true); end if;
  return apply_inventory_adjustment(target_business_id,target_product_id,target_location_id,quantity_delta,target_reason,target_operation_id,target_device_id);
