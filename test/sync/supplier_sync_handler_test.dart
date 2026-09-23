@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -119,7 +120,9 @@ void main() {
     final created = await supplierRepository.createSupplier(
       const SupplierDraft(name: 'Archived Supplier'),
     );
-    await supplierRepository.archiveSupplier(created.localId);
+    await (db.update(db.suppliers)
+          ..where((s) => s.localId.equals(created.localId)))
+        .write(SuppliersCompanion(deletedAt: Value(DateTime.now())));
 
     final queued = await (db.select(db.syncQueueItems)
           ..where((q) => q.entityType.equals('supplier'))
