@@ -13,7 +13,6 @@ import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
 import 'package:fulus_mobile/core/errors/failure.dart';
-import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
