@@ -27,21 +27,26 @@ class CloudRestoreCoordinator {
     return _db.transaction(() async {
       onProgress?.call('Preparing local database restore…');
 
-      // The sync queue belongs to the previous physical installation, not to
-      // the cloud business snapshot. Restore replaces the local business
-      // records, so any old queued operation would now point at rows that no
-      // longer exist (or at a different business). Keep it inside the same
-      // transaction so a failed restore preserves the old queue together with
-      // the old local data, while a successful restore starts with a clean
-      // outbound queue.
-      await _db.delete(_db.syncQueueItems).go();
-
-      // Restore replaces the cloud-owned local dataset with an authoritative
-      // snapshot. Optimistic-concurrency conflict records belong to the
-      // previous local dataset and cannot safely be carried across restore:
-      // keeping them would block the first post-restore pull/recovery even
-      // though the restored snapshot contains the authoritative state.
-      await _db.delete(_db.syncConflictRecords).go();
+      // Never silently destroy locally queued work or unresolved conflicts.
+      // A restore replaces the local business image; carrying those records
+      // across would either lose offline mutations or replay them against a
+      // different authoritative state. Require the caller to drain/resolve
+      // them first. The check is inside the same transaction as the restore
+      // so a concurrent enqueue cannot race past the guard.
+      final pendingQueueCount = await (_db.select(_db.syncQueueItems)).get();
+      if (pendingQueueCount.isNotEmpty) {
+        throw StateError(
+          'Cloud restore is blocked while ${pendingQueueCount.length} '
+          'outbound sync operation(s) are pending. Sync them before restoring.',
+        );
+      }
+      final conflictCount = await (_db.select(_db.syncConflictRecords)).get();
+      if (conflictCount.isNotEmpty) {
+        throw StateError(
+          'Cloud restore is blocked while ${conflictCount.length} '
+          'sync conflict(s) remain unresolved. Resolve them before restoring.',
+        );
+      }
 
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
