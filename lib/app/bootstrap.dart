@@ -416,7 +416,18 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncStatusNotifier: syncStatusNotifier,
     isReady: () async => fulusConnectionState.isSyncReady,
     onNotReady: initializeCloudSync,
-    onSyncSuccess: fulusConnectionState.clearSyncError,
+    onSyncSuccess: () {
+      fulusConnectionState.clearSyncError();
+      // A successful push + pull proves that authentication, business
+      // membership, device authorization, and canonical reconciliation are
+      // working again. Promote the connection back to Sync Ready even when
+      // the previous cycle failed after readiness had been established.
+      if (fulusConnectionState.isSessionAuthenticated &&
+          fulusConnectionState.selectedBusinessId != null &&
+          fulusConnectionState.isDeviceAuthorized) {
+        fulusConnectionState.markSyncReady();
+      }
+    },
     onCursorTooOldRecovery: () async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId == null) {
