@@ -363,6 +363,56 @@ void main() {
       triggers.dispose();
     });
 
+
+    test('device authorization recovery waits for the active cycle then re-enters readiness', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final cycleStarted = Completer<void>();
+      final releaseCycle = Completer<void>();
+      var runCount = 0;
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+        if (runCount == 1) {
+          cycleStarted.complete();
+          await releaseCycle.future;
+        }
+      });
+
+      var ready = true;
+      var readinessCalls = 0;
+      late final SyncTriggers triggers;
+      triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => ready,
+        onNotReady: () async {
+          readinessCalls++;
+          ready = true;
+        },
+        connectivity: connectivity,
+      );
+
+      final first = triggers.syncNow();
+      await cycleStarted.future;
+
+      ready = false;
+      triggers.scheduleReadinessRecovery();
+      await Future<void>.delayed(Duration.zero);
+      expect(runCount, 1);
+
+      releaseCycle.complete();
+      await first;
+      await untilCalled(() => syncEngine.runOnce(manual: false));
+
+      expect(readinessCalls, 1);
+      expect(runCount, 2);
+      triggers.dispose();
+    });
+
     test('reports a successful cycle after push and pull both complete', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
