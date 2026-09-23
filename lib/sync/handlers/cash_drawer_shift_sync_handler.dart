@@ -4,6 +4,8 @@ import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/entities/cash_drawer_shift.dart';
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
 import '../../domain/repositories/location_repository.dart';
+import '../../core/errors/failure.dart';
+import '../../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
 import '../sync_handler.dart';
 
 /// Syncs both lifecycle operations for a cash drawer shift through the
@@ -53,8 +55,10 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
       throw StateError('Fulus Cloud device authorization is required for cash drawer sync.');
     }
 
-    final result = await _fulusSyncApi.submitOperation(
-      businessId: businessId,
+    late final Map<String, dynamic> result;
+    try {
+      result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
       operationType: 'cash_drawer_shift.create',
       operationId: item.id,
       clientReference: shift.localId,
@@ -66,8 +70,12 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'location_id': location.serverId,
         'opening_cash': shift.openingCash,
         'opened_at': shift.openedAt.toIso8601String(),
-      },
-    );
+        },
+      );
+    } on BusinessRuleFailure {
+      await _cashDrawerShiftRepository.markAttentionNeeded(shift.localId);
+      rethrow;
+    }
 
     await _markSyncedFromResult(shift.localId, result);
   }
@@ -91,8 +99,10 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
       throw StateError('Cannot sync an open cash drawer shift as closed.');
     }
 
-    final result = await _fulusSyncApi.submitOperation(
-      businessId: businessId,
+    late final Map<String, dynamic> result;
+    try {
+      result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
       operationType: 'cash_drawer_shift.close',
       operationId: item.id,
       clientReference: shift.localId,
@@ -107,8 +117,24 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'closing_note': shift.closingNote,
         'closed_at': shift.closedAt!.toIso8601String(),
         if (item.baseCursor != null) 'base_cursor': item.baseCursor,
-      },
-    );
+        },
+      );
+    } on BusinessRuleFailure {
+      try {
+        final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+          businessId: businessId,
+          entityType: 'cash_drawer_shift',
+          entityId: serverId,
+          deviceClientId: device!.deviceClientId,
+        );
+        await FulusCashDrawerCanonicalReconciler(
+          repository: _cashDrawerShiftRepository,
+        ).apply(canonical);
+      } catch (_) {
+        // Preserve the original rejection; a later pull can reconcile it.
+      }
+      rethrow;
+    }
 
     await _markSyncedFromResult(shift.localId, result);
   }
