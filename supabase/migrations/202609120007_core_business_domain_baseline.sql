@@ -148,6 +148,27 @@ revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
 -- referenced by later lockdown migrations but superseded by the actor-bound
 -- location command path. Keep the objects defined and non-callable while the
 -- fresh migration chain replays those historical hardening steps.
+create or replace function public.fulus_api_create_location(
+  target_user_id uuid,
+  target_business_id uuid,
+  target_operation_id text,
+  target_name text,
+  target_code text,
+  target_address text,
+  target_timezone text,
+  target_request_hash text
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy location API wrapper is disabled';
+end;
+$function$;
+
+revoke all on function public.fulus_api_create_location(
+  uuid,uuid,text,text,text,text,text,text
+) from public, anon, authenticated, service_role;
+
 create or replace function public.create_location(
   target_business_id uuid,
   target_operation_id text,
