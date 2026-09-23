@@ -46,7 +46,10 @@ class SupplierSyncHandler implements SyncHandler {
     }
 
     final operationId = item.id;
-    final operationType = isDelete
+    // A queued create may be archived before first cloud delivery. Create
+    // the authoritative row first; only a row with a server identity can
+    // use supplier.delete.
+    final operationType = (isDelete && supplier.serverId != null)
         ? 'supplier.delete'
         : 'supplier.${item.operation}';
     final payload = <String, dynamic>{
