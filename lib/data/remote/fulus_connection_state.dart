@@ -29,6 +29,7 @@ class FulusConnectionState extends ChangeNotifier {
   bool _loading = false;
   bool _syncReady = false;
   bool _sessionAuthenticated = false;
+  bool _sessionExpired = false;
   Object? _syncError;
 
   FulusMembershipContext? get membershipContext => _membershipContext;
@@ -37,6 +38,10 @@ class FulusConnectionState extends ChangeNotifier {
   FulusRegisteredDevice? get registeredDevice => _registeredDevice;
   bool get isDeviceAuthorized => _registeredDevice?.status == 'active';
   bool get isSessionAuthenticated => _sessionAuthenticated;
+  /// True only when the cloud auth layer explicitly rejected the durable
+  /// refresh/session credential. A transient network/startup failure is not
+  /// treated as an expired session, so the UI can wait for automatic recovery.
+  bool get isSessionExpired => _sessionExpired;
   bool get hasSyncError => _syncError != null;
   bool get isSyncReady =>
       _syncReady &&
@@ -72,6 +77,7 @@ class FulusConnectionState extends ChangeNotifier {
   void markSessionAuthenticated() {
     if (_sessionAuthenticated) return;
     _sessionAuthenticated = true;
+    _sessionExpired = false;
     notifyListeners();
   }
 
@@ -82,6 +88,15 @@ class FulusConnectionState extends ChangeNotifier {
     if (!_sessionAuthenticated && !_syncReady) return;
     _sessionAuthenticated = false;
     _syncReady = false;
+    notifyListeners();
+  }
+
+  /// Records a definitive cloud-session rejection. This is intentionally
+  /// separate from a transient startup/network failure so automatic retries
+  /// do not present a false re-login prompt to the user.
+  void markSessionExpired() {
+    _sessionExpired = true;
+    clearSessionAuthentication();
     notifyListeners();
   }
 
@@ -250,6 +265,7 @@ class FulusConnectionState extends ChangeNotifier {
     _registeredDevice = null;
     _syncReady = false;
     _sessionAuthenticated = false;
+    _sessionExpired = false;
     unawaited(_syncOnboardingBusiness(null));
     notifyListeners();
   }
