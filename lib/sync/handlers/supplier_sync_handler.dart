@@ -79,7 +79,7 @@ class SupplierSyncHandler implements SyncHandler {
       throw StateError('Fulus supplier sync returned no server entity ID.');
     }
 
-    if (isDelete && item.operation == 'create') {
+    if (isDelete && item.operation == 'create' && supplier.serverId == null) {
       final deleteResult = await _fulusSyncApi.submitOperation(
         businessId: businessId,
         operationType: 'supplier.delete',
