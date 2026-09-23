@@ -114,12 +114,24 @@ Deno.serve(async req => {
     const name = typeof b.name === "string" ? b.name.trim() : "";
     const operationId = typeof b.operation_id === "string" ? b.operation_id : null;
     if (!name || !operationId) return out({ error: { code: "INVALID_LOCATION", message: "name and operation_id are required" } }, 400);
+    if (!dc) return out({ error: { code: "DEVICE_REQUIRED", message: "x-fulus-device-id is required for location writes" } }, 400);
+    const { data: locationDevice, error: locationDeviceError } = await serviceDb
+      .from("devices")
+      .select("id,status")
+      .eq("business_id", bid)
+      .eq("device_client_id", dc)
+      .eq("registered_by", uid)
+      .maybeSingle();
+    if (locationDeviceError) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to resolve device" } }, 500);
+    if (!locationDevice || locationDevice.status !== "active") {
+      return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
+    }
     const locationRequestHash = await crypto.subtle.digest(
       "SHA-256",
       new TextEncoder().encode(JSON.stringify({
         action,
         operation_id: operationId,
-        device_id: dc,
+        device_id: locationDevice.id,
         name,
         code: typeof b.code === "string" ? b.code : null,
         address: typeof b.address === "string" ? b.address : null,
@@ -129,7 +141,7 @@ Deno.serve(async req => {
     const requestHash = Array.from(new Uint8Array(locationRequestHash))
       .map(x => x.toString(16).padStart(2, "0"))
       .join("");
-    const { data, error } = await serviceDb.rpc("fulus_api_create_location", { target_user_id: uid, target_business_id: bid, target_device_id: dc, target_operation_id: operationId, target_name: name, target_code: typeof b.code === "string" ? b.code : null, target_address: typeof b.address === "string" ? b.address : null, target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos", target_request_hash: requestHash });
+    const { data, error } = await serviceDb.rpc("fulus_api_create_location", { target_user_id: uid, target_business_id: bid, target_device_id: locationDevice.id, target_operation_id: operationId, target_name: name, target_code: typeof b.code === "string" ? b.code : null, target_address: typeof b.address === "string" ? b.address : null, target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos", target_request_hash: requestHash });
     if (error) return out({ error: { code: "LOCATION_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
     return out({ data: { ...data, server_authoritative: true } }, data?.status === "already_applied" ? 200 : 201);
   }
