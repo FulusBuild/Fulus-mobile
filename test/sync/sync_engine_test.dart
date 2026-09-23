@@ -154,6 +154,39 @@ void main() {
     expect(remaining.single.lastError, '[BLOCKED] Insufficient stock.');
   });
 
+
+  test(
+      'a revoked device registration clears cached authorization without blocking the outbox',
+      () async {
+    final started = DateTime.now();
+    await seedItem(
+      id: 'q-device',
+      entityLocalId: 'needs-device-registration',
+      entityType: 'widget',
+      enqueuedAt: started,
+    );
+
+    var deviceCleared = false;
+    final handler = _ScriptedHandler((_) async {
+      throw const AuthFailure.deviceNotRegistered();
+    });
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      onDeviceAuthorizationLost: () async {
+        deviceCleared = true;
+      },
+    );
+
+    await engine.runOnce();
+
+    expect(deviceCleared, isTrue);
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(1));
+    expect(remaining.single.syncAttempts, 0);
+    expect(remaining.single.lastAttemptedAt, isNull);
+  });
+
   test(
       'an authentication failure stays retryable and stops the current drain',
       () async {
