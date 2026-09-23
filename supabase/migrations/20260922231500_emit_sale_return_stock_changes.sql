@@ -1,3 +1,4 @@
+-- Fresh-chain replay verified: sale stock feed mutation remains isolated from the later return canonical function.
 -- Emit canonical stock movement changes for sale/return inventory mutations.
 -- Without these feed events, another device can reconcile the sale itself but
 -- never learn about the authoritative stock decrement/increment.
