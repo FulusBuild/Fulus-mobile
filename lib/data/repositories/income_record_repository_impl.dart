@@ -86,6 +86,16 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
   }
 
   @override
+  Future<void> markAttentionNeeded(String localId) async {
+    await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId))).write(
+      IncomeRecordsCompanion(
+        syncStatus: const Value(SyncStatus.attentionNeeded),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  @override
   Future<void> reconcileServerState({
     required String serverId,
     required String locationServerId,
