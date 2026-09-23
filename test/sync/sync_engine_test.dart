@@ -337,6 +337,47 @@ void main() {
     expect(await allQueueItems(), isEmpty);
   });
 
+  test(
+      'retries dependency-blocked work after its prerequisite succeeds in the same drain',
+      () async {
+    final now = DateTime.now();
+    await seedItem(
+      id: 'dependent',
+      entityLocalId: 'product',
+      enqueuedAt: now,
+      priority: 0,
+    );
+    await seedItem(
+      id: 'prerequisite',
+      entityLocalId: 'category',
+      enqueuedAt: now.add(const Duration(seconds: 1)),
+      priority: 0,
+    );
+
+    var productAttempts = 0;
+    final handler = _ScriptedHandler((item) async {
+      if (item.entityLocalId == 'product' && productAttempts++ == 0) {
+        throw const SyncFailure(
+          kind: SyncErrorKind.dependencyNotReady,
+          message: 'Category has no server identity yet.',
+        );
+      }
+    });
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {
+        'widget': handler,
+      },
+    );
+
+    // Both queue rows use the same handler so the test isolates engine
+    // scheduling rather than a particular domain handler.
+    await engine.runOnce();
+
+    expect(handler.attemptedIds, ['product', 'category', 'product']);
+    expect(await allQueueItems(), isEmpty);
+  });
+
   group('retry backoff', () {
     test('an item that failed moments ago is skipped on an automatic run', () async {
       final now = DateTime.now();
