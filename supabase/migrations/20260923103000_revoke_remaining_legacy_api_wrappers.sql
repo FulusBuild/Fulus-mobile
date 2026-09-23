@@ -8,9 +8,6 @@ revoke execute on function public.fulus_api_create_customer(
 revoke execute on function public.fulus_api_create_customer(
   uuid,uuid,text,text,text,text,numeric,text
 ) from service_role;
-revoke execute on function public.fulus_api_create_customer(
-  uuid,uuid,text,text,text,text,numeric,text,uuid,text
-) from service_role;
 
 revoke execute on function public.fulus_api_record_expense(
   uuid,uuid,uuid,numeric,text,text,text,uuid
