@@ -77,7 +77,7 @@ class CategorySyncHandler implements SyncHandler {
       throw StateError('Fulus category sync returned no server entity ID.');
     }
 
-    if (isDelete && item.operation == 'create') {
+    if (isDelete && item.operation == 'create' && category.serverId == null) {
       final deleteResult = await _fulusSyncApi.submitOperation(
         businessId: businessId,
         operationType: 'category.delete',
