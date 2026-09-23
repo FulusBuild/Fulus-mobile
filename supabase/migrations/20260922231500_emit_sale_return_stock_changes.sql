@@ -153,4 +153,4 @@ $replacement$
   if definition is not null then
     execute definition;
   end if;
-end $;
+end $$;
