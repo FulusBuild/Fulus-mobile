@@ -13,6 +13,49 @@
 -- Legacy catalog change helper retained only so the subsequent
 -- hardening migration can explicitly revoke direct execution. Current
 -- catalog writes use the actor-bound service wrapper.
+-- Legacy customer mutation helpers. Later migrations replace these
+-- signatures with idempotent/actor-bound wrappers and explicitly revoke the
+-- old service-role execution. Define inert functions here so a fresh replay
+-- can execute those lockdown migrations without depending on historical state.
+create or replace function public.create_customer(
+  target_business_id uuid,
+  target_name text,
+  target_phone text,
+  target_email text,
+  target_address text,
+  target_credit_limit numeric
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy customer RPC is disabled';
+end;
+$function$;
+
+create or replace function public.create_customer(
+  target_business_id uuid,
+  target_name text,
+  target_phone text,
+  target_email text,
+  target_address text,
+  target_credit_limit numeric,
+  target_notes text
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy customer RPC is disabled';
+end;
+$function$;
+
+revoke all on function public.create_customer(
+  uuid,text,text,text,text,numeric
+) from public, anon, authenticated, service_role;
+
+revoke all on function public.create_customer(
+  uuid,text,text,text,text,numeric,text
+) from public, anon, authenticated, service_role;
+
 create or replace function public._fulus_catalog_change(
   target_business_id uuid,
   target_entity_type text,
