@@ -185,7 +185,6 @@ Future<void> main() async {
       entity: 'products',
       operationId: createOperationId,
       item: createPayload,
-      id: serverId,
     );
     final crossDeviceStatus = crossDeviceReplay.statusCode ?? 0;
     final crossDeviceCode = crossDeviceReplay.data is Map &&
