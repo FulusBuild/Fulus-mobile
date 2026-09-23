@@ -7,6 +7,7 @@ import '../../../../../data/local/database/database.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../../sync/sync_status.dart';
+import '../../../../../sync/sync_user_message.dart';
 
 class SyncDetailScreen extends ConsumerStatefulWidget {
   const SyncDetailScreen({super.key});
@@ -229,7 +230,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${conflict.entityType} • ${conflict.entityLocalId}',
+                          syncEntityLabel(conflict.entityType),
                           style: AppTypography.caption.copyWith(
                             color: AppColors.textPrimaryOf(context),
                             fontWeight: FontWeight.w700,
@@ -237,7 +238,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          conflict.message,
+                          'Another device changed this ${syncEntityLabel(conflict.entityType)}. Choose which version to keep.',
                           style: AppTypography.caption.copyWith(
                             color: AppColors.textSecondaryOf(context),
                           ),
@@ -408,13 +409,17 @@ class _HealthCard extends StatelessWidget {
           const FulusListDivider(),
           _HealthLine(label: 'Last successful pull', value: _when(health.lastPullAt)),
           const FulusListDivider(),
-          _HealthLine(label: 'Change cursor', value: health.cursor.toString()),
           const FulusListDivider(),
-          _HealthLine(label: 'Recovery', value: health.recoveryState),
-          if (health.lastError != null) ...[
-            const FulusListDivider(),
-            _HealthLine(label: 'Last sync error', value: health.lastError!),
-          ],
+          _HealthLine(
+            label: 'Cloud backup',
+            value: health.recoveryState == 'recovering'
+                ? 'Restoring'
+                : health.recoveryState == 'blocked'
+                    ? 'Temporarily unavailable'
+                    : health.lastPushAt != null && health.lastPullAt != null
+                        ? 'Up to date'
+                        : 'Waiting for first backup',
+          ),
         ],
       ),
     );
