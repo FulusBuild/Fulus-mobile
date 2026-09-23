@@ -99,7 +99,7 @@ class _FulusCloudConnectionScreenState
             'A fresh verification email has been sent. Open the newest email and try again.',
       );
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = syncUserMessage(failure));
     } catch (error) {
       if (mounted) {
         setState(
@@ -268,7 +268,7 @@ class _FulusCloudConnectionScreenState
       }
     } on Failure catch (failure) {
       connection.clearSyncReady();
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = syncUserMessage(failure));
     } catch (error) {
       connection.clearSyncReady();
       if (mounted) {
@@ -313,7 +313,7 @@ class _FulusCloudConnectionScreenState
       connection.selectBusiness(active.single.businessId);
       await _finishCloudConnection(connection);
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = syncUserMessage(failure));
     } catch (error) {
       if (mounted) {
         setState(
@@ -382,7 +382,7 @@ class _FulusCloudConnectionScreenState
       );
       setState(() {});
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = syncUserMessage(failure));
     } catch (error) {
       if (mounted) {
         setState(
