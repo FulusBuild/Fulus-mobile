@@ -114,4 +114,63 @@ void main() {
       reason: 'SyncEngine owns queue removal; the handler only settles the row.',
     );
   });
+  test('archived never-synced supplier creates first, then deletes by server ID',
+      () async {
+    final created = await supplierRepository.createSupplier(
+      const SupplierDraft(name: 'Archived Supplier'),
+    );
+    await supplierRepository.archiveSupplier(created.localId);
+
+    final queued = await (db.select(db.syncQueueItems)
+          ..where((q) => q.entityType.equals('supplier'))
+          ..where((q) => q.entityLocalId.equals(created.localId))
+          ..where((q) => q.operation.equals('create')))
+        .getSingle();
+
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) async {
+      final operationType =
+          invocation.namedArguments[#operationType] as String;
+      if (operationType == 'supplier.create') {
+        return {
+          'data': {'entity_id': 'server-archived-supplier'},
+        };
+      }
+      if (operationType == 'supplier.delete') {
+        final payload =
+            invocation.namedArguments[#payload] as Map<String, dynamic>;
+        expect(payload['server_id'], 'server-archived-supplier');
+        return {
+          'data': {'entity_id': 'server-archived-supplier'},
+        };
+      }
+      throw StateError('Unexpected operation type: $operationType');
+    });
+
+    await handler.sync(queued);
+
+    final calls = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: captureAny(named: 'operationType'),
+          operationId: captureAny(named: 'operationId'),
+          deviceClientId: 'device-client-1',
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).captured;
+
+    expect(calls, hasLength(2));
+    expect(calls[0], 'supplier.create');
+    expect(calls[1], 'supplier.delete');
+    expect(
+      (await supplierRepository.getSupplierById(created.localId))!.serverId,
+      'server-archived-supplier',
+    );
+  });
+
 }
