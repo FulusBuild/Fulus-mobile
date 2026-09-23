@@ -187,6 +187,115 @@ revoke all on function public.change_member_role(uuid,uuid,uuid,uuid)
 revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
   from public, anon, authenticated, service_role;
 
+-- Legacy service API wrappers retained only so historical lockdown
+-- migrations can be replayed from an empty database. They are inert and
+-- executable by no role; the current actor/device-bound wrappers are defined
+-- and granted later in the chain.
+create or replace function public.fulus_api_create_customer(
+  target_user_id uuid, target_business_id uuid, target_name text,
+  target_phone text, target_email text, target_address text,
+  target_credit_limit numeric
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy customer API wrapper is disabled';
+end;
+$function$;
+
+create or replace function public.fulus_api_create_customer(
+  target_user_id uuid, target_business_id uuid, target_name text,
+  target_phone text, target_email text, target_address text,
+  target_credit_limit numeric, target_notes text
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy customer API wrapper is disabled';
+end;
+$function$;
+
+create or replace function public.fulus_api_update_customer(
+  target_user_id uuid, target_business_id uuid, target_device_id uuid,
+  target_operation_id text, target_customer_id uuid, target_name text,
+  target_phone text, target_email text, target_address text,
+  target_notes text, target_credit_limit numeric, target_is_active boolean,
+  target_request_hash text
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy customer update API wrapper is disabled';
+end;
+$function$;
+
+create or replace function public.fulus_api_update_expense(
+  target_user_id uuid, target_business_id uuid, target_device_id uuid,
+  target_operation_id text, target_expense_id uuid, target_location_id uuid,
+  target_amount numeric, target_category text, target_description text,
+  target_expense_date timestamptz, target_payment_method text
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy expense update API wrapper is disabled';
+end;
+$function$;
+
+create or replace function public.fulus_api_update_expense(
+  target_user_id uuid, target_business_id uuid, target_device_id uuid,
+  target_operation_id text, target_expense_id uuid, target_location_id uuid,
+  target_amount numeric, target_category text, target_description text,
+  target_expense_date timestamptz, target_payment_method text,
+  target_request_hash text
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy expense update API wrapper is disabled';
+end;
+$function$;
+
+create or replace function public.fulus_api_record_expense(
+  target_user_id uuid, target_business_id uuid, target_location_id uuid,
+  target_amount numeric, target_category text, target_description text,
+  target_operation_id text, target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy expense API wrapper is disabled';
+end;
+$function$;
+
+create or replace function public.fulus_api_cloud_close_cash_drawer_shift(
+  target_user_id uuid, target_business_id uuid, target_shift_id uuid,
+  target_closing_cash numeric, target_cash_difference numeric,
+  target_closing_note text, target_closed_at timestamptz,
+  target_operation_id text, target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy cash drawer API wrapper is disabled';
+end;
+$function$;
+
+revoke all on function public.fulus_api_create_customer(
+  uuid,uuid,text,text,text,text,numeric
+) from public,anon,authenticated,service_role;
+revoke all on function public.fulus_api_create_customer(
+  uuid,uuid,text,text,text,text,numeric,text
+) from public,anon,authenticated,service_role;
+revoke all on function public.fulus_api_update_customer(
+  uuid,uuid,uuid,text,uuid,text,text,text,text,text,numeric,boolean,text
+) from public,anon,authenticated,service_role;
+revoke all on function public.fulus_api_update_expense(
+  uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text
+) from public,anon,authenticated,service_role;
+revoke all on function public.fulus_api_update_expense(
+  uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text,text
+) from public,anon,authenticated,service_role;
+revoke all on function public.fulus_api_record_expense(
+  uuid,uuid,uuid,numeric,text,text,text,uuid
+) from public,anon,authenticated,service_role;
+revoke all on function public.fulus_api_cloud_close_cash_drawer_shift(
+  uuid,uuid,uuid,numeric,numeric,text,timestamptz,text,uuid
+) from public,anon,authenticated,service_role;
+
 -- Legacy location RPC/trigger compatibility objects. These signatures are
 -- referenced by later lockdown migrations but superseded by the actor-bound
 -- location command path. Keep the objects defined and non-callable while the
