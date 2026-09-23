@@ -174,4 +174,17 @@ void main() {
     final rows = await db.select(db.syncQueueItems).get();
     expect(rows, hasLength(2));
   });
+  test('concurrent enqueue calls deduplicate the same mutation', () async {
+    await Future.wait([
+      queue.enqueue(SyncTask.createProduct('product-concurrent')),
+      queue.enqueue(SyncTask.createProduct('product-concurrent')),
+    ]);
+
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.entityType, 'product');
+    expect(rows.single.entityLocalId, 'product-concurrent');
+    expect(rows.single.operation, 'create');
+  });
+
 }
