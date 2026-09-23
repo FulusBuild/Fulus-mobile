@@ -681,6 +681,3 @@ revoke execute on function public.fulus_api_create_location(
 ) from public,anon,authenticated;
 
 
-
-revoke execute on function public.fulus_api_create_location(uuid,uuid,text,text,text,text,text) from public,anon,authenticated;
-grant execute on function public.fulus_api_create_location(uuid,uuid,uuid,text,text,text,text,text,text) to service_role;
