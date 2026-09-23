@@ -306,12 +306,10 @@ void main() {
       ),
     );
 
-    final localStock = await (db.select(db.productStockLevels)
-          ..where((s) =>
-              s.productLocalId.equals(productId) &
-              s.locationLocalId.equals(locationId)))
-        .getSingle();
-    // ProductRepository is mocked in this handler test, so the canonical\n    // reconciler call is verified below rather than mutating SQLite here.\n    // The sale itself optimistically decremented 10 -> 8 before the cloud\n    // rejection; a real ProductRepository applies the canonical 3 there.\n    expect(localStock.currentStock, 8);
+    // ProductRepository is mocked in this handler test, so the canonical
+    // reconciler call is verified below rather than mutating SQLite here.
+    // The sale itself optimistically decremented 10 -> 8 before the cloud
+    // rejection; a real ProductRepository applies the canonical 3 there.
     verify(() => productRepository.reconcileServerState(
           serverId: 'server-product-1',
           name: 'Test Product',
