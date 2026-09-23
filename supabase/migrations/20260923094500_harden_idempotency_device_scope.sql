@@ -506,7 +506,7 @@ $$;
 
 
 create or replace function public.fulus_api_create_location(
- target_user_id uuid,target_business_id uuid,target_operation_id text,target_name text,target_code text,target_address text,target_timezone text,target_request_hash text)
+ target_user_id uuid,target_business_id uuid,target_device_id uuid,target_operation_id text,target_name text,target_code text,target_address text,target_timezone text,target_request_hash text)
 returns jsonb language plpgsql security definer set search_path to ''
 as $function$
 declare idem public.idempotency_keys%rowtype; request_hash text; result jsonb;
