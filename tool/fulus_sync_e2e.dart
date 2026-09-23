@@ -218,6 +218,77 @@ Future<void> main() async {
       );
     }
 
+    final locationCreateData = locationCreate.data is Map
+        ? (locationCreate.data as Map)['data']
+        : null;
+    final locationCreateResult = locationCreateData is Map
+        ? locationCreateData
+        : locationCreate.data is Map
+            ? locationCreate.data as Map
+            : null;
+    final firstLocationId = locationCreateResult?['location_id'];
+    if (firstLocationId is! String || firstLocationId.isEmpty) {
+      throw StateError(
+        'Location create did not return a server location id: ${locationCreate.data}',
+      );
+    }
+
+    final locationSameDeviceReplay = await dio.post(
+      '',
+      data: {
+        'action': 'location_create',
+        'business_id': businessId,
+        'operation_id': locationOperationId,
+        'name': 'E2E Sync Scope ${suffix}',
+        'code': 'E2E-SCOPE-${suffix}',
+        'address': 'E2E rollback-compatible location',
+        'timezone': 'Africa/Lagos',
+      },
+    );
+    if ((locationSameDeviceReplay.statusCode ?? 0) != 200) {
+      throw StateError(
+        'Expected same-device location idempotent replay, got HTTP '
+        '${locationSameDeviceReplay.statusCode}: ${locationSameDeviceReplay.data}',
+      );
+    }
+    final replayData = locationSameDeviceReplay.data is Map
+        ? (locationSameDeviceReplay.data as Map)['data']
+        : null;
+    final replayResult = replayData is Map
+        ? replayData
+        : locationSameDeviceReplay.data is Map
+            ? locationSameDeviceReplay.data as Map
+            : null;
+    if (replayResult?['location_id'] != firstLocationId) {
+      throw StateError(
+        'Same-device location replay returned a different location: '
+        '${locationSameDeviceReplay.data}',
+      );
+    }
+
+    final locationDifferentRequest = await dio.post(
+      '',
+      data: {
+        'action': 'location_create',
+        'business_id': businessId,
+        'operation_id': locationOperationId,
+        'name': 'E2E Sync Scope ${suffix} DIFFERENT',
+        'code': 'E2E-SCOPE-${suffix}-DIFFERENT',
+        'address': 'E2E different request',
+        'timezone': 'Africa/Lagos',
+      },
+    );
+    if (locationDifferentRequest.statusCode != 409 ||
+        locationDifferentRequest.data is! Map ||
+        (locationDifferentRequest.data as Map)['error'] is! Map ||
+        ((locationDifferentRequest.data as Map)['error'] as Map)['code'] !=
+            'IDEMPOTENCY_CONFLICT') {
+      throw StateError(
+        'Expected same-device location request conflict, got HTTP '
+        '${locationDifferentRequest.statusCode}: ${locationDifferentRequest.data}',
+      );
+    }
+
     dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
     final locationReplay = await dio.post(
       '',
