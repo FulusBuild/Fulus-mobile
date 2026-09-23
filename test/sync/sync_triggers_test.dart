@@ -422,9 +422,10 @@ void main() {
           ready = true;
         },
         connectivity: connectivity,
+        retryInterval: const Duration(hours: 1),
       );
 
-      final first = triggers.syncNow();
+      final first = triggers.start();
       await cycleStarted.future;
 
       ready = false;
