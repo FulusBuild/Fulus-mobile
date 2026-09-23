@@ -238,6 +238,49 @@ Future<void> main() async {
       entityType: 'product',
       entityId: serverId,
     );
+
+    // Regression for the real-device failure: every stock movement change
+    // must carry replayable timestamps. The server migration now enriches
+    // both new and retained events from inventory_movements.created_at.
+    final stockTimestampProbe = await dio.get(
+      '',
+      queryParameters: {
+        'business_id': businessId,
+        'cursor': max(0, productChangeSequence - 1),
+        'limit': 500,
+      },
+    );
+    _expect2xx(stockTimestampProbe, 'stock movement timestamp contract');
+    final probeRoot = stockTimestampProbe.data;
+    final probeData = probeRoot is Map ? probeRoot['data'] : null;
+    final probeChanges = probeData is Map ? probeData['changes'] : null;
+    if (probeChanges is! List) {
+      throw StateError('Stock movement timestamp probe returned no change list.');
+    }
+    final stockMovementChanges = probeChanges.where((raw) {
+      if (raw is! Map || raw['entity_type'] != 'stock_movement') return false;
+      final payload = raw['payload'];
+      return payload is Map && payload['product_id'] == serverId;
+    }).toList(growable: false);
+    if (stockMovementChanges.isEmpty) {
+      throw StateError(
+        'No stock movement change was emitted for the product initial-stock mutation.',
+      );
+    }
+    for (final raw in stockMovementChanges) {
+      final payload = (raw as Map)['payload'];
+      if (payload is! Map ||
+          payload['created_at'] is! String ||
+          DateTime.tryParse(payload['created_at'] as String) == null ||
+          payload['updated_at'] is! String ||
+          DateTime.tryParse(payload['updated_at'] as String) == null) {
+        throw StateError(
+          'Stock movement change is missing valid created_at/updated_at timestamps: $raw',
+        );
+      }
+    }
+    stdout.writeln('PASS: stock movement change feed carries valid timestamps');
+
     if (productChangeSequence > 0) {
       final staleCursor = productChangeSequence - 1;
       final staleUpdate = await _submitCatalog(
