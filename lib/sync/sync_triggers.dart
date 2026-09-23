@@ -257,6 +257,23 @@ class SyncTriggers with WidgetsBindingObserver {
     await _runIfOnline();
   }
 
+  /// Schedules a readiness recovery after the current sync cycle yields. This
+  /// is used when the server revokes this installation's device registration.
+  /// The recovery must not run inline from SyncEngine because doing so would
+  /// recursively await the cycle that is currently executing.
+  void scheduleReadinessRecovery() {
+    Future<void>(() async {
+      final active = _syncCycleRun;
+      if (active != null) {
+        await active;
+      }
+      if (!_syncConfig.isEnabled) return;
+      await _runIfOnline();
+    }).catchError((Object error, StackTrace stackTrace) {
+      _onSyncFailure?.call(error, stackTrace);
+    });
+  }
+
   Future<bool> _ensureReady() async {
     // Restore owns the initial reconciliation. A normal trigger that happens
     // to fire while restore is enabling sync must stand down.
