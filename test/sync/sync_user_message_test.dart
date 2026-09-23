@@ -30,6 +30,24 @@ void main() {
     );
   });
 
+  test('validation failures never expose raw implementation text', () {
+    final message = syncUserMessage(
+      const ValidationFailure('Canonical stock movement contains an invalid date.'),
+    );
+    expect(message, contains('Cloud backup'));
+    expect(message, isNot(contains('Canonical')));
+    expect(message, isNot(contains('invalid date')));
+  });
+
+  test('auth failures never expose raw session details', () {
+    final message = syncUserMessage(
+      const AuthFailure('JWT expired: refresh token invalid'),
+    );
+    expect(message, contains('session'));
+    expect(message, isNot(contains('JWT')));
+    expect(message, isNot(contains('refresh token')));
+  });
+
   test('unknown exceptions never expose their raw text', () {
     final message = syncUserMessage(StateError('foreign key constraint failed'));
     expect(message, isNot(contains('foreign key')));
