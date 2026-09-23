@@ -148,7 +148,7 @@ class _FulusCloudConnectionScreenState
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {
-          _error = syncUserMessage(failure);
+          _error = failure.message;
           if (failure.message.toLowerCase().contains('verify your email')) {
             _awaitingVerification = true;
           }
@@ -197,7 +197,7 @@ class _FulusCloudConnectionScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(failure);
+          _error = failure.message;
         });
       }
     } catch (error) {
