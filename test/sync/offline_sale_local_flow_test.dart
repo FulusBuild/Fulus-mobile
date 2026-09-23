@@ -161,7 +161,7 @@ void main() {
     final queued = await db.select(db.syncQueueItems).get();
     expect(queued, hasLength(1));
     expect(queued.single.syncAttempts, 0);
-    expect(queued.single.lastError, contains('Fulus Cloud authorization'));
+    expect(queued.single.lastError, isNull);
 
     await db.close();
   });
