@@ -233,7 +233,7 @@ Future<void> main() async {
         locationReplay.data is! Map ||
         (locationReplay.data as Map)['error'] is! Map ||
         ((locationReplay.data as Map)['error'] as Map)['code'] !=
-            'LOCATION_CREATION_FAILED') {
+            'IDEMPOTENCY_CONFLICT') {
       throw StateError(
         'Expected cross-device location idempotency rejection, got HTTP '
         '${locationReplay.statusCode}: ${locationReplay.data}',
