@@ -411,6 +411,9 @@ class _FulusCloudConnectionScreenState
   Widget build(BuildContext context) {
     final connection = ref.watch(fulusConnectionStateProvider);
     final connected = connection.isSyncReady;
+    final cloudSessionActive =
+        connection.isSessionAuthenticated &&
+        connection.selectedBusinessId != null;
     final cloudSyncEnabled = ref.watch(syncConfigProvider).isEnabled;
     final needsReauthentication =
         cloudSyncEnabled && !connection.isSessionAuthenticated;
@@ -456,7 +459,11 @@ class _FulusCloudConnectionScreenState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                connected ? 'Fulus Cloud' : 'Back up your business',
+                                connected
+                                    ? 'Fulus Cloud'
+                                    : cloudSessionActive
+                                        ? 'Fulus Cloud is reconnecting'
+                                        : 'Back up your business',
                                 style: AppTypography.heading.copyWith(
                                   color: AppColors.textPrimaryOf(context),
                                   fontSize: 18,
@@ -466,7 +473,9 @@ class _FulusCloudConnectionScreenState
                               Text(
                                 connected
                                     ? 'Connected and ready to keep your business data backed up when you’re online.'
-                                    : 'Create a Fulus account to protect this local business and use it on other devices.',
+                                    : cloudSessionActive
+                                        ? 'Your account is still signed in. Fulus will resume cloud backup when this device is ready.'
+                                        : 'Create a Fulus account to protect this local business and use it on other devices.',
                                 style: AppTypography.body.copyWith(
                                   color: AppColors.textSecondaryOf(context),
                                 ),
@@ -486,7 +495,11 @@ class _FulusCloudConnectionScreenState
                                   ),
                                   const SizedBox(width: AppSpacing.xs),
                                   Text(
-                                    connected ? 'Backup is on' : 'Not connected',
+                                    connected
+                                        ? 'Backup is on'
+                                        : cloudSessionActive
+                                            ? 'Reconnecting'
+                                            : 'Not connected',
                                     style: AppTypography.caption.copyWith(
                                       color: connected
                                           ? AppColors.successOf(context)
