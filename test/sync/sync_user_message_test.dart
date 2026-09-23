@@ -32,7 +32,7 @@ void main() {
 
   test('validation failures never expose raw implementation text', () {
     final message = syncUserMessage(
-      const ValidationFailure('Canonical stock movement contains an invalid date.'),
+      const ValidationFailure(fieldErrors: {'sync': 'Canonical stock movement contains an invalid date.'}),
     );
     expect(message, contains('Cloud backup'));
     expect(message, isNot(contains('Canonical')));
@@ -41,7 +41,7 @@ void main() {
 
   test('auth failures never expose raw session details', () {
     final message = syncUserMessage(
-      const AuthFailure('JWT expired: refresh token invalid'),
+      const AuthFailure.sessionExpired(),
     );
     expect(message, contains('session'));
     expect(message, isNot(contains('JWT')));
