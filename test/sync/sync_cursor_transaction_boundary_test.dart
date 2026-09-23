@@ -123,7 +123,7 @@ void main() {
       throwsA(isA<StateError>()),
     );
 
-    expect(applied, [3, 1]);
+    expect(applied, isEmpty);
     expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
   });
 }
