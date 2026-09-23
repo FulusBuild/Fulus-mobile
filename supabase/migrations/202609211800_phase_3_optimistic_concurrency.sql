@@ -156,8 +156,7 @@ begin
       category=trim(target_category),
       description=target_description,
       expense_date=target_expense_date,
-      payment_method=target_payment_method,
-      updated_at=now()
+      payment_method=target_payment_method
   where id=target_expense_id and business_id=target_business_id
   returning * into expense_row;
 
