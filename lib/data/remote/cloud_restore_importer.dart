@@ -50,7 +50,6 @@ class CloudRestoreImporter {
     'sale_payments',
     'sale_items',
     'customer_ledger_entries',
-    'supplier_ledger_entries',
     'product_stock_levels',
     'stock_movements',
     'return_requests',
@@ -84,7 +83,6 @@ class CloudRestoreImporter {
     'stock_movements',
     'product_stock_levels',
     'customer_ledger_entries',
-    'supplier_ledger_entries',
     'sale_items',
     'sale_payments',
     'return_requests',
@@ -460,7 +458,6 @@ class CloudRestoreImporter {
     const preserved = {
       'attendance_records',
       'leave_records',
-      'supplier_ledger_entries',
       'tax_remittances',
     };
     for (final table in _clearOrder) {
