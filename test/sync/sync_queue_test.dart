@@ -138,6 +138,35 @@ void main() {
     expect(matching, hasLength(1));
   });
 
+  test('a newer mutation can replace a blocked outbox row', () async {
+    await queue.enqueue(SyncTask.updateCustomer('customer-1'));
+    final old = (await db.select(db.syncQueueItems).get()).single;
+    await (db.update(db.syncQueueItems)..where((q) => q.id.equals(old.id))).write(
+      const SyncQueueItemsCompanion(lastError: Value('[BLOCKED] stale conflict')),
+    );
+    await db.into(db.syncConflictRecords).insert(
+      SyncConflictRecordsCompanion.insert(
+        id: old.id + ':conflict',
+        operationId: old.id,
+        entityType: 'customer',
+        entityLocalId: 'customer-1',
+        message: 'stale conflict',
+        createdAt: DateTime.now(),
+      ),
+    );
+
+    await queue.enqueue(SyncTask.updateCustomer('customer-1'));
+
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.id, isNot(old.id));
+    expect(rows.single.lastError, isNull);
+
+    final conflict = (await db.select(db.syncConflictRecords).get()).single;
+    expect(conflict.resolvedAt, isNotNull);
+    expect(conflict.resolution, 'superseded_by_newer_local_mutation');
+  });
+
   test('keeps create and update operations distinct', () async {
     await queue.enqueue(SyncTask.createProduct('product-1'));
     await queue.enqueue(SyncTask.updateProduct('product-1'));
