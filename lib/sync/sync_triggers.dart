@@ -64,6 +64,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Duration retryInterval;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   Timer? _retryTimer;
+  Timer? _readinessRecoveryTimer;
   bool _started = false;
   Future<bool>? _connectivityRun;
   Future<void>? _readinessRun;
@@ -128,6 +129,8 @@ class SyncTriggers with WidgetsBindingObserver {
     _subscription = null;
     _retryTimer?.cancel();
     _retryTimer = null;
+    _readinessRecoveryTimer?.cancel();
+    _readinessRecoveryTimer = null;
     _started = false;
   }
 
@@ -140,6 +143,8 @@ class SyncTriggers with WidgetsBindingObserver {
       _subscription = null;
       _retryTimer?.cancel();
       _retryTimer = null;
+      _readinessRecoveryTimer?.cancel();
+      _readinessRecoveryTimer = null;
     }
   }
 
@@ -274,18 +279,33 @@ class SyncTriggers with WidgetsBindingObserver {
   /// The recovery must not run inline from SyncEngine because doing so would
   /// recursively await the cycle that is currently executing.
   void scheduleReadinessRecovery() {
-    Future<void>(() async {
-      final active = _syncCycleRun;
-      if (active != null) {
-        await active;
-      }
-      if (!_started || !_syncConfig.isEnabled) return;
-      await _runIfOnline();
-    }).catchError((Object error, StackTrace stackTrace) {
-      if (_started) {
-        _onSyncFailure?.call(error, stackTrace);
-      }
-    });
+    if (_readinessRecoveryTimer != null) return;
+    _readinessRecoveryTimer = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (timer) {
+        if (!_started || !_syncConfig.isEnabled) {
+          timer.cancel();
+          _readinessRecoveryTimer = null;
+          return;
+        }
+
+        // Device revocation can be detected from inside the active sync
+        // cycle. Never await that cycle from inside itself. Poll the lifecycle
+        // boundary from a separate timer and start readiness only after both
+        // the cycle and its outer connectivity orchestration have unwound.
+        if (_syncCycleRun != null || _connectivityRun != null) return;
+
+        timer.cancel();
+        _readinessRecoveryTimer = null;
+        unawaited(
+          _runIfOnline().catchError((Object error, StackTrace stackTrace) {
+            if (_started) {
+              _onSyncFailure?.call(error, stackTrace);
+            }
+          }),
+        );
+      },
+    );
   }
 
   Future<bool> _ensureReady() async {
