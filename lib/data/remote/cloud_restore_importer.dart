@@ -474,7 +474,7 @@ class CloudRestoreImporter {
       if (table == 'users' && preserveUserId != null) {
         await _db.customStatement(
           'DELETE FROM "users" WHERE "local_id" <> ?',
-          [Variable.withString(preserveUserId)],
+          [preserveUserId],
         );
         continue;
       }
