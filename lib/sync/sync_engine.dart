@@ -27,7 +27,8 @@ class SyncEngine {
         _retryPolicy = retryPolicy,
         _conflictResolver = conflictResolver,
         _diagnosticLogger = diagnosticLogger,
-        _canSync = canSync;
+        _canSync = canSync,
+        _onDeviceAuthorizationLost = onDeviceAuthorizationLost;
 
   final AppDatabase _db;
   final Map<String, SyncHandler> _handlersByEntityType;
@@ -35,6 +36,7 @@ class SyncEngine {
   final ConflictResolver _conflictResolver;
   final DiagnosticLogger? _diagnosticLogger;
   final Future<bool> Function()? _canSync;
+  final Future<void> Function()? _onDeviceAuthorizationLost;
   final int maxAttemptsBeforeAttentionNeeded;
 
   Future<void>? _activeRun;
@@ -155,10 +157,14 @@ class SyncEngine {
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
       } on AuthFailure catch (e, st) {
         // Authentication is a session-level condition, not a permanent
-        // queue-item failure. Keep the item retryable and stop this drain
-        // cycle until the session is restored; otherwise one expired session
-        // would permanently park every queued write as attention-needed.
+        // queue-item failure. Likewise, a server-revoked installation is a
+        // device-registration condition: clear the cached registration and
+        // let the normal readiness path silently re-register this same
+        // device. Neither condition should permanently park queued writes.
         await _resetAfterAuthenticationFailure(item.id, error: e.message);
+        if (e.requiresDeviceRegistration) {
+          await _onDeviceAuthorizationLost?.call();
+        }
         unawaited(_captureSyncFailure(item: item, error: e, stackTrace: st));
         return;
       } catch (e, st) {
