@@ -178,6 +178,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  fulusConnectionState.setBusinessSwitchGuard(syncQueue.hasPendingItems);
+
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
   final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
@@ -359,7 +361,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     var selectedBusinessId = fulusConnectionState.selectedBusinessId;
     if (selectedBusinessId == null) {
       if (active.length != 1) return;
-      fulusConnectionState.selectBusiness(active.single.businessId);
+      await fulusConnectionState.selectBusiness(active.single.businessId);
       selectedBusinessId = fulusConnectionState.selectedBusinessId;
     }
     if (selectedBusinessId == null) {
@@ -396,7 +398,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         // Do not leave the connection state pointing at business B while the
         // local database still contains business A. Recovery is authoritative;
         // if it cannot complete, roll the selection back and keep sync blocked.
-        fulusConnectionState.selectBusiness(boundBusinessId);
+        await fulusConnectionState.selectBusiness(boundBusinessId);
         rethrow;
       }
       final persisted = await syncPreferences.setString(
