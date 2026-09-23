@@ -512,8 +512,12 @@ as $function$
 declare idem public.idempotency_keys%rowtype; request_hash text; result jsonb;
 begin
  request_hash:=target_request_hash;
- insert into public.idempotency_keys(business_id,user_id,key,operation_type,request_hash) values(target_business_id,target_user_id,target_operation_id,'location.create',request_hash) on conflict(business_id,key) do nothing;
+ insert into public.idempotency_keys(business_id,user_id,device_id,key,operation_type,request_hash) values(target_business_id,target_user_id,target_device_id,target_operation_id,'location.create',request_hash) on conflict(business_id,key) do nothing;
  select * into idem from public.idempotency_keys where business_id=target_business_id and key=target_operation_id for update;
+ if idem.device_id is distinct from target_device_id
+    or idem.user_id is distinct from target_user_id then
+   raise exception using errcode='P0009', message='Operation id was already used from a different device or account';
+ end if;
  if idem.operation_type<>'location.create' or idem.request_hash<>request_hash then raise exception using errcode='P0009',message='Operation id was already used with a different request'; end if;
  if idem.completed_at is not null and idem.response_body is not null then return idem.response_body; end if;
  perform set_config('request.jwt.claim.sub',target_user_id::text,true);
