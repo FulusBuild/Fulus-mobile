@@ -317,6 +317,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         fulusConnectionState.isSessionAuthenticated &&
         fulusConnectionState.isConnected &&
         fulusConnectionState.isDeviceAuthorized,
+    onDeviceAuthorizationLost: fulusConnectionState.clearRegisteredDevice,
   );
 
   final syncConflictResolver = SyncConflictResolver(
