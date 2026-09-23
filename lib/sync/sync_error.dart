@@ -41,10 +41,16 @@ class SyncFailure implements Exception {
     if (lower.contains('network') || lower.contains('offline') || lower.contains('connection') || lower.contains('timeout')) {
       return SyncFailure(kind: SyncErrorKind.network, message: message, cause: error);
     }
-    if (lower.contains('session expired') || lower.contains('unauthorized')) {
+    if (lower.contains('session expired') ||
+        lower.contains('unauthorized') ||
+        lower.contains('jwt') ||
+        lower.contains('invalid refresh token') ||
+        lower.contains('token is expired')) {
       return SyncFailure(kind: SyncErrorKind.authExpired, message: message, cause: error);
     }
-    if (lower.contains('forbidden') || lower.contains('permission')) {
+    if (lower.contains('forbidden') ||
+        lower.contains('permission denied') ||
+        lower.contains('permission')) {
       return SyncFailure(kind: SyncErrorKind.permission, message: message, cause: error);
     }
     if (lower.contains('validation') || lower.contains('invalid')) {
