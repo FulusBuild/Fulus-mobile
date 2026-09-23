@@ -160,6 +160,44 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: product.create');
 
+    // The idempotency key is business-scoped for storage, but its meaning is
+    // device-scoped. Reusing the same operation from another registered device
+    // must never replay the first device's result.
+    final firstDeviceClientId = dio.options.headers['x-fulus-device-id']?.toString();
+    if (firstDeviceClientId == null || firstDeviceClientId.isEmpty) {
+      throw StateError('E2E lost the active device identity before idempotency scope verification.');
+    }
+    final secondDeviceClientId =
+        'e2e-scope-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
+    await _registerEphemeralDevice(
+      dio,
+      businessId: businessId,
+      deviceClientId: secondDeviceClientId,
+    );
+    dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
+    final crossDeviceReplay = await _submitCatalog(
+      dio,
+      businessId: businessId,
+      action: 'catalog_upsert',
+      entity: 'products',
+      operationId: createOperationId,
+      item: createPayload,
+      id: serverId,
+    );
+    final crossDeviceStatus = crossDeviceReplay.statusCode ?? 0;
+    final crossDeviceCode = crossDeviceReplay.data is Map &&
+            (crossDeviceReplay.data as Map)['error'] is Map
+        ? ((crossDeviceReplay.data as Map)['error'] as Map)['code']
+        : null;
+    if (crossDeviceStatus != 409 || crossDeviceCode != 'IDEMPOTENCY_CONFLICT') {
+      throw StateError(
+        'Expected cross-device idempotency rejection, got HTTP '
+        '$crossDeviceStatus: ${crossDeviceReplay.data}',
+      );
+    }
+    dio.options.headers['x-fulus-device-id'] = firstDeviceClientId;
+    stdout.writeln('PASS: idempotency key cannot cross device scope');
+
     final initialSnapshot = await dio.post(
       '',
       data: {'action': 'restore_snapshot', 'business_id': businessId},
