@@ -95,6 +95,7 @@ class FulusConnectionState extends ChangeNotifier {
   /// separate from a transient startup/network failure so automatic retries
   /// do not present a false re-login prompt to the user.
   void markSessionExpired() {
+    if (_sessionExpired && !_sessionAuthenticated && !_syncReady) return;
     _sessionExpired = true;
     _sessionAuthenticated = false;
     _syncReady = false;
