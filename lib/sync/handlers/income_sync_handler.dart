@@ -3,6 +3,7 @@ import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/income_record_repository.dart';
 import '../../domain/repositories/location_repository.dart';
+import '../../core/errors/failure.dart';
 import '../sync_handler.dart';
 
 /// Syncs miscellaneous income through the canonical Fulus Cloud transport.
@@ -52,8 +53,10 @@ class IncomeSyncHandler implements SyncHandler {
       throw StateError('Fulus Cloud device authorization is required for income sync.');
     }
 
-    final result = await _fulusSyncApi.submitOperation(
-      businessId: businessId,
+    late final Map<String, dynamic> result;
+    try {
+      result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
       operationType: 'income.create',
       operationId: item.id,
       clientReference: record.localId,
@@ -67,8 +70,14 @@ class IncomeSyncHandler implements SyncHandler {
         'amount': record.amount,
         'income_date': record.incomeDate.toIso8601String(),
         'notes': record.notes,
-      },
-    );
+        },
+      );
+    } on BusinessRuleFailure {
+      // The income row is intentionally retained for audit/correction, but
+      // a rejected create must not continue to look like settled finance.
+      await _incomeRecordRepository.markAttentionNeeded(record.localId);
+      rethrow;
+    }
 
     final rawData = result['data'];
     if (rawData is! Map) {
