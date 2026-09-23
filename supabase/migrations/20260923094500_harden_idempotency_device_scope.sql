@@ -526,5 +526,5 @@ begin
  return result;
 end;$function$;
 
-revoke execute on function public.fulus_api_create_location(uuid,uuid,text,text,text,text,text,text) from public,anon,authenticated;
-grant execute on function public.fulus_api_create_location(uuid,uuid,text,text,text,text,text,text) to service_role;
+revoke execute on function public.fulus_api_create_location(uuid,uuid,text,text,text,text,text,text,text) from public,anon,authenticated;
+grant execute on function public.fulus_api_create_location(uuid,uuid,text,text,text,text,text,text,text) to service_role;
