@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/cloud_restore_importer.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 
 void main() {
   late AppDatabase db;
@@ -91,6 +92,106 @@ void main() {
     expect(employees.single.authUserId, 'staff-1');
     expect(employees.single.role, 'manager');
     expect(permissions.map((row) => row.permission.name), containsAll(<String>['viewReports', 'manageEmployees']));
+  });
+
+  test('restores cashier users before sales with cashier foreign keys', () async {
+    final now = DateTime(2026, 9, 23);
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'owner-1',
+        fullName: 'Business Owner',
+        role: AuthRole.owner,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final snapshot = <String, dynamic>{
+      'version': 6,
+      'business_memberships': [
+        {
+          'id': 'membership-owner',
+          'user_id': 'owner-1',
+          'role_id': 'role-owner',
+          'status': 'active',
+        },
+        {
+          'id': 'membership-cashier',
+          'user_id': 'cashier-1',
+          'role_id': 'role-cashier',
+          'status': 'active',
+        },
+      ],
+      'profiles': [
+        {'id': 'cashier-1', 'full_name': 'Cashier One'},
+      ],
+      'roles': [
+        {'id': 'role-cashier', 'name': 'cashier'},
+      ],
+      'permissions': [],
+      'role_permissions': [],
+      'location_memberships': [
+        {
+          'user_id': 'cashier-1',
+          'location_id': 'location-1',
+          'status': 'active',
+        },
+      ],
+      'locations': [
+        {'id': 'location-1', 'name': 'Main'},
+      ],
+      'categories': [],
+      'suppliers': [],
+      'customers': [],
+      'products': [],
+      'sales': [
+        {
+          'id': 'sale-owner',
+          'client_reference': 'sale-owner',
+          'location_id': 'location-1',
+          'cashier_user_id': 'owner-1',
+          'sale_date': '2026-09-23T10:00:00Z',
+          'subtotal': 100,
+          'total': 100,
+          'amount_paid': 100,
+        },
+        {
+          'id': 'sale-cashier',
+          'client_reference': 'sale-cashier',
+          'location_id': 'location-1',
+          'cashier_user_id': 'cashier-1',
+          'sale_date': '2026-09-23T10:01:00Z',
+          'subtotal': 200,
+          'total': 200,
+          'amount_paid': 200,
+        },
+      ],
+      'sale_items': [],
+      'sale_payments': [],
+      'product_stock_levels': [],
+      'customer_ledger_entries': [],
+      'inventory_movements': [],
+      'expense_categories': [],
+      'expenses': [],
+      'income_records': [],
+      'supplier_ledger_entries': [],
+      'returns': [],
+      'return_items': [],
+      'tax_remittances': [],
+      'cash_drawer_shifts': [],
+      'audit_events': [],
+    };
+
+    await CloudRestoreImporter(db).importSnapshot(
+      snapshot,
+      ownerCloudUserId: 'owner-1',
+    );
+
+    final users = await db.select(db.users).get();
+    final sales = await db.select(db.sales).get();
+
+    expect(users.map((row) => row.localId), containsAll(<String>['owner-1', 'cashier-1']));
+    expect(sales.map((row) => row.cashierUserId), containsAll(<String>['owner-1', 'cashier-1']));
   });
 
   test('translates cloud inventory movement deltas into local movement schema', () async {
