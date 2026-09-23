@@ -303,6 +303,36 @@ void main() {
       verify(() => syncEngine.runOnce(manual: true)).called(1);
     });
 
+    test('waitForIdle blocks while a sync cycle is in flight', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final cycleStarted = Completer<void>();
+      final releaseCycle = Completer<void>();
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {
+        cycleStarted.complete();
+        await releaseCycle.future;
+      });
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      final syncRun = triggers.syncNow();
+      await cycleStarted.future;
+
+      var idle = false;
+      final idleRun = triggers.waitForIdle().then((_) => idle = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(idle, isFalse);
+
+      releaseCycle.complete();
+      await Future.wait([syncRun, idleRun]);
+      expect(idle, isTrue);
+    });
+
     test('reports a successful cycle after push and pull both complete', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
