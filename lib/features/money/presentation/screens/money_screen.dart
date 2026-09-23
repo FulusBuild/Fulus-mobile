@@ -508,7 +508,6 @@ class _MoneySummary extends StatelessWidget {
               ],
             ),
           );
-          );
         },
       ),
     );
