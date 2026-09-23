@@ -96,7 +96,8 @@ class FulusConnectionState extends ChangeNotifier {
   /// do not present a false re-login prompt to the user.
   void markSessionExpired() {
     _sessionExpired = true;
-    clearSessionAuthentication();
+    _sessionAuthenticated = false;
+    _syncReady = false;
     notifyListeners();
   }
 
