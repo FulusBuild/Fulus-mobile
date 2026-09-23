@@ -89,20 +89,16 @@ class SyncEngine {
         (q) => OrderingTerm.asc(q.enqueuedAt),
       ]);
 
-    if (!manual) {
-      query.where((q) => q.syncAttempts.isSmallerThanValue(
-            maxAttemptsBeforeAttentionNeeded,
-          ));
-    }
-
     final items = await query.get();
     final now = DateTime.now();
 
     for (final item in items) {
-      final wouldCrossThreshold =
-          item.syncAttempts + 1 >= maxAttemptsBeforeAttentionNeeded;
+      // Retryable work keeps retrying after the attention threshold, using
+      // the capped backoff. Permanent failures are explicitly parked with a
+      // [BLOCKED] marker and remain out of automatic retries until a user or
+      // a newer local mutation resolves them.
+      if (!manual && _isBlocked(item)) continue;
       if (!manual &&
-          !wouldCrossThreshold &&
           !_retryPolicy.isEligibleForRetry(
             syncAttempts: item.syncAttempts,
             lastAttemptedAt: item.lastAttemptedAt,
@@ -165,12 +161,14 @@ class SyncEngine {
     StackTrace stackTrace,
   ) async {
     final attempts = item.syncAttempts + 1;
-    if (!failure.shouldRetry || attempts >= maxAttemptsBeforeAttentionNeeded) {
+    if (!failure.shouldRetry) {
       await _markAttentionNeeded(item.id, error: failure.message);
     } else {
       await _recordAttempt(
         item.id,
-        attempts: attempts,
+        attempts: attempts > maxAttemptsBeforeAttentionNeeded
+            ? maxAttemptsBeforeAttentionNeeded
+            : attempts,
         error: failure.message,
       );
     }
@@ -297,14 +295,22 @@ class SyncEngine {
     );
   }
 
+  bool _isBlocked(SyncQueueItem item) {
+    final error = item.lastError ?? '';
+    return error.startsWith('[BLOCKED]') || error.startsWith('[CONFLICT]');
+  }
+
   Future<void> _markAttentionNeeded(
     String id, {
     required String error,
   }) async {
+    final storedError = error.startsWith('[BLOCKED]') || error.startsWith('[CONFLICT]')
+        ? error
+        : '[BLOCKED] $error';
     await (_db.update(_db.syncQueueItems)..where((q) => q.id.equals(id))).write(
       SyncQueueItemsCompanion(
         syncAttempts: Value(maxAttemptsBeforeAttentionNeeded),
-        lastError: Value(error),
+        lastError: Value(storedError),
         lastAttemptedAt: Value(DateTime.now()),
       ),
     );
