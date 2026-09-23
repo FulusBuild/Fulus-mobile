@@ -14,7 +14,7 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'cloud_restore_screen.dart';
-import '../../../../../sync/sync_user_message.dart';
+import '../../../sync/sync_user_message.dart';
 
 /// Account-first entry point for a fresh installation.
 ///
