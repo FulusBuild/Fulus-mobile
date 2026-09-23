@@ -46,7 +46,10 @@ class CategorySyncHandler implements SyncHandler {
     }
 
     final operationId = item.id;
-    final operationType = isDelete
+    // A queued create may be archived before first cloud delivery. Create
+    // the authoritative row first; only a row with a server identity can
+    // use category.delete.
+    final operationType = (isDelete && category.serverId != null)
         ? 'category.delete'
         : 'category.${item.operation}';
     final payload = <String, dynamic>{
