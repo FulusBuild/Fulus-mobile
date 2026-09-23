@@ -56,7 +56,7 @@ begin
   where business_id=target_business_id and key=target_operation_id;
 
   if idem.device_id is distinct from target_device_id
-     or idem.user_id is distinct from target_user_id then
+     or idem.user_id is distinct from actor then
     raise exception using errcode='P0009',
       message='Operation id was already used from a different device or account';
   end if;
