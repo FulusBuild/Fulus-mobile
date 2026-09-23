@@ -83,6 +83,19 @@ jobs:
           fi
           echo "Validated ${#files[@]} migration files with unique versions."
 
+          required_tables=(
+            categories suppliers products product_stock_levels
+            customers sales sale_items sale_payments customer_ledger_entries
+            inventory_movements returns return_items expenses cash_ledger
+          )
+          for table in "${required_tables[@]}"; do
+            if ! grep -Eiq "create[[:space:]]+table([[:space:]]+if[[:space:]]+not[[:space:]]+exists)?[[:space:]]+public\\.$table[[:space:]]*\\(" supabase/migrations/*.sql; then
+              echo "::error::No repository migration creates required core table public.$table."
+              exit 1
+            fi
+          done
+          echo "Validated core business-domain tables are reproducibly created by repository migrations."
+
   dependencies:
     name: Resolve dependencies
     runs-on: ubuntu-latest
