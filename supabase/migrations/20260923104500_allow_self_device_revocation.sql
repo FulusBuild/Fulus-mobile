@@ -11,6 +11,7 @@ set search_path=public
 as $$
 declare revoked boolean := false;
 begin
+  perform set_config('request.jwt.claim.sub', target_user_id::text, true);
   if target_user_id <> auth.uid() then
     raise exception using errcode='42501',message='Authentication required';
   end if;
