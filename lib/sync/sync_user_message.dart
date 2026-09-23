@@ -1,4 +1,4 @@
-import '../../core/errors/failure.dart';
+import '../core/errors/failure.dart';
 
 /// Converts sync failures into calm, user-facing language.
 ///
