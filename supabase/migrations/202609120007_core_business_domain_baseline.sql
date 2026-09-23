@@ -324,6 +324,9 @@ create table if not exists public.expenses (
   created_by uuid references auth.users(id) on delete set null,
   device_id uuid references public.devices(id) on delete set null,
   payment_method text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
   unique (business_id, operation_id)
 );
 
