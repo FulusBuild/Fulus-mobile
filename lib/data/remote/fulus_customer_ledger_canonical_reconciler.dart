@@ -44,6 +44,11 @@ class FulusCustomerLedgerCanonicalReconciler {
       case 'repayment':
         return CustomerLedgerEntryType.repayment;
       case 'refund_adjustment':
+      case 'credit_reversal':
+        // The cloud return command names the same local derived ledger
+        // concept "credit_reversal". Normalize both wire representations
+        // to the single local refundAdjustment type so a return-created
+        // customer ledger change can never poison the pull/reconciliation loop.
         return CustomerLedgerEntryType.refundAdjustment;
       default:
         throw StateError('Unknown canonical customer ledger entry_type: $value');
