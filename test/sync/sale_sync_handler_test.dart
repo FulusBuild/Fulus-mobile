@@ -311,7 +311,7 @@ void main() {
               s.productLocalId.equals(productId) &
               s.locationLocalId.equals(locationId)))
         .getSingle();
-    expect(localStock.currentStock, 3);
+    // ProductRepository is mocked in this handler test, so the canonical\n    // reconciler call is verified below rather than mutating SQLite here.\n    // The sale itself optimistically decremented 10 -> 8 before the cloud\n    // rejection; a real ProductRepository applies the canonical 3 there.\n    expect(localStock.currentStock, 8);
     verify(() => productRepository.reconcileServerState(
           serverId: 'server-product-1',
           name: 'Test Product',
