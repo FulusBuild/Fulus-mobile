@@ -6,6 +6,7 @@ import '../../domain/entities/report.dart';
 import '../../domain/repositories/reports_repository.dart';
 import '../../domain/usecases/reports_engine.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import 'sale_reversal_adjustments.dart';
 
 /// Same integration posture as receipt_repository_impl.dart: this is
@@ -379,7 +380,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final expenseRows = await (_db.select(_db.expenses)
           ..where((e) =>
               e.expenseDate.isBetweenValues(period.start, _endOfDay(period.end)) &
-              e.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
+              (e.syncStatus.equals(SyncStatus.settled) | e.syncStatus.equals(SyncStatus.pending) | e.syncStatus.equals(SyncStatus.syncing))))
         .get();
     // Bug fix found while wiring the Finance tab's breakdown display up
     // to real data for the first time (gap-closure pass — "Reports
@@ -424,7 +425,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final income = await (_db.select(_db.incomeRecords)
           ..where((i) =>
               i.incomeDate.isBetweenValues(start, _endOfDay(end)) &
-              i.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
+              (i.syncStatus.equals(SyncStatus.settled) | i.syncStatus.equals(SyncStatus.pending) | i.syncStatus.equals(SyncStatus.syncing))))
         .get();
     final incomeTotal = income.fold<double>(0, (s, r) => s + r.amount);
     return salesTotal + incomeTotal;
