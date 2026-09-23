@@ -23,14 +23,12 @@ class SyncConflictResolver {
   })  : _db = db,
         _reconciler = reconciler,
         _canonicalFetcher = canonicalFetcher,
-        _connectionState = connectionState,
-        _preferences = preferences;
+        _connectionState = connectionState;
 
   final AppDatabase _db;
   final FulusCanonicalTypedReconciler _reconciler;
   final FulusCanonicalEntityFetcher _canonicalFetcher;
   final FulusConnectionState _connectionState;
-  final SharedPreferences _preferences;
 
   Future<void> keepCloudVersion(String conflictId) async {
     final conflict = await (_db.select(_db.syncConflictRecords)
