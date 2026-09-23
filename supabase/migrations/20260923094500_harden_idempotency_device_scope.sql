@@ -602,6 +602,11 @@ declare
   idem public.idempotency_keys%rowtype;
   result jsonb;
 begin
+  -- The idempotency scope guard validates auth.uid() as part of the insert.
+  -- This wrapper is service-role invoked, so bind the authenticated actor
+  -- before creating the idempotency record.
+  perform set_config('request.jwt.claim.sub',target_user_id::text,true);
+
   if not exists (
     select 1 from public.devices
     where id=target_device_id
@@ -643,8 +648,6 @@ begin
   if idem.completed_at is not null and idem.response_body is not null then
     return idem.response_body;
   end if;
-
-  perform set_config('request.jwt.claim.sub',target_user_id::text,true);
 
   result := public.create_location(
     target_business_id,
