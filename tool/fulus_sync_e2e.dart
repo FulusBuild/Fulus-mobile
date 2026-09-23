@@ -894,8 +894,34 @@ Future<void> main() async {
       );
     }
 
+    // Revocation must take effect at the API authorization boundary, not
+    // merely in the device-management UI. Revoke the second ephemeral device
+    // while the primary device remains authorized, then prove that a request
+    // carrying the revoked device identity is rejected before command handling.
+    await _revokeEphemeralDevice(
+      authUrl: _required('FULUS_AUTH_URL'),
+      publishableKey: _required('FULUS_PUBLISHABLE_KEY'),
+      accessToken: token,
+      businessId: businessId,
+      deviceId: secondServerDeviceId,
+    );
+    dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
+    final revokedProbe = await dio.post('', data: {
+      'action': 'sync_operation',
+      'business_id': businessId,
+      'operation_id': 'e2e-revoked-device-${DateTime.now().microsecondsSinceEpoch}',
+      'operation_type': 'revocation_probe',
+      'payload': <String, dynamic>{},
+    });
+    if ((revokedProbe.statusCode ?? 0) != 403) {
+      throw StateError(
+        'Revoked device was not rejected at the API boundary: '
+        '${revokedProbe.statusCode}: ${revokedProbe.data}',
+      );
+    }
     cleanedUp = true;
     dio.options.headers['x-fulus-device-id'] = firstDeviceClientId;
+    stdout.writeln('PASS: revoked device rejected before sync command execution');
     stdout.writeln('PASS: delete tombstone blocks stale resurrection and canonical state remains deleted');
   } finally {
     for (final deviceId in ephemeralDeviceIds) {
