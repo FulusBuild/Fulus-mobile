@@ -18,11 +18,13 @@ security definer
 set search_path = ''
 as $$
 declare
+  actor uuid;
   item jsonb;
   normalized_items jsonb := '[]'::jsonb;
   resolved_sale_item_id uuid;
   match_count integer;
 begin
+  actor := target_user_id;
   perform set_config('request.jwt.claim.sub', target_user_id::text, true);
 
   if target_items is null or jsonb_array_length(target_items) = 0 then
@@ -39,7 +41,7 @@ begin
       resolved_sale_item_id := null;
       match_count := 0;
 
-      select count(*)::integer, (array_agg(si.id))[1]
+      select count(*)::integer, min(si.id)
         into match_count, resolved_sale_item_id
       from public.sale_items si
       join public.sales s on s.id = si.sale_id
