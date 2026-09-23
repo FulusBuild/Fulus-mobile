@@ -169,6 +169,23 @@ void main() {
       ),
     );
 
+    when(() => api.fetchCanonicalEntity(
+          businessId: 'business-1',
+          entityType: 'customer',
+          entityId: 'server-customer-2',
+          deviceClientId: 'device-client-1',
+        )).thenAnswer(
+      (_) async => FulusCanonicalEntityResponse(
+        data: {
+          'entity_type': 'customer',
+          'entity_id': 'server-customer-2',
+          'operation': 'upsert',
+          'latest_sequence': 9,
+          'row': {'id': 'server-customer-2'},
+        },
+      ),
+    );
+
     final resolver = SyncConflictResolver(
       db: db,
       reconciler: FulusCanonicalTypedReconciler(api: api, handlers: const {}),
