@@ -151,6 +151,36 @@ class SyncConflictResolver {
                   ..where((t) => t.localId.equals(localId)))
                 .getSingleOrNull())
             ?.serverId;
+      case 'sale':
+        return (await (_db.select(_db.sales)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'return':
+        return (await (_db.select(_db.returnRequests)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'stock_movement':
+        return (await (_db.select(_db.stockMovements)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'income_record':
+        return (await (_db.select(_db.incomeRecords)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'expense_category':
+        return (await (_db.select(_db.expenseCategories)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
+      case 'customer_ledger':
+        return (await (_db.select(_db.customerLedgerEntries)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
       case 'location':
         return (await (_db.select(_db.locations)
                   ..where((t) => t.localId.equals(localId)))
