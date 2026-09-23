@@ -227,8 +227,8 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
       result['data'] = {...data, 'entity_id': item['id'], 'entity': item};
     } else if (operationType == 'expense.create' && data['id'] != null) {
       result['data'] = {...data, 'entity_id': data['id']};
-    } else if (operationType == 'return.create' && data['id'] != null) {
-      result['data'] = {...data, 'entity_id': data['id']};
+    } else if (operationType == 'return.create' && data['return_id'] != null) {
+      result['data'] = {...data, 'entity_id': data['return_id']};
     } else if ((operationType == 'stock_movement.create' ||
             operationType == 'stock_adjustment.create') &&
         data['movement_id'] != null) {
