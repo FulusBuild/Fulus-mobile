@@ -303,7 +303,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // context. This is especially important during business switching:
     // the local database is single-business, so a stale queue must not be
     // pushed through handlers using the newly selected business ID.
-    canSync: () async => fulusConnectionState.isSyncReady,
+    // The engine may legitimately drain while the initial reconciliation
+    // is still establishing the UI's Sync Ready flag. Session, business and
+    // active-device authorization are the real safety boundary for writes;
+    // otherwise queued work present before an app restart would wait for an
+    // unrelated future trigger after startup readiness completes.
+    canSync: () async =>
+        fulusConnectionState.isSessionAuthenticated &&
+        fulusConnectionState.isConnected &&
+        fulusConnectionState.isDeviceAuthorized,
   );
 
   final syncConflictResolver = SyncConflictResolver(
