@@ -469,7 +469,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final rows = await (_db.select(_db.expenses)
           ..where((e) =>
               e.expenseDate.isBetweenValues(start, _endOfDay(end)) &
-              e.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
+              (e.syncStatus.equals(SyncStatus.settled) | e.syncStatus.equals(SyncStatus.pending) | e.syncStatus.equals(SyncStatus.syncing))))
         .get();
     return rows.fold<double>(0, (s, r) => s + r.amount);
   }
