@@ -11,6 +11,7 @@ import '../../../../../core/config/supabase_config.dart';
 import '../../../../../core/errors/failure.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../shared/widgets/widgets.dart';
+import '../../../../../sync/sync_user_message.dart';
 
 /// Creates a new Fulus account for an already-running local business.
 ///
@@ -102,7 +103,7 @@ class _FulusCloudConnectionScreenState
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+          () => _error = syncUserMessage(error),
         );
       }
     } finally {
@@ -147,7 +148,7 @@ class _FulusCloudConnectionScreenState
     } on Failure catch (failure) {
       if (mounted) {
         setState(() {
-          _error = failure.message;
+          _error = syncUserMessage(failure);
           if (failure.message.toLowerCase().contains('verify your email')) {
             _awaitingVerification = true;
           }
@@ -156,7 +157,7 @@ class _FulusCloudConnectionScreenState
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+          () => _error = syncUserMessage(error),
         );
       }
     } finally {
@@ -196,7 +197,7 @@ class _FulusCloudConnectionScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = failure.message;
+          _error = syncUserMessage(failure);
         });
       }
     } catch (error) {
@@ -272,7 +273,7 @@ class _FulusCloudConnectionScreenState
       connection.clearSyncReady();
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+          () => _error = syncUserMessage(error),
         );
       }
     } finally {
@@ -316,7 +317,7 @@ class _FulusCloudConnectionScreenState
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+          () => _error = syncUserMessage(error),
         );
       }
     } finally {
@@ -385,7 +386,7 @@ class _FulusCloudConnectionScreenState
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('Bad state: ', ''),
+          () => _error = syncUserMessage(error),
         );
       }
     } finally {
