@@ -25,13 +25,13 @@ alter function public.fulus_api_update_expense(
 ) set search_path = '';
 
 alter function public.fulus_api_create_location(
+  uuid, uuid, text, text, text, text, text
+) set search_path = '';
+
+alter function public.fulus_api_create_location(
   uuid, uuid, text, text, text, text, text, text
 ) set search_path = '';
 
 alter function public.fulus_api_create_location(
-  uuid, uuid, text, text, text, text, text, text, text
-) set search_path = '';
-
-alter function public.fulus_api_create_location(
-  uuid, uuid, text, text, text, text, text, text, text
+  uuid, uuid, uuid, text, text, text, text, text, text
 ) set search_path = '';
