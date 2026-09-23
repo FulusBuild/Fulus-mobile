@@ -2,6 +2,8 @@ import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/expense_repository.dart';
+import '../../core/errors/failure.dart';
+import '../../data/remote/fulus_expense_canonical_reconciler.dart';
 import '../sync_handler.dart';
 
 /// Pushes expenses through the authoritative Fulus Cloud command API.
@@ -49,8 +51,10 @@ class ExpenseSyncHandler implements SyncHandler {
       throw StateError('Cannot sync expense update before its create has synced.');
     }
 
-    final result = await _fulusSyncApi.submitOperation(
-      businessId: businessId,
+    late final Map<String, dynamic> result;
+    try {
+      result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
       operationType: isUpdate ? 'expense.update' : 'expense.create',
       operationId: item.id,
       clientReference: expense.localId,
@@ -66,8 +70,28 @@ class ExpenseSyncHandler implements SyncHandler {
         if (isUpdate) 'server_id': serverId,
         if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
         if (expense.paymentMethod != null) 'payment_method': expense.paymentMethod,
-      },
-    );
+        },
+      );
+    } on BusinessRuleFailure {
+      if (serverId != null && serverId.isNotEmpty) {
+        try {
+          final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+            businessId: businessId,
+            entityType: 'expense',
+            entityId: serverId,
+            deviceClientId: device!.deviceClientId,
+          );
+          await FulusExpenseCanonicalReconciler(
+            repository: _expenseRepository,
+          ).apply(canonical);
+        } catch (_) {
+          // Preserve the original rejection; a later pull can reconcile it.
+        }
+      } else {
+        await _expenseRepository.markAttentionNeeded(expense.localId);
+      }
+      rethrow;
+    }
     final data = result['data'];
     if (data is! Map) throw StateError('Fulus expense sync returned no response data.');
     final responseServerId = (data['entity_id'] ?? data['id'])?.toString();
