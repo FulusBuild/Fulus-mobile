@@ -414,6 +414,36 @@ Future<void> main() async {
     _expect2xx(salePayment, 'sale.payment');
     stdout.writeln('PASS: sale.payment');
 
+    final returnResponse = await dio.post('', data: {
+      'action': 'return_create',
+      'business_id': businessId,
+      'operation_id': 'e2e-return-' + suffix,
+      'sale_id': creditSaleId,
+      'reason': 'Cloud Sync V1 mutation matrix return',
+      'refund_amount': 0,
+      'items': [
+        {'product_id': serverId, 'quantity': 1},
+      ],
+    });
+    _expect2xx(returnResponse, 'return.create');
+    stdout.writeln('PASS: return.create');
+
+    final customerUpdate = await dio.post('', data: {
+      'action': 'customer_update',
+      'business_id': businessId,
+      'operation_id': 'e2e-customer-update-' + suffix,
+      'payload': {
+        'server_id': customerId,
+        'name': 'Fulus E2E Customer Updated ' + suffix,
+        'phone': '08000000000',
+        'credit_limit': 125000,
+        'notes': 'Cloud Sync V1 customer update',
+        'is_active': true,
+      },
+    });
+    _expect2xx(customerUpdate, 'customer.update');
+    stdout.writeln('PASS: customer.update');
+
     final repayment = await dio.post('', data: {
       'action': 'customer_repayment',
       'business_id': businessId,
@@ -447,7 +477,29 @@ Future<void> main() async {
       'payment_method': 'cash',
     });
     _expect2xx(expenseResponse, 'expense.create');
+    final expenseData = _actionData(expenseResponse);
+    final expenseId = expenseData?['expense_id'] ?? expenseData?['id'];
+    if (expenseId is! String || expenseId.isEmpty) {
+      throw StateError('expense.create returned no expense id: ' + expenseResponse.data.toString());
+    }
     stdout.writeln('PASS: expense.create');
+
+    final expenseUpdate = await dio.post('', data: {
+      'action': 'expense_update',
+      'business_id': businessId,
+      'operation_id': 'e2e-expense-update-' + suffix,
+      'payload': {
+        'server_id': expenseId,
+        'location_id': e2eLocationId,
+        'amount': 30,
+        'category': 'E2E Category ' + suffix,
+        'description': 'Cloud Sync V1 mutation matrix expense updated',
+        'expense_date': DateTime.now().toUtc().toIso8601String(),
+        'payment_method': 'cash',
+      },
+    });
+    _expect2xx(expenseUpdate, 'expense.update');
+    stdout.writeln('PASS: expense.update');
 
     final inventoryAdjust = await dio.post('', data: {
       'action': 'inventory_adjust',
@@ -460,6 +512,35 @@ Future<void> main() async {
     });
     _expect2xx(inventoryAdjust, 'inventory.adjust');
     stdout.writeln('PASS: inventory.adjust');
+
+    final drawerOpen = await dio.post('', data: {
+      'action': 'cash_drawer_open',
+      'business_id': businessId,
+      'operation_id': 'e2e-drawer-open-' + suffix,
+      'location_id': firstLocationId,
+      'opening_cash': 1000,
+      'opened_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    _expect2xx(drawerOpen, 'cash_drawer.open');
+    final drawerData = _actionData(drawerOpen);
+    final shiftId = drawerData?['shift_id'] ?? drawerData?['id'];
+    if (shiftId is! String || shiftId.isEmpty) {
+      throw StateError('cash_drawer.open returned no shift id: ' + drawerOpen.data.toString());
+    }
+    stdout.writeln('PASS: cash_drawer.open');
+
+    final drawerClose = await dio.post('', data: {
+      'action': 'cash_drawer_close',
+      'business_id': businessId,
+      'operation_id': 'e2e-drawer-close-' + suffix,
+      'shift_id': shiftId,
+      'closing_cash': 1000,
+      'cash_difference': 0,
+      'closing_note': 'Cloud Sync V1 mutation matrix close',
+      'closed_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    _expect2xx(drawerClose, 'cash_drawer.close');
+    stdout.writeln('PASS: cash_drawer.close');
 
     final productChangeSequence = await _findChangeSequence(
       dio,
