@@ -33,6 +33,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function(Object error)? onRecoveryFailed,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Connectivity? connectivity,
+    this.retryInterval = const Duration(seconds: 30),
   })  : _syncEngine = syncEngine,
         _syncConfig = syncConfig,
         _syncStatusNotifier = syncStatusNotifier,
@@ -60,7 +61,9 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
+  final Duration retryInterval;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
+  Timer? _retryTimer;
   bool _started = false;
   Future<bool>? _connectivityRun;
   Future<void>? _readinessRun;
@@ -103,6 +106,11 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void> _activate() async {
     if (_subscription != null) return;
     WidgetsBinding.instance.addObserver(this);
+    _retryTimer ??= Timer.periodic(retryInterval, (_) {
+      if (_syncConfig.isEnabled) {
+        unawaited(_runIfOnline());
+      }
+    });
     // Subscribe before the initial run. If restored-session initialization
     // fails (for example because the device is offline), the connectivity
     // listener remains alive and can retry readiness when connectivity returns.
@@ -118,6 +126,8 @@ class SyncTriggers with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     _subscription = null;
+    _retryTimer?.cancel();
+    _retryTimer = null;
     _started = false;
   }
 
@@ -128,6 +138,8 @@ class SyncTriggers with WidgetsBindingObserver {
       WidgetsBinding.instance.removeObserver(this);
       _subscription?.cancel();
       _subscription = null;
+      _retryTimer?.cancel();
+      _retryTimer = null;
     }
   }
 
