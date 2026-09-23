@@ -291,7 +291,27 @@ class SyncQueue {
             ..where((q) => q.operation.equals(task.operation))
             ..limit(1))
           .getSingleOrNull();
-      if (existing != null) return;
+      if (existing != null) {
+        final blocked = (existing.lastError ?? '').startsWith('[BLOCKED]') ||
+            (existing.lastError ?? '').startsWith('[CONFLICT]');
+        if (!blocked) return;
+
+        // A newer local mutation must be able to supersede a permanently
+        // parked mutation for the same entity/operation. Otherwise a blocked
+        // outbox row would prevent the newer mutation from ever being queued.
+        await (_db.delete(_db.syncQueueItems)
+              ..where((q) => q.id.equals(existing.id)))
+            .go();
+        await (_db.update(_db.syncConflictRecords)
+              ..where((c) => c.operationId.equals(existing.id))
+              ..where((c) => c.resolvedAt.isNull()))
+            .write(
+          SyncConflictRecordsCompanion(
+            resolvedAt: Value(DateTime.now()),
+            resolution: const Value('superseded_by_newer_local_mutation'),
+          ),
+        );
+      }
 
       await _db.into(_db.syncQueueItems).insert(
         SyncQueueItemsCompanion.insert(
