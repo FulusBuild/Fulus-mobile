@@ -317,7 +317,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         fulusConnectionState.isSessionAuthenticated &&
         fulusConnectionState.isConnected &&
         fulusConnectionState.isDeviceAuthorized,
-    onDeviceAuthorizationLost: fulusConnectionState.clearRegisteredDevice,
+    onDeviceAuthorizationLost: () async {
+      fulusConnectionState.clearRegisteredDevice();
+      // Let the current sync cycle unwind first; SyncTriggers will then
+      // re-enter the readiness path and silently re-register this installation.
+      syncTriggers.scheduleReadinessRecovery();
+    },
   );
 
   final syncConflictResolver = SyncConflictResolver(
