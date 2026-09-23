@@ -30,6 +30,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function()? onPushSuccess,
     Future<void> Function()? onCursorTooOldRecovery,
     Future<void> Function()? onRecoveryReconciled,
+    Future<void> Function(Object error)? onRecoveryFailed,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Connectivity? connectivity,
   })  : _syncEngine = syncEngine,
@@ -42,6 +43,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _onPushSuccess = onPushSuccess,
         _onCursorTooOldRecovery = onCursorTooOldRecovery,
         _onRecoveryReconciled = onRecoveryReconciled,
+        _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
         _connectivity = connectivity ?? Connectivity();
 
@@ -55,6 +57,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function()? _onPushSuccess;
   final Future<void> Function()? _onCursorTooOldRecovery;
   final Future<void> Function()? _onRecoveryReconciled;
+  final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -324,7 +327,12 @@ class SyncTriggers with WidgetsBindingObserver {
       // delta pull succeeds, so the UI can never advertise readiness before
       // authoritative reconciliation has completed.
       if (recoveredFromStaleCursor) {
-        await _onRecoveryReconciled?.call();
+        try {
+          await _onRecoveryReconciled?.call();
+        } catch (error) {
+          await _onRecoveryFailed?.call(error);
+          rethrow;
+        }
       }
     }
   }
