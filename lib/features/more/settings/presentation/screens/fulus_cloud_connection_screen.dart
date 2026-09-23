@@ -417,7 +417,11 @@ class _FulusCloudConnectionScreenState
         connection.selectedBusinessId != null;
     final cloudSyncEnabled = ref.watch(syncConfigProvider).isEnabled;
     final needsReauthentication =
-        cloudSyncEnabled && !connection.isSessionAuthenticated;
+        cloudSyncEnabled && connection.isSessionExpired;
+    final cloudSessionRestoring =
+        cloudSyncEnabled &&
+        !connection.isSessionAuthenticated &&
+        !connection.isSessionExpired;
     final isWide = MediaQuery.sizeOf(context).width >= 700;
 
     return FulusScreen(
@@ -591,6 +595,19 @@ class _FulusCloudConnectionScreenState
                             onPressed: _busy ? null : _retryCloudSync,
                           ),
                         ],
+                      ),
+                    ),
+                  ] else if (cloudSessionRestoring) ...[
+                    FulusSectionHeader(
+                      title: 'Fulus Cloud is reconnecting',
+                      subtitle: 'Your business stays available while cloud backup restores automatically',
+                    ),
+                    FulusCard(
+                      child: Text(
+                        'Your local business is safe. Fulus will reconnect automatically when the internet is available. You do not need to sign in again.',
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.textSecondaryOf(context),
+                        ),
                       ),
                     ),
                   ] else if (connected) ...[
