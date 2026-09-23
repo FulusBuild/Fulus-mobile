@@ -52,6 +52,7 @@ Future<void> main() async {
   String? serverId;
   var cleanedUp = false;
   String? e2eLocationId;
+  final ephemeralDeviceIds = <String>[];
 
   try {
     final preflight = await _preflightDevice(dio, businessId: businessId);
@@ -62,7 +63,8 @@ Future<void> main() async {
       );
       stdout.writeln('PASS: authoritative restore snapshot exposes a valid recovery boundary');
       final freshDeviceId = 'e2e-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
-      await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
+      final freshServerDeviceId = await _registerEphemeralDevice(dio, businessId: businessId, deviceClientId: freshDeviceId);
+      if (freshServerDeviceId != null) ephemeralDeviceIds.add(freshServerDeviceId);
       dio.options.headers['x-fulus-device-id'] = freshDeviceId;
       // A newly registered device also starts at cursor 0. Because the
       // retained feed is already compacted, it must enter bootstrap/restore
@@ -169,11 +171,12 @@ Future<void> main() async {
     }
     final secondDeviceClientId =
         'e2e-scope-${suffix.replaceAll(RegExp(r'[^a-zA-Z0-9-]'), '')}';
-    await _registerEphemeralDevice(
+    final secondServerDeviceId = await _registerEphemeralDevice(
       dio,
       businessId: businessId,
       deviceClientId: secondDeviceClientId,
     );
+    if (secondServerDeviceId != null) ephemeralDeviceIds.add(secondServerDeviceId);
     dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
     final crossDeviceReplay = await _submitCatalog(
       dio,
@@ -797,7 +800,7 @@ Future<void> _verifyAuthoritativeRecoverySnapshot(
   }
 }
 
-Future<void> _registerEphemeralDevice(
+Future<String?> _registerEphemeralDevice(
   Dio dio, {
   required String businessId,
   required String deviceClientId,
@@ -814,7 +817,40 @@ Future<void> _registerEphemeralDevice(
     },
   );
   _expect2xx(response, 'register ephemeral E2E device');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final device = data is Map ? data['device'] : null;
+  final serverId = device is Map && device['id'] is String
+      ? device['id'] as String
+      : null;
   stdout.writeln('PASS: ephemeral E2E device registered');
+  return serverId;
+}
+
+Future<void> _revokeEphemeralDevice({
+  required String authUrl,
+  required String publishableKey,
+  required String accessToken,
+  required String businessId,
+  required String deviceId,
+}) async {
+  final staffDio = Dio(BaseOptions(
+    baseUrl: '$authUrl/functions/v1/fulus-staff-api',
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'Authorization': 'Bearer $accessToken',
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
+  final response = await staffDio.post('', data: {
+    'action': 'revoke_device',
+    'business_id': businessId,
+    'device_id': deviceId,
+  });
+  _expect2xx(response, 'revoke ephemeral E2E device');
 }
 
 String _required(String name) {
