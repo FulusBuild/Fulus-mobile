@@ -178,6 +178,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  late final SyncTriggers syncTriggers;
+
   fulusConnectionState.setBusinessSwitchGuard(() async {
     if (await syncQueue.hasPendingItems()) return false;
     // The local cloud dataset is single-business. Wait for any active push,
@@ -317,7 +319,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences);
   final syncBootstrapCoordinator = CloudSyncBootstrapCoordinator(database);
   late final CloudSyncRecovery syncRecovery;
-  late final SyncTriggers syncTriggers;
 
   syncRecovery = CloudSyncRecovery(
     db: database,
