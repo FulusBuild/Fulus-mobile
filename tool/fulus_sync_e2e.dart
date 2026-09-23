@@ -1043,6 +1043,7 @@ Future<int> _findChangeSequence(
   var cursor = 0;
   const limit = 500;
   var recoveredFromRetention = false;
+  var latestSequence = 0;
   for (var page = 0; page < 20; page++) {
     final response = await dio.get(
       '',
@@ -1087,7 +1088,13 @@ Future<int> _findChangeSequence(
           raw['entity_type'] == entityType &&
           raw['entity_id'] == entityId) {
         final sequence = raw['sequence'];
-        if (sequence is num) return sequence.toInt();
+        if (sequence is num) {
+          final value = sequence.toInt();
+          // The conflict check rejects any entity change strictly newer than
+          // base_cursor. Keep scanning the full retained feed so callers get
+          // the entity's latest change, not its first historical change.
+          latestSequence = max(latestSequence, value);
+        }
       }
     }
     final next = data['next_cursor'];
@@ -1095,6 +1102,7 @@ Future<int> _findChangeSequence(
     if (!hasMore || next is! num || next.toInt() <= cursor) break;
     cursor = next.toInt();
   }
+  if (latestSequence > 0) return latestSequence;
   throw StateError(
     'E2E could not locate the test entity in the retained change feed.',
   );
