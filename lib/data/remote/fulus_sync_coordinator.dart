@@ -41,18 +41,20 @@ class FulusSyncCoordinator {
 
       final unapplied = page.changes.where((change) => change.sequence > cursor).toList(growable: false);
       if (unapplied.isNotEmpty) {
-        // The durable cursor is a contiguous acknowledgement boundary, not the
-        // greatest sequence observed. Fail closed if the page is reordered or
-        // has a gap so an unapplied change can never be skipped.
-        var expectedSequence = cursor + 1;
+        // The server change sequence is global, while the pull is filtered to
+        // this business. Therefore legitimate global sequence gaps are expected
+        // (other businesses may own the missing sequences). What must never
+        // happen is a reordered page: acknowledging a later sequence before an
+        // earlier returned change could permanently skip that earlier change.
+        var previousSequence = cursor;
         for (final change in unapplied) {
-          if (change.sequence != expectedSequence) {
+          if (change.sequence <= previousSequence) {
             throw StateError(
-              'Cloud Sync change feed is not contiguous: expected sequence '
-              '$expectedSequence but received ${change.sequence}.',
+              'Cloud Sync change feed is not ordered: expected a sequence '
+              'greater than $previousSequence but received ${change.sequence}.',
             );
           }
-          expectedSequence++;
+          previousSequence = change.sequence;
         }
         final applyChanges = _applyChanges;
         if (applyChanges != null) {
