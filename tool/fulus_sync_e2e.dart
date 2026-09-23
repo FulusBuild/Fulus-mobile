@@ -350,6 +350,117 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: product.create preserves initial stock at its location');
 
+
+    // Live mutation-matrix probes for commands that previously lacked
+    // production contract coverage in this E2E.
+    final customerOperationId = 'e2e-customer-' + suffix;
+    final customerResponse = await dio.post('', data: {
+      'action': 'customer_create',
+      'business_id': businessId,
+      'operation_id': customerOperationId,
+      'name': 'Fulus E2E Customer ' + suffix,
+      'phone': '08000000000',
+      'credit_limit': 100000,
+      'notes': 'Cloud Sync V1 mutation matrix',
+    });
+    _expect2xx(customerResponse, 'customer.create');
+    final customerData = customerResponse.data is Map ? customerResponse.data['data'] : null;
+    final customerId = customerData is Map ? customerData['customer_id'] : null;
+    if (customerId is! String || customerId.isEmpty) {
+      throw StateError('customer.create returned no customer_id: ' + customerResponse.data.toString());
+    }
+    stdout.writeln('PASS: customer.create');
+
+    final creditSaleOperationId = 'e2e-credit-sale-' + suffix;
+    final creditSale = await dio.post('', data: {
+      'action': 'sale_create',
+      'business_id': businessId,
+      'operation_id': creditSaleOperationId,
+      'client_reference': creditSaleOperationId,
+      'location_id': e2eLocationId,
+      'customer_id': customerId,
+      'sale_date': DateTime.now().toUtc().toIso8601String(),
+      'discount': 0,
+      'tax': 0,
+      'amount_paid': 0,
+      'payment_method': 'credit',
+      'notes': 'Cloud Sync V1 mutation matrix credit sale',
+      'items': [
+        {
+          'product_id': serverId,
+          'description': 'E2E mutation matrix product',
+          'quantity': 1,
+          'unit_price': 150,
+          'cost_price_at_sale': 100,
+        },
+      ],
+    });
+    _expect2xx(creditSale, 'sale.create credit mutation matrix');
+    final creditSaleData = creditSale.data is Map ? creditSale.data['data'] : null;
+    final creditSaleId = creditSaleData is Map ? creditSaleData['sale_id'] : null;
+    if (creditSaleId is! String || creditSaleId.isEmpty) {
+      throw StateError('credit sale returned no sale_id: ' + creditSale.data.toString());
+    }
+    stdout.writeln('PASS: sale.create credit mutation matrix');
+
+    final salePayment = await dio.post('', data: {
+      'action': 'sale_payment',
+      'business_id': businessId,
+      'operation_id': 'e2e-sale-payment-' + suffix,
+      'sale_id': creditSaleId,
+      'amount': 50,
+      'payment_method': 'cash',
+    });
+    _expect2xx(salePayment, 'sale.payment');
+    stdout.writeln('PASS: sale.payment');
+
+    final repayment = await dio.post('', data: {
+      'action': 'customer_repayment',
+      'business_id': businessId,
+      'operation_id': 'e2e-repayment-' + suffix,
+      'customer_id': customerId,
+      'amount': 50,
+      'payment_method': 'cash',
+      'note': 'Cloud Sync V1 mutation matrix repayment',
+    });
+    _expect2xx(repayment, 'customer.repayment');
+    stdout.writeln('PASS: customer.repayment');
+
+    final categoryResponse = await dio.post('', data: {
+      'action': 'expense_category_create',
+      'business_id': businessId,
+      'operation_id': 'e2e-expense-category-' + suffix,
+      'payload': {'name': 'E2E Category ' + suffix},
+    });
+    _expect2xx(categoryResponse, 'expense_category.create');
+    stdout.writeln('PASS: expense_category.create');
+
+    final expenseResponse = await dio.post('', data: {
+      'action': 'expense_create',
+      'business_id': businessId,
+      'operation_id': 'e2e-expense-' + suffix,
+      'location_id': e2eLocationId,
+      'amount': 25,
+      'category': 'E2E Category ' + suffix,
+      'description': 'Cloud Sync V1 mutation matrix expense',
+      'expense_date': DateTime.now().toUtc().toIso8601String(),
+      'payment_method': 'cash',
+    });
+    _expect2xx(expenseResponse, 'expense.create');
+    stdout.writeln('PASS: expense.create');
+
+    final inventoryAdjust = await dio.post('', data: {
+      'action': 'inventory_adjust',
+      'business_id': businessId,
+      'operation_id': 'e2e-inventory-adjust-' + suffix,
+      'product_id': serverId,
+      'location_id': e2eLocationId,
+      'quantity_delta': 2,
+      'reason': 'Cloud Sync V1 mutation matrix adjustment',
+    });
+    _expect2xx(inventoryAdjust, 'inventory.adjust');
+    stdout.writeln('PASS: inventory.adjust');
+
     final productChangeSequence = await _findChangeSequence(
       dio,
       businessId: businessId,
