@@ -54,8 +54,14 @@ final class NetworkFailure extends Failure {
 sealed class AuthFailure extends Failure {
   const AuthFailure(super.message);
 
+  /// The cloud server explicitly rejected this installation's registered
+  /// device. This is recoverable by re-registering the same durable device ID;
+  /// it is not a user-session expiry or a permission failure.
+  bool get requiresDeviceRegistration => false;
+
   const factory AuthFailure.sessionExpired() = _SessionExpired;
   const factory AuthFailure.forbidden() = _Forbidden;
+  const factory AuthFailure.deviceNotRegistered() = _DeviceNotRegistered;
   const factory AuthFailure.invalidCredentials() = _InvalidCredentials;
   const factory AuthFailure.accountLocked({required DateTime lockedUntil}) =
       _AccountLocked;
@@ -89,6 +95,14 @@ final class _SessionExpired extends AuthFailure {
 /// a genuine access attempt.
 final class _Forbidden extends AuthFailure {
   const _Forbidden() : super('You don\'t have permission to do that.');
+}
+
+final class _DeviceNotRegistered extends AuthFailure {
+  const _DeviceNotRegistered()
+      : super('This device needs to reconnect to Fulus Cloud.');
+
+  @override
+  bool get requiresDeviceRegistration => true;
 }
 
 /// BUG FIX (self-audit pass, after Stage 4): auth_service.py's
