@@ -100,7 +100,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
 
       final businessId = active.single.businessId;
-      connection.selectBusiness(businessId);
+      await connection.selectBusiness(businessId);
       connection.clearSyncReady();
 
       // A restore creates a new authoritative local dataset. Discard health
