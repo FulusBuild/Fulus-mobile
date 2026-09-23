@@ -133,6 +133,7 @@ jobs:
   fulus_e2e:
     name: Fulus live sync contract test
     needs: test
+    if: github.event_name != 'workflow_dispatch' || inputs.run_fulus_e2e == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
