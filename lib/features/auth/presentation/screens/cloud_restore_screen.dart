@@ -200,7 +200,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = failure.message;
+          _error = syncUserMessage(failure);
           _status = 'Ready to restore your business.';
         });
       }
