@@ -4,6 +4,7 @@ import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
+import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
@@ -21,6 +22,7 @@ import 'package:mocktail/mocktail.dart';
 class MockSalesApi extends Mock implements SalesApi {}
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
+class MockProductRepository extends Mock implements ProductRepository {}
 
 class _FakeAuthRepository implements AuthRepository {
   @override
@@ -54,6 +56,7 @@ void main() {
   late MockSalesApi salesApi;
   late MockFulusSyncApi fulusSyncApi;
   late MockFulusConnectionState connectionState;
+  late MockProductRepository productRepository;
   late SaleRepositoryImpl saleRepository;
   late SaleSyncHandler handler;
 
@@ -66,6 +69,7 @@ void main() {
     salesApi = MockSalesApi();
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
+    productRepository = MockProductRepository();
     when(() => connectionState.selectedBusinessId).thenReturn(null);
     when(() => connectionState.registeredDevice).thenReturn(null);
     saleRepository = SaleRepositoryImpl(
@@ -80,6 +84,7 @@ void main() {
       fulusConnectionState: connectionState,
       salesApi: salesApi,
       saleRepository: saleRepository,
+      productRepository: productRepository,
     );
 
     final now = DateTime.now();
@@ -213,6 +218,114 @@ void main() {
 
     final updated = await saleRepository.getSaleByLocalId(sale.localId);
     expect(updated!.serverId, 'server-sale-quick');
+  });
+
+  test('reconciles optimistic stock when the cloud rejects a sale', () async {
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-1')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenThrow(
+      const BusinessRuleFailure('Insufficient stock', code: 'INSUFFICIENT_STOCK'),
+    );
+    when(() => fulusSyncApi.fetchCanonicalEntity(
+          businessId: 'business-1',
+          entityType: 'product',
+          entityId: 'server-product-1',
+          deviceClientId: 'device-client-1',
+        )).thenAnswer((_) async => FulusCanonicalEntityResponse(
+          data: {
+            'entity_type': 'product',
+            'entity_id': 'server-product-1',
+            'operation': 'upsert',
+            'product': {
+              'id': 'server-product-1',
+              'name': 'Test Product',
+              'sku': 'SKU-1',
+              'barcode': null,
+              'category_id': null,
+              'supplier_id': null,
+              'cost_price': 100,
+              'selling_price': 150,
+              'low_stock_threshold': 5,
+              'is_active': true,
+              'updated_at': '2026-09-23T10:00:00Z',
+              'deleted_at': null,
+            },
+            'stock_levels': [
+              {
+                'location_id': 'server-location-1',
+                'current_stock': 3,
+                'updated_at': '2026-09-23T10:00:00Z',
+              },
+            ],
+          },
+        ));
+    when(() => productRepository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          name: any(named: 'name'),
+          sku: any(named: 'sku'),
+          barcode: any(named: 'barcode'),
+          categoryId: any(named: 'categoryId'),
+          supplierId: any(named: 'supplierId'),
+          costPrice: any(named: 'costPrice'),
+          sellingPrice: any(named: 'sellingPrice'),
+          lowStockThreshold: any(named: 'lowStockThreshold'),
+          isActive: any(named: 'isActive'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+          stockLevels: any(named: 'stockLevels'),
+        )).thenAnswer((_) async {});
+
+    final sale = await createLocalSale();
+
+    await expectLater(
+      handler.sync(queueItemFor(sale)),
+      throwsA(
+        isA<BusinessRuleFailure>().having(
+          (failure) => failure.code,
+          'code',
+          'INSUFFICIENT_STOCK',
+        ),
+      ),
+    );
+
+    final localStock = await (db.select(db.productStockLevels)
+          ..where((s) =>
+              s.productLocalId.equals(productId) &
+              s.locationLocalId.equals(locationId)))
+        .getSingle();
+    expect(localStock.currentStock, 3);
+    verify(() => productRepository.reconcileServerState(
+          serverId: 'server-product-1',
+          name: 'Test Product',
+          sku: 'SKU-1',
+          barcode: null,
+          categoryId: null,
+          supplierId: null,
+          costPrice: 100,
+          sellingPrice: 150,
+          lowStockThreshold: 5,
+          isActive: true,
+          updatedAt: DateTime.parse('2026-09-23T10:00:00Z'),
+          deletedAt: null,
+          stockLevels: any(named: 'stockLevels'),
+        )).called(1);
   });
 
   test('never falls back to the legacy Sales API when Fulus Cloud is unavailable', () async {
