@@ -74,7 +74,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
               e.locationId.equals(shiftRow.locationId) &
               e.paymentMethod.equals('cash') &
               e.expenseDate.isBiggerOrEqualValue(since) &
-              (e.syncStatus.equals(SyncStatus.settled) | e.syncStatus.equals(SyncStatus.pending) | e.syncStatus.equals(SyncStatus.syncing))))
+              (e.syncStatus.equals(SyncStatus.settled.name) | e.syncStatus.equals(SyncStatus.pending.name) | e.syncStatus.equals(SyncStatus.syncing.name))))
         .get();
     final cashExpenses = cashExpenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
     final expectedCash = shiftRow.openingCash + cashSales - cashExpenses;
@@ -104,14 +104,14 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
 
   @override
   Future<void> markSynced({required String localId, required String serverId}) async {
-    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(CashDrawerShiftsCompanion(serverId: Value(serverId), syncStatus: const Value(SyncStatus.settled), updatedAt: Value(DateTime.now())));
+    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(CashDrawerShiftsCompanion(serverId: Value(serverId), syncStatus: const Value(SyncStatus.settled.name), updatedAt: Value(DateTime.now())));
   }
 
   @override
   Future<void> markAttentionNeeded(String localId) async {
     await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
       CashDrawerShiftsCompanion(
-        syncStatus: const Value(SyncStatus.attentionNeeded),
+        syncStatus: const Value(SyncStatus.attentionNeeded.name),
         updatedAt: Value(DateTime.now()),
       ),
     );
@@ -136,7 +136,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
       if (location == null) throw StateError('Canonical cash drawer shift $serverId references unknown location $locationServerId.');
       final existing = await (_db.select(_db.cashDrawerShifts)..where((s) => s.serverId.equals(serverId))).getSingleOrNull();
       final localId = existing?.localId ?? Ulid().toString();
-      final values = CashDrawerShiftsCompanion(serverId: Value(serverId), cashierUserId: Value(cashierUserId), locationId: Value(location.localId), openedAt: Value(openedAt), closedAt: Value(closedAt), openingCash: Value(openingCash), closingCash: Value(closingCash), cashDifference: Value(cashDifference), closingNote: Value(closingNote), closingSummaryLocked: Value(closingSummaryLocked), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled));
+      final values = CashDrawerShiftsCompanion(serverId: Value(serverId), cashierUserId: Value(cashierUserId), locationId: Value(location.localId), openedAt: Value(openedAt), closedAt: Value(closedAt), openingCash: Value(openingCash), closingCash: Value(closingCash), cashDifference: Value(cashDifference), closingNote: Value(closingNote), closingSummaryLocked: Value(closingSummaryLocked), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled.name));
       if (existing == null) {
         await _db.into(_db.cashDrawerShifts).insert(CashDrawerShiftsCompanion.insert(
           localId: localId,
@@ -165,6 +165,6 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     final row = await (_db.select(_db.cashDrawerShifts)..where((s) => s.serverId.equals(serverId))).getSingleOrNull();
     if (row == null) return;
     final now = DateTime.now();
-    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(row.localId))).write(CashDrawerShiftsCompanion(deletedAt: Value(now), updatedAt: Value(now), syncStatus: const Value(SyncStatus.settled)));
+    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(row.localId))).write(CashDrawerShiftsCompanion(deletedAt: Value(now), updatedAt: Value(now), syncStatus: const Value(SyncStatus.settled.name)));
   }
 }
