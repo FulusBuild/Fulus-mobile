@@ -19,17 +19,11 @@ import '../../../domain/entities/approval_hash.dart';
 /// overhead and obscure which things in this app genuinely need the
 /// stronger guarantee.
 ///
-/// IMPORTANT — found during a self-audit pass, after Stage 4: the
-/// refresh-token methods below are no longer called by
-/// AuthRepositoryImpl at all (Stage 2 moved login entirely local — see
-/// that class's own doc comment). They're still called, though, by
-/// ApiClient's own auth interceptor, which independently reads/writes/
-/// deletes a refresh token for its (currently dormant) 401-refresh
-/// flow — see api_client.dart's class doc comment for the full picture.
-/// In practice, getRefreshToken() will always return null now, since
-/// nothing in the app writes one anymore. Not removed here: doing so
-/// would break ApiClient's compilation, since it still calls all three.
-class SecureStorage {
+/// Refresh-token storage belongs to the optional cloud session layer.
+/// Local PIN authentication remains independent of this credential, while
+/// ApiClient owns the single-flight refresh lifecycle and persists rotated
+/// refresh tokens here. This store is not a general-purpose credential API.
+///class SecureStorage {
   SecureStorage({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
