@@ -167,9 +167,11 @@ void main() {
           payload: any(named: 'payload'),
         )).captured;
 
-    expect(calls, hasLength(2));
+    expect(calls, hasLength(4));
     expect(calls[0], 'supplier.create');
-    expect(calls[1], 'supplier.delete');
+    expect(calls[1], '01m37fh5dy6sc590c9sc15e2xw');
+    expect(calls[2], 'supplier.delete');
+    expect(calls[3], '01m37fh5dy6sc590c9sc15e2xw:delete');
     expect(
       (await supplierRepository.getSupplierById(created.localId))!.serverId,
       'server-archived-supplier',
