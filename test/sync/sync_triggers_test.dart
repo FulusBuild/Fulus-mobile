@@ -333,6 +333,34 @@ void main() {
       expect(idle, isTrue);
     });
 
+    test('waitForIdle does not wait on readiness orchestration', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final readinessStarted = Completer<void>();
+      final releaseReadiness = Completer<void>();
+      late final SyncTriggers triggers;
+      triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => false,
+        onNotReady: () async {
+          readinessStarted.complete();
+          await releaseReadiness.future;
+        },
+        connectivity: connectivity,
+      );
+
+      final startup = triggers.start();
+      await readinessStarted.future;
+
+      await expectLater(triggers.waitForIdle(), completes);
+
+      releaseReadiness.complete();
+      await startup;
+      triggers.dispose();
+    });
+
     test('reports a successful cycle after push and pull both complete', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
