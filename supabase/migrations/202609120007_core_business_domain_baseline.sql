@@ -43,6 +43,42 @@ revoke execute on function public._fulus_catalog_change(
   uuid, text, uuid, text, jsonb
 ) from public, anon, authenticated;
 
+-- Legacy 8-argument sync-operation overload. It existed in an earlier
+-- API contract and later security migrations explicitly revoke it. Keep it
+-- in the fresh-schema history so those lockdown migrations remain replayable,
+-- but make it unusable as a direct privileged entry point.
+create or replace function public.accept_sync_operation(
+  target_business_id uuid,
+  target_device_id uuid,
+  target_user_id uuid,
+  target_operation_id text,
+  target_operation_type text,
+  target_client_reference text,
+  target_request_hash text,
+  target_payload jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  return public.accept_sync_operation(
+    target_business_id,
+    target_device_id,
+    target_user_id,
+    target_operation_id,
+    target_operation_type,
+    target_client_reference,
+    target_request_hash
+  );
+end;
+$function$;
+
+revoke execute on function public.accept_sync_operation(
+  uuid, uuid, uuid, text, text, text, text, jsonb
+) from public, anon, authenticated, service_role;
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
