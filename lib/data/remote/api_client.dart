@@ -101,7 +101,12 @@ class ApiClient {
     final message = _extractMessage(body);
 
     if (status == 401) return const AuthFailure.sessionExpired();
-    if (status == 403) return const AuthFailure.forbidden();
+    if (status == 403) {
+      if (code == 'DEVICE_NOT_REGISTERED') {
+        return const AuthFailure.deviceNotRegistered();
+      }
+      return const AuthFailure.forbidden();
+    }
 
     if (code == 'email_not_confirmed' || code == 'phone_not_confirmed') {
       return BusinessRuleFailure(
