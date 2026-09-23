@@ -66,6 +66,17 @@ class ApiClient {
   Future<void> clearServerRefreshToken() =>
       _secureStorage.deleteRefreshToken();
 
+  /// Restores the durable Supabase session through the same single-flight
+  /// refresh authority used by 401 recovery. Startup and in-flight requests
+  /// therefore can never race the one-use refresh-token rotation.
+  Future<Map<String, dynamic>?> restoreServerSession({
+    required String supabaseUrl,
+    required String publishableKey,
+  }) => _authInterceptor.restoreServerSession(
+        supabaseUrl: supabaseUrl,
+        publishableKey: publishableKey,
+      );
+
   /// Invalidates the active cloud session and notifies the application state
   /// layer. Used by startup refresh when Supabase permanently rejects the
   /// durable refresh token, keeping startup and in-flight 401 expiry on the
@@ -234,7 +245,7 @@ class _AuthInterceptor extends Interceptor {
   String? _accessToken;
   String? _supabaseUrl;
   String? _publishableKey;
-  Future<String>? _refreshRun;
+  Future<_RefreshResult>? _refreshRun;
 
   void configureServerAuth({
     required String supabaseUrl,
@@ -285,15 +296,9 @@ class _AuthInterceptor extends Interceptor {
       return;
     }
 
-    final refreshToken = await _secureStorage.getRefreshToken();
-    if (refreshToken == null || refreshToken.isEmpty) {
-      await _expireSession();
-      handler.next(err);
-      return;
-    }
-
     try {
-      final accessToken = await _refreshAccessToken(refreshToken);
+      final refreshResult = await _refreshAccessToken();
+      final accessToken = refreshResult.accessToken;
       final retryOptions = err.requestOptions;
       retryOptions.extra['auth_refresh_attempted'] = true;
       retryOptions.headers['Authorization'] = 'Bearer $accessToken';
@@ -329,12 +334,12 @@ class _AuthInterceptor extends Interceptor {
     }
   }
 
-  Future<String> _refreshAccessToken(String refreshToken) {
+  Future<_RefreshResult> _refreshAccessToken() {
     final active = _refreshRun;
     if (active != null) return active;
 
-    final run = _performRefresh(refreshToken);
-    late Future<String> tracked;
+    final run = _performStoredRefresh();
+    late Future<_RefreshResult> tracked;
     tracked = run.whenComplete(() {
       if (identical(_refreshRun, tracked)) _refreshRun = null;
     });
@@ -342,7 +347,39 @@ class _AuthInterceptor extends Interceptor {
     return tracked;
   }
 
-  Future<String> _performRefresh(String refreshToken) async {
+  /// Startup restoration deliberately reads the refresh token inside the
+  /// single-flight transaction. A caller can therefore never capture an old
+  /// one-use token just before another request rotates it.
+  Future<Map<String, dynamic>?> restoreServerSession({
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final previousUrl = _supabaseUrl;
+    final previousKey = _publishableKey;
+    _supabaseUrl = supabaseUrl;
+    _publishableKey = publishableKey;
+    try {
+      final refreshResult = await _refreshAccessToken();
+      return refreshResult.raw;
+    } on _NoStoredRefreshToken {
+      return null;
+    } on DioException catch (error) {
+      if (_isRefreshTokenRejected(error)) {
+        await _expireSession();
+      }
+      return null;
+    } finally {
+      _supabaseUrl = previousUrl;
+      _publishableKey = previousKey;
+    }
+  }
+
+  Future<_RefreshResult> _performStoredRefresh() async {
+    final refreshToken = await _secureStorage.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw const _NoStoredRefreshToken();
+    }
+
     final supabaseUrl = _supabaseUrl ?? SupabaseConfig.url;
     final publishableKey = _publishableKey ?? SupabaseConfig.publishableKey;
     final refreshClient = Dio(BaseOptions(
@@ -370,7 +407,10 @@ class _AuthInterceptor extends Interceptor {
     if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
       await _secureStorage.setRefreshToken(newRefreshToken);
     }
-    return newAccessToken;
+    return _RefreshResult(
+      accessToken: newAccessToken,
+      raw: data,
+    );
   }
 
   bool _isRefreshTokenRejected(DioException error) {
@@ -385,6 +425,20 @@ class _AuthInterceptor extends Interceptor {
   }
 
   Future<void> expireSession() => _expireSession();
+}
+
+class _RefreshResult {
+  const _RefreshResult({
+    required this.accessToken,
+    required this.raw,
+  });
+
+  final String accessToken;
+  final Map<String, dynamic> raw;
+}
+
+class _NoStoredRefreshToken implements Exception {
+  const _NoStoredRefreshToken();
 }
 
 class _RetryInterceptor extends Interceptor {
