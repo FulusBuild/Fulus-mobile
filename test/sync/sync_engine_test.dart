@@ -415,7 +415,7 @@ void main() {
           entityType: 'customer',
           entityLocalId: 'customer-1',
           code: 'SYNC_CONFLICT',
-          message: 'Customer changed on another device.',
+          message: const Value('Customer changed on another device.'),
           createdAt: base.add(const Duration(seconds: 1)),
         ),
       );
