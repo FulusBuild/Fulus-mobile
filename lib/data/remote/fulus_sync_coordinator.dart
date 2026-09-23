@@ -68,7 +68,7 @@ class FulusSyncCoordinator {
           await applyChanges(unapplied);
           for (final change in unapplied) {
             cursor = change.sequence;
-            await _preferences.setInt(_cursorKey(businessId), cursor);
+            await _persistCursor(businessId, cursor);
           }
         } else {
           for (final change in unapplied) {
@@ -77,7 +77,7 @@ class FulusSyncCoordinator {
             // skipping an unapplied change is never safe.
             await _applyChange(change);
             cursor = change.sequence;
-            await _preferences.setInt(_cursorKey(businessId), cursor);
+            await _persistCursor(businessId, cursor);
           }
         }
       }
@@ -107,6 +107,17 @@ class FulusSyncCoordinator {
     }
   }
 
-  Future<void> resetCursor(String businessId) =>
-      _preferences.remove(_cursorKey(businessId));
+  Future<void> _persistCursor(String businessId, int cursor) async {
+    final persisted = await _preferences.setInt(_cursorKey(businessId), cursor);
+    if (!persisted) {
+      throw StateError('Failed to persist the Cloud Sync cursor.');
+    }
+  }
+
+  Future<void> resetCursor(String businessId) async {
+    final removed = await _preferences.remove(_cursorKey(businessId));
+    if (!removed && _preferences.containsKey(_cursorKey(businessId))) {
+      throw StateError('Failed to reset the Cloud Sync cursor.');
+    }
+  }
 }
