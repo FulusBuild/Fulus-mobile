@@ -5,6 +5,9 @@ import '../../data/local/database/tables.dart';
 import '../../data/local/secure_storage/secure_storage.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
+import '../../data/remote/fulus_customer_canonical_reconciler.dart';
+import '../../domain/repositories/customer_repository.dart';
+import '../sync_error.dart';
 import '../sync_handler.dart';
 
 /// Pushes customer repayment ledger entries to the server.
@@ -14,15 +17,18 @@ class CustomerLedgerSyncHandler implements SyncHandler {
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
     required SecureStorage secureStorage,
+    CustomerRepository? customerRepository,
   })  : _db = db,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
-        _secureStorage = secureStorage;
+        _secureStorage = secureStorage,
+        _customerRepository = customerRepository;
 
   final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
   final SecureStorage _secureStorage;
+  final CustomerRepository? _customerRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -48,25 +54,59 @@ class CustomerLedgerSyncHandler implements SyncHandler {
       throw StateError('Customer ${ledger.customerLocalId} has not synced to Fulus Cloud yet.');
     }
     final deviceClientId = _fulusConnectionState.registeredDevice?.deviceClientId ?? await _secureStorage.ensureDeviceClientId(item.id);
-    final result = await _fulusSyncApi.submitOperation(
-      businessId: businessId,
-      operationType: 'customer.repayment',
-      operationId: item.id,
-      deviceClientId: deviceClientId,
-      payload: {
-        'business_id': businessId,
-        'customer_id': customerId,
-        'amount': ledger.amount,
-        'operation_id': item.id,
-        if (ledger.paymentMethod != null) 'payment_method': ledger.paymentMethod,
-        if (ledger.note != null) 'note': ledger.note,
-      },
-    );
+    late final Map<String, dynamic> result;
+    try {
+      result = await _fulusSyncApi.submitOperation(
+        businessId: businessId,
+        operationType: 'customer.repayment',
+        operationId: item.id,
+        deviceClientId: deviceClientId,
+        payload: {
+          'business_id': businessId,
+          'customer_id': customerId,
+          'amount': ledger.amount,
+          'operation_id': item.id,
+          if (ledger.paymentMethod != null) 'payment_method': ledger.paymentMethod,
+          if (ledger.note != null) 'note': ledger.note,
+        },
+      );
+    } on BusinessRuleFailure {
+      // Repayment updates the customer's local balance before cloud delivery.
+      // If the authoritative command rejects it, restore the balance from the
+      // canonical customer row before parking the operation.
+      await _reconcileRejectedRepayment(
+        businessId: businessId,
+        customerId: customerId,
+        deviceClientId: deviceClientId,
+      );
+      rethrow;
+    }
     final data = result['data'];
     if (data is! Map) throw StateError('Customer repayment sync returned no ledger result.');
     final ledgerId = data['ledger_id']?.toString();
     if (ledgerId == null || ledgerId.isEmpty) throw StateError('Customer repayment sync returned no ledger id.');
     await _markSettled(ledger.localId, ledgerId);
+  }
+
+  Future<void> _reconcileRejectedRepayment({
+    required String businessId,
+    required String customerId,
+    required String deviceClientId,
+  }) async {
+    final repository = _customerRepository;
+    if (repository == null) return;
+    try {
+      final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+        businessId: businessId,
+        entityType: 'customer',
+        entityId: customerId,
+        deviceClientId: deviceClientId,
+      );
+      await FulusCustomerCanonicalReconciler(repository: repository).apply(canonical);
+    } catch (_) {
+      // Preserve the original business-rule failure. A later pull/retry can
+      // reconcile the customer once the canonical endpoint is available.
+    }
   }
 
   Future<void> _markSettled(String localId, String serverId) async {
