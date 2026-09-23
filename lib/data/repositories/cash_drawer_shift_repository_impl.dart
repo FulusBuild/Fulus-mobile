@@ -69,7 +69,13 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
         cashSales += sale.amountPaid;
       }
     }
-    final cashExpenseRows = await (_db.select(_db.expenses)..where((e) => e.locationId.equals(shiftRow.locationId) & e.paymentMethod.equals('cash') & e.expenseDate.isBiggerOrEqualValue(since))).get();
+    final cashExpenseRows = await (_db.select(_db.expenses)
+          ..where((e) =>
+              e.locationId.equals(shiftRow.locationId) &
+              e.paymentMethod.equals('cash') &
+              e.expenseDate.isBiggerOrEqualValue(since) &
+              e.syncStatus.isNotEqualValue(SyncStatus.attentionNeeded)))
+        .get();
     final cashExpenses = cashExpenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
     final expectedCash = shiftRow.openingCash + cashSales - cashExpenses;
     return ExpectedCashPreview(openingCash: shiftRow.openingCash, cashSales: cashSales, cashExpenses: cashExpenses, expectedCash: expectedCash);
