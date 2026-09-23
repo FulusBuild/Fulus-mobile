@@ -554,9 +554,9 @@ class SyncQueueItems extends Table {
   TextColumn get entityLocalId => text()();
   TextColumn get operation => text()(); // 'create' | 'update' | 'delete'
   // priority: three lanes, explicit rather than re-derived from
-  // entityType every time the queue is processed — 0 = sales/payments
-  // (highest), 1 = stock/customer/credit, 2 = photos/bulk import
-  // (lowest).
+  // entityType every time the queue is processed — 0 = catalog/reference,
+  // stock and other dependencies (highest), 1 = sales/payments/financial
+  // operations, 2 = photos/bulk import (lowest).
   IntColumn get priority => integer()();
   DateTimeColumn get enqueuedAt => dateTime()();
   /// Last server change-feed cursor observed when this mutation was created.
