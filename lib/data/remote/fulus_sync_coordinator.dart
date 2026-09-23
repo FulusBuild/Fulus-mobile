@@ -83,6 +83,11 @@ class FulusSyncCoordinator {
       }
 
       if (!page.hasMore) return cursor;
+      if (unapplied.isEmpty) {
+        throw StateError(
+          'Cloud Sync returned a page with no forward progress while reporting more changes.',
+        );
+      }
       // page.nextCursor is only a pagination hint. Never persist it as an
       // acknowledgement because a process could have died before applying
       // one of the returned changes.
