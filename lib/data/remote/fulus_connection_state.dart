@@ -131,6 +131,16 @@ class FulusConnectionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clears only the cached server registration for this installation.
+  /// Business selection and authentication remain intact so the normal
+  /// readiness path can silently re-register the same durable device ID.
+  void clearRegisteredDevice() {
+    if (_registeredDevice == null && !_syncReady) return;
+    _registeredDevice = null;
+    _syncReady = false;
+    notifyListeners();
+  }
+
   Future<FulusRegisteredDevice> registerDevice({
     required String deviceClientId,
     String? deviceName,
