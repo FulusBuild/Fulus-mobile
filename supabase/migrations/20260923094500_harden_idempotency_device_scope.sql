@@ -322,7 +322,12 @@ declare
   row_data jsonb;
   entity_id uuid;
   feed_entity text;
+  initial_stock integer;
+  initial_location_id uuid;
+  initial_movement_id uuid;
 begin
+  perform set_config('request.jwt.claim.sub', target_user_id::text, true);
+
   if target_operation_id is null or length(trim(target_operation_id))=0 then
     raise exception using errcode='22023',message='operation_id is required';
   end if;
@@ -332,12 +337,23 @@ begin
   if target_operation not in ('upsert','delete') then
     raise exception using errcode='22023',message='Unsupported catalog operation';
   end if;
+  if not exists (
+    select 1 from public.business_memberships bm
+    where bm.business_id=target_business_id
+      and bm.user_id=target_user_id
+      and bm.status='active'
+  ) then
+    raise exception using errcode='42501',message='Business membership required';
+  end if;
   if not public.has_permission(target_business_id,'catalog.manage') then
     raise exception using errcode='42501',message='Catalog permission required';
   end if;
-  if not exists(
-    select 1 from public.devices
-    where id=target_device_id and business_id=target_business_id and status='active'
+  if not exists (
+    select 1 from public.devices d
+    where d.id=target_device_id
+      and d.business_id=target_business_id
+      and d.status='active'
+      and d.registered_by=target_user_id
   ) then
     raise exception using errcode='42501',message='Device is not registered or active';
   end if;
@@ -351,8 +367,10 @@ begin
   )
   on conflict(business_id,key) do nothing;
 
-  select * into idem from public.idempotency_keys
-  where business_id=target_business_id and key=target_operation_id
+  select * into idem
+  from public.idempotency_keys ik
+  where ik.business_id=target_business_id
+    and ik.key=target_operation_id
   for update;
 
   if idem.device_id is distinct from target_device_id
@@ -377,11 +395,12 @@ begin
   end;
 
   if target_id is not null and target_base_cursor is not null and exists (
-    select 1 from public.sync_changes
-    where business_id=target_business_id
-      and entity_type=feed_entity
-      and entity_id=target_id
-      and sequence > target_base_cursor
+    select 1
+    from public.sync_changes sc
+    where sc.business_id=target_business_id
+      and sc.entity_type=feed_entity
+      and sc.entity_id=target_id
+      and sc.sequence > target_base_cursor
   ) then
     raise exception using errcode='P0008',
       message='SYNC_CONFLICT: '||initcap(feed_entity)||
@@ -394,15 +413,18 @@ begin
     end if;
     case target_entity
       when 'products' then
-        update public.products set deleted_at=now(),updated_at=now()
+        update public.products
+        set deleted_at=now(),updated_at=now()
         where id=target_id and business_id=target_business_id
         returning id,to_jsonb(products) into entity_id,row_data;
       when 'categories' then
-        update public.categories set deleted_at=now(),updated_at=now()
+        update public.categories
+        set deleted_at=now(),updated_at=now()
         where id=target_id and business_id=target_business_id
         returning id,to_jsonb(categories) into entity_id,row_data;
       when 'suppliers' then
-        update public.suppliers set deleted_at=now(),updated_at=now()
+        update public.suppliers
+        set deleted_at=now(),updated_at=now()
         where id=target_id and business_id=target_business_id
         returning id,to_jsonb(suppliers) into entity_id,row_data;
     end case;
@@ -487,6 +509,61 @@ begin
     if entity_id is null then
       raise exception using errcode='P0002',message='Catalog item not found';
     end if;
+
+    -- Product creation must seed the authoritative stock ledger in the same
+    -- transaction as the product row. The mobile client is local-first and
+    -- sends the exact location plus initial quantity with the create command.
+    if target_entity='products' and target_id is null then
+      initial_stock := coalesce(nullif(target_item->>'initial_stock','')::integer,0);
+      if initial_stock < 0 then
+        raise exception using errcode='22023',message='Initial stock cannot be negative';
+      end if;
+
+      initial_location_id := nullif(target_item->>'location_id','')::uuid;
+      if initial_location_id is null then
+        raise exception using errcode='22023',message='Initial stock requires a location';
+      end if;
+      if not exists (
+        select 1 from public.locations l
+        where l.id=initial_location_id and l.business_id=target_business_id
+      ) then
+        raise exception using errcode='22023',message='Initial stock location does not belong to this business';
+      end if;
+
+      insert into public.product_stock_levels(product_id,location_id,current_stock,updated_at)
+      values(entity_id,initial_location_id,initial_stock,now())
+      on conflict(product_id,location_id) do update
+        set current_stock=excluded.current_stock,updated_at=now();
+
+      if initial_stock > 0 then
+        insert into public.inventory_movements(
+          business_id,product_id,location_id,quantity_delta,reason,
+          operation_id,user_id,device_id
+        )
+        values(
+          target_business_id,entity_id,initial_location_id,initial_stock,
+          'Initial stock',target_operation_id||':initial-stock',
+          target_user_id,target_device_id
+        )
+        on conflict(business_id,operation_id) do nothing
+        returning id into initial_movement_id;
+
+        if initial_movement_id is not null then
+          perform public._fulus_append_change(
+            target_business_id,'stock_movement',initial_movement_id,'upsert',
+            jsonb_build_object(
+              'id',initial_movement_id,
+              'product_id',entity_id,
+              'location_id',initial_location_id,
+              'quantity_delta',initial_stock,
+              'reason','Initial stock',
+              'current_stock',initial_stock
+            )
+          );
+        end if;
+      end if;
+    end if;
+
     result:=jsonb_build_object(
       'data',jsonb_build_object(
         'entity',target_entity,'item',row_data,'entity_id',entity_id,
@@ -504,27 +581,6 @@ begin
 end;
 $$;
 
-
-create or replace function public.fulus_api_create_location(
- target_user_id uuid,target_business_id uuid,target_device_id uuid,target_operation_id text,target_name text,target_code text,target_address text,target_timezone text,target_request_hash text)
-returns jsonb language plpgsql security definer set search_path to ''
-as $function$
-declare idem public.idempotency_keys%rowtype; request_hash text; result jsonb;
-begin
- request_hash:=target_request_hash;
- insert into public.idempotency_keys(business_id,user_id,device_id,key,operation_type,request_hash) values(target_business_id,target_user_id,target_device_id,target_operation_id,'location.create',request_hash) on conflict(business_id,key) do nothing;
- select * into idem from public.idempotency_keys where business_id=target_business_id and key=target_operation_id for update;
- if idem.device_id is distinct from target_device_id
-    or idem.user_id is distinct from target_user_id then
-   raise exception using errcode='P0009', message='Operation id was already used from a different device or account';
- end if;
- if idem.operation_type<>'location.create' or idem.request_hash<>request_hash then raise exception using errcode='P0009',message='Operation id was already used with a different request'; end if;
- if idem.completed_at is not null and idem.response_body is not null then return idem.response_body; end if;
- perform set_config('request.jwt.claim.sub',target_user_id::text,true);
- result:=public.create_location(target_business_id,target_operation_id,target_name,target_code,target_address,target_timezone);
- update public.idempotency_keys set response_status=200,response_body=result,completed_at=now() where id=idem.id;
- return result;
-end;$function$;
 
 revoke execute on function public.fulus_api_create_location(uuid,uuid,uuid,text,text,text,text,text,text) from public,anon,authenticated;
 grant execute on function public.fulus_api_create_location(uuid,uuid,uuid,text,text,text,text,text,text) to service_role;
