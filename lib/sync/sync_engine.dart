@@ -92,7 +92,15 @@ class SyncEngine {
     final items = await query.get();
     final now = DateTime.now();
 
-    for (final item in items) {
+    // Dependency failures are deferred so a prerequisite later in the same
+    // queue snapshot can settle during this drain. This avoids leaving a
+    // dependent item waiting for an unrelated future trigger.
+    var pending = items;
+    while (pending.isNotEmpty) {
+      final deferred = <SyncQueueItem>[];
+      var progress = false;
+
+      for (final item in pending) {
       // Retryable work keeps retrying after the attention threshold, using
       // the capped backoff. Permanent failures are explicitly parked with a
       // [BLOCKED] marker and remain out of automatic retries until a user or
@@ -123,7 +131,12 @@ class SyncEngine {
       try {
         await handler.sync(item);
         await _removeFromQueue(item.id);
+        progress = true;
       } on SyncFailure catch (e, st) {
+        if (e.kind == SyncErrorKind.dependencyNotReady) {
+          deferred.add(item);
+          continue;
+        }
         await _handleClassifiedFailure(item, e, st);
       } on BusinessRuleFailure catch (e, st) {
         final isConflict = e.code == 'IDEMPOTENCY_CONFLICT' ||
@@ -150,8 +163,16 @@ class SyncEngine {
         return;
       } catch (e, st) {
         final classified = SyncFailure.classify(e);
+        if (classified.kind == SyncErrorKind.dependencyNotReady) {
+          deferred.add(item);
+          continue;
+        }
         await _handleClassifiedFailure(item, classified, st);
       }
+      }
+
+      if (!progress || deferred.isEmpty) break;
+      pending = deferred;
     }
   }
 
