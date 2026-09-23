@@ -409,7 +409,6 @@ class _HealthCard extends StatelessWidget {
           const FulusListDivider(),
           _HealthLine(label: 'Last successful pull', value: _when(health.lastPullAt)),
           const FulusListDivider(),
-          const FulusListDivider(),
           _HealthLine(
             label: 'Cloud backup',
             value: health.recoveryState == 'recovering'
