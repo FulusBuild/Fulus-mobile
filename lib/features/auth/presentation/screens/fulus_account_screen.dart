@@ -295,7 +295,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       throw StateError('Your account was created, but the business connection is not ready yet.');
     }
 
-    connection.selectBusiness(active.single.businessId);
+    await connection.selectBusiness(active.single.businessId);
 
     final storage = ref.read(secureStorageProvider);
     final deviceId = await storage.ensureDeviceClientId(Ulid().toString());
