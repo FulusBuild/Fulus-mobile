@@ -102,6 +102,21 @@ Deno.serve(async req => {
     return out({ data, server_authoritative: true });
   }
 
+  if (action === "revoke_own_device") {
+    const targetDeviceId = typeof b.device_id === "string" ? b.device_id : null;
+    if (!targetDeviceId) return out({ error: { code: "INVALID_DEVICE", message: "device_id is required" } }, 400);
+    const { data, error } = await serviceDb.rpc("fulus_api_revoke_own_device", {
+      target_user_id: uid,
+      target_business_id: bid,
+      target_device_id: targetDeviceId,
+    });
+    if (error) {
+      const status = error.code === "42501" ? 403 : 400;
+      return out({ error: { code: error.code === "42501" ? "FORBIDDEN" : "DEVICE_REVOKE_FAILED", message: error.message } }, status);
+    }
+    return out({ data: { revoked: data === true, server_authoritative: true } });
+  }
+
   if (action === "register_device") {
     const cid = typeof b.device_client_id === "string" ? b.device_client_id : null;
     if (!cid) return out({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "device_client_id is required" } }, 400);
