@@ -96,21 +96,41 @@ Deno.serve(async (req) => {
     return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
   }
 
-  const { data: latestChange, error: latestChangeError } = await db
-    .from("sync_changes")
-    .select("sequence")
-    .eq("business_id", businessId)
-    .eq("entity_type", entityType)
-    .eq("entity_id", entityId ?? "")
-    .order("sequence", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (latestChangeError) {
-    return out({ error: { code: "CANONICAL_SEQUENCE_LOOKUP_FAILED", message: "Unable to resolve canonical change sequence" } }, 500);
-  }
-  const latestSequence = latestChange?.sequence ?? 0;
-
   const rawEntityIds = params.get("entity_ids");
+  let latestSequence = 0;
+  let batchLatestSequences = new Map<string, number>();
+
+  if (rawEntityIds) {
+    const entityIds = [...new Set(rawEntityIds.split(",").map((value) => value.trim()).filter(Boolean))];
+    if (entityIds.length === 0 || entityIds.length > 100 || !SIMPLE_ENTITIES[entityType]) {
+      return out({ error: { code: "INVALID_CANONICAL_BATCH_REQUEST", message: "entity_ids must contain 1 to 100 supported simple entity IDs" } }, 400);
+    }
+
+    const { data: latestChanges, error: latestChangesError } = await db
+      .from("sync_changes")
+      .select("entity_id,sequence")
+      .eq("business_id", businessId)
+      .eq("entity_type", entityType)
+      .in("entity_id", entityIds)
+      .order("sequence", { ascending: false });
+
+    if (latestChangesError) {
+      return out({ error: { code: "CANONICAL_SEQUENCE_LOOKUP_FAILED", message: "Unable to resolve canonical change sequences" } }, 500);
+    }
+
+    for (const change of latestChanges ?? []) {
+      const id = String(change.entity_id);
+      if (!batchLatestSequences.has(id)) {
+        batchLatestSequences.set(id, Number(change.sequence));
+      }
+    }
+    latestSequence = Math.max(0, ...batchLatestSequences.values());
+
+    const { data: rows, error } = await db
+      .from(SIMPLE_ENTITIES[entityType])
+      .select("*")
+      .eq("business_id", businessId)
+      .in("id", entityIds);
   if (rawEntityIds) {
     const entityIds = [...new Set(rawEntityIds.split(",").map((value) => value.trim()).filter(Boolean))];
     if (entityIds.length === 0 || entityIds.length > 100 || !SIMPLE_ENTITIES[entityType]) {
@@ -131,10 +151,24 @@ Deno.serve(async (req) => {
       operation: byId.has(id) ? "upsert" : "delete",
       row: byId.get(id) ?? null,
       server_authoritative: true,
-      latest_sequence: latestSequence,
+      latest_sequence: batchLatestSequences.get(id) ?? 0,
     }));
     return out({ data: { entity_type: entityType, entities, server_authoritative: true, latest_sequence: latestSequence } });
   }
+
+  const { data: latestChange, error: latestChangeError } = await db
+    .from("sync_changes")
+    .select("sequence")
+    .eq("business_id", businessId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .order("sequence", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestChangeError) {
+    return out({ error: { code: "CANONICAL_SEQUENCE_LOOKUP_FAILED", message: "Unable to resolve canonical change sequence" } }, 500);
+  }
+  latestSequence = latestChange?.sequence ?? 0;
 
   if (entityType === "sale") {
     const { data: sale, error: saleError } = await db
