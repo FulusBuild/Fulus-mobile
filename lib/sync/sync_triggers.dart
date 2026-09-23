@@ -34,10 +34,12 @@ class SyncTriggers with WidgetsBindingObserver {
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Connectivity? connectivity,
     this.retryInterval = const Duration(seconds: 30),
+    Future<void> Function()? onDeviceAuthorizationLost,
   })  : _syncEngine = syncEngine,
         _syncConfig = syncConfig,
         _syncStatusNotifier = syncStatusNotifier,
         _pullFromServer = pullFromServer,
+        _onDeviceAuthorizationLost = onDeviceAuthorizationLost,
         _isReady = isReady,
         _onNotReady = onNotReady,
         _onSyncSuccess = onSyncSuccess,
@@ -62,6 +64,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
   final Duration retryInterval;
+  final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   Timer? _retryTimer;
   Timer? _readinessRecoveryTimer;
@@ -373,6 +376,13 @@ class SyncTriggers with WidgetsBindingObserver {
       await _runSyncCycle();
       await _syncStatusNotifier.checkForStuckSyncAndNotify();
       _onSyncSuccess?.call();
+    } on AuthFailure catch (error, stackTrace) {
+      if (error.requiresDeviceRegistration) {
+        await _onDeviceAuthorizationLost?.call();
+        return;
+      }
+      _onSyncFailure?.call(error, stackTrace);
+      rethrow;
     } catch (error, stackTrace) {
       _onSyncFailure?.call(error, stackTrace);
       rethrow;
