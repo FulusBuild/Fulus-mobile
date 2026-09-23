@@ -204,7 +204,7 @@ class _FulusCloudConnectionScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = error.toString().replaceFirst('Bad state: ', '');
+          _error = syncUserMessage(error);
         });
       }
     }
