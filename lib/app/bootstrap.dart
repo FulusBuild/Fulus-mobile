@@ -144,7 +144,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
   final authApi = AuthApi(apiClient);
   apiClient.setOnSessionExpired(() async {
-    fulusConnectionState.clearSessionAuthentication();
+    fulusConnectionState.markSessionExpired();
   });
   final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
 
