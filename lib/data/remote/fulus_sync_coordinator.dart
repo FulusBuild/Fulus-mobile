@@ -37,7 +37,14 @@ class FulusSyncCoordinator {
         cursor: cursor,
         limit: batchSize,
       );
-      if (page.changes.isEmpty) return cursor;
+      if (page.changes.isEmpty) {
+        if (page.hasMore) {
+          throw StateError(
+            'Cloud Sync returned an empty page while reporting more changes.',
+          );
+        }
+        return cursor;
+      }
 
       final unapplied = page.changes.where((change) => change.sequence > cursor).toList(growable: false);
       if (unapplied.isNotEmpty) {
