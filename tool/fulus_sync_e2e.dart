@@ -529,6 +529,22 @@ Future<void> main() async {
     cleanedUp = true;
     stdout.writeln('PASS: product.delete');
   } finally {
+    for (final deviceId in ephemeralDeviceIds) {
+      try {
+        await _revokeEphemeralDevice(
+          authUrl: _required('FULUS_AUTH_URL'),
+          publishableKey: _required('FULUS_PUBLISHABLE_KEY'),
+          accessToken: token,
+          businessId: businessId,
+          deviceId: deviceId,
+        );
+        stdout.writeln('PASS: ephemeral E2E device revoked');
+      } catch (error) {
+        stderr.writeln(
+          'WARNING: automatic cleanup failed for ephemeral E2E device: $error',
+        );
+      }
+    }
     if (serverId != null && !cleanedUp) {
       try {
         final cleanup = await _submitCatalog(
