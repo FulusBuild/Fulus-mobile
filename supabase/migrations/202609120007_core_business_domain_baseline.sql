@@ -10,6 +10,39 @@
 -- constraints. RLS, indexes, triggers and server mutation functions remain
 -- owned by the later hardening migrations in this directory.
 
+-- Legacy catalog change helper retained only so the subsequent
+-- hardening migration can explicitly revoke direct execution. Current
+-- catalog writes use the actor-bound service wrapper.
+create or replace function public._fulus_catalog_change(
+  target_business_id uuid,
+  target_entity_type text,
+  target_entity_id uuid,
+  target_operation text,
+  target_payload jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path to ''
+as $function$
+begin
+  insert into public.sync_changes (
+    business_id, entity_type, entity_id, operation, payload
+  )
+  values (
+    target_business_id,
+    target_entity_type,
+    target_entity_id,
+    target_operation,
+    target_payload
+  );
+end;
+$function$;
+
+revoke execute on function public._fulus_catalog_change(
+  uuid, text, uuid, text, jsonb
+) from public, anon, authenticated;
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
