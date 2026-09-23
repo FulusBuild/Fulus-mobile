@@ -2,6 +2,8 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
+import 'package:fulus_mobile/data/remote/fulus_product_canonical_reconciler.dart';
+import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/repositories/sale_repository.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
@@ -13,17 +15,20 @@ class SaleSyncHandler implements SyncHandler {
     FulusSyncApi? fulusSyncApi,
     FulusConnectionState? fulusConnectionState,
     required SaleRepository saleRepository,
+    ProductRepository? productRepository,
     SalesApi? salesApi,
   })  : _db = db,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _saleRepository = saleRepository,
+        _productRepository = productRepository,
         _salesApi = salesApi;
 
   final AppDatabase _db;
   final FulusSyncApi? _fulusSyncApi;
   final FulusConnectionState? _fulusConnectionState;
   final SaleRepository _saleRepository;
+  final ProductRepository? _productRepository;
   // Retained for injection compatibility with existing callers/tests. It is
   // intentionally never used for writes: queued sales are Fulus Cloud-only.
   final SalesApi? _salesApi;
@@ -48,26 +53,38 @@ class SaleSyncHandler implements SyncHandler {
       final customerId = await _resolveCustomerServerId(sale);
       final locationId = await _resolveLocationServerId(sale.locationId);
       final items = await _resolveItems(sale);
-      final result = await _fulusSyncApi.submitOperation(
-        businessId: businessId,
-        operationType: 'sale.create',
-        operationId: item.id,
-        clientReference: sale.clientReference,
-        deviceClientId: device!.deviceClientId,
-        payload: {
-          'business_id': businessId,
-          'location_id': locationId,
-          'customer_id': customerId,
-          'client_reference': sale.clientReference,
-          'sale_date': sale.saleDate.toIso8601String(),
-          'discount': sale.discount,
-          'tax': sale.tax,
-          'amount_paid': sale.amountPaid,
-          'payment_method': sale.paymentMethod,
-          'notes': sale.notes,
-          'items': items,
-        },
-      );
+      late final Map<String, dynamic> result;
+      try {
+        result = await _fulusSyncApi.submitOperation(
+          businessId: businessId,
+          operationType: 'sale.create',
+          operationId: item.id,
+          clientReference: sale.clientReference,
+          deviceClientId: device!.deviceClientId,
+          payload: {
+            'business_id': businessId,
+            'location_id': locationId,
+            'customer_id': customerId,
+            'client_reference': sale.clientReference,
+            'sale_date': sale.saleDate.toIso8601String(),
+            'discount': sale.discount,
+            'tax': sale.tax,
+            'amount_paid': sale.amountPaid,
+            'payment_method': sale.paymentMethod,
+            'notes': sale.notes,
+            'items': items,
+          },
+        );
+      } on BusinessRuleFailure {
+        // The local sale optimistically decrements stock before cloud
+        // delivery. A permanent cloud rejection (for example, another
+        // device sold the last units first) therefore cannot simply leave
+        // that optimistic projection in place. Re-read the authoritative
+        // product snapshots before parking the sale so local stock does not
+        // remain permanently below the server.
+        await _reconcileProductsAfterRejectedSale(sale, device.deviceClientId, businessId);
+        rethrow;
+      }
       final data = Map<String, dynamic>.from(result['data'] as Map);
       final serverId = data['entity_id'] as String?;
       if (serverId == null) {
@@ -88,6 +105,40 @@ class SaleSyncHandler implements SyncHandler {
           ? 'Fulus Cloud authorization is required for sale sync; legacy API transport is disabled.'
           : 'Fulus Cloud authorization is required for sale sync.',
     );
+  }
+
+  Future<void> _reconcileProductsAfterRejectedSale(
+    Sale sale,
+    String deviceClientId,
+    String businessId,
+  ) async {
+    final repository = _productRepository;
+    if (repository == null) return;
+    final reconciler = FulusProductCanonicalReconciler(repository: repository);
+    final productIds = sale.items
+        .map((item) => item.productLocalId)
+        .whereType<String>()
+        .toSet();
+    for (final localId in productIds) {
+      final product = await (_db.select(_db.products)
+            ..where((p) => p.localId.equals(localId)))
+          .getSingleOrNull();
+      final serverId = product?.serverId;
+      if (serverId == null || serverId.isEmpty) continue;
+      try {
+        final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+          businessId: businessId,
+          entityType: 'product',
+          entityId: serverId,
+          deviceClientId: deviceClientId,
+        );
+        await reconciler.apply(canonical);
+      } catch (_) {
+        // The original business-rule rejection remains the meaningful
+        // queue failure. A failed best-effort reconciliation must not hide
+        // it or turn a deterministic rejection into a generic error.
+      }
+    }
   }
 
   Future<String> _resolveLocationServerId(String localId) async {
