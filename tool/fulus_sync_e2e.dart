@@ -822,6 +822,18 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: conflicting idempotency replay rejected');
 
+    // Tombstone race: delete on device A, then prove device B cannot
+    // resurrect its stale local copy with a pre-delete cursor.
+    final preDeleteSequence = await _findChangeSequence(
+      dio,
+      businessId: businessId,
+      entityType: 'product',
+      entityId: serverId,
+    );
+    if (preDeleteSequence <= 0) {
+      throw StateError('Unable to establish the product cursor before tombstone test.');
+    }
+
     final delete = await _submitCatalog(
       dio,
       businessId: businessId,
@@ -829,10 +841,62 @@ Future<void> main() async {
       entity: 'products',
       operationId: deleteOperationId,
       id: serverId,
+      baseCursor: preDeleteSequence,
     );
     _expect2xx(delete, 'cleanup product.delete');
+
+    dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
+    final staleResurrection = await _submitCatalog(
+      dio,
+      businessId: businessId,
+      action: 'catalog_upsert',
+      entity: 'products',
+      operationId: 'e2e-tombstone-resurrection-' + suffix,
+      baseCursor: preDeleteSequence,
+      id: serverId,
+      item: {
+        ...createPayload,
+        'name': 'Fulus E2E forbidden resurrection ' + suffix,
+      },
+    );
+    final resurrectionStatus = staleResurrection.statusCode ?? 0;
+    final resurrectionError = staleResurrection.data is Map
+        ? (staleResurrection.data as Map)['error']
+        : null;
+    final resurrectionCode = resurrectionError is Map
+        ? resurrectionError['code']
+        : null;
+    if (resurrectionStatus != 409 || resurrectionCode != 'SYNC_CONFLICT') {
+      throw StateError(
+        'Expected stale post-delete update to be rejected as SYNC_CONFLICT, '
+        'got HTTP ' + resurrectionStatus.toString() + ': ' + staleResurrection.data.toString(),
+      );
+    }
+
+    final canonicalAfterDelete = await dio.get(
+      _canonicalStateUrl(),
+      queryParameters: {
+        'business_id': businessId,
+        'entity_type': 'product',
+        'entity_id': serverId,
+      },
+    );
+    _expect2xx(canonicalAfterDelete, 'canonical product tombstone read');
+    final canonicalRoot = canonicalAfterDelete.data;
+    final canonicalData = canonicalRoot is Map ? canonicalRoot['data'] : null;
+    final canonicalRow = canonicalData is Map ? canonicalData['product'] : null;
+    if (canonicalData is! Map ||
+        canonicalData['operation'] != 'upsert' ||
+        canonicalRow is! Map ||
+        canonicalRow['deleted_at'] == null) {
+      throw StateError(
+        'Canonical product tombstone was not preserved: ' + canonicalAfterDelete.data.toString(),
+      );
+    }
+
     cleanedUp = true;
-    stdout.writeln('PASS: product.delete');
+    dio.options.headers['x-fulus-device-id'] = firstDeviceClientId;
+    stdout.writeln('PASS: delete tombstone blocks stale resurrection and canonical state remains deleted');
   } finally {
     for (final deviceId in ephemeralDeviceIds) {
       try {
@@ -874,6 +938,407 @@ Future<void> main() async {
   }
 
   stdout.writeln('PASS: Fulus live sync contract E2E');
+}
+
+String _canonicalStateUrl() {
+  final apiUrl = _required('FULUS_API_URL');
+  return apiUrl.replaceFirst(RegExp(r'/fulus-api/?(Dio dio, {required String businessId}) async {
+  final response = await dio.post('', data: {'action': 'restore_snapshot', 'business_id': businessId});
+  _expect2xx(response, 'restore snapshot for stock-adjustment E2E');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final locations = data is Map ? data['locations'] : null;
+  if (locations is! List || locations.isEmpty) return null;
+  final first = locations.first;
+  if (first is! Map) return null;
+  final id = first['id'];
+  return id is String && id.isNotEmpty ? id : null;
+}
+
+Future<Response<dynamic>> _submitInventorySet(Dio dio, {required String businessId, required String operationId, required String productId, required String locationId, required int newQuantity}) {
+  return dio.post('', data: {
+    'action': 'inventory_set', 'business_id': businessId, 'operation_id': operationId,
+    'client_reference': operationId, 'product_id': productId, 'location_id': locationId,
+    'new_quantity': newQuantity, 'reason': 'Fulus concurrent stock-adjustment E2E',
+  });
+}
+
+Future<String> _resolveAccessToken() async {
+  final email = _required('FULUS_E2E_EMAIL');
+  final password = _required('FULUS_E2E_PASSWORD');
+  final authUrl = _required('FULUS_AUTH_URL');
+  final publishableKey = _required('FULUS_PUBLISHABLE_KEY');
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
+
+  final response = await dio.post(
+    '$authUrl/auth/v1/token',
+    queryParameters: {'grant_type': 'password'},
+    data: {
+      'email': email,
+      'password': password,
+    },
+  );
+  final status = response.statusCode ?? 0;
+  final data = response.data;
+  final accessToken = data is Map ? data['access_token'] : null;
+  if (status < 200 || status >= 300 || accessToken is! String || accessToken.isEmpty) {
+    throw StateError(
+      'E2E password authentication failed with HTTP $status: '
+      '${_safeAuthError(data)}',
+    );
+  }
+  stdout.writeln('PASS: fresh E2E access token minted from Supabase password authentication');
+  return accessToken;
+}
+
+String _safeAuthError(dynamic data) {
+  if (data is Map) {
+    final error = data['error_description'] ?? data['msg'] ?? data['error'];
+    if (error != null) return error.toString();
+  }
+  return 'authentication response did not contain an access token';
+}
+
+Future<Response<dynamic>> _submitCatalog(
+  Dio dio, {
+  required String businessId,
+  required String action,
+  required String entity,
+  required String operationId,
+  Map<String, dynamic>? item,
+  String? id,
+  int? baseCursor,
+}) {
+  return dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'action': action,
+      'entity': entity,
+      'operation_id': operationId,
+      if (baseCursor != null) 'base_cursor': baseCursor,
+      if (item != null) 'item': item,
+      if (id != null) 'id': id,
+    },
+  );
+}
+
+Future<int> _findChangeSequence(
+  Dio dio, {
+  required String businessId,
+  required String entityType,
+  required String entityId,
+}) async {
+  var cursor = 0;
+  const limit = 500;
+  var recoveredFromRetention = false;
+  for (var page = 0; page < 20; page++) {
+    final response = await dio.get(
+      '',
+      queryParameters: {
+        'business_id': businessId,
+        'cursor': cursor,
+        'limit': limit,
+      },
+    );
+    final status = response.statusCode ?? 0;
+    if (status == 410 && !recoveredFromRetention) {
+      final root = response.data;
+      final error = root is Map ? root['error'] : null;
+      final oldest = error is Map ? error['oldest_sequence'] : null;
+      final bootstrapRequired = error is Map && error['bootstrap_required'] == true;
+      if (bootstrapRequired && oldest is num) {
+        // The E2E has already exercised the 410 guard in preflight. For this
+        // assertion we need to inspect the retained feed after a successful
+        // mutation, so resume from the first retained sequence rather than
+        // treating an intentionally compacted history as a test failure.
+        cursor = max(0, oldest.toInt() - 1);
+        recoveredFromRetention = true;
+        continue;
+      }
+    }
+    if (status < 200 || status >= 300) {
+      throw StateError(
+        'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
+      );
+    }
+    final root = response.data;
+    final data = root is Map ? root['data'] : null;
+    if (data is! Map) {
+      throw StateError('E2E change-feed response did not contain data.');
+    }
+    final changes = data['changes'];
+    if (changes is! List) {
+      throw StateError('E2E change-feed response did not contain changes.');
+    }
+    for (final raw in changes) {
+      if (raw is Map &&
+          raw['entity_type'] == entityType &&
+          raw['entity_id'] == entityId) {
+        final sequence = raw['sequence'];
+        if (sequence is num) return sequence.toInt();
+      }
+    }
+    final next = data['next_cursor'];
+    final hasMore = data['has_more'] == true;
+    if (!hasMore || next is! num || next.toInt() <= cursor) break;
+    cursor = next.toInt();
+  }
+  throw StateError(
+    'E2E could not locate the test entity in the retained change feed.',
+  );
+}
+
+Future<Response<dynamic>> _submitSyncOperation(
+  Dio dio, {
+  required String businessId,
+  required String operationId,
+  required Map<String, dynamic> payload,
+}) {
+  return dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'operation_type': 'sync_operation',
+      'operation_id': operationId,
+      'client_reference': operationId,
+      'payload': payload,
+      'action': 'sync_operation',
+    },
+  );
+}
+
+void _printIdentityFingerprint(String label, String value) {
+  final trimmed = value.trim();
+  stdout.writeln(
+    'E2E identity $label: length=${value.length}, '
+    'trimmed_length=${trimmed.length}, fingerprint=${_fingerprint(value)}, '
+    'trimmed_fingerprint=${_fingerprint(trimmed)}',
+  );
+}
+
+String _fingerprint(String value) {
+  // Non-secret diagnostic fingerprint. This avoids printing the actual
+  // identity while making exact CI-vs-local value comparisons possible.
+  var hash = 0xcbf29ce484222325;
+  for (final byte in value.codeUnits) {
+    hash ^= byte;
+    hash = (hash * 0x100000001b3) & 0xffffffffffffffff;
+  }
+  return hash.toRadixString(16).padLeft(16, '0');
+}
+
+enum _PreflightResult { ok, cursorTooOld }
+
+Future<_PreflightResult> _preflightDevice(
+  Dio dio, {
+  required String businessId,
+}) async {
+  final response = await dio.get(
+    '',
+    queryParameters: {'business_id': businessId},
+  );
+  final status = response.statusCode ?? 0;
+  if (status == 410 && response.data is Map && (response.data as Map)['error'] is Map && ((response.data as Map)['error'] as Map)['code'] == 'SYNC_CURSOR_TOO_OLD') {
+    stdout.writeln('PASS: stale sync cursor correctly rejected with SYNC_CURSOR_TOO_OLD');
+    return _PreflightResult.cursorTooOld;
+  }
+  if (status < 200 || status >= 300) {
+    throw StateError(
+      'E2E device preflight failed with HTTP $status: ${response.data}',
+    );
+  }
+  stdout.writeln('PASS: device authorization preflight');
+  return _PreflightResult.ok;
+}
+
+Future<void> _verifyAuthoritativeRecoverySnapshot(
+  Dio dio, {
+  required String businessId,
+}) async {
+  final response = await dio.post(
+    '',
+    data: {
+      'action': 'restore_snapshot',
+      'business_id': businessId,
+    },
+  );
+  _expect2xx(response, 'authoritative restore snapshot');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  if (data is! Map) {
+    throw StateError('restore_snapshot response did not contain data.');
+  }
+  final boundary = data['sync_boundary'];
+  if (boundary is! num || boundary.toInt() < 0) {
+    throw StateError('restore_snapshot returned an invalid sync_boundary.');
+  }
+  if (data['business'] is! Map) {
+    throw StateError('restore_snapshot response did not contain business state.');
+  }
+}
+
+Future<String?> _registerEphemeralDevice(
+  Dio dio, {
+  required String businessId,
+  required String deviceClientId,
+}) async {
+  final response = await dio.post(
+    '',
+    data: {
+      'business_id': businessId,
+      'action': 'register_device',
+      'device_client_id': deviceClientId,
+      'device_name': 'Fulus CI E2E ephemeral device',
+      'platform': 'ci',
+      'app_version': 'e2e',
+    },
+  );
+  _expect2xx(response, 'register ephemeral E2E device');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final device = data is Map ? data['device'] : null;
+  final serverId = device is Map && device['id'] is String
+      ? device['id'] as String
+      : null;
+  stdout.writeln('PASS: ephemeral E2E device registered');
+  return serverId;
+}
+
+Future<void> _revokeEphemeralDevice({
+  required String authUrl,
+  required String publishableKey,
+  required String accessToken,
+  required String businessId,
+  required String deviceId,
+}) async {
+  final dio = Dio(BaseOptions(
+    baseUrl: _required('FULUS_API_URL'),
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'Authorization': 'Bearer $accessToken',
+      'content-type': 'application/json',
+      'x-fulus-device-id': _required('FULUS_DEVICE_ID'),
+    },
+    validateStatus: (_) => true,
+  ));
+  final response = await dio.post('', data: {
+    'action': 'revoke_own_device',
+    'business_id': businessId,
+    'device_id': deviceId,
+  });
+  _expect2xx(response, 'revoke ephemeral E2E device');
+}
+
+
+String _required(String name) {
+  final value = Platform.environment[name];
+  if (value == null || value.isEmpty) {
+    throw StateError('$name is required for the Fulus E2E contract test.');
+  }
+  return value;
+}
+
+Map<String, dynamic>? _actionData(Response<dynamic> response) {
+  final root = response.data;
+  if (root is! Map) return null;
+  final outer = root['data'];
+  if (outer is! Map) return null;
+  final nested = outer['data'];
+  if (nested is Map) {
+    return Map<String, dynamic>.from(nested);
+  }
+  return Map<String, dynamic>.from(outer);
+}
+
+void _expect2xx(Response<dynamic> response, String operation) {
+  final status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    throw StateError(
+      '$operation failed with HTTP $status: ${response.data}',
+    );
+  }
+}
+
+String? _entityId(Response<dynamic> response) {
+  final root = response.data;
+  if (root is! Map) return null;
+  final data = root['data'];
+  if (data is! Map) return null;
+  final item = data['item'];
+  if (item is! Map) return null;
+  final value = item['id'];
+  return value is String ? value : null;
+}
+
+
+Future<void> _verifyBusinessProvisioningIdempotency({
+  required String authUrl,
+  required String publishableKey,
+  required String token,
+  required String businessId,
+}) async {
+  final dio = Dio(BaseOptions(
+    baseUrl: '$authUrl/functions/v1/fulus-provision-business',
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': publishableKey,
+      'Authorization': 'Bearer $token',
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
+
+  Future<Response<dynamic>> provision() {
+    return dio.post(
+      '',
+      data: {
+        'name': 'Fulus E2E Test Business',
+        'currency_code': 'NGN',
+        'timezone': 'Africa/Lagos',
+        'location_name': 'Main',
+      },
+    );
+  }
+
+  final first = await provision();
+  _expect2xx(first, 'business provisioning idempotency first call');
+  final firstRoot = first.data;
+  final firstData = firstRoot is Map ? firstRoot['data'] : null;
+  final firstBusinessId = firstData is Map ? firstData['business_id'] : null;
+  final firstCreated = firstData is Map ? firstData['created'] : null;
+  if (firstBusinessId != businessId || firstCreated != false) {
+    throw StateError(
+      'business provisioning ensure returned unexpected first result: ' + first.data.toString(),
+    );
+  }
+
+  final replay = await provision();
+  _expect2xx(replay, 'business provisioning idempotency replay');
+  final replayRoot = replay.data;
+  final replayData = replayRoot is Map ? replayRoot['data'] : null;
+  final replayBusinessId = replayData is Map ? replayData['business_id'] : null;
+  final replayCreated = replayData is Map ? replayData['created'] : null;
+  if (replayBusinessId != businessId || replayCreated != false) {
+    throw StateError(
+      'business provisioning replay was not idempotent: ' + replay.data.toString(),
+    );
+  }
+
+  stdout.writeln('PASS: account business provisioning is idempotent for an existing cloud account');
+}
+), '/fulus-sync-state');
 }
 
 Future<String?> _findFirstLocationId(Dio dio, {required String businessId}) async {
