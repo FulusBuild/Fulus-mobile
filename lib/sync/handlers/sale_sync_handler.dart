@@ -6,6 +6,7 @@ import 'package:fulus_mobile/data/remote/fulus_product_canonical_reconciler.dart
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/repositories/sale_repository.dart';
+import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_handler.dart';
 
@@ -82,7 +83,7 @@ class SaleSyncHandler implements SyncHandler {
         // that optimistic projection in place. Re-read the authoritative
         // product snapshots before parking the sale so local stock does not
         // remain permanently below the server.
-        await _reconcileProductsAfterRejectedSale(sale, device.deviceClientId, businessId);
+        await _reconcileProductsAfterRejectedSale(sale, device!.deviceClientId, businessId);
         rethrow;
       }
       final data = Map<String, dynamic>.from(result['data'] as Map);
@@ -126,7 +127,7 @@ class SaleSyncHandler implements SyncHandler {
       final serverId = product?.serverId;
       if (serverId == null || serverId.isEmpty) continue;
       try {
-        final canonical = await _fulusSyncApi.fetchCanonicalEntity(
+        final canonical = await _fulusSyncApi!.fetchCanonicalEntity(
           businessId: businessId,
           entityType: 'product',
           entityId: serverId,
