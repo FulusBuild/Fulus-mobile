@@ -126,4 +126,78 @@ void main() {
     expect(applied, isEmpty);
     expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
   });
+  test('empty page with hasMore cannot spin without cursor progress', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+
+    when(() => api.pullChanges(
+          businessId: 'b1',
+          cursor: 0,
+          limit: 100,
+        )).thenAnswer(
+      (_) async => const FulusSyncPullResponse(
+        changes: [],
+        cursor: 0,
+        nextCursor: 0,
+        hasMore: true,
+      ),
+    );
+
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (_) async {},
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<StateError>()),
+    );
+    verify(() => api.pullChanges(
+          businessId: 'b1',
+          cursor: 0,
+          limit: 100,
+        )).called(1);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
+  });
+
+  test('a page containing only already-acknowledged changes cannot spin', () async {
+    SharedPreferences.setMockInitialValues({
+      'fulus_sync_cursor_b1': 5,
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+
+    when(() => api.pullChanges(
+          businessId: 'b1',
+          cursor: 5,
+          limit: 100,
+        )).thenAnswer(
+      (_) async => FulusSyncPullResponse(
+        changes: [change(3), change(5)],
+        cursor: 5,
+        nextCursor: 5,
+        hasMore: true,
+      ),
+    );
+
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (_) async {},
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<StateError>()),
+    );
+    verify(() => api.pullChanges(
+          businessId: 'b1',
+          cursor: 5,
+          limit: 100,
+        )).called(1);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 5);
+  });
+
 }
