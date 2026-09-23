@@ -286,6 +286,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     maxAttemptsBeforeAttentionNeeded: defaultSyncAttentionThreshold,
     diagnosticLogger: diagnosticLogger,
+    // Never allow an outbox item to run while the selected cloud business,
+    // authenticated session, or registered device is not the active sync
+    // context. This is especially important during business switching:
+    // the local database is single-business, so a stale queue must not be
+    // pushed through handlers using the newly selected business ID.
+    canSync: () async => fulusConnectionState.isSyncReady,
   );
 
   final syncConflictResolver = SyncConflictResolver(
