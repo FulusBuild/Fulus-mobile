@@ -279,10 +279,12 @@ class SyncTriggers with WidgetsBindingObserver {
       if (active != null) {
         await active;
       }
-      if (!_syncConfig.isEnabled) return;
+      if (!_started || !_syncConfig.isEnabled) return;
       await _runIfOnline();
     }).catchError((Object error, StackTrace stackTrace) {
-      _onSyncFailure?.call(error, stackTrace);
+      if (_started) {
+        _onSyncFailure?.call(error, stackTrace);
+      }
     });
   }
 
