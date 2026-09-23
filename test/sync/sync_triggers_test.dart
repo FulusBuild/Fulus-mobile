@@ -303,6 +303,26 @@ void main() {
       verify(() => syncEngine.runOnce(manual: true)).called(1);
     });
 
+    test('reports a successful cycle after push and pull both complete', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {});
+
+      var successCalls = 0;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        onSyncSuccess: () => successCalls++,
+        pullFromServer: () async {},
+      );
+
+      await triggers.syncNow();
+
+      expect(successCalls, 1);
+      verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
+    });
+
     test('pull failure does not report a successful sync cycle', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
