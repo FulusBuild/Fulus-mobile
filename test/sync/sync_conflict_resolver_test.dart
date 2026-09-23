@@ -106,6 +106,7 @@ void main() {
           'entity_type': 'customer',
           'entity_id': 'server-customer-1',
           'operation': 'upsert',
+          'latest_sequence': 9,
           'row': {'id': 'server-customer-1'},
         },
       ),
@@ -114,6 +115,7 @@ void main() {
     final resolver = SyncConflictResolver(
       db: db,
       reconciler: reconciler,
+      canonicalFetcher: api,
       connectionState: connectionState,
       preferences: preferences,
     );
@@ -170,6 +172,7 @@ void main() {
     final resolver = SyncConflictResolver(
       db: db,
       reconciler: FulusCanonicalTypedReconciler(api: api, handlers: const {}),
+      canonicalFetcher: api,
       connectionState: connectionState,
       preferences: preferences,
     );
@@ -185,7 +188,7 @@ void main() {
           ..where((c) => c.id.equals('operation-2:conflict')))
         .getSingle();
 
-    expect(queue.baseCursor, 12);
+    expect(queue.baseCursor, 9);
     expect(queue.syncAttempts, 0);
     expect(queue.lastError == null, isTrue);
     expect(conflict.resolvedAt == null, isTrue);
