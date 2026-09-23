@@ -70,24 +70,17 @@ class SyncTriggers with WidgetsBindingObserver {
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
-  /// Business switching must not race an active pull because the local Drift
-  /// database is single-business. A switch waits for the current cycle to
-  /// finish before rebinding the connection state.
+  /// This intentionally does not wait for readiness/connectivity orchestration.
+  /// Business switching can itself be invoked by the readiness initializer;
+  /// waiting on [_readinessRun] from inside that initializer would deadlock.
+  /// The safety property needed here is narrower: do not rebind the single-
+  /// business local database while an actual sync/recovery cycle is applying
+  /// cloud or outbound state.
   Future<void> waitForIdle() async {
     while (true) {
       final syncCycle = _syncCycleRun;
       if (syncCycle != null) {
         await syncCycle;
-        continue;
-      }
-      final readiness = _readinessRun;
-      if (readiness != null) {
-        await readiness;
-        continue;
-      }
-      final connectivityRun = _connectivityRun;
-      if (connectivityRun != null) {
-        await connectivityRun;
         continue;
       }
       final restore = _restoreReconciliationRun;
