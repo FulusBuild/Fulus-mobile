@@ -16,10 +16,6 @@ revoke execute on function public.fulus_api_update_customer(
   uuid,uuid,uuid,text,uuid,text,text,text,text,text,numeric,boolean,text
 ) from service_role;
 
-revoke execute on function public.fulus_api_update_customer(
-  uuid,uuid,uuid,text,uuid,text,text,text,text,text,numeric,boolean,bigint,text
-) from service_role;
-
 revoke execute on function public.fulus_api_update_expense(
   uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text
 ) from service_role;
