@@ -152,10 +152,15 @@ void main() {
 
       if (request.uri.path == '/protected') {
         await refreshStarted.future;
-        await _json(request.response, 401, {
-          'code': 'invalid_token',
-          'message': 'expired',
-        });
+        final authorization = request.headers.value('authorization');
+        if (authorization == 'Bearer fresh-access') {
+          await _json(request.response, 200, {'ok': true});
+        } else {
+          await _json(request.response, 401, {
+            'code': 'invalid_token',
+            'message': 'expired',
+          });
+        }
         return;
       }
 
