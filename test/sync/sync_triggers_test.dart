@@ -338,6 +338,8 @@ void main() {
       final config = await SyncConfig.load();
       final readinessStarted = Completer<void>();
       final releaseReadiness = Completer<void>();
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
       late final SyncTriggers triggers;
       triggers = SyncTriggers(
         syncEngine: syncEngine,
