@@ -178,6 +178,8 @@ Future<void> main() async {
       'selling_price': 150,
       'low_stock_threshold': 5,
       'is_active': true,
+      'category_id': categoryId,
+      'supplier_id': supplierId,
       'tracks_stock': true,
       // Product creation now requires the authoritative stock location.
       // Seed a non-zero quantity so this E2E proves initial local stock
