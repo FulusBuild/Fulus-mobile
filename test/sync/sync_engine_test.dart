@@ -239,7 +239,7 @@ void main() {
     expect(handler.attemptedIds, ['transient-after-threshold']);
     final row = (await allQueueItems()).single;
     expect(row.syncAttempts, 2);
-    expect(row.lastError, 'server down');
+    expect(row.lastError, 'Exception: server down');
   });
 
   test(
