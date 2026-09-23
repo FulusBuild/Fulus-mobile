@@ -8,10 +8,6 @@ revoke execute on function public.create_customer(
 revoke execute on function public.create_customer(
   uuid,text,text,text,text,numeric,text
 ) from service_role;
-revoke execute on function public.create_customer(
-  uuid,text,text,text,text,numeric,text,text
-) from service_role;
-
 revoke execute on function public.fulus_api_update_customer(
   uuid,uuid,uuid,text,uuid,text,text,text,text,text,numeric,boolean,text
 ) from service_role;
