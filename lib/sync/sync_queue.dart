@@ -207,7 +207,10 @@ class SyncQueue {
         .toList();
     Future<List<String>> idsForReturns() async =>
         (await _db.select(_db.returnRequests).get())
-            .where((row) => row.serverId == null && row.deletedAt == null)
+            .where((row) =>
+                row.serverId == null &&
+                row.deletedAt == null &&
+                row.status == 'completed')
             .map((row) => row.localId)
             .toList();
     Future<List<String>> idsForCashDrawerShifts() async =>
