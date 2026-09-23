@@ -414,8 +414,8 @@ void main() {
           operationId: 'q-old',
           entityType: 'customer',
           entityLocalId: 'customer-1',
-          code: 'SYNC_CONFLICT',
-          message: const Value('Customer changed on another device.'),
+          code: const Value('SYNC_CONFLICT'),
+          message: 'Customer changed on another device.',
           createdAt: base.add(const Duration(seconds: 1)),
         ),
       );
