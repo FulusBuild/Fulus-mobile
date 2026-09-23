@@ -161,7 +161,32 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
         if (sale == null) throw StateError('Canonical ledger $serverId references unknown sale $saleServerId.');
         saleLocalId = sale.localId;
       }
-      final existing = await (_db.select(_db.customerLedgerEntries)..where((e) => e.serverId.equals(serverId))).getSingleOrNull();
+      final existingByServerId = await (_db.select(_db.customerLedgerEntries)
+            ..where((e) => e.serverId.equals(serverId)))
+          .getSingleOrNull();
+
+      // Return credit reversals are represented locally as a derived
+      // refundAdjustment immediately when the return is completed offline,
+      // while the authoritative server ledger event uses entry_type
+      // "credit_reversal". Reuse that local projection when the canonical
+      // event arrives instead of creating a duplicate ledger line.
+      CustomerLedgerEntryRow? existing = existingByServerId;
+      if (existing == null && entryType == CustomerLedgerEntryType.refundAdjustment) {
+        final candidates = await (_db.select(_db.customerLedgerEntries)
+              ..where((e) =>
+                  e.serverId.isNull() &
+                  e.customerLocalId.equals(customer.localId) &
+                  e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name) &
+                  e.amount.equals(amount) &
+                  (saleLocalId == null
+                      ? e.saleLocalId.isNull()
+                      : e.saleLocalId.equals(saleLocalId)))
+              ..orderBy([(e) => OrderingTerm.asc(e.createdAt)])
+              ..limit(1))
+            .get();
+        if (candidates.isNotEmpty) existing = candidates.single;
+      }
+
       final localId = existing?.localId ?? Ulid().toString();
       final values = CustomerLedgerEntriesCompanion(
         serverId: Value(serverId),
