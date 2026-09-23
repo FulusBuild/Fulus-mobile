@@ -95,6 +95,21 @@ void main() {
     ]);
   });
 
+  test('does not drain the queue when the sync readiness guard is false', () async {
+    await seedItem(id: 'q1', entityLocalId: 'blocked-by-readiness', enqueuedAt: DateTime.now());
+    final handler = _ScriptedHandler((_) async {});
+    final engine = SyncEngine(
+      db: db,
+      handlersByEntityType: {'widget': handler},
+      canSync: () async => false,
+    );
+
+    await engine.runOnce();
+
+    expect(handler.attemptedIds, isEmpty);
+    expect(await allQueueItems(), hasLength(1));
+  });
+
   test('removes an item from the queue on success', () async {
     await seedItem(id: 'q1', entityLocalId: 'a', enqueuedAt: DateTime.now());
     final handler = _ScriptedHandler((_) async {});
