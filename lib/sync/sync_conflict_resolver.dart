@@ -17,15 +17,18 @@ class SyncConflictResolver {
   SyncConflictResolver({
     required AppDatabase db,
     required FulusCanonicalTypedReconciler reconciler,
+    required FulusCanonicalEntityFetcher canonicalFetcher,
     required FulusConnectionState connectionState,
     required SharedPreferences preferences,
   })  : _db = db,
         _reconciler = reconciler,
+        _canonicalFetcher = canonicalFetcher,
         _connectionState = connectionState,
         _preferences = preferences;
 
   final AppDatabase _db;
   final FulusCanonicalTypedReconciler _reconciler;
+  final FulusCanonicalEntityFetcher _canonicalFetcher;
   final FulusConnectionState _connectionState;
   final SharedPreferences _preferences;
 
@@ -99,7 +102,6 @@ class SyncConflictResolver {
       throw StateError('Fulus Cloud is not ready to retry this conflict.');
     }
 
-    final cursor = _preferences.getInt('fulus_sync_cursor_$businessId') ?? 0;
     final queue = await (_db.select(_db.syncQueueItems)
           ..where((q) => q.id.equals(conflict.operationId)))
         .getSingleOrNull();
@@ -107,11 +109,26 @@ class SyncConflictResolver {
       throw StateError('The conflicted local change is no longer queued.');
     }
 
+    // A conflict means the local cursor may predate the server change that
+    // caused the rejection. Do not rebase against the device's old cursor.
+    // Read the authoritative entity metadata without applying its row locally;
+    // the user explicitly chose to keep the local version.
+    final canonical = await _canonicalFetcher.fetchCanonicalEntity(
+      businessId: businessId,
+      entityType: conflict.entityType,
+      entityId: (await _serverEntityId(conflict.entityType, conflict.entityLocalId)) ?? '',
+      deviceClientId: device.deviceClientId,
+    );
+    final latestSequence = canonical.data['latest_sequence'];
+    if (latestSequence is! num || latestSequence < 1) {
+      throw StateError('Cloud did not provide a valid conflict rebase cursor.');
+    }
+
     await (_db.update(_db.syncQueueItems)
           ..where((q) => q.id.equals(conflict.operationId)))
         .write(
       SyncQueueItemsCompanion(
-        baseCursor: Value(cursor),
+        baseCursor: Value(latestSequence.toInt()),
         syncAttempts: const Value(0),
         lastAttemptedAt: const Value(null),
         lastError: const Value(null),
