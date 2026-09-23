@@ -46,9 +46,9 @@ class FulusSyncCoordinator {
         return cursor;
       }
 
-      if (page.cursor != cursor) {
+      if (page.cursor > cursor) {
         throw StateError(
-          'Cloud Sync response cursor does not match the requested cursor.',
+          'Cloud Sync response cursor is ahead of the requested cursor.',
         );
       }
       final unapplied = page.changes.where((change) => change.sequence > cursor).toList(growable: false);
