@@ -150,6 +150,16 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   }
 
   @override
+  Future<void> markAttentionNeeded(String localId) async {
+    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
+      ExpensesCompanion(
+        syncStatus: const Value(SyncStatus.attentionNeeded),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  @override
   Future<void> updateReceiptPhoto({
     required String localId,
     required String? photoPath,
