@@ -195,8 +195,53 @@ Future<void> main() async {
         '$crossDeviceStatus: ${crossDeviceReplay.data}',
       );
     }
+    final locationOperationId = '${createOperationId}-location-scope';
     dio.options.headers['x-fulus-device-id'] = firstDeviceClientId;
-    stdout.writeln('PASS: idempotency key cannot cross device scope');
+    final locationCreate = await dio.post(
+      '',
+      data: {
+        'action': 'location_create',
+        'business_id': businessId,
+        'operation_id': locationOperationId,
+        'name': 'E2E Sync Scope ${suffix}',
+        'code': 'E2E-SCOPE-${suffix}',
+        'address': 'E2E rollback-compatible location',
+        'timezone': 'Africa/Lagos',
+      },
+    );
+    if ((locationCreate.statusCode ?? 0) < 200 ||
+        (locationCreate.statusCode ?? 0) >= 300) {
+      throw StateError(
+        'Initial location idempotency scope probe failed: ${locationCreate.data}',
+      );
+    }
+
+    dio.options.headers['x-fulus-device-id'] = secondDeviceClientId;
+    final locationReplay = await dio.post(
+      '',
+      data: {
+        'action': 'location_create',
+        'business_id': businessId,
+        'operation_id': locationOperationId,
+        'name': 'E2E Sync Scope ${suffix}',
+        'code': 'E2E-SCOPE-${suffix}',
+        'address': 'E2E rollback-compatible location',
+        'timezone': 'Africa/Lagos',
+      },
+    );
+    if (locationReplay.statusCode != 409 ||
+        locationReplay.data is! Map ||
+        (locationReplay.data as Map)['error'] is! Map ||
+        ((locationReplay.data as Map)['error'] as Map)['code'] !=
+            'LOCATION_CREATION_FAILED') {
+      throw StateError(
+        'Expected cross-device location idempotency rejection, got HTTP '
+        '${locationReplay.statusCode}: ${locationReplay.data}',
+      );
+    }
+
+    dio.options.headers['x-fulus-device-id'] = firstDeviceClientId;
+    stdout.writeln('PASS: idempotency keys cannot cross device scope');
 
     final initialSnapshot = await dio.post(
       '',
