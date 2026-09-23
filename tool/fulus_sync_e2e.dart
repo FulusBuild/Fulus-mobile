@@ -849,24 +849,26 @@ Future<void> _revokeEphemeralDevice({
   required String businessId,
   required String deviceId,
 }) async {
-  final staffDio = Dio(BaseOptions(
-    baseUrl: '$authUrl/functions/v1/fulus-staff-api',
+  final dio = Dio(BaseOptions(
+    baseUrl: _required('FULUS_API_URL'),
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 20),
     headers: {
       'apikey': publishableKey,
       'Authorization': 'Bearer $accessToken',
       'content-type': 'application/json',
+      'x-fulus-device-id': _required('FULUS_DEVICE_ID'),
     },
     validateStatus: (_) => true,
   ));
-  final response = await staffDio.post('', data: {
-    'action': 'revoke_device',
+  final response = await dio.post('', data: {
+    'action': 'revoke_own_device',
     'business_id': businessId,
     'device_id': deviceId,
   });
   _expect2xx(response, 'revoke ephemeral E2E device');
 }
+
 
 String _required(String name) {
   final value = Platform.environment[name];
