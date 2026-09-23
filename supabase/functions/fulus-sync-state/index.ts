@@ -96,6 +96,20 @@ Deno.serve(async (req) => {
     return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
   }
 
+  const { data: latestChange, error: latestChangeError } = await db
+    .from("sync_changes")
+    .select("sequence")
+    .eq("business_id", businessId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId ?? "")
+    .order("sequence", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestChangeError) {
+    return out({ error: { code: "CANONICAL_SEQUENCE_LOOKUP_FAILED", message: "Unable to resolve canonical change sequence" } }, 500);
+  }
+  const latestSequence = latestChange?.sequence ?? 0;
+
   const rawEntityIds = params.get("entity_ids");
   if (rawEntityIds) {
     const entityIds = [...new Set(rawEntityIds.split(",").map((value) => value.trim()).filter(Boolean))];
@@ -117,8 +131,9 @@ Deno.serve(async (req) => {
       operation: byId.has(id) ? "upsert" : "delete",
       row: byId.get(id) ?? null,
       server_authoritative: true,
+      latest_sequence: latestSequence,
     }));
-    return out({ data: { entity_type: entityType, entities, server_authoritative: true } });
+    return out({ data: { entity_type: entityType, entities, server_authoritative: true, latest_sequence: latestSequence } });
   }
 
   if (entityType === "sale") {
@@ -130,7 +145,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (saleError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read sale" } }, 500);
     if (!sale) {
-      return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", sale: null, sale_items: [], sale_payments: [], server_authoritative: true } });
+      return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", sale: null, sale_items: [], sale_payments: [], server_authoritative: true, latest_sequence: latestSequence } });
     }
     const [{ data: items, error: itemsError }, { data: payments, error: paymentsError }] = await Promise.all([
       db.from("sale_items").select("*").eq("sale_id", entityId),
@@ -139,7 +154,7 @@ Deno.serve(async (req) => {
     if (itemsError || paymentsError) {
       return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read sale aggregate" } }, 500);
     }
-    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", sale, sale_items: items ?? [], sale_payments: payments ?? [], server_authoritative: true } });
+    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", sale, sale_items: items ?? [], sale_payments: payments ?? [], server_authoritative: true, latest_sequence: latestSequence } });
   }
 
   if (entityType === "product") {
@@ -151,14 +166,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (error) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read product" } }, 500);
     if (!product) {
-      return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", product: null, stock_levels: [], server_authoritative: true } });
+      return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", product: null, stock_levels: [], server_authoritative: true, latest_sequence: latestSequence } });
     }
     const { data: stockLevels, error: stockError } = await db
       .from("product_stock_levels")
       .select("*")
       .eq("product_id", entityId);
     if (stockError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read product stock" } }, 500);
-    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", product, stock_levels: stockLevels ?? [], server_authoritative: true } });
+    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", product, stock_levels: stockLevels ?? [], server_authoritative: true, latest_sequence: latestSequence } });
   }
 
   if (entityType === "return") {
@@ -170,14 +185,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (returnError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read return" } }, 500);
     if (!returnRow) {
-      return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", row: null, return_items: [], server_authoritative: true } });
+      return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", row: null, return_items: [], server_authoritative: true, latest_sequence: latestSequence } });
     }
     const { data: items, error: itemsError } = await db
       .from("return_items")
       .select("*")
       .eq("return_id", entityId);
     if (itemsError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read return aggregate" } }, 500);
-    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", row: returnRow, return_items: items ?? [], server_authoritative: true } });
+    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", row: returnRow, return_items: items ?? [], server_authoritative: true, latest_sequence: latestSequence } });
   }
 
   const table = SIMPLE_ENTITIES[entityType];
@@ -193,5 +208,5 @@ Deno.serve(async (req) => {
   if (error) {
     return out({ error: { code: "CANONICAL_READ_FAILED", message: `Unable to read ${entityType}` } }, 500);
   }
-  return out({ data: { entity_type: entityType, entity_id: entityId, operation: row ? "upsert" : "delete", row, server_authoritative: true } });
+  return out({ data: { entity_type: entityType, entity_id: entityId, operation: row ? "upsert" : "delete", row, server_authoritative: true, latest_sequence: latestSequence } });
 });
