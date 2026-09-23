@@ -7,7 +7,7 @@ import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../data/remote/fulus_customer_canonical_reconciler.dart';
 import '../../domain/repositories/customer_repository.dart';
-import '../sync_error.dart';
+import '../../core/errors/failure.dart';
 import '../sync_handler.dart';
 
 /// Pushes customer repayment ledger entries to the server.
