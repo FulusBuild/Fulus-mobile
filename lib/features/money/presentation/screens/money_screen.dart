@@ -475,10 +475,18 @@ class _MoneySummary extends StatelessWidget {
             ),
           ];
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < stats.length; i++) ...[
+          // The summary lives inside a vertical ListView, so its row
+          // must provide its own minimum cross-axis height. Without an
+          // explicit height/intrinsic constraint, three Expanded children
+          // can resolve to a zero-height row on some Flutter layouts,
+          // leaving "Money summary" followed by a completely blank area
+          // until another navigation rebuild happens.
+          return ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 104),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < stats.length; i++) ...[
                 if (i > 0)
                   Container(
                     width: 1,
@@ -498,7 +506,7 @@ class _MoneySummary extends StatelessWidget {
                   ),
                 ),
               ],
-            ],
+            ),
           );
         },
       ),
