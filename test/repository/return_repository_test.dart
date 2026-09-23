@@ -242,7 +242,10 @@ void main() {
         refundMethod: 'cash',
         autoApprove: false,
       );
-      expect(pending.status, ReturnStatus.pending);
+      final queuedBeforeCompletion = await (db.select(db.syncQueueItems)
+            ..where((q) => q.entityLocalId.equals(pending.localId)))
+          .get();
+      expect(queuedBeforeCompletion, isEmpty);
 
       final approved = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
@@ -252,6 +255,13 @@ void main() {
         autoApprove: true,
       );
       expect(approved.status, ReturnStatus.approved);
+
+      await returnRepository.completeReturn(approved.localId);
+      final queuedAfterCompletion = await (db.select(db.syncQueueItems)
+            ..where((q) => q.entityLocalId.equals(approved.localId)))
+          .get();
+      expect(queuedAfterCompletion, hasLength(1));
+      expect(queuedAfterCompletion.single.operation, 'create');
     });
 
     test('rejects a product that was not part of the original sale',
