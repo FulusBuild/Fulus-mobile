@@ -299,6 +299,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final syncConflictResolver = SyncConflictResolver(
     db: database,
     reconciler: canonicalReconciler,
+    canonicalFetcher: fulusSyncApi,
     connectionState: fulusConnectionState,
     preferences: syncPreferences,
   );
