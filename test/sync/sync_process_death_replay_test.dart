@@ -8,7 +8,6 @@ import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/widgets.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
