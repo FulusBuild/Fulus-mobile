@@ -215,7 +215,7 @@ $function$;
 
 create or replace function public.cloud_record_income(
   target_business_id uuid, target_location_id uuid, target_source text,
-  target_amount numeric, target_income_date timestamptz, target_note text,
+  target_amount numeric, target_income_date timestamptz, target_notes text,
   target_operation_id text, target_device_id uuid
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $function$
