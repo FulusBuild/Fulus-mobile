@@ -302,23 +302,38 @@ class SyncQueue {
       if (existing != null) {
         final blocked = (existing.lastError ?? '').startsWith('[BLOCKED]') ||
             (existing.lastError ?? '').startsWith('[CONFLICT]');
-        if (!blocked) return;
 
-        // A newer local mutation must be able to supersede a permanently
-        // parked mutation for the same entity/operation. Otherwise a blocked
-        // outbox row would prevent the newer mutation from ever being queued.
-        await (_db.delete(_db.syncQueueItems)
-              ..where((q) => q.id.equals(existing.id)))
-            .go();
-        await (_db.update(_db.syncConflictRecords)
-              ..where((c) => c.operationId.equals(existing.id))
-              ..where((c) => c.resolvedAt.isNull()))
-            .write(
-          SyncConflictRecordsCompanion(
-            resolvedAt: Value(DateTime.now()),
-            resolution: const Value('superseded_by_newer_local_mutation'),
-          ),
-        );
+        // UPDATE operations need a fresh durable queue identity for each
+        // local mutation. The handler reads the mutable local row when it
+        // starts. If the row is edited while an older update is in flight,
+        // coalescing into the same queue row lets the older completion remove
+        // the only queue entry and mark the newer local state settled.
+        // Replacing the row leaves the newer mutation queued even if the old
+        // handler finishes after the replacement. Offline repeated edits still
+        // coalesce to one row because the previous update is replaced before
+        // the next drain.
+        if (task.operation == 'update' && !blocked) {
+          await (_db.delete(_db.syncQueueItems)
+                ..where((q) => q.id.equals(existing.id)))
+              .go();
+        } else if (!blocked) {
+          return;
+        } else {
+          // A newer local mutation must be able to supersede a permanently
+          // parked mutation for the same entity/operation.
+          await (_db.delete(_db.syncQueueItems)
+                ..where((q) => q.id.equals(existing.id)))
+              .go();
+          await (_db.update(_db.syncConflictRecords)
+                ..where((c) => c.operationId.equals(existing.id))
+                ..where((c) => c.resolvedAt.isNull()))
+              .write(
+            SyncConflictRecordsCompanion(
+              resolvedAt: Value(DateTime.now()),
+              resolution: const Value('superseded_by_newer_local_mutation'),
+            ),
+          );
+        }
       }
 
       await _db.into(_db.syncQueueItems).insert(
