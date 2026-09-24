@@ -413,10 +413,16 @@ class _AuthInterceptor extends Interceptor {
     final response = await refreshClient.post(
       '/auth/v1/token?grant_type=refresh_token',
       data: {'refresh_token': refreshToken},
-      options: Options(headers: {
-        'apikey': publishableKey,
-        'content-type': 'application/json',
-      }),
+      options: Options(
+        headers: {
+          'apikey': publishableKey,
+          'content-type': 'application/json',
+        },
+        // Refresh failures are handled by the auth interceptor itself.
+        // Do not let the generic application retry interceptor turn a
+        // transient 5xx from Supabase Auth into a 30s/2m/10m backoff.
+        extra: {'skip_generic_retry': true},
+      ),
     );
 
     final data = Map<String, dynamic>.from(response.data as Map);
@@ -478,10 +484,11 @@ class _RetryInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final status = err.response?.statusCode;
-    final isRetryable = err.type == DioExceptionType.connectionError ||
-        err.type == DioExceptionType.connectionTimeout ||
-        err.type == DioExceptionType.receiveTimeout ||
-        (status != null && status >= 500);
+    final isRetryable = err.requestOptions.extra['skip_generic_retry'] != true &&
+        (err.type == DioExceptionType.connectionError ||
+            err.type == DioExceptionType.connectionTimeout ||
+            err.type == DioExceptionType.receiveTimeout ||
+            (status != null && status >= 500));
     final attempt = (err.requestOptions.extra['retry_attempt'] as int?) ?? 0;
 
     if (!isRetryable || attempt >= _backoffSteps.length) {
