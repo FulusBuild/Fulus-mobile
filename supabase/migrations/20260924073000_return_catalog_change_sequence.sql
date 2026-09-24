@@ -1,3 +1,7 @@
+-- Return the authoritative catalog change-feed sequence from catalog mutations.
+-- Pre-sync archive lifecycles need the create sequence as the OCC base for
+-- their follow-up delete. This is a new migration so already-applied
+-- migration versions remain immutable.
 -- Reassert the complete catalog mutation contract after later actor/search-path hardening.
 -- A previous hardening migration accidentally replaced the initial-stock-aware
 -- cloud_catalog_mutate body with an older version. Keep actor binding, idempotency
@@ -29,6 +33,7 @@ declare
   initial_stock integer;
   initial_location_id uuid;
   initial_movement_id uuid;
+  change_sequence bigint;
 begin
   if target_operation_id is null or length(trim(target_operation_id))=0 then
     raise exception using errcode='22023',message='operation_id is required';
@@ -119,9 +124,16 @@ begin
     if entity_id is null then
       raise exception using errcode='P0002',message='Catalog item not found';
     end if;
+    select max(sc.sequence) into change_sequence
+    from public.sync_changes sc
+    where sc.business_id=target_business_id
+      and sc.entity_type=feed_entity
+      and sc.entity_id=entity_id;
+
     result:=jsonb_build_object(
       'data',jsonb_build_object(
         'entity',target_entity,'item',row_data,'entity_id',entity_id,
+        'sync_sequence',change_sequence,
         'status','deleted','server_authoritative',true
       )
     );
@@ -251,9 +263,16 @@ begin
       end if;
     end if;
 
+    select max(sc.sequence) into change_sequence
+    from public.sync_changes sc
+    where sc.business_id=target_business_id
+      and sc.entity_type=feed_entity
+      and sc.entity_id=entity_id;
+
     result:=jsonb_build_object(
       'data',jsonb_build_object(
         'entity',target_entity,'item',row_data,'entity_id',entity_id,
+        'sync_sequence',change_sequence,
         'status',case when target_id is null then 'created' else 'updated' end,
         'server_authoritative',true
       )
