@@ -1,10 +1,5 @@
 import 'fulus_sync_api.dart';
 
-/// Minimal transport contract needed by canonical reconciliation.
-///
-/// Keeping this boundary separate from the concrete HTTP client makes the
-/// reconciliation layer independently testable and keeps transport concerns
-/// out of entity-owned persistence callbacks.
 abstract interface class FulusCanonicalEntityFetcher {
   Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
     required String businessId,
@@ -14,12 +9,6 @@ abstract interface class FulusCanonicalEntityFetcher {
   });
 }
 
-/// Optional transport capability for bounded canonical reads.
-///
-/// The implementation must preserve the request's business/device
-/// authorization and return one canonical response per requested ID. Missing
-/// rows are represented as delete responses so callers can converge local
-/// state without issuing one HTTP request per change-feed event.
 abstract interface class FulusCanonicalBatchEntityFetcher {
   static const maxBatchSize = 100;
 
@@ -31,11 +20,6 @@ abstract interface class FulusCanonicalBatchEntityFetcher {
   });
 }
 
-/// Routes canonical server state to entity-owned reconciliation callbacks.
-///
-/// This class intentionally has no knowledge of Drift tables or SQL. Each
-/// callback owns the local persistence semantics for its entity and must only
-/// complete after its local reconciliation has completed successfully.
 class FulusCanonicalTypedReconciler {
   FulusCanonicalTypedReconciler({
     required FulusCanonicalEntityFetcher api,
@@ -62,9 +46,6 @@ class FulusCanonicalTypedReconciler {
       return;
     }
 
-    // Preserve feed sequence across entity types. Grouping the entire page by
-    // type would reorder dependent changes (for example, a product change
-    // followed by a sale change). Only contiguous same-type runs are batched.
     var start = 0;
     while (start < changes.length) {
       final entityType = changes[start].entityType;
@@ -75,25 +56,14 @@ class FulusCanonicalTypedReconciler {
 
       final group = changes.sublist(start, end);
       const batchable = {
-        'customer',
-        'category',
-        'supplier',
-        'expense_category',
-        'expense',
-        'income_record',
-        'cash_drawer_shift',
-        'location',
-        'customer_ledger',
-        'stock_movement',
+        'customer', 'category', 'supplier', 'expense_category', 'expense',
+        'income_record', 'cash_drawer_shift', 'location',
+        'customer_ledger', 'stock_movement',
       };
 
       if (!batchable.contains(entityType) || group.length == 1) {
         for (final change in group) {
-          await reconcile(
-            change,
-            businessId: businessId,
-            deviceClientId: deviceClientId,
-          );
+          await reconcile(change, businessId: businessId, deviceClientId: deviceClientId);
         }
       } else {
         for (var offset = 0;
@@ -128,27 +98,18 @@ class FulusCanonicalTypedReconciler {
             final response = byId[change.entityId];
             if (response == null) {
               throw StateError(
-                'Canonical batch response omitted '
-                '${change.entityType}:${change.entityId}',
+                'Canonical batch response omitted ' +
+                change.entityType + ':' + change.entityId,
               );
             }
-            final handler = _handlers[change.entityType];
-            if (handler == null) {
-              throw StateError(
-                'Unsupported canonical sync entity: ${change.entityType}',
-              );
-            }
-            if (response.entityType != change.entityType ||
-                response.entityId != change.entityId) {
-              throw StateError(
-                'Canonical batch response does not match the change.',
-              );
-            }
-            await handler(response);
+            await applyCanonicalResponse(
+              response,
+              expectedEntityType: change.entityType,
+              expectedEntityId: change.entityId,
+            );
           }
         }
       }
-
       start = end;
     }
   }
@@ -158,12 +119,28 @@ class FulusCanonicalTypedReconciler {
     required String businessId,
     required String deviceClientId,
   }) async {
-    final handler = _handlers[change.entityType];
-    if (handler == null) {
-      throw StateError('Unsupported canonical sync entity: ${change.entityType}');
+    final canonical = await fetchCanonical(
+      change,
+      businessId: businessId,
+      deviceClientId: deviceClientId,
+    );
+    await applyCanonicalResponse(
+      canonical,
+      expectedEntityType: change.entityType,
+      expectedEntityId: change.entityId,
+    );
+  }
+
+  Future<FulusCanonicalEntityResponse> fetchCanonical(
+    FulusSyncChange change, {
+    required String businessId,
+    required String deviceClientId,
+  }) async {
+    if (!_handlers.containsKey(change.entityType)) {
+      throw StateError('Unsupported canonical sync entity: ' + change.entityType);
     }
     if (change.operation != 'upsert' && change.operation != 'delete') {
-      throw StateError('Unsupported server sync operation: ${change.operation}');
+      throw StateError('Unsupported server sync operation: ' + change.operation);
     }
 
     final canonical = await _api.fetchCanonicalEntity(
@@ -172,18 +149,45 @@ class FulusCanonicalTypedReconciler {
       entityId: change.entityId,
       deviceClientId: deviceClientId,
     );
+    _validateCanonicalResponse(
+      canonical,
+      expectedEntityType: change.entityType,
+      expectedEntityId: change.entityId,
+    );
+    return canonical;
+  }
 
-    if (canonical.entityType != change.entityType ||
-        canonical.entityId != change.entityId) {
+  Future<void> applyCanonicalResponse(
+    FulusCanonicalEntityResponse canonical, {
+    required String expectedEntityType,
+    required String expectedEntityId,
+  }) async {
+    _validateCanonicalResponse(
+      canonical,
+      expectedEntityType: expectedEntityType,
+      expectedEntityId: expectedEntityId,
+    );
+    final handler = _handlers[expectedEntityType];
+    if (handler == null) {
+      throw StateError('Unsupported canonical sync entity: ' + expectedEntityType);
+    }
+    await handler(canonical);
+  }
+
+  void _validateCanonicalResponse(
+    FulusCanonicalEntityResponse canonical, {
+    required String expectedEntityType,
+    required String expectedEntityId,
+  }) {
+    if (canonical.entityType != expectedEntityType ||
+        canonical.entityId != expectedEntityId) {
       throw StateError('Canonical sync response does not match the change.');
     }
-
     if (canonical.operation != 'upsert' && canonical.operation != 'delete') {
       throw StateError(
-        'Canonical sync response returned unsupported operation: ${canonical.operation}',
+        'Canonical sync response returned unsupported operation: ' +
+        canonical.operation,
       );
     }
-
-    await handler(canonical);
   }
 }
