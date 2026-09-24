@@ -7,6 +7,7 @@ import '../../domain/repositories/location_repository.dart';
 import '../../core/errors/failure.dart';
 import '../../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
 import '../sync_handler.dart';
+import '../sync_execution_lease.dart';
 
 /// Syncs both lifecycle operations for a cash drawer shift through the
 /// canonical Fulus Cloud transport.
@@ -14,12 +15,14 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
   CashDrawerShiftSyncHandler({
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
+    required SyncExecutionLease executionLease,
     required CashDrawerShiftRepository cashDrawerShiftRepository,
     required LocationRepository locationRepository,
   })  : _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _cashDrawerShiftRepository = cashDrawerShiftRepository,
         _locationRepository = locationRepository;
+  final SyncExecutionLease _executionLease;
 
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
@@ -127,9 +130,11 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
           entityId: serverId,
           deviceClientId: device!.deviceClientId,
         );
-        await FulusCashDrawerCanonicalReconciler(
-          repository: _cashDrawerShiftRepository,
-        ).apply(canonical);
+        await _executionLease.runProtectedTransaction(
+          // CashDrawerShiftSyncHandler has no database field; its repository uses the same DB.
+          _cashDrawerShiftRepository.db,
+          () => FulusCashDrawerCanonicalReconciler(repository: _cashDrawerShiftRepository).apply(canonical),
+        );
       } catch (_) {
         // Preserve the original rejection; a later pull can reconcile it.
       }
