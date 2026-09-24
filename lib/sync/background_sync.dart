@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,16 +46,14 @@ void fulusBackgroundSyncCallback() {
       // missing prerequisite becomes available.
       return true;
     } catch (error, stackTrace) {
-      unawaited(
-        diagnosticLogger.captureError(
+      await diagnosticLogger.captureError(
           error: error,
           stackTrace: stackTrace,
           severity: DiagnosticSeverity.warning,
           category: DiagnosticCategory.synchronization,
           component: 'WorkManager',
           operation: 'backgroundSync',
-          title: 'Background Cloud Sync attempt failed',
-        ),
+        title: 'Background Cloud Sync attempt failed',
       );
       return false;
     } finally {
@@ -81,12 +80,13 @@ class FulusBackgroundSyncScheduler {
   bool _initialized = false;
 
   Future<void> initialize() async {
-    if (_initialized) return;
+    if (!Platform.isAndroid || _initialized) return;
     await Workmanager().initialize(fulusBackgroundSyncCallback);
     _initialized = true;
   }
 
   Future<void> setEnabled(bool enabled) async {
+    if (!Platform.isAndroid) return;
     if (!_initialized) {
       throw StateError('FulusBackgroundSyncScheduler is not initialized.');
     }
