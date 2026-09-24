@@ -8,6 +8,7 @@ import '../core/errors/failure.dart';
 import 'sync_config.dart';
 import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
+import 'sync_execution_lease.dart';
 
 /// Wires Architecture Section 8's trigger conditions to SyncEngine.runOnce.
 /// Server -> device reconciliation is supplied separately through
@@ -35,6 +36,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Connectivity? connectivity,
     this.retryInterval = const Duration(seconds: 30),
     Future<void> Function()? onDeviceAuthorizationLost,
+    SyncExecutionLease? executionLease,
   })  : _syncEngine = syncEngine,
         _syncConfig = syncConfig,
         _syncStatusNotifier = syncStatusNotifier,
@@ -48,7 +50,8 @@ class SyncTriggers with WidgetsBindingObserver {
         _onRecoveryReconciled = onRecoveryReconciled,
         _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
-        _connectivity = connectivity ?? Connectivity();
+        _connectivity = connectivity ?? Connectivity(),
+        _executionLease = executionLease;
 
   final SyncEngine _syncEngine;
   final SyncConfig _syncConfig;
@@ -63,6 +66,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
+  final SyncExecutionLease? _executionLease;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -73,7 +77,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
-  Future<void>? _syncCycleRun;
+  Future<bool>? _syncCycleRun;
   bool _syncRequestedAfterCycle = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
@@ -181,7 +185,8 @@ class SyncTriggers with WidgetsBindingObserver {
       );
     }
     try {
-      await _runSyncCycle(manual: true);
+      final didRun = await _runSyncCycle(manual: true);
+      if (!didRun) return;
       await _syncStatusNotifier.checkForStuckSyncAndNotify();
       _onSyncSuccess?.call();
     } catch (error, stackTrace) {
@@ -402,7 +407,8 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> _runAndCheckStuck() async {
     try {
-      await _runSyncCycle();
+      final didRun = await _runSyncCycle();
+      if (!didRun) return;
       await _syncStatusNotifier.checkForStuckSyncAndNotify();
       _onSyncSuccess?.call();
     } on AuthFailure catch (error, stackTrace) {
@@ -418,17 +424,30 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _runSyncCycle({bool manual = false}) async {
+  Future<bool> _runSyncCycle({bool manual = false}) async {
     final active = _syncCycleRun;
-    if (active != null) {
-      await active;
-      return;
+    if (active != null) return active;
+
+    final lease = _executionLease;
+    if (lease != null && !await lease.acquire()) {
+      // Another Fulus runtime owns the durable SQLite sync lease. Treat this
+      // wake-up as a no-op and allow a later foreground or WorkManager trigger
+      // to run once the active cycle has released the lease.
+      return false;
     }
 
-    final run = _performSyncCycle(manual: manual);
+    late Future<bool> run;
+    run = () async {
+      try {
+        await _performSyncCycle(manual: manual);
+        return true;
+      } finally {
+        await lease?.release();
+      }
+    }();
     _syncCycleRun = run;
     try {
-      await run;
+      return await run;
     } finally {
       final followUpRequested = _syncRequestedAfterCycle;
       _syncRequestedAfterCycle = false;
