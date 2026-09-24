@@ -32,6 +32,10 @@ class SyncEngine {
         _onDeviceAuthorizationLost = onDeviceAuthorizationLost;
 
   final AppDatabase _db;
+
+  /// Exposes the database used by the engine so runtime coordination layers
+  /// can share durable SQLite primitives without owning a second database.
+  AppDatabase get db => _db;
   final Map<String, SyncHandler> _handlersByEntityType;
   final RetryPolicy _retryPolicy;
   final ConflictResolver _conflictResolver;
