@@ -102,10 +102,10 @@ class FulusBackgroundSyncScheduler {
       fulusBackgroundSyncUniqueName,
       fulusBackgroundSyncTaskName,
       frequency: const Duration(minutes: 15),
-      constraints: const Constraints(
+      constraints: Constraints(
         networkType: NetworkType.connected,
       ),
-      existingPeriodicWorkPolicy: ExistingPeriodicWorkPolicy.update,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 1),
       tag: 'fulus-cloud-sync',
