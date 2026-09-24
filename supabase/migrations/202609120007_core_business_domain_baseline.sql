@@ -242,8 +242,7 @@ create or replace function public.fulus_api_update_expense(
   target_user_id uuid, target_business_id uuid, target_device_id uuid,
   target_operation_id text, target_expense_id uuid, target_location_id uuid,
   target_amount numeric, target_category text, target_description text,
-  target_expense_date timestamptz, target_payment_method text,
-  target_request_hash text
+  target_expense_date timestamptz, target_request_hash text
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $function$
 begin
