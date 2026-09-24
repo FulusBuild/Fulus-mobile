@@ -65,6 +65,23 @@ void main() {
     );
   });
 
+  test('HTTP 408 request timeout is retryable', () async {
+    final syncApi = FulusSyncApi(
+      client: client,
+      functionBaseUrl: 'http://127.0.0.1:' + server.port.toString() + '/fulus',
+    );
+    await respond(408, {'message': 'request timed out'});
+
+    await expectLater(
+      syncApi.pullChanges(businessId: 'business-1', cursor: 10),
+      throwsA(
+        isA<SyncFailure>()
+            .having((e) => e.kind, 'kind', SyncErrorKind.temporaryServer)
+            .having((e) => e.shouldRetry, 'shouldRetry', true),
+      ),
+    );
+  });
+
   test('HTTP 500 remains classified as an unavailable network/server error',
       () async {
     final syncApi = FulusSyncApi(
