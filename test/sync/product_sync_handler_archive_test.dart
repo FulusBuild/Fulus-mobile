@@ -92,7 +92,7 @@ void main() {
       call++;
       if (call == 1) {
         return {
-          'data': {'entity_id': 'server-pre-sync'},
+          'data': {'entity_id': 'server-pre-sync', 'sync_sequence': 11},
         };
       }
       return {
@@ -117,6 +117,7 @@ void main() {
           deviceClientId: 'device-client-1',
           payload: {
             'server_id': 'server-pre-sync',
+            'base_cursor': 11,
           },
         )).called(1);
   });

@@ -72,6 +72,7 @@ class CategorySyncHandler implements SyncHandler {
           : payload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
+    final createSequence = (data['sync_sequence'] as num?)?.toInt();
     final serverId = (data['entity_id'] as String?) ?? category.serverId;
     if (serverId == null) {
       throw StateError('Fulus category sync returned no server entity ID.');
@@ -83,7 +84,10 @@ class CategorySyncHandler implements SyncHandler {
         operationType: 'category.delete',
         operationId: '${operationId}:delete',
         deviceClientId: device.deviceClientId,
-        payload: {'server_id': serverId},
+        payload: {
+          'server_id': serverId,
+          if (createSequence != null) 'base_cursor': createSequence,
+        },
       );
       final deleteData = Map<String, dynamic>.from(deleteResult['data'] as Map);
       if ((deleteData['entity_id'] as String?) != serverId) {

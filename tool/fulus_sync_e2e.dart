@@ -202,7 +202,15 @@ Future<void> main() async {
     if (serverId == null || serverId.isEmpty) {
       throw StateError('initial product.create returned no data.item.id');
     }
-    stdout.writeln('PASS: product.create');
+    final createData = _actionData(create);
+    final createSequence = createData?['sync_sequence'];
+    if (createSequence is! num || createSequence.toInt() <= 0) {
+      throw StateError(
+        'initial product.create returned no authoritative sync sequence: ' +
+        create.data.toString(),
+      );
+    }
+    stdout.writeln('PASS: product.create returns its change-feed sequence');
 
     // The idempotency key is business-scoped for storage, but its meaning is
     // device-scoped. Reusing the same operation from another registered device

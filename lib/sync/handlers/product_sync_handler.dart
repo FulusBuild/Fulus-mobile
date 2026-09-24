@@ -93,6 +93,7 @@ class ProductSyncHandler implements SyncHandler {
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
     final serverId = data['entity_id'] as String?;
+    final createSequence = (data['sync_sequence'] as num?)?.toInt();
     if (serverId == null) {
       throw StateError('Fulus product create returned no server entity ID.');
     }
@@ -105,6 +106,7 @@ class ProductSyncHandler implements SyncHandler {
         deviceClientId: device.deviceClientId,
         payload: {
           'server_id': serverId,
+          if (createSequence != null) 'base_cursor': createSequence,
         },
       );
       final deleteData = Map<String, dynamic>.from(deleteResult['data'] as Map);

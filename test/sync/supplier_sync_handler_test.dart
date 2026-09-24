@@ -142,13 +142,14 @@ void main() {
           invocation.namedArguments[#operationType] as String;
       if (operationType == 'supplier.create') {
         return {
-          'data': {'entity_id': 'server-archived-supplier'},
+          'data': {'entity_id': 'server-archived-supplier', 'sync_sequence': 21},
         };
       }
       if (operationType == 'supplier.delete') {
         final payload =
             invocation.namedArguments[#payload] as Map<String, dynamic>;
         expect(payload['server_id'], 'server-archived-supplier');
+        expect(payload['base_cursor'], 21);
         return {
           'data': {'entity_id': 'server-archived-supplier'},
         };
