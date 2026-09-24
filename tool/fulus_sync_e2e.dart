@@ -1387,34 +1387,32 @@ Future<int> _customerBalanceFeedSequence(
   required String businessId,
   required String customerId,
 }) async {
-  final response = await dio.get(
+  // Use the authoritative recovery boundary instead of cursor=0. A long-lived
+  // E2E business may have a compacted change feed, so cursor zero is not a
+  // valid baseline once retention has advanced. The restore boundary is the
+  // server's current durable sequence and is safe as a before-mutation cursor.
+  final response = await dio.post(
     '',
-    queryParameters: {
+    data: {
+      'action': 'restore_snapshot',
       'business_id': businessId,
-      'cursor': 0,
-      'limit': 500,
     },
   );
-  if ((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300) {
+  _expect2xx(response, 'customer balance feed baseline');
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  if (data is! Map) {
     throw StateError(
-      'Unable to read customer change-feed sequence through sync API: '
-      'HTTP ${response.statusCode}: ${response.data}',
+      'Customer balance feed baseline returned no snapshot data: $root',
     );
   }
-  final body = response.data;
-  final data = body is Map ? body['data'] : null;
-  final changes = data is Map ? data['changes'] : null;
-  if (changes is! List) {
-    throw StateError('Sync API returned no change list: $body');
+  final boundary = data['sync_boundary'];
+  if (boundary is! num || boundary.toInt() < 0) {
+    throw StateError(
+      'Customer balance feed baseline returned invalid sync_boundary: $root',
+    );
   }
-  var latest = 0;
-  for (final raw in changes) {
-    if (raw is! Map) continue;
-    if (raw['entity_type'] != 'customer' || raw['entity_id'] != customerId) continue;
-    final sequence = _parseSequence(raw['sequence']);
-    if (sequence != null && sequence > latest) latest = sequence;
-  }
-  return latest;
+  return boundary.toInt();
 }
 
 Future<void> _verifyCustomerBalanceFeedChange(
