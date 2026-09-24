@@ -65,6 +65,67 @@ void main() {
     await secondLease.release();
   });
 
+  test('a resumed runtime stops before pull after another runtime takes over', () async {
+    final firstEngine = _MockSyncEngine();
+    final secondEngine = _MockSyncEngine();
+    final firstStatus = _MockSyncStatusNotifier();
+    final secondStatus = _MockSyncStatusNotifier();
+    when(() => firstStatus.checkForStuckSyncAndNotify()).thenAnswer((_) async {});
+    when(() => secondStatus.checkForStuckSyncAndNotify()).thenAnswer((_) async {});
+
+    final releaseFirstEngine = Completer<void>();
+    var firstPullCalls = 0;
+    when(() => firstEngine.runOnce(manual: any(named: 'manual')))
+        .thenAnswer((_) => releaseFirstEngine.future);
+    when(() => secondEngine.runOnce(manual: any(named: 'manual')))
+        .thenAnswer((_) async {});
+
+    final config1 = await SyncConfig.load();
+    final config2 = await SyncConfig.load();
+    await config1.setEnabled(true);
+    await config2.setEnabled(true);
+
+    final firstTriggers = SyncTriggers(
+      syncEngine: firstEngine,
+      syncConfig: config1,
+      syncStatusNotifier: firstStatus,
+      executionLease: SyncExecutionLease(
+        db,
+        leaseDuration: const Duration(milliseconds: 50),
+        acquisitionTimeout: const Duration(milliseconds: 100),
+      ),
+      pullFromServer: () async {
+        firstPullCalls++;
+      },
+    );
+    final secondTriggers = SyncTriggers(
+      syncEngine: secondEngine,
+      syncConfig: config2,
+      syncStatusNotifier: secondStatus,
+      executionLease: SyncExecutionLease(
+        db,
+        leaseDuration: const Duration(seconds: 1),
+        acquisitionTimeout: const Duration(milliseconds: 100),
+      ),
+      pullFromServer: () async {},
+    );
+
+    final firstRun = firstTriggers.syncNow();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    await secondTriggers.syncNow();
+    verify(() => secondEngine.runOnce(manual: any(named: 'manual'))).called(1);
+
+    releaseFirstEngine.complete();
+    await firstRun;
+
+    verify(() => firstEngine.runOnce(manual: true)).called(1);
+    expect(firstPullCalls, 0);
+
+    firstTriggers.dispose();
+    secondTriggers.dispose();
+  });
+
   test('the lease covers the full push-pull cycle, not only queue draining',
       () async {
     await db.into(db.syncQueueItems).insert(
