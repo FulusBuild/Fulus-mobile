@@ -9,7 +9,6 @@ import '../data/local/database/database.dart';
 import 'conflict_resolver.dart';
 import 'retry_policy.dart';
 import 'sync_error.dart';
-import 'sync_execution_lease.dart';
 import 'sync_handler.dart';
 
 /// Durable queue-draining engine. A failed item remains in the queue, while
@@ -24,15 +23,13 @@ class SyncEngine {
     DiagnosticLogger? diagnosticLogger,
     Future<bool> Function()? canSync,
     Future<void> Function()? onDeviceAuthorizationLost,
-    SyncExecutionLease? executionLease,
   })  : _db = db,
         _handlersByEntityType = handlersByEntityType,
         _retryPolicy = retryPolicy,
         _conflictResolver = conflictResolver,
         _diagnosticLogger = diagnosticLogger,
         _canSync = canSync,
-        _onDeviceAuthorizationLost = onDeviceAuthorizationLost,
-        _executionLease = executionLease;
+        _onDeviceAuthorizationLost = onDeviceAuthorizationLost;
 
   final AppDatabase _db;
   final Map<String, SyncHandler> _handlersByEntityType;
@@ -41,7 +38,6 @@ class SyncEngine {
   final DiagnosticLogger? _diagnosticLogger;
   final Future<bool> Function()? _canSync;
   final Future<void> Function()? _onDeviceAuthorizationLost;
-  final SyncExecutionLease? _executionLease;
   final int maxAttemptsBeforeAttentionNeeded;
 
   Future<void>? _activeRun;
@@ -63,22 +59,11 @@ class SyncEngine {
 
   Future<void> _runOnce({required bool manual}) async {
     if (_isRunning) return;
-
-    final lease = _executionLease;
-    if (lease != null && !await lease.acquire()) {
-      // Another Fulus runtime is already synchronizing. A later foreground
-      // trigger or WorkManager invocation will retry after that runtime
-      // releases the SQLite lease. Most importantly, never let two runtimes
-      // mutate the same outbox/cursor concurrently.
-      return;
-    }
-
     _isRunning = true;
     try {
       await _drainQueue(manual: manual);
     } finally {
       _isRunning = false;
-      await lease?.release();
     }
   }
 
