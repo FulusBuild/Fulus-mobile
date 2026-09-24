@@ -250,6 +250,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'product': FulusProductCanonicalReconciler(repository: productRepository).apply,
     },
   );
+  final syncExecutionLease = SyncExecutionLease(database);
+
   final syncCoordinator = FulusSyncCoordinator(
     api: fulusSyncApi,
     preferences: syncPreferences,
@@ -289,10 +291,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         serverId: change.entityId,
       ));
     },
-    withApplyTransaction: (action) => database.transaction(action),
+    withApplyTransaction: (action) => database.transaction(() async {
+      // This must be the first database operation in the transaction. The
+      // conditional UPDATE acquires SQLite's writer lock before eligibility
+      // checks and canonical reconciliation, fencing lease takeover from the
+      // entire apply transaction.
+      await syncExecutionLease.ensureHeldForTransaction();
+      await action();
+    }),
   );
 
-  final syncExecutionLease = SyncExecutionLease(database);
 
   final syncEngine = SyncEngine(
     db: database,
