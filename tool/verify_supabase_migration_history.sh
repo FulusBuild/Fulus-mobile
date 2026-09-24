@@ -25,10 +25,23 @@ curl --fail --silent --show-error --location \
   jq -r '.[] | [.version, .name] | @tsv' |
   sort > "$remote_file"
 
-if ! diff -u "$remote_file" "$local_file"; then
-  echo "::error::Production Supabase migration history does not exactly match the repository migration chain."
+remote_count="$(wc -l < "$remote_file")"
+local_count="$(wc -l < "$local_file")"
+
+if [ "$remote_count" -gt "$local_count" ]; then
+  echo "::error::Production Supabase migration history contains migrations that are not present in the repository."
   echo "::error::Do not run supabase db push until the history is repaired."
   exit 1
 fi
 
-echo "Production migration history matches repository: $(wc -l < "$local_file") migrations."
+if ! head -n "$remote_count" "$local_file" | diff -u "$remote_file" -; then
+  echo "::error::Production Supabase migration history is not an exact prefix of the repository migration chain."
+  echo "::error::Do not run supabase db push until the history is repaired."
+  exit 1
+fi
+
+if [ "$remote_count" -lt "$local_count" ]; then
+  echo "Production migration history is a valid prefix: $remote_count applied, $((local_count - remote_count)) pending."
+else
+  echo "Production migration history matches repository: $local_count migrations."
+fi
