@@ -17,6 +17,7 @@ class ExpenseSyncHandler implements SyncHandler {
     required FulusConnectionState fulusConnectionState,
     required ExpenseRepository expenseRepository,
   })  : _db = db,
+        _executionLease = executionLease,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _expenseRepository = expenseRepository;
