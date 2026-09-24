@@ -182,7 +182,7 @@ void main() {
         onSyncFailure: (error, _) => reportedError = error,
       );
 
-      await triggers.start();
+      await expectLater(triggers.start(), throwsStateError);
       await Future<void>.delayed(const Duration(milliseconds: 55));
 
       expect(runCount, greaterThanOrEqualTo(3));
