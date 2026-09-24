@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
 import '../../core/config/supabase_config.dart';
@@ -343,12 +345,28 @@ class _AuthInterceptor extends Interceptor {
     final active = _refreshRun;
     if (active != null) return active;
 
-    final run = _performStoredRefresh();
-    late Future<_RefreshResult> tracked;
-    tracked = run.whenComplete(() {
-      if (identical(_refreshRun, tracked)) _refreshRun = null;
-    });
+    // Install the shared future before starting the asynchronous refresh.
+    // _performStoredRefresh() immediately reaches its first await while
+    // reading SecureStorage, so assigning the future only after invoking it
+    // leaves a real window where another 401/startup restore can start a
+    // second one-use refresh-token rotation.
+    final completer = Completer<_RefreshResult>();
+    final tracked = completer.future;
     _refreshRun = tracked;
+
+    () async {
+      try {
+        final result = await _performStoredRefresh();
+        completer.complete(result);
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      } finally {
+        if (identical(_refreshRun, tracked)) {
+          _refreshRun = null;
+        }
+      }
+    }();
+
     return tracked;
   }
 
