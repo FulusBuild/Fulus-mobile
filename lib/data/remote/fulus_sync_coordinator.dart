@@ -96,10 +96,10 @@ class FulusSyncCoordinator {
         final withApplyTransaction = _withApplyTransaction;
         if (withApplyTransaction != null) {
           // Keep the eligibility check and local reconciliation in one Drift
-          // transaction. If another runtime commits a local mutation after the
-          // check but before reconciliation writes, SQLite snapshot isolation
-          // rejects the stale transaction instead of allowing canonical state
-          // to overwrite the newer local edit.
+          // transaction. Drift starts native SQLite transactions as write
+          // transactions, so another runtime cannot commit a local write between
+          // the eligibility check and canonical reconciliation. Its write waits
+          // for this short transaction instead of being allowed to interleave.
           await withApplyTransaction(applyPage);
         } else {
           await applyPage();
