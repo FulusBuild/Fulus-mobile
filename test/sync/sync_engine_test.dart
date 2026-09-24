@@ -630,6 +630,54 @@ void main() {
   });
 
   test(
+      'a stale handler completion cannot remove a newer replacement queue item',
+      () async {
+    final firstStarted = Completer<void>();
+    final releaseFirst = Completer<void>();
+    late SyncEngine engine;
+    var calls = 0;
+
+    await seedItem(
+      id: 'q-old',
+      entityType: 'product',
+      entityLocalId: 'product-1',
+      operation: 'update',
+      enqueuedAt: DateTime.now(),
+    );
+
+    final handler = _ScriptedHandler((item) async {
+      calls++;
+      if (calls == 1) {
+        firstStarted.complete();
+        await releaseFirst.future;
+        return;
+      }
+      throw StateError('the replacement must remain queued until its own run');
+    });
+
+    engine = SyncEngine(db: db, handlersByEntityType: {'product': handler});
+
+    final firstRun = engine.runOnce();
+    await firstStarted.future;
+
+    // This is the durable queue replacement used for a newer local update.
+    // It receives a new operation ID, so completion of the stale q-old
+    // handler must never be able to delete q-new.
+    final queue = SyncQueue(db);
+    await queue.enqueue(SyncTask.updateProduct('product-1'));
+    final replacement = await allQueueItems();
+    expect(replacement, hasLength(1));
+    expect(replacement.single.id, isNot('q-old'));
+
+    releaseFirst.complete();
+    await firstRun;
+
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(1));
+    expect(remaining.single.id, replacement.single.id);
+  });
+
+  test(
       'leaves work enqueued during an active drain for the next sync cycle',
       () async {
     final firstStarted = Completer<void>();
