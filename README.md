@@ -45,7 +45,7 @@ Direct ESC/POS printing to paired Bluetooth or USB thermal printers — no separ
 On-device backup and restore of the full local database.
 
 **Sync — optional, never required**
-When connectivity is available and sync is turned on, Fulus reconciles with a central backend in the background, with automatic retry (backing off rather than hammering a dead connection) and conflict detection for anything changed on both sides. The app is fully functional with sync permanently off.
+When connectivity is available and sync is turned on, Fulus reconciles with a central backend in the background, with automatic retry, conflict detection, and Android WorkManager scheduling. Foreground sync reacts to mutations, connectivity changes, resume, and periodic retry; Android WorkManager provides an OS-scheduled recovery path when the Flutter process has been suspended or terminated. Background execution is opportunistic because Android controls when scheduled work runs, so this is not a permanently open network connection. The app is fully functional with sync permanently off.
 
 ## Architecture
 
@@ -135,6 +135,12 @@ Schema changes are handled through versioned, incremental migrations, so existin
 Synchronization is strictly optional and off by default. When enabled, Fulus queues changes locally as they happen and reconciles them with a central backend opportunistically — whenever connectivity is available, without blocking or slowing down the app in the meantime. Each business-data type that supports sync has a dedicated handler responsible for translating between the local and remote representations, so sync logic for one type of record can evolve independently of the others. A failed sync backs off with increasing delay rather than retrying immediately, and a change that conflicts with one made elsewhere is flagged rather than silently overwritten in either direction.
 
 A shop that never turns sync on loses nothing from the core experience — sync exists to layer on cross-device visibility and backup, not to gate day-to-day use.
+
+### Background Sync Runtime
+
+Android background sync is implemented in `lib/sync/background_sync.dart`. The scheduler registers one unique 15-minute periodic task when Cloud Sync is enabled and cancels it when sync is disabled. The worker boots the same production sync stack used by the foreground runtime, including authentication restoration, device registration/readiness, durable outbox draining, pull/canonical reconciliation, and stale-cursor recovery. A short SQLite lease in `sync_runtime_leases` serializes foreground and background execution; the lease renews while active and expires after process death so a later runtime can recover automatically.
+
+The implementation intentionally does not claim exact 15-minute execution or an always-open connection. Android may defer scheduled work according to OS resource and battery policy. The release gate still includes physical Android validation after app termination/backgrounding.
 
 ## Backup & Restore
 
