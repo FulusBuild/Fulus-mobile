@@ -21,6 +21,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
     required SecureStorage secureStorage,
     CustomerRepository? customerRepository,
   })  : _db = db,
+        _executionLease = executionLease,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _secureStorage = secureStorage,
