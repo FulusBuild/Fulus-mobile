@@ -74,6 +74,7 @@ class SyncTriggers with WidgetsBindingObserver {
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
   Future<void>? _syncCycleRun;
+  bool _syncRequestedAfterCycle = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
@@ -274,6 +275,14 @@ class SyncTriggers with WidgetsBindingObserver {
 
   Future<void> notifyEnqueued() async {
     if (!_syncConfig.isEnabled) return;
+    // A local mutation can be committed while the push phase is in flight.
+    // Do not let that mutation run before the current cycle's pull advances
+    // the local cursor; its base cursor may otherwise be stale relative to a
+    // successful earlier mutation of the same entity on this device.
+    if (_syncCycleRun != null) {
+      _syncRequestedAfterCycle = true;
+      return;
+    }
     await _runIfOnline();
   }
 
@@ -401,8 +410,23 @@ class SyncTriggers with WidgetsBindingObserver {
     try {
       await run;
     } finally {
+      final followUpRequested = _syncRequestedAfterCycle;
+      _syncRequestedAfterCycle = false;
       if (identical(_syncCycleRun, run)) {
         _syncCycleRun = null;
+      }
+      if (followUpRequested && _syncConfig.isEnabled && _started) {
+        // Start only after the active-cycle marker has been cleared so the
+        // follow-up cannot recursively await the cycle that requested it.
+        Timer.run(() {
+          unawaited(
+            _runIfOnline().catchError((Object error, StackTrace stackTrace) {
+              if (_started) {
+                _onSyncFailure?.call(error, stackTrace);
+              }
+            }),
+          );
+        });
       }
     }
   }
