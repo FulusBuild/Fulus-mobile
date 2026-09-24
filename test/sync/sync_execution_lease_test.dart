@@ -67,7 +67,7 @@ void main() {
 
     final firstLease = SyncExecutionLease(
       db1,
-      leaseDuration: const Duration(milliseconds: 50),
+      leaseDuration: const Duration(minutes: 2),
       acquisitionTimeout: const Duration(seconds: 2),
     );
     final secondLease = SyncExecutionLease(
@@ -76,6 +76,18 @@ void main() {
     );
 
     expect(await firstLease.acquire(), isTrue);
+
+    // Shorten the committed lease from a separate connection before the
+    // transaction starts. The long lease duration keeps the renewal timer
+    // inactive while the test deliberately lets the lease expire.
+    await (db2.update(db2.syncRuntimeLeases)
+          ..where((row) => row.name.equals(SyncExecutionLease.leaseName)))
+        .write(
+      SyncRuntimeLeasesCompanion(
+        expiresAt: Value(DateTime.now().add(const Duration(milliseconds: 500))),
+      ),
+    );
+
     final transactionStarted = Completer<void>();
     final releaseTransaction = Completer<void>();
     final transaction = db1.transaction(() async {
@@ -85,7 +97,7 @@ void main() {
     });
 
     await transactionStarted.future;
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await Future<void>.delayed(const Duration(milliseconds: 700));
 
     final takeover = secondLease.acquire();
     await Future<void>.delayed(const Duration(milliseconds: 100));
