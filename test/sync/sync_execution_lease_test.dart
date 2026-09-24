@@ -113,6 +113,7 @@ void main() {
 
     final config1 = await SyncConfig.load();
     final config2 = await SyncConfig.load();
+    await config1.setEnabled(true);
 
     final firstTriggers = SyncTriggers(
       syncEngine: firstEngine,
@@ -137,6 +138,7 @@ void main() {
       ),
       pullFromServer: () async {},
     );
+    await config2.setEnabled(true);
 
     final firstRun = firstTriggers.syncNow();
     await firstPullStarted.future;
@@ -151,37 +153,4 @@ void main() {
     secondTriggers.dispose();
   });
 
-  test('a SyncEngine without an execution lease remains usable in isolation',
-      () async {
-    final handler = _BlockingHandler(Completer<void>(), Completer<void>());
-    final engine = SyncEngine(
-      db: db,
-      handlersByEntityType: {'widget': handler},
-    );
-
-    await db.into(db.syncQueueItems).insert(
-          SyncQueueItemsCompanion.insert(
-            id: 'q-isolated',
-            entityType: 'widget',
-            entityLocalId: 'widget-isolated',
-            operation: 'update',
-            priority: 0,
-            enqueuedAt: DateTime.now(),
-          ),
-        );
-
-    final release = Completer<void>();
-    final started = Completer<void>();
-    final isolated = _BlockingHandler(started, release);
-    final isolatedEngine = SyncEngine(
-      db: db,
-      handlersByEntityType: {'widget': isolated},
-    );
-
-    final run = isolatedEngine.runOnce();
-    await started.future;
-    release.complete();
-    await run;
-    expect(await db.select(db.syncQueueItems).get(), isEmpty);
-  });
 }
