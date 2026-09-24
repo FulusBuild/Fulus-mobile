@@ -286,6 +286,98 @@ class SyncQueue {
     });
   }
 
+  /// Returns whether an outbound mutation is still queued for the canonical
+  /// server entity represented by [entityType] and [serverId]. Pull must not
+  /// overwrite an optimistic local row while its mutation is waiting to be
+  /// sent or retried.
+  Future<bool> hasPendingMutationForServerEntity({
+    required String entityType,
+    required String serverId,
+  }) async {
+    String? localId;
+    switch (entityType) {
+      case 'sale':
+        localId = (await (_db.select(_db.sales)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'customer':
+        localId = (await (_db.select(_db.customers)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'customer_ledger':
+        localId = (await (_db.select(_db.customerLedgerEntries)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'category':
+        localId = (await (_db.select(_db.categories)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'supplier':
+        localId = (await (_db.select(_db.suppliers)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'location':
+        localId = (await (_db.select(_db.locations)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'return':
+        localId = (await (_db.select(_db.returnRequests)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'expense_category':
+        localId = (await (_db.select(_db.expenseCategories)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'cash_drawer_shift':
+        localId = (await (_db.select(_db.cashDrawerShifts)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'expense':
+        localId = (await (_db.select(_db.expenses)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'income_record':
+        localId = (await (_db.select(_db.incomeRecords)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'stock_movement':
+        localId = (await (_db.select(_db.stockMovements)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'product':
+        localId = (await (_db.select(_db.products)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      default:
+        return false;
+    }
+    if (localId == null) return false;
+    final queued = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.entityType.equals(entityType))
+          ..where((q) => q.entityLocalId.equals(localId!))
+          ..limit(1))
+        .getSingleOrNull();
+    return queued != null;
+  }
+
   Future<bool> hasPendingItems() async {
     final row = await (_db.select(_db.syncQueueItems)..limit(1)).getSingleOrNull();
     return row != null;
