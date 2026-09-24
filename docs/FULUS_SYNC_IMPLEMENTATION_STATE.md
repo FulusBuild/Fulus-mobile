@@ -1,12 +1,12 @@
 # Fulus Sync Implementation State
 
-Last audited: 2026-09-22 (final post-merge verification)
+Last audited: 2026-09-24 (architecture/runtime hardening pass)
 Repository: FulusBuild/Fulus-mobile
 Supabase project: bejcuvoxemwomcatgyxz
 
 ## Current truth
 
-The Cloud Sync V1 implementation has undergone an independent second-pass audit after the earlier completion claim. The audit deliberately traced local mutation -> durable outbox -> handler -> Edge Function/RPC -> authoritative database mutation -> change feed -> pull -> canonical reconciliation, and separately checked recovery, concurrency, production state, and CI/live E2E evidence.
+The Cloud Sync V1 implementation is under a further architecture-first production audit. The earlier completion claim is not treated as authoritative. This pass started from the runtime contract and traced foreground execution, background execution, cross-runtime concurrency, durable outbox handling, pull/cursor ordering, and recovery. The audit deliberately traced local mutation -> durable outbox -> handler -> Edge Function/RPC -> authoritative database mutation -> change feed -> pull -> canonical reconciliation, and separately checked recovery, concurrency, production state, and CI/live E2E evidence.
 
 The audit found and fixed additional material gaps rather than treating the previous completion claim as authoritative. The final restore-boundary and identity-safe resumable-signup hardening is now merged to `main`, and the production deployment was rechecked against the current source:
 
@@ -17,6 +17,9 @@ The audit found and fixed additional material gaps rather than treating the prev
 5. Inventory absolute/relative command RPCs now use business-scoped idempotency request hashes and reject same-operation conflicting payloads with `IDEMPOTENCY_CONFLICT`.
 6. The service-role action wrappers for sale creation, returns, customer repayments, expenses, sale payments, cash drawer open/close, income, and location creation now also persist request hashes in the same database transaction as the underlying command. This closes the remaining same-operation/different-payload replay gap across the supported command surface.
 7. The `fulus-api` generic command error mapper now exposes `P0009` as HTTP 409 `IDEMPOTENCY_CONFLICT`, allowing mobile/live contract consumers to distinguish replay conflicts from ordinary command failures.
+8. The architecture audit found that `workmanager` was declared in `pubspec.yaml` and documented in the README, but no WorkManager callback or registration existed in application code. This was a real runtime gap: foreground `SyncTriggers` cannot execute after Android terminates the Flutter process.
+9. WorkManager background sync is now implemented in `lib/sync/background_sync.dart`, using a unique connected-network periodic task and the same production sync stack as the foreground runtime.
+10. The architecture audit also found a cross-runtime cursor/outbox concurrency hazard. WorkManager and foreground Flutter can run as separate Dart runtimes, so a Dart-only mutex would be insufficient. A durable SQLite `sync_runtime_leases` table and `SyncExecutionLease` now serialize sync execution and recover automatically after process death.
 
 ## Phase status
 
@@ -82,7 +85,7 @@ Production inventory definitions verified:
 - `set_inventory_quantity(uuid,uuid,uuid,integer,text,text,uuid)`
 - `apply_inventory_adjustment(uuid,uuid,uuid,integer,text,text,uuid)`
 
-### Phase 4 — Recovery, Restore & Scale: COMPLETE at the software/test proof level
+### Phase 4 — Recovery, Restore & Scale: IMPLEMENTED, physical Android verification pending
 
 Verified lifecycle:
 
@@ -159,6 +162,28 @@ The live E2E covers:
 - product delete cleanup/change-feed behavior.
 
 The first hardening CI attempt exposed one real integration gap: the database correctly raised `P0009`, but the generic `fulus-api` action error mapper returned HTTP 400 `COMMAND_FAILED`. That mapper was fixed and production `fulus-api` was redeployed as version 45. The merged production state has now been independently rechecked: the four Cloud Sync-critical Edge Functions are byte-for-byte identical to `main`, the production migration ledger contains the latest restore/idempotency/retention hardening, the change-feed indexes are present, and the authoritative restore snapshot currently reports a live feed boundary. The remaining release gate is physical Android validation, not another claimed software completion pass.
+
+
+## Architecture-first audit: 2026-09-24
+
+### Finding 1: documented WorkManager, missing runtime
+The dependency and documentation implied Android background scheduling, but source inspection found no WorkManager callback, registration, or background worker. The existing 30-second foreground timer, connectivity listener, and app-resume trigger operate only while the Flutter runtime exists.
+
+### Finding 2: background scheduling introduces a shared-state concurrency problem
+The mobile sync cursor is persisted through SharedPreferences and the outbox is shared SQLite state. Two independent runtimes could otherwise overlap. A slower pull could persist an older cursor after a newer pull had advanced it. This is not safely solved by the existing in-memory single-flight guards because those guards exist only inside one Dart runtime.
+
+### Corrective implementation
+- Added a top-level Android WorkManager task in lib/sync/background_sync.dart.
+- Upgraded the WorkManager dependency from 0.10.9 to 0.10.10.
+- Registered one unique 15-minute periodic task with connected-network constraint and exponential scheduler backoff.
+- Added sync_runtime_leases as schema version 14.
+- Added SyncExecutionLease with short TTL, renewal while active, and crash expiry.
+- Wired SyncEngine to acquire the lease before queue draining and release it after the cycle.
+- Added tests covering exclusive ownership, prevention of concurrent queue draining, and recovery of an abandoned lease.
+- Updated README and the Cloud Sync architecture document with the new runtime contract and limitations.
+
+### Verification status
+CI and automated tests must still prove the complete change. Physical Android validation remains mandatory because OS background scheduling, vendor battery policies, process termination, and device-specific WorkManager behavior cannot be established from Dart unit tests alone.
 
 ## Final invariants
 
