@@ -8,12 +8,14 @@ import '../../domain/repositories/customer_repository.dart';
 import '../../core/errors/failure.dart';
 import '../../domain/repositories/return_repository.dart';
 import '../sync_handler.dart';
+import '../sync_execution_lease.dart';
 
 /// Pushes returns through the authoritative Fulus Cloud command API.
 class ReturnSyncHandler implements SyncHandler {
   ReturnSyncHandler({
     required AppDatabase db,
     required FulusSyncApi fulusSyncApi,
+    required SyncExecutionLease executionLease,
     required FulusConnectionState fulusConnectionState,
     required ReturnRepository returnRepository,
     ProductRepository? productRepository,
@@ -24,6 +26,7 @@ class ReturnSyncHandler implements SyncHandler {
         _returnRepository = returnRepository,
         _productRepository = productRepository,
         _customerRepository = customerRepository;
+  final SyncExecutionLease _executionLease;
 
   final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
@@ -116,7 +119,7 @@ class ReturnSyncHandler implements SyncHandler {
             entityId: serverId,
             deviceClientId: deviceClientId,
           );
-          await reconciler.apply(canonical);
+          await _executionLease.runProtectedTransaction(_db, () => reconciler.apply(canonical));
         } catch (_) {}
       }
     }
@@ -136,9 +139,10 @@ class ReturnSyncHandler implements SyncHandler {
             entityId: serverId,
             deviceClientId: deviceClientId,
           );
-          await FulusCustomerCanonicalReconciler(
-            repository: customerRepository,
-          ).apply(canonical);
+          await _executionLease.runProtectedTransaction(
+            _db,
+            () => FulusCustomerCanonicalReconciler(repository: customerRepository).apply(canonical),
+          );
         } catch (_) {}
       }
     }
