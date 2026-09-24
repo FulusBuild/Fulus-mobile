@@ -373,7 +373,7 @@ void main() {
         },
       );
 
-      final firstRun = triggers.syncNow();
+      final firstRun = triggers.start();
       await firstCycleStarted.future;
       expect(runCount, 1);
 
