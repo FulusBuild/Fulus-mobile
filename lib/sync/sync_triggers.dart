@@ -51,7 +51,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
         _connectivity = connectivity ?? Connectivity(),
-        _executionLease = executionLease;
+        _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
 
   final SyncEngine _syncEngine;
   final SyncConfig _syncConfig;
