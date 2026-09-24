@@ -78,6 +78,7 @@ class SyncTriggers with WidgetsBindingObserver {
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
   Future<bool>? _syncCycleRun;
+  Future<void>? _followUpRun;
   bool _syncRequestedAfterCycle = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
@@ -98,6 +99,11 @@ class SyncTriggers with WidgetsBindingObserver {
       final restore = _restoreReconciliationRun;
       if (restore != null) {
         await restore;
+        continue;
+      }
+      final followUp = _followUpRun;
+      if (followUp != null) {
+        await followUp;
         continue;
       }
       return;
@@ -459,14 +465,25 @@ class SyncTriggers with WidgetsBindingObserver {
       if (followUpRequested && _syncConfig.isEnabled && _started) {
         // Start only after the active-cycle marker has been cleared so the
         // follow-up cannot recursively await the cycle that requested it.
-        Timer.run(() {
-          unawaited(
-            _runIfOnline().catchError((Object error, StackTrace stackTrace) {
-              if (_started) {
-                _onSyncFailure?.call(error, stackTrace);
-              }
-            }),
-          );
+        // Keep a Future for this boundary so waitForIdle() cannot report idle
+        // before the required follow-up has started and finished.
+        final completer = Completer<void>();
+        _followUpRun = completer.future;
+        Timer.run(() async {
+          try {
+            await _runIfOnline();
+          } catch (error, stackTrace) {
+            if (_started) {
+              _onSyncFailure?.call(error, stackTrace);
+            }
+          } finally {
+            if (identical(_followUpRun, completer.future)) {
+              _followUpRun = null;
+            }
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          }
         });
       }
     }
