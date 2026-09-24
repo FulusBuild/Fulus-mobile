@@ -447,8 +447,15 @@ class SyncTriggers with WidgetsBindingObserver {
         return false;
       }
       try {
-        await _performSyncCycle(manual: manual);
-        return true;
+        try {
+          await _performSyncCycle(manual: manual, lease: lease);
+          return true;
+        } on SyncExecutionLeaseLost {
+          // The runtime may have been suspended long enough for another
+          // runtime to take over. Do not surface the takeover as a sync error
+          // and, critically, do not continue into a later pull/recovery phase.
+          return false;
+        }
       } finally {
         await lease.release();
       }
@@ -489,9 +496,14 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _performSyncCycle({bool manual = false}) async {
+  Future<void> _performSyncCycle({
+    bool manual = false,
+    required SyncExecutionLease lease,
+  }) async {
     await _syncEngine.runOnce(manual: manual);
+    await lease.ensureHeld();
     await _onPushSuccess?.call();
+    await lease.ensureHeld();
     final pull = _pullFromServer;
     if (pull != null) {
       // Pull failures are intentionally propagated. A reconciliation failure
@@ -500,14 +512,18 @@ class SyncTriggers with WidgetsBindingObserver {
       var recoveredFromStaleCursor = false;
       try {
         await pull();
+        await lease.ensureHeld();
       } on BusinessRuleFailure catch (error) {
         if (error.code != 'SYNC_CURSOR_TOO_OLD') rethrow;
         final recover = _onCursorTooOldRecovery;
         if (recover == null) rethrow;
+        await lease.ensureHeld();
         await recover();
+        await lease.ensureHeld();
         recoveredFromStaleCursor = true;
         try {
           await pull();
+          await lease.ensureHeld();
         } catch (error) {
           await _onRecoveryFailed?.call(error);
           rethrow;
