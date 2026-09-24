@@ -126,7 +126,7 @@ void main() {
           businessId: any(named: 'businessId'),
           operationType: any(named: 'operationType'),
           operationId: any(named: 'operationId'),
-          deviceClientId: any(named: 'device-clientId'),
+          deviceClientId: any(named: 'deviceClientId'),
           clientReference: any(named: 'clientReference'),
           payload: any(named: 'payload'),
         )).thenAnswer((_) async => {
