@@ -394,5 +394,11 @@ A WorkManager callback is a separate runtime from the normal foreground sync run
 5. Added schema migration 14 for the lease table.
 6. Added tests proving exclusive ownership and recovery of an abandoned lease.
 
+### Finding: transient HTTP 408/429 responses were not retryable
+The sync transport previously inherited the generic API mapping for HTTP 408 request timeout and HTTP 429 rate limiting. That mapping produced a BusinessRuleFailure, which SyncEngine parks as attention-needed work. This could permanently stop an otherwise valid outbox operation after a temporary server condition.
+
+### Corrective action
+FulusSyncApi now maps HTTP 408 and 429 to retryable SyncFailure values without changing the generic ApiClient mapping used elsewhere in the application. Regression tests cover both cases.
+
 ### Verification boundary
 The code-level architecture now has an OS-scheduled Android recovery path and cross-runtime serialization. Exact background execution timing remains controlled by Android, and physical-device validation after process termination/backgrounding is still a release-gate test rather than a claim made from CI alone.
