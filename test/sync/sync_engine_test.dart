@@ -644,10 +644,10 @@ void main() {
   });
 
   test(
-      'a queue item enqueued during an active drain triggers a follow-up drain',
+      'leaves work enqueued during an active drain for the next sync cycle',
       () async {
     final firstStarted = Completer<void>();
-    final secondProcessed = Completer<void>();    late SyncEngine engine;
+    late SyncEngine engine;
 
     await seedItem(
       id: 'q1',
@@ -663,9 +663,7 @@ void main() {
           entityLocalId: 'enqueued-during-drain',
           enqueuedAt: DateTime.now().add(const Duration(seconds: 1)),
         );
-        engine.runOnce();
-      } else if (item.entityLocalId == 'enqueued-during-drain') {
-        secondProcessed.complete();
+        await engine.runOnce();
       }
     });
 
@@ -674,9 +672,10 @@ void main() {
     final firstRun = engine.runOnce();
     await firstStarted.future;
     await firstRun;
-    await secondProcessed.future;
 
-    expect(handler.attemptedIds, ['first', 'enqueued-during-drain']);
-    expect(await allQueueItems(), isEmpty);
+    expect(handler.attemptedIds, ['first']);
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(1));
+    expect(remaining.single.entityLocalId, 'enqueued-during-drain');
   });
 }
