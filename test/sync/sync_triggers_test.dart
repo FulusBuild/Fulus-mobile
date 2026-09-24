@@ -333,6 +333,59 @@ void main() {
       verify(() => syncEngine.runOnce(manual: true)).called(1);
     });
 
+    test(
+        'a mutation enqueued during a sync cycle triggers one follow-up cycle after pull',
+        () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+
+      final firstCycleStarted = Completer<void>();
+      final releaseFirstCycle = Completer<void>();
+      var runCount = 0;
+      late final SyncTriggers triggers;
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+        if (runCount == 1) {
+          firstCycleStarted.complete();
+          // This models SyncQueue's next-turn onEnqueued callback while the
+          // push/pull cycle is still active.
+          await triggers.notifyEnqueued();
+          await releaseFirstCycle.future;
+        }
+      });
+
+      var pullCount = 0;
+      triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        pullFromServer: () async {
+          pullCount++;
+        },
+      );
+
+      final firstRun = triggers.syncNow();
+      await firstCycleStarted.future;
+      expect(runCount, 1);
+
+      releaseFirstCycle.complete();
+      await firstRun;
+
+      for (var i = 0; i < 20 && runCount < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+
+      expect(runCount, 2);
+      expect(pullCount, 2);
+      triggers.dispose();
+    });
+
     test('waitForIdle blocks while a sync cycle is in flight', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
