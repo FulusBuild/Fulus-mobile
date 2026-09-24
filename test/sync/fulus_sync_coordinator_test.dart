@@ -192,6 +192,50 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
 
+  test('a stale page is discarded when another runtime advances the durable cursor', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    final pageReady = Completer<void>();
+    final releasePage = Completer<void>();
+
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async {
+      pageReady.complete();
+      await releasePage.future;
+      return FulusSyncPullResponse(
+        changes: [FulusSyncChange(
+          sequence: 1,
+          entityType: 'customer',
+          entityId: 'c1',
+          operation: 'upsert',
+          payload: const {},
+          createdAt: DateTime.utc(2026, 1, 1),
+        )],
+        cursor: 0,
+        nextCursor: 1,
+        hasMore: false,
+      );
+    });
+
+    final applied = <int>[];
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (change) async => applied.add(change.sequence),
+    );
+
+    final pull = coordinator.pullAndApply(businessId: 'b1');
+    await pageReady.future;
+
+    await preferences.setInt('fulus_sync_cursor_b1', 1);
+    releasePage.complete();
+    final cursor = await pull;
+
+    expect(applied, isEmpty);
+    expect(cursor, 1);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
+  });
+
   test('keeps cursors isolated per business', () async {
     SharedPreferences.setMockInitialValues({'fulus_sync_cursor_b1': 7});
     final preferences = await SharedPreferences.getInstance();
