@@ -580,6 +580,70 @@ void main() {
     });
   });
   test(
+      'does not push a same-entity mutation with a stale base cursor during the active push',
+      () async {
+    final firstStarted = Completer<void>();
+    var serverSequence = 100;
+    var observedSecondBaseCursor;
+
+    await seedItem(
+      id: 'q-first',
+      entityType: 'product',
+      entityLocalId: 'product-1',
+      operation: 'update',
+      enqueuedAt: DateTime(2026, 9, 24),
+    );
+    await (db.update(db.syncQueueItems)
+          ..where((q) => q.id.equals('q-first')))
+        .write(const SyncQueueItemsCompanion(baseCursor: Value(100)));
+
+    late SyncEngine engine;
+    final handler = _ScriptedHandler((item) async {
+      if (item.id == 'q-first') {
+        firstStarted.complete();
+        await db.into(db.syncQueueItems).insert(
+              SyncQueueItemsCompanion.insert(
+                id: 'q-second',
+                entityType: 'product',
+                entityLocalId: 'product-1',
+                operation: 'update',
+                priority: 0,
+                enqueuedAt: DateTime(2026, 9, 24, 0, 0, 1),
+                baseCursor: const Value(100),
+              ),
+            );
+        // This is the production callback path: a local mutation during an
+        // active push asks the same engine to run again.
+        unawaited(engine.runOnce());
+        serverSequence = 101;
+        return;
+      }
+
+      observedSecondBaseCursor = item.baseCursor;
+      if (item.baseCursor == null || item.baseCursor! < serverSequence) {
+        throw const BusinessRuleFailure(
+          'SYNC_CONFLICT: Product changed after this edit was created.',
+          code: 'SYNC_CONFLICT',
+        );
+      }
+    });
+
+    engine = SyncEngine(db: db, handlersByEntityType: {'product': handler});
+
+    final run = engine.runOnce();
+    await firstStarted.future;
+    await run;
+
+    expect(observedSecondBaseCursor, isNull,
+        reason: 'the second local edit must wait for pull before push');
+    final remaining = await allQueueItems();
+    expect(remaining, hasLength(1));
+    expect(remaining.single.id, 'q-second');
+    expect(remaining.single.lastError, isNull);
+    expect(handler.attemptedIds, ['product-1']);
+  });
+
+  test(
       'a queue item enqueued during an active drain triggers a follow-up drain',
       () async {
     final firstStarted = Completer<void>();
