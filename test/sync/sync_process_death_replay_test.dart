@@ -1,10 +1,10 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
-import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/retry_policy.dart';
-import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
+import 'package:fulus_mobile/sync/sync_engine.dart';
+import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -40,17 +40,30 @@ void main() {
     var firstDelivery = true;
 
     Future<void> deliver(SyncQueueItem item) async {
-      // The remote side commits exactly once, keyed by the durable queue id.
       if (!firstDelivery) {
         return;
       }
       firstDelivery = false;
       remoteMutationCount++;
       // Simulate process death/network loss after the server committed but
-      // before     // Use a zero-delay retry policy only to make the restart test deterministic.
-    // Production uses the normal capped backoff; the property under test here
-    // is that a fresh app instance automatically discovers durable work without
-    // requiring a manual "Sync Now" action once that work is eligible.
+      // before the client received successful completion and removed the row.
+      throw Exception('connection lost after remote commit');
+    }
+
+    final firstEngine = SyncEngine(
+      db: db,
+      retryPolicy: const RetryPolicy(baseDelay: Duration.zero),
+      handlersByEntityType: {
+        'widget': _FunctionHandler(deliver),
+      },
+    );
+    await firstEngine.runOnce();
+
+    expect(remoteMutationCount, 1);
+    expect(await db.select(db.syncQueueItems).get(), hasLength(1));
+
+    // A fresh SyncEngine instance represents an app restart. The durable row
+    // survived, so the same operation is delivered again.
     final secondEngine = SyncEngine(
       db: db,
       retryPolicy: const RetryPolicy(baseDelay: Duration.zero),
@@ -90,21 +103,7 @@ void main() {
 
     expect(remoteMutationCount, 1);
     expect(await db.select(db.syncQueueItems).get(), isEmpty);
-    triggers.dispose();ByEntityType: {
-        'widget': _FunctionHandler((item) async {
-          // Server idempotency recognizes operation-1 as already committed.
-          await deliver(item);
-        }),
-      },
-    );
-
-    // The first failure records backoff. A real restart does not bypass that
-    // safety window automatically, so use a manual run to model the recovery
-    // trigger that explicitly retries durable pending work.
-    await secondEngine.runOnce(manual: true);
-
-    expect(remoteMutationCount, 1);
-    expect(await db.select(db.syncQueueItems).get(), isEmpty);
+    triggers.dispose();
   });
 }
 
