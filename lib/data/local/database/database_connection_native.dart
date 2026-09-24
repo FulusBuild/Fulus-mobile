@@ -26,6 +26,11 @@ LazyDatabase openDatabaseConnection() {
       file,
       setup: (database) {
         database.execute('PRAGMA journal_mode=WAL');
+        // Canonical pull reconciliation briefly holds a SQLite write
+        // transaction. A second runtime (for example, a foreground app
+        // runtime while WorkManager is syncing) must wait for that transaction
+        // rather than failing immediately with SQLITE_BUSY.
+        database.execute('PRAGMA busy_timeout=5000');
       },
     );
   });
