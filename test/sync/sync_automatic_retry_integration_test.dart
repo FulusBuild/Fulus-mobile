@@ -92,6 +92,10 @@ void main() {
 
     await triggers.start();
     await handler.recovered.future.timeout(const Duration(seconds: 1));
+    // The handler can finish before SyncEngine commits the queue removal.
+    // Wait for the trigger's active cycle to fully unwind before asserting
+    // durable queue state.
+    await triggers.waitForIdle();
 
     expect(handler.attempts, 2);
     expect(await db.select(db.syncQueueItems).get(), isEmpty);
