@@ -154,6 +154,7 @@ part 'database.g.dart';
     CashDrawerShifts,
     SyncQueueItems,
     SyncConflictRecords,
+    SyncRuntimeLeases,
     BusinessSettings,
     AuditLogs,
     // Stage 11 (Employees) — see tables/employee_tables.dart's own doc
@@ -206,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -415,6 +416,11 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 13) {
           await m.createTable(syncConflictRecords);
+        }
+        if (from < 14) {
+          // Cross-runtime Cloud Sync execution lease. This is purely sync
+          // coordination metadata; no business data is transformed or removed.
+          await m.createTable(syncRuntimeLeases);
         }
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
