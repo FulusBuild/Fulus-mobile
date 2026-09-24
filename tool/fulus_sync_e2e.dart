@@ -1412,7 +1412,68 @@ Future<int> _customerBalanceFeedSequence(
       'Customer balance feed baseline returned invalid sync_boundary: $root',
     );
   }
-  return boundary.toInt();
+
+  // The restore boundary is a safe starting point, but it is not necessarily
+  // the latest sequence. Drain the authoritative feed from that boundary and
+  // use the latest customer event as the mutation baseline. This prevents an
+  // immediately preceding customer mutation, such as sale.payment, from being
+  // mistaken for the event produced by the mutation under test.
+  var cursor = boundary.toInt();
+  var latestCustomerSequence = cursor;
+  var pages = 0;
+  while (true) {
+    final feedResponse = await dio.get(
+      '',
+      queryParameters: {
+        'business_id': businessId,
+        'cursor': cursor,
+        'limit': 500,
+      },
+    );
+    if ((feedResponse.statusCode ?? 0) < 200 ||
+        (feedResponse.statusCode ?? 0) >= 300) {
+      throw StateError(
+        'Unable to read customer change feed baseline: '
+        'HTTP ${feedResponse.statusCode}: ${feedResponse.data}',
+      );
+    }
+
+    final feedBody = feedResponse.data;
+    final feedData = feedBody is Map ? feedBody['data'] : null;
+    final changes = feedData is Map ? feedData['changes'] : null;
+    if (changes is! List) {
+      throw StateError(
+        'Customer balance feed baseline returned no change list: $feedBody',
+      );
+    }
+
+    for (final raw in changes) {
+      if (raw is! Map) continue;
+      final sequence = _parseSequence(raw['sequence']);
+      if (sequence == null || sequence <= latestCustomerSequence) continue;
+      if (raw['entity_type'] == 'customer' &&
+          raw['entity_id'] == customerId) {
+        latestCustomerSequence = sequence;
+      }
+    }
+
+    final hasMore = feedData is Map && feedData['has_more'] == true;
+    final nextCursor = feedData is Map
+        ? _parseSequence(feedData['next_cursor'])
+        : null;
+    if (!hasMore || nextCursor == null || nextCursor <= cursor) {
+      break;
+    }
+    cursor = nextCursor;
+    pages += 1;
+    if (pages > 100) {
+      throw StateError(
+        'Customer balance feed baseline exceeded 100 pages without settling.',
+      );
+    }
+  }
+
+  return latestCustomerSequence;
 }
 
 Future<void> _verifyCustomerBalanceFeedChange(
