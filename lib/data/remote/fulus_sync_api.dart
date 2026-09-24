@@ -210,10 +210,11 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
 
   Object _mapSyncTransportError(DioException error) {
     final mapped = _client.mapError(error);
-    // HTTP 429 is a server-side rate limit, not a permanent business-rule
-    // rejection. Queue items must remain retryable so transient throttling
+    // HTTP 408 is a transient request timeout and HTTP 429 is a server-side
+    // rate limit. Neither is a permanent business-rule rejection. Queue items must remain retryable so transient throttling
     // cannot permanently park financial or catalog work.
-    if (error.response?.statusCode == 429) {
+    if (error.response?.statusCode == 408 ||
+        error.response?.statusCode == 429) {
       return SyncFailure(
         kind: SyncErrorKind.temporaryServer,
         message: mapped is BusinessRuleFailure
