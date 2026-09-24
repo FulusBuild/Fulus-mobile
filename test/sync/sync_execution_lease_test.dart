@@ -86,7 +86,7 @@ void main() {
           ..where((row) => row.name.equals(SyncExecutionLease.leaseName)))
         .write(
       SyncRuntimeLeasesCompanion(
-        expiresAt: Value(DateTime.now().add(const Duration(milliseconds: 500))),
+        expiresAt: Value(DateTime.now().add(const Duration(seconds: 5))),
       ),
     );
 
@@ -99,7 +99,7 @@ void main() {
     });
 
     await transactionStarted.future;
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+    await Future<void>.delayed(const Duration(seconds: 6));
 
     // The takeover transaction reaches SQLite while db1 still owns the
     // writer lock. Native SQLite reports SQLITE_BUSY for that BEGIN IMMEDIATE
