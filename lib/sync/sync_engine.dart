@@ -22,6 +22,7 @@ class SyncEngine {
     ConflictResolver conflictResolver = const ConflictResolver(),
     DiagnosticLogger? diagnosticLogger,
     Future<bool> Function()? canSync,
+    Future<void> Function()? onDeviceAuthorizationLost,
   })  : _db = db,
         _handlersByEntityType = handlersByEntityType,
         _retryPolicy = retryPolicy,
