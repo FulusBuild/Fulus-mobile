@@ -1387,93 +1387,15 @@ Future<int> _customerBalanceFeedSequence(
   required String businessId,
   required String customerId,
 }) async {
-  // Use the authoritative recovery boundary instead of cursor=0. A long-lived
-  // E2E business may have a compacted change feed, so cursor zero is not a
-  // valid baseline once retention has advanced. The restore boundary is the
-  // server's current durable sequence and is safe as a before-mutation cursor.
-  final response = await dio.post(
-    '',
-    data: {
-      'action': 'restore_snapshot',
-      'business_id': businessId,
-    },
+  // Find the latest authoritative customer event directly from the retained
+  // feed. The restore snapshot boundary is a recovery boundary, not a reliable
+  // "latest event for this entity" marker on a long-lived E2E business.
+  return _findChangeSequence(
+    dio,
+    businessId: businessId,
+    entityType: 'customer',
+    entityId: customerId,
   );
-  _expect2xx(response, 'customer balance feed baseline');
-  final root = response.data;
-  final data = root is Map ? root['data'] : null;
-  if (data is! Map) {
-    throw StateError(
-      'Customer balance feed baseline returned no snapshot data: $root',
-    );
-  }
-  final boundary = data['sync_boundary'];
-  if (boundary is! num || boundary.toInt() < 0) {
-    throw StateError(
-      'Customer balance feed baseline returned invalid sync_boundary: $root',
-    );
-  }
-
-  // The restore boundary is a safe starting point, but it is not necessarily
-  // the latest sequence. Drain the authoritative feed from that boundary and
-  // use the latest customer event as the mutation baseline. This prevents an
-  // immediately preceding customer mutation, such as sale.payment, from being
-  // mistaken for the event produced by the mutation under test.
-  var cursor = boundary.toInt();
-  var latestCustomerSequence = cursor;
-  var pages = 0;
-  while (true) {
-    final feedResponse = await dio.get(
-      '',
-      queryParameters: {
-        'business_id': businessId,
-        'cursor': cursor,
-        'limit': 500,
-      },
-    );
-    if ((feedResponse.statusCode ?? 0) < 200 ||
-        (feedResponse.statusCode ?? 0) >= 300) {
-      throw StateError(
-        'Unable to read customer change feed baseline: '
-        'HTTP ${feedResponse.statusCode}: ${feedResponse.data}',
-      );
-    }
-
-    final feedBody = feedResponse.data;
-    final feedData = feedBody is Map ? feedBody['data'] : null;
-    final changes = feedData is Map ? feedData['changes'] : null;
-    if (changes is! List) {
-      throw StateError(
-        'Customer balance feed baseline returned no change list: $feedBody',
-      );
-    }
-
-    for (final raw in changes) {
-      if (raw is! Map) continue;
-      final sequence = _parseSequence(raw['sequence']);
-      if (sequence == null || sequence <= latestCustomerSequence) continue;
-      if (raw['entity_type'] == 'customer' &&
-          raw['entity_id'] == customerId) {
-        latestCustomerSequence = sequence;
-      }
-    }
-
-    final hasMore = feedData is Map && feedData['has_more'] == true;
-    final nextCursor = feedData is Map
-        ? _parseSequence(feedData['next_cursor'])
-        : null;
-    if (!hasMore || nextCursor == null || nextCursor <= cursor) {
-      break;
-    }
-    cursor = nextCursor;
-    pages += 1;
-    if (pages > 100) {
-      throw StateError(
-        'Customer balance feed baseline exceeded 100 pages without settling.',
-      );
-    }
-  }
-
-  return latestCustomerSequence;
 }
 
 Future<void> _verifyCustomerBalanceFeedChange(
