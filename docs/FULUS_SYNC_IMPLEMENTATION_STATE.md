@@ -191,6 +191,19 @@ The sync transport now converts HTTP 408 and 429 responses into retryable `SyncF
 ### Verification status
 CI and automated tests must still prove the complete change. Physical Android validation remains mandatory because OS background scheduling, vendor battery policies, process termination, and device-specific WorkManager behavior cannot be established from Dart unit tests alone.
 
+### Finding 4: cursor durability is intentionally at-least-once
+The architecture audit traced the exact crash boundary in FulusSyncCoordinator: canonical state is applied first and the SharedPreferences cursor is persisted afterward. The cursor is therefore not an atomic transaction with the Drift write. A process death between those operations replays the change rather than skipping it.
+
+This is an intentional at-least-once contract, not an exactly-once claim. The durable safety requirement is:
+- an unapplied change must never be acknowledged;
+- a successfully applied change may be replayed after a crash;
+- canonical reconciliation must therefore be idempotent;
+- batch reconciliation must not advance the cursor when any batch application fails.
+
+The coordinator already enforces the first, third, and fourth properties. Repository inspection confirmed that the canonical entity reconcilers persist upserts inside Drift transactions and match existing rows by stable server identity before updating, while delete reconciliation is convergent. Existing cursor-boundary tests also prove that failed batch application leaves the cursor unchanged and that out-of-order input cannot advance it.
+
+No production code change was required in this iteration. Converting the cursor and local entity write into one SQLite transaction would not be possible across the current SharedPreferences/handler boundary without a larger architectural redesign, and would not be justified while the existing at-least-once/idempotent contract is maintained.
+
 ## Final invariants
 
 Every supported cloud mutation has a durable local intent and a verified server contract. Same-operation replay with the same request is safe; same-operation replay with altered request data is rejected as `IDEMPOTENCY_CONFLICT`. Stale mutable writes become explicit conflicts. Pull cursors advance only after successful local application. Stale-cursor recovery bootstraps before incremental pull. Restore cannot replace local cloud-owned state while outbound work or unresolved conflicts are present. Sync Ready is gated on successful post-recovery reconciliation. Absolute stock adjustment is an authoritative server target, not a client-invented delta.
