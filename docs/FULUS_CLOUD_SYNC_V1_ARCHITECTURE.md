@@ -61,6 +61,9 @@ Fulus does **not** synchronize the SQLite database itself. It synchronizes busin
 - Sync readiness gates normal triggers.
 - Startup performs authentication, membership selection, device registration, initial reconciliation, then marks Sync Ready.
 - Restore has an explicit reconciliation/readiness path.
+- Foreground sync is driven by mutation, connectivity, resume, and periodic retry triggers while the Flutter runtime is alive.
+- Android WorkManager provides a separate OS-scheduled background runtime for periodic reconciliation after the app is backgrounded or the process is terminated. The scheduler is opportunistic, not an always-open connection.
+- Foreground and WorkManager runtimes share a durable SQLite execution lease. At most one runtime may drain/pull sync state at a time; the lease is renewed while active and expires after process death.
 
 ## 3. Non-negotiable invariants
 
@@ -92,6 +95,9 @@ A reused operation ID with a materially different request must be rejected rathe
 
 ### Inbound acknowledgement
 Never advance the cursor before successful local reconciliation.
+
+### Runtime serialization
+Never allow independent Flutter runtimes to drain the outbox or mutate the pull cursor concurrently. A process/isolate-level Dart mutex is insufficient because WorkManager may execute a separate background runtime. Cloud Sync therefore uses a durable SQLite execution lease with renewal and crash expiry.
 
 A crash may replay a change. It must never skip one.
 
@@ -211,6 +217,7 @@ Required recovery guarantees:
 - app killed during pull → replay unapplied change
 - token expiry → preserve queue and restore session
 - device revoked → stop cloud writes without losing local work
+- app backgrounded/terminated → Android WorkManager eventually runs the same sync stack when Android grants background execution
 - restore → stale outbound queue removed → canonical reconciliation → Sync Ready
 - cursor invalid/too old → explicit bootstrap/recovery, never silent data loss
 
@@ -281,6 +288,8 @@ The architecture should allow these without changing the local-first application
 - cursor-too-old detection is implemented and returns a machine-readable recovery-required response
 - snapshot/bootstrap recovery
 - batch canonical reads
+- cross-runtime SQLite execution lease for foreground/background serialization
+- Android WorkManager background sync with connected-network constraint and bounded retry/backoff
 - 90-day change-feed retention/compaction with scheduled bounded pruning
 - authoritative sync health
 
@@ -367,3 +376,23 @@ The local-first mobile architecture can remain stable while the server tier scal
 
 The 100k target therefore becomes a measurable capacity program, not a promise based on architecture diagrams alone.
 
+
+
+## 14. 2026-09-24 architecture audit record
+
+### Finding: background execution was documented but not implemented
+The repository already declared the WorkManager dependency and README described background scheduling, but the application contained no WorkManager callback, registration, or Android background-sync runtime. Foreground SyncTriggers could retry only while the Flutter runtime remained alive. This did not satisfy the stronger requirement that synchronization recover after the app was backgrounded or the process was terminated.
+
+### Finding: adding WorkManager alone would create a concurrency hazard
+A WorkManager callback is a separate runtime from the normal foreground sync runtime. Both could observe the same durable outbox and pull cursor. The existing cursor is persisted through SharedPreferences, and independent runtimes could therefore interleave pull work and write an older cursor after a newer one. A Dart mutex would not provide cross-runtime protection.
+
+### Corrective action
+1. Added lib/sync/background_sync.dart with a top-level WorkManager entrypoint and a unique periodic Android task.
+2. The periodic task requires a connected network, uses a 15-minute scheduling cadence, and uses exponential WorkManager backoff. Foreground triggers remain responsible for responsive sync while the app is running.
+3. The worker boots the same production Cloud Sync stack rather than maintaining a second, divergent sync implementation.
+4. Added lib/sync/sync_execution_lease.dart and the sync_runtime_leases SQLite table. SyncEngine now acquires this durable lease before draining and renews it while active. A crashed runtime leaves an expiring lease that a later runtime can take over.
+5. Added schema migration 14 for the lease table.
+6. Added tests proving exclusive ownership and recovery of an abandoned lease.
+
+### Verification boundary
+The code-level architecture now has an OS-scheduled Android recovery path and cross-runtime serialization. Exact background execution timing remains controlled by Android, and physical-device validation after process termination/backgrounding is still a release-gate test rather than a claim made from CI alone.
