@@ -12,17 +12,20 @@ class FulusSyncCoordinator {
     required Future<void> Function(FulusSyncChange change) applyChange,
     Future<void> Function(List<FulusSyncChange> changes)? applyChanges,
     Future<bool> Function(FulusSyncChange change)? shouldApplyChange,
+    Future<void> Function(Future<void> Function() action)? withApplyTransaction,
   })  : _api = api,
         _preferences = preferences,
         _applyChange = applyChange,
         _applyChanges = applyChanges,
-        _shouldApplyChange = shouldApplyChange;
+        _shouldApplyChange = shouldApplyChange,
+        _withApplyTransaction = withApplyTransaction;
 
   final FulusSyncApi _api;
   final SharedPreferences _preferences;
   final Future<void> Function(FulusSyncChange change) _applyChange;
   final Future<void> Function(List<FulusSyncChange> changes)? _applyChanges;
   final Future<bool> Function(FulusSyncChange change)? _shouldApplyChange;
+  final Future<void> Function(Future<void> Function() action)? _withApplyTransaction;
 
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
 
@@ -71,22 +74,35 @@ class FulusSyncCoordinator {
           }
           previousSequence = change.sequence;
         }
-        final applicable = <FulusSyncChange>[];
-        for (final change in unapplied) {
-          final shouldApply = _shouldApplyChange == null
-              ? true
-              : await _shouldApplyChange(change);
-          if (shouldApply) applicable.add(change);
-        }
-        final applyChanges = _applyChanges;
-        if (applyChanges != null && applicable.isNotEmpty) {
-          await applyChanges(applicable);
-        } else {
-          for (final change in applicable) {
-            // Apply first, persist cursor second. Replaying a successfully applied
-            // change after a crash is safe because reconciliation is idempotent.
-            await _applyChange(change);
+        final applyPage = () async {
+          final applicable = <FulusSyncChange>[];
+          for (final change in unapplied) {
+            final shouldApply = _shouldApplyChange == null
+                ? true
+                : await _shouldApplyChange(change);
+            if (shouldApply) applicable.add(change);
           }
+          final applyChanges = _applyChanges;
+          if (applyChanges != null && applicable.isNotEmpty) {
+            await applyChanges(applicable);
+          } else {
+            for (final change in applicable) {
+              // Apply first, persist cursor second. Replaying a successfully applied
+              // change after a crash is safe because reconciliation is idempotent.
+              await _applyChange(change);
+            }
+          }
+        };
+        final withApplyTransaction = _withApplyTransaction;
+        if (withApplyTransaction != null) {
+          // Keep the eligibility check and local reconciliation in one Drift
+          // transaction. If another runtime commits a local mutation after the
+          // check but before reconciliation writes, SQLite snapshot isolation
+          // rejects the stale transaction instead of allowing canonical state
+          // to overwrite the newer local edit.
+          await withApplyTransaction(applyPage);
+        } else {
+          await applyPage();
         }
         // A change intentionally held behind a pending local mutation is still
         // acknowledged in the feed. Its authoritative state is recovered by

@@ -289,6 +289,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         serverId: change.entityId,
       ));
     },
+    withApplyTransaction: (action) => database.transaction(action),
   );
 
   final syncExecutionLease = SyncExecutionLease(database);

@@ -1,8 +1,16 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_coordinator.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 
@@ -116,6 +124,64 @@ void main() {
     expect(applied, isEmpty);
     expect(cursor, 7);
     expect(preferences.getInt('fulus_sync_cursor_b1'), 7);
+  });
+
+  test('does not apply a canonical change after a concurrent local mutation wins the race', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-sync-race-');
+    final path = directory.path + '/fulus.db';
+    QueryExecutor openExecutor() => NativeDatabase(
+      File(path),
+      setup: (database) => database.execute('PRAGMA journal_mode=WAL'),
+    );
+    final db1 = AppDatabase.forTesting(openExecutor());
+    final db2 = AppDatabase.forTesting(openExecutor());
+    addTearDown(() async {
+      await db1.close();
+      await db2.close();
+      await directory.delete(recursive: true);
+    });
+    final now = DateTime.utc(2026, 1, 1);
+    await db1.into(db1.customers).insert(CustomersCompanion.insert(
+      localId: 'customer-local', serverId: const Value('customer-server'),
+      name: 'Before', createdAt: now, updatedAt: now, syncStatus: SyncStatus.settled,
+    ));
+    final queue = SyncQueue(db2);
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer(
+      (_) async => FulusSyncPullResponse(
+        changes: [FulusSyncChange(sequence: 1, entityType: 'customer', entityId: 'customer-server', operation: 'upsert', payload: const {}, createdAt: now)],
+        cursor: 0, nextCursor: 1, hasMore: false,
+      ),
+    );
+    final localMutationStarted = Completer<void>();
+    final localMutationCommitted = Completer<void>();
+    final coordinator = FulusSyncCoordinator(
+      api: api, preferences: preferences,
+      applyChange: (_) async {
+        await (db1.update(db1.customers)..where((c) => c.serverId.equals('customer-server')))
+            .write(const CustomersCompanion(name: Value('Canonical overwrite')));
+      },
+      shouldApplyChange: (_) async {
+        localMutationStarted.complete();
+        await localMutationCommitted.future;
+        return true;
+      },
+      withApplyTransaction: (action) => db1.transaction(action),
+    );
+    final pull = coordinator.pullAndApply(businessId: 'b1');
+    await localMutationStarted.future;
+    await db2.transaction(() async {
+      await (db2.update(db2.customers)..where((c) => c.serverId.equals('customer-server')))
+          .write(const CustomersCompanion(name: Value('Local edit'), syncStatus: Value(SyncStatus.pending)));
+      await queue.enqueue(SyncTask.updateCustomer('customer-local'));
+    });
+    localMutationCommitted.complete();
+    await expectLater(pull, throwsA(isA<Object>()));
+    final localRow = await (db2.select(db2.customers)..where((c) => c.serverId.equals('customer-server'))).getSingle();
+    expect(localRow.name, 'Local edit');
+    expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
   });
 
   test('keeps cursors isolated per business', () async {
