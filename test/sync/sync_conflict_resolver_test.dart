@@ -244,6 +244,7 @@ void main() {
       canonicalFetcher: api,
       connectionState: connectionState,
       preferences: preferences,
+      executionLease: executionLease,
     );
 
     await preferences.setInt('fulus_sync_cursor_business-1', 12);
