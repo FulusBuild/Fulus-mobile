@@ -134,6 +134,35 @@ void main() {
     );
   });
 
+  test('does not reseed an entity that already has a server identity', () async {
+    final now = DateTime.now();
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'already-synced-product',
+        serverId: const Value('server-product-1'),
+        name: 'Already synced product',
+        sku: 'SYNC-1',
+        costPrice: 100,
+        sellingPrice: 150,
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.synced,
+      ),
+    );
+
+    await queue.seedExistingBusinessData();
+
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(
+      rows.where(
+        (row) =>
+            row.entityType == 'product' &&
+            row.entityLocalId == 'already-synced-product',
+      ),
+      isEmpty,
+    );
+  });
+
   test('does not duplicate a seed task already enqueued by a local mutation', () async {
     final now = DateTime.now();
     await db.into(db.products).insert(
