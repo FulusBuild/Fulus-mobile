@@ -142,6 +142,7 @@ void main() {
       authRepository: _FakeAuthRepository(),
       customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
+    final salesApi = _MockSalesApi();
     final handler = SaleSyncHandler(
       db: db,
       salesApi: salesApi,
