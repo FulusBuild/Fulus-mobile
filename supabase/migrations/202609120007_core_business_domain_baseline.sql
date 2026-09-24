@@ -194,7 +194,7 @@ revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
 
 create or replace function public.set_inventory_quantity(
   target_business_id uuid, target_product_id uuid, target_location_id uuid,
-  target_quantity integer, target_operation_id text, target_reason text,
+  target_new_quantity integer, target_reason text, target_operation_id text,
   target_device_id uuid
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $function$
