@@ -303,6 +303,31 @@ class _AuthInterceptor extends Interceptor {
       return;
     }
 
+    // Another request may have completed the shared refresh between the
+    // time this request received its 401 and this interceptor running. In
+    // that case the request's token is stale, so replay it with the already
+    // refreshed token instead of rotating the one-use refresh token again.
+    final currentAccessToken = _accessToken;
+    final requestAuthorization =
+        err.requestOptions.headers['Authorization']?.toString();
+    if (currentAccessToken != null &&
+        currentAccessToken.isNotEmpty &&
+        requestAuthorization != 'Bearer $currentAccessToken') {
+      try {
+        final retryOptions = err.requestOptions;
+        retryOptions.extra['auth_refresh_attempted'] = true;
+        retryOptions.headers['Authorization'] = 'Bearer $currentAccessToken';
+        final retryResponse = await _dio.fetch(retryOptions);
+        handler.resolve(retryResponse);
+      } on DioException catch (retryError) {
+        if (retryError.response?.statusCode == 401) {
+          await _expireSession();
+        }
+        handler.next(retryError);
+      }
+      return;
+    }
+
     try {
       final refreshResult = await _refreshAccessToken();
       final accessToken = refreshResult.accessToken;
