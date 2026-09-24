@@ -182,6 +182,12 @@ The mobile sync cursor is persisted through SharedPreferences and the outbox is 
 - Added tests covering exclusive ownership, prevention of concurrent queue draining, and recovery of an abandoned lease.
 - Updated README and the Cloud Sync architecture document with the new runtime contract and limitations.
 
+### Finding 3: transient HTTP failures could be parked permanently
+Before this pass, `FulusSyncApi` passed a HTTP 429 rate-limit response through `ApiClient.mapError`, which produced a `BusinessRuleFailure`. `SyncEngine` treats ordinary business-rule failures as attention-needed work, so a temporary server throttle could permanently park a valid outbox operation instead of retrying it. HTTP 408 request timeouts had the same risk.
+
+### Corrective action
+The sync transport now converts HTTP 408 and 429 responses into retryable `SyncFailure` values while preserving the existing global `ApiClient` behavior for non-sync callers. Regression tests cover both statuses and confirm the resulting classification remains retryable. The fix is transport-specific because changing the global mapping could alter unrelated application behavior.
+
 ### Verification status
 CI and automated tests must still prove the complete change. Physical Android validation remains mandatory because OS background scheduling, vendor battery policies, process termination, and device-specific WorkManager behavior cannot be established from Dart unit tests alone.
 
@@ -191,6 +197,6 @@ Every supported cloud mutation has a durable local intent and a verified server 
 
 ## Audit conclusion
 
-Cloud Sync V1 software implementation is complete on `main` after the restore-boundary and identity-safe signup hardening merges. Production parity and the documented server-contract E2E evidence have been rechecked, and the current production snapshot/change-feed boundary is valid. This does **not** claim a literal Android process-kill/restore test: physical-device validation remains the release gate.
+Cloud Sync V1 remains under architecture-first production audit on `main`; this pass has implemented and documented additional runtime and transport hardening rather than treating the prior completion claim as authoritative. Production parity and the documented server-contract E2E evidence have been rechecked, and the current production snapshot/change-feed boundary is valid. This does **not** claim a literal Android process-kill/restore test: physical-device validation remains the release gate.
 
 Next release gate: build/install the APK from current `main` on a real device and verify fresh restore, offline mutation, online upload, pull, Sync Ready, app restart persistence, and stale-cursor recovery. APK release/build remains intentionally skipped in this audit session.
