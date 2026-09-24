@@ -55,7 +55,7 @@ void main() {
       updatedAt: now,
       deletedAt: now,
     );
-    const queueItem = SyncQueueItem(
+    final queueItem = SyncQueueItem(
       id: 'queue-category-create',
       entityType: 'category',
       entityLocalId: 'c-pre-sync',
