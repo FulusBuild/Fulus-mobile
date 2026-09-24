@@ -299,6 +299,7 @@ void main() {
         )).thenAnswer((_) async {});
 
     final sale = await createLocalSale();
+    expect(await executionLease.acquire(), isTrue);
 
     await expectLater(
       handler.sync(queueItemFor(sale)),
