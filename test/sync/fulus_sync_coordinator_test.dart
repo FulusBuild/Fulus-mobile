@@ -126,12 +126,15 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1'), 7);
   });
 
-  test('does not apply a canonical change after a concurrent local mutation wins the race', () async {
+  test('serializes a concurrent local mutation behind canonical reconciliation', () async {
     final directory = await Directory.systemTemp.createTemp('fulus-sync-race-');
     final path = directory.path + '/fulus.db';
     QueryExecutor openExecutor() => NativeDatabase(
       File(path),
-      setup: (database) => database.execute('PRAGMA journal_mode=WAL'),
+      setup: (database) {
+        database.execute('PRAGMA journal_mode=WAL');
+        database.execute('PRAGMA busy_timeout=5000');
+      },
     );
     final db1 = AppDatabase.forTesting(openExecutor());
     final db2 = AppDatabase.forTesting(openExecutor());
@@ -155,33 +158,38 @@ void main() {
         cursor: 0, nextCursor: 1, hasMore: false,
       ),
     );
-    final localMutationStarted = Completer<void>();
-    final localMutationCommitted = Completer<void>();
+    final eligibilityChecked = Completer<void>();
+    final canonicalApplied = Completer<void>();
     final coordinator = FulusSyncCoordinator(
       api: api, preferences: preferences,
       applyChange: (_) async {
         await (db1.update(db1.customers)..where((c) => c.serverId.equals('customer-server')))
             .write(const CustomersCompanion(name: Value('Canonical overwrite')));
+        canonicalApplied.complete();
       },
       shouldApplyChange: (_) async {
-        localMutationStarted.complete();
-        await localMutationCommitted.future;
+        eligibilityChecked.complete();
         return true;
       },
       withApplyTransaction: (action) => db1.transaction(action),
     );
+
     final pull = coordinator.pullAndApply(businessId: 'b1');
-    await localMutationStarted.future;
-    await db2.transaction(() async {
+    await eligibilityChecked.future;
+    final localMutation = db2.transaction(() async {
       await (db2.update(db2.customers)..where((c) => c.serverId.equals('customer-server')))
           .write(const CustomersCompanion(name: Value('Local edit'), syncStatus: Value(SyncStatus.pending)));
       await queue.enqueue(SyncTask.updateCustomer('customer-local'));
     });
-    localMutationCommitted.complete();
-    await expectLater(pull, throwsA(isA<Object>()));
+
+    await pull;
+    await canonicalApplied.future;
+    await localMutation;
+
     final localRow = await (db2.select(db2.customers)..where((c) => c.serverId.equals('customer-server'))).getSingle();
     expect(localRow.name, 'Local edit');
-    expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
+    expect(localRow.syncStatus, SyncStatus.pending);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
 
   test('keeps cursors isolated per business', () async {
