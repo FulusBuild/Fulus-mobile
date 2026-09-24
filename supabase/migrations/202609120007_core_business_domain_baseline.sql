@@ -271,7 +271,7 @@ revoke all on function public.fulus_api_update_customer(
   uuid,uuid,uuid,text,uuid,text,text,text,text,text,numeric,boolean,text
 ) from public,anon,authenticated,service_role;
 revoke all on function public.fulus_api_update_expense(
-  uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text,text
+  uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text
 ) from public,anon,authenticated,service_role;
 revoke all on function public.fulus_api_record_expense(
   uuid,uuid,uuid,numeric,text,text,text,uuid
