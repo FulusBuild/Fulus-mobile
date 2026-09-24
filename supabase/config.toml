@@ -1,6 +1,6 @@
 project_id = "fulus-mobile-local"
 
 [db]
-port = 54323
+port = 54324
 
 # Local migration-chain CI intentionally rebuilds the schema from zero.
