@@ -1,4 +1,5 @@
 import '../data/local/database/database.dart';
+import 'sync_queue.dart';
 
 /// One handler per entityType, registered into SyncEngine's map. The
 /// engine itself has zero entity-specific logic — it drains the queue
