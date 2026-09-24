@@ -69,7 +69,7 @@ void main() {
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
   });
 
-  test('archives an offline-created customer after cloud create', () async {
+  test('creates an offline-archived customer as inactive in one cloud operation', () async {
     final customer = await customerRepository.createCustomer(
       const CustomerDraft(name: 'Offline Archived', phone: '+2348000000000'),
     );
@@ -83,34 +83,25 @@ void main() {
           deviceClientId: any(named: 'deviceClientId'),
           clientReference: any(named: 'clientReference'),
           payload: any(named: 'payload'),
-        )).thenAnswer((invocation) async {
-      final operationType = invocation.namedArguments[#operationType] as String;
-      return {
-        'data': {
-          'entity_id': 'server-customer-1',
-          'status': operationType == 'customer.create' ? 'applied' : 'updated',
-        },
-      };
-    });
+        )).thenAnswer((_) async => {
+          'data': {
+            'entity_id': 'server-customer-1',
+            'status': 'applied',
+          },
+        });
 
     await handler.sync(queueItemFor(customer));
 
-    verify(() => fulusSyncApi.submitOperation(
+    final captured = verify(() => fulusSyncApi.submitOperation(
           businessId: 'business-1',
           operationType: 'customer.create',
           operationId: 'q1',
           deviceClientId: 'device-client-1',
           clientReference: customer.localId,
-          payload: any(named: 'payload'),
-        )).called(1);
-    verify(() => fulusSyncApi.submitOperation(
-          businessId: 'business-1',
-          operationType: 'customer.update',
-          operationId: 'q1:archive',
-          deviceClientId: 'device-client-1',
-          clientReference: customer.localId,
-          payload: any(named: 'payload'),
-        )).called(1);
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['is_active'], isFalse);
+    expect(captured['server_id'], isNull);
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
   });
 
