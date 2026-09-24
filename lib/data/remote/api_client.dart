@@ -16,6 +16,7 @@ class ApiClient {
     required String baseUrl,
     required SecureStorage secureStorage,
     required Future<void> Function() onSessionExpired,
+    bool enableGenericRetry = true,
   })  : _secureStorage = secureStorage,
         dio = Dio(BaseOptions(
           baseUrl: baseUrl,
@@ -27,10 +28,10 @@ class ApiClient {
       dio: dio,
       onSessionExpired: onSessionExpired,
     );
-    dio.interceptors.addAll([
-      _authInterceptor,
-      _RetryInterceptor(dio: dio),
-    ]);
+    dio.interceptors.add(_authInterceptor);
+    if (enableGenericRetry) {
+      dio.interceptors.add(_RetryInterceptor(dio: dio));
+    }
   }
 
   final Dio dio;
