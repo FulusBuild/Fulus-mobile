@@ -47,6 +47,12 @@ class FulusSyncCoordinator {
         cursor: cursor,
         limit: batchSize,
       );
+      // Another runtime may have completed a newer pull while this request
+      // was in flight. Refresh the durable acknowledgement before deciding
+      // which returned changes are still eligible for local reconciliation.
+      // Otherwise a stale runtime could reapply a page that a newer runtime
+      // has already acknowledged.
+      cursor = _maxCursor(cursor, cursorFor(businessId));
       if (page.changes.isEmpty) {
         if (page.hasMore) {
           throw StateError(
