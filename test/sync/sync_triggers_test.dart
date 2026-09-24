@@ -352,6 +352,9 @@ void main() {
         runCount++;
         if (runCount == 1) {
           firstCycleStarted.complete();
+          // Let _runSyncCycle publish its active-cycle marker before modeling
+          // SyncQueue's next-turn onEnqueued callback.
+          await Future<void>.delayed(Duration.zero);
           // This models SyncQueue's next-turn onEnqueued callback while the
           // push/pull cycle is still active.
           await triggers.notifyEnqueued();
