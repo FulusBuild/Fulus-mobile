@@ -59,11 +59,6 @@ void main() {
     );
     final db1 = AppDatabase.forTesting(openExecutor());
     final db2 = AppDatabase.forTesting(openExecutor());
-    addTearDown(() async {
-      await db1.close();
-      await db2.close();
-      await directory.delete(recursive: true);
-    });
 
     final firstLease = SyncExecutionLease(
       db1,
@@ -74,6 +69,13 @@ void main() {
       db2,
       acquisitionTimeout: const Duration(seconds: 2),
     );
+    addTearDown(() async {
+      await firstLease.release();
+      await secondLease.release();
+      await db1.close();
+      await db2.close();
+      await directory.delete(recursive: true);
+    });
 
     expect(await firstLease.acquire(), isTrue);
 
@@ -99,14 +101,17 @@ void main() {
     await transactionStarted.future;
     await Future<void>.delayed(const Duration(milliseconds: 700));
 
+    var takeoverCompleted = false;
     final takeover = secondLease.acquire();
+    takeover.then((_) {
+      takeoverCompleted = true;
+    });
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(takeover, isNot(completes));
+    expect(takeoverCompleted, isFalse);
 
     releaseTransaction.complete();
     await transaction;
     expect(await takeover, isTrue);
-    await secondLease.release();
   });
   test('a stale lease is recoverable by another runtime', () async {
     final now = DateTime.now();
