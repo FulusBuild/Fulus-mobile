@@ -607,6 +607,21 @@ class SyncConflictRecords extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+
+/// Cross-runtime Cloud Sync execution lease. The single fixed row prevents a
+/// foreground Flutter runtime and an Android WorkManager runtime from pulling
+/// or draining the same local sync state concurrently. Expiry makes the lease
+/// self-healing after process death; the sync engine renews it while active.
+class SyncRuntimeLeases extends Table {
+  TextColumn get name => text()();
+  TextColumn get ownerId => text()();
+  DateTimeColumn get acquiredAt => dateTime()();
+  DateTimeColumn get expiresAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {name};
+}
+
 @DataClassName('BusinessSettingRow')
 class BusinessSettings extends Table {
   TextColumn get id => text()(); // always the fixed value 'singleton'
