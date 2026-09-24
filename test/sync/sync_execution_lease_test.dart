@@ -45,6 +45,55 @@ void main() {
     await secondLease.release();
   });
 
+  test('canonical apply transaction fences lease takeover after expiry', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-lease-fence-');
+    final path = '\${directory.path}/fulus.db';
+    QueryExecutor openExecutor() => NativeDatabase(
+      File(path),
+      setup: (database) {
+        database.execute('PRAGMA journal_mode=WAL');
+        database.execute('PRAGMA busy_timeout=1000');
+      },
+    );
+    final db1 = AppDatabase.forTesting(openExecutor());
+    final db2 = AppDatabase.forTesting(openExecutor());
+    addTearDown(() async {
+      await db1.close();
+      await db2.close();
+      await directory.delete(recursive: true);
+    });
+
+    final firstLease = SyncExecutionLease(
+      db1,
+      leaseDuration: const Duration(milliseconds: 50),
+      acquisitionTimeout: const Duration(seconds: 2),
+    );
+    final secondLease = SyncExecutionLease(
+      db2,
+      acquisitionTimeout: const Duration(seconds: 2),
+    );
+
+    expect(await firstLease.acquire(), isTrue);
+    final transactionStarted = Completer<void>();
+    final releaseTransaction = Completer<void>();
+    final transaction = db1.transaction(() async {
+      await firstLease.ensureHeldForTransaction();
+      transactionStarted.complete();
+      await releaseTransaction.future;
+    });
+
+    await transactionStarted.future;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    final takeover = secondLease.acquire();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(takeover, isNot(completes));
+
+    releaseTransaction.complete();
+    await transaction;
+    expect(await takeover, isTrue);
+    await secondLease.release();
+  });
   test('a stale lease is recoverable by another runtime', () async {
     final now = DateTime.now();
     await db.into(db.syncRuntimeLeases).insert(
