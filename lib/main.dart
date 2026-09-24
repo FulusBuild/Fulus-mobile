@@ -12,6 +12,7 @@ import 'core/diagnostics/diagnostic_logger.dart';
 import 'core/diagnostics/models/diagnostic_enums.dart';
 import 'core/theme/device_form_factor.dart';
 import 'data/remote/fulus_diagnostic_uploader.dart';
+import 'sync/background_sync.dart';
 
 Future<void> main() async {
   final diagnosticLogger = DiagnosticLogger();
@@ -19,6 +20,12 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // WorkManager is the OS-level safety net for Cloud Sync when Android
+      // suspends or terminates the Flutter process. Foreground SyncTriggers
+      // remains responsible for responsive sync while the app is running.
+      final backgroundSyncScheduler = FulusBackgroundSyncScheduler();
+      await backgroundSyncScheduler.initialize();
 
       final view = WidgetsBinding.instance.platformDispatcher.views.first;
       final logicalSize = view.physicalSize / view.devicePixelRatio;
@@ -46,6 +53,30 @@ Future<void> main() async {
         connection: container.read(fulusConnectionStateProvider),
       );
       diagnosticUploader.start();
+
+      final syncConfig = container.read(syncConfigProvider);
+      // Reconcile the persisted setting with the OS scheduler on every app
+      // launch, then keep WorkManager aligned with runtime toggle changes.
+      await backgroundSyncScheduler.setEnabled(syncConfig.isEnabled);
+      syncConfig.addListener(() {
+        unawaited(
+          backgroundSyncScheduler
+              .setEnabled(syncConfig.isEnabled)
+              .catchError((error, stackTrace) {
+            unawaited(
+              diagnosticLogger.captureError(
+                error: error,
+                stackTrace: stackTrace,
+                severity: DiagnosticSeverity.warning,
+                category: DiagnosticCategory.synchronization,
+                component: 'WorkManager',
+                operation: 'schedule',
+                title: 'Background Cloud Sync scheduling failed',
+              ),
+            );
+          }),
+        );
+      });
 
       runApp(
         UncontrolledProviderScope(
