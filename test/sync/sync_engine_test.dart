@@ -592,7 +592,7 @@ void main() {
 
     late SyncEngine engine;
     final handler = _ScriptedHandler((item) async {
-      if (item.entityLocalId == 'product-1' && item.id != 'q-second') {
+      if (serverSequence == 100) {
         firstStarted.complete();
         // This is the real repository path: the second update replaces the
         // older in-flight queue row but captures the same global cursor.
