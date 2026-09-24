@@ -232,7 +232,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
   final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
 
-  final syncQueue = SyncQueue(database);
   final canonicalReconciler = FulusCanonicalTypedReconciler(
     api: fulusSyncApi,
     handlers: {
