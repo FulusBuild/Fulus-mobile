@@ -95,6 +95,29 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1'), 6);
   });
 
+  test('acknowledges a remote change without applying it when a local mutation is pending', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [FulusSyncChange(sequence: 7, entityType: 'customer', entityId: 'c1', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
+      cursor: 0, nextCursor: 7, hasMore: false,
+    ));
+    final applied = <int>[];
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (change) async => applied.add(change.sequence),
+      shouldApplyChange: (_) async => false,
+    );
+
+    final cursor = await coordinator.pullAndApply(businessId: 'b1');
+
+    expect(applied, isEmpty);
+    expect(cursor, 7);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 7);
+  });
+
   test('keeps cursors isolated per business', () async {
     SharedPreferences.setMockInitialValues({'fulus_sync_cursor_b1': 7});
     final preferences = await SharedPreferences.getInstance();

@@ -249,7 +249,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'stock_movement': FulusStockMovementCanonicalReconciler(repository: stockMovementRepository).apply,
       'product': FulusProductCanonicalReconciler(repository: productRepository).apply,
     },
+    shouldApplyChange: (change) async {
+      return !(await syncQueue.hasPendingMutationForServerEntity(
+        entityType: change.entityType,
+        serverId: change.entityId,
+      ));
+    },
   );
+  final syncQueue = SyncQueue(database);
   final syncCoordinator = FulusSyncCoordinator(
     api: fulusSyncApi,
     preferences: syncPreferences,

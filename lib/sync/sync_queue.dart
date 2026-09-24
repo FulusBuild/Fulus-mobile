@@ -361,4 +361,171 @@ class SyncQueue {
       });
     }
   }
+}  /// Returns whether an outbound mutation is still queued for the canonical
+  /// server entity represented by [entityType] and [serverId]. Pull must not
+  /// overwrite an optimistic local row while its mutation is waiting to be
+  /// sent or retried.
+  Future<bool> hasPendingMutationForServerEntity({
+    required String entityType,
+    required String serverId,
+  }) async {
+    String? localId;
+    switch (entityType) {
+      case 'sale':
+        localId = (await (_db.select(_db.sales)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'customer':
+        localId = (await (_db.select(_db.customers)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'customer_ledger':
+        localId = (await (_db.select(_db.customerLedgerEntries)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'category':
+        localId = (await (_db.select(_db.categories)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'supplier':
+        localId = (await (_db.select(_db.suppliers)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'location':
+        localId = (await (_db.select(_db.locations)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'return':
+        localId = (await (_db.select(_db.returnRequests)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'expense_category':
+        localId = (await (_db.select(_db.expenseCategories)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'cash_drawer_shift':
+        localId = (await (_db.select(_db.cashDrawerShifts)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'expense':
+        localId = (await (_db.select(_db.expenses)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'income_record':
+        localId = (await (_db.select(_db.incomeRecords)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'stock_movement':
+        localId = (await (_db.select(_db.stockMovements)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      case 'product':
+        localId = (await (_db.select(_db.products)..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
+      default:
+        return false;
+    }
+    if (localId == null) return false;
+    final queued = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.entityType.equals(entityType))
+          ..where((q) => q.entityLocalId.equals(localId!))
+          ..limit(1))
+        .getSingleOrNull();
+    return queued != null;
+  }
+
+  Future<bool> hasPendingItems() async {
+    final row = await (_db.select(_db.syncQueueItems)..limit(1)).getSingleOrNull();
+    return row != null;
+  }
+
+  Future<void> enqueue(SyncTask task) async {
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.syncQueueItems)
+            ..where((q) => q.entityType.equals(task.entityType))
+            ..where((q) => q.entityLocalId.equals(task.entityLocalId))
+            ..where((q) => q.operation.equals(task.operation))
+            ..limit(1))
+          .getSingleOrNull();
+      if (existing != null) {
+        final blocked = (existing.lastError ?? '').startsWith('[BLOCKED]') ||
+            (existing.lastError ?? '').startsWith('[CONFLICT]');
+
+        // UPDATE operations need a fresh durable queue identity for each
+        // local mutation. The handler reads the mutable local row when it
+        // starts. If the row is edited while an older update is in flight,
+        // coalescing into the same queue row lets the older completion remove
+        // the only queue entry and mark the newer local state settled.
+        // Replacing the row leaves the newer mutation queued even if the old
+        // handler finishes after the replacement. Offline repeated edits still
+        // coalesce to one row because the previous update is replaced before
+        // the next drain.
+        if (task.operation == 'update' && !blocked) {
+          await (_db.delete(_db.syncQueueItems)
+                ..where((q) => q.id.equals(existing.id)))
+              .go();
+        } else if (!blocked) {
+          return;
+        } else {
+          // A newer local mutation must be able to supersede a permanently
+          // parked mutation for the same entity/operation.
+          await (_db.delete(_db.syncQueueItems)
+                ..where((q) => q.id.equals(existing.id)))
+              .go();
+          await (_db.update(_db.syncConflictRecords)
+                ..where((c) => c.operationId.equals(existing.id))
+                ..where((c) => c.resolvedAt.isNull()))
+              .write(
+            SyncConflictRecordsCompanion(
+              resolvedAt: Value(DateTime.now()),
+              resolution: const Value('superseded_by_newer_local_mutation'),
+            ),
+          );
+        }
+      }
+
+      await _db.into(_db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: Ulid().toString(),
+          entityType: task.entityType,
+          entityLocalId: task.entityLocalId,
+          operation: task.operation,
+          priority: task.priority,
+          enqueuedAt: DateTime.now(),
+          baseCursor: Value(_baseCursorProvider?.call()),
+        ),
+      );
+    });
+
+    final callback = _onEnqueued;
+    if (callback != null) {
+      // Repository mutations may enqueue from inside their outer Drift
+      // transaction. Run the trigger only on the next event-loop turn and in
+      // the root zone, after that outer transaction has committed. This keeps
+      // the outbox write atomic without allowing SyncEngine to query a closed
+      // transaction context.
+      Zone.root.run(() {
+        Timer.run(() => unawaited(callback()));
+      });
+    }
+  }
 }

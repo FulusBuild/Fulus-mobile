@@ -11,15 +11,18 @@ class FulusSyncCoordinator {
     required SharedPreferences preferences,
     required Future<void> Function(FulusSyncChange change) applyChange,
     Future<void> Function(List<FulusSyncChange> changes)? applyChanges,
+    Future<bool> Function(FulusSyncChange change)? shouldApplyChange,
   })  : _api = api,
         _preferences = preferences,
         _applyChange = applyChange,
-        _applyChanges = applyChanges;
+        _applyChanges = applyChanges,
+        _shouldApplyChange = shouldApplyChange;
 
   final FulusSyncApi _api;
   final SharedPreferences _preferences;
   final Future<void> Function(FulusSyncChange change) _applyChange;
   final Future<void> Function(List<FulusSyncChange> changes)? _applyChanges;
+  final Future<bool> Function(FulusSyncChange change)? _shouldApplyChange;
 
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
 
@@ -68,22 +71,31 @@ class FulusSyncCoordinator {
           }
           previousSequence = change.sequence;
         }
+        final applicable = <FulusSyncChange>[];
+        for (final change in unapplied) {
+          final shouldApply = _shouldApplyChange == null
+              ? true
+              : await _shouldApplyChange(change);
+          if (shouldApply) applicable.add(change);
+        }
         final applyChanges = _applyChanges;
-        if (applyChanges != null) {
-          await applyChanges(unapplied);
-          for (final change in unapplied) {
-            cursor = change.sequence;
-            await _persistCursor(businessId, cursor);
-          }
+        if (applyChanges != null && applicable.isNotEmpty) {
+          await applyChanges(applicable);
         } else {
-          for (final change in unapplied) {
+          for (final change in applicable) {
             // Apply first, persist cursor second. Replaying a successfully applied
-            // change after a crash is safe because reconciliation is idempotent;
-            // skipping an unapplied change is never safe.
+            // change after a crash is safe because reconciliation is idempotent.
             await _applyChange(change);
-            cursor = change.sequence;
-            await _persistCursor(businessId, cursor);
           }
+        }
+        // A change intentionally held behind a pending local mutation is still
+        // acknowledged in the feed. Its authoritative state is recovered by
+        // the eventual push result or explicit conflict resolution. Leaving the
+        // cursor behind would replay the same remote change forever and could
+        // starve later changes.
+        for (final change in unapplied) {
+          cursor = change.sequence;
+          await _persistCursor(businessId, cursor);
         }
       }
 
