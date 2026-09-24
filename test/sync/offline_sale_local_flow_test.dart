@@ -12,6 +12,7 @@ import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -134,7 +135,7 @@ void main() {
     expect(restoredSales.single.localId, createdSale.localId);
     expect(restoredSales.single.syncStatus, SyncStatus.pending);
 
-    final salesApi = _MockSalesApi();
+    final executionLease = SyncExecutionLease(db);
     final restoredRepository = SaleRepositoryImpl(
       db: db,
       syncQueue: SyncQueue(db),
@@ -145,6 +146,7 @@ void main() {
       db: db,
       salesApi: salesApi,
       saleRepository: restoredRepository,
+      executionLease: executionLease,
     );
     final engine = SyncEngine(
       db: db,
