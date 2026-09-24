@@ -66,7 +66,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Connectivity _connectivity;
-  final SyncExecutionLease? _executionLease;
+  final SyncExecutionLease _executionLease;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -434,7 +434,7 @@ class SyncTriggers with WidgetsBindingObserver {
     // is waiting and start a duplicate cycle.
     late Future<bool> run;
     run = () async {
-      if (lease != null && !await lease.acquire()) {
+      if (!await lease.acquire()) {
         // Another Fulus runtime owns the durable SQLite sync lease. Treat this
         // wake-up as a no-op and allow a later foreground or WorkManager
         // trigger to run once the active cycle has released the lease.
@@ -444,7 +444,7 @@ class SyncTriggers with WidgetsBindingObserver {
         await _performSyncCycle(manual: manual);
         return true;
       } finally {
-        await lease?.release();
+        await lease.release();
       }
     }();
     _syncCycleRun = run;
