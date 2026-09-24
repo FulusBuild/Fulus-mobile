@@ -422,6 +422,10 @@ void main() {
         onNotReady: () async {
           readinessCalls++;
           ready = true;
+          // Bootstrap's real readiness initializer performs the first
+          // reconciliation before advertising Sync Ready. Model that
+          // contract here so recovery does not require a second trigger.
+          await syncEngine.runOnce(manual: false);
         },
         connectivity: connectivity,
         retryInterval: const Duration(hours: 1),
