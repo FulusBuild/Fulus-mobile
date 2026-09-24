@@ -28,6 +28,8 @@ void main() {
     syncStatusNotifier = MockSyncStatusNotifier();
     when(() => syncStatusNotifier.checkForStuckSyncAndNotify())
         .thenAnswer((_) async {});
+    when(() => connectivity.onConnectivityChanged)
+        .thenAnswer((_) => const Stream.empty());
   });
 
   group('sync disabled', () {
