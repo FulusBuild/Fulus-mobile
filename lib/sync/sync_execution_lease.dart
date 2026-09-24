@@ -74,6 +74,39 @@ class SyncExecutionLease {
     }
   }
 
+  /// Validates ownership while deliberately issuing a write statement.
+  ///
+  /// This method is intended to be the first database operation inside a
+  /// canonical apply transaction. The UPDATE acquires SQLite's writer lock
+  /// before eligibility checks or reconciliation can run, so an expired lease
+  /// cannot be taken over in the gap between a transaction's initial read and
+  /// its first business-data write.
+  Future<void> ensureHeldForTransaction() async {
+    if (!_held) {
+      throw const SyncExecutionLeaseLost();
+    }
+
+    final now = DateTime.now();
+    final updated = await (_db.update(_db.syncRuntimeLeases)
+          ..where(
+            (row) =>
+                row.name.equals(leaseName) &
+                row.ownerId.equals(_ownerId) &
+                row.expiresAt.isBiggerThanValue(now),
+          ))
+        .write(
+      SyncRuntimeLeasesCompanion.custom(
+        expiresAt: _db.syncRuntimeLeases.expiresAt,
+      ),
+    );
+    if (updated != 1) {
+      _held = false;
+      _renewalTimer?.cancel();
+      _renewalTimer = null;
+      throw const SyncExecutionLeaseLost();
+    }
+  }
+
   Future<void> release() async {
     _renewalTimer?.cancel();
     _renewalTimer = null;
