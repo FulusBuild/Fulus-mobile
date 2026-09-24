@@ -16,14 +16,16 @@ void main() {
 
   tearDown(() => db.close());
 
-  test('coalesces duplicate entity operations', () async {
+  test('replaces duplicate update operations with a fresh queue identity', () async {
     final task = SyncTask.updateProduct('product-1');
 
     await queue.enqueue(task);
+    final first = (await db.select(db.syncQueueItems).get()).single;
     await queue.enqueue(task);
 
     final rows = await db.select(db.syncQueueItems).get();
     expect(rows, hasLength(1));
+    expect(rows.single.id, isNot(first.id));
     expect(rows.single.entityType, 'product');
     expect(rows.single.entityLocalId, 'product-1');
     expect(rows.single.operation, 'update');
