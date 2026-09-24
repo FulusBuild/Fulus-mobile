@@ -169,11 +169,21 @@ void main() {
         connectivity: connectivity,
       );
 
+      var runCount = 0;
+      final resumedRun = Completer<void>();
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+        if (runCount == 2 && !resumedRun.isCompleted) {
+          resumedRun.complete();
+        }
+      });
+
       await triggers.start();
-      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      expect(runCount, 1);
 
       triggers.didChangeAppLifecycleState(AppLifecycleState.resumed);
-      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
+      await resumedRun.future;
 
       verify(() => connectivity.checkConnectivity()).called(2);
       verify(() => syncEngine.runOnce(manual: false)).called(2);
