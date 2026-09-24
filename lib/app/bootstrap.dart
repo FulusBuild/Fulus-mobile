@@ -326,7 +326,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // re-enter the readiness path and silently re-register this installation.
       syncTriggers.scheduleReadinessRecovery();
     },
-    executionLease: syncExecutionLease,
   );
 
   final syncConflictResolver = SyncConflictResolver(
@@ -515,6 +514,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusConnectionState.clearRegisteredDevice();
       syncTriggers.scheduleReadinessRecovery();
     },
+    executionLease: syncExecutionLease,
     pullFromServer: () async {
       if (!syncConfig.isEnabled) return;
       final businessId = fulusConnectionState.selectedBusinessId;
