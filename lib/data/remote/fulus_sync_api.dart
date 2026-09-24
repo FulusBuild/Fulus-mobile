@@ -75,7 +75,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
         Map<String, dynamic>.from(response.data as Map),
       );
     } on DioException catch (e) {
-      throw _client.mapError(e);
+      throw _mapSyncTransportError(e);
     }
   }
 
