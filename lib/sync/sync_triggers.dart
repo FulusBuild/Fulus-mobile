@@ -113,14 +113,14 @@ class SyncTriggers with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _retryTimer ??= Timer.periodic(retryInterval, (_) {
       if (_syncConfig.isEnabled) {
-        unawaited(_runIfOnline());
+        unawaited(_runIfOnlineSafely());
       }
     });
     // Subscribe before the initial run. If restored-session initialization
     // fails (for example because the device is offline), the connectivity
     // listener remains alive and can retry readiness when connectivity returns.
     _subscription = _connectivity.onConnectivityChanged.listen((_) {
-      unawaited(_runIfOnline());
+      unawaited(_runIfOnlineSafely());
     });
     if (!_syncConfig.isEnabled) return;
     await _runIfOnline();
@@ -140,7 +140,7 @@ class SyncTriggers with WidgetsBindingObserver {
 
   void _onConfigChanged() {
     if (_syncConfig.isEnabled) {
-      unawaited(_activate());
+      unawaited(_activateSafely());
     } else {
       WidgetsBinding.instance.removeObserver(this);
       _subscription?.cancel();
@@ -155,7 +155,7 @@ class SyncTriggers with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_syncConfig.isEnabled) return;
     if (state == AppLifecycleState.resumed) {
-      unawaited(_runIfOnline());
+      unawaited(_runIfOnlineSafely());
     }
   }
 
@@ -345,6 +345,26 @@ class SyncTriggers with WidgetsBindingObserver {
     } finally {
       if (identical(_readinessRun, run)) {
         _readinessRun = null;
+      }
+    }
+  }
+
+  Future<void> _activateSafely() async {
+    try {
+      await _activate();
+    } catch (error, stackTrace) {
+      if (_started) {
+        _onSyncFailure?.call(error, stackTrace);
+      }
+    }
+  }
+
+  Future<void> _runIfOnlineSafely() async {
+    try {
+      await _runIfOnline();
+    } catch (error, stackTrace) {
+      if (_started) {
+        _onSyncFailure?.call(error, stackTrace);
       }
     }
   }
