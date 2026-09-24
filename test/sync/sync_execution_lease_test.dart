@@ -101,17 +101,16 @@ void main() {
     await transactionStarted.future;
     await Future<void>.delayed(const Duration(milliseconds: 700));
 
-    var takeoverCompleted = false;
+    // The takeover transaction reaches SQLite while db1 still owns the
+    // writer lock. Native SQLite reports SQLITE_BUSY for that BEGIN IMMEDIATE
+    // rather than completing the takeover while the canonical transaction is
+    // open.
     final takeover = secondLease.acquire();
-    takeover.then((_) {
-      takeoverCompleted = true;
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(takeoverCompleted, isFalse);
+    await expectLater(takeover, throwsA(isA<Exception>()));
 
     releaseTransaction.complete();
     await transaction;
-    expect(await takeover, isTrue);
+    expect(await secondLease.acquire(), isTrue);
   });
   test('a stale lease is recoverable by another runtime', () async {
     final now = DateTime.now();
