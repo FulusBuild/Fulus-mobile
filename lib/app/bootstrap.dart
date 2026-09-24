@@ -110,6 +110,7 @@ import '../sync/handlers/supplier_sync_handler.dart';
 import '../sync/sync_config.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_conflict_resolver.dart';
+import '../sync/sync_execution_lease.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
@@ -284,6 +285,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  final syncExecutionLease = SyncExecutionLease(database);
+
   final syncEngine = SyncEngine(
     db: database,
     handlersByEntityType: {
@@ -323,6 +326,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // re-enter the readiness path and silently re-register this installation.
       syncTriggers.scheduleReadinessRecovery();
     },
+    executionLease: syncExecutionLease,
   );
 
   final syncConflictResolver = SyncConflictResolver(
