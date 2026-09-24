@@ -1,0 +1,61 @@
+name: Fulus Production Supabase Migrations
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fulus-production-supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Verify and deploy production migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required production Supabase secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify exact production migration history
+        run: bash tool/verify_supabase_migration_history.sh
+
+      - name: Preview production migration
+        run: supabase db push --dry-run
+
+      - name: Apply production migrations
+        run: supabase db push
+
+      - name: Verify migration history after deployment
+        run: bash tool/verify_supabase_migration_history.sh
