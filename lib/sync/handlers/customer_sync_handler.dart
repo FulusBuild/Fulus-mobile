@@ -65,54 +65,9 @@ class CustomerSyncHandler implements SyncHandler {
         'credit_limit': customer.creditLimit ?? 0,
         if (isUpdate) 'server_id': existingServerId,
         if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
-        if (isUpdate) 'is_active': customer.deletedAt == null,
+        'is_active': customer.deletedAt == null,
       },
     );
-
-    // Queue coalescing can leave an archived, never-synced customer on
-    // the original create item. The cloud create contract creates active
-    // customers, so complete that lifecycle with a second stable update.
-    if (!isUpdate && customer.deletedAt != null) {
-      final createData = result['data'];
-      if (createData is! Map) {
-        throw StateError('Fulus customer create returned no response data.');
-      }
-      final createMap = Map<String, dynamic>.from(createData);
-      final serverId = (createMap['entity_id'] ?? createMap['customer_id']) as String?;
-      if (serverId == null || serverId.isEmpty) {
-        throw StateError('Fulus customer create returned no server entity ID.');
-      }
-      final archiveOperationId = '${item.id}:archive';
-      final archiveResult = await _fulusSyncApi.submitOperation(
-        businessId: businessId,
-        operationType: 'customer.update',
-        operationId: archiveOperationId,
-        clientReference: customer.localId,
-        deviceClientId: device.deviceClientId,
-        payload: {
-          'business_id': businessId,
-          'operation_id': archiveOperationId,
-          'client_reference': customer.localId,
-          'server_id': serverId,
-          'name': customer.name,
-          'phone': customer.phone,
-          'email': customer.email,
-          'address': customer.address,
-          'notes': customer.notes,
-          'credit_limit': customer.creditLimit ?? 0,
-          'is_active': false,
-        },
-      );
-      final archiveData = archiveResult['data'];
-      if (archiveData is! Map) {
-        throw StateError('Fulus customer archive returned no response data.');
-      }
-      final archiveMap = Map<String, dynamic>.from(archiveData);
-      final archivedId = (archiveMap['entity_id'] ?? archiveMap['customer_id']) as String?;
-      if (archivedId != serverId) {
-        throw StateError('Fulus customer archive returned an unexpected entity ID.');
-      }
-    }
 
     final rawData = result['data'];
     if (rawData is! Map) {
