@@ -165,6 +165,7 @@ void main() {
     expect(queued.single.syncAttempts, 0);
     expect(queued.single.lastError, isNull);
 
+    await executionLease.release();
     await db.close();
   });
 }
