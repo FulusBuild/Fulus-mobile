@@ -190,6 +190,45 @@ void main() {
       triggers.dispose();
     });
 
+    test('periodic retry survives repeated transient failures across 100 cycles', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+
+      var runCount = 0;
+      var failureCount = 0;
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+        if (runCount <= 25) {
+          throw StateError('temporary cloud failure $runCount');
+        }
+      });
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        retryInterval: const Duration(milliseconds: 1),
+        onSyncFailure: (error, _) => failureCount++,
+      );
+
+      await expectLater(triggers.start(), throwsStateError);
+
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (runCount < 100 && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+
+      expect(runCount, greaterThanOrEqualTo(100));
+      expect(failureCount, greaterThanOrEqualTo(25));
+      triggers.dispose();
+    });
+
     test('resuming the app rechecks connectivity and triggers sync when enabled', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
