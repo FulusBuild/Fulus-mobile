@@ -258,7 +258,7 @@ $function$;
 
 create or replace function public.record_expense(
   target_business_id uuid, target_location_id uuid, target_amount numeric,
-  target_category text, target_description text, target_expense_date timestamptz,
+  target_category text, target_description text, target_expense_date text,
   target_device_id uuid
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $function$
