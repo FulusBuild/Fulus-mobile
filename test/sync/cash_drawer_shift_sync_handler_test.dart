@@ -8,7 +8,6 @@ import 'package:fulus_mobile/domain/repositories/cash_drawer_shift_repository.da
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 import 'package:fulus_mobile/sync/handlers/cash_drawer_shift_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
-import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -127,7 +126,7 @@ void main() {
           businessId: any(named: 'businessId'),
           operationType: any(named: 'operationType'),
           operationId: any(named: 'operationId'),
-          deviceClientId: any(named: 'deviceClientId'),
+          deviceClientId: any(named: 'device-clientId'),
           clientReference: any(named: 'clientReference'),
           payload: any(named: 'payload'),
         )).thenAnswer((_) async => {
