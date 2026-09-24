@@ -81,6 +81,16 @@ class SyncExecutionLease {
   /// before eligibility checks or reconciliation can run, so an expired lease
   /// cannot be taken over in the gap between a transaction's initial read and
   /// its first business-data write.
+  Future<T> runProtectedTransaction<T>(
+    AppDatabase db,
+    Future<T> Function() action,
+  ) async {
+    return db.transaction(() async {
+      await ensureHeldForTransaction();
+      return action();
+    });
+  }
+
   Future<void> ensureHeldForTransaction() async {
     if (!_held) {
       throw const SyncExecutionLeaseLost();
