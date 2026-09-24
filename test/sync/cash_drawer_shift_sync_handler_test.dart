@@ -1,4 +1,3 @@
-import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
@@ -8,7 +7,6 @@ import 'package:fulus_mobile/domain/repositories/cash_drawer_shift_repository.da
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 import 'package:fulus_mobile/sync/handlers/cash_drawer_shift_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
-import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
