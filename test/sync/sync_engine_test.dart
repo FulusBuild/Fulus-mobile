@@ -5,6 +5,7 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_handler.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -586,32 +587,16 @@ void main() {
     var serverSequence = 100;
     var observedSecondBaseCursor;
 
-    await seedItem(
-      id: 'q-first',
-      entityType: 'product',
-      entityLocalId: 'product-1',
-      operation: 'update',
-      enqueuedAt: DateTime(2026, 9, 24),
-    );
-    await (db.update(db.syncQueueItems)
-          ..where((q) => q.id.equals('q-first')))
-        .write(const SyncQueueItemsCompanion(baseCursor: Value(100)));
+    final queue = SyncQueue(db, baseCursorProvider: () => 100);
+    await queue.enqueue(SyncTask.updateProduct('product-1'));
 
     late SyncEngine engine;
     final handler = _ScriptedHandler((item) async {
-      if (item.id == 'q-first') {
+      if (item.entityLocalId == 'product-1' && item.id != 'q-second') {
         firstStarted.complete();
-        await db.into(db.syncQueueItems).insert(
-              SyncQueueItemsCompanion.insert(
-                id: 'q-second',
-                entityType: 'product',
-                entityLocalId: 'product-1',
-                operation: 'update',
-                priority: 0,
-                enqueuedAt: DateTime(2026, 9, 24, 0, 0, 1),
-                baseCursor: const Value(100),
-              ),
-            );
+        // This is the real repository path: the second update replaces the
+        // older in-flight queue row but captures the same global cursor.
+        await queue.enqueue(SyncTask.updateProduct('product-1'));
         // This is the production callback path: a local mutation during an
         // active push asks the same engine to run again.
         unawaited(engine.runOnce());
@@ -638,7 +623,8 @@ void main() {
         reason: 'the second local edit must wait for pull before push');
     final remaining = await allQueueItems();
     expect(remaining, hasLength(1));
-    expect(remaining.single.id, 'q-second');
+    expect(remaining.single.entityLocalId, 'product-1');
+    expect(remaining.single.operation, 'update');
     expect(remaining.single.lastError, isNull);
     expect(handler.attemptedIds, ['product-1']);
   });
