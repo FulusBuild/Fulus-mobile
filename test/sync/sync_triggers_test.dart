@@ -601,6 +601,59 @@ void main() {
       expect(idle, isTrue);
     });
 
+    test('waitForIdle waits for a scheduled follow-up cycle', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+
+      final firstCycleStarted = Completer<void>();
+      final releaseFirstCycle = Completer<void>();
+      final followUpStarted = Completer<void>();
+      final releaseFollowUp = Completer<void>();
+      var runCount = 0;
+      late final SyncTriggers triggers;
+
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+        if (runCount == 1) {
+          firstCycleStarted.complete();
+          await releaseFirstCycle.future;
+        } else {
+          followUpStarted.complete();
+          await releaseFollowUp.future;
+        }
+      });
+
+      triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      final firstRun = triggers.start();
+      await firstCycleStarted.future;
+      await triggers.notifyEnqueued();
+      releaseFirstCycle.complete();
+
+      final idle = triggers.waitForIdle();
+      await followUpStarted.future;
+      var idleCompleted = false;
+      unawaited(idle.then((_) => idleCompleted = true));
+      await Future<void>.delayed(Duration.zero);
+      expect(idleCompleted, isFalse);
+
+      releaseFollowUp.complete();
+      await Future.wait([firstRun, idle]);
+      expect(runCount, 2);
+      triggers.dispose();
+    });
+
     test('waitForIdle does not wait on readiness orchestration', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
