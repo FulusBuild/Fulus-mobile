@@ -12,6 +12,7 @@ import 'package:fulus_mobile/data/repositories/expense_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/expense.dart';
 import 'package:fulus_mobile/sync/handlers/expense_sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
@@ -22,15 +23,16 @@ void main() {
   late MockFulusConnectionState connectionState;
   late ExpenseRepositoryImpl expenseRepository;
   late ExpenseSyncHandler handler;
+  late SyncExecutionLease executionLease;
   const locationId = 'loc-1';
 
   setUp(() async {
-    db = AppDatabase.forTesting(NativeDatabase.memory());
+    executionLease = SyncExecutionLease(db);
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     final audit = AuditRepositoryImpl(db: db);
     expenseRepository = ExpenseRepositoryImpl(db: db, syncQueue: SyncQueue(db), auditRepository: audit);
-    handler = ExpenseSyncHandler(db: db, fulusSyncApi: fulusSyncApi, fulusConnectionState: connectionState, expenseRepository: expenseRepository);
+    handler = ExpenseSyncHandler(db: db, fulusSyncApi: fulusSyncApi, fulusConnectionState: connectionState, expenseRepository: expenseRepository, executionLease: executionLease);
     await db.into(db.locations).insert(LocationsCompanion.insert(
       localId: locationId, name: 'Main Store', serverId: const Value('server-location-1'),
       createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1), syncStatus: SyncStatus.settled,
@@ -41,7 +43,10 @@ void main() {
     ));
   });
 
-  tearDown(() => db.close());
+  tearDown(() async {
+    await executionLease.release();
+    await db.close();
+  });
 
   SyncQueueItem itemFor(Expense expense, {String operation = 'create'}) => SyncQueueItem(
     id: 'q1', entityType: 'expense', entityLocalId: expense.localId, operation: operation,
