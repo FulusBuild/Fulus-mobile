@@ -218,16 +218,18 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final businessSettingsRepository = BusinessSettingsRepositoryImpl(db: database, businessSettingsApi: businessSettingsApi, authRepository: authRepository, permissionRepository: permissionRepository);
   final resolveActiveLocation = ResolveActiveLocation(locationRepository: locationRepository, authRepository: authRepository, businessSettingsRepository: businessSettingsRepository);
 
-  final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository, productRepository: productRepository);
+  final syncExecutionLease = SyncExecutionLease(database);
+
+  final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository, productRepository: productRepository, executionLease: syncExecutionLease);
   final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository);
-  final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage, customerRepository: customerRepository);
+  final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage, customerRepository: customerRepository, executionLease: syncExecutionLease);
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final supplierSyncHandler = SupplierSyncHandler(supplierRepository: supplierRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
   final locationSyncHandler = LocationSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, locationRepository: locationRepository);
-  final returnSyncHandler = ReturnSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, returnRepository: returnRepository, productRepository: productRepository, customerRepository: customerRepository);
+  final returnSyncHandler = ReturnSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, returnRepository: returnRepository, productRepository: productRepository, customerRepository: customerRepository, executionLease: syncExecutionLease);
   final expenseCategorySyncHandler = ExpenseCategorySyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseCategoryRepository: expenseCategoryRepository);
-  final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, cashDrawerShiftRepository: cashDrawerShiftRepository, locationRepository: locationRepository);
-  final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository);
+  final cashDrawerShiftSyncHandler = CashDrawerShiftSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, cashDrawerShiftRepository: cashDrawerShiftRepository, locationRepository: locationRepository, executionLease: syncExecutionLease);
+  final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository, executionLease: syncExecutionLease);
   final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository, locationRepository: locationRepository);
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
   final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
@@ -250,8 +252,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'product': FulusProductCanonicalReconciler(repository: productRepository).apply,
     },
   );
-  final syncExecutionLease = SyncExecutionLease(database);
-
   final syncCoordinator = FulusSyncCoordinator(
     api: fulusSyncApi,
     preferences: syncPreferences,
