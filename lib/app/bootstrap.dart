@@ -232,6 +232,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
   final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
 
+  final syncQueue = SyncQueue(database);
   final canonicalReconciler = FulusCanonicalTypedReconciler(
     api: fulusSyncApi,
     handlers: {
@@ -249,14 +250,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       'stock_movement': FulusStockMovementCanonicalReconciler(repository: stockMovementRepository).apply,
       'product': FulusProductCanonicalReconciler(repository: productRepository).apply,
     },
-    shouldApplyChange: (change) async {
-      return !(await syncQueue.hasPendingMutationForServerEntity(
-        entityType: change.entityType,
-        serverId: change.entityId,
-      ));
-    },
   );
-  final syncQueue = SyncQueue(database);
   final syncCoordinator = FulusSyncCoordinator(
     api: fulusSyncApi,
     preferences: syncPreferences,
@@ -289,6 +283,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         businessId: businessId,
         deviceClientId: registeredDevice.deviceClientId,
       );
+    },
+    shouldApplyChange: (change) async {
+      return !(await syncQueue.hasPendingMutationForServerEntity(
+        entityType: change.entityType,
+        serverId: change.entityId,
+      ));
     },
   );
 
