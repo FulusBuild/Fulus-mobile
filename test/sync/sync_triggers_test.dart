@@ -32,6 +32,7 @@ void main() {
     executionLease = MockSyncExecutionLease();
     when(() => executionLease.acquire()).thenAnswer((_) async => true);
     when(() => executionLease.release()).thenAnswer((_) async {});
+    when(() => executionLease.ensureHeld()).thenAnswer((_) async {});
     when(() => syncStatusNotifier.checkForStuckSyncAndNotify())
         .thenAnswer((_) async {});
     when(() => connectivity.onConnectivityChanged)
