@@ -8,7 +8,7 @@ import 'package:workmanager/workmanager.dart';
 import '../app/bootstrap.dart';
 import '../app/providers.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
-import 'sync_config.dart';
+import '../core/diagnostics/models/diagnostic_enums.dart';
 
 const fulusBackgroundSyncUniqueName = 'fulus-cloud-sync';
 const fulusBackgroundSyncTaskName = 'fulus.cloud.sync';
