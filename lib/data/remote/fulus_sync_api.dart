@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 import '../../core/config/supabase_config.dart';
 import 'api_client.dart';
 import 'fulus_canonical_reconciler_typed.dart';
+import '../../core/errors/failure.dart';
+import '../../sync/sync_error.dart';
 
 /// Client for the dedicated Fulus Supabase Edge Function.
 class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEntityFetcher {
@@ -48,7 +50,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
               }))
           .toList(growable: false);
     } on DioException catch (e) {
-      throw _client.mapError(e);
+      throw _mapSyncTransportError(e);
     }
   }
 
@@ -204,6 +206,23 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
     } on DioException catch (e) {
       throw _client.mapError(e);
     }
+  }
+
+  Object _mapSyncTransportError(DioException error) {
+    final mapped = _client.mapError(error);
+    // HTTP 429 is a server-side rate limit, not a permanent business-rule
+    // rejection. Queue items must remain retryable so transient throttling
+    // cannot permanently park financial or catalog work.
+    if (error.response?.statusCode == 429) {
+      return SyncFailure(
+        kind: SyncErrorKind.temporaryServer,
+        message: mapped is BusinessRuleFailure
+            ? mapped.message
+            : 'Cloud Sync was rate limited. Retrying automatically.',
+        cause: mapped,
+      );
+    }
+    return mapped;
   }
 
   Map<String, dynamic> _normalizeOperationResponse(
