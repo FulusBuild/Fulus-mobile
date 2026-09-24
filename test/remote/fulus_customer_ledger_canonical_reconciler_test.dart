@@ -78,7 +78,8 @@ void main() {
           'entity_id': 'ledger-1',
           'operation': 'upsert',
           'data': {
-            'id': 'ledger-1',
+            'row': {
+              'id': 'ledger-1',
             'customer_id': 'customer-1',
             'sale_id': 'sale-1',
             'entry_type': 'credit_reversal',
@@ -87,6 +88,7 @@ void main() {
             'note': 'Return credit reversal',
             'created_at': '2026-09-23T20:00:00Z',
             'updated_at': '2026-09-23T20:00:00Z',
+            },
           },
         },
       ),
