@@ -21,6 +21,7 @@ class ReturnSyncHandler implements SyncHandler {
     ProductRepository? productRepository,
     CustomerRepository? customerRepository,
   })  : _db = db,
+        _executionLease = executionLease,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _returnRepository = returnRepository,
