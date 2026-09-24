@@ -47,7 +47,7 @@ void main() {
 
   test('canonical apply transaction fences lease takeover after expiry', () async {
     final directory = await Directory.systemTemp.createTemp('fulus-lease-fence-');
-    final path = '\${directory.path}/fulus.db';
+    final path = '${directory.path}/fulus.db';
     QueryExecutor openExecutor() => NativeDatabase(
       File(path),
       setup: (database) {
