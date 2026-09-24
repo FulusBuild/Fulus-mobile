@@ -12,6 +12,7 @@ import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/sync/sync_conflict_resolver.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
@@ -23,11 +24,13 @@ void main() {
   late MockFulusConnectionState connectionState;
   late CustomerRepositoryImpl customers;
   late SharedPreferences preferences;
+  late SyncExecutionLease executionLease;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     preferences = await SharedPreferences.getInstance();
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    executionLease = SyncExecutionLease(db);
     api = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     customers = CustomerRepositoryImpl(
@@ -46,7 +49,10 @@ void main() {
     );
   });
 
-  tearDown(() async => db.close());
+  tearDown(() async {
+    await executionLease.release();
+    await db.close();
+  });
 
   test('reconciles authoritative state before clearing a parked conflict', () async {
     final customer = await customers.createCustomer(
@@ -118,6 +124,7 @@ void main() {
       canonicalFetcher: api,
       connectionState: connectionState,
       preferences: preferences,
+      executionLease: executionLease,
     );
 
     await resolver.keepCloudVersion('operation-1:conflict');
