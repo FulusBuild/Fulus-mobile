@@ -20,6 +20,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
     required CashDrawerShiftRepository cashDrawerShiftRepository,
     required LocationRepository locationRepository,
   })  : _db = db,
+        _executionLease = executionLease,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _cashDrawerShiftRepository = cashDrawerShiftRepository,
