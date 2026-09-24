@@ -15,6 +15,7 @@ import 'package:fulus_mobile/sync/handlers/sale_sync_handler.dart';
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,13 +61,14 @@ void main() {
   late MockProductRepository productRepository;
   late SaleRepositoryImpl saleRepository;
   late SaleSyncHandler handler;
+  late SyncExecutionLease executionLease;
 
   const locationId = 'loc-1';
   const productId = 'prod-1';
   const customerId = 'cust-1';
 
   setUp(() async {
-    db = AppDatabase.forTesting(NativeDatabase.memory());
+    executionLease = SyncExecutionLease(db);
     salesApi = MockSalesApi();
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
@@ -86,6 +88,7 @@ void main() {
       salesApi: salesApi,
       saleRepository: saleRepository,
       productRepository: productRepository,
+      executionLease: executionLease,
     );
 
     final now = DateTime.now();
@@ -128,6 +131,7 @@ void main() {
   });
 
   tearDown(() async {
+    await executionLease.release();
     await db.close();
   });
 
