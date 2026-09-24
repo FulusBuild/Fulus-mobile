@@ -13,17 +13,20 @@ import '../sync_execution_lease.dart';
 /// canonical Fulus Cloud transport.
 class CashDrawerShiftSyncHandler implements SyncHandler {
   CashDrawerShiftSyncHandler({
+    required AppDatabase db,
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
     required SyncExecutionLease executionLease,
     required CashDrawerShiftRepository cashDrawerShiftRepository,
     required LocationRepository locationRepository,
-  })  : _fulusSyncApi = fulusSyncApi,
+  })  : _db = db,
+        _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _cashDrawerShiftRepository = cashDrawerShiftRepository,
         _locationRepository = locationRepository;
   final SyncExecutionLease _executionLease;
 
+  final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
   final CashDrawerShiftRepository _cashDrawerShiftRepository;
@@ -131,8 +134,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
           deviceClientId: device!.deviceClientId,
         );
         await _executionLease.runProtectedTransaction(
-          // CashDrawerShiftSyncHandler has no database field; its repository uses the same DB.
-          _cashDrawerShiftRepository.db,
+          _db,
           () => FulusCashDrawerCanonicalReconciler(repository: _cashDrawerShiftRepository).apply(canonical),
         );
       } catch (_) {
