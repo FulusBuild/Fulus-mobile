@@ -248,10 +248,11 @@ void main() {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
       final connectivityChanges = StreamController<List<ConnectivityResult>>();
+      var currentConnectivity = <ConnectivityResult>[ConnectivityResult.wifi];
       when(() => connectivity.onConnectivityChanged)
           .thenAnswer((_) => connectivityChanges.stream);
       when(() => connectivity.checkConnectivity())
-          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+          .thenAnswer((_) async => currentConnectivity);
 
       var runCount = 0;
       final resumedRun = Completer<void>();
@@ -275,11 +276,13 @@ void main() {
       await triggers.start();
       expect(runCount, 1);
 
-      connectivityChanges.add([ConnectivityResult.none]);
+      currentConnectivity = [ConnectivityResult.none];
+      connectivityChanges.add(currentConnectivity);
       await Future<void>.delayed(Duration.zero);
       expect(runCount, 1);
 
-      connectivityChanges.add([ConnectivityResult.wifi]);
+      currentConnectivity = [ConnectivityResult.wifi];
+      connectivityChanges.add(currentConnectivity);
       await resumedRun.future;
 
       expect(runCount, 2);
