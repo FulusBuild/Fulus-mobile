@@ -7,6 +7,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/functions/**"
   workflow_dispatch:
 
 permissions:
@@ -58,4 +59,25 @@ jobs:
         run: supabase db push
 
       - name: Verify migration history after deployment
+        run: bash tool/verify_supabase_migration_history.sh
+
+      # Keep production Edge Functions on the same reviewed main SHA as the
+      # migrations. Deploy only after the migration step and re-check the
+      # repository/production migration boundary before touching functions.
+      - name: Deploy production Edge Functions
+        run: |
+          set -euo pipefail
+          for function in \
+            fulus-api \
+            fulus-sync-state \
+            fulus-restore \
+            fulus-provision-business \
+            fulus-staff-api \
+            fulus-reporting-api \
+            fulus-diagnostics; do
+            echo "Deploying $function"
+            supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_ID"
+          done
+
+      - name: Verify production migration history after function deployment
         run: bash tool/verify_supabase_migration_history.sh
