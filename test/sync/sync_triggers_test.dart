@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -14,11 +15,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class MockSyncEngine extends Mock implements SyncEngine {}
 class MockConnectivity extends Mock implements Connectivity {}
 class MockSyncStatusNotifier extends Mock implements SyncStatusNotifier {}
+class MockSyncExecutionLease extends Mock implements SyncExecutionLease {}
 
 void main() {
   late MockSyncEngine syncEngine;
   late MockConnectivity connectivity;
   late MockSyncStatusNotifier syncStatusNotifier;
+  late MockSyncExecutionLease executionLease;
 
   setUp(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +29,9 @@ void main() {
     syncEngine = MockSyncEngine();
     connectivity = MockConnectivity();
     syncStatusNotifier = MockSyncStatusNotifier();
+    executionLease = MockSyncExecutionLease();
+    when(() => executionLease.acquire()).thenAnswer((_) async => true);
+    when(() => executionLease.release()).thenAnswer((_) async {});
     when(() => syncStatusNotifier.checkForStuckSyncAndNotify())
         .thenAnswer((_) async {});
     when(() => connectivity.onConnectivityChanged)
@@ -37,6 +43,7 @@ void main() {
       final config = await SyncConfig.load();
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
+        executionLease: executionLease,
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
