@@ -187,6 +187,86 @@ revoke all on function public.change_member_role(uuid,uuid,uuid,uuid)
 revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
   from public, anon, authenticated, service_role;
 
+-- Legacy lower-level mutation helpers retained only so the historical
+-- lockdown migration can replay from an empty database. They are inert and
+-- revoked later in the chain; current service wrappers no longer depend on
+-- direct client execution of these helpers.
+
+create or replace function public.set_inventory_quantity(
+  target_business_id uuid, target_product_id uuid, target_location_id uuid,
+  target_quantity integer, target_operation_id text, target_reason text,
+  target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy inventory helper is disabled';
+end;
+$function$;
+
+create or replace function public.cloud_open_cash_drawer_shift(
+  target_business_id uuid, target_user_id uuid, target_opening_cash numeric,
+  target_opened_at timestamptz, target_note text, target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy cash drawer helper is disabled';
+end;
+$function$;
+
+create or replace function public.cloud_record_income(
+  target_business_id uuid, target_location_id uuid, target_source text,
+  target_amount numeric, target_income_date timestamptz, target_note text,
+  target_operation_id text, target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy income helper is disabled';
+end;
+$function$;
+
+create or replace function public.record_customer_repayment(
+  target_business_id uuid, target_customer_id uuid, target_amount numeric,
+  target_operation_id text, target_payment_method text, target_note text,
+  target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy repayment helper is disabled';
+end;
+$function$;
+
+create or replace function public.record_sale_payment(
+  target_business_id uuid, target_sale_id uuid, target_amount numeric,
+  target_operation_id text, target_payment_method text, target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy sale payment helper is disabled';
+end;
+$function$;
+
+create or replace function public.record_expense(
+  target_business_id uuid, target_expense_id uuid, target_amount numeric,
+  target_category text, target_description text, target_expense_date timestamptz,
+  target_device_id uuid, target_request_hash text
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy expense helper is disabled';
+end;
+$function$;
+
+create or replace function public.record_expense(
+  target_business_id uuid, target_expense_id uuid, target_amount numeric,
+  target_category text, target_description text, target_expense_date timestamptz,
+  target_device_id uuid
+) returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+begin
+  raise exception using errcode='42883', message='Legacy expense helper is disabled';
+end;
+$function$;
+
 -- Legacy service API wrappers retained only so historical lockdown
 -- migrations can be replayed from an empty database. They are inert and
 -- executable by no role; the current actor/device-bound wrappers are defined
