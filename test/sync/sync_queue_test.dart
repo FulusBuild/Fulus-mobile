@@ -146,7 +146,7 @@ void main() {
         sellingPrice: 150,
         createdAt: now,
         updatedAt: now,
-        syncStatus: SyncStatus.synced,
+        syncStatus: SyncStatus.settled,
       ),
     );
 
