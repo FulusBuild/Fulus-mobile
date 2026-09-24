@@ -30,7 +30,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     preferences = await SharedPreferences.getInstance();
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    executionLease = SyncExecutionLease(db);
+    executionLease = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(milliseconds: 100),
+    );
     api = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     customers = CustomerRepositoryImpl(
@@ -137,6 +140,48 @@ void main() {
             .getSingle();
     expect(conflict.resolvedAt != null, isTrue);
     expect(conflict.resolution, 'kept_authoritative_cloud_version');
+  });
+
+  test('manual cloud conflict resolution cannot bypass an active sync lease', () async {
+    await db.into(db.syncConflictRecords).insert(
+      SyncConflictRecordsCompanion.insert(
+        id: 'blocked-conflict',
+        operationId: 'blocked-operation',
+        entityType: 'customer',
+        entityLocalId: 'missing-local-id',
+        code: const Value('SYNC_CONFLICT'),
+        message: 'Customer changed on another device.',
+        createdAt: DateTime.utc(2026, 9, 21),
+      ),
+    );
+
+    final blocker = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(milliseconds: 100),
+    );
+    addTearDown(blocker.release);
+
+    expect(await blocker.acquire(), isTrue);
+
+    final resolver = SyncConflictResolver(
+      db: db,
+      reconciler: FulusCanonicalTypedReconciler(api: api, handlers: const {}),
+      canonicalFetcher: api,
+      connectionState: connectionState,
+      preferences: preferences,
+      executionLease: executionLease,
+    );
+
+    await expectLater(
+      resolver.keepCloudVersion('blocked-conflict'),
+      throwsA(isA<StateError>()),
+    );
+    verifyNever(() => api.fetchCanonicalEntity(
+          businessId: any(named: 'businessId'),
+          entityType: any(named: 'entityType'),
+          entityId: any(named: 'entityId'),
+          deviceClientId: any(named: 'deviceClientId'),
+        ));
   });
 
   test('rebases a local conflict and leaves it unresolved until push succeeds', () async {
