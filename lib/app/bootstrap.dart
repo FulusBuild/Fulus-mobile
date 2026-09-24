@@ -349,6 +349,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     canonicalFetcher: fulusSyncApi,
     connectionState: fulusConnectionState,
     preferences: syncPreferences,
+    executionLease: syncExecutionLease,
   );
 
   final notificationRepository = NotificationRepositoryImpl(db: database);
