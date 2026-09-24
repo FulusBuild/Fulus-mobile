@@ -5,6 +5,7 @@ import '../../domain/repositories/expense_repository.dart';
 import '../../core/errors/failure.dart';
 import '../../data/remote/fulus_expense_canonical_reconciler.dart';
 import '../sync_handler.dart';
+import '../sync_execution_lease.dart';
 
 /// Pushes expenses through the authoritative Fulus Cloud command API.
 /// There is deliberately no API_BASE_URL fallback on the cloud path.
@@ -12,12 +13,14 @@ class ExpenseSyncHandler implements SyncHandler {
   ExpenseSyncHandler({
     required AppDatabase db,
     required FulusSyncApi fulusSyncApi,
+    required SyncExecutionLease executionLease,
     required FulusConnectionState fulusConnectionState,
     required ExpenseRepository expenseRepository,
   })  : _db = db,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _expenseRepository = expenseRepository;
+  final SyncExecutionLease _executionLease;
 
   final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
@@ -81,9 +84,10 @@ class ExpenseSyncHandler implements SyncHandler {
             entityId: serverId,
             deviceClientId: device!.deviceClientId,
           );
-          await FulusExpenseCanonicalReconciler(
-            repository: _expenseRepository,
-          ).apply(canonical);
+          await _executionLease.runProtectedTransaction(
+            _db,
+            () => FulusExpenseCanonicalReconciler(repository: _expenseRepository).apply(canonical),
+          );
         } catch (_) {
           // Preserve the original rejection; a later pull can reconcile it.
         }
