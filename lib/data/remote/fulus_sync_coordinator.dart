@@ -38,6 +38,10 @@ class FulusSyncCoordinator {
   }) async {
     var cursor = cursorFor(businessId);
     while (true) {
+      // Another runtime may have completed a newer pull while this runtime
+      // was suspended. Never issue a request from a stale cursor when the
+      // durable acknowledgement has already advanced.
+      cursor = _maxCursor(cursor, cursorFor(businessId));
       final page = await _api.pullChanges(
         businessId: businessId,
         cursor: cursor,
@@ -110,13 +114,19 @@ class FulusSyncCoordinator {
         // cursor behind would replay the same remote change forever and could
         // starve later changes.
         for (final change in unapplied) {
-          cursor = change.sequence;
+          cursor = _maxCursor(cursor, change.sequence);
           await _persistCursor(businessId, cursor);
         }
+        cursor = _maxCursor(cursor, cursorFor(businessId));
       }
 
       if (!page.hasMore) return cursor;
       if (unapplied.isEmpty) {
+        final durableCursor = cursorFor(businessId);
+        if (durableCursor > cursor) {
+          cursor = durableCursor;
+          continue;
+        }
         throw StateError(
           'Cloud Sync returned a page with no forward progress while reporting more changes.',
         );
@@ -141,11 +151,18 @@ class FulusSyncCoordinator {
   }
 
   Future<void> _persistCursor(String businessId, int cursor) async {
+    // SharedPreferences is not transactional across runtimes. Make the
+    // acknowledgement monotonic so an older suspended pull can never move a
+    // newer durable cursor backwards after another runtime has progressed.
+    final current = cursorFor(businessId);
+    if (current >= cursor) return;
     final persisted = await _preferences.setInt(_cursorKey(businessId), cursor);
     if (!persisted) {
       throw StateError('Failed to persist the Cloud Sync cursor.');
     }
   }
+
+  int _maxCursor(int a, int b) => a >= b ? a : b;
 
   Future<void> resetCursor(String businessId) async {
     final removed = await _preferences.remove(_cursorKey(businessId));
