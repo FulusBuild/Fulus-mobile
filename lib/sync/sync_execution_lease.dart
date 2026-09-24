@@ -80,7 +80,7 @@ class SyncExecutionLease {
 
       final now = DateTime.now();
       final canTakeOver = existing == null || !existing.expiresAt.isAfter(now);
-      if (!canTakeOver && existing!.ownerId != _ownerId) return false;
+      if (!canTakeOver && existing.ownerId != _ownerId) return false;
 
       final expiresAt = now.add(_leaseDuration);
       if (existing == null) {
