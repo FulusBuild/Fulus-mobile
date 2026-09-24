@@ -1,14 +1,12 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/sync/retry_policy.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_handler.dart';
-import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
 import 'package:flutter_test/flutter_test.dart';
