@@ -63,24 +63,24 @@ void main() {
     await secondLease.release();
   });
 
-  test('an abandoned lease expires and can be recovered by another runtime', () async {
-    final firstLease = SyncExecutionLease(
-      db,
-      leaseDuration: const Duration(milliseconds: 50),
-      acquisitionTimeout: const Duration(milliseconds: 100),
-    );
+  test('a stale lease is recoverable by another runtime', () async {
+    final now = DateTime.now();
+    await db.into(db.syncRuntimeLeases).insert(
+          SyncRuntimeLeasesCompanion.insert(
+            name: SyncExecutionLease.leaseName,
+            ownerId: 'dead-runtime',
+            acquiredAt: now.subtract(const Duration(minutes: 5)),
+            expiresAt: now.subtract(const Duration(minutes: 1)),
+          ),
+        );
+
     final secondLease = SyncExecutionLease(
       db,
-      leaseDuration: const Duration(milliseconds: 50),
-      acquisitionTimeout: const Duration(milliseconds: 500),
+      acquisitionTimeout: const Duration(milliseconds: 100),
     );
 
-    expect(await firstLease.acquire(), isTrue);
     expect(await secondLease.acquire(), isTrue);
-
     await secondLease.release();
-    // The first runtime deliberately never releases its lease, simulating a
-    // process death. The second runtime could take ownership only after expiry.
   });
 
   test('the lease covers the full push-pull cycle, not only queue draining',
