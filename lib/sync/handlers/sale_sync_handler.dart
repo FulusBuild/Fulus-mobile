@@ -8,6 +8,7 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/repositories/sale_repository.dart';
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
+import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 
 class SaleSyncHandler implements SyncHandler {
@@ -20,6 +21,7 @@ class SaleSyncHandler implements SyncHandler {
     ProductRepository? productRepository,
     SalesApi? salesApi,
   })  : _db = db,
+        _executionLease = executionLease,
         _fulusSyncApi = fulusSyncApi,
         _fulusConnectionState = fulusConnectionState,
         _saleRepository = saleRepository,
