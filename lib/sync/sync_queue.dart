@@ -271,6 +271,17 @@ class SyncQueue {
       for (final task in tasks) {
         final key = '${task.entityType}|${task.entityLocalId}|${task.operation}';
         if (!existingKeys.add(key)) continue;
+
+        // The task list was collected before this transaction started. A
+        // concurrent sync cycle can finish a create in that window, assign a
+        // serverId, and remove its queue row. Re-check the current local row
+        // before seeding so that stale pre-cloud snapshots cannot recreate a
+        // fresh operation after the original queue row has already settled.
+        if (task.operation == 'create' &&
+            await _hasServerIdentity(task.entityType, task.entityLocalId)) {
+          continue;
+        }
+
         await _db.into(_db.syncQueueItems).insert(
           SyncQueueItemsCompanion.insert(
             id: Ulid().toString(),
@@ -284,6 +295,97 @@ class SyncQueue {
         );
       }
     });
+  }
+
+  Future<bool> _hasServerIdentity(String entityType, String localId) async {
+    switch (entityType) {
+      case 'location':
+        return (await (_db.select(_db.locations)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'category':
+        return (await (_db.select(_db.categories)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'supplier':
+        return (await (_db.select(_db.suppliers)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'customer':
+        return (await (_db.select(_db.customers)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'expense_category':
+        return (await (_db.select(_db.expenseCategories)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'product':
+        return (await (_db.select(_db.products)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'expense':
+        return (await (_db.select(_db.expenses)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'income_record':
+        return (await (_db.select(_db.incomeRecords)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'stock_movement':
+        return (await (_db.select(_db.stockMovements)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'sale':
+        return (await (_db.select(_db.sales)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'return':
+        return (await (_db.select(_db.returnRequests)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      case 'cash_drawer_shift':
+        return (await (_db.select(_db.cashDrawerShifts)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty ==
+            true;
+      default:
+        return false;
+    }
   }
 
   Future<bool> hasPendingItems() async {
