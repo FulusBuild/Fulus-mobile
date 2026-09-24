@@ -28,6 +28,7 @@ void main() {
       baseUrl: 'http://127.0.0.1:' + server.port.toString(),
       secureStorage: storage,
       onSessionExpired: () async {},
+      enableGenericRetry: false,
     );
   });
 
