@@ -9,7 +9,6 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
-import 'package:fulus_mobile/sync/sync_handler.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
 
