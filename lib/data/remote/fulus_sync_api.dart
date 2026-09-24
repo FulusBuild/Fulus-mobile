@@ -98,7 +98,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
         Map<String, dynamic>.from(response.data as Map),
       );
     } on DioException catch (e) {
-      throw _client.mapError(e);
+      throw _mapSyncTransportError(e);
     }
   }
 
@@ -204,7 +204,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
       final result = Map<String, dynamic>.from(response.data as Map);
       return _normalizeOperationResponse(result, operationType: operationType);
     } on DioException catch (e) {
-      throw _client.mapError(e);
+      throw _mapSyncTransportError(e);
     }
   }
 
