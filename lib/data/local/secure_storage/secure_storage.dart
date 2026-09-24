@@ -23,7 +23,7 @@ import '../../../domain/entities/approval_hash.dart';
 /// Local PIN authentication remains independent of this credential, while
 /// ApiClient owns the single-flight refresh lifecycle and persists rotated
 /// refresh tokens here. This store is not a general-purpose credential API.
-///class SecureStorage {
+class SecureStorage {
   SecureStorage({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
