@@ -27,6 +27,7 @@ void main() {
   const locationId = 'loc-1';
 
   setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
     executionLease = SyncExecutionLease(db);
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
