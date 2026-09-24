@@ -229,6 +229,50 @@ void main() {
       triggers.dispose();
     });
 
+    test('network interruption resumes sync automatically when connectivity returns', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final connectivityChanges = StreamController<List<ConnectivityResult>>();
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => connectivityChanges.stream);
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+
+      var runCount = 0;
+      final resumedRun = Completer<void>();
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {
+        runCount++;
+        if (runCount == 2 && !resumedRun.isCompleted) {
+          resumedRun.complete();
+        }
+      });
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        retryInterval: const Duration(hours: 1),
+      );
+
+      await triggers.start();
+      expect(runCount, 1);
+
+      connectivityChanges.add([ConnectivityResult.none]);
+      await Future<void>.delayed(Duration.zero);
+      expect(runCount, 1);
+
+      connectivityChanges.add([ConnectivityResult.wifi]);
+      await resumedRun.future;
+
+      expect(runCount, 2);
+      verify(() => syncEngine.runOnce(manual: false)).called(2);
+
+      triggers.dispose();
+      await connectivityChanges.close();
+    });
+
     test('resuming the app rechecks connectivity and triggers sync when enabled', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
