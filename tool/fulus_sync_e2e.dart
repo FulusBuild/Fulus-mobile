@@ -30,6 +30,18 @@ Future<void> main() async {
     businessId: businessId,
   );
 
+  final restDio = Dio(BaseOptions(
+    baseUrl: '${_required('FULUS_AUTH_URL')}/rest/v1',
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
+    headers: {
+      'apikey': _required('FULUS_PUBLISHABLE_KEY'),
+      'Authorization': 'Bearer $token',
+      'content-type': 'application/json',
+    },
+    validateStatus: (_) => true,
+  ));
+
   final dio = Dio(BaseOptions(
     baseUrl: baseUrl,
     connectTimeout: const Duration(seconds: 15),
@@ -422,6 +434,11 @@ Future<void> main() async {
     stdout.writeln('PASS: customer.create');
 
     final creditSaleOperationId = 'e2e-credit-sale-' + suffix;
+    final creditSaleFeedBefore = await _customerBalanceFeedSequence(
+      restDio,
+      businessId: businessId,
+      customerId: customerId,
+    );
     final creditSale = await dio.post('', data: {
       'action': 'sale_create',
       'business_id': businessId,
@@ -452,6 +469,14 @@ Future<void> main() async {
       throw StateError('credit sale returned no sale_id: ' + creditSale.data.toString());
     }
     stdout.writeln('PASS: sale.create credit mutation matrix');
+    await _verifyCustomerBalanceFeedChange(
+      restDio,
+      businessId: businessId,
+      customerId: customerId,
+      previousSequence: creditSaleFeedBefore,
+      expectedBalance: 150,
+      label: 'credit sale customer balance',
+    );
 
     final salePayment = await dio.post('', data: {
       'action': 'sale_payment',
@@ -464,6 +489,11 @@ Future<void> main() async {
     _expect2xx(salePayment, 'sale.payment');
     stdout.writeln('PASS: sale.payment');
 
+    final repaymentFeedBefore = await _customerBalanceFeedSequence(
+      restDio,
+      businessId: businessId,
+      customerId: customerId,
+    );
     final repayment = await dio.post('', data: {
       'action': 'customer_repayment',
       'business_id': businessId,
@@ -475,7 +505,20 @@ Future<void> main() async {
     });
     _expect2xx(repayment, 'customer.repayment');
     stdout.writeln('PASS: customer.repayment');
+    await _verifyCustomerBalanceFeedChange(
+      restDio,
+      businessId: businessId,
+      customerId: customerId,
+      previousSequence: repaymentFeedBefore,
+      expectedBalance: 50,
+      label: 'customer repayment balance',
+    );
 
+    final returnFeedBefore = await _customerBalanceFeedSequence(
+      restDio,
+      businessId: businessId,
+      customerId: customerId,
+    );
     final returnResponse = await dio.post('', data: {
       'action': 'return_create',
       'business_id': businessId,
@@ -489,6 +532,14 @@ Future<void> main() async {
     });
     _expect2xx(returnResponse, 'return.create');
     stdout.writeln('PASS: return.create');
+    await _verifyCustomerBalanceFeedChange(
+      restDio,
+      businessId: businessId,
+      customerId: customerId,
+      previousSequence: returnFeedBefore,
+      expectedBalance: 0,
+      label: 'return credit reversal balance',
+    );
 
     final customerUpdate = await dio.post('', data: {
       'action': 'customer_update',
@@ -1341,6 +1392,132 @@ Future<void> _revokeEphemeralDevice({
   _expect2xx(response, 'revoke ephemeral E2E device');
 }
 
+
+
+Future<int> _customerBalanceFeedSequence(
+  Dio restDio, {
+  required String businessId,
+  required String customerId,
+}) async {
+  final response = await restDio.get(
+    '/sync_changes',
+    queryParameters: {
+      'business_id': 'eq.$businessId',
+      'entity_type': 'eq.customer',
+      'entity_id': 'eq.$customerId',
+      'select': 'sequence',
+      'order': 'sequence.desc',
+      'limit': '1',
+    },
+  );
+  if ((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300) {
+    throw StateError(
+      'Unable to read customer change-feed sequence: '
+      'HTTP ${response.statusCode}: ${response.data}',
+    );
+  }
+  final rows = response.data;
+  if (rows is! List || rows.isEmpty) return 0;
+  final sequence = rows.first is Map ? rows.first['sequence'] : null;
+  if (sequence is num) return sequence.toInt();
+  if (sequence is String) return int.tryParse(sequence) ?? 0;
+  throw StateError('Customer change-feed sequence is invalid: ${rows.first}');
+}
+
+Future<void> _verifyCustomerBalanceFeedChange(
+  Dio restDio, {
+  required String businessId,
+  required String customerId,
+  required int previousSequence,
+  required num expectedBalance,
+  required String label,
+}) async {
+  final customerResponse = await restDio.get(
+    '/customers',
+    queryParameters: {
+      'business_id': 'eq.$businessId',
+      'id': 'eq.$customerId',
+      'select': 'id,outstanding_balance',
+      'limit': '1',
+    },
+  );
+  if ((customerResponse.statusCode ?? 0) < 200 ||
+      (customerResponse.statusCode ?? 0) >= 300) {
+    throw StateError(
+      'Unable to read customer balance after $label: '
+      'HTTP ${customerResponse.statusCode}: ${customerResponse.data}',
+    );
+  }
+  final customerRows = customerResponse.data;
+  if (customerRows is! List || customerRows.length != 1) {
+    throw StateError('Expected one customer row after $label: $customerRows');
+  }
+  final rawBalance = customerRows.single is Map
+      ? customerRows.single['outstanding_balance']
+      : null;
+  final balance = rawBalance is num
+      ? rawBalance.toDouble()
+      : rawBalance is String
+          ? double.tryParse(rawBalance)
+          : null;
+  if (balance == null || (balance - expectedBalance).abs() > 0.000001) {
+    throw StateError(
+      'Customer balance after $label was $rawBalance, expected $expectedBalance.',
+    );
+  }
+
+  final changeResponse = await restDio.get(
+    '/sync_changes',
+    queryParameters: {
+      'business_id': 'eq.$businessId',
+      'entity_type': 'eq.customer',
+      'entity_id': 'eq.$customerId',
+      'select': 'sequence,payload',
+      'order': 'sequence.desc',
+      'limit': '1',
+    },
+  );
+  if ((changeResponse.statusCode ?? 0) < 200 ||
+      (changeResponse.statusCode ?? 0) >= 300) {
+    throw StateError(
+      'Unable to read customer change feed after $label: '
+      'HTTP ${changeResponse.statusCode}: ${changeResponse.data}',
+    );
+  }
+  final changes = changeResponse.data;
+  if (changes is! List || changes.isEmpty || changes.first is! Map) {
+    throw StateError('No customer change-feed event was emitted after $label.');
+  }
+  final change = Map<String, dynamic>.from(changes.first as Map);
+  final rawSequence = change['sequence'];
+  final sequence = rawSequence is num
+      ? rawSequence.toInt()
+      : rawSequence is String
+          ? int.tryParse(rawSequence)
+          : null;
+  if (sequence == null || sequence <= previousSequence) {
+    throw StateError(
+      'Customer balance mutation did not emit a new customer sync event after '
+      '$label: previous=$previousSequence current=$rawSequence.',
+    );
+  }
+  final payload = change['payload'];
+  final payloadMap = payload is Map ? Map<String, dynamic>.from(payload) : null;
+  final payloadBalance = payloadMap?['outstanding_balance'];
+  final parsedPayloadBalance = payloadBalance is num
+      ? payloadBalance.toDouble()
+      : payloadBalance is String
+          ? double.tryParse(payloadBalance)
+          : null;
+  if (parsedPayloadBalance == null ||
+      (parsedPayloadBalance - expectedBalance).abs() > 0.000001) {
+    throw StateError(
+      'Customer sync payload after $label contained balance $payloadBalance, '
+      'expected $expectedBalance.',
+    );
+  }
+  stdout.writeln('PASS: $label emitted customer balance sync change');
+}
 
 String _required(String name) {
   final value = Platform.environment[name];
