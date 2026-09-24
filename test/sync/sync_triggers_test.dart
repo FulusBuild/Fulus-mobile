@@ -155,6 +155,31 @@ void main() {
       triggers.dispose();
     });
 
+    test('resuming the app rechecks connectivity and triggers sync when enabled', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      await triggers.start();
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+
+      triggers.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
+
+      verify(() => connectivity.checkConnectivity()).called(2);
+      verify(() => syncEngine.runOnce(manual: false)).called(2);
+      triggers.dispose();
+    });
+
     test('start() checks connectivity and runs the engine when online', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();
