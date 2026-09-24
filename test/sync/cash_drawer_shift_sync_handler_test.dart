@@ -7,6 +7,8 @@ import 'package:fulus_mobile/domain/entities/location.dart';
 import 'package:fulus_mobile/domain/repositories/cash_drawer_shift_repository.dart';
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 import 'package:fulus_mobile/sync/handlers/cash_drawer_shift_sync_handler.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -21,6 +23,8 @@ void main() {
   late MockCashDrawerShiftRepository repository;
   late MockLocationRepository locationRepository;
   late CashDrawerShiftSyncHandler handler;
+  late AppDatabase db;
+  late SyncExecutionLease executionLease;
 
   final opened = DateTime(2026, 9, 15, 8);
   final closed = DateTime(2026, 9, 15, 18);
@@ -46,13 +50,17 @@ void main() {
   );
 
   setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    executionLease = SyncExecutionLease(db);
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     repository = MockCashDrawerShiftRepository();
     locationRepository = MockLocationRepository();
     handler = CashDrawerShiftSyncHandler(
+      db: db,
       fulusSyncApi: fulusSyncApi,
       fulusConnectionState: connectionState,
+      executionLease: executionLease,
       cashDrawerShiftRepository: repository,
       locationRepository: locationRepository,
     );
@@ -69,6 +77,11 @@ void main() {
           serverId: any(named: 'serverId'),
         )).thenAnswer((_) async {});
     when(() => locationRepository.getLocationById('loc-1')).thenAnswer((_) async => location);
+  });
+
+  tearDown(() async {
+    await executionLease.release();
+    await db.close();
   });
 
   SyncQueueItem item(String operation, {int? baseCursor}) => SyncQueueItem(
