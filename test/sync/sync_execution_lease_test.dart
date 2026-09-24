@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:drift/native.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,27 +10,11 @@ import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_engine.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:fulus_mobile/sync/sync_handler.dart';
-import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/sync/sync_triggers.dart';
 
 class _MockSyncEngine extends Mock implements SyncEngine {}
 class _MockSyncStatusNotifier extends Mock implements SyncStatusNotifier {}
-
-class _BlockingHandler implements SyncHandler {
-  _BlockingHandler(this.started, this.release);
-
-  final Completer<void> started;
-  final Completer<void> release;
-  final List<String> attemptedIds = [];
-
-  @override
-  Future<void> sync(SyncQueueItem item) async {
-    attemptedIds.add(item.id);
-    if (!started.isCompleted) started.complete();
-    await release.future;
-  }
-}
 
 void main() {
   late AppDatabase db;
