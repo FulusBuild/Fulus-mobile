@@ -429,15 +429,17 @@ class SyncTriggers with WidgetsBindingObserver {
     if (active != null) return active;
 
     final lease = _executionLease;
-    if (lease != null && !await lease.acquire()) {
-      // Another Fulus runtime owns the durable SQLite sync lease. Treat this
-      // wake-up as a no-op and allow a later foreground or WorkManager trigger
-      // to run once the active cycle has released the lease.
-      return false;
-    }
-
+    // Publish the in-flight cycle marker before the first await. Otherwise a
+    // second trigger in this same runtime could enter while lease acquisition
+    // is waiting and start a duplicate cycle.
     late Future<bool> run;
     run = () async {
+      if (lease != null && !await lease.acquire()) {
+        // Another Fulus runtime owns the durable SQLite sync lease. Treat this
+        // wake-up as a no-op and allow a later foreground or WorkManager
+        // trigger to run once the active cycle has released the lease.
+        return false;
+      }
       try {
         await _performSyncCycle(manual: manual);
         return true;
