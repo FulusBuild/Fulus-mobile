@@ -42,34 +42,19 @@ class SyncEngine {
 
   Future<void>? _activeRun;
   bool _isRunning = false;
-  bool _rerunRequested = false;
 
   Future<void> runOnce({bool manual = false}) {
     final active = _activeRun;
-    if (active != null) {
-      _rerunRequested = true;
-      return active;
-    }
+    if (active != null) return active;
 
     late Future<void> tracked;
-    tracked = _runUntilSettled(manual: manual).whenComplete(() {
+    tracked = _runOnce(manual: manual).whenComplete(() {
       if (identical(_activeRun, tracked)) {
         _activeRun = null;
       }
     });
     _activeRun = tracked;
     return tracked;
-  }
-
-  Future<void> _runUntilSettled({required bool manual}) async {
-    do {
-      _rerunRequested = false;
-      await _runOnce(manual: manual);
-      // A trigger may have arrived while the queue snapshot was being
-      // drained. Keep that follow-up drain inside the same returned Future so
-      // callers cannot observe completion while newly-enqueued work is still
-      // pending.
-    } while (_rerunRequested);
   }
 
   Future<void> _runOnce({required bool manual}) async {
