@@ -466,6 +466,11 @@ Future<void> main() async {
       label: 'credit sale customer balance',
     );
 
+    final salePaymentFeedBefore = await _customerBalanceFeedSequence(
+      dio,
+      businessId: businessId,
+      customerId: customerId,
+    );
     final salePayment = await dio.post('', data: {
       'action': 'sale_payment',
       'business_id': businessId,
@@ -475,7 +480,24 @@ Future<void> main() async {
       'payment_method': 'cash',
     });
     _expect2xx(salePayment, 'sale.payment');
+    final salePaymentData = _actionData(salePayment);
+    if (salePaymentData?['customer_balance'] is! num ||
+        (salePaymentData!['customer_balance'] as num).toDouble() != 100) {
+      throw StateError(
+        'sale.payment returned unexpected customer balance: '
+        '${salePaymentData?['customer_balance']}',
+      );
+    }
     stdout.writeln('PASS: sale.payment');
+
+    await _verifyCustomerBalanceFeedChange(
+      dio,
+      businessId: businessId,
+      customerId: customerId,
+      previousSequence: salePaymentFeedBefore,
+      expectedBalance: 100,
+      label: 'sale payment customer balance',
+    );
 
     final repaymentFeedBefore = await _customerBalanceFeedSequence(
       dio,
