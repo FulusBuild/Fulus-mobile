@@ -51,6 +51,29 @@ class SyncExecutionLease {
     }
   }
 
+  /// Verifies that this runtime still owns an unexpired lease.
+  ///
+  /// A runtime can be suspended long enough for another runtime to take over.
+  /// The old runtime must never silently continue a new sync phase after that
+  /// takeover. Callers should abort the current cycle and let a later trigger
+  /// retry it.
+  Future<void> ensureHeld() async {
+    if (!_held) {
+      throw const SyncExecutionLeaseLost();
+    }
+    final row = await (_db.select(_db.syncRuntimeLeases)
+          ..where((item) => item.name.equals(leaseName))
+          ..limit(1))
+        .getSingleOrNull();
+    final now = DateTime.now();
+    if (row == null || row.ownerId != _ownerId || !row.expiresAt.isAfter(now)) {
+      _held = false;
+      _renewalTimer?.cancel();
+      _renewalTimer = null;
+      throw const SyncExecutionLeaseLost();
+    }
+  }
+
   Future<void> release() async {
     _renewalTimer?.cancel();
     _renewalTimer = null;
@@ -128,4 +151,12 @@ class SyncExecutionLease {
       _renewalTimer = null;
     }
   }
+}
+
+
+class SyncExecutionLeaseLost implements Exception {
+  const SyncExecutionLeaseLost();
+
+  @override
+  String toString() => 'Cloud Sync execution lease was lost to another runtime.';
 }
