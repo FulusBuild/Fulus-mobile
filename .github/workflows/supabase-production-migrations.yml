@@ -8,6 +8,7 @@ on:
       - "supabase/migrations/**"
       - "supabase/config.toml"
       - "supabase/functions/**"
+      - ".github/workflows/supabase-production-migrations.yml"
   workflow_dispatch:
 
 permissions:
