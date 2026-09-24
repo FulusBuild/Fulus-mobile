@@ -68,6 +68,7 @@ void main() {
   const customerId = 'cust-1';
 
   setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
     executionLease = SyncExecutionLease(db);
     salesApi = MockSalesApi();
     fulusSyncApi = MockFulusSyncApi();
