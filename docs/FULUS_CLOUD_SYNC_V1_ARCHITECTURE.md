@@ -402,3 +402,14 @@ FulusSyncApi now maps HTTP 408 and 429 to retryable SyncFailure values without c
 
 ### Verification boundary
 The code-level architecture now has an OS-scheduled Android recovery path and cross-runtime serialization. Exact background execution timing remains controlled by Android, and physical-device validation after process termination/backgrounding is still a release-gate test rather than a claim made from CI alone.
+
+
+## Architecture audit record — durable execution lease takeover (2026-09-24)
+
+The audit proved a real lifecycle hazard: the SQLite execution lease is renewable only while the owning runtime is executing. If that runtime is suspended longer than the lease duration, another runtime can legitimately acquire the lease. The original runtime can later resume inside its already-running Dart future, so the lease by itself cannot preempt work that was already awaiting network or storage operations.
+
+This is treated as a correctness boundary, not as a reason to assume Android will always renew the lease. The sync trigger now re-validates lease ownership between push and pull/recovery phases. If ownership was lost, the old cycle stops cleanly and a later trigger can retry it.
+
+The pull coordinator was also hardened against overlapping runtimes because a lease takeover can happen during a pull. Before applying a page inside its SQLite transaction, it re-reads the durable cursor and refuses to replay changes that another runtime has already acknowledged. Cursor persistence is monotonic, so an older suspended pull cannot move a newer cursor backwards. If a stale pull observes that another runtime advanced the cursor while it was waiting, it refreshes its cursor and continues rather than reporting false no-progress.
+
+This complements server-side operation idempotency: a resumed runtime may have already completed an outbound command before discovering lease loss, but the durable queue operation ID remains the command identity. The lease is therefore a coordination optimization, while idempotency plus monotonic reconciliation provide the correctness boundary.
