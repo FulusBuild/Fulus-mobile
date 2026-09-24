@@ -8,12 +8,13 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/repositories/sale_repository.dart';
 import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/sync/sync_error.dart';
-import 'package:fulus_mobile/sync/sync_handler.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 
 class SaleSyncHandler implements SyncHandler {
   SaleSyncHandler({
     required AppDatabase db,
     FulusSyncApi? fulusSyncApi,
+    required SyncExecutionLease executionLease,
     FulusConnectionState? fulusConnectionState,
     required SaleRepository saleRepository,
     ProductRepository? productRepository,
@@ -24,6 +25,7 @@ class SaleSyncHandler implements SyncHandler {
         _saleRepository = saleRepository,
         _productRepository = productRepository,
         _salesApi = salesApi;
+  final SyncExecutionLease _executionLease;
 
   final AppDatabase _db;
   final FulusSyncApi? _fulusSyncApi;
@@ -133,7 +135,7 @@ class SaleSyncHandler implements SyncHandler {
           entityId: serverId,
           deviceClientId: deviceClientId,
         );
-        await reconciler.apply(canonical);
+        await _executionLease.runProtectedTransaction(_db, () => reconciler.apply(canonical));
       } catch (_) {
         // The original business-rule rejection remains the meaningful
         // queue failure. A failed best-effort reconciliation must not hide
