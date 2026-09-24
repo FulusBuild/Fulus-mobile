@@ -167,7 +167,7 @@ $function$;
 
 create or replace function public.set_role_permission(
   target_business_id uuid, target_role_id uuid, target_permission_id uuid,
-  enabled boolean, target_user_id uuid
+  enabled boolean, target_actor_user_id uuid
 ) returns boolean language plpgsql security definer set search_path = ''
 as $function$
 begin
