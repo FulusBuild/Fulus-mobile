@@ -204,8 +204,8 @@ end;
 $function$;
 
 create or replace function public.cloud_open_cash_drawer_shift(
-  target_business_id uuid, target_user_id uuid, target_opening_cash numeric,
-  target_opened_at timestamptz, target_note text, target_device_id uuid
+  target_business_id uuid, target_location_id uuid, target_opening_cash numeric,
+  target_opened_at timestamptz, target_operation_id text, target_device_id uuid
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $function$
 begin
