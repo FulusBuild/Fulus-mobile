@@ -6,7 +6,7 @@ Fulus production schema changes are migration-driven.
 
 The repository `supabase/migrations/` directory is the canonical migration chain.
 
-The production project's `supabase_migrations.schema_migrations` table must contain exactly the same migration versions and names.
+The production project's `supabase_migrations.schema_migrations` table must contain only migration versions and names from the repository chain, in the same order. Before deployment, production history must be an exact prefix of the repository chain; after deployment, it must exactly match the repository chain.
 
 Supabase tracks migration identity by timestamp/version, so a migration that has the same SQL but a different timestamp is still a different migration to the CLI. The repository and production history therefore must not be allowed to drift.
 
@@ -20,7 +20,7 @@ The workflow:
 
 1. validates required Supabase credentials;
 2. links the production project;
-3. verifies exact migration-history equality;
+3. verifies production migration history is an exact prefix of the repository chain (no drift or unknown migrations);
 4. runs `supabase db push --dry-run`;
 5. applies `supabase db push`;
 6. verifies history equality again.
