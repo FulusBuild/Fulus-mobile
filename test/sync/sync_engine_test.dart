@@ -580,6 +580,8 @@ void main() {
       expect(remaining.single.lastError, '[BLOCKED] Insufficient stock.');
     });
   });
+  // CI verification branch: this regression must remain covered after the
+  // production fix is merged to main.
   test(
       'does not push a same-entity mutation with a stale base cursor during the active push',
       () async {
