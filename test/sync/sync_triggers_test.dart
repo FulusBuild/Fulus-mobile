@@ -437,7 +437,10 @@ void main() {
 
       releaseCycle.complete();
       await first;
-      await untilCalled(() => syncEngine.runOnce(manual: false));
+      // Recovery is deliberately scheduled through a 250ms lifecycle timer
+      // so it cannot recursively await the active sync cycle. Wait for that
+      // boundary rather than asserting immediately after the first cycle.
+      await Future<void>.delayed(const Duration(milliseconds: 350));
 
       expect(readinessCalls, 1);
       expect(runCount, 2);
