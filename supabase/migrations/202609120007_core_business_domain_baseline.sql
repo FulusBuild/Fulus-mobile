@@ -230,18 +230,6 @@ create or replace function public.fulus_api_update_expense(
   target_user_id uuid, target_business_id uuid, target_device_id uuid,
   target_operation_id text, target_expense_id uuid, target_location_id uuid,
   target_amount numeric, target_category text, target_description text,
-  target_expense_date timestamptz, target_payment_method text
-) returns jsonb language plpgsql security definer set search_path = ''
-as $function$
-begin
-  raise exception using errcode='42883', message='Legacy expense update API wrapper is disabled';
-end;
-$function$;
-
-create or replace function public.fulus_api_update_expense(
-  target_user_id uuid, target_business_id uuid, target_device_id uuid,
-  target_operation_id text, target_expense_id uuid, target_location_id uuid,
-  target_amount numeric, target_category text, target_description text,
   target_expense_date timestamptz, target_request_hash text
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $function$
@@ -281,9 +269,6 @@ revoke all on function public.fulus_api_create_customer(
 ) from public,anon,authenticated,service_role;
 revoke all on function public.fulus_api_update_customer(
   uuid,uuid,uuid,text,uuid,text,text,text,text,text,numeric,boolean,text
-) from public,anon,authenticated,service_role;
-revoke all on function public.fulus_api_update_expense(
-  uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text
 ) from public,anon,authenticated,service_role;
 revoke all on function public.fulus_api_update_expense(
   uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text,text
