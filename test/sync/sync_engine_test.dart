@@ -649,7 +649,7 @@ void main() {
           entityLocalId: 'enqueued-during-drain',
           enqueuedAt: DateTime.now().add(const Duration(seconds: 1)),
         );
-        await engine.runOnce();
+        unawaited(engine.runOnce());
       }
     });
 
