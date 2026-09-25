@@ -82,6 +82,61 @@ Deno.serve(async (req) => {
     return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
   }
 
+  const { data: roleMembership, error: roleError } = await db
+    .from("business_memberships")
+    .select("role_id, roles(name)")
+    .eq("business_id", businessId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (roleError || !roleMembership) {
+    return out({ error: { code: "MEMBERSHIP_ROLE_LOOKUP_FAILED", message: "Unable to resolve business role" } }, 500);
+  }
+
+  const role = Array.isArray(roleMembership.roles)
+    ? roleMembership.roles[0]
+    : roleMembership.roles;
+  const isBusinessAdmin = role?.name === "owner" || role?.name === "admin";
+
+  const { data: locationRows, error: locationMembershipError } = await db
+    .from("location_memberships")
+    .select("location_id")
+    .eq("business_id", businessId)
+    .eq("user_id", userId)
+    .eq("status", "active");
+  if (locationMembershipError) {
+    return out({ error: { code: "LOCATION_MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve location access" } }, 500);
+  }
+
+  const accessibleLocationIds = new Set(
+    (locationRows ?? []).map((row) => String(row.location_id)),
+  );
+  if (isBusinessAdmin) {
+    const { data: businessLocations, error: businessLocationsError } = await db
+      .from("locations")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("status", "active");
+    if (businessLocationsError) {
+      return out({ error: { code: "LOCATION_LOOKUP_FAILED", message: "Unable to resolve business locations" } }, 500);
+    }
+    for (const location of businessLocations ?? []) {
+      accessibleLocationIds.add(String(location.id));
+    }
+  }
+
+  const locationScopedEntityTypes = new Set([
+    "sale",
+    "expense",
+    "income_record",
+    "cash_drawer_shift",
+    "location",
+    "stock_movement",
+  ]);
+
+  const assertLocationAccess = (locationId: unknown) =>
+    locationId != null && accessibleLocationIds.has(String(locationId));
+
   const { data: device, error: deviceError } = await db
     .from("devices")
     .select("id,status")
@@ -136,6 +191,15 @@ Deno.serve(async (req) => {
       return out({ error: { code: "CANONICAL_BATCH_READ_FAILED", message: "Unable to read canonical entity batch" } }, 500);
     }
 
+    const unauthorized = (rows ?? []).some((row) => {
+      if (entityType === "location") return !assertLocationAccess(row.id);
+      if (locationScopedEntityTypes.has(entityType)) return !assertLocationAccess(row.location_id);
+      return false;
+    });
+    if (unauthorized) {
+      return out({ error: { code: "FORBIDDEN", message: "Requested canonical entity is outside the user's location access" } }, 403);
+    }
+
     const byId = new Map((rows ?? []).map((row) => [String(row.id), row]));
     const entities = entityIds.map((id) => ({
       entity_type: entityType,
@@ -171,6 +235,9 @@ Deno.serve(async (req) => {
       .eq("id", entityId)
       .maybeSingle();
     if (saleError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read sale" } }, 500);
+    if (sale && !assertLocationAccess(sale.location_id)) {
+      return out({ error: { code: "FORBIDDEN", message: "Sale is outside the user's location access" } }, 403);
+    }
     if (!sale) {
       return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", sale: null, sale_items: [], sale_payments: [], server_authoritative: true, latest_sequence: latestSequence } });
     }
@@ -200,7 +267,10 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("product_id", entityId);
     if (stockError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read product stock" } }, 500);
-    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", product, stock_levels: stockLevels ?? [], server_authoritative: true, latest_sequence: latestSequence } });
+    const visibleStockLevels = (stockLevels ?? []).filter((row) =>
+      assertLocationAccess(row.location_id),
+    );
+    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", product, stock_levels: visibleStockLevels, server_authoritative: true, latest_sequence: latestSequence } });
   }
 
   if (entityType === "return") {
@@ -211,6 +281,18 @@ Deno.serve(async (req) => {
       .eq("id", entityId)
       .maybeSingle();
     if (returnError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read return" } }, 500);
+    if (returnRow) {
+      const { data: returnSale, error: returnSaleError } = await db
+        .from("sales")
+        .select("location_id")
+        .eq("business_id", businessId)
+        .eq("id", returnRow.sale_id)
+        .maybeSingle();
+      if (returnSaleError) return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to resolve return location" } }, 500);
+      if (!returnSale || !assertLocationAccess(returnSale.location_id)) {
+        return out({ error: { code: "FORBIDDEN", message: "Return is outside the user's location access" } }, 403);
+      }
+    }
     if (!returnRow) {
       return out({ data: { entity_type: entityType, entity_id: entityId, operation: "delete", row: null, return_items: [], server_authoritative: true, latest_sequence: latestSequence } });
     }
@@ -234,6 +316,14 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (error) {
     return out({ error: { code: "CANONICAL_READ_FAILED", message: `Unable to read ${entityType}` } }, 500);
+  }
+  if (row) {
+    if (entityType === "location" && !assertLocationAccess(row.id)) {
+      return out({ error: { code: "FORBIDDEN", message: "Location is outside the user's location access" } }, 403);
+    }
+    if (locationScopedEntityTypes.has(entityType) && entityType !== "location" && !assertLocationAccess(row.location_id)) {
+      return out({ error: { code: "FORBIDDEN", message: "Canonical entity is outside the user's location access" } }, 403);
+    }
   }
   return out({ data: { entity_type: entityType, entity_id: entityId, operation: row ? "upsert" : "delete", row, server_authoritative: true, latest_sequence: latestSequence } });
 });
