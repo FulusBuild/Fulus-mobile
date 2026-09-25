@@ -119,7 +119,7 @@ void main() {
           payload: captureAny(named: 'payload'),
         )).captured.single as Map<String, dynamic>;
     expect(captured['location_id'], 'server-location-1');
-    verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1')).called(1);
+    verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1', operationId: 'open-op-1')).called(1);
   });
 
   test('pushes shift close through Fulus Cloud using the existing server row', () async {
