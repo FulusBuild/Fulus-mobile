@@ -333,6 +333,100 @@ void main() {
         )).called(1);
   });
 
+  test('does not apply rejected-sale canonical stock over a newer product mutation', () async {
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-1')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenThrow(
+      const BusinessRuleFailure('Insufficient stock', code: 'INSUFFICIENT_STOCK'),
+    );
+    when(() => fulusSyncApi.fetchCanonicalEntity(
+          businessId: 'business-1',
+          entityType: 'product',
+          entityId: 'server-product-1',
+          deviceClientId: 'device-client-1',
+        )).thenAnswer((_) async {
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'newer-product-mutation',
+          entityType: 'product',
+          entityLocalId: productId,
+          operation: 'update',
+          priority: 0,
+          enqueuedAt: DateTime.now().add(const Duration(seconds: 1)),
+        ),
+      );
+      return FulusCanonicalEntityResponse(
+        data: {
+          'entity_type': 'product',
+          'entity_id': 'server-product-1',
+          'operation': 'upsert',
+          'product': {
+            'id': 'server-product-1',
+            'name': 'Test Product',
+            'sku': 'SKU-1',
+            'barcode': null,
+            'category_id': null,
+            'supplier_id': null,
+            'cost_price': 100,
+            'selling_price': 150,
+            'low_stock_threshold': 5,
+            'is_active': true,
+            'updated_at': '2026-09-23T10:00:00Z',
+            'deleted_at': null,
+          },
+          'stock_levels': [
+            {
+              'location_id': 'server-location-1',
+              'current_stock': 3,
+              'updated_at': '2026-09-23T10:00:00Z',
+            },
+          ],
+        },
+      );
+    });
+
+    final sale = await createLocalSale();
+    expect(await executionLease.acquire(), isTrue);
+
+    await expectLater(
+      handler.sync(queueItemFor(sale)),
+      throwsA(isA<BusinessRuleFailure>()),
+    );
+
+    verifyNever(() => productRepository.reconcileServerState(
+          serverId: any(named: 'serverId'),
+          name: any(named: 'name'),
+          sku: any(named: 'sku'),
+          barcode: any(named: 'barcode'),
+          categoryId: any(named: 'categoryId'),
+          supplierId: any(named: 'supplierId'),
+          costPrice: any(named: 'costPrice'),
+          sellingPrice: any(named: 'sellingPrice'),
+          lowStockThreshold: any(named: 'lowStockThreshold'),
+          isActive: any(named: 'isActive'),
+          updatedAt: any(named: 'updatedAt'),
+          deletedAt: any(named: 'deletedAt'),
+          stockLevels: any(named: 'stockLevels'),
+        ));
+  });
+
   test('never falls back to the legacy Sales API when Fulus Cloud is unavailable', () async {
     await (db.update(db.products)..where((p) => p.localId.equals(productId)))
         .write(const ProductsCompanion(serverId: Value('server-product-1')));
