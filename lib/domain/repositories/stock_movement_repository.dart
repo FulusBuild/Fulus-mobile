@@ -6,7 +6,7 @@ abstract class StockMovementRepository {
   Future<StockMovement> recordAdjustment(StockAdjustmentDraft draft);
   Stream<List<StockMovement>> watchMovementsForLocation(String locationId);
   Future<StockMovement?> getStockMovementById(String localId);
-  Future<void> markSettled({required String localId});
+  Future<void> markSettled({required String localId, String? operationId});
 
   /// Applies a server-authoritative movement without creating an outbound
   /// sync task. Server product/location IDs are resolved to local foreign keys.
