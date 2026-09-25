@@ -52,7 +52,7 @@ class SupplierSyncHandler implements SyncHandler {
     final operationType = (isDelete && supplier.serverId != null)
         ? 'supplier.delete'
         : 'supplier.${item.operation}';
-    final payload = <String, dynamic>{
+    final createOrUpdatePayload = <String, dynamic>{
       'name': supplier.name,
       'phone': supplier.phone,
       'email': supplier.email,
@@ -61,17 +61,17 @@ class SupplierSyncHandler implements SyncHandler {
       if (item.baseCursor != null) 'base_cursor': item.baseCursor,
     };
 
+    final deletePayload = <String, dynamic>{
+      'server_id': supplier.serverId,
+      if (item.baseCursor != null) 'base_cursor': item.baseCursor,
+    };
+
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: operationType,
       operationId: operationId,
       deviceClientId: device.deviceClientId,
-      payload: isDelete
-          ? {
-              'server_id': supplier.serverId,
-              if (item.baseCursor != null) 'base_cursor': item.baseCursor,
-            }
-          : payload,
+      payload: operationType == 'supplier.delete' ? deletePayload : createOrUpdatePayload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
     final createSequence = (data['sync_sequence'] as num?)?.toInt();
