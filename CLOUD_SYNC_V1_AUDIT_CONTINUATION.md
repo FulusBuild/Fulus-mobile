@@ -901,3 +901,27 @@ Remaining security work:
 - verify suspension/removal immediately blocks location mutations;
 - audit canonical location-scoped reads/pulls, especially the singular product `current_stock` endpoint and business-wide restore/sync bootstrap payloads;
 - then re-run branch CI and reassess PR #71.
+
+
+## 2026-09-25 — Canonical sync read location isolation
+
+Status: 🟡 CODE FIXED ON BRANCH; PRODUCTION EDGE FUNCTION DEPLOYMENT PENDING
+
+Audit of `fulus-sync-state` found a separate read-boundary gap. The Edge Function authenticates the caller and verifies business membership, but it uses a service-role client and previously returned business-wide canonical rows. In particular, product canonical reads returned all `product_stock_levels` rows, while sale/expense/income/cash-drawer/stock-movement/location canonical reads were not checked against the caller's location access. Return reads also lacked an authorization check derived from their sale location.
+
+The branch now adds the same established authorization contract used by the mutation boundary:
+- owner/admin users receive access to all active locations in their business;
+- other users receive only locations with an active `location_memberships` row;
+- product canonical reads expose only stock levels from accessible locations;
+- sale, expense, income, cash-drawer, stock-movement and location reads reject unauthorized location entities;
+- return reads derive authorization from the referenced sale location;
+- batch canonical reads reject unauthorized location-scoped rows.
+
+The branch code was committed in `fulus-sync-state/index.ts`. The production Edge Function remains on its previous version because the Supabase Edge Function deployment action was blocked by the platform safety gate during this pass. No claim of production deployment is made.
+
+Remaining:
+- deploy the reviewed Edge Function through an approved Supabase deployment path;
+- exercise authorized and unauthorized canonical reads with real authenticated identities;
+- verify product stock never crosses location membership boundaries;
+- complete same-business non-admin adversarial mutation/read tests;
+- rerun CI/status after the branch changes.
