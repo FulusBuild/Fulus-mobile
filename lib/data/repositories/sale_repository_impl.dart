@@ -276,31 +276,33 @@ class SaleRepositoryImpl implements SaleRepository {
   }
 
   @override
-  Future<void> markSynced({{
+    Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    required String invoiceNumber,
+    String? operationId,
+  }) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
-        final current = await (_db.select(_db.syncQueueItems)
-              ..where((q) => q.id.equals(operationId)))
-            .getSingleOrNull();
+        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
         if (current != null) {
           hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
-            entityType: 'sale',
-            entityLocalId: localId,
-            operationId: operationId,
-            enqueuedAt: current.enqueuedAt,
+            entityType: 'sale', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt,
           );
         }
       }
       await (_db.update(_db.sales)..where((s) => s.localId.equals(localId))).write(
         SalesCompanion(
           serverId: Value(serverId),
+          invoiceNumber: Value(invoiceNumber),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
           updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
         ),
       );
     });
   }
+
   @override
   Future<List<SalePayment>> getPaymentsForSale(String saleLocalId) async {
     final rows = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(saleLocalId))).get();
