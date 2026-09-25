@@ -140,12 +140,12 @@ void main() {
         lowStockThreshold: 5, createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
       ));
       await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
-        localId: 'stock-a', productLocalId: 'p1', locationId: locationId, currentStock: 2,
-        createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+        productLocalId: 'p1', locationLocalId: locationId, currentStock: const Value(2),
+        updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
       ));
       await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
-        localId: 'stock-b', productLocalId: 'p1', locationId: locationBId, currentStock: 20,
-        createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+        productLocalId: 'p1', locationLocalId: locationBId, currentStock: const Value(20),
+        updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
       ));
 
       final selection = await repository.getSecondaryNotices(locationId: locationId);
