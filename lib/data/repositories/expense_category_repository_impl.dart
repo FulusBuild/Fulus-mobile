@@ -46,7 +46,11 @@ class ExpenseCategoryRepositoryImpl implements ExpenseCategoryRepository {
   }
 
   @override
-  Future<void> markSynced({{
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? operationId,
+  }) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
@@ -62,7 +66,7 @@ class ExpenseCategoryRepositoryImpl implements ExpenseCategoryRepository {
           );
         }
       }
-      await (_db.update(_db.expenseCategories)..where((e) => e.localId.equals(localId))).write(
+      await (_db.update(_db.expenseCategories)..where((x) => x.localId.equals(localId))).write(
         ExpenseCategoriesCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
@@ -71,6 +75,7 @@ class ExpenseCategoryRepositoryImpl implements ExpenseCategoryRepository {
       );
     });
   }
+
   @override
   Future<void> reconcileServerState({
     required String serverId,
