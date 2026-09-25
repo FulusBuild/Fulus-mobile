@@ -759,3 +759,27 @@ Remaining location audit work:
 - location-scoped stock/projection isolation.
 - dashboard/report/cash-drawer refresh after switching.
 - switching during sync and other in-flight location-scoped operations.
+
+
+## 2026-09-25 — Location-scoped dashboard projection audit
+
+Status: 🟢 targeted dashboard isolation fix and regression coverage added.
+
+The location-switching audit found a real projection gap in Home: the dashboard repository queried today's/yesterday's sales and cash-drawer status without a location predicate, and its low-stock notice summed stock levels across all locations. That meant switching from A to B could leave Home showing another location's sales, drawer state, or low-stock count.
+
+Fixed on `feature/location-switching`:
+- `DashboardRepository.getHeroState` now requires the active `locationId`.
+- Sales totals and counts are filtered by that location.
+- Open/closed cash-drawer state is filtered by that location.
+- `getSecondaryNotices` now requires `locationId` and scopes low-stock projection to that location.
+- Home resolves the active location for each dashboard load and reloads on the existing `dataRefreshSignalProvider` fired by a location switch.
+- Existing recent-activity feed already resolves the active location inside `RealMoneyRepositoryImpl`, so it remains location-bound.
+- Reports already listen to `dataRefreshSignalProvider` and pass the active location to cash-flow reporting.
+- Cash-drawer repository methods require location IDs and the real money repository resolves the active location before drawer operations.
+
+Regression coverage now proves:
+1. A and B sales do not mix in the Home hero totals.
+2. An open drawer in B does not make A appear open.
+3. Low-stock projection only counts the requested location's stock levels.
+
+Remaining location audit work: B-side pending mutations, broader multi-location stock/report coverage, and switching while sync/in-flight location-scoped UI work is active.
