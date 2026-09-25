@@ -68,5 +68,5 @@ abstract class ReturnRepository {
   /// Reconciles a locally-created return with the server's own identity
   /// once the sync handler successfully pushes it — same role as every
   /// other markSynced in this codebase.
-  Future<void> markSynced({required String localId, required String serverId});
+  Future<void> markSynced({required String localId, required String serverId, String? operationId});
 }
