@@ -67,20 +67,29 @@ class LocationRepositoryImpl implements LocationRepository {
     required String serverId,
     String? operationId,
   }) async {
-        final hasNewerMutation = operationId != null && await _syncQueue.hasNewerQueueMutation(
-      entityType: 'location',
-      entityLocalId: localId,
-      operationId: operationId!,
-      enqueuedAt: await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId!))).getSingle().then((q) => q.enqueuedAt),
-    );
-await (_db.update(_db.locations)..where((l) => l.localId.equals(localId)))
-        .write(
-      LocationsCompanion(
-        serverId: Value(serverId),
-        syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
-        if (!hasNewerMutation) updatedAt: Value(DateTime.now()),
-      ),
-    );
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'location',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.locations)..where((l) => l.localId.equals(localId))).write(
+        LocationsCompanion(
+          serverId: Value(serverId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: Value(hasNewerMutation ? (await (_db.select(_db.locations)..where((l) => l.localId.equals(localId))).getSingle()).updatedAt : DateTime.now()),
+        ),
+      );
+    });
   }
 
   @override
