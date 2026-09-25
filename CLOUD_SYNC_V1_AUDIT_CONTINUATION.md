@@ -248,3 +248,52 @@ Still to prove before Section 1 can be marked complete:
 - any entity-specific create/update coalescing or permanent-failure edge case not covered by the generic queue tests
 
 Do not mark Section 1 complete until these paths have evidence.
+
+
+### 2026-09-25 A3 stale-finalization continuation
+
+Status: FIXED_PENDING_BROAD_LIFECYCLE_COVERAGE
+
+Verified:
+- Every production sync handler that calls `markSynced` now passes the durable queue operation ID.
+- Stock movement finalization uses the same operation identity through `markSettled`.
+- Repository finalization runs the queue-identity/newer-mutation check inside the same SQLite transaction as the final sync-state write.
+- If the supplied operation ID no longer exists, the completion is treated as stale: the server ID may be recorded, but the local mutation is not marked settled.
+- A newer queue mutation keeps the local row pending rather than allowing an older in-flight response to settle it.
+- SyncEngine removes the queue row only after the handler returns successfully, so the operation identity is present during normal finalization.
+- Regression coverage proves the missing-operation and newer-queued-mutation fences for products.
+- Customer repayment rejected-state canonical recovery now uses the customer's local ID for the queue freshness fence and also refuses settlement when its own queue identity is missing.
+- CI run 36115719336 (run #2211) passed after the customer-repayment fence correction.
+
+Remaining A3 proof:
+- Add/verify entity-specific stale-finalization coverage for the financial/lifecycle handlers, especially cash drawer close, customer repayment, return, sale, and stock movement.
+- Verify create→update and update→archive/delete in-flight replacement behavior across every mutable entity.
+
+### 2026-09-25 lifecycle findings
+
+Cash drawer:
+- Open and close are distinct durable queue operations.
+- Opening and closing in one local transaction sequence produces create first, close second.
+- A close cannot sync until the local shift has a server ID, so create must establish the server identity first.
+- First-cloud seeding adds the create task before a close task for an already-closed, never-synced shift.
+- Repeated close calls are rejected locally once closed, preventing duplicate close mutations.
+- Full in-flight create→close regression coverage is still required.
+
+Customer ledger:
+- Customer credit-sale and refund-adjustment ledger entries are server-derived/local projections and are not queued as independent client repayment commands.
+- Customer repayments are the explicit client mutation: local balance/ledger entry and outbox row are created in one transaction.
+- A rejected repayment attempts canonical customer recovery, fenced against a newer local customer mutation.
+- A repayment's finalization is fenced against newer ledger mutations and missing operation identity.
+- Dedicated adversarial repayment concurrency tests remain to be added/verified.
+
+Returns:
+- The authoritative cloud mutation is completion via `return.create`; approval/rejection is currently local-only.
+- Completion restores local inventory and applicable customer credit locally, then queues the authoritative cloud return command in the same transaction.
+- The return sync handler requires the original sale and referenced products to have server identities before submission.
+- Rejected returns attempt canonical product/customer recovery behind the newer-mutation fence.
+- The code explicitly documents that the backend has a separate approve endpoint, but approval/rejection is not currently pushed by this client sync pass.
+- Therefore return approval/rejection convergence is **PARTIAL**, while completed-return cloud synchronization is implemented.
+
+Next audit focus:
+- Dependency ordering and starvation/deadlock behavior in `SyncQueue` + `SyncEngine`.
+- Then adversarial lifecycle tests for create→update→archive/delete and in-flight replacement across all mutable entities.
