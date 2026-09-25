@@ -1,4 +1,5 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/cash_drawer_shift_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/cash_drawer_shift.dart';
