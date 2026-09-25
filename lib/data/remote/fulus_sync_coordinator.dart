@@ -154,7 +154,7 @@ class FulusSyncCoordinator {
       throw ArgumentError.value(cursor, 'cursor', 'must be non-negative');
     }
     final persisted = _persistCursorOverride != null
-        ? await _persistCursorOverride!(businessId, cursor)
+        ? await _persistCursorOverride(businessId, cursor)
         : await _preferences.setInt(_cursorKey(businessId), cursor);
     if (!persisted) {
       throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
