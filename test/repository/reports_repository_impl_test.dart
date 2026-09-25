@@ -820,7 +820,7 @@ void main() {
             ),
           );
 
-      final report = await repository.getInventoryReport();
+      final report = await repository.getInventoryReport(locationId: 'loc-1');
 
       expect(report.stockMovementsIn, 10);
       expect(report.stockMovementsOut, 4);
