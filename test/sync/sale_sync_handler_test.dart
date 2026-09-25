@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
@@ -228,6 +229,66 @@ void main() {
         )).captured.single as Map<String, dynamic>;
     expect(captured['location_id'], 'server-location-A');
     expect(captured['location_id'], isNot('server-location-B'));
+  });
+
+  test('keeps the original location while a sale sync is in flight during an active-location switch', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+    await (db.update(db.locations)..where((l) => l.localId.equals('loc-2')))
+        .write(const LocationsCompanion(serverId: Value('server-location-B')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+
+    final submitCompleter = Completer<Map<String, dynamic>>();
+    late Map<String, dynamic> submittedPayload;
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) {
+      submittedPayload =
+          Map<String, dynamic>.from(invocation.namedArguments[#payload] as Map);
+      return submitCompleter.future;
+    });
+
+    final sale = await createLocalSale();
+    await authRepository.setActiveLocationId(locationId);
+
+    final syncFuture = handler.sync(queueItemFor(sale));
+    await Future<void>.delayed(Duration.zero);
+
+    await authRepository.setActiveLocationId('loc-2');
+    expect(await authRepository.getActiveLocationId(), 'loc-2');
+    expect(submittedPayload['location_id'], 'server-location-A');
+    expect(submittedPayload['location_id'], isNot('server-location-B'));
+
+    submitCompleter.complete({
+      'data': {'entity_id': 'server-sale-A'},
+    });
+    await syncFuture;
+
+    final stored = await saleRepository.getSaleByLocalId(sale.localId);
+    expect(stored!.locationId, locationId);
+    expect(stored.serverId, 'server-sale-A');
   });
 
   test('pushes a Quick Sale through Fulus Cloud without a catalog product', () async {
