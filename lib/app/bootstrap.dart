@@ -354,7 +354,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
   final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences);
-  final syncBootstrapCoordinator = CloudSyncBootstrapCoordinator(database);
+  final syncBootstrapCoordinator = CloudSyncBootstrapCoordinator(
+    database,
+    executionLease: syncExecutionLease,
+  );
   late final CloudSyncRecovery syncRecovery;
 
   syncRecovery = CloudSyncRecovery(
