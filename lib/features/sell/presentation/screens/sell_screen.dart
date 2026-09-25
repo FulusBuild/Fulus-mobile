@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -88,7 +89,14 @@ class _SellScreenState extends ConsumerState<SellScreen> {
 
   CartCubit _ensureCartCubit(String locationId) {
     final existing = _cartCubit;
-    if (existing != null) return existing;
+    if (existing != null && existing.locationId != locationId) {
+      // Drafts are persisted per location, so closing the old cubit does not
+      // discard its unsaved cart. It only tears down its A-scoped streams.
+      _cartCubit = null;
+      unawaited(existing.close());
+    }
+    final current = _cartCubit;
+    if (current != null) return current;
     final cubit = CartCubit(
       draftCartRepository: ref.read(draftCartRepositoryProvider),
       productRepository: ref.read(productRepositoryProvider),
