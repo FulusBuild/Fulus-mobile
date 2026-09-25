@@ -216,6 +216,57 @@ void main() {
       expect(stockLevel.currentStock, 7);
     });
 
+    test('does not apply a stale stock response when a newer movement is queued', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: locationId, name: 'Main Store',
+            createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
+            sku: 'SKU-p1', costPrice: 5, sellingPrice: 10,
+            createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.pending,
+          ));
+      final oldTime = DateTime(2026, 9, 25, 2, 0);
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+        id: 'old-movement', entityType: 'stock_movement', entityLocalId: 'movement-old',
+        operation: 'create', priority: 1, enqueuedAt: oldTime,
+      ));
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+        id: 'new-movement', entityType: 'stock_movement', entityLocalId: 'movement-new',
+        operation: 'create', priority: 1, enqueuedAt: oldTime.add(const Duration(seconds: 1)),
+      ));
+
+      await repository.reconcileStockLevel(
+        productLocalId: 'p1', locationId: locationId, currentStock: 10,
+        operationId: 'old-movement',
+      );
+
+      expect(await db.select(db.productStockLevels).get(), isEmpty);
+    });
+
+    test('ignores a stock response when its operation identity is missing', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+            localId: locationId, name: 'Main Store',
+            createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
+            sku: 'SKU-p1', costPrice: 5, sellingPrice: 10,
+            createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+          ));
+
+      await repository.reconcileStockLevel(
+        productLocalId: 'p1', locationId: locationId, currentStock: 10,
+        operationId: 'already-removed',
+      );
+
+      expect(await db.select(db.productStockLevels).get(), isEmpty);
+    });
+
     test('throws when the product has never been synced down', () async {
       await expectLater(
         repository.reconcileStockLevel(
