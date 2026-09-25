@@ -172,13 +172,17 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   }
 
   @override
-  Future<void> markAttentionNeeded(String localId) async {
-    await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
-      ExpensesCompanion(
-        syncStatus: const Value(SyncStatus.attentionNeeded),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  Future<void> markAttentionNeeded(String localId, {String? operationId}) async {
+    await _db.transaction(() async {
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
+        if (current == null) return;
+        if (await _syncQueue.hasNewerQueueMutation(entityType: 'expense', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt)) return;
+      }
+      await (_db.update(_db.expenses)..where((e) => e.localId.equals(localId))).write(
+        ExpensesCompanion(syncStatus: const Value(SyncStatus.attentionNeeded), updatedAt: Value(DateTime.now())),
+      );
+    });
   }
 
   @override
