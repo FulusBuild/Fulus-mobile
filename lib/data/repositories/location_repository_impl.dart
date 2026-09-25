@@ -73,7 +73,12 @@ class LocationRepositoryImpl implements LocationRepository {
         final current = await (_db.select(_db.syncQueueItems)
               ..where((q) => q.id.equals(operationId)))
             .getSingleOrNull();
-        if (current != null) {
+        if (current == null) {
+          // A missing operation row means this completion is stale. Never
+          // allow an old network response to settle a mutation whose queue
+          // identity is no longer present.
+          hasNewerMutation = true;
+        } else {
           hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
             entityType: 'location',
             entityLocalId: localId,
