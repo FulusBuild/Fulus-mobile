@@ -71,7 +71,11 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
   }
 
   @override
-  Future<void> markSynced({{
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? operationId,
+  }) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
@@ -87,7 +91,7 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
           );
         }
       }
-      await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId))).write(
+      await (_db.update(_db.incomeRecords)..where((x) => x.localId.equals(localId))).write(
         IncomeRecordsCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
@@ -96,6 +100,7 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
       );
     });
   }
+
   @override
   Future<void> markAttentionNeeded(String localId) async {
     await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId))).write(
