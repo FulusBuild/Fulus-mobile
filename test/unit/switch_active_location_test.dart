@@ -65,7 +65,6 @@ void main() {
     verifyNever(() => authRepository.setActiveLocationId('loc-b'));
   });
 
-
   test('switches to a cached location without requiring a network lookup', () async {
     when(() => locationRepository.getLocationById('loc-b'))
         .thenAnswer((_) async => location('loc-b'));
@@ -124,10 +123,17 @@ void main() {
 
   test('serializes rapid switches so session writes cannot race', () async {
     final firstLookup = Completer<Location?>();
+    var activeLocation = 'loc-a';
     when(() => locationRepository.getLocationById('loc-b'))
         .thenAnswer((_) => firstLookup.future);
     when(() => locationRepository.getLocationById('loc-a'))
         .thenAnswer((_) async => location('loc-a'));
+    when(() => authRepository.getActiveLocationId())
+        .thenAnswer((_) async => activeLocation);
+    when(() => authRepository.setActiveLocationId(any()))
+        .thenAnswer((invocation) async {
+      activeLocation = invocation.positionalArguments.single as String;
+    });
 
     final switcher = SwitchActiveLocation(
       locationRepository: locationRepository,
@@ -146,6 +152,7 @@ void main() {
     verify(() => locationRepository.getLocationById('loc-a')).called(1);
     await second;
 
+    expect(activeLocation, 'loc-a');
     verifyInOrder([
       () => authRepository.setActiveLocationId('loc-b'),
       () => authRepository.setActiveLocationId('loc-a'),
