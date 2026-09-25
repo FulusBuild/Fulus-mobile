@@ -1,13 +1,11 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/income_record_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/income_record.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart' as flutter_test;
-
-Matcher get matcherIsNull => flutter_test.isNull;
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late AppDatabase db;
@@ -116,7 +114,7 @@ void main() {
 
     test('returns null for an id that was never created', () async {
       final fetched = await repository.getIncomeRecordById('does-not-exist');
-      expect(fetched, matcherIsNull);
+      expect(fetched, isNull);
     });
   });
 
@@ -172,6 +170,57 @@ void main() {
       );
 
       expect(results, isEmpty);
+    });
+  });
+
+  group('markAttentionNeeded', () {
+    test('does not park an old rejection when a newer mutation is queued', () async {
+      final created = await repository.recordIncome(
+        IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+      );
+      await (db.delete(db.syncQueueItems)
+            ..where((q) => q.entityType.equals('income_record'))
+            ..where((q) => q.entityLocalId.equals(created.localId)))
+          .go();
+
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'old-operation',
+          entityType: 'income_record',
+          entityLocalId: created.localId,
+          operation: 'create',
+          priority: 1,
+          enqueuedAt: DateTime(2026, 7, 1),
+          syncAttempts: const Value(0),
+        ),
+      );
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'new-operation',
+          entityType: 'income_record',
+          entityLocalId: created.localId,
+          operation: 'create',
+          priority: 1,
+          enqueuedAt: DateTime(2026, 7, 2),
+          syncAttempts: const Value(0),
+        ),
+      );
+
+      await repository.markAttentionNeeded(created.localId, operationId: 'old-operation');
+
+      final row = await (db.select(db.incomeRecords)..where((i) => i.localId.equals(created.localId))).getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+
+    test('does not park a rejection when its operation identity is missing', () async {
+      final created = await repository.recordIncome(
+        IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+      );
+
+      await repository.markAttentionNeeded(created.localId, operationId: 'missing-operation');
+
+      final row = await (db.select(db.incomeRecords)..where((i) => i.localId.equals(created.localId))).getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
     });
   });
 
