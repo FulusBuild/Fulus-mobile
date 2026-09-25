@@ -740,3 +740,22 @@ This test should cover at least sale and stock movement because they represent t
 - **Process-death A→B replay proof:** 🟡 already supported by durable queue architecture, but location-specific replay evidence remains required.
 
 Do not add a redundant `locationId` to every queue row solely for this finding unless a later audit discovers an entity whose persisted location can be mutated independently of its durable mutation identity. The current queue design intentionally resolves authoritative foreign identities from the local entity.
+
+## 2026-09-25 — Offline location switching regression
+
+Status: 🟢 targeted offline switching coverage added.
+
+Verified the location switch contract is offline-first:
+- A→B succeeds when B already exists in the local location cache; switching does not require a network call.
+- A→B fails clearly when B is not cached locally, which prevents activating an unknown/unavailable location while offline.
+- A failed uncached switch leaves A as the active location and does not write B to the persisted active-location session.
+- This preserves the required boundary: cached locations can be selected offline, while unavailable locations must be synced before activation.
+
+Regression coverage added in:
+`test/unit/switch_active_location_test.dart`
+
+Remaining location audit work:
+- B-side pending local mutations during A→B.
+- location-scoped stock/projection isolation.
+- dashboard/report/cash-drawer refresh after switching.
+- switching during sync and other in-flight location-scoped operations.
