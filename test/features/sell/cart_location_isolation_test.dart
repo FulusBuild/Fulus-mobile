@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fulus_mobile/domain/entities/business_settings.dart';
 import 'package:fulus_mobile/domain/entities/draft_cart.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
+import 'package:fulus_mobile/features/sell/presentation/cubit/cart_state.dart';
 import 'package:fulus_mobile/domain/repositories/business_settings_repository.dart';
 import 'package:fulus_mobile/domain/repositories/customer_repository.dart';
 import 'package:fulus_mobile/domain/repositories/draft_cart_repository.dart';
