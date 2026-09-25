@@ -652,3 +652,64 @@ Do not merge the location branch into `main` until:
 - the implementation does not weaken existing business-switching, queue, idempotency, cursor, or canonical-reconciliation guarantees.
 
 **Evidence standard:** 🟢 Proven = implementation + meaningful tests/production evidence + CI. 🟡 Partial = implementation exists but an important proof layer is missing. 🔴 Unknown = not verified or contradictory evidence.
+
+
+## 2026-09-25 — Location durable mutation identity audit
+
+### Finding
+
+**Status: 🟢 IMPLEMENTATION-PROVEN / TARGETED REGRESSION COVERAGE STILL REQUIRED**
+
+The location-switching audit traced the durable outbox and production sync handlers.
+
+The sync queue does **not** store a separate mutable "current location" field. Instead, each queue row durably identifies the local entity by `entityType + entityLocalId`. The authoritative location is read from that persisted entity when the handler executes.
+
+Verified examples:
+- Sale sync resolves the server location from `sale.locationId`.
+- Stock movement sync resolves the server location from `movement.locationId`.
+- Expense sync resolves the persisted expense location.
+- Income sync resolves the persisted income-record location.
+- Cash-drawer sync resolves the persisted shift location.
+- Return/sale stock reconciliation uses the persisted sale/movement location relationships.
+
+This is the correct isolation direction: changing the active UI/session location does not rewrite the location on an already-created mutation.
+
+### Important invariant verified
+
+The active location is stored separately in the current session via `AuthRepository.setActiveLocationId()`. The sync handlers inspected for location-bound mutations do not use that active session location to construct the mutation's location identity.
+
+Therefore the critical sequence is structurally supported:
+
+`create mutation in A -> queue durable local entity -> switch active UI location to B -> replay queue item -> resolve location from the original entity -> submit A`.
+
+The queue row itself remains unchanged by an active-location switch.
+
+### Queue/in-flight boundary
+
+`SyncEngine` selects durable queue rows and passes the exact queue item to the handler. The handler then resolves the entity by `item.entityLocalId`. Active-location switching does not replace that queue item or rebind its entity.
+
+The existing queue/finalization hardening also means an old in-flight operation cannot simply settle a newer queue mutation after the queue identity has been replaced.
+
+### Remaining proof gap
+
+The architecture is sound for the inspected paths, but the audit should still add an explicit adversarial regression that demonstrates the complete boundary rather than relying only on source inspection:
+
+1. create a mutation for location A;
+2. leave it pending;
+3. switch active location to B;
+4. execute the queued handler;
+5. assert the submitted payload contains A's server location ID;
+6. assert B's active session ID was never substituted;
+7. repeat after the mutation survives a restart/replay.
+
+This test should cover at least sale and stock movement because they represent the two most important location-bound mutation classes.
+
+### Classification
+
+- **Durable mutation location identity:** 🟢 implementation-proven.
+- **Active-location substitution during sync:** 🟢 no production path found in inspected handlers.
+- **Queue identity surviving switch:** 🟢 implementation-proven.
+- **End-to-end A→B→sync payload proof:** 🟡 targeted regression test still required.
+- **Process-death A→B replay proof:** 🟡 already supported by durable queue architecture, but location-specific replay evidence remains required.
+
+Do not add a redundant `locationId` to every queue row solely for this finding unless a later audit discovers an entity whose persisted location can be mutated independently of its durable mutation identity. The current queue design intentionally resolves authoritative foreign identities from the local entity.
