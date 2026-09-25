@@ -41,7 +41,7 @@ void main() {
     await db.close();
   });
 
-  Future<void> seedSale({required double total, DateTime? saleDate}) {
+  Future<void> seedSale({required double total, DateTime? saleDate, String saleLocationId = locationId}) {
     final id = 'sale-${DateTime.now().microsecondsSinceEpoch}-${total.toString()}';
     return db.into(db.sales).insert(SalesCompanion.insert(
           localId: id,
