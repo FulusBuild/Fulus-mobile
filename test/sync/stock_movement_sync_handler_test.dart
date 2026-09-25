@@ -137,6 +137,57 @@ void main() {
     expect(captured['location_id'], isNot('server-location-B'));
   });
 
+  test('submits a pending B mutation unchanged while active context is A', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+        serverId: const Value('server-location-B'),
+      ),
+    );
+
+    when(() => fulusSyncApi.submitOperation(
+      businessId: any(named: 'businessId'), operationType: any(named: 'operationType'), operationId: any(named: 'operationId'),
+      deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
+    )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-B', 'current_stock': 17}});
+    when(() => productRepository.reconcileStockLevel(
+      productLocalId: productLocalId, locationId: 'loc-2', currentStock: 17, operationId: any(named: 'operationId'),
+    )).thenAnswer((_) async {});
+
+    final movement = await stockMovementRepository.recordStockIn(const StockInDraft(
+      productLocalId: productLocalId,
+      locationId: 'loc-2',
+      quantity: 7,
+      reason: 'Delivery to B',
+    ));
+
+    // Model the user having switched back to A before the pending B item replays.
+    expect(movement.locationId, 'loc-2');
+    await handler.sync(await itemFor(movement.localId));
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+      businessId: 'business-1',
+      operationType: 'stock_movement.create',
+      operationId: 'q1',
+      deviceClientId: 'device-client-1',
+      clientReference: movement.localId,
+      payload: captureAny(named: 'payload'),
+    )).captured.single as Map<String, dynamic>;
+
+    expect(captured['location_id'], 'server-location-B');
+    expect(captured['location_id'], isNot('server-location-1'));
+    verify(() => productRepository.reconcileStockLevel(
+      productLocalId: productLocalId,
+      locationId: 'loc-2',
+      currentStock: 17,
+      operationId: 'q1',
+    )).called(1);
+  });
+
   test('pushes absolute stock adjustments and reconciles returned stock', () async {
     final movement = await stockMovementRepository.recordAdjustment(const StockAdjustmentDraft(
       productLocalId: productLocalId, locationId: locationId, newQuantity: 42, reason: 'Recount',
