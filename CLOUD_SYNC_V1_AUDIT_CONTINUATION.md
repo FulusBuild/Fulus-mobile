@@ -1136,3 +1136,30 @@ Required release proof not reproducible through repository inspection alone:
 - repeat with pull/cursor application interrupted between canonical local apply and cursor persistence.
 
 Next concrete gate: physical Android process-death/background-runtime validation. After that, continue the remaining production integrity/adversarial and cursor/recovery audits.
+
+
+## 2026-09-25 — Queue lifecycle + live production security/integrity sweep
+
+Status: 🟡 PARTIAL — lifecycle implementation is covered by current queue semantics/tests; physical process-death remains the release evidence gap. Live Supabase authorization surface was rechecked without finding a new externally callable mutation path.
+
+Queue lifecycle findings:
+- SyncQueue.enqueue() replaces an existing non-blocked UPDATE row with a fresh ULID. This is deliberate stale-completion fencing: an older in-flight handler cannot remove the replacement row merely because it shares entity/operation type.
+- Offline repeated updates still coalesce to one row; in-flight replacement produces a new durable identity.
+- CREATE and UPDATE remain distinct queue operations, so create → update preserves the create dependency while the newer update remains queued.
+- Blocked/conflict rows can be superseded by a newer local mutation; the parked conflict is resolved as superseded.
+- seedExistingBusinessData() rechecks existing queue rows and current server identity inside its insertion transaction, preventing stale pre-cloud snapshots from recreating settled creates.
+- Pre-cloud archived customer/product/category/supplier rows are seeded as create-first lifecycles; archive follows through the newer lifecycle operation rather than silently dropping the local history.
+- Existing tests cover fresh update identity, concurrent enqueue deduplication, blocked-row replacement, create+update distinction, pre-cloud archived seeding, and seed deduplication.
+
+No new queue-lifecycle defect was promoted from this pass. The remaining proof limitation is runtime/device-level observation of an actual handler completing after a process kill, rather than repository-level simulation.
+
+Live production integrity/security evidence (Supabase project Fulus backend):
+- Project is ACTIVE_HEALTHY and deployed migrations include the latest 20260925135830 hardening migration.
+- All audited sync/business tables inspected have RLS enabled. cash_drawer_shifts and income_records additionally have FORCE ROW LEVEL SECURITY enabled.
+- sync_changes and sync_operations expose SELECT policies scoped through is_business_member(business_id).
+- Catalog/customer/sales/finance/inventory read policies are permission/business scoped; no anonymous/authenticated/public EXECUTE grants were found on the sampled low-level mutation RPCs.
+- Current fulus_api_* mutation wrappers expose EXECUTE to service_role in the effective routine privilege inventory; legacy overloads visible in the database are not externally granted to anon/authenticated/public.
+- Current hardened wrappers use SECURITY DEFINER with an empty search_path. Representative current definitions validate user/business/device context, claim or validate idempotency, and in the hardened variants lock the idempotency row before replay/mutation handling.
+- No new production authorization defect was established by this live sweep. The remaining audit requirement is exhaustive function-by-function transaction/idempotency/change-feed verification rather than treating representative samples as closure.
+
+Next concrete audit focus: complete the live mutation RPC inventory and idempotency/change-feed atomicity matrix function-by-function, then execute the cursor/recovery adversarial matrix. Do not deploy a production migration unless a concrete defect is proven.
