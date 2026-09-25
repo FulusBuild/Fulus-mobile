@@ -5,6 +5,7 @@ import '../../domain/entities/business_settings.dart';
 import '../local/database/database.dart';
 import '../repositories/business_settings_mapper.dart';
 import 'cloud_restore_importer.dart';
+import '../../sync/sync_execution_lease.dart';
 
 /// Coordinates reinstall recovery around the importer's transactional restore.
 ///
@@ -13,9 +14,11 @@ import 'cloud_restore_importer.dart';
 /// settings and owner/session reconstruction are then committed only when the
 /// outer transaction commits successfully.
 class CloudRestoreCoordinator {
-  CloudRestoreCoordinator(this._db);
+  CloudRestoreCoordinator(this._db, {required SyncExecutionLease executionLease})
+      : _executionLease = executionLease;
 
   final AppDatabase _db;
+  final SyncExecutionLease _executionLease;
 
   Future<CloudRestoreResult> restore({
     required Map<String, dynamic> snapshot,
@@ -24,7 +27,11 @@ class CloudRestoreCoordinator {
     required BusinessSettingsResponseDto settings,
     void Function(String status)? onProgress,
   }) async {
-    return _db.transaction(() async {
+    if (!await _executionLease.acquire()) {
+      throw StateError('Another Fulus runtime is currently syncing.');
+    }
+    try {
+      return await _db.transaction(() async {
       onProgress?.call('Preparing local database restore…');
 
       // Never silently destroy locally queued work or unresolved conflicts.
@@ -75,7 +82,10 @@ class CloudRestoreCoordinator {
 
       onProgress?.call('Committing restored business…');
       return result;
-    });
+      });
+    } finally {
+      await _executionLease.release();
+    }
   }
 
   Future<void> _normalizeOwner({
