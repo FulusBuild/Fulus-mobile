@@ -103,10 +103,31 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
   }
 
   @override
-  Future<void> markSynced({required String localId, required String serverId}) async {
-    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(CashDrawerShiftsCompanion(serverId: Value(serverId), syncStatus: const Value(SyncStatus.settled), updatedAt: Value(DateTime.now())));
+  Future<void> markSynced({{
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'cash_drawer_shift',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
+        CashDrawerShiftsCompanion(
+          serverId: Value(serverId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
+        ),
+      );
+    });
   }
-
   @override
   Future<void> markAttentionNeeded(String localId) async {
     await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
