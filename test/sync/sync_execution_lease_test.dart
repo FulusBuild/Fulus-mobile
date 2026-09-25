@@ -47,6 +47,54 @@ void main() {
     await secondLease.release();
   });
 
+  test('detects a newer queued mutation for the same entity', () async {
+    final lease = SyncExecutionLease(db);
+    addTearDown(lease.release);
+    expect(await lease.acquire(), isTrue);
+
+    final oldTime = DateTime(2026, 9, 25, 2, 0);
+    final newTime = oldTime.add(const Duration(seconds: 1));
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'old-operation',
+        entityType: 'product',
+        entityLocalId: 'product-1',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: oldTime,
+      ),
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'new-operation',
+        entityType: 'product',
+        entityLocalId: 'product-1',
+        operation: 'update',
+        priority: 0,
+        enqueuedAt: newTime,
+      ),
+    );
+
+    expect(
+      await lease.hasNewerQueueMutation(
+        entityType: 'product',
+        entityLocalId: 'product-1',
+        operationId: 'old-operation',
+        enqueuedAt: oldTime,
+      ),
+      isTrue,
+    );
+    expect(
+      await lease.hasNewerQueueMutation(
+        entityType: 'product',
+        entityLocalId: 'product-1',
+        operationId: 'new-operation',
+        enqueuedAt: newTime,
+      ),
+      isFalse,
+    );
+  });
+
   test('canonical apply transaction fences lease takeover after expiry', () async {
     final directory = await Directory.systemTemp.createTemp('fulus-lease-fence-');
     final path = '${directory.path}/fulus.db';
