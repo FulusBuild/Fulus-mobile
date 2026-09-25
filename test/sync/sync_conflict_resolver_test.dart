@@ -184,6 +184,90 @@ void main() {
         ));
   });
 
+  test('revalidates a conflict after waiting for the lease', () async {
+    final customer = await customers.createCustomer(
+      const CustomerDraft(name: 'Stale Conflict Customer'),
+    );
+    await customers.markSynced(
+      localId: customer.localId,
+      serverId: 'server-stale-conflict',
+    );
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(customer.localId)))
+        .go();
+
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'stale-operation',
+        entityType: 'customer',
+        entityLocalId: customer.localId,
+        operation: 'update',
+        priority: 1,
+        enqueuedAt: DateTime.utc(2026, 9, 21),
+      ),
+    );
+    await db.into(db.syncConflictRecords).insert(
+      SyncConflictRecordsCompanion.insert(
+        id: 'stale-conflict',
+        operationId: 'stale-operation',
+        entityType: 'customer',
+        entityLocalId: customer.localId,
+        code: const Value('SYNC_CONFLICT'),
+        message: 'Customer changed on another device.',
+        createdAt: DateTime.utc(2026, 9, 21),
+      ),
+    );
+
+    final blocker = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(seconds: 2),
+    );
+    addTearDown(blocker.release);
+    expect(await blocker.acquire(), isTrue);
+
+    final resolverLease = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(seconds: 2),
+    );
+    addTearDown(resolverLease.release);
+
+    final resolver = SyncConflictResolver(
+      db: db,
+      reconciler: FulusCanonicalTypedReconciler(api: api, handlers: const {}),
+      canonicalFetcher: api,
+      connectionState: connectionState,
+      preferences: preferences,
+      executionLease: resolverLease,
+    );
+
+    final resolving = resolver.keepCloudVersion('stale-conflict');
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    // Simulate another protected runtime resolving this conflict while the
+    // resolver is waiting to acquire the shared lease.
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.id.equals('stale-operation')))
+        .go();
+    await (db.update(db.syncConflictRecords)
+          ..where((c) => c.id.equals('stale-conflict')))
+        .write(
+      SyncConflictRecordsCompanion(
+        resolvedAt: Value(DateTime.now()),
+        resolution: const Value('resolved_by_other_runtime'),
+      ),
+    );
+    await blocker.release();
+
+    await resolving;
+
+    verifyNever(() => api.fetchCanonicalEntity(
+          businessId: any(named: 'businessId'),
+          entityType: any(named: 'entityType'),
+          entityId: any(named: 'entityId'),
+          deviceClientId: any(named: 'deviceClientId'),
+        ));
+  });
+
   test('rebases a local conflict and leaves it unresolved until push succeeds', () async {
     final customer = await customers.createCustomer(
       const CustomerDraft(name: 'Local Customer'),
