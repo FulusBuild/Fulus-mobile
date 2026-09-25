@@ -52,10 +52,133 @@ Deno.serve(async req => {
       }, 410);
     }
 
-    const { data: changes, error: ce } = await serviceDb.from("sync_changes").select("sequence,entity_type,entity_id,operation,payload,created_at").eq("business_id", bid).gt("sequence", cursor).order("sequence", { ascending: true }).limit(limit);
-    if (ce) return out({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
-    const rows = changes ?? [];
-    return out({ data: { changes: rows, cursor, next_cursor: rows.length ? Number(rows[rows.length - 1].sequence) : cursor, has_more: rows.length === limit, server_authoritative: true } });
+    // The service-role client bypasses RLS, so the change feed must enforce
+    // location visibility explicitly. Global catalog/business changes remain
+    // visible; operational location-scoped changes are filtered by membership.
+    const { data: roleMembership, error: roleError } = await serviceDb
+      .from("business_memberships")
+      .select("role_id, roles(name)")
+      .eq("business_id", bid)
+      .eq("user_id", uid)
+      .eq("status", "active")
+      .maybeSingle();
+    if (roleError || !roleMembership) return out({ error: { code: "MEMBERSHIP_ROLE_LOOKUP_FAILED", message: "Unable to resolve business role" } }, 500);
+    const role = Array.isArray(roleMembership.roles) ? roleMembership.roles[0] : roleMembership.roles;
+    const isBusinessAdmin = role?.name === "owner" || role?.name === "admin";
+    const { data: locationRows, error: locationError } = await serviceDb
+      .from("location_memberships")
+      .select("location_id")
+      .eq("business_id", bid)
+      .eq("user_id", uid)
+      .eq("status", "active");
+    if (locationError) return out({ error: { code: "LOCATION_MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve location access" } }, 500);
+    const accessibleLocationIds = new Set((locationRows ?? []).map(row => String(row.location_id)));
+    if (isBusinessAdmin) {
+      const { data: businessLocations, error: businessLocationsError } = await serviceDb
+        .from("locations")
+        .select("id")
+        .eq("business_id", bid)
+        .eq("status", "active");
+      if (businessLocationsError) return out({ error: { code: "LOCATION_LOOKUP_FAILED", message: "Unable to resolve business locations" } }, 500);
+      for (const location of businessLocations ?? []) accessibleLocationIds.add(String(location.id));
+    }
+
+    const locationScopedEntityTypes = new Set([
+      "sale",
+      "expense",
+      "income_record",
+      "cash_drawer_shift",
+      "location",
+      "stock_movement",
+      "return",
+    ]);
+    const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
+      if (entityType === "location") {
+        return accessibleLocationIds.has(entityId);
+      }
+      if (!payload || typeof payload !== "object") return false;
+      const row = payload as Record<string, unknown>;
+      const directLocationId = row.location_id;
+      if (directLocationId != null) {
+        return accessibleLocationIds.has(String(directLocationId));
+      }
+      if (entityType === "sale") {
+        const locationId = saleLocationBySaleId.get(entityId);
+        return locationId != null && accessibleLocationIds.has(locationId);
+      }
+      if (entityType === "return") {
+        const saleId = returnSaleIdByReturnId.get(entityId);
+        const locationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;
+        return locationId != null && accessibleLocationIds.has(locationId);
+      }
+      return false;
+    };
+
+    // Scan the feed in sequence order and advance next_cursor to the last
+    // scanned sequence, not merely the last returned row. This avoids skipping
+    // authorized changes when unauthorized location rows are filtered out.
+    const rows: Array<Record<string, unknown>> = [];
+    let scanCursor = cursor;
+    let hasMore = false;
+    while (rows.length < limit) {
+      const { data: changes, error: ce } = await serviceDb
+        .from("sync_changes")
+        .select("sequence,entity_type,entity_id,operation,payload,created_at")
+        .eq("business_id", bid)
+        .gt("sequence", scanCursor)
+        .order("sequence", { ascending: true })
+        .limit(Math.min(500, Math.max(limit, 100)));
+      if (ce) return out({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
+      const batch = changes ?? [];
+      if (batch.length === 0) break;
+
+      const saleIds = [...new Set(batch
+        .filter(change => String(change.entity_type ?? "") === "sale")
+        .map(change => String(change.entity_id))
+        .filter(Boolean))];
+      const returnIds = [...new Set(batch
+        .filter(change => String(change.entity_type ?? "") === "return")
+        .map(change => String(change.entity_id))
+        .filter(Boolean))];
+      const saleLocationBySaleId = new Map<string, string>();
+      const returnSaleIdByReturnId = new Map<string, string>();
+
+      if (saleIds.length > 0) {
+        const { data: sales, error: salesError } = await serviceDb
+          .from("sales")
+          .select("id,location_id")
+          .eq("business_id", bid)
+          .in("id", saleIds);
+        if (salesError) return out({ error: { code: "SYNC_LOCATION_LOOKUP_FAILED", message: "Unable to resolve sale locations for change feed" } }, 500);
+        for (const sale of sales ?? []) {
+          if (sale.location_id != null) saleLocationBySaleId.set(String(sale.id), String(sale.location_id));
+        }
+      }
+
+      if (returnIds.length > 0) {
+        const { data: returns, error: returnsError } = await serviceDb
+          .from("returns")
+          .select("id,sale_id")
+          .eq("business_id", bid)
+          .in("id", returnIds);
+        if (returnsError) return out({ error: { code: "SYNC_LOCATION_LOOKUP_FAILED", message: "Unable to resolve return locations for change feed" } }, 500);
+        for (const returnRow of returns ?? []) {
+          if (returnRow.sale_id != null) returnSaleIdByReturnId.set(String(returnRow.id), String(returnRow.sale_id));
+        }
+      }
+
+      for (const change of batch) {
+        scanCursor = Number(change.sequence);
+        const entityType = String(change.entity_type ?? "");
+        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(entityType, String(change.entity_id), change.payload, saleLocationBySaleId, returnSaleIdByReturnId)) {
+          rows.push(change);
+          if (rows.length >= limit) break;
+        }
+      }
+      if (batch.length < Math.min(500, Math.max(limit, 100))) break;
+      hasMore = true;
+    }
+    return out({ data: { changes: rows, cursor, next_cursor: scanCursor, has_more: hasMore || rows.length === limit, server_authoritative: true } });
   }
 
   let b: Record<string, unknown>;
