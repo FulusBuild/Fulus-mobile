@@ -108,13 +108,23 @@ class ProductRepositoryImpl implements ProductRepository {
       if (operationId != null) {
         final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
         if (current == null) return;
-        final hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
-          entityType: 'stock_movement',
-          entityLocalId: current.entityLocalId,
-          operationId: operationId,
-          enqueuedAt: current.enqueuedAt,
-        );
-        if (hasNewerMutation) return;
+        final movement = await (_db.select(_db.stockMovements)
+              ..where((m) => m.localId.equals(current.entityLocalId)))
+            .getSingleOrNull();
+        if (movement == null) return;
+        final newerQueueItems = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.entityType.equals('stock_movement'))
+              ..where((q) => q.id.isNotIn([operationId]))
+              ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(current.enqueuedAt)))
+            .get();
+        for (final newerQueueItem in newerQueueItems) {
+          final newerMovement = await (_db.select(_db.stockMovements)
+                ..where((m) => m.localId.equals(newerQueueItem.entityLocalId))
+                ..where((m) => m.productLocalId.equals(movement.productLocalId))
+                ..where((m) => m.locationId.equals(movement.locationId)))
+              .getSingleOrNull();
+          if (newerMovement != null) return;
+        }
       }
       await _db.into(_db.productStockLevels).insertOnConflictUpdate(ProductStockLevelsCompanion.insert(productLocalId: productLocalId, locationLocalId: locationId, currentStock: Value(currentStock), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled));
     });
