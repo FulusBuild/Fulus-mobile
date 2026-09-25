@@ -82,6 +82,8 @@ class CustomerLedgerSyncHandler implements SyncHandler {
         businessId: businessId,
         customerId: customerId,
         deviceClientId: deviceClientId,
+        operationId: item.id,
+        enqueuedAt: item.enqueuedAt,
       );
       rethrow;
     }
@@ -96,6 +98,8 @@ class CustomerLedgerSyncHandler implements SyncHandler {
     required String businessId,
     required String customerId,
     required String deviceClientId,
+    required String operationId,
+    required DateTime enqueuedAt,
   }) async {
     final repository = _customerRepository;
     if (repository == null) return;
@@ -108,7 +112,15 @@ class CustomerLedgerSyncHandler implements SyncHandler {
       );
       await _executionLease.runProtectedTransaction(
         _db,
-        () => FulusCustomerCanonicalReconciler(repository: repository).apply(canonical),
+        () async {
+          if (await _executionLease.hasNewerQueueMutation(
+            entityType: 'customer',
+            entityLocalId: customerId,
+            operationId: operationId,
+            enqueuedAt: enqueuedAt,
+          )) return;
+          await FulusCustomerCanonicalReconciler(repository: repository).apply(canonical);
+        },
       );
     } catch (_) {
       // Preserve the original business-rule failure. A later pull/retry can
