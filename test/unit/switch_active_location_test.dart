@@ -136,6 +136,7 @@ void main() {
 
     final first = switcher('loc-b');
     final second = switcher('loc-a');
+    await Future<void>.delayed(Duration.zero);
 
     verify(() => locationRepository.getLocationById('loc-b')).called(1);
     verifyNever(() => locationRepository.getLocationById('loc-a'));
