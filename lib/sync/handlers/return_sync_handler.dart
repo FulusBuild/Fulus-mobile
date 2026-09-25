@@ -150,7 +150,15 @@ class ReturnSyncHandler implements SyncHandler {
           );
           await _executionLease.runProtectedTransaction(
             _db,
-            () => FulusCustomerCanonicalReconciler(repository: customerRepository).apply(canonical),
+            () async {
+              if (await _executionLease.hasNewerQueueMutation(
+                entityType: 'customer',
+                entityLocalId: customerLocalId,
+                operationId: item.id,
+                enqueuedAt: item.enqueuedAt,
+              )) return;
+              await FulusCustomerCanonicalReconciler(repository: customerRepository).apply(canonical);
+            },
           );
         } catch (_) {}
       }
