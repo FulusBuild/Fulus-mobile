@@ -275,6 +275,18 @@ class SaleRepositoryImpl implements SaleRepository {
     return sales;
   }
 
+  Future<void> _decrementLocalStock(List<SaleItem> items, {required String locationId}) async {
+    for (final item in items) {
+      final productLocalId = item.productLocalId;
+      if (productLocalId == null) continue;
+      final stockRow = await (_db.select(_db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId))).getSingleOrNull();
+      if (stockRow == null) throw StateError('No stock record exists for product $productLocalId at location $locationId.');
+      final newStock = stockRow.currentStock - item.quantity;
+      if (newStock < 0) throw StateError('Insufficient stock for product $productLocalId.');
+      await (_db.update(_db.productStockLevels)..where((s) => s.productLocalId.equals(productLocalId) & s.locationLocalId.equals(locationId))).write(ProductStockLevelsCompanion(currentStock: Value(newStock), updatedAt: Value(DateTime.now())));
+    }
+  }
+
   @override
     Future<void> markSynced({
     required String localId,
