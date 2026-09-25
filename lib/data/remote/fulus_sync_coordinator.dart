@@ -13,12 +13,14 @@ class FulusSyncCoordinator {
     Future<void> Function(List<FulusSyncChange> changes)? applyChanges,
     Future<bool> Function(FulusSyncChange change)? shouldApplyChange,
     Future<void> Function(Future<void> Function() action)? withApplyTransaction,
+    Future<bool> Function(String businessId, int cursor)? persistCursor,
   })  : _api = api,
         _preferences = preferences,
         _applyChange = applyChange,
         _applyChanges = applyChanges,
         _shouldApplyChange = shouldApplyChange,
-        _withApplyTransaction = withApplyTransaction;
+        _withApplyTransaction = withApplyTransaction,
+        _persistCursorOverride = persistCursor;
 
   final FulusSyncApi _api;
   final SharedPreferences _preferences;
@@ -26,6 +28,7 @@ class FulusSyncCoordinator {
   final Future<void> Function(List<FulusSyncChange> changes)? _applyChanges;
   final Future<bool> Function(FulusSyncChange change)? _shouldApplyChange;
   final Future<void> Function(Future<void> Function() action)? _withApplyTransaction;
+  final Future<bool> Function(String businessId, int cursor)? _persistCursorOverride;
 
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
 
@@ -150,7 +153,9 @@ class FulusSyncCoordinator {
     if (cursor < 0) {
       throw ArgumentError.value(cursor, 'cursor', 'must be non-negative');
     }
-    final persisted = await _preferences.setInt(_cursorKey(businessId), cursor);
+    final persisted = _persistCursorOverride != null
+        ? await _persistCursorOverride!(businessId, cursor)
+        : await _preferences.setInt(_cursorKey(businessId), cursor);
     if (!persisted) {
       throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
     }
@@ -162,7 +167,9 @@ class FulusSyncCoordinator {
     // newer durable cursor backwards after another runtime has progressed.
     final current = cursorFor(businessId);
     if (current >= cursor) return;
-    final persisted = await _preferences.setInt(_cursorKey(businessId), cursor);
+    final persisted = _persistCursorOverride != null
+        ? await _persistCursorOverride!(businessId, cursor)
+        : await _preferences.setInt(_cursorKey(businessId), cursor);
     if (!persisted) {
       throw StateError('Failed to persist the Cloud Sync cursor.');
     }
