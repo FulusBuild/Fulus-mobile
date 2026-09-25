@@ -24,7 +24,7 @@ abstract class ProductRepository {
     bool? isActive,
   });
   Future<void> archiveProduct(String localId);
-  Future<void> markSynced({required String localId, required String serverId});
+  Future<void> markSynced({required String localId, required String serverId, String? operationId});
   Future<void> syncFromServer();
   Future<void> reconcileStockLevel({
     required String productLocalId,
