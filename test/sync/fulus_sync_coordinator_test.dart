@@ -33,6 +33,64 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1'), 2);
   });
 
+  test('cursor persistence failure leaves the durable cursor unchanged after local apply', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [FulusSyncChange(
+        sequence: 1,
+        entityType: 'customer',
+        entityId: 'c1',
+        operation: 'upsert',
+        payload: const {},
+        createdAt: DateTime.utc(2026, 1, 1),
+      )],
+      cursor: 0,
+      nextCursor: 1,
+      hasMore: false,
+    ));
+    var persistAttempts = 0;
+    var applyCount = 0;
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (_) async => applyCount++,
+      persistCursor: (_, __) async {
+        persistAttempts++;
+        return false;
+      },
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(applyCount, 1);
+    expect(persistAttempts, 1);
+    expect(coordinator.cursorFor('b1'), 0);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
+  });
+
+  test('setCursor reports boundary persistence failure instead of claiming recovery is acknowledged', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final coordinator = FulusSyncCoordinator(
+      api: MockFulusSyncApi(),
+      preferences: preferences,
+      applyChange: (_) async {},
+      persistCursor: (_, __) async => false,
+    );
+
+    await expectLater(
+      coordinator.setCursor('b1', 42),
+      throwsA(isA<StateError>()),
+    );
+    expect(coordinator.cursorFor('b1'), 0);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), isNull);
+  });
+
   test('does not advance cursor past a failed change', () async {
     SharedPreferences.setMockInitialValues({'fulus_sync_cursor_b1': 1});
     final preferences = await SharedPreferences.getInstance();
