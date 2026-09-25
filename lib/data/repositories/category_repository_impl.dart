@@ -167,7 +167,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
         CategoriesCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
-          updatedAt: Value(hasNewerMutation ? (await (_db.select(_db.categories)..where((c) => c.localId.equals(localId))).getSingle()).updatedAt : DateTime.now()),
+          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
         ),
       );
     });
