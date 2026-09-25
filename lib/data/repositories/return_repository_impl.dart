@@ -433,7 +433,11 @@ class ReturnRepositoryImpl implements ReturnRepository {
   }
 
   @override
-  Future<void> markSynced({{
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? operationId,
+  }) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
@@ -449,7 +453,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
           );
         }
       }
-      await (_db.update(_db.returnRequests)..where((r) => r.localId.equals(localId))).write(
+      await (_db.update(_db.returnRequests)..where((x) => x.localId.equals(localId))).write(
         ReturnRequestsCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
