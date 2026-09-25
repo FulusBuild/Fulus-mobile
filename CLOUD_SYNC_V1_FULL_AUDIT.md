@@ -356,3 +356,19 @@ Required proof/fix:
 - Establish a transaction-scoped finalization fence that validates current lease ownership and the identity/currentness of the queue item before any handler marks local state settled/synced.
 - Cover server-ID assignment, sync-status settlement, and stock/ledger settlement.
 - Add a cross-runtime regression where runtime A is paused after server success, runtime B acquires the lease and replaces the queue mutation, then runtime A resumes. The newer local mutation must remain pending and the stale finalization must not settle it.
+
+### A4 - business switch guard has a check-to-switch race
+
+Status: FINDING
+
+Evidence:
+- `FulusConnectionState.selectBusiness()` awaits a guard, then changes `_selectedBusinessId` without holding a durable database/business-switch lock.
+- Bootstrap's guard checks the queue before waiting for sync idle, waits, then checks the queue again.
+- Ordinary local mutation enqueue is intentionally lease-free and can commit between that final queue check and `_selectedBusinessId = businessId`.
+- The queue is durable and the local database is single-business, so a mutation created for business A can become associated with business B before the next sync cycle reads the selected business.
+- This is a time-of-check/time-of-use race even though the normal happy path is guarded.
+
+Required proof/fix:
+- Establish an atomic business-switch boundary that prevents new old-business mutations from being committed between the final safety check and the context switch.
+- Verify the boundary with a concurrent mutation regression.
+- Verify A -> B switching cannot send an A queue item using B's credentials/context.
