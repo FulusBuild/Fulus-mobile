@@ -145,7 +145,7 @@ void main() {
           payload: captureAny(named: 'payload'),
         )).captured.single as Map<String, dynamic>;
     expect(captured['base_cursor'], 41);
-    verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1')).called(1);
+    verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1', operationId: 'close-op-1')).called(1);
   });
 
   test('blocks a close when the create has not produced a server id', () async {
