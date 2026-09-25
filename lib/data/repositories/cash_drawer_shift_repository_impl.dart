@@ -139,13 +139,17 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
   }
 
   @override
-  Future<void> markAttentionNeeded(String localId) async {
-    await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
-      CashDrawerShiftsCompanion(
-        syncStatus: const Value(SyncStatus.attentionNeeded),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  Future<void> markAttentionNeeded(String localId, {String? operationId}) async {
+    await _db.transaction(() async {
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
+        if (current == null) return;
+        if (await _syncQueue.hasNewerQueueMutation(entityType: 'cash_drawer_shift', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt)) return;
+      }
+      await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
+        CashDrawerShiftsCompanion(syncStatus: const Value(SyncStatus.attentionNeeded), updatedAt: Value(DateTime.now())),
+      );
+    });
   }
 
   @override
