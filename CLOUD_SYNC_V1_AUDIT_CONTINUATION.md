@@ -1198,3 +1198,27 @@ Regression coverage added in commit `4988bc30ef6883f0baf7ce3074dd67c80148f80a` c
 - physical Android process-kill/restart proof.
 
 No new production defect was established in this pass. Next focus: production integrity/adversarial invariants and the remaining cursor/recovery failure-injection matrix, without deploying unnecessary migrations.
+
+
+## 2026-09-25 — Production integrity invariant sweep
+
+Status: 🟢 READ-ONLY PRODUCTION INVARIANTS CLEAN; 🟡 RELEASE EVIDENCE STILL LIMITED BY PHYSICAL PROCESS-DEATH VALIDATION
+
+Live Supabase checks returned zero rows for the audited integrity invariants:
+- negative product stock;
+- duplicate product/location stock-level keys;
+- zero-quantity inventory movements;
+- orphaned sale items;
+- orphaned sale payments;
+- orphaned return items;
+- orphaned cash-ledger entries;
+- orphaned customer-ledger entries;
+- negative sale amount_paid values;
+- non-positive sale payment amounts;
+- negative return refund amounts.
+
+Additional RPC tracing confirmed the current sale and return atomic wrappers claim and lock business-scoped idempotency records before invoking their underlying atomic mutations. Inventory adjustment/set paths also use locked idempotency records and unique business/operation identities. The production schema has unique constraints for sales/returns client references and the principal operation-id ledgers/movements.
+
+No production data was modified during this sweep.
+
+Remaining high-value evidence gaps are now concentrated in failure injection and runtime behavior: cursor persistence failure, post-recovery delta failure, recovery process death, physical Android process kill/restart, and multi-device conflict convergence. These remain 🟡 until demonstrated with tests/runtime evidence.
