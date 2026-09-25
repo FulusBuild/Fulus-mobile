@@ -69,6 +69,7 @@ import '../domain/repositories/supplier_credit_repository.dart';
 import '../domain/repositories/supplier_repository.dart';
 import '../domain/repositories/tax_remittance_repository.dart';
 import '../domain/usecases/active_location_resolver.dart';
+import '../domain/usecases/switch_active_location.dart';
 import '../domain/usecases/global_search.dart';
 import '../domain/usecases/import_products_from_csv.dart';
 import '../sync/sync_config.dart';
@@ -349,6 +350,15 @@ final resolveActiveLocationProvider = Provider<ResolveActiveLocation>((ref) {
 /// mid-session.
 final activeLocationIdProvider = FutureProvider<String>((ref) {
   return ref.watch(resolveActiveLocationProvider).call();
+});
+
+/// Validated location-context switcher. Kept app-scoped so rapid user
+/// selections are serialized and cannot race the session's durable active ID.
+final switchActiveLocationProvider = Provider<SwitchActiveLocation>((ref) {
+  return SwitchActiveLocation(
+    locationRepository: ref.read(locationRepositoryProvider),
+    authRepository: ref.read(authRepositoryProvider),
+  );
 });
 
 final businessSettingsApiProvider = Provider<BusinessSettingsApi>((ref) {
