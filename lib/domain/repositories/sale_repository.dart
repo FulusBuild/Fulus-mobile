@@ -83,7 +83,7 @@ abstract class SaleRepository {
   Future<void> markSynced({
     required String localId,
     required String serverId,
-    required String invoiceNumber,
+    required String invoiceNumber, String? operationId,
   });
 
   /// The individual payment legs behind a split-payment sale — see
