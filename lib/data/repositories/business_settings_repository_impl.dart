@@ -10,6 +10,7 @@ import '../../domain/repositories/permission_repository.dart';
 import '../local/database/database.dart';
 import '../remote/endpoints/business_settings_api.dart';
 import 'business_settings_mapper.dart';
+import '../../sync/sync_execution_lease.dart';
 
 class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
   BusinessSettingsRepositoryImpl({
@@ -17,10 +18,12 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
     required BusinessSettingsApi businessSettingsApi,
     required AuthRepository authRepository,
     required PermissionRepository permissionRepository,
+    required SyncExecutionLease executionLease,
   })  : _db = db,
         _businessSettingsApi = businessSettingsApi,
         _authRepository = authRepository,
-        _permissionRepository = permissionRepository;
+        _permissionRepository = permissionRepository,
+        _executionLease = executionLease;
 
   final AppDatabase _db;
   final BusinessSettingsApi _businessSettingsApi;
@@ -33,6 +36,7 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
   // below.
   final AuthRepository _authRepository;
   final PermissionRepository _permissionRepository;
+  final SyncExecutionLease _executionLease;
 
   @override
   Stream<BusinessProfile?> watchSettings() {
@@ -161,6 +165,8 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
 
   @override
   Future<void> clearLocalBusinessData() async {
+    await _executionLease.acquire();
+    try {
     // One transaction, children deleted before parents — `beforeOpen`
     // (database.dart) turns on `PRAGMA foreign_keys = ON`, so this
     // order is load-bearing, not cosmetic. Built directly against every
@@ -210,6 +216,9 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
       await _db.delete(_db.locations).go();
       await _db.delete(_db.businessSettings).go();
     });
+    } finally {
+      await _executionLease.release();
+    }
   }
 
   void _validateBusinessName(String businessName) {
