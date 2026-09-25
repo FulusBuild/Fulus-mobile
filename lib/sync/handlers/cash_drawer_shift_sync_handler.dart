@@ -136,7 +136,15 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         );
         await _executionLease.runProtectedTransaction(
           _db,
-          () => FulusCashDrawerCanonicalReconciler(repository: _cashDrawerShiftRepository).apply(canonical),
+          () async {
+            if (await _executionLease.hasNewerQueueMutation(
+              entityType: 'cash_drawer_shift',
+              entityLocalId: shift.localId,
+              operationId: item.id,
+              enqueuedAt: item.enqueuedAt,
+            )) return;
+            await FulusCashDrawerCanonicalReconciler(repository: _cashDrawerShiftRepository).apply(canonical);
+          },
         );
       } catch (_) {
         // Preserve the original rejection; a later pull can reconcile it.
