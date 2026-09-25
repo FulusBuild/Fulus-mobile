@@ -98,6 +98,7 @@ class CategorySyncHandler implements SyncHandler {
     await _categoryRepository.markSynced(
       localId: category.localId,
       serverId: serverId,
+    operationId: item.id,
     );
   }
 }
