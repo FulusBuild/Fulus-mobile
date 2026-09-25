@@ -83,6 +83,50 @@ void main() {
     expect(await db.select(db.syncQueueItems).get(), isEmpty);
   });
 
+  test('does not clear business data when lease acquisition times out', () async {
+    await repository.createBusiness(
+      businessName: 'Lease Timeout Store',
+      category: BusinessCategory.retailShop,
+      currencySymbol: '₦',
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'pending-reset-timeout',
+        entityType: 'product',
+        entityLocalId: 'product-reset-timeout',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: DateTime.now(),
+      ),
+    );
+
+    final blocker = SyncExecutionLease(db);
+    final shortLease = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(milliseconds: 100),
+    );
+    repository = BusinessSettingsRepositoryImpl(
+      db: db,
+      businessSettingsApi: businessSettingsApi,
+      authRepository: authRepository,
+      permissionRepository: permissionRepository,
+      executionLease: shortLease,
+    );
+    addTearDown(() async {
+      await blocker.release();
+      await shortLease.release();
+    });
+    expect(await blocker.acquire(), isTrue);
+
+    await expectLater(
+      repository.clearLocalBusinessData(),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await repository.hasBeenConfigured(), isTrue);
+    expect(await db.select(db.syncQueueItems).get(), isNotEmpty);
+  });
+
   group('watchSettings', () {
     test('emits null before the first sync', () async {
       final settings = await repository.watchSettings().first;
