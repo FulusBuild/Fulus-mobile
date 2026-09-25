@@ -50,10 +50,24 @@ void main() {
 
   tearDown(() async => db.close());
 
-  SyncQueueItem itemFor(String localId, {String operation = 'create'}) => SyncQueueItem(
+  Future<SyncQueueItem> itemFor(String localId, {String operation = 'create'}) async {
+    final item = SyncQueueItem(
     id: 'q1', entityType: 'stock_movement', entityLocalId: localId, operation: operation,
     priority: 1, enqueuedAt: DateTime.now(), syncAttempts: 0,
-  );
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: item.id,
+        entityType: item.entityType,
+        entityLocalId: item.entityLocalId,
+        operation: item.operation,
+        priority: item.priority,
+        enqueuedAt: item.enqueuedAt,
+        syncAttempts: Value(item.syncAttempts),
+      ),
+    );
+    return item;
+  }
 
   test('pushes stock-in through Fulus Cloud and reconciles returned stock', () async {
     final movement = await stockMovementRepository.recordStockIn(const StockInDraft(
@@ -66,7 +80,7 @@ void main() {
     when(() => productRepository.reconcileStockLevel(
       productLocalId: productLocalId, locationId: locationId, currentStock: 45,
     )).thenAnswer((_) async {});
-    await handler.sync(itemFor(movement.localId));
+    await handler.sync(await itemFor(movement.localId));
     verify(() => fulusSyncApi.submitOperation(
       businessId: 'business-1', operationType: 'stock_movement.create', operationId: 'q1', deviceClientId: 'device-client-1',
       clientReference: movement.localId, payload: any(named: 'payload'),
@@ -89,7 +103,7 @@ void main() {
     when(() => productRepository.reconcileStockLevel(
       productLocalId: productLocalId, locationId: locationId, currentStock: 42,
     )).thenAnswer((_) async {});
-    await handler.sync(itemFor(movement.localId));
+    await handler.sync(await itemFor(movement.localId));
     verify(() => fulusSyncApi.submitOperation(
       businessId: 'business-1', operationType: 'stock_adjustment.create', operationId: 'q1', deviceClientId: 'device-client-1',
       clientReference: movement.localId,
@@ -103,10 +117,10 @@ void main() {
   });
 
   test('throws for an operation other than create', () async {
-    await expectLater(handler.sync(itemFor('whatever', operation: 'update')), throwsA(isA<StateError>()));
+    await expectLater(handler.sync(await itemFor('whatever', operation: 'update')), throwsA(isA<StateError>()));
   });
 
   test('throws when the queue item has outlived its local row', () async {
-    await expectLater(handler.sync(itemFor('never-existed')), throwsA(isA<StateError>()));
+    await expectLater(handler.sync(await itemFor('never-existed')), throwsA(isA<StateError>()));
   });
 }
