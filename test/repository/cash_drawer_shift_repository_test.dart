@@ -196,5 +196,29 @@ void main() {
       expect(results.whereType<CashDrawerShift>(), hasLength(1));
       expect(results.whereType<StateError>(), hasLength(1));
     });
+    test('does not park an old rejection when a newer close is queued', () async {
+      final shift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+      );
+      final queue = await (db.select(db.syncQueueItems)
+            ..where((q) => q.entityType.equals('cash_drawer_shift'))
+            ..where((q) => q.entityLocalId.equals(shift.localId)))
+          .get();
+      final old = queue.single;
+
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+        id: 'new-close', entityType: 'cash_drawer_shift', entityLocalId: shift.localId,
+        operation: 'close', priority: old.priority,
+        enqueuedAt: old.enqueuedAt.add(const Duration(seconds: 1)),
+      ));
+
+      await repository.markAttentionNeeded(shift.localId, operationId: old.id);
+
+      final row = await (db.select(db.cashDrawerShifts)
+            ..where((s) => s.localId.equals(shift.localId)))
+          .getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+
   });
 }
