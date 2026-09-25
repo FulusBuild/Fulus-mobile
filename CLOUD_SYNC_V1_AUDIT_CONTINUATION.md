@@ -925,3 +925,19 @@ Remaining:
 - verify product stock never crosses location membership boundaries;
 - complete same-business non-admin adversarial mutation/read tests;
 - rerun CI/status after the branch changes.
+
+## 2026-09-25 — Incremental sync change-feed location isolation
+Status: 🟡 CODE FIXED ON BRANCH; PRODUCTION DEPLOYMENT/ADVERSARIAL VERIFICATION PENDING
+
+Audit finding: `supabase/functions/fulus-api/index.ts` served the business-wide `sync_changes` feed through a service-role client without location filtering. This could expose another location's operational change payload to a non-admin member of the same business.
+
+Fix on `feature/location-switching`:
+- Resolve active business role and location memberships for the authenticated user.
+- Treat owner/admin as business-wide location administrators, matching the canonical sync-read contract.
+- Filter location-scoped change types (`sale`, `expense`, `income_record`, `cash_drawer_shift`, `location`, `stock_movement`, `return`) by payload `location_id`.
+- Preserve business-global/catalog changes.
+- Scan the feed in sequence order and advance `next_cursor` to the last scanned sequence so filtered rows cannot cause authorized changes to be skipped.
+
+Commit: `d9581922fa2473173e0e2529efeba03b5e3c7e5f`
+
+Remaining: deploy the updated Edge Function(s), then exercise same-business non-admin/member and cross-location incremental-sync adversarial cases in a test environment.
