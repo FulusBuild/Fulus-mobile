@@ -941,3 +941,9 @@ Fix on `feature/location-switching`:
 Commit: `d9581922fa2473173e0e2529efeba03b5e3c7e5f`
 
 Remaining: deploy the updated Edge Function(s), then exercise same-business non-admin/member and cross-location incremental-sync adversarial cases in a test environment.
+## 2026-09-25 — Restore snapshot authorization audit
+Status: 🟢 PRODUCTION AUTHORIZATION VERIFIED
+
+Audited production `build_fulus_restore_snapshot(p_business_id, p_user_id)`. The SECURITY DEFINER function only constructs a snapshot when the supplied user is an active business member with role `owner` or `admin`; otherwise it returns no snapshot and raises `Restore is not authorized for this business`. The snapshot is intentionally business-wide because restore is an administrative business-recovery operation, not an ordinary location-scoped operational read.
+
+No code change required for this path. Location-scoped canonical reads remain protected separately by the `fulus-sync-state` boundary and incremental sync feed.
