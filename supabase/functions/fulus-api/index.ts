@@ -92,10 +92,26 @@ Deno.serve(async req => {
       "stock_movement",
       "return",
     ]);
-    const hasLocationAccess = (payload: unknown) => {
+    const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
+      if (entityType === "location") {
+        return accessibleLocationIds.has(entityId);
+      }
       if (!payload || typeof payload !== "object") return false;
-      const locationId = (payload as Record<string, unknown>).location_id;
-      return locationId != null && accessibleLocationIds.has(String(locationId));
+      const row = payload as Record<string, unknown>;
+      const directLocationId = row.location_id;
+      if (directLocationId != null) {
+        return accessibleLocationIds.has(String(directLocationId));
+      }
+      if (entityType === "sale") {
+        const locationId = saleLocationBySaleId.get(entityId);
+        return locationId != null && accessibleLocationIds.has(locationId);
+      }
+      if (entityType === "return") {
+        const saleId = returnSaleIdByReturnId.get(entityId);
+        const locationId = saleId ? saleLocationBySaleId.get(saleId) : undefined;
+        return locationId != null && accessibleLocationIds.has(locationId);
+      }
+      return false;
     };
 
     // Scan the feed in sequence order and advance next_cursor to the last
@@ -115,10 +131,46 @@ Deno.serve(async req => {
       if (ce) return out({ error: { code: "SYNC_PULL_FAILED", message: "Unable to read server changes" } }, 500);
       const batch = changes ?? [];
       if (batch.length === 0) break;
+
+      const saleIds = [...new Set(batch
+        .filter(change => String(change.entity_type ?? "") === "sale")
+        .map(change => String(change.entity_id))
+        .filter(Boolean))];
+      const returnIds = [...new Set(batch
+        .filter(change => String(change.entity_type ?? "") === "return")
+        .map(change => String(change.entity_id))
+        .filter(Boolean))];
+      const saleLocationBySaleId = new Map<string, string>();
+      const returnSaleIdByReturnId = new Map<string, string>();
+
+      if (saleIds.length > 0) {
+        const { data: sales, error: salesError } = await serviceDb
+          .from("sales")
+          .select("id,location_id")
+          .eq("business_id", bid)
+          .in("id", saleIds);
+        if (salesError) return out({ error: { code: "SYNC_LOCATION_LOOKUP_FAILED", message: "Unable to resolve sale locations for change feed" } }, 500);
+        for (const sale of sales ?? []) {
+          if (sale.location_id != null) saleLocationBySaleId.set(String(sale.id), String(sale.location_id));
+        }
+      }
+
+      if (returnIds.length > 0) {
+        const { data: returns, error: returnsError } = await serviceDb
+          .from("returns")
+          .select("id,sale_id")
+          .eq("business_id", bid)
+          .in("id", returnIds);
+        if (returnsError) return out({ error: { code: "SYNC_LOCATION_LOOKUP_FAILED", message: "Unable to resolve return locations for change feed" } }, 500);
+        for (const returnRow of returns ?? []) {
+          if (returnRow.sale_id != null) returnSaleIdByReturnId.set(String(returnRow.id), String(returnRow.sale_id));
+        }
+      }
+
       for (const change of batch) {
         scanCursor = Number(change.sequence);
         const entityType = String(change.entity_type ?? "");
-        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(change.payload)) {
+        if (!locationScopedEntityTypes.has(entityType) || hasLocationAccess(entityType, String(change.entity_id), change.payload, saleLocationBySaleId, returnSaleIdByReturnId)) {
           rows.push(change);
           if (rows.length >= limit) break;
         }
