@@ -177,7 +177,7 @@ class ReturnSyncHandler implements SyncHandler {
               final newerRepayments = await (_db.select(_db.syncQueueItems)
                     ..where((q) => q.entityType.equals('customer_ledger'))
                     ..where((q) => q.id.isNotIn([operationId]))
-                    ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+                    ..where((q) => q.enqueuedAt.isBiggerThanValue(enqueuedAt)))
                   .get();
               for (final queued in newerRepayments) {
                 final ledger = await (_db.select(_db.customerLedgerEntries)
