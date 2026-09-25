@@ -131,6 +131,19 @@ class ReturnSyncHandler implements SyncHandler {
               operationId: operationId,
               enqueuedAt: enqueuedAt,
             )) return;
+            final newerMovements = await (_db.select(_db.syncQueueItems)
+                  ..where((q) => q.entityType.equals('stock_movement'))
+                  ..where((q) => q.id.isNotIn([operationId]))
+                  ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+                .get();
+            for (final queued in newerMovements) {
+              final movement = await (_db.select(_db.stockMovements)
+                    ..where((m) => m.localId.equals(queued.entityLocalId))
+                    ..where((m) => m.productLocalId.equals(localId))
+                    ..where((m) => m.locationId.equals(sale.locationId)))
+                  .getSingleOrNull();
+              if (movement != null) return;
+            }
             await reconciler.apply(canonical);
           });
         } catch (_) {}
@@ -161,6 +174,20 @@ class ReturnSyncHandler implements SyncHandler {
                 operationId: operationId,
                 enqueuedAt: enqueuedAt,
               )) return;
+              final newerRepayments = await (_db.select(_db.syncQueueItems)
+                    ..where((q) => q.entityType.equals('customer_ledger'))
+                    ..where((q) => q.id.isNotIn([operationId]))
+                    ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+                  .get();
+              for (final queued in newerRepayments) {
+                final ledger = await (_db.select(_db.customerLedgerEntries)
+                      ..where((e) => e.localId.equals(queued.entityLocalId))
+                      ..where((e) =>
+                          e.customerLocalId.equals(customerLocalId) &
+                          e.entryType.equals('repayment')))
+                    .getSingleOrNull();
+                if (ledger != null) return;
+              }
               await FulusCustomerCanonicalReconciler(repository: customerRepository).apply(canonical);
             },
           );
