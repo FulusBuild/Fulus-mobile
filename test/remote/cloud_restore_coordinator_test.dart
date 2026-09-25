@@ -29,7 +29,12 @@ void main() {
     expect(await blocker.acquire(), isTrue);
 
     final restore = coordinator.restore(
-      snapshot: <String, dynamic>{},
+      snapshot: <String, dynamic>{
+        'version': 6,
+        'membership': {'user_id': 'owner-cloud-id', 'role_name': 'owner'},
+        'profile': {'full_name': 'Owner'},
+        'locations': <dynamic>[],
+      },
       ownerCloudUserId: 'owner-cloud-id',
       ownerEmail: 'owner@example.com',
       settings: const BusinessSettingsResponseDto(
@@ -45,7 +50,7 @@ void main() {
     expect(await db.select(db.businessSettings).get(), isEmpty);
     await blocker.release();
 
-    await expectLater(restore, completion(throwsA(isA<StateError>())));
+    await expectLater(restore, completion(isA<CloudRestoreResult>()));
   });
 
   test('blocks restore when outbound sync work is pending', () async {
