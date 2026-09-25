@@ -30,6 +30,7 @@ abstract class ProductRepository {
     required String productLocalId,
     required String locationId,
     required int currentStock,
+    String? operationId,
   });
   Future<void> reconcileServerState({
     required String serverId,
