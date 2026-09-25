@@ -183,6 +183,7 @@ void main() {
     verify(() => productRepository.markSynced(
           localId: 'p1',
           serverId: 'server-product-1',
+          operationId: 'queue-product-delete',
         )).called(1);
   });
 }
