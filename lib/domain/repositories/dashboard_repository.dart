@@ -13,6 +13,7 @@ abstract class DashboardRepository {
   Future<HomeHeroState> getHeroState({
     required String currentAuthUserId,
     required bool isOwner,
+    required String locationId,
   });
 
   /// Redesign pass — [max] is new (default `2`, matching the existing,
@@ -23,5 +24,8 @@ abstract class DashboardRepository {
   /// Home richer than Decision 12's single-hero restraint for this
   /// redesign; nothing else in the app needs a different value than
   /// the default.
-  Future<SecondaryNoticeSelection> getSecondaryNotices({int max = 2});
+  Future<SecondaryNoticeSelection> getSecondaryNotices({
+    required String locationId,
+    int max = 2,
+  });
 }
