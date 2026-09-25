@@ -169,19 +169,28 @@ class CustomerRepositoryImpl implements CustomerRepository {
   }
 
   @override
-  Future<void> markSynced({
-    required String localId,
-    required String serverId,
-    String? duplicateWarning,
-  }) async {
-    await (_db.update(_db.customers)..where((c) => c.localId.equals(localId)))
-        .write(
-      CustomersCompanion(
-        serverId: Value(serverId),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
-        lastSyncWarning: Value(duplicateWarning),
-      ),
-    );
+  Future<void> markSynced({{
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'customer',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+        CustomersCompanion(
+          serverId: Value(serverId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
+        ),
+      );
+    });
   }
-}
