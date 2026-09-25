@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: fulus-production-supabase-migrations
@@ -30,7 +31,7 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Validate deployment secrets
         run: |
@@ -43,10 +44,39 @@ jobs:
           done
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fb # v2.1.1
         with:
-          version: latest
+          version: 2.117.0
 
+      - name: Gate production deployment on mobile and cloud-sync CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for Fulus Mobile CI on $COMMIT_SHA"
+          for attempt in $(seq 1 60); do
+            runs="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${COMMIT_SHA}&per_page=20")"
+            run_count="$(jq '.total_count' <<<"$runs")"
+            if [ "$run_count" -gt 0 ]; then
+              conclusion="$(jq -r '[.workflow_runs[] | select(.head_sha == "'$COMMIT_SHA'")] | sort_by(.created_at) | last | .conclusion // empty' <<<"$runs")"
+              status="$(jq -r '[.workflow_runs[] | select(.head_sha == "'$COMMIT_SHA'")] | sort_by(.created_at) | last | .status // empty' <<<"$runs")"
+              echo "CI status=$status conclusion=$conclusion"
+              case "$conclusion" in
+                success) exit 0 ;;
+                failure|cancelled|timed_out|action_required|stale)
+                  echo "::error::Fulus Mobile CI did not pass for this production commit."
+                  exit 1
+                  ;;
+              esac
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Fulus Mobile CI for this exact commit."
+          exit 1
       - name: Link production project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
