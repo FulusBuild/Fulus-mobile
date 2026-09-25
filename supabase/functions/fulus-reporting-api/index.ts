@@ -9,7 +9,22 @@ Deno.serve(async(req)=>{
  const q=new URL(req.url).searchParams,businessId=q.get("business_id"),locationId=q.get("location_id"),start=q.get("start"),end=q.get("end");
  if(!businessId||!start||!end)return json({error:{code:"INVALID_REPORT_REQUEST",message:"business_id, start and end are required"}},400);
  const from=new Date(start),to=new Date(end);if(Number.isNaN(from.getTime())||Number.isNaN(to.getTime())||to<from)return json({error:{code:"INVALID_REPORT_PERIOD",message:"Invalid report period"}},400);
- const {data:m}=await db.from("business_memberships").select("status").eq("business_id",businessId).eq("user_id",u.user.id).eq("status","active").maybeSingle();if(!m)return json({error:{code:"FORBIDDEN",message:"User is not an active member of this business"}},403);
+ const {data:m}=await db.from("business_memberships").select("role_id,status,roles(name)").eq("business_id",businessId).eq("user_id",u.user.id).eq("status","active").maybeSingle();if(!m)return json({error:{code:"FORBIDDEN",message:"User is not an active member of this business"}},403);
+ const role=Array.isArray(m.roles)?m.roles[0]:m.roles;
+ const isBusinessAdmin=role?.name==="owner"||role?.name==="admin";
+ const {data:locationRows,error:locationError}=await db.from("location_memberships").select("location_id").eq("business_id",businessId).eq("user_id",u.user.id).eq("status","active");
+ if(locationError)return json({error:{code:"LOCATION_MEMBERSHIP_LOOKUP_FAILED",message:"Unable to resolve location access"}},500);
+ const accessibleLocationIds=new Set((locationRows??[]).map(row=>String(row.location_id)));
+ if(isBusinessAdmin){
+   const {data:businessLocations,error:businessLocationsError}=await db.from("locations").select("id").eq("business_id",businessId).eq("status","active");
+   if(businessLocationsError)return json({error:{code:"LOCATION_LOOKUP_FAILED",message:"Unable to resolve business locations"}},500);
+   for(const location of businessLocations??[])accessibleLocationIds.add(String(location.id));
+ }
+ if(locationId){
+   if(!accessibleLocationIds.has(String(locationId)))return json({error:{code:"FORBIDDEN",message:"User is not authorized for this location"}},403);
+ }else if(!isBusinessAdmin){
+   return json({error:{code:"LOCATION_REQUIRED",message:"A location_id is required for non-admin cloud reports"}},403);
+ }
  const device=q.get("device_id");if(!device)return json({error:{code:"DEVICE_REQUIRED",message:"device_id is required for cloud reports"}},400);const {data:d}=await db.from("devices").select("status").eq("business_id",businessId).eq("device_client_id",device).maybeSingle();if(!d||d.status!=="active")return json({error:{code:"DEVICE_NOT_REGISTERED",message:"Device is not registered or active"}},403);
  let sq=db.from("sales").select("id,total,discount,tax,amount_paid,payment_method,sale_date").eq("business_id",businessId).is("deleted_at",null).gte("sale_date",from.toISOString()).lte("sale_date",to.toISOString());if(locationId)sq=sq.eq("location_id",locationId);
  const {data:sales,error:se}=await sq;if(se)return json({error:{code:"REPORT_QUERY_FAILED",message:"Unable to load sales report"}},500);const sr=sales??[];
@@ -22,6 +37,6 @@ Deno.serve(async(req)=>{
  let stock:any[]=[];if(locationId){const x=await db.from("product_stock_levels").select("product_id,current_stock").eq("location_id",locationId);stock=x.data??[];}const stockMap=new Map(stock.map(s=>[s.product_id,Number(s.current_stock??0)]));
  const {data:activeProducts}=await db.from("products").select("id,name,cost_price,low_stock_threshold").eq("business_id",businessId).eq("is_active",true).is("deleted_at",null);const inv=(activeProducts??[]).map(p=>{const qty=stockMap.get(p.id)??0;return{product_id:p.id,name:p.name,current_stock:qty,stock_value:Number(p.cost_price??0)*qty,low_stock:qty>0&&qty<=Number(p.low_stock_threshold??0),out_of_stock:qty<=0};});
  const revenue=sr.reduce((a,s)=>a+Number(s.total??0),0),discounts=sr.reduce((a,s)=>a+Number(s.discount??0),0),tax=sr.reduce((a,s)=>a+Number(s.tax??0),0),outstanding=customers.reduce((a,c)=>a+Number(c.outstanding_balance??0),0),newCustomers=customers.filter(c=>{const d=new Date(c.created_at);return d>=from&&d<=to}).length;
- const {data:cash}=await db.from("cash_ledger").select("amount,direction").eq("business_id",businessId).gte("created_at",from.toISOString()).lte("created_at",to.toISOString());const inflow=(cash??[]).filter(c=>c.direction==="in").reduce((a,c)=>a+Number(c.amount??0),0),outflow=(cash??[]).filter(c=>c.direction==="out").reduce((a,c)=>a+Number(c.amount??0),0);
+ let cq=db.from("cash_ledger").select("amount,direction").eq("business_id",businessId).gte("created_at",from.toISOString()).lte("created_at",to.toISOString());if(locationId)cq=cq.eq("location_id",locationId);const {data:cash}=await cq;const inflow=(cash??[]).filter(c=>c.direction==="in").reduce((a,c)=>a+Number(c.amount??0),0),outflow=(cash??[]).filter(c=>c.direction==="out").reduce((a,c)=>a+Number(c.amount??0),0);
  return json({data:{period:{start:from.toISOString(),end:to.toISOString()},sales:{revenue,sales_count:sr.length,total_discount:discounts,total_tax:tax,by_payment_method:payment,top_products:[...top.values()].sort((a,b)=>b.revenue-a.revenue).slice(0,10)},inventory:{total_products:inv.length,total_stock_value:inv.reduce((a,p)=>a+p.stock_value,0),low_stock_count:inv.filter(p=>p.low_stock).length,out_of_stock_count:inv.filter(p=>p.out_of_stock).length,items:inv},customers:{outstanding_credit:outstanding,new_customers:newCustomers,top_customers:customers.map(c=>({customer_id:c.id,customer_name:c.name,outstanding_balance:Number(c.outstanding_balance??0)})).sort((a,b)=>b.outstanding_balance-a.outstanding_balance).slice(0,10)},finance:{revenue,expenses:expenseTotal,net_profit:revenue-expenseTotal,expense_breakdown:Object.entries(cat).map(([category,total])=>({category,total}))},cash_flow:{inflow,outflow,net_cash_flow:inflow-outflow},server_authoritative:true}});
 });
