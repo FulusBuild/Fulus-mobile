@@ -31,7 +31,7 @@ class CloudRestoreCoordinator {
       throw StateError('Another Fulus runtime is currently syncing.');
     }
     try {
-      return await _db.transaction(() async {
+      return await _db.transaction(() async {\n        await _executionLease.ensureHeldForTransaction();
       onProgress?.call('Preparing local database restore…');
 
       // Never silently destroy locally queued work or unresolved conflicts.
