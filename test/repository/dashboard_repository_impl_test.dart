@@ -16,6 +16,7 @@ void main() {
   late DashboardRepositoryImpl repository;
 
   const locationId = 'loc-1';
+  const locationBId = 'loc-2';
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -27,18 +28,25 @@ void main() {
           updatedAt: DateTime(2026, 1, 1),
           syncStatus: SyncStatus.settled,
         ));
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+          localId: locationBId,
+          name: 'Second Store',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ));
   });
 
   tearDown(() async {
     await db.close();
   });
 
-  Future<void> seedSale({required double total, DateTime? saleDate}) {
+  Future<void> seedSale({required double total, DateTime? saleDate, String saleLocationId = locationId}) {
     final id = 'sale-${DateTime.now().microsecondsSinceEpoch}-${total.toString()}';
     return db.into(db.sales).insert(SalesCompanion.insert(
           localId: id,
           clientReference: id,
-          locationId: locationId,
+          locationId: saleLocationId,
           saleDate: saleDate ?? DateTime.now(),
           subtotal: total,
           total: total,
@@ -50,7 +58,7 @@ void main() {
 
   group('getHeroState — day status', () {
     test('reports the day closed when no cash drawer shift is open', () async {
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true);
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId);
       expect(state, isA<ClosedHero>());
     });
 
@@ -65,7 +73,7 @@ void main() {
             syncStatus: SyncStatus.settled,
           ));
 
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true);
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId);
 
       expect(state, isA<OpenHero>());
     });
@@ -82,23 +90,43 @@ void main() {
             syncStatus: SyncStatus.settled,
           ));
 
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true);
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId);
 
       expect(state, isA<ClosedHero>());
     });
 
     test('an employee always sees their own shift, regardless of day status', () async {
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: false);
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: false, locationId: locationId);
       expect(state, isA<EmployeeShiftHero>());
     });
   });
 
   group('getHeroState — sales totals', () {
+    test('todayTotal is isolated to the requested location', () async {
+      await seedSale(total: 500, saleLocationId: locationId);
+      await seedSale(total: 900, saleLocationId: locationBId);
+
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
+
+      expect(state.finalTotal, 500);
+      expect(state.finalSalesCount, 1);
+    });
+
+    test('open and closed drawer state is isolated to the requested location', () async {
+      await db.into(db.cashDrawerShifts).insert(CashDrawerShiftsCompanion.insert(
+        localId: 'shift-b', cashierUserId: 'u2', locationId: locationBId,
+        openedAt: DateTime.now(), createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+      ));
+
+      final stateA = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId);
+      expect(stateA, isA<ClosedHero>());
+    });
+
     test('todayTotal reflects only sales from today', () async {
       await seedSale(total: 500);
       await seedSale(total: 300, saleDate: DateTime.now().subtract(const Duration(days: 3)));
 
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true) as ClosedHero;
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
       expect(state.finalTotal, 500);
       expect(state.finalSalesCount, 1);
@@ -106,6 +134,25 @@ void main() {
   });
 
   group('getSecondaryNotices — unsyncedCount', () {
+    test('low-stock projection is isolated to the requested location', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: 10, sellingPrice: 20,
+        lowStockThreshold: const Value(5), createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+      ));
+      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+        productLocalId: 'p1', locationLocalId: locationId, currentStock: const Value(2),
+        updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+      ));
+      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+        productLocalId: 'p1', locationLocalId: locationBId, currentStock: const Value(20),
+        updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+      ));
+
+      final selection = await repository.getSecondaryNotices(locationId: locationId);
+      final low = selection.shown.where((n) => n.type == SecondaryNoticeType.lowStock);
+      expect(low.single.value, 1);
+    });
+
     test('reflects the real number of items still in the sync queue', () async {
       for (var i = 0; i < 3; i++) {
         await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
@@ -118,14 +165,14 @@ void main() {
             ));
       }
 
-      final selection = await repository.getSecondaryNotices();
+      final selection = await repository.getSecondaryNotices(locationId: locationId);
 
       final unsynced = selection.shown.where((n) => n.type == SecondaryNoticeType.unsyncedItems);
       expect(unsynced.single.value, 3);
     });
 
     test('an empty sync queue produces no unsynced notice at all', () async {
-      final selection = await repository.getSecondaryNotices();
+      final selection = await repository.getSecondaryNotices(locationId: locationId);
       expect(selection.shown.where((n) => n.type == SecondaryNoticeType.unsyncedItems), isEmpty);
     });
   });

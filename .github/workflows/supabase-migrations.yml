@@ -7,12 +7,14 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/tests/**"
   pull_request:
     branches:
       - main
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/tests/**"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +39,17 @@ jobs:
 
       - name: Reset local database from repository migrations
         run: supabase db reset
+
+      - name: Restart local Supabase after reset
+        run: supabase start
+
+      - name: Run location authorization adversarial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_url="$(supabase status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
+          test -n "$db_url"
+          psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/location_authorization.sql
 
       - name: Show migration status
         run: supabase migration list --local

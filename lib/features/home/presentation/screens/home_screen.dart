@@ -49,11 +49,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _load() {
     final repo = ref.read(dashboardRepositoryProvider);
     final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
-    _heroFuture = repo.getHeroState(
-      currentAuthUserId: widget.currentAuthUserId,
-      isOwner: showBusinessWide,
-    );
-    _noticesFuture = repo.getSecondaryNotices(max: 3);
+    final locationFuture = ref.read(activeLocationIdProvider.future);
+    _heroFuture = locationFuture.then((locationId) => repo.getHeroState(
+          currentAuthUserId: widget.currentAuthUserId,
+          isOwner: showBusinessWide,
+          locationId: locationId,
+        ));
+    _noticesFuture = locationFuture.then((locationId) => repo.getSecondaryNotices(
+          locationId: locationId,
+          max: 3,
+        ));
     _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
           _reportsEngine.resolvePeriod(ReportPeriodKind.today),
           currentAuthUserId: widget.currentAuthUserId,

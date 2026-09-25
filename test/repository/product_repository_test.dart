@@ -3,6 +3,8 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import '../helpers/db_seed_helpers.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -31,6 +33,15 @@ void main() {
       sellingPrice: 0,
     ));
   });
+
+  Future<void> seedActiveLocation() async {
+    await seedUser(db, localId: 'test-active-user', role: AuthRole.owner);
+    await db.into(db.sessions).insert(SessionsCompanion.insert(
+      id: 'current',
+      userId: 'test-active-user',
+      activeLocationId: const Value(locationId),
+    ));
+  }
 
   Future<void> seedLocation() {
     return db.into(db.locations).insert(LocationsCompanion.insert(
@@ -102,6 +113,7 @@ void main() {
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
+      await seedActiveLocation();
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1', currentStock: 20)],
@@ -300,6 +312,7 @@ void main() {
           totalPages: 1,
         ),
       );
+      await seedActiveLocation();
       await repository.syncFromServer();
 
       final emitted = await repository.watchProducts(locationId: locationId).first;
@@ -376,6 +389,7 @@ void main() {
           totalPages: 1,
         ),
       );
+      await seedActiveLocation();
       await repository.syncFromServer();
 
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;

@@ -14,9 +14,17 @@ class ManageLocationsScreen extends ConsumerWidget {
   const ManageLocationsScreen({super.key});
 
   Future<void> _setActive(BuildContext context, WidgetRef ref, Location location) async {
-    await ref.read(authRepositoryProvider).setActiveLocationId(location.localId);
-    ref.invalidate(activeLocationIdProvider);
-    if (context.mounted) showFulusSnackbar(context, message: 'Now viewing ${location.name}.');
+    try {
+      await ref.read(switchActiveLocationProvider)(location.localId);
+      // Rebuild every location-aware consumer from the new durable context.
+      ref.invalidate(activeLocationIdProvider);
+      ref.read(dataRefreshSignalProvider.notifier).state++;
+      if (context.mounted) showFulusSnackbar(context, message: 'Now viewing ${location.name}.');
+    } catch (error) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: error is StateError ? error.message : "Couldn't switch locations. Try again.");
+      }
+    }
   }
 
   Future<void> _addLocation(BuildContext context, WidgetRef ref) async {

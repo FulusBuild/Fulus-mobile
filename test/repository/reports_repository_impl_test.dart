@@ -204,7 +204,7 @@ void main() {
           start: DateTime(2026, 1, 1),
           end: DateTime(2026, 1, 31),
         ),
-      );
+        locationId: 'loc-1',      );
 
       expect(report.totalRevenue, 1000);
       expect(report.totalCostOfGoodsSold, 300);
@@ -235,7 +235,7 @@ void main() {
           start: DateTime(2026, 1, 1),
           end: DateTime(2026, 1, 31),
         ),
-      );
+        locationId: 'loc-1',      );
 
       expect(report.totalCostOfGoodsSold, 0);
       expect(report.netProfit, 500);
@@ -262,7 +262,7 @@ void main() {
           start: DateTime(2026, 1, 1),
           end: DateTime(2026, 1, 31),
         ),
-      );
+        locationId: 'loc-1',      );
 
       expect(report.totalCostOfGoodsSold, 380);
     });
@@ -297,7 +297,7 @@ void main() {
           start: DateTime(2026, 2, 1),
           end: DateTime(2026, 2, 28),
         ),
-      );
+        locationId: 'loc-1',      );
 
       expect(report.netProfit, 700);
       // Before the fix, the current period's 800 (COGS omitted) would
@@ -320,7 +320,7 @@ void main() {
           start: DateTime(2026, 1, 1),
           end: DateTime(2026, 1, 31),
         ),
-      );
+        locationId: 'loc-1',      );
 
       expect(report.totalRevenue, 0);
       expect(report.totalCostOfGoodsSold, 0);
@@ -354,7 +354,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       expect(report.transactions, hasLength(2));
       expect(report.transactions.first.saleLocalId, 'sale-2'); // newest first
@@ -389,7 +389,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       final record = report.transactions.single;
       expect(record.cashierName, 'Amaka Okafor');
@@ -412,7 +412,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       expect(report.transactions.single.status, SaleRecordStatus.completed);
     });
@@ -456,7 +456,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       final refunded = report.transactions.firstWhere((t) => t.saleLocalId == 'sale-refunded');
       final voided = report.transactions.firstWhere((t) => t.saleLocalId == 'sale-voided');
@@ -486,7 +486,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       expect(report.transactions.single.status, SaleRecordStatus.partiallyRefunded);
     });
@@ -527,7 +527,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       // Before the fix: totalRevenue 1500, count 2 — the voided sale
       // counted as if it were still valid.
@@ -567,7 +567,7 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         currentAuthUserId: 'u1',
         canViewAllSales: true,
-      );
+        locationId: 'loc-1',      );
 
       expect(report.totalRevenue, 300); // 400 - 100 refunded
       expect(report.totalSalesCount, 1); // still one real transaction
@@ -599,7 +599,7 @@ void main() {
 
       final report = await repository.getFinanceReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       // Before the fix: revenue 1000, COGS 120 — the voided sale
       // counted as if it were a normal, valid one.
@@ -628,7 +628,7 @@ void main() {
 
       final report = await repository.getFinanceReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       expect(report.totalRevenue, 300); // 400 - 100 (1 unit @ 100)
       expect(report.totalCostOfGoodsSold, 180); // (4-1) units @ cost 60
@@ -683,7 +683,7 @@ void main() {
 
       final report = await repository.getCustomerReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       // Before the fix: 800 (300 + 500, both sales counted in full).
       expect(report.topCustomers.single.totalSpend, 200); // 300 - 100
@@ -724,7 +724,7 @@ void main() {
 
       final report = await repository.getEmployeeReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       final perf = report.performance.single;
       expect(perf.salesTotal, 0);
@@ -763,7 +763,7 @@ void main() {
 
       final report = await repository.getEmployeeReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       // Before the fix, this read simply "Team attendance was 100% this
       // period." — easy to misread as the whole team, when only 1 of 2
@@ -820,7 +820,7 @@ void main() {
             ),
           );
 
-      final report = await repository.getInventoryReport();
+      final report = await repository.getInventoryReport(locationId: 'loc-1');
 
       expect(report.stockMovementsIn, 10);
       expect(report.stockMovementsOut, 4);
@@ -862,7 +862,7 @@ void main() {
 
       final report = await repository.getEmployeeReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       final perf = report.performance.single;
       expect(perf.salesTotal, 2000);
@@ -893,11 +893,87 @@ void main() {
 
       final report = await repository.getEmployeeReport(
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
-      );
+        locationId: 'loc-1',      );
 
       final perf = report.performance.single;
       expect(perf.salesTotal, 0);
       expect(perf.salesCount, 0);
     });
   });
+  group('location isolation', () {
+    test('sales report excludes sales from another location', () async {
+      await insertLocation('loc-1');
+      await insertLocation('loc-2');
+      await insertCompletedSale(
+        localId: 'sale-a',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 10),
+        total: 100,
+        amountPaid: 100,
+        items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
+      );
+      await insertCompletedSale(
+        localId: 'sale-b',
+        locationId: 'loc-2',
+        saleDate: DateTime(2026, 1, 10),
+        total: 900,
+        amountPaid: 900,
+        items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
+      );
+
+      final report = await repository.getSalesReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
+        locationId: 'loc-1',
+      );
+
+      expect(report.totalRevenue, 100);
+      expect(report.totalSalesCount, 1);
+      expect(report.transactions.single.saleLocalId, 'sale-a');
+    });
+
+    test('inventory report only aggregates stock and movements for its location', () async {
+      await insertLocation('loc-1');
+      await insertLocation('loc-2');
+      await insertProduct('product-a');
+      final now = DateTime(2026, 1, 10);
+      await db.into(db.productStockLevels).insert(
+        ProductStockLevelsCompanion.insert(
+          productLocalId: 'product-a',
+          locationLocalId: 'loc-1',
+          currentStock: const Value(3),
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+      await db.into(db.productStockLevels).insert(
+        ProductStockLevelsCompanion.insert(
+          productLocalId: 'product-a',
+          locationLocalId: 'loc-2',
+          currentStock: const Value(30),
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+      await db.into(db.stockMovements).insert(
+        StockMovementsCompanion.insert(
+          localId: 'move-b',
+          productLocalId: 'product-a',
+          locationId: 'loc-2',
+          movementType: 'in',
+          quantity: const Value(50),
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+
+      final report = await repository.getInventoryReport(locationId: 'loc-1');
+
+      expect(report.totalStockValue, 120);
+      expect(report.stockMovementsIn, 0);
+    });
+  });
+
 }

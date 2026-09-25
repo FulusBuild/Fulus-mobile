@@ -40,6 +40,10 @@ class CartCubit extends Cubit<CartState> {
   final String _locationId;
   final DiagnosticLogger? _diagnosticLogger;
 
+  /// Durable location context for this cubit. A CartCubit is never portable
+  /// across locations; the Sell screen recreates it when the active context changes.
+  String get locationId => _locationId;
+
   String? _draftCartId;
 
   StreamSubscription<DraftCart?>? _draftSub;
