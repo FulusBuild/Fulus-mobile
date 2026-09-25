@@ -800,3 +800,21 @@ Regression coverage now proves:
 4. Existing product repository queries prove stock joins are location-bound.
 
 Remaining location audit work: switching during sync/in-flight location-scoped UI work, plus a final compile/test/CI verification pass before merge. The PR remains unmerged until those checks are complete.
+
+
+## 2026-09-25 — Location report drill-down audit
+
+Status: 🟢 location-bound summary reports are wired; one drill-down caller gap was found and fixed.
+
+During the independent location-isolation pass, the ReportsRepository interface had been widened so all report queries require an explicit location identity. The main Reports screen already supplied the active location, and the repository implementation scopes the location-bound report data.
+
+A remaining caller in `SalesTransactionsScreen` still called `getSalesReport()` without the active location. That was corrected on `feature/location-switching` so the drill-down resolves the current active location before querying.
+
+This matters because a summary report could be location A while its drill-down was otherwise capable of querying without an explicit location boundary.
+
+Remaining location audit work:
+- broader stock/projection isolation under A→B switching;
+- cash-drawer isolation and refresh under A→B;
+- in-flight switch/read race coverage across the major location-scoped screens;
+- server-side location membership/access enforcement and canonical pull isolation;
+- process-death during an actual switch transition.
