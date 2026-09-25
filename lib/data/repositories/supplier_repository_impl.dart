@@ -155,7 +155,7 @@ class SupplierRepositoryImpl implements SupplierRepository {
           );
         }
       }
-      await (_db.update(_db.suppliers)..where((s) => s.localId.equals(localId))).write(
+      await (_db.update(_db.suppliers)..where((x) => x.localId.equals(localId))).write(
         SuppliersCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
@@ -164,4 +164,3 @@ class SupplierRepositoryImpl implements SupplierRepository {
       );
     });
   }
-
