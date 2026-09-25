@@ -121,8 +121,10 @@ class SaleSyncHandler implements SyncHandler {
   Future<void> _reconcileProductsAfterRejectedSale(
     Sale sale,
     String deviceClientId,
-    String businessId,
-  ) async {
+    String businessId, {
+    required String operationId,
+    required DateTime enqueuedAt,
+  }) async {
     final repository = _productRepository;
     if (repository == null) return;
     final reconciler = FulusProductCanonicalReconciler(repository: repository);
