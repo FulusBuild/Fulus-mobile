@@ -10,7 +10,7 @@ abstract class LocationRepository {
 
   Future<Location> getOrCreateDefaultLocation({required String name});
 
-  Future<void> markSynced({required String localId, required String serverId});
+  Future<void> markSynced({required String localId, required String serverId, String? operationId});
 
   /// Pulls the current set of locations from the backend and reconciles
   /// them locally — this is a pull, not an outbound write.
