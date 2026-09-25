@@ -36,6 +36,10 @@ select id, 'Location B', 'AUTH-B', 'active'
 from public.businesses
 where name = 'Authorization Regression Business';
 
+grant select on _authz_test_ids to authenticated;
+
+grant execute on function public.require_location_access(uuid, uuid) to authenticated;
+
 insert into _authz_test_ids
 select
   (select id from auth.users where email = 'authz-owner@example.test'),
