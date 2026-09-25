@@ -11,6 +11,7 @@ import '../domain/entities/permission.dart';
 import '../domain/entities/location.dart';
 import '../features/auth/presentation/screens/identity_picker_screen.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
+import '../shared/widgets/fulus_card.dart';
 import '../shared/widgets/fulus_button.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
