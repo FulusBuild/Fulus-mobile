@@ -137,7 +137,7 @@ void main() {
     test('low-stock projection is isolated to the requested location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
         localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: 10, sellingPrice: 20,
-        lowStockThreshold: 5, createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
+        lowStockThreshold: const Value(5), createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
       ));
       await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
         productLocalId: 'p1', locationLocalId: locationId, currentStock: const Value(2),
