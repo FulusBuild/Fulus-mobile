@@ -86,6 +86,7 @@ class StockMovementSyncHandler implements SyncHandler {
           productLocalId: movement.productLocalId,
           locationId: movement.locationId,
           currentStock: currentStock,
+          operationId: item.id,
         );
       }
       await _stockMovementRepository.markSettled(localId: movement.localId, operationId: item.id);
