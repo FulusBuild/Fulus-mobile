@@ -276,90 +276,31 @@ class SaleRepositoryImpl implements SaleRepository {
   }
 
   @override
-  Future<void> markSynced({
-    required String localId,
-    required String serverId,
-    required String invoiceNumber,
-  }) async {
-    await (_db.update(_db.sales)..where((s) => s.localId.equals(localId)))
-        .write(
-      SalesCompanion(
-        serverId: Value(serverId),
-        invoiceNumber: Value(invoiceNumber),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-  }
-
-  /// Mirrors the backend's stock decrement locally, scoped to this
-  /// specific location's stock row (Architecture Section 7a: stock is
-  /// per-location, not a single column on Product).
-  ///
-  /// Deliberately a plain read-then-write, not a single atomic SQL
-  /// UPDATE with a conditional guard — Architecture Section 9 is
-  /// explicit that the mobile client must never try to replicate the
-  /// backend's own atomic conditional-UPDATE mechanism (that's what
-  /// correctly resolves concurrent decrements from OTHER devices, and
-  /// only the server has the live, authoritative value needed to do
-  /// that). This method only needs to be correct within this single
-  /// device's own transaction, against sqlite's own single-writer
-  /// model — which read-then-write, inside the same _db.transaction
-  /// call in createSale above, already is.
-  ///
-  /// syncStatus on the ProductStockLevels row is deliberately left
-  /// untouched here: per Section 9, stock effects travel to the server
-  /// as part of the sale's own create request, not as an independently
-  /// queued/synced write of this row — this local decrement is a
-  /// same-device UI mirror, not something this method should mark as
-  /// pending its own separate sync.
-  Future<void> _decrementLocalStock(
-    List<SaleItem> items, {
-    required String locationId,
-  }) async {
-    for (final item in items) {
-      // Quick Sale line (Volume 5) — no product to decrement stock for
-      // at all. New in this pass; this loop predates Quick Sale and
-      // wasn't written to expect a null productLocalId.
-      final productLocalId = item.productLocalId;
-      if (productLocalId == null) continue;
-
-      final stockRow = await (_db.select(_db.productStockLevels)
-            ..where(
-              (s) =>
-                  s.productLocalId.equals(productLocalId) &
-                  s.locationLocalId.equals(locationId),
-            ))
-          .getSingleOrNull();
-
-      if (stockRow == null) {
-        throw StateError(
-          'No stock record exists for product $productLocalId at location $locationId.',
-        );
+  Future<void> markSynced({{
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'sale',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
       }
-
-      final newStock = stockRow.currentStock - item.quantity;
-      if (newStock < 0) {
-        throw StateError(
-          'Insufficient stock for product $productLocalId.',
-        );
-      }
-
-      await (_db.update(_db.productStockLevels)
-            ..where(
-              (s) =>
-                  s.productLocalId.equals(productLocalId) &
-                  s.locationLocalId.equals(locationId),
-            ))
-          .write(
-        ProductStockLevelsCompanion(
-          currentStock: Value(newStock),
-          updatedAt: Value(DateTime.now()),
+      await (_db.update(_db.sales)..where((s) => s.localId.equals(localId))).write(
+        SalesCompanion(
+          serverId: Value(serverId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
         ),
       );
-    }
+    });
   }
-
   @override
   Future<List<SalePayment>> getPaymentsForSale(String saleLocalId) async {
     final rows = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(saleLocalId))).get();
