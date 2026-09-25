@@ -177,6 +177,22 @@ void main() {
       final created = await repository.recordIncome(
         IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
       );
+      await (db.delete(db.syncQueueItems)
+            ..where((q) => q.entityType.equals('income_record'))
+            ..where((q) => q.entityLocalId.equals(created.localId)))
+          .go();
+
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'old-operation',
+          entityType: 'income_record',
+          entityLocalId: created.localId,
+          operation: 'create',
+          priority: 1,
+          enqueuedAt: DateTime(2026, 7, 1),
+          syncAttempts: const Value(0),
+        ),
+      );
       await db.into(db.syncQueueItems).insert(
         SyncQueueItemsCompanion.insert(
           id: 'new-operation',
@@ -185,7 +201,7 @@ void main() {
           operation: 'create',
           priority: 1,
           enqueuedAt: DateTime(2026, 7, 2),
-          syncAttempts: 0,
+          syncAttempts: const Value(0),
         ),
       );
 
