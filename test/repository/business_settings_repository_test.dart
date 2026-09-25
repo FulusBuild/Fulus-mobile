@@ -7,6 +7,7 @@ import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/business_category.dart';
 import 'package:fulus_mobile/domain/entities/business_settings.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -23,22 +24,63 @@ void main() {
   late MockAuthRepository authRepository;
   late PermissionRepositoryImpl permissionRepository;
   late BusinessSettingsRepositoryImpl repository;
+  late SyncExecutionLease executionLease;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     businessSettingsApi = MockBusinessSettingsApi();
     authRepository = MockAuthRepository();
     permissionRepository = PermissionRepositoryImpl(db: db);
+    executionLease = SyncExecutionLease(db);
     repository = BusinessSettingsRepositoryImpl(
       db: db,
       businessSettingsApi: businessSettingsApi,
       authRepository: authRepository,
       permissionRepository: permissionRepository,
+      executionLease: executionLease,
     );
   });
 
   tearDown(() async {
+    await executionLease.release();
     await db.close();
+  });
+
+  test('waits for the shared sync lease before clearing business data', () async {
+    await repository.createBusiness(
+      businessName: 'Lease Guard Store',
+      category: BusinessCategory.retailShop,
+      currencySymbol: '₦',
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'pending-reset-guard',
+        entityType: 'product',
+        entityLocalId: 'product-reset-guard',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: DateTime.now(),
+      ),
+    );
+
+    final blocker = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(seconds: 2),
+    );
+    addTearDown(blocker.release);
+    expect(await blocker.acquire(), isTrue);
+
+    final clearing = repository.clearLocalBusinessData();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    expect(await repository.hasBeenConfigured(), isTrue);
+    expect(await db.select(db.syncQueueItems).get(), isNotEmpty);
+
+    await blocker.release();
+    await clearing;
+
+    expect(await repository.hasBeenConfigured(), isFalse);
+    expect(await db.select(db.syncQueueItems).get(), isEmpty);
   });
 
   group('watchSettings', () {
