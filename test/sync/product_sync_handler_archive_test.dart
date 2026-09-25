@@ -46,6 +46,7 @@ void main() {
     when(() => productRepository.markSynced(
           localId: any(named: 'localId'),
           serverId: any(named: 'serverId'),
+          operationId: any(named: 'operationId'),
         )).thenAnswer((_) async {});
   });
 
