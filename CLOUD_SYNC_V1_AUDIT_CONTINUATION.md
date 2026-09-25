@@ -783,3 +783,20 @@ Regression coverage now proves:
 3. Low-stock projection only counts the requested location's stock levels.
 
 Remaining location audit work: B-side pending mutations, broader multi-location stock/report coverage, and switching while sync/in-flight location-scoped UI work is active.
+
+
+## 2026-09-25 — Multi-location stock and reports isolation
+
+Status: 🟢 targeted stock/report isolation fixes and regression coverage added.
+
+Audit found that the product catalog read paths were already location-scoped through `ProductStockLevels.locationLocalId`, and stock movement recording/reconciliation already binds product stock to the movement location. A new B-side pending mutation regression also proves a queued B stock movement cannot replay against active A.
+
+A broader projection gap was found in `ReportsRepositoryImpl`: inventory stock, recent stock movements, employee sales, sales, customer sales, and finance aggregates needed an explicit location boundary. Reports now require a resolved `locationId`; the Reports screen resolves the active location and reloads the report futures when the location context changes. Inventory stock and movement queries, sales, customer sales, employee sales, finance sales/COGS/income/expenses, and prior-period finance values are location-scoped. Business-global customer balance/roster data remains intentionally global where the schema models it as business-wide rather than location-owned.
+
+Regression coverage now proves:
+1. Sales report for A excludes B sales.
+2. Inventory report for A excludes B stock and B stock movements.
+3. Existing dashboard tests prove A/B sales, drawer state, and low-stock projection isolation.
+4. Existing product repository queries prove stock joins are location-bound.
+
+Remaining location audit work: switching during sync/in-flight location-scoped UI work, plus a final compile/test/CI verification pass before merge. The PR remains unmerged until those checks are complete.
