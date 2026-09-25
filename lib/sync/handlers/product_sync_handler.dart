@@ -30,7 +30,7 @@ class ProductSyncHandler implements SyncHandler {
   Future<void> sync(SyncQueueItem item) async {
     switch (item.operation) {
       case 'create':
-        await _syncCreate(item.entityLocalId, operationId: operationId, baseCursor: item.baseCursor);
+        await _syncCreate(item.entityLocalId, operationId: item.id, baseCursor: item.baseCursor);
       case 'update':
         await _syncUpdate(item.entityLocalId, operationId: operationId, baseCursor: item.baseCursor);
       default:
@@ -115,7 +115,7 @@ class ProductSyncHandler implements SyncHandler {
       }
     }
 
-    await _productRepository.markSynced(localId: localId, serverId: serverId);
+    await _productRepository.markSynced(localId: localId, serverId: serverId, operationId: operationId);
   }
 
   Future<void> _syncUpdate(String localId, {String? operationId, int? baseCursor}) async {
