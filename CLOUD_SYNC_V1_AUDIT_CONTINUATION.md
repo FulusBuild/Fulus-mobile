@@ -416,3 +416,25 @@ Required fix later:
 - Do not weaken the existing permanent-rejection behavior when no newer mutation exists.
 
 This is added to the A3 findings inventory and remains unfixed during the audit phase.
+
+
+## 2026-09-25 production RPC/RLS audit evidence
+
+Production project checked directly: Supabase project Fulus backend (bejcuvoxemwomcatgyxz).
+
+Verified in the live database:
+- The corrected fulus_api_update_expense base-cursor signature is deployed:
+  fulus_api_update_expense(uuid,uuid,uuid,text,uuid,uuid,numeric,text,text,timestamptz,text,bigint,text).
+- The deployed latest expense-update function is SECURITY DEFINER, uses search_path="", checks finance permission, active device ownership, idempotency/request hash, locks the idempotency row and target expense row, checks base-cursor conflicts, updates the expense/cash ledger, emits a sync change, and records the completed idempotency response.
+- Older expense-update overloads exist in production but are not executable by service_role; only the latest base-cursor-aware overload has service_role EXECUTE.
+- Across the live fulus_api_* inventory, no listed function is executable by anon or authenticated. Legacy overloads that remain present are not executable by service_role where a newer hardened overload superseded them.
+- All inspected SECURITY DEFINER fulus_api_* functions have search_path="".
+- The live mutation surface includes the expected customer, expense, location, sale, return, repayment, inventory, cash-drawer, income, device, and payment wrappers. The production inventory and ACLs match the service-role Edge Function boundary rather than direct client execution.
+- Sync-related authoritative tables have RLS enabled. The inspected tables expose SELECT policies for business/member/permission-scoped reads, while mutation paths are primarily through SECURITY DEFINER service-role wrappers.
+- diagnostic_events does not grant INSERT to anon/authenticated; the service role has INSERT. This removes the earlier concern that the absence of a diagnostic-events RLS policy necessarily exposed direct client insertion.
+
+Security audit status:
+- RPC execute surface: PROVEN for the inspected production function inventory.
+- SECURITY DEFINER search_path hardening: PROVEN for the inspected fulus_api_* inventory.
+- RLS surface: PROVEN for the inspected sync-related tables, with remaining tables/functions still to be inventoried.
+- Full RPC transaction/idempotency/change-feed proof remains incomplete until each mutation wrapper is individually traced and compared with its current repository migration and production definition.
