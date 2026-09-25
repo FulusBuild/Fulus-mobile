@@ -100,6 +100,7 @@ class SupplierSyncHandler implements SyncHandler {
     await _supplierRepository.markSynced(
       localId: supplier.localId,
       serverId: serverId,
+    operationId: item.id,
     );
   }
 }
