@@ -98,12 +98,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    _salesFuture = repo.getSalesReport(period, currentAuthUserId: user?.id ?? '', canViewAllSales: canViewAllSales);
-    _inventoryFuture = repo.getInventoryReport();
-    _customersFuture = repo.getCustomerReport(period);
-    _financeFuture = repo.getFinanceReport(period);
-    _employeesFuture = repo.getEmployeeReport(period);
-    _cashFlowFuture = ref.read(activeLocationIdProvider.future).then(
+    final locationFuture = ref.read(activeLocationIdProvider.future);
+    _salesFuture = locationFuture.then((locationId) => repo.getSalesReport(
+          period,
+          currentAuthUserId: user?.id ?? '',
+          canViewAllSales: canViewAllSales,
+          locationId: locationId,
+        ));
+    _inventoryFuture = locationFuture.then((locationId) => repo.getInventoryReport(locationId: locationId));
+    _customersFuture = locationFuture.then((locationId) => repo.getCustomerReport(period, locationId: locationId));
+    _financeFuture = locationFuture.then((locationId) => repo.getFinanceReport(period, locationId: locationId));
+    _employeesFuture = locationFuture.then((locationId) => repo.getEmployeeReport(period, locationId: locationId));
+    _cashFlowFuture = locationFuture.then(
           (locationId) => ref.read(financeStatsRepositoryProvider).getCashFlow(
                 dateFrom: period.start,
                 dateTo: period.end,
