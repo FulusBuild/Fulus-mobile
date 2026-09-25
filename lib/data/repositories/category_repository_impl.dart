@@ -146,13 +146,20 @@ class CategoryRepositoryImpl implements CategoryRepository {
   Future<void> markSynced({
     required String localId,
     required String serverId,
+    String? operationId,
   }) async {
-    await (_db.update(_db.categories)..where((c) => c.localId.equals(localId)))
+        final hasNewerMutation = operationId != null && await _syncQueue.hasNewerQueueMutation(
+      entityType: 'category',
+      entityLocalId: localId,
+      operationId: operationId!,
+      enqueuedAt: await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId!))).getSingle().then((q) => q.enqueuedAt),
+    );
+await (_db.update(_db.categories)..where((c) => c.localId.equals(localId)))
         .write(
       CategoriesCompanion(
         serverId: Value(serverId),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
+        syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+        if (!hasNewerMutation) updatedAt: Value(DateTime.now()),
       ),
     );
   }
