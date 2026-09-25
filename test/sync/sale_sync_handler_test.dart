@@ -218,15 +218,6 @@ void main() {
 
     await handler.sync(queueItemFor(sale));
 
-    verify(() => fulusSyncApi.submitOperation(
-          businessId: 'business-1',
-          operationType: 'sale.create',
-          operationId: 'q1',
-          deviceClientId: 'device-client-1',
-          clientReference: sale.clientReference,
-          payload: captureAny(named: 'payload'),
-        )).captured.single;
-
     final captured = verify(() => fulusSyncApi.submitOperation(
           businessId: 'business-1',
           operationType: 'sale.create',
