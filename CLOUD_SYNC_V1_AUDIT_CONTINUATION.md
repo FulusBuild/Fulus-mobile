@@ -1163,3 +1163,38 @@ Live production integrity/security evidence (Supabase project Fulus backend):
 - No new production authorization defect was established by this live sweep. The remaining audit requirement is exhaustive function-by-function transaction/idempotency/change-feed verification rather than treating representative samples as closure.
 
 Next concrete audit focus: complete the live mutation RPC inventory and idempotency/change-feed atomicity matrix function-by-function, then execute the cursor/recovery adversarial matrix. Do not deploy a production migration unless a concrete defect is proven.
+
+
+## 2026-09-25 — RPC matrix + cursor/recovery adversarial continuation
+
+Status: 🟢 RPC exposure/integrity sweep complete; 🟡 cursor/recovery remains partial pending failure-injection and physical process-death evidence.
+
+### Live mutation RPC matrix
+- Queried the complete production `public.fulus_api_*` inventory with identity arguments, SECURITY DEFINER state, configuration, ACL, and definitions.
+- No `anon`, `authenticated`, or `public` EXECUTE exposure was found on the audited mutation-wrapper surface; current exposed wrappers are service-role-only.
+- Current hardened wrappers use SECURITY DEFINER with empty `search_path` and enforce actor/business/permission/device checks as applicable.
+- Current idempotent mutation paths use business-scoped idempotency keys and row locking before replay/mutation handling.
+- Authoritative mutation paths emit their `sync_changes` entries in the same PostgreSQL transaction as the business mutation; composite sale/return/ledger/stock paths were traced through their authoritative functions.
+- Legacy overloads remain in the database, including weaker historical helpers, but the inspected legacy overloads are not externally executable under the current ACL state. No production migration was justified.
+
+### Cursor/recovery audit
+Current `FulusSyncCoordinator` behavior was re-verified:
+- durable cursor is refreshed before and after network requests;
+- stale pages are discarded when another runtime has already advanced the durable cursor;
+- returned changes must be strictly increasing after the durable cursor;
+- duplicate/reordered pages cannot be acknowledged;
+- empty `hasMore=true` pages and response cursors ahead of the request are rejected;
+- cursor advances only after local reconciliation;
+- `nextCursor` is never persisted as an acknowledgement;
+- restore boundaries are persisted only after the authoritative bootstrap transaction commits;
+- cursor-too-old recovery blocks while outbound work or unresolved conflicts exist, rechecks those gates inside the bootstrap transaction, imports the snapshot atomically, and only then persists the boundary.
+
+Regression coverage added in commit `4988bc30ef6883f0baf7ce3074dd67c80148f80a` covers reordered sequences, duplicate sequences, empty-page/hasMore, and response-cursor-ahead cases. User-reported CI is green for the current audit work; the connected GitHub status endpoint does not expose the corresponding Actions run and therefore is not used to contradict the observed CI result.
+
+### Remaining recovery evidence
+- failure injection for cursor persistence itself;
+- cursor-too-old followed by a failed post-recovery delta pull;
+- recovery interrupted by process death;
+- physical Android process-kill/restart proof.
+
+No new production defect was established in this pass. Next focus: production integrity/adversarial invariants and the remaining cursor/recovery failure-injection matrix, without deploying unnecessary migrations.
