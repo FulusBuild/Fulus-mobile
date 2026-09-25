@@ -5,18 +5,47 @@ import 'package:drift/native.dart';
 import '../../lib/data/local/database/database.dart';
 import '../../lib/data/remote/cloud_restore_coordinator.dart';
 import '../../lib/domain/entities/business_settings.dart';
+import '../../lib/sync/sync_execution_lease.dart';
 
 void main() {
   late AppDatabase db;
   late CloudRestoreCoordinator coordinator;
+  late SyncExecutionLease executionLease;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    coordinator = CloudRestoreCoordinator(db);
+    executionLease = SyncExecutionLease(db);
+    coordinator = CloudRestoreCoordinator(db, executionLease: executionLease);
   });
 
   tearDown(() async {
+    await executionLease.release();
     await db.close();
+  });
+
+  test('waits for the sync lease before destructive restore', () async {
+    final blocker = SyncExecutionLease(db);
+    addTearDown(() => blocker.release());
+    expect(await blocker.acquire(), isTrue);
+
+    final restore = coordinator.restore(
+      snapshot: <String, dynamic>{},
+      ownerCloudUserId: 'owner-cloud-id',
+      ownerEmail: 'owner@example.com',
+      settings: const BusinessSettingsResponseDto(
+        id: 'business-id',
+        businessName: 'Store',
+        vatEnabled: false,
+        vatRate: 0,
+        currencySymbol: '₦',
+      ),
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(await db.select(db.businessSettings).get(), isEmpty);
+    await blocker.release();
+
+    await expectLater(restore, throwsA(isA<StateError>()));
   });
 
   test('blocks restore when outbound sync work is pending', () async {
