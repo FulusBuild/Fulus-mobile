@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../domain/entities/auth_user.dart';
 import '../local/database/database.dart';
 import 'cloud_restore_importer.dart';
+import '../../sync/sync_execution_lease.dart';
 
 /// Applies an authoritative cloud snapshot during cursor-too-old recovery.
 ///
@@ -12,9 +13,11 @@ import 'cloud_restore_importer.dart';
 /// recreated from the pre-bootstrap identity after the snapshot transaction
 /// completes, so process death rolls the whole bootstrap back atomically.
 class CloudSyncBootstrapCoordinator {
-  CloudSyncBootstrapCoordinator(this._db);
+  CloudSyncBootstrapCoordinator(this._db, {required SyncExecutionLease executionLease})
+      : _executionLease = executionLease;
 
   final AppDatabase _db;
+  final SyncExecutionLease _executionLease;
 
   Future<int> bootstrap({required Map<String, dynamic> snapshot}) async {
     final boundary = snapshot['sync_boundary'];
@@ -23,6 +26,8 @@ class CloudSyncBootstrapCoordinator {
     }
 
     return _db.transaction(() async {
+      await _executionLease.ensureHeldForTransaction();
+
       final session = await (_db.select(_db.sessions)
             ..where((s) => s.id.equals('current')))
           .getSingleOrNull();
