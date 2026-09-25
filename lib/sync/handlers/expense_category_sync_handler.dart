@@ -46,7 +46,7 @@ class ExpenseCategorySyncHandler implements SyncHandler {
     final response = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'expense_category.create',
-      operationId: category.localId,
+      operationId: item.id,
       deviceClientId: device!.deviceClientId,
       payload: {
         'name': category.name,
