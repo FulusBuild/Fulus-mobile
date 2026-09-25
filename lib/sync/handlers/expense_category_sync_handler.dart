@@ -63,6 +63,7 @@ class ExpenseCategorySyncHandler implements SyncHandler {
     await _expenseCategoryRepository.markSynced(
       localId: category.localId,
       serverId: data['entity_id'] as String,
+    operationId: item.id,
     );
   }
 }
