@@ -72,6 +72,10 @@ void main() {
       final operationType =
           invocation.namedArguments[#operationType] as String;
       if (operationType == 'category.create') {
+        final payload = invocation.namedArguments[#payload] as Map<String, dynamic>;
+        expect(payload['name'], 'Archived Category');
+        expect(payload['description'], isNull);
+        expect(payload.containsKey('server_id'), isFalse);
         return {
           'data': {
             'entity_id': 'server-archived-category',
