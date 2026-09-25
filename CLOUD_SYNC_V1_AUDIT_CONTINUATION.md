@@ -883,7 +883,7 @@ Status: 🟡 IMPLEMENTED IN PRODUCTION; ADVERSARIAL MEMBER TESTING STILL REQUIRE
 
 The authoritative role contract is now grounded in the existing schema: `is_business_admin()` already defines owner/admin as business-wide administrators, while `location_memberships` is explicitly documented as restricting users to locations they may operate. The new `require_location_access(business_id, location_id)` helper therefore permits an active owner/admin to operate any active location in their business and requires an active location membership for other users.
 
-Implemented in migration `20260925150000_enforce_location_membership_on_api_mutations.sql` and applied to production project `bejcuvoxemwomcatgyxz`:
+Implemented in migration `20260925160000_enforce_location_membership_on_api_mutations.sql` and applied to production project `bejcuvoxemwomcatgyxz`:
 - direct location mutations: inventory adjustment, inventory quantity, sale creation, expense creation/update, cash-drawer opening, and income recording;
 - indirect location mutations: return creation and sale payment derive authorization from the referenced sale;
 - cash-drawer close derives authorization from the referenced shift;
