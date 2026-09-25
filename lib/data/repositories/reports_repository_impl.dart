@@ -501,7 +501,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // cashier in memory — not one query per employee, the same N+1
     // shape _sumCostOfGoodsSold above just got fixed for.
     final sales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
+          ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
     // **Bug fix (void/refund audit):** salesTotalByCashier used to sum
     // `sale.total` unconditionally, same as every other aggregate this
