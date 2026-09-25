@@ -171,7 +171,7 @@ class ProductSyncHandler implements SyncHandler {
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'product.update',
-      operationId: operationId ?? localId,
+      operationId: operationId,
       deviceClientId: device.deviceClientId,
       payload: payload,
     );
