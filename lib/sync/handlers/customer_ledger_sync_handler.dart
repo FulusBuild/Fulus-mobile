@@ -81,6 +81,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
       await _reconcileRejectedRepayment(
         businessId: businessId,
         customerId: customerId,
+        customerLocalId: ledger.customerLocalId,
         deviceClientId: deviceClientId,
         operationId: item.id,
         enqueuedAt: item.enqueuedAt,
@@ -97,6 +98,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
   Future<void> _reconcileRejectedRepayment({
     required String businessId,
     required String customerId,
+    required String customerLocalId,
     required String deviceClientId,
     required String operationId,
     required DateTime enqueuedAt,
@@ -115,7 +117,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
         () async {
           if (await _executionLease.hasNewerQueueMutation(
             entityType: 'customer',
-            entityLocalId: customerId,
+            entityLocalId: customerLocalId,
             operationId: operationId,
             enqueuedAt: enqueuedAt,
           )) return;
@@ -130,11 +132,15 @@ class CustomerLedgerSyncHandler implements SyncHandler {
 
   Future<void> _markSettled(String localId, String serverId, SyncQueueItem item) async {
     await _executionLease.runProtectedTransaction(_db, () async {
+      final current = await (_db.select(_db.syncQueueItems)
+            ..where((q) => q.id.equals(item.id)))
+          .getSingleOrNull();
+      if (current == null) return;
       if (await _executionLease.hasNewerQueueMutation(
         entityType: 'customer_ledger',
         entityLocalId: localId,
         operationId: item.id,
-        enqueuedAt: item.enqueuedAt,
+        enqueuedAt: current.enqueuedAt,
       )) return;
       await (_db.update(_db.customerLedgerEntries)..where((e) => e.localId.equals(localId))).write(
         CustomerLedgerEntriesCompanion(
