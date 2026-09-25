@@ -7,12 +7,14 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/tests/**"
   pull_request:
     branches:
       - main
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/tests/**"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +39,9 @@ jobs:
 
       - name: Reset local database from repository migrations
         run: supabase db reset
+
+      - name: Run location authorization adversarial tests
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/location_authorization.sql
 
       - name: Show migration status
         run: supabase migration list --local
