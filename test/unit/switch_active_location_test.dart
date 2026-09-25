@@ -65,6 +65,50 @@ void main() {
     verifyNever(() => authRepository.setActiveLocationId('loc-b'));
   });
 
+
+  test('switches to a cached location without requiring a network lookup', () async {
+    when(() => locationRepository.getLocationById('loc-b'))
+        .thenAnswer((_) async => location('loc-b'));
+
+    final switcher = SwitchActiveLocation(
+      locationRepository: locationRepository,
+      authRepository: authRepository,
+    );
+
+    await switcher('loc-b');
+
+    verify(() => locationRepository.getLocationById('loc-b')).called(1);
+    verify(() => authRepository.setActiveLocationId('loc-b')).called(1);
+  });
+
+  test('uncached offline target leaves the current location active', () async {
+    var activeLocation = 'loc-a';
+    when(() => locationRepository.getLocationById('loc-b'))
+        .thenAnswer((_) async => null);
+    when(() => authRepository.getActiveLocationId())
+        .thenAnswer((_) async => activeLocation);
+    when(() => authRepository.setActiveLocationId(any())).thenAnswer((invocation) async {
+      activeLocation = invocation.positionalArguments.single as String;
+    });
+
+    final switcher = SwitchActiveLocation(
+      locationRepository: locationRepository,
+      authRepository: authRepository,
+    );
+
+    await expectLater(
+      switcher('loc-b'),
+      throwsA(isA<StateError>().having(
+        (e) => e.message,
+        'message',
+        contains('not available on this device'),
+      )),
+    );
+
+    expect(activeLocation, 'loc-a');
+    verifyNever(() => authRepository.setActiveLocationId('loc-b'));
+  });
+
   test('refuses a deleted location instead of making it active', () async {
     when(() => locationRepository.getLocationById('loc-b'))
         .thenAnswer((_) async => location('loc-b', deletedAt: now));
