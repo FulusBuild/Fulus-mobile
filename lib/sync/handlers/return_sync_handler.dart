@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -134,7 +135,7 @@ class ReturnSyncHandler implements SyncHandler {
             final newerMovements = await (_db.select(_db.syncQueueItems)
                   ..where((q) => q.entityType.equals('stock_movement'))
                   ..where((q) => q.id.isNotIn([operationId]))
-                  ..where((q) => q.enqueuedAt.isBiggerThanValue(enqueuedAt)))
+                  ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
                 .get();
             for (final queued in newerMovements) {
               final movement = await (_db.select(_db.stockMovements)
@@ -177,13 +178,13 @@ class ReturnSyncHandler implements SyncHandler {
               final newerRepayments = await (_db.select(_db.syncQueueItems)
                     ..where((q) => q.entityType.equals('customer_ledger'))
                     ..where((q) => q.id.isNotIn([operationId]))
-                    ..where((q) => q.enqueuedAt.isBiggerThanValue(enqueuedAt)))
+                    ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
                   .get();
               for (final queued in newerRepayments) {
                 final ledger = await (_db.select(_db.customerLedgerEntries)
                       ..where((e) => e.localId.equals(queued.entityLocalId))
                       ..where((e) =>
-                          e.customerLocalId.equals(customerLocalId).and(e.entryType.equals('repayment'))))
+                          e.customerLocalId.equals(customerLocalId) & e.entryType.equals('repayment')))
                     .getSingleOrNull();
                 if (ledger != null) return;
               }
