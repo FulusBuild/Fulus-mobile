@@ -49,9 +49,16 @@ class ProductSyncHandler implements SyncHandler {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
 
-    final stock = await (_db.select(_db.productStockLevels)
-          ..where((s) => s.productLocalId.equals(localId)))
-        .getSingleOrNull();
+    // Product creation carries one initial stock/location pair. If stock was
+    // also recorded in another location before the product create replayed,
+    // choose the original stock projection deterministically rather than an
+    // arbitrary row. Later location stock changes are separate mutations.
+    final stockRows = await (_db.select(_db.productStockLevels)
+          ..where((s) => s.productLocalId.equals(localId))
+          ..orderBy([(s) => OrderingTerm(expression: s.createdAt, mode: OrderingMode.asc)])
+          ..limit(1))
+        .get();
+    final stock = stockRows.isEmpty ? null : stockRows.first;
     final categoryId = await _resolveCatalogServerId(
       localId: product.categoryId,
       entityType: 'category',
