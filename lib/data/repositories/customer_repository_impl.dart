@@ -169,7 +169,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
   }
 
   @override
-    Future<void> markSynced({
+  Future<void> markSynced({
     required String localId,
     required String serverId,
     String? duplicateWarning,
@@ -178,14 +178,19 @@ class CustomerRepositoryImpl implements CustomerRepository {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
-        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
         if (current != null) {
           hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
-            entityType: 'customer', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt,
+            entityType: 'customer',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
           );
         }
       }
-      await (_db.update(_db.customers)..where((c) => c.localId.equals(localId))).write(
+      await (_db.update(_db.customers)..where((x) => x.localId.equals(localId))).write(
         CustomersCompanion(
           serverId: Value(serverId),
           lastSyncWarning: Value(duplicateWarning),
@@ -195,4 +200,3 @@ class CustomerRepositoryImpl implements CustomerRepository {
       );
     });
   }
-
