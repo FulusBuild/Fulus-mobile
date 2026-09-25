@@ -31,7 +31,7 @@ abstract class CashDrawerShiftRepository {
 
   Stream<List<CashDrawerShift>> watchShiftHistory({required String locationId});
 
-  Future<void> markSynced({required String localId, required String serverId});
+  Future<void> markSynced({required String localId, required String serverId, String? operationId});
 
   /// Parks a permanently rejected local shift without deleting it.
   Future<void> markAttentionNeeded(String localId);
