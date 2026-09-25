@@ -134,7 +134,7 @@ class ReturnSyncHandler implements SyncHandler {
             final newerMovements = await (_db.select(_db.syncQueueItems)
                   ..where((q) => q.entityType.equals('stock_movement'))
                   ..where((q) => q.id.isNotIn([operationId]))
-                  ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+                  ..where((q) => q.enqueuedAt.isBiggerThanValue(enqueuedAt)))
                 .get();
             for (final queued in newerMovements) {
               final movement = await (_db.select(_db.stockMovements)
@@ -183,8 +183,7 @@ class ReturnSyncHandler implements SyncHandler {
                 final ledger = await (_db.select(_db.customerLedgerEntries)
                       ..where((e) => e.localId.equals(queued.entityLocalId))
                       ..where((e) =>
-                          e.customerLocalId.equals(customerLocalId) &
-                          e.entryType.equals('repayment')))
+                          e.customerLocalId.equals(customerLocalId).and(e.entryType.equals('repayment'))))
                     .getSingleOrNull();
                 if (ledger != null) return;
               }
