@@ -333,7 +333,10 @@ class SaleRepositoryImpl implements SaleRepository {
       var hasNewerMutation = false;
       if (operationId != null) {
         final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
-        if (current != null) {
+        if (current == null) {
+          // Missing operation identity means this completion is stale.
+          hasNewerMutation = true;
+        } else {
           hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
             entityType: 'sale', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt,
           );
