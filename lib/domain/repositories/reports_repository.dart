@@ -13,9 +13,10 @@ abstract class ReportsRepository {
     ReportPeriod period, {
     required String currentAuthUserId,
     required bool canViewAllSales,
+    required String locationId,
   });
-  Future<InventoryReport> getInventoryReport();
-  Future<CustomerReport> getCustomerReport(ReportPeriod period);
-  Future<FinanceReport> getFinanceReport(ReportPeriod period);
-  Future<EmployeeReport> getEmployeeReport(ReportPeriod period);
+  Future<InventoryReport> getInventoryReport({required String locationId});
+  Future<CustomerReport> getCustomerReport(ReportPeriod period, {required String locationId});
+  Future<FinanceReport> getFinanceReport(ReportPeriod period, {required String locationId});
+  Future<EmployeeReport> getEmployeeReport(ReportPeriod period, {required String locationId});
 }
