@@ -459,3 +459,23 @@ Remaining audit:
 - Trace every live `fulus_api_*` mutation wrapper for transaction/idempotency/base-cursor/change-feed/locking behavior against the production migration definitions.
 - Verify cross-runtime/background process-death behavior of the sync execution lease and queue claims.
 
+
+
+## 2026-09-25 customer repayment projection audit
+
+### A3 finding: rejected repayment recovery must fence newer repayments
+
+Status: FIXED
+
+A rejected customer repayment restores the customer's canonical snapshot after a business-rule failure. The existing fence checked newer `customer` mutations, but a newer repayment has a different `customer_ledger` queue/entity ID and therefore was invisible to the generic same-entity queue check. That could allow an older rejected repayment to overwrite a newer optimistic repayment projection.
+
+Fix:
+- Inside the protected transaction, rejected-repayment recovery now checks newer `customer_ledger` queue rows and maps them to the same customer through their local ledger rows.
+- Recovery is skipped when such a newer repayment exists.
+- The existing customer-mutation fence remains in place.
+
+Commit: dc9345f08c3295442a39db0321ced07bd3e8ee55
+
+Next audit focus:
+- Verify analogous cross-entity projection fences in sale/return rejection recovery, especially newer stock movements or repayments affecting the same product/customer projection.
+- Continue the remaining RPC transaction/idempotency/change-feed and process-death audits.
