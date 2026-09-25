@@ -114,6 +114,7 @@ class ExpenseSyncHandler implements SyncHandler {
     await _expenseRepository.markSynced(
       localId: expense.localId,
       serverId: responseServerId,
+    operationId: item.id,
     );
   }
 }
