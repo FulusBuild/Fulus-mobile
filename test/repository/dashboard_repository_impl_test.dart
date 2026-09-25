@@ -73,7 +73,7 @@ void main() {
             syncStatus: SyncStatus.settled,
           ));
 
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true);
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId);
 
       expect(state, isA<OpenHero>());
     });
@@ -90,7 +90,7 @@ void main() {
             syncStatus: SyncStatus.settled,
           ));
 
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true);
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId);
 
       expect(state, isA<ClosedHero>());
     });
@@ -126,7 +126,7 @@ void main() {
       await seedSale(total: 500);
       await seedSale(total: 300, saleDate: DateTime.now().subtract(const Duration(days: 3)));
 
-      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true) as ClosedHero;
+      final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
       expect(state.finalTotal, 500);
       expect(state.finalSalesCount, 1);
