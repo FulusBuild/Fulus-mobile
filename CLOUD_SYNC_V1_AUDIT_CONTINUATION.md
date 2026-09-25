@@ -973,3 +973,23 @@ This closes a real completeness/security issue where an overly strict payload-on
 
 Remaining proof gap:
 - execute the same-business non-admin member/non-member adversarial read against an isolated authenticated identity. No production test identity was created.
+
+
+## 2026-09-25 — Cloud reporting location authorization
+
+Status: 🟢 FIXED AND PRODUCTION DEPLOYED
+
+The production `fulus-reporting-api` Edge Function was independently audited as another service-role read boundary. A non-admin business member could previously supply an arbitrary `location_id`, or omit it entirely, because the function checked only business membership. That meant the report API did not enforce the same location-membership contract as canonical sync and mutations.
+
+Fixed:
+- owner/admin users can report across active business locations;
+- non-admin users must have an active `location_memberships` row for the requested location;
+- non-admin users cannot request a business-wide report by omitting `location_id`;
+- unauthorized or inactive locations are rejected;
+- location-scoped cash-flow queries now filter `cash_ledger.location_id` as well as sales and expenses.
+
+Production deployment:
+- `fulus-reporting-api` version 4 is ACTIVE.
+- The deployed function was fetched back and verified to contain `LOCATION_REQUIRED`, location authorization, and the location-filtered cash ledger query.
+
+This closes the additional service-role reporting read boundary discovered during the final location-security pass.
