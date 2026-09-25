@@ -101,10 +101,23 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> reconcileStockLevel({required String productLocalId, required String locationId, required int currentStock}) async {
-    final product = await (_db.select(_db.products)..where((p) => p.localId.equals(productLocalId))).getSingleOrNull();
-    if (product == null) throw StateError('reconcileStockLevel called for product $productLocalId, which this device has no local Products row for.');
-    await _db.into(_db.productStockLevels).insertOnConflictUpdate(ProductStockLevelsCompanion.insert(productLocalId: productLocalId, locationLocalId: locationId, currentStock: Value(currentStock), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled));
+  Future<void> reconcileStockLevel({required String productLocalId, required String locationId, required int currentStock, String? operationId}) async {
+    await _db.transaction(() async {
+      final product = await (_db.select(_db.products)..where((p) => p.localId.equals(productLocalId))).getSingleOrNull();
+      if (product == null) throw StateError('reconcileStockLevel called for product $productLocalId, which this device has no local Products row for.');
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
+        if (current == null) return;
+        final hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+          entityType: 'stock_movement',
+          entityLocalId: current.entityLocalId,
+          operationId: operationId,
+          enqueuedAt: current.enqueuedAt,
+        );
+        if (hasNewerMutation) return;
+      }
+      await _db.into(_db.productStockLevels).insertOnConflictUpdate(ProductStockLevelsCompanion.insert(productLocalId: productLocalId, locationLocalId: locationId, currentStock: Value(currentStock), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled));
+    });
   }
 
   @override
