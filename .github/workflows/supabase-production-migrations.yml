@@ -62,8 +62,8 @@ jobs:
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${COMMIT_SHA}&per_page=20")"
             run_count="$(jq '.total_count' <<<"$runs")"
             if [ "$run_count" -gt 0 ]; then
-              conclusion="$(jq -r '[.workflow_runs[] | select(.head_sha == "'$COMMIT_SHA'")] | sort_by(.created_at) | last | .conclusion // empty' <<<"$runs")"
-              status="$(jq -r '[.workflow_runs[] | select(.head_sha == "'$COMMIT_SHA'")] | sort_by(.created_at) | last | .status // empty' <<<"$runs")"
+              conclusion="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last | .conclusion // empty' <<<"$runs")"
+              status="$(jq -r --arg sha "$COMMIT_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last | .status // empty' <<<"$runs")"
               echo "CI status=$status conclusion=$conclusion"
               case "$conclusion" in
                 success) exit 0 ;;
