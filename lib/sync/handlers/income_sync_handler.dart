@@ -75,7 +75,7 @@ class IncomeSyncHandler implements SyncHandler {
     } on BusinessRuleFailure {
       // The income row is intentionally retained for audit/correction, but
       // a rejected create must not continue to look like settled finance.
-      await _incomeRecordRepository.markAttentionNeeded(record.localId);
+      await _incomeRecordRepository.markAttentionNeeded(record.localId, operationId: item.id);
       rethrow;
     }
 
