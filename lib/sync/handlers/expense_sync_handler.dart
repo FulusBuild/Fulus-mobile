@@ -101,7 +101,7 @@ class ExpenseSyncHandler implements SyncHandler {
           // Preserve the original rejection; a later pull can reconcile it.
         }
       } else {
-        await _expenseRepository.markAttentionNeeded(expense.localId);
+        await _expenseRepository.markAttentionNeeded(expense.localId, operationId: item.id);
       }
       rethrow;
     }
