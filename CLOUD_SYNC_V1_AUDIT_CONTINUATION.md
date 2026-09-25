@@ -527,3 +527,128 @@ Production/test source review was performed before CI: changed files had balance
 ### Remaining audit focus
 
 Next boundary: complete the same cross-entity projection-race review for other rejection/failure paths, then move to the deeper server-side mutation-wrapper proof: transaction scope, idempotency locking, base-cursor conflict handling, and change-feed emission across every live fulus_api_* mutation command.
+
+## 2026-09-25 — Location Switching & Isolation handoff
+
+### Audit status
+
+**AUDIT INVENTORY / IMPLEMENTATION HANDOFF**
+
+Location switching is now designated as a separate production-readiness boundary. A dedicated implementation session may work on a branch such as `feature/location-switching` while the main audit continues independently on `main`.
+
+The implementation branch must not be treated as production-ready merely because its feature tests pass. It must later be reviewed against this audit boundary and the cloud-sync invariants before merge.
+
+### Production behavior Fulus should guarantee
+
+Switching from location A to location B should be a controlled change of operational context, not merely a persisted ID or UI refresh.
+
+Required behavior:
+
+1. Persist the new active location atomically and make the new location the sole active operational context.
+2. Preserve all pending mutations created under the previous location. Sync must use the mutation's durable location/entity identity, never the currently selected location at sync time.
+3. Prevent stale in-flight work from location A from being interpreted as work for location B.
+4. Reset/rebuild transient location-scoped state, especially carts, drafts, cash-drawer state, stock views, dashboards, reports, and location-scoped providers.
+5. Keep business-global data global where appropriate: catalog/product definitions, categories, suppliers, customers, business settings, etc.
+6. Load/use location B's local projections and, when required, reconcile B from cloud state.
+7. Support safe offline switching when B's required local data is already available. If required data is unavailable offline, fail clearly rather than presenting misleading state.
+8. Make the active location visible in the UI so users can tell which operational context they are using.
+9. Handle switching during active sync, pending writes, open carts/drafts, and other transient operations without cross-location contamination.
+10. After an app restart, restore the selected location safely and verify that the restored location still belongs to the current business/session.
+
+### Current implementation evidence
+
+The current app already has important location foundations:
+
+- `ResolveActiveLocation` reads the session's active location, verifies it still exists locally, otherwise resolves/creates a default location, and persists the chosen local ID.
+- `AuthRepository.setActiveLocationId()` persists the active location in the local session.
+- `LocationRepositoryImpl` provides location listing/lookup, transactional local creation + queue insertion, server reconciliation, and stale-finalization fencing for location sync.
+- The active-location Riverpod provider is intended to be the single source of truth for location-aware UI.
+- Location-aware transaction/sync paths already carry location identity rather than relying solely on the currently selected UI state.
+
+### Concrete finding: Sell CartCubit can outlive a location switch
+
+The current Sell screen's cart-cubit creation path is effectively singleton-for-screen-lifetime:
+
+`_ensureCartCubit(locationId)` returns the existing `CartCubit` when one already exists, without proving that the existing cubit's location ID matches the newly active location.
+
+Potential sequence:
+
+`Location A → Sell screen creates CartCubit(A) → user switches to B → activeLocationId changes → Sell rebuilds → existing CartCubit(A) is retained`.
+
+This creates a production-risk boundary where the visible location and transient cart context can diverge. It does not by itself prove that a sale will be submitted to the wrong location, but it means location-context isolation is not currently proven.
+
+**Required implementation/test direction:** a location switch must dispose/reset/recreate location-scoped cart state, or otherwise prove that the existing cart is safely transferable. Tests must cover A→B switching with an existing cart, including unsaved items/drafts.
+
+### Required implementation audit checklist for the location branch
+
+The implementation session should inspect and test, not assume, all of the following:
+
+- active-location provider/state invalidation and notification;
+- Sell/CartCubit lifecycle and draft-cart isolation;
+- product stock queries and stock projections by location;
+- stock-in/out/adjustment flows;
+- sales and returns;
+- expenses and income;
+- cash drawer open/close and active-shift assumptions;
+- customer ledger/credit projections where location affects the transaction;
+- dashboard and finance statistics;
+- reports and exports;
+- search/filter screens;
+- printer/receipt context where location identity/name is printed;
+- offline switching and cached-data requirements;
+- app restart after switching;
+- switching while sync is running;
+- switching with pending mutations from the previous location;
+- concurrent local mutations around the switch;
+- multi-device location state/reconciliation;
+- permissions/membership for the selected location;
+- deletion/archive of the currently active location;
+- location IDs in queue payloads, API calls, and canonical reconciliation;
+- prevention of using the active UI location as a substitute for durable mutation location identity.
+
+### Required tests before merge
+
+At minimum:
+
+1. A→B switch with an empty cart.
+2. A→B switch with an existing unsaved cart.
+3. A→B while A has pending offline mutations.
+4. A→B while an A sync request is in flight.
+5. A→B while B has pending local mutations.
+6. Offline A→B when B is cached.
+7. Offline A→B when B is not cached.
+8. App restart after selecting B.
+9. Active location deleted/archived or no longer accessible.
+10. Rapid A→B→A switching.
+11. Concurrent mutation immediately before/after the switch.
+12. Multi-location stock remains isolated.
+13. Sync queue preserves A mutations after switching to B.
+14. A mutation created in A cannot be submitted using B's location identity.
+15. Location-scoped dashboards/reports/cash drawer state refresh correctly.
+
+### Audit-side work that remains independent
+
+The main audit will independently verify:
+
+- whether every production mutation carries authoritative location identity;
+- whether sync queue items remain location-bound through replay/retry/process death;
+- server-side location membership and permission enforcement;
+- location-scoped RPC transaction/idempotency/change-feed behavior;
+- canonical pull/reconciliation isolation between locations;
+- cross-location projection races;
+- business/location switching interaction;
+- process death during a location transition;
+- production database invariants preventing cross-location records.
+
+### Merge gate
+
+Do not merge the location branch into `main` until:
+
+- feature implementation is complete;
+- targeted location tests pass;
+- full CI is green;
+- the audit-side location boundary is reviewed;
+- no cross-location mutation/reconciliation race remains unaddressed;
+- the implementation does not weaken existing business-switching, queue, idempotency, cursor, or canonical-reconciliation guarantees.
+
+**Evidence standard:** 🟢 Proven = implementation + meaningful tests/production evidence + CI. 🟡 Partial = implementation exists but an important proof layer is missing. 🔴 Unknown = not verified or contradictory evidence.
