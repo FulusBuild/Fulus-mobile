@@ -108,10 +108,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
     // is deterministic instead of failing in roughly the one hour out
     // of twenty-four when CI happens to run right after local midnight.
     //
-    // Still not location-scoped — same as todaySales/yesterdaySales
-    // above, neither of which filter by location either; Home has no
-    // location context to filter by until a location switcher exists
-    // (Phase 2).
+    // All location-scoped dashboard queries above are explicitly bound
+    // to the active location. Business-wide permissions affect whose
+    // sales are visible within that location, not which location is used.
     final openShift = await (_db.select(_db.cashDrawerShifts)
           ..where((s) => s.closedAt.isNull() & s.locationId.equals(locationId))
           ..limit(1))
