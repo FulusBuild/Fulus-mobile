@@ -84,7 +84,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
       rethrow;
     }
 
-    await _markSyncedFromResult(shift.localId, result);
+    await _markSyncedFromResult(shift.localId, item, result);
   }
 
   Future<void> _syncClose(SyncQueueItem item) async {
@@ -157,6 +157,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
 
   Future<void> _markSyncedFromResult(
     String localId,
+    SyncQueueItem item,
     Map<String, dynamic> result,
   ) async {
     final rawData = result['data'];
