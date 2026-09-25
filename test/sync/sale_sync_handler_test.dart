@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
@@ -29,6 +30,8 @@ class MockProductRepository extends Mock implements ProductRepository {}
 class MockCustomerRepository extends Mock implements CustomerRepository {}
 
 class _FakeAuthRepository implements AuthRepository {
+  String? activeLocationId;
+
   @override
   AuthUser? get currentUser => null;
   @override
@@ -50,9 +53,11 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async => throw UnimplementedError();
   @override
-  Future<String?> getActiveLocationId() async => throw UnimplementedError();
+  Future<String?> getActiveLocationId() async => activeLocationId;
   @override
-  Future<void> setActiveLocationId(String locationId) async => throw UnimplementedError();
+  Future<void> setActiveLocationId(String locationId) async {
+    activeLocationId = locationId;
+  }
 }
 
 void main() {
@@ -65,6 +70,7 @@ void main() {
   late SaleRepositoryImpl saleRepository;
   late SaleSyncHandler handler;
   late SyncExecutionLease executionLease;
+  late _FakeAuthRepository authRepository;
 
   const locationId = 'loc-1';
   const productId = 'prod-1';
@@ -76,6 +82,7 @@ void main() {
     salesApi = MockSalesApi();
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
+    authRepository = _FakeAuthRepository();
     productRepository = MockProductRepository();
     customerRepository = MockCustomerRepository();
     when(() => connectionState.selectedBusinessId).thenReturn(null);
@@ -83,7 +90,7 @@ void main() {
     saleRepository = SaleRepositoryImpl(
       db: db,
       syncQueue: SyncQueue(db),
-      authRepository: _FakeAuthRepository(),
+      authRepository: authRepository,
       customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     handler = SaleSyncHandler(
@@ -169,6 +176,201 @@ void main() {
       syncAttempts: 0,
     );
   }
+
+  test('submits a pending sale with its original location after active location switches', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+    await (db.update(db.locations)..where((l) => l.localId.equals('loc-2')))
+        .write(const LocationsCompanion(serverId: Value('server-location-B')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+          'data': {'entity_id': 'server-sale-A'},
+        });
+
+    final sale = await createLocalSale();
+    await authRepository.setActiveLocationId('loc-2');
+
+    expect(await authRepository.getActiveLocationId(), 'loc-2');
+    expect(sale.locationId, locationId);
+
+    await handler.sync(queueItemFor(sale));
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-A');
+    expect(captured['location_id'], isNot('server-location-B'));
+  });
+
+  test('replays a pending sale under a fresh handler after restart without rebinding location', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+        serverId: const Value('server-location-B'),
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+          'data': {'entity_id': 'server-sale-A'},
+        });
+
+    final sale = await createLocalSale();
+    final queuedBeforeRestart = await (db.select(db.syncQueueItems)
+          ..where((q) => q.entityType.equals('sale'))
+          ..where((q) => q.entityLocalId.equals(sale.localId)))
+        .getSingle();
+    expect(queuedBeforeRestart.entityLocalId, sale.localId);
+
+    // Model the persisted session after restart with a fresh repository and
+    // handler. The durable sale/outbox rows remain in the same database.
+    final restartedAuthRepository = _FakeAuthRepository()
+      ..activeLocationId = 'loc-2';
+    final restartedSaleRepository = SaleRepositoryImpl(
+      db: db,
+      syncQueue: SyncQueue(db),
+      authRepository: restartedAuthRepository,
+      customerCreditRepository:
+          CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
+    );
+    final restartedHandler = SaleSyncHandler(
+      db: db,
+      fulusSyncApi: fulusSyncApi,
+      fulusConnectionState: connectionState,
+      salesApi: salesApi,
+      saleRepository: restartedSaleRepository,
+      productRepository: productRepository,
+      customerRepository: customerRepository,
+      executionLease: executionLease,
+    );
+
+    expect(await restartedAuthRepository.getActiveLocationId(), 'loc-2');
+    await restartedHandler.sync(queuedBeforeRestart);
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: queuedBeforeRestart.id,
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-A');
+    expect(captured['location_id'], isNot('server-location-B'));
+
+    final restoredSale = await restartedSaleRepository.getSaleByLocalId(sale.localId);
+    expect(restoredSale!.locationId, locationId);
+    expect(restoredSale.serverId, 'server-sale-A');
+  });
+
+  test('keeps the original location while a sale sync is in flight during an active-location switch', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+    await (db.update(db.locations)..where((l) => l.localId.equals('loc-2')))
+        .write(const LocationsCompanion(serverId: Value('server-location-B')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+
+    final submitCompleter = Completer<Map<String, dynamic>>();
+    late Map<String, dynamic> submittedPayload;
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) {
+      submittedPayload =
+          Map<String, dynamic>.from(invocation.namedArguments[#payload] as Map);
+      return submitCompleter.future;
+    });
+
+    final sale = await createLocalSale();
+    await authRepository.setActiveLocationId(locationId);
+
+    final syncFuture = handler.sync(queueItemFor(sale));
+    await Future<void>.delayed(Duration.zero);
+
+    await authRepository.setActiveLocationId('loc-2');
+    expect(await authRepository.getActiveLocationId(), 'loc-2');
+    expect(submittedPayload['location_id'], 'server-location-A');
+    expect(submittedPayload['location_id'], isNot('server-location-B'));
+
+    submitCompleter.complete({
+      'data': {'entity_id': 'server-sale-A'},
+    });
+    await syncFuture;
+
+    final stored = await saleRepository.getSaleByLocalId(sale.localId);
+    expect(stored!.locationId, locationId);
+    expect(stored.serverId, 'server-sale-A');
+  });
 
   test('pushes a Quick Sale through Fulus Cloud without a catalog product', () async {
     await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
