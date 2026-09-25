@@ -171,6 +171,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
     await _cashDrawerShiftRepository.markSynced(
       localId: localId,
       serverId: serverId,
+    operationId: item.id,
     );
   }
 
