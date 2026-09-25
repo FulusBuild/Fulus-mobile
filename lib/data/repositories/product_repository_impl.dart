@@ -188,15 +188,34 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> markSynced({required String localId, required String serverId,
-    String? operationId}) async {
-        final hasNewerMutation = operationId != null && await _syncQueue.hasNewerQueueMutation(
-      entityType: 'product',
-      entityLocalId: localId,
-      operationId: operationId!,
-      enqueuedAt: await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId!))).getSingle().then((q) => q.enqueuedAt),
-    );
-await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), syncStatus: Value(SyncStatus.settled)));
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? operationId,
+  }) async {
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'product',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(
+        ProductsCompanion(
+          serverId: Value(serverId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: Value(hasNewerMutation ? (await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingle()).updatedAt : DateTime.now()),
+        ),
+      );
+    });
   }
 
   @override
