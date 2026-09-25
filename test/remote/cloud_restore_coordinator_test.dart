@@ -45,7 +45,7 @@ void main() {
     expect(await db.select(db.businessSettings).get(), isEmpty);
     await blocker.release();
 
-    await expectLater(restore, throwsA(isA<StateError>()));
+    await expectLater(restore, completion(throwsA(isA<StateError>())));
   });
 
   test('blocks restore when outbound sync work is pending', () async {
