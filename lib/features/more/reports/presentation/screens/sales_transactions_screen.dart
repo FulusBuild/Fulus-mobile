@@ -35,11 +35,13 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    return ref.read(reportsRepositoryProvider).getSalesReport(
+    return ref.read(activeLocationIdProvider.future).then((locationId) =>
+        ref.read(reportsRepositoryProvider).getSalesReport(
           widget.period,
           currentAuthUserId: user?.id ?? '',
           canViewAllSales: canViewAllSales,
-        );
+          locationId: locationId,
+        ));
   }
 
   @override
