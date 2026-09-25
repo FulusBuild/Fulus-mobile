@@ -30,9 +30,10 @@ class ReportsRepositoryImpl implements ReportsRepository {
     ReportPeriod period, {
     required String currentAuthUserId,
     required bool canViewAllSales,
+    required String locationId,
   }) async {
     final query = _db.select(_db.sales)
-      ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end)));
+      ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(period.start, _endOfDay(period.end)));
     // Employee data isolation — see this method's own interface doc
     // comment.
     if (!canViewAllSales) {
@@ -227,9 +228,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
   }
 
   @override
-  Future<InventoryReport> getInventoryReport() async {
+  Future<InventoryReport> getInventoryReport({required String locationId}) async {
     final products = await (_db.select(_db.products)..where((p) => p.isActive.equals(true))).get();
-    final stockLevels = await _db.select(_db.productStockLevels).get();
+    final stockLevels = await (_db.select(_db.productStockLevels)..where((s) => s.locationLocalId.equals(locationId))).get();
     final stockByProduct = <String, int>{};
     for (final level in stockLevels) {
       stockByProduct[level.productLocalId] = (stockByProduct[level.productLocalId] ?? 0) + level.currentStock;
@@ -257,7 +258,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final recentItems = await (_db.select(_db.saleItems).join([
       innerJoin(_db.sales, _db.sales.localId.equalsExp(_db.saleItems.saleLocalId)),
     ])
-          ..where(_db.sales.saleDate.isBiggerOrEqualValue(cutoff)))
+          ..where(_db.sales.locationId.equals(locationId) & _db.sales.saleDate.isBiggerOrEqualValue(cutoff)))
         .get();
     final recentlySoldIds = recentItems.map((r) => r.readTable(_db.saleItems).productLocalId).toSet();
     final notSold = products.where((p) => !recentlySoldIds.contains(p.localId)).map((p) => p.name).toList();
@@ -275,7 +276,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // a manual stock-in/out event, and are already fully represented
     // by the Sales report itself.
     final recentMovements = await (_db.select(_db.stockMovements)
-          ..where((m) => m.createdAt.isBiggerOrEqualValue(cutoff)))
+          ..where((m) => m.locationId.equals(locationId) & m.createdAt.isBiggerOrEqualValue(cutoff)))
         .get();
     var movementsIn = 0;
     var movementsOut = 0;
@@ -305,9 +306,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
   }
 
   @override
-  Future<CustomerReport> getCustomerReport(ReportPeriod period) async {
+  Future<CustomerReport> getCustomerReport(ReportPeriod period, {required String locationId}) async {
     final sales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
+          ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
 
     // **Bug fix (void/refund audit):** a customer's "top spender" total
@@ -352,10 +353,10 @@ class ReportsRepositoryImpl implements ReportsRepository {
   }
 
   @override
-  Future<FinanceReport> getFinanceReport(ReportPeriod period) async {
-    final revenue = await _sumSalesRevenue(period.start, period.end);
-    final costOfGoodsSold = await _sumCostOfGoodsSold(period.start, period.end);
-    final expenses = await _sumExpenses(period.start, period.end);
+  Future<FinanceReport> getFinanceReport(ReportPeriod period, {required String locationId}) async {
+    final revenue = await _sumSalesRevenue(period.start, period.end, locationId);
+    final costOfGoodsSold = await _sumCostOfGoodsSold(period.start, period.end, locationId);
+    final expenses = await _sumExpenses(period.start, period.end, locationId);
     // Bug fix (business-logic audit): this used to be `revenue -
     // expenses`, omitting cost of goods sold entirely — the "Net
     // profit" figure on the Finance tab (the only screen that calls
@@ -371,14 +372,15 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final netProfit = revenue - costOfGoodsSold - expenses;
 
     final prev = period.previous;
-    final prevRevenue = await _sumSalesRevenue(prev.start, prev.end);
-    final prevCostOfGoodsSold = await _sumCostOfGoodsSold(prev.start, prev.end);
-    final prevExpenses = await _sumExpenses(prev.start, prev.end);
+    final prevRevenue = await _sumSalesRevenue(prev.start, prev.end, locationId);
+    final prevCostOfGoodsSold = await _sumCostOfGoodsSold(prev.start, prev.end, locationId);
+    final prevExpenses = await _sumExpenses(prev.start, prev.end, locationId);
     final prevNetProfit = prevRevenue - prevCostOfGoodsSold - prevExpenses;
     final hasPrevData = prevRevenue > 0 || prevExpenses > 0;
 
     final expenseRows = await (_db.select(_db.expenses)
           ..where((e) =>
+              e.locationId.equals(locationId) &
               e.expenseDate.isBetweenValues(period.start, _endOfDay(period.end)) &
               (e.syncStatus.equals(SyncStatus.settled.name) | e.syncStatus.equals(SyncStatus.pending.name) | e.syncStatus.equals(SyncStatus.syncing.name))))
         .get();
@@ -415,8 +417,8 @@ class ReportsRepositoryImpl implements ReportsRepository {
     );
   }
 
-  Future<double> _sumSalesRevenue(DateTime start, DateTime end) async {
-    final sales = await (_db.select(_db.sales)..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end)))).get();
+  Future<double> _sumSalesRevenue(DateTime start, DateTime end, String locationId) async {
+    final sales = await (_db.select(_db.sales)..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(start, _endOfDay(end)))).get();
     // **Bug fix (void/refund audit):** see SaleReversalAdjustments' own
     // doc comment — a voided or refunded sale used to contribute its
     // full `total` here regardless.
@@ -424,6 +426,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final salesTotal = sales.fold<double>(0, (s, r) => s + adjustments.netRevenue(r));
     final income = await (_db.select(_db.incomeRecords)
           ..where((i) =>
+              i.locationId.equals(locationId) &
               i.incomeDate.isBetweenValues(start, _endOfDay(end)) &
               (i.syncStatus.equals(SyncStatus.settled.name) | i.syncStatus.equals(SyncStatus.pending.name) | i.syncStatus.equals(SyncStatus.syncing.name))))
         .get();
@@ -446,9 +449,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
   /// never should have counted. See SaleReversalAdjustments' own doc
   /// comment for the full trace and for how a partial (non-void) refund
   /// nets out only the refunded quantity's cost, not the whole sale's.
-  Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end) async {
+  Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end, String locationId) async {
     final sales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end))))
+          ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(start, _endOfDay(end))))
         .get();
     final saleIds = sales.map((s) => s.localId).toSet();
     if (saleIds.isEmpty) return 0.0;
@@ -465,9 +468,10 @@ class ReportsRepositoryImpl implements ReportsRepository {
         .fold<double>(0.0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
   }
 
-  Future<double> _sumExpenses(DateTime start, DateTime end) async {
+  Future<double> _sumExpenses(DateTime start, DateTime end, String locationId) async {
     final rows = await (_db.select(_db.expenses)
           ..where((e) =>
+              e.locationId.equals(locationId) &
               e.expenseDate.isBetweenValues(start, _endOfDay(end)) &
               (e.syncStatus.equals(SyncStatus.settled.name) | e.syncStatus.equals(SyncStatus.pending.name) | e.syncStatus.equals(SyncStatus.syncing.name))))
         .get();
@@ -475,7 +479,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
   }
 
   @override
-  Future<EmployeeReport> getEmployeeReport(ReportPeriod period) async {
+  Future<EmployeeReport> getEmployeeReport(ReportPeriod period, {required String locationId}) async {
     final employees = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
 
     // **Confirmed bug fix (Reports & Auditability upgrade):** the
@@ -497,7 +501,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // cashier in memory — not one query per employee, the same N+1
     // shape _sumCostOfGoodsSold above just got fixed for.
     final sales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
+          ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(period.start, _endOfDay(period.end))))
         .get();
     // **Bug fix (void/refund audit):** salesTotalByCashier used to sum
     // `sale.total` unconditionally, same as every other aggregate this
