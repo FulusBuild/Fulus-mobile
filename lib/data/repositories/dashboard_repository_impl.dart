@@ -57,7 +57,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
     // `showBusinessWide` computes the same thing for isOwner already;
     // this just finally consults it for the query too).
     final todaySalesQuery = _db.select(_db.sales)
-      ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.locationLocalId.equals(locationId) & s.deletedAt.isNull());
+      ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.locationId.equals(locationId) & s.deletedAt.isNull());
     if (!isOwner) {
       todaySalesQuery.where((s) => s.cashierUserId.equals(currentAuthUserId));
     }
@@ -147,7 +147,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<SecondaryNoticeSelection> getSecondaryNotices({required String locationId, int max = 2}) async {
     final products = await (_db.select(_db.products)..where((p) => p.isActive.equals(true))).get();
-    final stockLevels = await (_db.select(_db.productStockLevels)..where((s) => s.locationId.equals(locationId))).get();
+    final stockLevels = await (_db.select(_db.productStockLevels)..where((s) => s.locationLocalId.equals(locationId))).get();
     final stockByProduct = <String, int>{};
     for (final level in stockLevels) {
       stockByProduct[level.productLocalId] = (stockByProduct[level.productLocalId] ?? 0) + level.currentStock;
