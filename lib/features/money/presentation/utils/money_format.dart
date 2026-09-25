@@ -32,7 +32,8 @@ String formatMoney(double amount, {String symbol = '₦', bool showSign = false}
 String formatRelativeDay(DateTime dateTime) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final day = DateTime(dateTime.year, dateTime.month, dateTime.day);
+  final local = dateTime.toLocal();
+  final day = DateTime(local.year, local.month, local.day);
   final difference = today.difference(day).inDays;
   if (difference == 0) return 'Today';
   if (difference == 1) return 'Yesterday';
@@ -45,9 +46,9 @@ String formatRelativeDay(DateTime dateTime) {
 }
 
 String formatTime(DateTime dateTime) {
-  final hour24 = dateTime.hour;
+  final hour24 = dateTime.toLocal().hour;
   final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
-  final minute = dateTime.minute.toString().padLeft(2, '0');
+  final minute = dateTime.toLocal().minute.toString().padLeft(2, '0');
   final period = hour24 < 12 ? 'AM' : 'PM';
   return '$hour12:$minute $period';
 }
