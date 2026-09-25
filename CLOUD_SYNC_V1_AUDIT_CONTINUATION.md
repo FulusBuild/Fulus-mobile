@@ -1091,3 +1091,48 @@ Commits:
 
 Current CI note:
 - The commit currently reports a Vercel status failure caused by the external Vercel build-rate-limit target. This is not the Flutter CI result. Flutter/production CI must be checked separately before this audit item is marked fully green.
+
+
+## 2026-09-25 — Lifecycle gate and timestamp re-verification
+
+Status: 🟡 PARTIAL — code/regression coverage is present; connected GitHub workflow lookup did not expose a run for the cash-drawer commit.
+
+Cash drawer create → close proof:
+- Commit 74ac179aa70bffbdb624e18f6ead1c369a0b288a is an ancestor of current main (main is four commits ahead), so the regression is not stranded on an unmerged branch.
+- Current main contains the regression in test/repository/cash_drawer_shift_repository_test.dart: an old create completion may assign serverId, but when a newer close queue row exists the shift remains pending.
+- The connected GitHub status for commit 74ac179aa70bffbdb624e18f6ead1c369a0b288a exposes only a failed Vercel status (external build-rate-limit target) and no GitHub Actions workflow run. Therefore this pass does not claim a CI-green gate for that exact commit.
+
+Remaining lifecycle proofs re-verified against current main:
+- Customer repayment rejection recovery explicitly fences newer customer mutations and newer repayment ledger rows.
+- Return rejection recovery fences newer product stock movements and customer mutations/repayments.
+- Stock movement response reconciliation is fenced in ProductRepositoryImpl.reconcileStockLevel(), with current main regression tests for a newer movement and missing operation identity.
+- Sale rejection recovery fences newer product stock movements and customer repayment/customer mutations, with regression coverage in sale_sync_handler_test.dart.
+- Product/customer/category/supplier create/update/archive/restore paths preserve distinct newer queue identities; archived pre-cloud category/supplier create payload regressions are covered.
+
+Backup/connection/timestamp re-verification:
+- AutoBackupGate performs a separate debounced local SQLite backup and does not write SyncStatusNotifier.lastPushAt.
+- lastPushAt is written by recordPushSuccess() only when the durable sync queue is empty, so it legitimately advances after a successful cloud reconciliation cycle following local activity.
+- The UI now labels it "Last successful cloud sync", removing the previous "Last successful backup" semantic collision.
+- Sync detail status is forced to cloudUnavailable unless FulusConnectionState.isSyncReady, so an authenticated/selected business is not presented as cloud-ready while readiness is incomplete.
+- Sale API mapping and canonical sale reconciliation preserve saleDate from the server payload; no login/bootstrap path found here assigns an existing saleDate from DateTime.now().
+- Display formatters convert parsed timestamps with toLocal(), addressing the previously identified timezone-only apparent movement.
+- No current source evidence proves a persisted saleDate is replaced with the exact login minute. That specific claim remains a device/runtime reproduction item if it can be reproduced.
+
+## 2026-09-25 — Process-death audit gate
+
+Status: 🟡 PARTIAL — durable crash model is covered; physical Android process-kill validation remains required.
+
+Verified in current main:
+- sync_process_death_replay_test.dart models server commit followed by client failure before queue deletion, then a fresh SyncEngine/SyncTriggers runtime drains the durable row and converges without a second remote effect.
+- SyncEngine removes an outbox row only after the handler returns successfully.
+- Android WorkManager uses the same bootstrap/sync stack as foreground sync and a durable SQLite SyncExecutionLease shared across runtimes.
+- SyncExecutionLease renews while active and permits takeover after expiry, preventing a terminated runtime from permanently stranding sync.
+- Existing lease tests cover exclusive ownership and recovery of an abandoned/dead-runtime lease.
+
+Required release proof not reproducible through repository inspection alone:
+- physically terminate the Android process after a remote commit but before queue deletion;
+- restart the app/background worker;
+- verify the same durable operation is replayed and server idempotency prevents a duplicate business mutation;
+- repeat with pull/cursor application interrupted between canonical local apply and cursor persistence.
+
+Next concrete gate: physical Android process-death/background-runtime validation. After that, continue the remaining production integrity/adversarial and cursor/recovery audits.
