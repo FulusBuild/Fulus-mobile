@@ -96,6 +96,47 @@ void main() {
     expect(stored.syncStatus, SyncStatus.settled);
   });
 
+  test('submits a pending stock movement with its original location after active location switches', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+        serverId: const Value('server-location-B'),
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+
+    when(() => fulusSyncApi.submitOperation(
+      businessId: any(named: 'businessId'), operationType: any(named: 'operationType'), operationId: any(named: 'operationId'),
+      deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
+    )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-A', 'current_stock': 30}});
+    when(() => productRepository.reconcileStockLevel(
+      productLocalId: productLocalId, locationId: locationId, currentStock: 30, operationId: any(named: 'operationId'),
+    )).thenAnswer((_) async {});
+
+    final movement = await stockMovementRepository.recordStockIn(const StockInDraft(
+      productLocalId: productLocalId, locationId: locationId, quantity: 10, reason: 'Delivery to A',
+    ));
+
+    // The active UI location is not an input to the sync handler. Switching
+    // it conceptually to B must not rewrite the persisted movement location.
+    expect(movement.locationId, locationId);
+
+    await handler.sync(await itemFor(movement.localId));
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+      businessId: 'business-1', operationType: 'stock_movement.create', operationId: 'q1', deviceClientId: 'device-client-1',
+      clientReference: movement.localId, payload: captureAny(named: 'payload'),
+    )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-A');
+    expect(captured['location_id'], isNot('server-location-B'));
+  });
+
   test('pushes absolute stock adjustments and reconciles returned stock', () async {
     final movement = await stockMovementRepository.recordAdjustment(const StockAdjustmentDraft(
       productLocalId: productLocalId, locationId: locationId, newQuantity: 42, reason: 'Recount',
