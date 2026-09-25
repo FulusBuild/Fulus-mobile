@@ -88,7 +88,7 @@ class StockMovementSyncHandler implements SyncHandler {
           currentStock: currentStock,
         );
       }
-      await _stockMovementRepository.markSettled(localId: movement.localId);
+      await _stockMovementRepository.markSettled(localId: movement.localId, operationId: item.id);
       return;
     }
 
@@ -120,6 +120,6 @@ class StockMovementSyncHandler implements SyncHandler {
         currentStock: currentStock,
       );
     }
-    await _stockMovementRepository.markSettled(localId: movement.localId);
+    await _stockMovementRepository.markSettled(localId: movement.localId, operationId: item.id);
   }
 }
