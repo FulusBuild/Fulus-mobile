@@ -87,7 +87,15 @@ class ExpenseSyncHandler implements SyncHandler {
           );
           await _executionLease.runProtectedTransaction(
             _db,
-            () => FulusExpenseCanonicalReconciler(repository: _expenseRepository).apply(canonical),
+            () async {
+              if (await _executionLease.hasNewerQueueMutation(
+                entityType: 'expense',
+                entityLocalId: expense.localId,
+                operationId: item.id,
+                enqueuedAt: item.enqueuedAt,
+              )) return;
+              await FulusExpenseCanonicalReconciler(repository: _expenseRepository).apply(canonical);
+            },
           );
         } catch (_) {
           // Preserve the original rejection; a later pull can reconcile it.
