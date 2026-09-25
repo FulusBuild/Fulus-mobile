@@ -55,6 +55,10 @@ void main() {
     id: 'q1', entityType: 'stock_movement', entityLocalId: localId, operation: operation,
     priority: 1, enqueuedAt: DateTime.now(), syncAttempts: 0,
     );
+    await (db.delete(db.syncQueueItems)
+          ..where((q) => q.entityType.equals(item.entityType))
+          ..where((q) => q.entityLocalId.equals(item.entityLocalId)))
+        .go();
     await db.into(db.syncQueueItems).insert(
       SyncQueueItemsCompanion.insert(
         id: item.id,
