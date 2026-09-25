@@ -438,3 +438,24 @@ Security audit status:
 - SECURITY DEFINER search_path hardening: PROVEN for the inspected fulus_api_* inventory.
 - RLS surface: PROVEN for the inspected sync-related tables, with remaining tables/functions still to be inventoried.
 - Full RPC transaction/idempotency/change-feed proof remains incomplete until each mutation wrapper is individually traced and compared with its current repository migration and production definition.
+
+### 2026-09-25 A3/A5 fixes applied
+
+Fixed:
+- Stock movement server-returned `current_stock` reconciliation is now fenced by the originating `stock_movement` queue operation. A missing operation identity or newer stock movement causes the stale projection write to be skipped.
+- Expense permanent-rejection finalization now accepts the queue operation ID and refuses to park the expense when that operation is missing or superseded by a newer mutation.
+- Cash-drawer permanent-rejection finalization now has the same queue-identity/newer-mutation fence, protecting create→close replacement.
+- Product sync helper methods now require the durable queue operation ID instead of allowing a local-ID fallback. Product create/update/delete submissions therefore cannot silently lose queue identity.
+- Regression tests were added for stale stock projection and stale expense/cash-drawer rejection finalization; stock handler tests now assert operation identity propagation.
+
+Pre-CI source review:
+- Re-read all changed production files and relevant tests after edits.
+- Verified the product helper no longer contains an `operationId ?? localId` fallback.
+- Verified stock projection reconciliation remains callable without an operation ID for local product creation, while queue-driven stock sync passes the durable operation ID.
+- Verified rejection fences execute inside SQLite transactions and check both operation existence and newer queue mutations.
+
+Remaining audit:
+- Complete adversarial lifecycle tests for sale, return, customer repayment, cash drawer create→close, and create→update→archive/restore across mutable entities.
+- Trace every live `fulus_api_*` mutation wrapper for transaction/idempotency/base-cursor/change-feed/locking behavior against the production migration definitions.
+- Verify cross-runtime/background process-death behavior of the sync execution lease and queue claims.
+
