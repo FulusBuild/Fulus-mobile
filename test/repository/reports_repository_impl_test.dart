@@ -940,22 +940,18 @@ void main() {
       final now = DateTime(2026, 1, 10);
       await db.into(db.productStockLevels).insert(
         ProductStockLevelsCompanion.insert(
-          localId: 'stock-a',
           productLocalId: 'product-a',
           locationLocalId: 'loc-1',
           currentStock: const Value(3),
-          createdAt: now,
           updatedAt: now,
           syncStatus: SyncStatus.settled,
         ),
       );
       await db.into(db.productStockLevels).insert(
         ProductStockLevelsCompanion.insert(
-          localId: 'stock-b',
           productLocalId: 'product-a',
           locationLocalId: 'loc-2',
           currentStock: const Value(30),
-          createdAt: now,
           updatedAt: now,
           syncStatus: SyncStatus.settled,
         ),
