@@ -17,7 +17,7 @@ abstract class ExpenseRepository {
   Future<void> markSynced({required String localId, required String serverId, String? operationId});
 
   /// Parks a permanently rejected local expense without deleting it.
-  Future<void> markAttentionNeeded(String localId);
+  Future<void> markAttentionNeeded(String localId, {String? operationId});
 
   Future<Expense> updateExpense({
     required String localId,
