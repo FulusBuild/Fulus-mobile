@@ -530,6 +530,18 @@ Next boundary: complete the same cross-entity projection-race review for other r
 
 ## 2026-09-25 — Location Switching & Isolation handoff
 
+### 2026-09-25 — Location mutation isolation regression coverage
+Status: 🟢 targeted regression coverage added for pending and in-flight mutations.
+
+Added adversarial tests on `feature/location-switching` proving:
+- A sale created under location A still submits `server-location-A` after the active location is switched to B before replay.
+- A sale already inside `submitOperation` keeps its captured A payload while the active location changes to B before the network future completes.
+- The completed sale remains associated with local location A after the in-flight operation settles.
+- A pending stock movement created for A submits `server-location-A`, never B, using the persisted movement location.
+
+This closes the previously identified end-to-end A→B→sync payload proof gap for the covered sale and stock-movement mutation paths. The broader location audit still requires restart/process-death replay evidence, offline cached/uncached switching, B-side pending mutations, multi-location projection isolation, and UI/report/cash-drawer refresh verification.
+
+
 ### Audit status
 
 **AUDIT INVENTORY / IMPLEMENTATION HANDOFF**
