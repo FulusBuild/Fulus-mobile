@@ -686,6 +686,73 @@ void main() {
   });
 
   group('markSynced', () {
+    test('does not settle when the operation identity is already missing', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            name: 'New Product',
+            sku: 'NEW-1',
+            costPrice: 3.0,
+            sellingPrice: 6.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.pending,
+          ));
+
+      await repository.markSynced(
+        localId: 'p1',
+        serverId: 'server-p1',
+        operationId: 'already-removed',
+      );
+
+      final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+      expect(row.serverId, 'server-p1');
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+
+    test('keeps the row pending when a newer mutation is queued', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+            localId: 'p1',
+            name: 'New Product',
+            sku: 'NEW-1',
+            costPrice: 3.0,
+            sellingPrice: 6.0,
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.pending,
+          ));
+      final oldTime = DateTime(2026, 9, 25, 2, 0);
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'old-operation',
+          entityType: 'product',
+          entityLocalId: 'p1',
+          operation: 'update',
+          priority: 0,
+          enqueuedAt: oldTime,
+        ),
+      );
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'new-operation',
+          entityType: 'product',
+          entityLocalId: 'p1',
+          operation: 'update',
+          priority: 0,
+          enqueuedAt: oldTime.add(const Duration(seconds: 1)),
+        ),
+      );
+
+      await repository.markSynced(
+        localId: 'p1',
+        serverId: 'server-p1',
+        operationId: 'old-operation',
+      );
+
+      final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
+      expect(row.serverId, 'server-p1');
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+
     test('sets serverId and syncStatus on the local row', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1',
