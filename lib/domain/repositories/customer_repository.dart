@@ -66,7 +66,7 @@ abstract class CustomerRepository {
   /// through verbatim when the create response carried one.
   Future<void> markSynced({
     required String localId,
-    required String serverId,
+    required String serverId, String? operationId,
     String? duplicateWarning,
   });
 }
