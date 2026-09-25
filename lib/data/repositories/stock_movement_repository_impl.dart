@@ -83,13 +83,24 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   }
 
   @override
-  Future<void> markSettled({required String localId}) async {
-    await (_db.update(_db.stockMovements)..where((m) => m.localId.equals(localId))).write(
-      StockMovementsCompanion(
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  Future<void> markSettled({required String localId, String? operationId}) async {
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId))).getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'stock_movement', entityLocalId: localId, operationId: operationId, enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.stockMovements)..where((m) => m.localId.equals(localId))).write(
+        StockMovementsCompanion(
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
+        ),
+      );
+    });
   }
 
   @override
