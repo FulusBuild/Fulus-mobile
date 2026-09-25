@@ -78,12 +78,12 @@ Verified:
 - Local reset and restore check acquisition success.
 
 Finding A1 - destructive reset/restore transaction does not use the transaction fence
-Status: FINDING
+Status: RESOLVED IN CODE, REGRESSION VERIFICATION PENDING
 
 Evidence:
 - `clearLocalBusinessData()` acquires the lease, then starts a separate Drift transaction whose first operations are deletes.
 - `CloudRestoreCoordinator.restore()` acquires the lease, then starts a separate transaction whose first operation is a read of `syncQueueItems`.
-- Neither transaction calls `ensureHeldForTransaction()` as its first database operation.
+- Both destructive transactions now call `ensureHeldForTransaction()` as their first database operation.
 - A runtime can therefore acquire the lease, begin a deferred SQLite transaction, pause before its first writer statement, allow the lease to expire, and be followed by another runtime acquiring the lease. The old transaction can then continue into destructive writes.
 - This is the same transaction/lease gap already proven in canonical apply, now found in the reset/restore boundaries.
 
@@ -93,12 +93,12 @@ Required proof/fix:
 - Verify that a takeover cannot complete while the protected transaction is active and that the old transaction cannot continue after ownership is lost.
 
 Finding A2 - restore can race ordinary local mutation without an initial writer fence
-Status: FINDING
+Status: RESOLVED IN CODE, REGRESSION VERIFICATION PENDING
 
 Evidence:
 - Ordinary local queue insertion is intentionally lease-free.
 - Restore begins with reads, then performs destructive import writes.
-- Without an initial writer fence, a local mutation can commit in the deferred-transaction gap or after the queue/conflict guard read but before restore's first write.
+- The restore transaction now acquires the SQLite writer lock and validates lease ownership before the queue/conflict guard and importer writes.
 - The restore transaction can then erase the newly-created local mutation.
 - The intended invariant is that restore must exclude concurrent durable local mutation for the whole restore transaction, not merely check queue state at one read point.
 
