@@ -304,4 +304,56 @@ void main() {
     expect(coordinator.cursorFor('b1'), 0);
     expect(coordinator.cursorFor('b2'), 3);
   });
+
+  test('rejects reordered change-feed pages before acknowledgement', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [FulusSyncChange(sequence: 3, entityType: 'customer', entityId: 'c3', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)), FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
+      cursor: 0, nextCursor: 3, hasMore: false,
+    ));
+    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
+    expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
+  });
+
+  test('rejects duplicate sequence values before acknowledgement', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)), FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2b', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
+      cursor: 0, nextCursor: 2, hasMore: false,
+    ));
+    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
+    expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
+  });
+
+  test('rejects an empty page that claims more changes exist', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: const [], cursor: 0, nextCursor: 0, hasMore: true,
+    ));
+    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
+    expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
+  });
+
+  test('rejects a response cursor ahead of the requested durable cursor', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
+      changes: [FulusSyncChange(sequence: 6, entityType: 'customer', entityId: 'c6', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
+      cursor: 5, nextCursor: 6, hasMore: false,
+    ));
+    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
+    expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
+  });
+
 }
