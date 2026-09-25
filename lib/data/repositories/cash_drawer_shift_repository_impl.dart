@@ -103,7 +103,11 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
   }
 
   @override
-  Future<void> markSynced({{
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? operationId,
+  }) async {
     await _db.transaction(() async {
       var hasNewerMutation = false;
       if (operationId != null) {
@@ -119,7 +123,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
           );
         }
       }
-      await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
+      await (_db.update(_db.cashDrawerShifts)..where((x) => x.localId.equals(localId))).write(
         CashDrawerShiftsCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
@@ -128,6 +132,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
       );
     });
   }
+
   @override
   Future<void> markAttentionNeeded(String localId) async {
     await (_db.update(_db.cashDrawerShifts)..where((s) => s.localId.equals(localId))).write(
