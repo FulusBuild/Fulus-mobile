@@ -165,7 +165,12 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
 
   @override
   Future<void> clearLocalBusinessData() async {
-    await _executionLease.acquire();
+    final acquired = await _executionLease.acquire();
+    if (!acquired) {
+      throw StateError(
+        'Could not acquire the sync lease before clearing local business data.',
+      );
+    }
     try {
     // One transaction, children deleted before parents — `beforeOpen`
     // (database.dart) turns on `PRAGMA foreign_keys = ON`, so this
