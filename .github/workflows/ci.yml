@@ -9,7 +9,6 @@ on:
       - backend/phase-4-foundation-v2
       - phase-7-consumer-polish
       - phase-9-production-hardening
-      - feature/location-switching
 
   pull_request:
     branches:
