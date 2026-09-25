@@ -5,7 +5,9 @@ import 'package:fulus_mobile/data/repositories/income_record_repository_impl.dar
 import 'package:fulus_mobile/domain/entities/income_record.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart' hide isNull;
+import 'package:flutter_test/flutter_test.dart' as flutter_test;
+
+Matcher get matcherIsNull => flutter_test.isNull;
 
 void main() {
   late AppDatabase db;
@@ -114,7 +116,7 @@ void main() {
 
     test('returns null for an id that was never created', () async {
       final fetched = await repository.getIncomeRecordById('does-not-exist');
-      expect(fetched, isNull);
+      expect(fetched, matcherIsNull);
     });
   });
 
