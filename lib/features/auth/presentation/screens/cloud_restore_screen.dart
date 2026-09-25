@@ -14,6 +14,7 @@ import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../../sync/sync_user_message.dart';
+import '../../../../sync/sync_execution_lease.dart';
 
 /// Restores a Fulus installation from the user's single Fulus Cloud business.
 ///
@@ -132,7 +133,11 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       await _registerDevice(connection);
 
       setState(() => _status = 'Restoring your business data…');
-      final result = await CloudRestoreCoordinator(ref.read(databaseProvider)).restore(
+      final restoreLease = SyncExecutionLease(ref.read(databaseProvider));
+      final result = await CloudRestoreCoordinator(
+        ref.read(databaseProvider),
+        executionLease: restoreLease,
+      ).restore(
         snapshot: snapshot,
         ownerCloudUserId: ownerCloudUserId,
         ownerEmail: widget.ownerEmail,
