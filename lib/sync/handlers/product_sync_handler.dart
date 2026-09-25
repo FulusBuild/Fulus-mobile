@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -55,7 +57,7 @@ class ProductSyncHandler implements SyncHandler {
     // arbitrary row. Later location stock changes are separate mutations.
     final stockRows = await (_db.select(_db.productStockLevels)
           ..where((s) => s.productLocalId.equals(localId))
-          ..orderBy([(s) => OrderingTerm(expression: s.createdAt, mode: OrderingMode.asc)])
+          ..orderBy([(s) => OrderingTerm(expression: s.updatedAt, mode: OrderingMode.asc)])
           ..limit(1))
         .get();
     final stock = stockRows.isEmpty ? null : stockRows.first;
