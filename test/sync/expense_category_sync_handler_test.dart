@@ -72,7 +72,7 @@ void main() {
     verify(() => api.submitOperation(
           businessId: 'business-1',
           operationType: 'expense_category.create',
-          operationId: category.localId,
+          operationId: queueItem.id,
           deviceClientId: 'device-client-1',
           payload: any(named: 'payload'),
         )).called(1);
