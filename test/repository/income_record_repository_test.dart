@@ -5,7 +5,7 @@ import 'package:fulus_mobile/data/repositories/income_record_repository_impl.dar
 import 'package:fulus_mobile/domain/entities/income_record.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart' hide isNull;
 
 void main() {
   late AppDatabase db;
