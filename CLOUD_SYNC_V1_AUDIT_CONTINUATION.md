@@ -531,6 +531,21 @@ Next boundary: complete the same cross-entity projection-race review for other r
 ## 2026-09-25 — Location Switching & Isolation handoff
 
 ### 2026-09-25 — Location mutation isolation regression coverage
+
+### 2026-09-25 — Location-safe restart/replay regression
+Status: 🟢 targeted restart/replay proof added for pending sales.
+
+Added a regression that:
+1. creates a pending sale in location A;
+2. confirms its durable outbox row exists;
+3. models an app restart with a fresh auth repository and fresh sale sync handler while the persisted active location is B;
+4. replays the pre-existing queue row; and
+5. asserts the cloud payload still contains A's server location identity and the settled sale remains attached to local location A.
+
+This extends the location boundary evidence across a fresh handler/repository lifecycle. It does not claim a literal OS process kill; the existing generic process-death replay test covers durable outbox survival, while this regression proves the location identity is preserved across the fresh-handler replay boundary.
+
+Remaining location boundary work: offline cached/uncached switching, B-side pending mutations, location-scoped projection refresh across the major screens, and broader multi-location stock/report/cash-drawer isolation.
+
 Status: 🟢 targeted regression coverage added for pending and in-flight mutations.
 
 Added adversarial tests on `feature/location-switching` proving:
