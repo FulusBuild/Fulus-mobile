@@ -372,3 +372,18 @@ Required proof/fix:
 - Establish an atomic business-switch boundary that prevents new old-business mutations from being committed between the final safety check and the context switch.
 - Verify the boundary with a concurrent mutation regression.
 - Verify A -> B switching cannot send an A queue item using B's credentials/context.
+
+### A5 - operation identity fallback in Product update/delete helpers
+
+Status: FINDING
+
+Evidence:
+- Queue-driven Product sync passes `item.id` into `_syncCreate/_syncUpdate`.
+- The Product helper methods still accept nullable `operationId` and fall back to `localId` for update/delete submission.
+- This is safe only if every caller is permanently guaranteed to provide the queue operation ID. The helper API itself does not enforce that invariant.
+- The audit standard is that a durable queue mutation must never silently fall back to an entity local ID as its server operation identity.
+
+Required fix:
+- Make operation identity non-null for queue-driven mutation helpers.
+- Preserve deterministic child identities such as `:delete` only when explicitly derived from the parent durable operation ID.
+- Add regression coverage proving Product update/delete cannot submit with the entity local ID as operation identity.
