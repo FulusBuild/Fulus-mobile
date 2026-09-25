@@ -829,3 +829,12 @@ Audit found two location-sensitive product paths. Product pull previously select
 Product create sync previously selected a stock row with `getSingleOrNull()`. A product can acquire another location's stock projection before its create mutation replays, so this was not deterministic. The handler now selects the oldest stock projection as the product's original initial-stock/location pair; later location stock changes remain separate stock-movement mutations. This reduces cross-location identity risk without conflating later stock with product creation.
 
 Important remaining contract item: the mobile repository cannot prove from this repo alone which server location `GET /api/inventory/products`'s singular `current_stock` represents. The endpoint has no location query parameter. The active-location write is therefore the safe client boundary, but the backend endpoint contract should be independently verified before declaring multi-location product pull fully closed.
+
+
+## 2026-09-25 — In-flight location-scoped stock/UI audit
+
+Status: 🟢 client-side location boundary verified.
+
+Inspected Stock overview, stock providers, record-stock flow, stock movement repository, Home, Reports, and the active-location refresh path. Stock products and movement streams are keyed by explicit location IDs. Stock mutations capture the active location when the user submits the mutation and persist that location on the movement before enqueueing. The repository updates the matching product/location stock projection transactionally, so an active-location switch after mutation creation cannot rewrite the mutation's location identity. Home and Reports reload their location-scoped projections from the active-location provider after a switch. The Sell flow separately rebuilds its CartCubit when the active location changes.
+
+No additional client-side change was required in this pass. Remaining location boundary work is now primarily server-side canonical pull/access verification and final regression/CI verification. The product GET endpoint's singular current_stock contract still requires backend-side verification before that specific pull path can be considered fully closed.
