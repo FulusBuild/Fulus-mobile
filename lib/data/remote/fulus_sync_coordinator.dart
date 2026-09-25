@@ -168,7 +168,7 @@ class FulusSyncCoordinator {
     final current = cursorFor(businessId);
     if (current >= cursor) return;
     final persisted = _persistCursorOverride != null
-        ? await _persistCursorOverride!(businessId, cursor)
+        ? await _persistCursorOverride(businessId, cursor)
         : await _preferences.setInt(_cursorKey(businessId), cursor);
     if (!persisted) {
       throw StateError('Failed to persist the Cloud Sync cursor.');
