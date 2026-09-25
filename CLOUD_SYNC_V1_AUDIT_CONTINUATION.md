@@ -387,3 +387,32 @@ Required fix later:
 - retain the existing markSettled queue-identity fence.
 
 This finding is recorded for the fix phase; the audit remains in the inventory/proof phase.
+
+
+### A3 failure-path finding: permanent rejection can mark newer local state as attentionNeeded
+
+Status: CONCRETE FINDING — NOT YET FIXED
+
+The stale-finalization hardening currently protects successful settlement, but some BusinessRuleFailure paths still write local sync state without checking the queue operation identity.
+
+Confirmed call sites:
+- ExpenseSyncHandler -> ExpenseRepository.markAttentionNeeded(localId)
+- CashDrawerShiftSyncHandler -> CashDrawerShiftRepository.markAttentionNeeded(localId)
+- IncomeRecordSyncHandler also uses markAttentionNeeded, although IncomeRecord has no client update operation.
+
+The repository implementations for expense and cash drawer currently set syncStatus=attentionNeeded directly, without checking whether the rejected queue operation is still the current operation for that entity.
+
+Adversarial consequence:
+- Expense create can be in flight.
+- A newer local expense update can replace/queue a newer operation identity before the create rejection returns.
+- The old create's BusinessRuleFailure can still mark the expense row attentionNeeded, even though newer local work exists.
+- Cash drawer has an analogous create -> close ordering boundary: a rejected old create can mark the shift attentionNeeded while the newer close operation remains queued.
+
+The queue may remain durable, so this does not automatically delete the newer mutation, but the local entity state can incorrectly describe the newer mutation as permanently rejected/attention-needed.
+
+Required fix later:
+- Make permanent-rejection finalization operation-aware, with the same missing-operation/newer-mutation fence used by successful markSynced/markSettled paths.
+- Add adversarial tests for expense create -> update and cash-drawer create -> close with the old request rejected after the newer queue operation exists.
+- Do not weaken the existing permanent-rejection behavior when no newer mutation exists.
+
+This is added to the A3 findings inventory and remains unfixed during the audit phase.
