@@ -947,3 +947,29 @@ Status: 🟢 PRODUCTION AUTHORIZATION VERIFIED
 Audited production `build_fulus_restore_snapshot(p_business_id, p_user_id)`. The SECURITY DEFINER function only constructs a snapshot when the supplied user is an active business member with role `owner` or `admin`; otherwise it returns no snapshot and raises `Restore is not authorized for this business`. The snapshot is intentionally business-wide because restore is an administrative business-recovery operation, not an ordinary location-scoped operational read.
 
 No code change required for this path. Location-scoped canonical reads remain protected separately by the `fulus-sync-state` boundary and incremental sync feed.
+
+
+## 2026-09-25 — Incremental change-feed authoritative location derivation
+
+Status: 🟢 CODE FIXED AND PRODUCTION DEPLOYED; ADVERSARIAL NON-ADMIN EXECUTION STILL REQUIRES ISOLATED AUTH IDENTITY
+
+A deeper change-feed audit found that filtering solely on payload.location_id was insufficient:
+- sale change payloads emitted by the authoritative sale/payment paths do not consistently contain location_id;
+- location changes identify the location through entity_id, not a nested location field;
+- return location is derived from the referenced sale.
+
+The incremental sync filter in supabase/functions/fulus-api/index.ts was hardened to resolve location access from authoritative rows when the payload does not carry a location:
+- location uses entity_id;
+- sale resolves sales.location_id;
+- return resolves returns.sale_id -> sales.location_id;
+- entities that already carry payload.location_id continue using that explicit location;
+- sequence scanning and next_cursor behavior remain unchanged.
+
+Production deployment:
+- fulus-api version 51 is ACTIVE on project bejcuvoxemwomcatgyxz.
+- The deployed function was fetched back and verified to contain the authoritative sale/return/location derivation logic.
+
+This closes a real completeness/security issue where an overly strict payload-only filter could either suppress authorized sale changes or fail to establish a reliable location boundary.
+
+Remaining proof gap:
+- execute the same-business non-admin member/non-member adversarial read against an isolated authenticated identity. No production test identity was created.
