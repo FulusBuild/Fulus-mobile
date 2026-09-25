@@ -34,7 +34,7 @@ abstract class CashDrawerShiftRepository {
   Future<void> markSynced({required String localId, required String serverId, String? operationId});
 
   /// Parks a permanently rejected local shift without deleting it.
-  Future<void> markAttentionNeeded(String localId);
+  Future<void> markAttentionNeeded(String localId, {String? operationId});
 
   /// Applies server-authoritative shift state without creating an outbound
   /// sync task. The server location ID is resolved to the local location row.
