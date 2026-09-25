@@ -58,6 +58,11 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(activeLocationIdProvider, (previous, next) {
+      if (previous != null && next != null && previous.value != next.value && mounted) {
+        setState(() => _future = _load());
+      }
+    });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     // UX fix: this used to only match on invoice number, though Volume
     // 5 names receipt number OR customer as valid ways to find a sale —
