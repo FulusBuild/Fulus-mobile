@@ -40,6 +40,9 @@ jobs:
       - name: Reset local database from repository migrations
         run: supabase db reset
 
+      - name: Restart local Supabase after reset
+        run: supabase start
+
       - name: Wait for local Postgres after reset
         shell: bash
         run: |
