@@ -53,6 +53,16 @@ class SyncConflictResolver {
     }
 
     try {
+      // Re-read the conflict only after acquiring the shared lease. The
+      // initial UI read can become stale while another runtime resolves or
+      // replaces the conflict. Once the lease is held, no other protected
+      // resolver or sync cycle can mutate the conflict before this operation.
+      final conflict = await (_db.select(_db.syncConflictRecords)
+            ..where((c) => c.id.equals(conflictId))
+            ..where((c) => c.resolvedAt.isNull()))
+          .getSingleOrNull();
+      if (conflict == null) return;
+
       final serverEntityId = await _serverEntityId(
         conflict.entityType,
         conflict.entityLocalId,
@@ -119,6 +129,15 @@ class SyncConflictResolver {
     }
 
     try {
+      // Re-read the conflict only after acquiring the shared lease so this
+      // retry cannot operate on a conflict that another runtime already
+      // resolved while this call was waiting to acquire the lease.
+      final conflict = await (_db.select(_db.syncConflictRecords)
+            ..where((c) => c.id.equals(conflictId))
+            ..where((c) => c.resolvedAt.isNull()))
+          .getSingleOrNull();
+      if (conflict == null) return;
+
       final queue = await (_db.select(_db.syncQueueItems)
             ..where((q) => q.id.equals(conflict.operationId)))
           .getSingleOrNull();
