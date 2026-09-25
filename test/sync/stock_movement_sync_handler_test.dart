@@ -82,14 +82,14 @@ void main() {
       deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
     )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-1', 'current_stock': 45}});
     when(() => productRepository.reconcileStockLevel(
-      productLocalId: productLocalId, locationId: locationId, currentStock: 45,
+      productLocalId: productLocalId, locationId: locationId, currentStock: 45, operationId: any(named: 'operationId'),
     )).thenAnswer((_) async {});
     await handler.sync(await itemFor(movement.localId));
     verify(() => fulusSyncApi.submitOperation(
       businessId: 'business-1', operationType: 'stock_movement.create', operationId: 'q1', deviceClientId: 'device-client-1',
       clientReference: movement.localId, payload: any(named: 'payload'),
     )).called(1);
-    verify(() => productRepository.reconcileStockLevel(productLocalId: productLocalId, locationId: locationId, currentStock: 45)).called(1);
+    verify(() => productRepository.reconcileStockLevel(productLocalId: productLocalId, locationId: locationId, currentStock: 45, operationId: 'q1')).called(1);
     final row = await stockMovementRepository.getStockMovementById(movement.localId);
     expect(row!.serverId, isNull);
     final stored = await (db.select(db.stockMovements)..where((m) => m.localId.equals(movement.localId))).getSingle();
@@ -105,7 +105,7 @@ void main() {
       deviceClientId: any(named: 'deviceClientId'), clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
     )).thenAnswer((_) async => {'data': {'entity_id': 'server-movement-adjustment-1', 'current_stock': 42}});
     when(() => productRepository.reconcileStockLevel(
-      productLocalId: productLocalId, locationId: locationId, currentStock: 42,
+      productLocalId: productLocalId, locationId: locationId, currentStock: 42, operationId: any(named: 'operationId'),
     )).thenAnswer((_) async {});
     await handler.sync(await itemFor(movement.localId));
     verify(() => fulusSyncApi.submitOperation(
@@ -114,7 +114,7 @@ void main() {
       payload: any(named: 'payload'),
     )).called(1);
     verify(() => productRepository.reconcileStockLevel(
-      productLocalId: productLocalId, locationId: locationId, currentStock: 42,
+      productLocalId: productLocalId, locationId: locationId, currentStock: 42, operationId: 'q1',
     )).called(1);
     final stored = await (db.select(db.stockMovements)..where((m) => m.localId.equals(movement.localId))).getSingle();
     expect(stored.syncStatus, SyncStatus.settled);
