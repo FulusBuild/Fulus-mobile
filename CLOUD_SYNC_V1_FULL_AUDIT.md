@@ -339,3 +339,20 @@ Still to audit:
 No finding is marked resolved until implementation, regression/E2E evidence, and green CI are all present.
 
 No APK build is part of this audit unless explicitly requested.
+
+### A3 - stale handler completion can mutate local state after lease takeover
+
+Status: FINDING
+
+Evidence:
+- The durable lease is acquired around the whole sync cycle, but individual handlers perform network awaits and then call local `markSynced`/`markSettled` writes.
+- The engine only learns that the lease was lost at the cycle boundary via `ensureHeld()`; there is no ownership fence immediately before the handler's final local mutation.
+- A suspended runtime can therefore resume after another runtime has acquired the lease.
+- The stale handler can receive an idempotent/already-applied server response and then mark the local entity `settled`, assign a server ID, or otherwise finalize the row before the stale queue item is removed.
+- Queue replacement protects the newer queue row from stale deletion, but it does not by itself protect the local entity row from the stale handler's finalization write.
+- This is a distinct race from stale queue completion and must be closed explicitly.
+
+Required proof/fix:
+- Establish a transaction-scoped finalization fence that validates current lease ownership and the identity/currentness of the queue item before any handler marks local state settled/synced.
+- Cover server-ID assignment, sync-status settlement, and stock/ledger settlement.
+- Add a cross-runtime regression where runtime A is paused after server success, runtime B acquires the lease and replaces the queue mutation, then runtime A resumes. The newer local mutation must remain pending and the stale finalization must not settle it.
