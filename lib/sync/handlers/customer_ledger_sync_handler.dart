@@ -91,7 +91,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
     if (data is! Map) throw StateError('Customer repayment sync returned no ledger result.');
     final ledgerId = data['ledger_id']?.toString();
     if (ledgerId == null || ledgerId.isEmpty) throw StateError('Customer repayment sync returned no ledger id.');
-    await _markSettled(ledger.localId, ledgerId);
+    await _markSettled(ledger.localId, ledgerId, item);
   }
 
   Future<void> _reconcileRejectedRepayment({
@@ -128,13 +128,21 @@ class CustomerLedgerSyncHandler implements SyncHandler {
     }
   }
 
-  Future<void> _markSettled(String localId, String serverId) async {
-    await (_db.update(_db.customerLedgerEntries)..where((e) => e.localId.equals(localId))).write(
-      CustomerLedgerEntriesCompanion(
-        serverId: Value(serverId),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  Future<void> _markSettled(String localId, String serverId, SyncQueueItem item) async {
+    await _executionLease.runProtectedTransaction(_db, () async {
+      if (await _executionLease.hasNewerQueueMutation(
+        entityType: 'customer_ledger',
+        entityLocalId: localId,
+        operationId: item.id,
+        enqueuedAt: item.enqueuedAt,
+      )) return;
+      await (_db.update(_db.customerLedgerEntries)..where((e) => e.localId.equals(localId))).write(
+        CustomerLedgerEntriesCompanion(
+          serverId: Value(serverId),
+          syncStatus: const Value(SyncStatus.settled),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
   }
 }
