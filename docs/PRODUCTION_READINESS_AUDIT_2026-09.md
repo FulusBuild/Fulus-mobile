@@ -18,33 +18,35 @@ The audit was read-only with respect to production business data.
 
 ## Audit result
 
-The audit itself is complete. The core local/cloud/sync architecture and live data invariants were reviewed.
+The architectural audit is complete. The core local/cloud/sync architecture and live data invariants were reviewed.
 
-The remaining release gates are validation/remediation items rather than unaudited areas.
+The physical Android process-death/recovery test has now been completed successfully.
+
+Repository production-deployment hardening has been merged to `main` in PR #74.
+
+The remaining release gates are deployment verification and administrative configuration rather than another architectural audit.
 
 ## Blockers and disposition
 
-### 1. Android process-death / lease-takeover validation — USER DEVICE TEST REQUIRED
+### 1. Android process-death / recovery validation — PASS
 
-This cannot be proven from repository inspection alone.
+A physical Android recovery test was completed.
 
-The implementation is materially hardened against stale sync finalization, and the Android WorkManager/background path plus durable SQLite lease were reviewed. A physical Android test is still required to prove the real OS lifecycle behavior.
+Test sequence:
 
-**Required test on a physical Android phone:**
+1. Internet was disabled.
+2. A sale was created while offline.
+3. The app/process was interrupted.
+4. Internet was restored.
+5. The app was uninstalled and reinstalled.
+6. The app was reopened and the sale was recovered from the cloud.
+7. The sale appeared only once in recent activity.
 
-1. Start with a healthy synced business/location.
-2. Create a local mutation while offline so it is durable in the sync queue.
-3. Force-stop/kill the app process while the operation is pending or while a sync attempt is active.
-4. Reopen the app.
-5. Confirm the queue is recovered and the operation is eventually applied exactly once.
-6. Confirm no operation remains stuck in `processing`.
-7. Confirm the same operation is not duplicated in the cloud.
-8. Repeat with background WorkManager recovery.
-9. Repeat during a business switch boundary and confirm no mutation is attributed to the wrong business.
+**Status:** PASS for the tested offline-sync, process-interruption, cloud-recovery and duplicate-prevention scenario.
 
-**Status:** pending physical validation.
+This test does not claim that an unsynced local database survives Android app uninstallation; app-local data is expected to be removed on uninstall.
 
-### 2. Production migration provenance — REPAIRED IN REPOSITORY/CI PATH
+### 2. Production migration provenance — REPAIRED IN REPOSITORY/CI PATH; PRODUCTION DEPLOYMENT PENDING VERIFICATION
 
 Production history previously stopped at:
 
@@ -55,7 +57,7 @@ while the repository contained later migration files:
 - `20260925150000_harden_return_sale_idempotency_actor_scope.sql`
 - `20260925160000_enforce_location_membership_on_api_mutations.sql`
 
-Those migrations are now preserved as the repository's authoritative continuation. The production deployment workflow has been hardened so it:
+Those migrations are preserved as the repository's authoritative continuation. The production deployment workflow has been hardened so it:
 
 1. waits for the exact commit's mobile + live sync CI to pass;
 2. verifies migration history before deployment;
@@ -65,11 +67,11 @@ Those migrations are now preserved as the repository's authoritative continuatio
 6. only then deploys Edge Functions;
 7. verifies migration history again.
 
-This converts the previous undocumented-schema condition into an explicit, CI-controlled reconciliation path.
+The hardening changes have now been merged to `main`.
 
-**Important:** the existing production project is not modified directly by this audit branch. The pending migrations will be applied by the protected production deployment workflow when this branch is merged to `main`.
+**Important:** the migration history observed immediately after the merge still ended at `20260925135830`. The production migration workflow must complete before the repository's later migrations can be considered deployed and verified.
 
-### 3. Production CI/deployment gating — HARDENED IN REPOSITORY
+### 3. Production CI/deployment gating — MERGED; DEPLOYMENT RUN PENDING/TO BE VERIFIED
 
 The production Supabase workflow now:
 
@@ -79,11 +81,15 @@ The production Supabase workflow now:
 - therefore gates production deployment on the Flutter test suite, live sync contract test and multi-device convergence test already contained in that workflow;
 - verifies the migration chain and live schema after migration application.
 
-This closes the previous gap where production deployment could proceed independently of the mobile/cloud-sync CI.
+The changes were merged in PR #74 as commit:
+
+`c82a346de20954b9cc914290912a5f12e51875fa`
+
+Production deployment success has not yet been independently verified from the available GitHub workflow status interface.
 
 ### 4. GitHub branch protection / required-review setting — ADMINISTRATIVE SETTING
 
-Repository automation cannot safely infer or change organization-level branch protection with the currently available GitHub connection.
+Repository automation could not safely verify or change organization-level branch protection with the available GitHub connection.
 
 The repository should have `main` configured so that:
 
@@ -109,7 +115,7 @@ The following were identified but are not demonstrated production data-corruptio
 - `income_records.amount` should use the same explicit monetary precision/scale convention as the rest of the financial schema;
 - leaked-password protection remains a Supabase Auth hardening recommendation.
 
-These items should not be confused with the physical Android validation gate above.
+These items should not be confused with the completed Android recovery test.
 
 ## Cloud and sync audit coverage
 
@@ -152,8 +158,24 @@ The live production database was checked for the audited invariants covering:
 
 The tested invariants returned no violations at audit time.
 
-## Release gate
+## Current release gate
 
-The application should be considered **pending final physical-device validation**, not pending another architectural audit.
+### Completed
 
-Once the Android process-death/background recovery test passes and the repository changes are merged through the gated production workflow, the remaining administrative branch-protection setting should be verified before commercial release.
+- [x] Architectural production-readiness audit
+- [x] Physical Android offline-sync test
+- [x] Process interruption/recovery test
+- [x] Reinstall/cloud recovery test
+- [x] Duplicate check for recovered sale
+- [x] Production CI/migration hardening merged to `main`
+
+### Still required
+
+- [ ] Verify the production GitHub Actions deployment completes successfully
+- [ ] Verify production migration history reaches the repository's expected migration tip
+- [ ] Verify post-migration public-schema drift check passes
+- [ ] Verify all production Edge Functions deploy successfully
+- [ ] Re-run live financial/inventory/sync integrity checks after deployment
+- [ ] Verify `main` branch protection and required status checks in GitHub repository settings
+
+Until those deployment and administrative checks pass, the release should remain in the final verification stage.
