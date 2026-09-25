@@ -1030,3 +1030,37 @@ CI run #2254 is currently in progress for commit `6a2146ab28b0a638e8e2cf7362b8a4
 - Continue entity-specific adversarial lifecycle coverage.
 - Continue full production `fulus_api_*` transaction/idempotency/change-feed tracing.
 - Continue process-death and cross-runtime queue/lease proof.
+
+## 2026-09-25 — Dependency scheduling and A3 inventory re-verification
+
+Status: 🟢 ENGINE SCHEDULING PROVEN; A3 INVENTORY ITEMS VERIFIED AGAINST CURRENT MAIN
+
+Re-audited `lib/sync/sync_queue.dart`, `lib/sync/sync_engine.dart`, startup/manual callers of `normalizeDependencyPriorities` and `seedExistingBusinessData`, and the queue/engine regression suite.
+
+Dependency scheduling evidence:
+- `normalizeDependencyPriorities()` is called during bootstrap and before manual sync, and has dedicated regression coverage.
+- Dependency/reference entities use priority 0; sales/financial work uses priority 1.
+- Dependency-blocked items are deferred and retried within the same drain after later prerequisites succeed.
+- A dependency failure does not prevent unrelated queue items from running.
+- If no progress is possible, the engine exits the current drain rather than spinning indefinitely; subsequent sync triggers provide the next retry opportunity.
+- `runOnce()` shares one in-flight drain, preventing concurrent drain races.
+- `seedExistingBusinessData()` is invoked before initial cloud reconciliation and transactionally avoids duplicate seed rows and already-server-backed creates.
+
+Current-main A3 verification:
+- The previously recorded stock-movement stale-stock finding is now fixed in `ProductRepositoryImpl.reconcileStockLevel()`: server stock is applied only while the source queue operation still exists and no newer stock-movement mutation for the same product/location is queued.
+- Regression coverage proves an older movement response is ignored when a newer movement is queued and when the source operation identity is missing.
+- Expense and cash-drawer permanent rejection paths now pass the originating queue operation ID into operation-aware `markAttentionNeeded()`; the repository fences the rejection against missing/newer queue identities.
+- Income rejection finalization likewise passes the queue operation ID and uses the same missing/newer-operation fence.
+- ProductSyncHandler helper methods now require a durable queue operation ID; the production dispatch path no longer permits the previously recorded nullable/fallback operation identity gap.
+
+These items were therefore stale in the older audit narrative and are not current unresolved defects.
+
+Remaining Section 1 / lifecycle proof:
+1. cash drawer create → close while create is in flight;
+2. customer repayment finalization/recovery with a newer customer mutation;
+3. return completion/rejection recovery with product/customer mutations in flight;
+4. stock movement response reconciliation with a newer local stock mutation;
+5. sale finalization/rejection recovery with newer product/customer mutations;
+6. create → update → archive/restore replacement across remaining mutable entities.
+
+Next audit focus: execute the entity-specific lifecycle adversarial coverage above, then continue with process-death and multi-device concurrency evidence.
