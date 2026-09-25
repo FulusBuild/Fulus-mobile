@@ -87,7 +87,13 @@ class SaleSyncHandler implements SyncHandler {
         // that optimistic projection in place. Re-read the authoritative
         // product snapshots before parking the sale so local stock does not
         // remain permanently below the server.
-        await _reconcileProductsAfterRejectedSale(sale, device!.deviceClientId, businessId);
+        await _reconcileProductsAfterRejectedSale(
+          sale,
+          device!.deviceClientId,
+          businessId,
+          operationId: item.id,
+          enqueuedAt: item.enqueuedAt,
+        );
         rethrow;
       }
       final data = Map<String, dynamic>.from(result['data'] as Map);
@@ -141,8 +147,8 @@ class SaleSyncHandler implements SyncHandler {
           if (await _executionLease.hasNewerQueueMutation(
             entityType: 'product',
             entityLocalId: localId,
-            operationId: item.id,
-            enqueuedAt: item.enqueuedAt,
+            operationId: operationId,
+            enqueuedAt: enqueuedAt,
           )) return;
           await reconciler.apply(canonical);
         });
