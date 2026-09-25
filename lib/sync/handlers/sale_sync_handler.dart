@@ -137,7 +137,15 @@ class SaleSyncHandler implements SyncHandler {
           entityId: serverId,
           deviceClientId: deviceClientId,
         );
-        await _executionLease.runProtectedTransaction(_db, () => reconciler.apply(canonical));
+        await _executionLease.runProtectedTransaction(_db, () async {
+          if (await _executionLease.hasNewerQueueMutation(
+            entityType: 'product',
+            entityLocalId: localId,
+            operationId: item.id,
+            enqueuedAt: item.enqueuedAt,
+          )) return;
+          await reconciler.apply(canonical);
+        });
       } catch (_) {
         // The original business-rule rejection remains the meaningful
         // queue failure. A failed best-effort reconciliation must not hide
