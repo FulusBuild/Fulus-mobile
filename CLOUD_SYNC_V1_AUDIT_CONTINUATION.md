@@ -365,3 +365,25 @@ Continue Section 1/2 with adversarial coverage for:
 6. create -> update -> archive/restore replacement across the remaining mutable entities.
 
 Do not mark Section 1 complete until those entity-specific boundaries have evidence.
+
+
+### A3 lifecycle finding: stock movement success can overwrite newer local stock
+
+Status: CONCRETE FINDING — NOT YET FIXED
+
+The stock movement handler performs two local effects after the network command returns:
+1. it calls ProductRepository.reconcileStockLevel() with the server-returned current_stock;
+2. it then calls StockMovementRepository.markSettled() with the queue operation ID.
+
+The second step is A3-fenced, but the first is not.
+
+The local stock movement repository deliberately applies each new stock-in/stock-out/adjustment immediately to ProductStockLevels and marks that stock projection pending before enqueueing the movement. Therefore, if movement A is in flight and movement B for the same product/location is committed locally before A returns, A's server response can write A's older current_stock into ProductStockLevels before markSettled() notices that a newer stock-movement queue item exists.
+
+That means the queue row itself remains correctly pending, but the visible local stock projection can temporarily regress to the stale A result. This is a real partial-success stale-finalization defect and is more specific than the already-fixed movement queue-settlement fence.
+
+Required fix later:
+- protect the server-current-stock reconciliation with the source stock-movement operation identity/newer-mutation check inside the same SQLite transaction boundary, or otherwise make the reconciliation conditional on the source operation still being current;
+- add an adversarial regression where movement A is in flight, movement B changes the same product/location stock, A returns an older current_stock, and the local projection must not regress;
+- retain the existing markSettled queue-identity fence.
+
+This finding is recorded for the fix phase; the audit remains in the inventory/proof phase.
