@@ -172,6 +172,41 @@ void main() {
     });
   });
 
+  group('markAttentionNeeded', () {
+    test('does not park an old rejection when a newer mutation is queued', () async {
+      final created = await repository.recordIncome(
+        IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+      );
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'new-operation',
+          entityType: 'income_record',
+          entityLocalId: created.localId,
+          operation: 'create',
+          priority: 1,
+          enqueuedAt: DateTime(2026, 7, 2),
+          syncAttempts: 0,
+        ),
+      );
+
+      await repository.markAttentionNeeded(created.localId, operationId: 'old-operation');
+
+      final row = await (db.select(db.incomeRecords)..where((i) => i.localId.equals(created.localId))).getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+
+    test('does not park a rejection when its operation identity is missing', () async {
+      final created = await repository.recordIncome(
+        IncomeRecordDraft(locationId: locationId, source: 'Fuel refund', amount: 3000, incomeDate: DateTime(2026, 7, 1)),
+      );
+
+      await repository.markAttentionNeeded(created.localId, operationId: 'missing-operation');
+
+      final row = await (db.select(db.incomeRecords)..where((i) => i.localId.equals(created.localId))).getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+  });
+
   group('markSynced', () {
     test('sets serverId and syncStatus on the local row', () async {
       final created = await repository.recordIncome(
