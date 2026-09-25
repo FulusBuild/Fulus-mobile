@@ -91,6 +91,27 @@ class SyncExecutionLease {
     });
   }
 
+  /// Returns true when a newer durable outbox mutation for the same local
+  /// entity already exists. Call this inside the protected transaction before
+  /// applying canonical recovery from an older rejected operation. The writer
+  /// lock acquired by [ensureHeldForTransaction] makes the check atomic with
+  /// the following canonical write: a local mutation that is still pending
+  /// will commit after this transaction and therefore remain the newer state.
+  Future<bool> hasNewerQueueMutation({
+    required String entityType,
+    required String entityLocalId,
+    required String operationId,
+    required DateTime enqueuedAt,
+  }) async {
+    final rows = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.entityType.equals(entityType))
+          ..where((q) => q.entityLocalId.equals(entityLocalId))
+          ..where((q) => q.id.isNotIn([operationId]))
+          ..where((q) => q.enqueuedAt.isBiggerThanValue(enqueuedAt)))
+        .get();
+    return rows.isNotEmpty;
+  }
+
   Future<void> ensureHeldForTransaction() async {
     if (!_held) {
       throw const SyncExecutionLeaseLost();
