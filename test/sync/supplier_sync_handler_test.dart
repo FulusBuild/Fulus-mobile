@@ -141,6 +141,12 @@ void main() {
       final operationType =
           invocation.namedArguments[#operationType] as String;
       if (operationType == 'supplier.create') {
+        final payload = invocation.namedArguments[#payload] as Map<String, dynamic>;
+        expect(payload['name'], 'Archived Supplier');
+        expect(payload['phone'], isNull);
+        expect(payload['email'], isNull);
+        expect(payload['address'], isNull);
+        expect(payload.containsKey('server_id'), isFalse);
         return {
           'data': {'entity_id': 'server-archived-supplier', 'sync_sequence': 21},
         };
