@@ -30,9 +30,9 @@ class ProductSyncHandler implements SyncHandler {
   Future<void> sync(SyncQueueItem item) async {
     switch (item.operation) {
       case 'create':
-        await _syncCreate(item.entityLocalId, operationId: item.id, baseCursor: item.baseCursor);
+        await _syncCreate(item.entityLocalId, operationId: operationId, baseCursor: item.baseCursor);
       case 'update':
-        await _syncUpdate(item.entityLocalId, operationId: item.id, baseCursor: item.baseCursor);
+        await _syncUpdate(item.entityLocalId, operationId: operationId, baseCursor: item.baseCursor);
       default:
         throw StateError(
           'ProductSyncHandler does not support operation "${item.operation}".',
