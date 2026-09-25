@@ -46,21 +46,31 @@ class ExpenseCategoryRepositoryImpl implements ExpenseCategoryRepository {
   }
 
   @override
-  Future<void> markSynced({
-    required String localId,
-    required String serverId,
-  }) async {
-    await (_db.update(_db.expenseCategories)
-          ..where((c) => c.localId.equals(localId)))
-        .write(
-      ExpenseCategoriesCompanion(
-        serverId: Value(serverId),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  Future<void> markSynced({{
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current != null) {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'expense_category',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.expenseCategories)..where((e) => e.localId.equals(localId))).write(
+        ExpenseCategoriesCompanion(
+          serverId: Value(serverId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+          updatedAt: hasNewerMutation ? const Value.absent() : Value(DateTime.now()),
+        ),
+      );
+    });
   }
-
   @override
   Future<void> reconcileServerState({
     required String serverId,
