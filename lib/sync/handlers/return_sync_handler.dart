@@ -82,6 +82,8 @@ class ReturnSyncHandler implements SyncHandler {
         sale: sale,
         deviceClientId: device!.deviceClientId,
         businessId: businessId,
+        operationId: item.id,
+        enqueuedAt: item.enqueuedAt,
       );
       rethrow;
     }
@@ -99,6 +101,8 @@ class ReturnSyncHandler implements SyncHandler {
     required dynamic sale,
     required String deviceClientId,
     required String businessId,
+    required String operationId,
+    required DateTime enqueuedAt,
   }) async {
     final productRepository = _productRepository;
     if (productRepository != null) {
@@ -124,8 +128,8 @@ class ReturnSyncHandler implements SyncHandler {
             if (await _executionLease.hasNewerQueueMutation(
               entityType: 'product',
               entityLocalId: localId,
-              operationId: item.id,
-              enqueuedAt: item.enqueuedAt,
+              operationId: operationId,
+              enqueuedAt: enqueuedAt,
             )) return;
             await reconciler.apply(canonical);
           });
@@ -154,8 +158,8 @@ class ReturnSyncHandler implements SyncHandler {
               if (await _executionLease.hasNewerQueueMutation(
                 entityType: 'customer',
                 entityLocalId: customerLocalId,
-                operationId: item.id,
-                enqueuedAt: item.enqueuedAt,
+                operationId: operationId,
+                enqueuedAt: enqueuedAt,
               )) return;
               await FulusCustomerCanonicalReconciler(repository: customerRepository).apply(canonical);
             },
