@@ -58,8 +58,8 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String?>(activeLocationIdProvider.selectAsync((value) async => value), (previous, next) {
-      if (previous != null && next != null && previous != next && mounted) {
+    ref.listen(activeLocationIdProvider, (previous, next) {
+      if (previous?.value != null && next?.value != null && previous!.value != next!.value && mounted) {
         setState(() => _future = _load());
       }
     });
