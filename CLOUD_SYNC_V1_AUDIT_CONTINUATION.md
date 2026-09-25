@@ -875,3 +875,29 @@ Current PR/CI boundary:
 - GitHub Actions reports no workflow run for this head yet.
 - Vercel status is currently successful.
 - Therefore the branch is not yet eligible for a "full CI green" claim.
+
+
+## 2026-09-25 — Server-side location authorization enforcement
+
+Status: 🟡 IMPLEMENTED IN PRODUCTION; ADVERSARIAL MEMBER TESTING STILL REQUIRED
+
+The authoritative role contract is now grounded in the existing schema: `is_business_admin()` already defines owner/admin as business-wide administrators, while `location_memberships` is explicitly documented as restricting users to locations they may operate. The new `require_location_access(business_id, location_id)` helper therefore permits an active owner/admin to operate any active location in their business and requires an active location membership for other users.
+
+Implemented in migration `20260925150000_enforce_location_membership_on_api_mutations.sql` and applied to production project `bejcuvoxemwomcatgyxz`:
+- direct location mutations: inventory adjustment, inventory quantity, sale creation, expense creation/update, cash-drawer opening, and income recording;
+- indirect location mutations: return creation and sale payment derive authorization from the referenced sale;
+- cash-drawer close derives authorization from the referenced shift;
+- inactive/unknown locations are rejected before mutation;
+- helper functions are revoked from direct client execution.
+
+Production verification:
+- all targeted authenticated API functions now contain the location authorization guard;
+- an owner of business B was successfully authorized for another active B location where that owner has no explicit location-membership row, confirming the existing owner/admin contract is preserved;
+- a user from business A was rejected when attempting to authorize against a B location, confirming cross-business isolation;
+- production currently contains only active owner memberships, so a true same-business non-admin/non-member adversarial case cannot be executed against an existing production identity without creating test identity data. That regression remains required.
+
+Remaining security work:
+- add/execute a dedicated non-admin same-business unauthorized-location regression;
+- verify suspension/removal immediately blocks location mutations;
+- audit canonical location-scoped reads/pulls, especially the singular product `current_stock` endpoint and business-wide restore/sync bootstrap payloads;
+- then re-run branch CI and reassess PR #71.
