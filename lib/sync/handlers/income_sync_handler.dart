@@ -91,6 +91,7 @@ class IncomeSyncHandler implements SyncHandler {
     await _incomeRecordRepository.markSynced(
       localId: record.localId,
       serverId: serverId,
+    operationId: item.id,
     );
   }
 }
