@@ -80,7 +80,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         },
       );
     } on BusinessRuleFailure {
-      await _cashDrawerShiftRepository.markAttentionNeeded(shift.localId);
+      await _cashDrawerShiftRepository.markAttentionNeeded(shift.localId, operationId: item.id);
       rethrow;
     }
 
