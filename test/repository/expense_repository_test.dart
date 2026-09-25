@@ -291,4 +291,23 @@ void main() {
       );
     });
   });
+  group('markAttentionNeeded', () {
+    test('does not park an old rejection when a newer mutation is queued', () async {
+      final created = await repository.recordExpense(
+        ExpenseDraft(locationId: locationId, description: 'Fuel', amount: 3000, expenseDate: DateTime(2026, 7, 1)),
+      );
+      final rows = await db.select(db.syncQueueItems).get();
+      final old = rows.single;
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+        id: 'new-expense-update', entityType: 'expense', entityLocalId: created.localId,
+        operation: 'update', priority: old.priority,
+        enqueuedAt: old.enqueuedAt.add(const Duration(seconds: 1)),
+      ));
+
+      await repository.markAttentionNeeded(created.localId, operationId: old.id);
+
+      final row = await (db.select(db.expenses)..where((e) => e.localId.equals(created.localId))).getSingle();
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+  });
 }
