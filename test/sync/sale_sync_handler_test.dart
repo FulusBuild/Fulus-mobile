@@ -231,6 +231,87 @@ void main() {
     expect(captured['location_id'], isNot('server-location-B'));
   });
 
+  test('replays a pending sale under a fresh handler after restart without rebinding location', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+        serverId: const Value('server-location-B'),
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+          'data': {'entity_id': 'server-sale-A'},
+        });
+
+    final sale = await createLocalSale();
+    final queuedBeforeRestart = await (db.select(db.syncQueueItems)
+          ..where((q) => q.entityType.equals('sale'))
+          ..where((q) => q.entityLocalId.equals(sale.localId)))
+        .getSingle();
+    expect(queuedBeforeRestart.entityLocalId, sale.localId);
+
+    // Model the persisted session after restart with a fresh repository and
+    // handler. The durable sale/outbox rows remain in the same database.
+    final restartedAuthRepository = _FakeAuthRepository()
+      ..activeLocationId = 'loc-2';
+    final restartedSaleRepository = SaleRepositoryImpl(
+      db: db,
+      syncQueue: SyncQueue(db),
+      authRepository: restartedAuthRepository,
+      customerCreditRepository:
+          CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
+    );
+    final restartedHandler = SaleSyncHandler(
+      db: db,
+      fulusSyncApi: fulusSyncApi,
+      fulusConnectionState: connectionState,
+      salesApi: salesApi,
+      saleRepository: restartedSaleRepository,
+      productRepository: productRepository,
+      customerRepository: customerRepository,
+      executionLease: executionLease,
+    );
+
+    expect(await restartedAuthRepository.getActiveLocationId(), 'loc-2');
+    await restartedHandler.sync(queuedBeforeRestart);
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: queuedBeforeRestart.id,
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-A');
+    expect(captured['location_id'], isNot('server-location-B'));
+
+    final restoredSale = await restartedSaleRepository.getSaleByLocalId(sale.localId);
+    expect(restoredSale!.locationId, locationId);
+    expect(restoredSale.serverId, 'server-sale-A');
+  });
+
   test('keeps the original location while a sale sync is in flight during an active-location switch', () async {
     final now = DateTime.now();
     await db.into(db.locations).insert(
