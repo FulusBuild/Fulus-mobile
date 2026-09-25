@@ -221,5 +221,40 @@ void main() {
       expect(row.syncStatus, SyncStatus.pending);
     });
 
+
+    test('does not settle an old create response when a newer close is queued', () async {
+      final shift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+      );
+      final queue = await (db.select(db.syncQueueItems)
+            ..where((q) => q.entityType.equals('cash_drawer_shift'))
+            ..where((q) => q.entityLocalId.equals(shift.localId)))
+          .get();
+      final old = queue.single;
+
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'new-close-for-settlement',
+          entityType: 'cash_drawer_shift',
+          entityLocalId: shift.localId,
+          operation: 'close',
+          priority: old.priority,
+          enqueuedAt: old.enqueuedAt.add(const Duration(seconds: 1)),
+        ),
+      );
+
+      await repository.markSynced(
+        localId: shift.localId,
+        serverId: 'server-shift-1',
+        operationId: old.id,
+      );
+
+      final row = await (db.select(db.cashDrawerShifts)
+            ..where((s) => s.localId.equals(shift.localId)))
+          .getSingle();
+      expect(row.serverId, 'server-shift-1');
+      expect(row.syncStatus, SyncStatus.pending);
+    });
+
   });
 }
