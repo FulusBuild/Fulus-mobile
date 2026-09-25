@@ -838,3 +838,40 @@ Status: 🟢 client-side location boundary verified.
 Inspected Stock overview, stock providers, record-stock flow, stock movement repository, Home, Reports, and the active-location refresh path. Stock products and movement streams are keyed by explicit location IDs. Stock mutations capture the active location when the user submits the mutation and persist that location on the movement before enqueueing. The repository updates the matching product/location stock projection transactionally, so an active-location switch after mutation creation cannot rewrite the mutation's location identity. Home and Reports reload their location-scoped projections from the active-location provider after a switch. The Sell flow separately rebuilds its CartCubit when the active location changes.
 
 No additional client-side change was required in this pass. Remaining location boundary work is now primarily server-side canonical pull/access verification and final regression/CI verification. The product GET endpoint's singular current_stock contract still requires backend-side verification before that specific pull path can be considered fully closed.
+
+
+## 2026-09-25 — Server-side location membership / canonical pull audit
+
+Status: 🟡 SECURITY / ACCESS-BOUNDARY GAP FOUND — NOT CLOSED
+
+The server schema explicitly defines `location_memberships` as the mechanism that "restricts users to the locations they may operate", and exposes `is_location_member(location_id)` for that purpose. However, the current repository-wide RPC audit found that `is_location_member()` is not used by the inspected location-bound mutation RPCs.
+
+Observed pattern:
+- location-bound RPCs commonly verify active business membership plus the target location belongs to the same business;
+- that proves tenant/business isolation, but does not by itself prove that a non-admin user is authorized to operate the selected location;
+- the restore snapshot is also business-wide: it returns all business locations, all location memberships, and all product stock levels for the business.
+
+This is distinct from the client-side A→B isolation work already proven. The mobile client correctly keeps a mutation tied to its persisted location identity, but server authorization must independently enforce whether the authenticated actor may use that location.
+
+Evidence:
+- `location_memberships` schema comment: it restricts users to locations they may operate.
+- `is_location_member(uuid)` exists but repository search found no production RPC call sites beyond its definition/security hardening.
+- Inventory RPCs checked validate business ownership of the target location but do not call `is_location_member()`.
+- The restore snapshot is business-scoped rather than filtered to the actor's location memberships.
+
+Required next step before declaring the location security boundary fully closed:
+1. Establish the authoritative role contract: whether owner/admin may operate every location and whether ordinary members require an active location membership.
+2. Audit every location-bound mutation RPC and read/canonical-pull path against that contract.
+3. Add server regression coverage for an authenticated user who belongs to business A but is not an active member of location B.
+4. Verify that such a user cannot mutate or receive unauthorized location-scoped operational data from B.
+5. Verify the selected location remains valid after membership suspension/removal.
+6. Only then classify server-side location membership enforcement as 🟢.
+
+No client-side change was made for this finding because changing the UI cannot substitute for authoritative server authorization.
+
+Current PR/CI boundary:
+- PR #71 remains open and unmerged.
+- Latest head: `bbd2a298213d6c8dc4f58248349fd6e97d5762c2`.
+- GitHub Actions reports no workflow run for this head yet.
+- Vercel status is currently successful.
+- Therefore the branch is not yet eligible for a "full CI green" claim.
