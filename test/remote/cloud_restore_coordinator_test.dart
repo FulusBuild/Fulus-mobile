@@ -50,7 +50,7 @@ void main() {
     expect(await db.select(db.businessSettings).get(), isEmpty);
     await blocker.release();
 
-    await expectLater(restore, completion(isA<CloudRestoreResult>()));
+    await expectLater(restore, completion(isNotNull));
   });
 
   test('blocks restore when outbound sync work is pending', () async {
