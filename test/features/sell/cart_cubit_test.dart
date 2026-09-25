@@ -6,6 +6,7 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/business_settings_api.dart';
 import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
 import 'package:fulus_mobile/data/repositories/business_settings_repository_impl.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/customer_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/draft_cart_repository_impl.dart';
