@@ -176,3 +176,22 @@ inspect → reproduce/prove → establish authoritative contract → implement m
 ## Final objective
 
 Make Cloud Sync V1 genuinely production-durable. Leave behind implementation, tests, CI evidence and production verification—not merely an audit report.
+
+
+## 2026-09-25 concurrency continuation
+
+### Proven and fixed in this continuation
+
+- Durable local-business reset now requires successful acquisition of the shared SQLite sync lease. A failed acquisition no longer permits destructive reset. Regression coverage proves reset is refused while another runtime holds the lease.
+- Cloud restore now uses the shared sync execution lease and starts its destructive import transaction with the lease ownership fence. Production wiring shares the same lease with the interactive restore path.
+- Rejected-operation canonical recovery is fenced against a newer local mutation for the same entity. The check occurs inside the protected SQLite transaction after the canonical fetch, so an in-flight rejected operation cannot overwrite a newer queued local mutation.
+- The guard covers product recovery from sale rejection, expense recovery, customer repayment recovery, return product/customer recovery, and cash-drawer recovery.
+- Same-timestamp queued mutations are treated conservatively as newer for recovery fencing because queue timestamps are not a durable total-order identifier.
+- Operation identity sweep confirms production client sync handlers pass the durable queue item ID as the server operation ID. Server migrations use business/device-scoped idempotency records and row locking for the audited command surface.
+- CI verified green after the final concurrency changes: workflow run 36095959193 completed successfully, including static analysis, Flutter tests, live sync contract tests, and multi-device convergence tests.
+
+### Final verification boundary
+
+The concurrency audit's durable-state mutation sweep found no additional unprotected production path that can delete/overwrite sync queue state or cloud-owned business state outside the established lease/transaction boundaries. Ordinary local queue insertion remains intentionally lease-free because user mutations must be allowed to create newer durable work while a sync runtime is active; the stale-recovery fence explicitly preserves such newer work.
+
+The established evidence standard remains: implementation plus regression/contract evidence plus green CI. No claim of exactly-once local execution is made; correctness relies on durable queue identity, server idempotency, canonical reconciliation, and at-least-once replay safety.
