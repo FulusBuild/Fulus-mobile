@@ -44,7 +44,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
         .getSingleOrNull();
     if (ledger == null) throw StateError('No local customer ledger entry found for ${item.entityLocalId}.');
     if (ledger.serverId != null && ledger.serverId!.isNotEmpty) {
-      await _markSettled(ledger.localId, ledger.serverId!);
+      await _markSettled(ledger.localId, ledger.serverId!, item);
       return;
     }
     final businessId = _fulusConnectionState.selectedBusinessId;
