@@ -652,3 +652,40 @@ Do not merge the location branch into `main` until:
 - the implementation does not weaken existing business-switching, queue, idempotency, cursor, or canonical-reconciliation guarantees.
 
 **Evidence standard:** 🟢 Proven = implementation + meaningful tests/production evidence + CI. 🟡 Partial = implementation exists but an important proof layer is missing. 🔴 Unknown = not verified or contradictory evidence.
+
+
+## 2026-09-25 — Income rejection finalization audit
+
+### A3 finding: income BusinessRuleFailure path lacked operation identity fencing
+
+The successful income finalization path already passed the durable queue operation ID into `markSynced`, but the permanent rejection path called `markAttentionNeeded(localId)` without the originating queue identity.
+
+That left the same stale-response race that was previously found in expense and cash-drawer rejection handling:
+
+1. income create A is in flight;
+2. newer local mutation/queue state exists for the same income record;
+3. A is rejected after the newer state exists;
+4. the old rejection can mark the current row `attentionNeeded`.
+
+### Fix applied
+
+- `IncomeRecordRepository.markAttentionNeeded` now accepts the optional durable `operationId`.
+- `IncomeSyncHandler` passes `item.id`.
+- Repository finalization now runs inside the SQLite transaction and:
+  - refuses to change sync state when the supplied queue operation no longer exists;
+  - refuses to park the row when a newer queue mutation exists;
+  - otherwise preserves the existing permanent-rejection behavior.
+- Added repository regression tests for missing operation identity and a newer queued mutation.
+
+### Current status
+
+**FIXED_PENDING_CI**
+
+CI run #2254 is currently in progress for commit `6a2146ab28b0a638e8e2cf7362b8a42c48953107`.
+
+### Remaining audit focus
+
+- Verify CI for this fix before marking it proven.
+- Continue entity-specific adversarial lifecycle coverage.
+- Continue full production `fulus_api_*` transaction/idempotency/change-feed tracing.
+- Continue process-death and cross-runtime queue/lease proof.
