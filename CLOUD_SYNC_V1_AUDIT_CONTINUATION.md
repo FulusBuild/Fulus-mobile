@@ -297,3 +297,71 @@ Returns:
 Next audit focus:
 - Dependency ordering and starvation/deadlock behavior in `SyncQueue` + `SyncEngine`.
 - Then adversarial lifecycle tests for create→update→archive/delete and in-flight replacement across all mutable entities.
+
+
+## 2026-09-25 queue-lifecycle audit continuation
+
+### Section 1 findings after full enqueue/repository/handler sweep
+
+Status: PARTIAL
+
+Verified lifecycle behavior:
+- Customer, category, supplier, and product support create/update plus archive/delete semantics through their update queue operation. An archive performed before first push is handled as create-first, followed by a deterministic archive/delete command.
+- Customer additionally supports explicit restore. Restore clears deletedAt and enqueues an update, so archive -> restore is represented by a newer durable mutation rather than an in-place queue rewrite.
+- Expense supports create/update only; there is no repository delete/archive operation.
+- Income record supports create only; there is no outbound update/delete/archive operation.
+- Location supports create only on the client; delete/update are pull/server reconciliation concerns.
+- Expense category supports create only in the client repository; delete/update are not represented as outbound client mutations.
+- Stock movement is create-only by design; sale movements are server-derived and transfers are currently unsupported by the cloud command path.
+- Sale is create-only in the outbound queue; local sale creation and its queue entry are transactional.
+- Return is create-only at the cloud-command layer and becomes queued only on completion. Approval/rejection remains local-only in this client sync pass.
+- Cash drawer has separate create/open and close operations. Closing requires a server identity, preventing close from overtaking create.
+- Customer ledger has only explicit repayment as a client mutation. Credit-sale/refund-adjustment ledger entries are server-derived projections.
+
+Queue replacement proof:
+- Update operations receive a fresh queue identity on each local mutation.
+- Therefore update -> archive/restore while an earlier update is in flight leaves a newer queue identity behind for the newer local state.
+- Generic SyncEngine coverage proves an old handler cannot delete a newer replacement queue row.
+- Repository-level product coverage proves an old completion cannot settle when its queue identity is missing or when a newer mutation is queued.
+- Entity-specific adversarial lifecycle coverage is still incomplete, so Section 1 remains PARTIAL.
+
+Concrete finding confirmed during this sweep:
+- A5 Product operation identity remains open. ProductSyncHandler helper methods accept nullable operation IDs and fall back to the entity local ID when called without a queue operation ID. Production queue dispatch currently passes the queue ID, but the helper contract still permits an unsafe local-ID operation identity and is not yet hardened to make the queue identity mandatory.
+- This is a concrete API-level safety gap, not a proven current queue-dispatch failure. It remains deferred until the audit inventory phase reaches the Product helper call graph and the full fix pass begins.
+
+### Dependency/starvation audit result
+
+Status: PARTIAL -> ENGINE SCHEDULING PROVEN
+
+Inspected:
+- lib/sync/sync_queue.dart
+- lib/sync/sync_engine.dart
+- lib/sync/sync_triggers.dart
+- test/sync/sync_engine_test.dart
+- test/sync/sync_queue_test.dart
+
+Verified:
+- Dependency-blocked work is deferred rather than permanently failed.
+- A prerequisite that appears later in the same drain can succeed and cause the dependent item to be retried in that drain.
+- Dependency/reference writes use priority 0 while sales/financial operations use priority 1.
+- A blocked item does not prevent unrelated later queue items from being attempted.
+- Automatic retry is supplied by periodic sync triggers, connectivity changes, foreground resume, and post-cycle enqueue follow-up.
+- Concurrent runOnce calls share one in-flight cycle.
+- A local mutation committed during an active sync cycle is intentionally deferred until the current push/pull cycle finishes, protecting the base-cursor ordering boundary.
+- There is no concrete starvation/deadlock defect identified in the inspected engine scheduling path.
+
+Remaining dependency proof:
+- Server-side dependency graph/RPC prerequisites still need to be audited against the client priority model.
+- True cross-runtime/background scheduling behavior still belongs to the process-death and operational reliability sections.
+
+### Next audit focus
+
+Continue Section 1/2 with adversarial coverage for:
+1. cash drawer create -> close while create is in flight;
+2. customer repayment finalization/recovery while a newer customer mutation is queued;
+3. return completion/rejection recovery while product/customer mutations change in flight;
+4. stock movement response reconciliation while a newer local stock mutation is queued;
+5. sale finalization/rejection recovery under newer product/customer mutations;
+6. create -> update -> archive/restore replacement across the remaining mutable entities.
+
+Do not mark Section 1 complete until those entity-specific boundaries have evidence.
