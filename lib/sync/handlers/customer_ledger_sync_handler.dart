@@ -121,6 +121,25 @@ class CustomerLedgerSyncHandler implements SyncHandler {
             operationId: operationId,
             enqueuedAt: enqueuedAt,
           )) return;
+
+          // A repayment is itself a customer projection mutation. A newer
+          // repayment has a different customer_ledger entity ID, so the
+          // generic same-entity fence cannot detect it. Inspect newer ledger
+          // queue rows and map them back to the same customer before applying
+          // this rejected repayment's canonical snapshot.
+          final newerRepayments = await (_db.select(_db.syncQueueItems)
+                ..where((q) => q.entityType.equals('customer_ledger'))
+                ..where((q) => q.id.isNotIn([operationId]))
+                ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+              .get();
+          for (final queued in newerRepayments) {
+            final newerLedger = await (_db.select(_db.customerLedgerEntries)
+                  ..where((e) => e.localId.equals(queued.entityLocalId))
+                  ..where((e) => e.customerLocalId.equals(customerLocalId)))
+                .getSingleOrNull();
+            if (newerLedger != null) return;
+          }
+
           await FulusCustomerCanonicalReconciler(repository: repository).apply(canonical);
         },
       );
