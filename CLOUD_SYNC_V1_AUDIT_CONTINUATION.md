@@ -479,3 +479,51 @@ Commit: dc9345f08c3295442a39db0321ced07bd3e8ee55
 Next audit focus:
 - Verify analogous cross-entity projection fences in sale/return rejection recovery, especially newer stock movements or repayments affecting the same product/customer projection.
 - Continue the remaining RPC transaction/idempotency/change-feed and process-death audits.
+
+
+## 2026-09-25 — Sale/return rejection projection race audit
+
+### Finding: rejected sale/return recovery crossed entity streams without a sufficient freshness fence
+
+The rejection paths were already protected against a newer mutation of the same product/customer entity. That was not sufficient for the projections they were repairing:
+
+- a newer stock_movement can target the same product/location while having a different queue entity type and local ID;
+- a newer customer repayment can change the same customer's balance while having customer_ledger as its queue entity type;
+- a rejected sale can leave an optimistic local customer credit projection behind if its canonical customer snapshot is not restored;
+- a rejected return can similarly need customer canonical recovery after its local refund adjustment.
+
+The generic same-entity queue fence therefore did not fully prove that an old sale/return rejection response could not overwrite a newer projection.
+
+### Fix applied
+
+Sale rejection recovery now:
+
+1. fences product canonical reconciliation against newer stock_movement queue rows for the same product/location;
+2. reconciles the affected customer from the canonical customer snapshot;
+3. fences that customer reconciliation against newer customer mutations and newer repayment ledger entries.
+
+Return rejection recovery now:
+
+1. fences product canonical reconciliation against newer stock_movement queue rows for the same product/location;
+2. fences customer canonical reconciliation against newer customer mutations and newer repayment ledger entries.
+
+The new checks run inside the existing protected SQLite transaction so the freshness decision and projection write share the same writer boundary.
+
+SaleSyncHandler is now wired with CustomerRepository so rejected credit-sale projections can be restored from the authoritative customer snapshot.
+
+### Regression coverage
+
+Added sale-sync adversarial tests covering:
+
+- rejected sale canonical customer recovery being suppressed by a newer repayment;
+- rejected sale canonical product recovery being suppressed by a newer stock movement.
+
+Production/test source review was performed before CI: changed files had balanced braces and the new queue-identity paths were inspected for malformed operation IDs or duplicate-brace syntax.
+
+### Current status
+
+**Fixed and CI verification pending for this iteration.**
+
+### Remaining audit focus
+
+Next boundary: complete the same cross-entity projection-race review for other rejection/failure paths, then move to the deeper server-side mutation-wrapper proof: transaction scope, idempotency locking, base-cursor conflict handling, and change-feed emission across every live fulus_api_* mutation command.
