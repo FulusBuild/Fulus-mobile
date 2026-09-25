@@ -387,3 +387,32 @@ Required fix:
 - Make operation identity non-null for queue-driven mutation helpers.
 - Preserve deterministic child identities such as `:delete` only when explicitly derived from the parent durable operation ID.
 - Add regression coverage proving Product update/delete cannot submit with the entity local ID as operation identity.
+
+
+## Audit continuation: operation identity and business-boundary sweep
+
+### Operation identity sweep
+
+The sync-handler operation-ID sweep was completed across all 13 production handlers.
+
+Verified:
+- Queue-driven create/update/close/repayment operations use the durable queue item ID.
+- Category and supplier archive/delete follow-ups derive a deterministic child ID from the parent durable operation ID.
+- Customer archive/update uses a deterministic archive operation identity derived from the queue operation.
+- Stock adjustment and stock movement use the queue item ID even though they map to different server command types.
+- Expense-category no longer falls back to the entity local ID; the queue item ID is asserted by regression test.
+
+Remaining concrete issue:
+- Product helper methods still accept nullable operation IDs and fall back to the entity local ID. This is tracked as A5 and remains unfixed until the audit ledger phase is complete.
+
+### Business-boundary sweep
+
+A4 remains a concrete finding. The current guard performs a final pending-queue check after waiting for sync idle, but ordinary local mutation enqueue remains intentionally lease-free. There is still a commit window between that final check and the selected-business assignment. Because the local cloud dataset is single-business, the switch must close that window atomically.
+
+### Server/change-feed sweep observations
+
+The current Edge API routes cloud mutations through service-role RPC wrappers rather than directly mutating business tables. Recent migrations also harden operation identity, device/user binding, optimistic-concurrency row locking, and SECURITY DEFINER search paths.
+
+The customer balance change trigger now emits a customer canonical change when outstanding balance changes, covering balance mutations that previously emitted only ledger changes. Catalog tables have database-level sync-change triggers so direct server-side catalog mutations cannot silently bypass the feed.
+
+No additional concrete server idempotency or change-feed race was promoted to a finding from this sweep. The remaining audit work is to prove the effective RPC grants, all mutation transaction boundaries, duplicate-event behavior, and the remaining process-death/data-integrity cases rather than infer correctness from migration intent.
