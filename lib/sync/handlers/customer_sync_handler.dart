@@ -128,6 +128,7 @@ class CustomerSyncHandler implements SyncHandler {
       localId: customer.localId,
       serverId: serverId,
       duplicateWarning: data['duplicate_warning'] as String?,
+    operationId: item.id,
     );
   }
 }
