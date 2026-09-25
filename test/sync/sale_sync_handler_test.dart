@@ -211,6 +211,9 @@ void main() {
           'data': {'entity_id': 'server-sale-A'},
         });
 
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
+
     final sale = await createLocalSale();
     await authRepository.setActiveLocationId('loc-2');
 
@@ -263,6 +266,9 @@ void main() {
         )).thenAnswer((_) async => {
           'data': {'entity_id': 'server-sale-A'},
         });
+
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
     final sale = await createLocalSale();
     final queuedBeforeRestart = await (db.select(db.syncQueueItems)
@@ -350,6 +356,9 @@ void main() {
           Map<String, dynamic>.from(invocation.namedArguments[#payload] as Map);
       return submitCompleter.future;
     });
+
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
 
     final sale = await createLocalSale();
     await authRepository.setActiveLocationId(locationId);
