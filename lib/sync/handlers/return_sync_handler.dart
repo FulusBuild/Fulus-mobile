@@ -120,7 +120,15 @@ class ReturnSyncHandler implements SyncHandler {
             entityId: serverId,
             deviceClientId: deviceClientId,
           );
-          await _executionLease.runProtectedTransaction(_db, () => reconciler.apply(canonical));
+          await _executionLease.runProtectedTransaction(_db, () async {
+            if (await _executionLease.hasNewerQueueMutation(
+              entityType: 'product',
+              entityLocalId: localId,
+              operationId: item.id,
+              enqueuedAt: item.enqueuedAt,
+            )) return;
+            await reconciler.apply(canonical);
+          });
         } catch (_) {}
       }
     }
