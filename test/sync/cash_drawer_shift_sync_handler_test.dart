@@ -75,6 +75,7 @@ void main() {
     when(() => repository.markSynced(
           localId: any(named: 'localId'),
           serverId: any(named: 'serverId'),
+          operationId: any(named: 'operationId'),
         )).thenAnswer((_) async {});
     when(() => locationRepository.getLocationById('loc-1')).thenAnswer((_) async => location);
   });
