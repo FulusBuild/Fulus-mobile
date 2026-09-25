@@ -149,7 +149,7 @@ class ProductSyncHandler implements SyncHandler {
       if ((data['entity_id'] as String?) != serverId) {
         throw StateError('Fulus product delete returned an unexpected entity ID.');
       }
-      await _productRepository.markSynced(localId: localId, serverId: serverId);
+      await _productRepository.markSynced(localId: localId, serverId: serverId, operationId: operationId);
       return;
     }
 
@@ -180,7 +180,7 @@ class ProductSyncHandler implements SyncHandler {
     if (returnedId != serverId) {
       throw StateError('Fulus product update returned an unexpected entity ID.');
     }
-    await _productRepository.markSynced(localId: localId, serverId: serverId);
+    await _productRepository.markSynced(localId: localId, serverId: serverId, operationId: operationId);
   }
 
   Future<String?> _resolveCatalogServerId({
