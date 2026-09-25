@@ -163,7 +163,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
           );
         }
       }
-      await (_db.update(_db.categories)..where((c) => c.localId.equals(localId))).write(
+      await (_db.update(_db.categories)..where((x) => x.localId.equals(localId))).write(
         CategoriesCompanion(
           serverId: Value(serverId),
           syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
@@ -172,4 +172,3 @@ class CategoryRepositoryImpl implements CategoryRepository {
       );
     });
   }
-
