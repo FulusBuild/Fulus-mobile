@@ -92,6 +92,18 @@ jobs:
       - name: Verify migration history after deployment
         run: bash tool/verify_supabase_migration_history.sh
 
+      - name: Verify production schema matches repository migrations
+        run: |
+          set -euo pipefail
+          rm -f /tmp/production-schema-diff.sql
+          supabase db diff --linked --schema public -o /tmp/production-schema-diff.sql
+          if [ -s /tmp/production-schema-diff.sql ]; then
+            echo "::error::Production public schema differs from the repository migration result."
+            cat /tmp/production-schema-diff.sql
+            exit 1
+          fi
+          echo "Production public schema matches the repository migration chain."
+
       # Keep production Edge Functions on the same reviewed main SHA as the
       # migrations. Deploy only after the migration step and re-check the
       # repository/production migration boundary before touching functions.
