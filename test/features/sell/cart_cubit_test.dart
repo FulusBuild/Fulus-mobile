@@ -160,6 +160,7 @@ void main() {
       businessSettingsApi: MockBusinessSettingsApi(),
       authRepository: authRepository,
       permissionRepository: PermissionRepositoryImpl(db: db),
+      executionLease: SyncExecutionLease(db),
     );
     final saleRepository = SaleRepositoryImpl(
       db: db,
