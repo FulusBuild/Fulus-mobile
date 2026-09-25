@@ -416,3 +416,233 @@ The current Edge API routes cloud mutations through service-role RPC wrappers ra
 The customer balance change trigger now emits a customer canonical change when outstanding balance changes, covering balance mutations that previously emitted only ledger changes. Catalog tables have database-level sync-change triggers so direct server-side catalog mutations cannot silently bypass the feed.
 
 No additional concrete server idempotency or change-feed race was promoted to a finding from this sweep. The remaining audit work is to prove the effective RPC grants, all mutation transaction boundaries, duplicate-event behavior, and the remaining process-death/data-integrity cases rather than infer correctness from migration intent.
+
+
+## Handoff: areas still to audit in the next session
+
+The full-audit-first phase is **not complete**. The next session should continue from this section and must not restart the audit or begin fixing A3/A4/A5 until the remaining inventory is audited.
+
+### 1. Queue lifecycle and mutation coalescing
+Audit every entity through the complete lifecycle:
+- create -> update before first push
+- create -> delete before first push
+- repeated update coalescing
+- update -> delete/archive
+- delete/archive -> recreate
+- blocked -> newer mutation
+- conflict -> newer mutation
+- permanent failure -> retry/new mutation
+- queue item replacement while an older handler is in flight
+- whether local entity sync status/server ID can be changed by an obsolete queue item
+
+Entities to verify explicitly:
+category, customer, customer_ledger, expense, expense_category, income_record, location, product, return, sale, stock_movement, supplier, cash_drawer_shift.
+
+### 2. Handler finalization and partial-success boundaries
+Continue the A3 investigation across every handler:
+- exact point where server success becomes local settlement
+- exact point where server ID is assigned
+- all local writes after network awaits
+- whether finalization revalidates queue-item identity/currentness
+- whether stock, ledger, balance, inventory and aggregate writes have the same protection
+- multi-step commands where one server mutation succeeds before a later local step fails
+- deterministic child operation IDs and replay behavior
+
+Do not assume the existing lease around the sync cycle is sufficient.
+
+### 3. Product operation identity
+A5 is already documented. Before fixing it, verify the entire Product helper call graph:
+- create
+- update
+- delete
+- archive
+- any direct helper calls outside the queue handler
+- deterministic child operation IDs
+- tests that prove the queue item ID reaches the server API
+
+Then fix only after the audit ledger phase is complete.
+
+### 4. Queue priority, starvation and dependency graph
+Audit:
+- priority ordering
+- dependency edges and dependency lookup
+- cycles
+- permanently blocked dependencies
+- whether a high-priority item can starve lower-priority work indefinitely
+- whether one blocked entity can prevent unrelated entities from draining
+- retry scheduling and backoff interaction with dependency ordering
+- conflict/permanent-failure parking and later release
+
+### 5. Server RPC inventory and effective grants
+Perform a complete inventory of all mutation RPCs reachable from `fulus-api` and related sync functions:
+- every RPC name and overload
+- every SECURITY DEFINER function
+- effective EXECUTE grants
+- revoked legacy overloads
+- search_path hardening
+- direct table privileges
+- RLS policies
+- service-role-only functions
+- functions callable outside the intended Edge Function boundary
+
+For each mutation RPC, document:
+1. caller boundary
+2. auth/device/business checks
+3. idempotency claim
+4. request-hash validation
+5. row locking
+6. business mutation
+7. change-feed emission
+8. transaction atomicity
+9. response behavior on replay/conflict.
+
+### 6. Idempotency transaction atomicity
+Prove, rather than infer, that for every audited command:
+- idempotency claim and business mutation are in one atomic transaction
+- change-feed emission is in the same transaction where required
+- a transaction rollback removes the idempotency claim
+- a crash cannot leave a successful-looking idempotency row without the corresponding business mutation
+- replay after commit returns the durable prior result
+- same operation ID with a different payload is rejected
+- cross-device/business/user operation-ID collisions cannot cross authorization boundaries
+
+Pay special attention to any `ON CONFLICT DO NOTHING` followed by a non-locking read.
+
+### 7. Change-feed completeness and event semantics
+For every authoritative mutation:
+- identify the exact trigger/RPC/function that emits `sync_changes`
+- verify entity type and entity local/server ID
+- verify sequence assignment
+- verify timestamp semantics
+- verify delete/archive representation
+- verify aggregate mutations emit all dependent canonical changes
+- verify no authoritative mutation can commit without its required feed event
+- verify duplicate events do not regress canonical state
+- inspect recent customer-balance, sale-payment, return/catalog-sequence and stock-movement changes explicitly.
+
+### 8. Pull/cursor adversarial matrix
+Add to the audit ledger the result of tests for:
+- duplicate sequence
+- reordered sequence
+- sequence gaps
+- empty page with `hasMore`
+- repeated page with `hasMore`
+- cursor ahead of server response
+- stale page after another runtime/device advances the cursor
+- cursor persistence failure
+- cursor-too-old recovery
+- failure during recovery
+- process death during recovery
+- latest-sequence selection when multiple changes for one entity are in a page
+- multiple related entity changes with different sequences.
+
+### 9. Process-death and retry matrix
+Prove the following boundaries:
+- server commits, client dies before queue deletion
+- server rejects, client dies before canonical recovery
+- client dies during canonical apply
+- client dies after canonical apply but before cursor persistence
+- client dies after restore import but before transaction commit
+- client dies after restore commit but before readiness reconciliation
+- WorkManager/background restart while a lease is held
+- lease expiry during network suspension
+- repeated retries after process restart.
+
+Where device-level testing is impractical, explicitly record the strongest available integration/regression evidence and the remaining limitation.
+
+### 10. Multi-device concurrency matrix
+Audit each mutable entity for:
+- two devices editing the same row from the same base cursor
+- stale base cursor
+- one device committing while the other is offline
+- conflict followed by a newer local mutation
+- server-side idempotent replay from another device
+- device revocation during an in-flight command
+- device deletion/deactivation during retry
+- operation-ID collision across devices
+- convergence after canonical pull.
+
+### 11. Business switching isolation
+A4 is already documented. Complete the surrounding audit:
+- A -> B switch with an in-flight local mutation for A
+- A -> B while sync is draining
+- B -> A after failed switch
+- selected business changes during background sync
+- cursor storage isolation
+- queue/conflict isolation
+- credentials/device registration isolation
+- stale A queue item after B is selected
+- failed switch rollback and readiness state.
+
+### 12. Cloud restore failure/recovery matrix
+Beyond A1/A2:
+- invalid snapshot
+- missing required rows
+- FK failure
+- partial importer failure
+- transaction rollback
+- restore commit followed by readiness failure
+- restore followed by delta pull
+- stale cursor after restore
+- pending conflict/queue created concurrently
+- local mutation attempting to commit during restore
+- process death before and after restore commit.
+
+### 13. Data-integrity invariants
+Verify against authoritative server contracts and database constraints:
+- negative stock prevention
+- duplicate/negative inventory quantities
+- sale/payment totals
+- cash drawer balance
+- customer credit/repayment balance
+- over-return prevention
+- return quantity limits
+- orphaned sale/return/ledger children
+- impossible status transitions
+- duplicate server IDs
+- business/device ownership
+- malformed sync-change rows
+- unresolved conflict rows
+- permanently stuck queue rows.
+
+### 14. Security and effective RLS surface
+Audit current effective database behavior, not only migration history:
+- all RLS policies on sync-related tables
+- all SECURITY DEFINER functions
+- all EXECUTE grants and revoked overloads
+- service-role-only mutation paths
+- diagnostic/event insertion
+- device registration/revocation
+- cross-business access attempts
+- cross-user access attempts
+- malformed bearer/device combinations
+- search_path and function ownership assumptions
+- Auth configuration relevant to production sync security.
+
+### 15. Operational/reliability surface
+Audit:
+- network timeout behavior
+- HTTP retry classification
+- 4xx vs 5xx handling
+- rate-limit handling
+- server busy/SQLite busy handling
+- lease acquisition timeout behavior
+- renewal failure behavior
+- logging/diagnostics for lost lease and permanent failures
+- retry/backoff persistence
+- background scheduling overlap
+- whether failures can leave the sync engine permanently paused.
+
+### 16. Final audit closure
+Only after all areas above have been inspected:
+- update A-K statuses with evidence levels
+- add every newly proven finding to the findings list
+- distinguish concrete defects from unproven risks
+- record exact tests/E2E evidence and limitations
+- confirm the audit ledger itself reflects the current HEAD
+- then begin fixes in priority order, one finding at a time
+- every fix requires regression/E2E evidence and green CI before the next finding.
+
+### Next-session starting point
+
+Start at **Section 1: Queue lifecycle and mutation coalescing**, then proceed through Sections 2-15. Preserve A3, A4 and A5 as open findings. Do not mark any area complete merely because the implementation looks intentional. The next session should cite exact files/functions/tests for each conclusion and append newly discovered findings to this ledger.
