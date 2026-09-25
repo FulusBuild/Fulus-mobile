@@ -107,7 +107,7 @@ class SyncExecutionLease {
           ..where((q) => q.entityType.equals(entityType))
           ..where((q) => q.entityLocalId.equals(entityLocalId))
           ..where((q) => q.id.isNotIn([operationId]))
-          ..where((q) => q.enqueuedAt.isBiggerThanValue(enqueuedAt)))
+          ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
         .get();
     return rows.isNotEmpty;
   }
