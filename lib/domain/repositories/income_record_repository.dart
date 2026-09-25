@@ -17,7 +17,7 @@ abstract class IncomeRecordRepository {
   Future<void> markSynced({required String localId, required String serverId, String? operationId});
 
   /// Parks a permanently rejected local income record without deleting it.
-  Future<void> markAttentionNeeded(String localId);
+  Future<void> markAttentionNeeded(String localId, {String? operationId});
 
   /// Applies server-authoritative income state without creating an outbound
   /// sync task. The server location ID is resolved to this device's local
