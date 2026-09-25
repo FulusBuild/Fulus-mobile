@@ -138,13 +138,20 @@ class SupplierRepositoryImpl implements SupplierRepository {
   Future<void> markSynced({
     required String localId,
     required String serverId,
+    String? operationId,
   }) async {
-    await (_db.update(_db.suppliers)..where((s) => s.localId.equals(localId)))
+        final hasNewerMutation = operationId != null && await _syncQueue.hasNewerQueueMutation(
+      entityType: 'supplier',
+      entityLocalId: localId,
+      operationId: operationId!,
+      enqueuedAt: await (_db.select(_db.syncQueueItems)..where((q) => q.id.equals(operationId!))).getSingle().then((q) => q.enqueuedAt),
+    );
+await (_db.update(_db.suppliers)..where((s) => s.localId.equals(localId)))
         .write(
       SuppliersCompanion(
         serverId: Value(serverId),
-        syncStatus: const Value(SyncStatus.settled),
-        updatedAt: Value(DateTime.now()),
+        syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+        if (!hasNewerMutation) updatedAt: Value(DateTime.now()),
       ),
     );
   }
