@@ -1222,3 +1222,98 @@ Additional RPC tracing confirmed the current sale and return atomic wrappers cla
 No production data was modified during this sweep.
 
 Remaining high-value evidence gaps are now concentrated in failure injection and runtime behavior: cursor persistence failure, post-recovery delta failure, recovery process death, physical Android process kill/restart, and multi-device conflict convergence. These remain 🟡 until demonstrated with tests/runtime evidence.
+
+
+## 2026-09-25 — One-pass cursor/recovery + production-integrity continuation
+
+Status: 🟡 AUDIT IMPLEMENTATION ADVANCED; CI RUNNING; PHYSICAL ANDROID VALIDATION REMAINS THE ONLY NON-AUTOMATABLE RELEASE EVIDENCE GAP
+
+### Cursor persistence failure injection
+
+Added explicit failure injection to `FulusSyncCoordinator` for cursor persistence and regression coverage for both normal feed acknowledgement and authoritative restore-boundary persistence.
+
+Verified by tests:
+- a successfully reconciled change is not acknowledged when durable cursor persistence fails;
+- the durable cursor remains unchanged after that failure;
+- restore boundary persistence reports failure rather than falsely claiming the recovery boundary was acknowledged.
+
+Commits:
+- `03c723f4e07f8f53e542c86c35e93531dd1c261d` — inject cursor persistence failures
+- `3c109bdf5822df6efc3cde79421132b7e27e2569` — add cursor persistence failure tests
+
+GitHub Actions:
+- Fulus Mobile CI run `36172626555` / run #2309 is currently **pending** for `3c109bdf5822df6efc3cde79421132b7e27e2569`.
+- The immediately preceding run for the first commit was cancelled because the second push superseded it.
+- Do not mark these tests CI-proven until run #2309 completes.
+
+### Recovery matrix re-verification
+
+Current main already contains regression coverage for:
+- `SYNC_CURSOR_TOO_OLD` recovery followed by a failed post-recovery delta pull;
+- readiness remaining blocked until recovery and subsequent pull succeed;
+- duplicate/reordered/empty-page/cursor-ahead adversarial feed responses;
+- monotonic durable cursor handling;
+- business-isolated cursor state.
+
+Repository inspection confirms the recovery boundary is persisted only after the authoritative restore transaction commits. A failure to persist that boundary now has direct injected-test coverage.
+
+### Multi-device concurrency re-verification
+
+Current main and CI workflow contain the multi-device convergence E2E. The audited OCC contract remains:
+- mutation carries a durable base cursor;
+- same-entity concurrent writes are serialized server-side;
+- stale writes are rejected as a durable conflict;
+- conflict state is retained locally;
+- canonical state is not allowed to overwrite an unresolved local conflict;
+- explicit conflict resolution runs inside the same durable sync critical section.
+
+No new concurrency defect was found in this pass.
+
+### Production verification
+
+Live Supabase project `bejcuvoxemwomcatgyxz` was rechecked.
+
+Current production `fulus_api_update_expense` includes:
+- SECURITY DEFINER;
+- empty `search_path`;
+- active device/user binding;
+- location authorization;
+- locked idempotency-row replay handling in the base-cursor-aware overload;
+- optimistic concurrency using `target_base_cursor`;
+- authoritative expense + cash-ledger update and `sync_changes` emission.
+
+The database still contains historical overloads of this function, but the hardened current overload is present. Earlier ACL inspection established that the audited mutation wrapper surface is not executable by `anon`, `authenticated`, or `public`.
+
+Read-only integrity checks remain clean:
+- negative stock: 0
+- zero-quantity inventory movements: 0
+- orphan sale items: 0
+- orphan sale payments: 0
+- orphan return items: 0
+- malformed idempotency keys: 0
+- malformed sync-change rows with null business IDs: 0
+
+Supabase advisors continue to report:
+- `diagnostic_events` has RLS enabled with no policies (INFO);
+- leaked-password protection is disabled (WARN);
+- multiple permissive RLS policies and unused-index findings (performance advisories).
+
+These advisor findings are retained as hardening/maintenance items and were not changed blindly during the sync audit.
+
+### Release boundary after this pass
+
+🟢 Proven by implementation + regression/E2E + production evidence:
+- queue lifecycle and stale-finalization fencing;
+- dependency scheduling/starvation behavior;
+- mutation RPC authorization/idempotency/change-feed paths;
+- cursor ordering and recovery safety;
+- production integrity invariants;
+- multi-device OCC/convergence contract.
+
+🟡 Still open:
+- CI completion for cursor persistence failure injection;
+- literal physical Android process-kill/restart validation, including background WorkManager replay;
+- literal physical interruption between canonical local apply and cursor persistence;
+- final release-device verification.
+
+No production data was modified in this pass.
