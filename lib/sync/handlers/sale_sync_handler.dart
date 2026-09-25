@@ -4,6 +4,8 @@ import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_product_canonical_reconciler.dart';
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
+import 'package:fulus_mobile/domain/repositories/customer_repository.dart';
+import 'package:fulus_mobile/data/remote/fulus_customer_canonical_reconciler.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/repositories/sale_repository.dart';
 import 'package:fulus_mobile/core/errors/failure.dart';
@@ -19,6 +21,7 @@ class SaleSyncHandler implements SyncHandler {
     FulusConnectionState? fulusConnectionState,
     required SaleRepository saleRepository,
     ProductRepository? productRepository,
+    CustomerRepository? customerRepository,
     SalesApi? salesApi,
   })  : _db = db,
         _executionLease = executionLease,
@@ -26,6 +29,7 @@ class SaleSyncHandler implements SyncHandler {
         _fulusConnectionState = fulusConnectionState,
         _saleRepository = saleRepository,
         _productRepository = productRepository,
+        _customerRepository = customerRepository,
         _salesApi = salesApi;
   final SyncExecutionLease _executionLease;
 
@@ -34,6 +38,7 @@ class SaleSyncHandler implements SyncHandler {
   final FulusConnectionState? _fulusConnectionState;
   final SaleRepository _saleRepository;
   final ProductRepository? _productRepository;
+  final CustomerRepository? _customerRepository;
   // Retained for injection compatibility with existing callers/tests. It is
   // intentionally never used for writes: queued sales are Fulus Cloud-only.
   final SalesApi? _salesApi;
@@ -90,6 +95,13 @@ class SaleSyncHandler implements SyncHandler {
         await _reconcileProductsAfterRejectedSale(
           sale,
           device!.deviceClientId,
+          businessId,
+          operationId: item.id,
+          enqueuedAt: item.enqueuedAt,
+        );
+        await _reconcileCustomerAfterRejectedSale(
+          sale,
+          device.deviceClientId,
           businessId,
           operationId: item.id,
           enqueuedAt: item.enqueuedAt,
@@ -153,6 +165,19 @@ class SaleSyncHandler implements SyncHandler {
             operationId: operationId,
             enqueuedAt: enqueuedAt,
           )) return;
+          final newerMovements = await (_db.select(_db.syncQueueItems)
+                ..where((q) => q.entityType.equals('stock_movement'))
+                ..where((q) => q.id.isNotIn([operationId]))
+                ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+              .get();
+          for (final queued in newerMovements) {
+            final movement = await (_db.select(_db.stockMovements)
+                  ..where((m) => m.localId.equals(queued.entityLocalId))
+                  ..where((m) => m.productLocalId.equals(localId))
+                  ..where((m) => m.locationId.equals(sale.locationId)))
+                .getSingleOrNull();
+            if (movement != null) return;
+          }
           await reconciler.apply(canonical);
         });
       } catch (_) {
@@ -161,6 +186,55 @@ class SaleSyncHandler implements SyncHandler {
         // it or turn a deterministic rejection into a generic error.
       }
     }
+  }
+
+  Future<void> _reconcileCustomerAfterRejectedSale(
+    Sale sale,
+    String deviceClientId,
+    String businessId, {
+    required String operationId,
+    required DateTime enqueuedAt,
+  }) async {
+    final repository = _customerRepository;
+    final localId = sale.customerId;
+    if (repository == null || localId == null) return;
+    final customer = await (_db.select(_db.customers)
+          ..where((c) => c.localId.equals(localId)))
+        .getSingleOrNull();
+    final serverId = customer?.serverId;
+    if (serverId == null || serverId.isEmpty) return;
+    try {
+      final canonical = await _fulusSyncApi!.fetchCanonicalEntity(
+        businessId: businessId,
+        entityType: 'customer',
+        entityId: serverId,
+        deviceClientId: deviceClientId,
+      );
+      final reconciler = FulusCustomerCanonicalReconciler(repository: repository);
+      await _executionLease.runProtectedTransaction(_db, () async {
+        if (await _executionLease.hasNewerQueueMutation(
+          entityType: 'customer',
+          entityLocalId: localId,
+          operationId: operationId,
+          enqueuedAt: enqueuedAt,
+        )) return;
+        final newerRepayments = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.entityType.equals('customer_ledger'))
+              ..where((q) => q.id.isNotIn([operationId]))
+              ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+            .get();
+        for (final queued in newerRepayments) {
+          final ledger = await (_db.select(_db.customerLedgerEntries)
+                ..where((e) => e.localId.equals(queued.entityLocalId))
+                ..where((e) =>
+                    e.customerLocalId.equals(localId) &
+                    e.entryType.equals('repayment')))
+              .getSingleOrNull();
+          if (ledger != null) return;
+        }
+        await reconciler.apply(canonical);
+      });
+    } catch (_) {}
   }
 
   Future<String> _resolveLocationServerId(String localId) async {
