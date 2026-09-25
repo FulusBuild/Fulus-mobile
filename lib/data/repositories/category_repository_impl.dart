@@ -172,3 +172,4 @@ class CategoryRepositoryImpl implements CategoryRepository {
       );
     });
   }
+}
