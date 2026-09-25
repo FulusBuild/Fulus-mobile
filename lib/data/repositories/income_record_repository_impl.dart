@@ -107,13 +107,28 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
   }
 
   @override
-  Future<void> markAttentionNeeded(String localId) async {
-    await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId))).write(
-      IncomeRecordsCompanion(
-        syncStatus: const Value(SyncStatus.attentionNeeded),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  Future<void> markAttentionNeeded(String localId, {String? operationId}) async {
+    await _db.transaction(() async {
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current == null) return;
+        final hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+          entityType: 'income_record',
+          entityLocalId: localId,
+          operationId: operationId,
+          enqueuedAt: current.enqueuedAt,
+        );
+        if (hasNewerMutation) return;
+      }
+      await (_db.update(_db.incomeRecords)..where((i) => i.localId.equals(localId))).write(
+        IncomeRecordsCompanion(
+          syncStatus: const Value(SyncStatus.attentionNeeded),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
   }
 
   @override
