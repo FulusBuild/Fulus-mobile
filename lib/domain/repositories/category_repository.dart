@@ -29,5 +29,5 @@ abstract class CategoryRepository {
   /// Applies a canonical delete without enqueueing an outbound task.
   Future<void> reconcileDeleted(String serverId);
 
-  Future<void> markSynced({required String localId, required String serverId});
+  Future<void> markSynced({required String localId, required String serverId, String? operationId});
 }
