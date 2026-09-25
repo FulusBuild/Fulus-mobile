@@ -7,7 +7,7 @@ abstract class ExpenseCategoryRepository {
 
   Future<ExpenseCategory?> getExpenseCategoryById(String localId);
 
-  Future<void> markSynced({required String localId, required String serverId});
+  Future<void> markSynced({required String localId, required String serverId, String? operationId});
 
   Future<void> reconcileServerState({
     required String serverId,
