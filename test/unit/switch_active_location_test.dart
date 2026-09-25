@@ -143,6 +143,7 @@ void main() {
 
     firstLookup.complete(location('loc-b'));
     await first;
+    verify(() => locationRepository.getLocationById('loc-a')).called(1);
     await second;
 
     verifyInOrder([
