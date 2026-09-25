@@ -530,6 +530,33 @@ Next boundary: complete the same cross-entity projection-race review for other r
 
 ## 2026-09-25 — Location Switching & Isolation handoff
 
+### 2026-09-25 — Location mutation isolation regression coverage
+
+### 2026-09-25 — Location-safe restart/replay regression
+Status: 🟢 targeted restart/replay proof added for pending sales.
+
+Added a regression that:
+1. creates a pending sale in location A;
+2. confirms its durable outbox row exists;
+3. models an app restart with a fresh auth repository and fresh sale sync handler while the persisted active location is B;
+4. replays the pre-existing queue row; and
+5. asserts the cloud payload still contains A's server location identity and the settled sale remains attached to local location A.
+
+This extends the location boundary evidence across a fresh handler/repository lifecycle. It does not claim a literal OS process kill; the existing generic process-death replay test covers durable outbox survival, while this regression proves the location identity is preserved across the fresh-handler replay boundary.
+
+Remaining location boundary work: offline cached/uncached switching, B-side pending mutations, location-scoped projection refresh across the major screens, and broader multi-location stock/report/cash-drawer isolation.
+
+Status: 🟢 targeted regression coverage added for pending and in-flight mutations.
+
+Added adversarial tests on `feature/location-switching` proving:
+- A sale created under location A still submits `server-location-A` after the active location is switched to B before replay.
+- A sale already inside `submitOperation` keeps its captured A payload while the active location changes to B before the network future completes.
+- The completed sale remains associated with local location A after the in-flight operation settles.
+- A pending stock movement created for A submits `server-location-A`, never B, using the persisted movement location.
+
+This closes the previously identified end-to-end A→B→sync payload proof gap for the covered sale and stock-movement mutation paths. The broader location audit still requires restart/process-death replay evidence, offline cached/uncached switching, B-side pending mutations, multi-location projection isolation, and UI/report/cash-drawer refresh verification.
+
+
 ### Audit status
 
 **AUDIT INVENTORY / IMPLEMENTATION HANDOFF**
@@ -652,6 +679,320 @@ Do not merge the location branch into `main` until:
 - the implementation does not weaken existing business-switching, queue, idempotency, cursor, or canonical-reconciliation guarantees.
 
 **Evidence standard:** 🟢 Proven = implementation + meaningful tests/production evidence + CI. 🟡 Partial = implementation exists but an important proof layer is missing. 🔴 Unknown = not verified or contradictory evidence.
+
+
+## 2026-09-25 — Location durable mutation identity audit
+
+### Finding
+
+**Status: 🟢 IMPLEMENTATION-PROVEN / TARGETED REGRESSION COVERAGE STILL REQUIRED**
+
+The location-switching audit traced the durable outbox and production sync handlers.
+
+The sync queue does **not** store a separate mutable "current location" field. Instead, each queue row durably identifies the local entity by `entityType + entityLocalId`. The authoritative location is read from that persisted entity when the handler executes.
+
+Verified examples:
+- Sale sync resolves the server location from `sale.locationId`.
+- Stock movement sync resolves the server location from `movement.locationId`.
+- Expense sync resolves the persisted expense location.
+- Income sync resolves the persisted income-record location.
+- Cash-drawer sync resolves the persisted shift location.
+- Return/sale stock reconciliation uses the persisted sale/movement location relationships.
+
+This is the correct isolation direction: changing the active UI/session location does not rewrite the location on an already-created mutation.
+
+### Important invariant verified
+
+The active location is stored separately in the current session via `AuthRepository.setActiveLocationId()`. The sync handlers inspected for location-bound mutations do not use that active session location to construct the mutation's location identity.
+
+Therefore the critical sequence is structurally supported:
+
+`create mutation in A -> queue durable local entity -> switch active UI location to B -> replay queue item -> resolve location from the original entity -> submit A`.
+
+The queue row itself remains unchanged by an active-location switch.
+
+### Queue/in-flight boundary
+
+`SyncEngine` selects durable queue rows and passes the exact queue item to the handler. The handler then resolves the entity by `item.entityLocalId`. Active-location switching does not replace that queue item or rebind its entity.
+
+The existing queue/finalization hardening also means an old in-flight operation cannot simply settle a newer queue mutation after the queue identity has been replaced.
+
+### Remaining proof gap
+
+The architecture is sound for the inspected paths, but the audit should still add an explicit adversarial regression that demonstrates the complete boundary rather than relying only on source inspection:
+
+1. create a mutation for location A;
+2. leave it pending;
+3. switch active location to B;
+4. execute the queued handler;
+5. assert the submitted payload contains A's server location ID;
+6. assert B's active session ID was never substituted;
+7. repeat after the mutation survives a restart/replay.
+
+This test should cover at least sale and stock movement because they represent the two most important location-bound mutation classes.
+
+### Classification
+
+- **Durable mutation location identity:** 🟢 implementation-proven.
+- **Active-location substitution during sync:** 🟢 no production path found in inspected handlers.
+- **Queue identity surviving switch:** 🟢 implementation-proven.
+- **End-to-end A→B→sync payload proof:** 🟡 targeted regression test still required.
+- **Process-death A→B replay proof:** 🟡 already supported by durable queue architecture, but location-specific replay evidence remains required.
+
+Do not add a redundant `locationId` to every queue row solely for this finding unless a later audit discovers an entity whose persisted location can be mutated independently of its durable mutation identity. The current queue design intentionally resolves authoritative foreign identities from the local entity.
+
+## 2026-09-25 — Offline location switching regression
+
+Status: 🟢 targeted offline switching coverage added.
+
+Verified the location switch contract is offline-first:
+- A→B succeeds when B already exists in the local location cache; switching does not require a network call.
+- A→B fails clearly when B is not cached locally, which prevents activating an unknown/unavailable location while offline.
+- A failed uncached switch leaves A as the active location and does not write B to the persisted active-location session.
+- This preserves the required boundary: cached locations can be selected offline, while unavailable locations must be synced before activation.
+
+Regression coverage added in:
+`test/unit/switch_active_location_test.dart`
+
+Remaining location audit work:
+- B-side pending local mutations during A→B.
+- location-scoped stock/projection isolation.
+- dashboard/report/cash-drawer refresh after switching.
+- switching during sync and other in-flight location-scoped operations.
+
+
+## 2026-09-25 — Location-scoped dashboard projection audit
+
+Status: 🟢 targeted dashboard isolation fix and regression coverage added.
+
+The location-switching audit found a real projection gap in Home: the dashboard repository queried today's/yesterday's sales and cash-drawer status without a location predicate, and its low-stock notice summed stock levels across all locations. That meant switching from A to B could leave Home showing another location's sales, drawer state, or low-stock count.
+
+Fixed on `feature/location-switching`:
+- `DashboardRepository.getHeroState` now requires the active `locationId`.
+- Sales totals and counts are filtered by that location.
+- Open/closed cash-drawer state is filtered by that location.
+- `getSecondaryNotices` now requires `locationId` and scopes low-stock projection to that location.
+- Home resolves the active location for each dashboard load and reloads on the existing `dataRefreshSignalProvider` fired by a location switch.
+- Existing recent-activity feed already resolves the active location inside `RealMoneyRepositoryImpl`, so it remains location-bound.
+- Reports already listen to `dataRefreshSignalProvider` and pass the active location to cash-flow reporting.
+- Cash-drawer repository methods require location IDs and the real money repository resolves the active location before drawer operations.
+
+Regression coverage now proves:
+1. A and B sales do not mix in the Home hero totals.
+2. An open drawer in B does not make A appear open.
+3. Low-stock projection only counts the requested location's stock levels.
+
+Remaining location audit work: B-side pending mutations, broader multi-location stock/report coverage, and switching while sync/in-flight location-scoped UI work is active.
+
+
+## 2026-09-25 — Multi-location stock and reports isolation
+
+Status: 🟢 targeted stock/report isolation fixes and regression coverage added.
+
+Audit found that the product catalog read paths were already location-scoped through `ProductStockLevels.locationLocalId`, and stock movement recording/reconciliation already binds product stock to the movement location. A new B-side pending mutation regression also proves a queued B stock movement cannot replay against active A.
+
+A broader projection gap was found in `ReportsRepositoryImpl`: inventory stock, recent stock movements, employee sales, sales, customer sales, and finance aggregates needed an explicit location boundary. Reports now require a resolved `locationId`; the Reports screen resolves the active location and reloads the report futures when the location context changes. Inventory stock and movement queries, sales, customer sales, employee sales, finance sales/COGS/income/expenses, and prior-period finance values are location-scoped. Business-global customer balance/roster data remains intentionally global where the schema models it as business-wide rather than location-owned.
+
+Regression coverage now proves:
+1. Sales report for A excludes B sales.
+2. Inventory report for A excludes B stock and B stock movements.
+3. Existing dashboard tests prove A/B sales, drawer state, and low-stock projection isolation.
+4. Existing product repository queries prove stock joins are location-bound.
+
+Remaining location audit work: switching during sync/in-flight location-scoped UI work, plus a final compile/test/CI verification pass before merge. The PR remains unmerged until those checks are complete.
+
+
+## 2026-09-25 — Location report drill-down audit
+
+Status: 🟢 location-bound summary reports are wired; one drill-down caller gap was found and fixed.
+
+During the independent location-isolation pass, the ReportsRepository interface had been widened so all report queries require an explicit location identity. The main Reports screen already supplied the active location, and the repository implementation scopes the location-bound report data.
+
+A remaining caller in `SalesTransactionsScreen` still called `getSalesReport()` without the active location. That was corrected on `feature/location-switching` so the drill-down resolves the current active location before querying.
+
+This matters because a summary report could be location A while its drill-down was otherwise capable of querying without an explicit location boundary.
+
+Remaining location audit work:
+- broader stock/projection isolation under A→B switching;
+- cash-drawer isolation and refresh under A→B;
+- in-flight switch/read race coverage across the major location-scoped screens;
+- server-side location membership/access enforcement and canonical pull isolation;
+- process-death during an actual switch transition.
+
+
+## 2026-09-25 — Product stock pull/create location boundary
+
+Status: 🟢 targeted product location fixes applied; broader backend contract remains to be independently verified.
+
+Audit found two location-sensitive product paths. Product pull previously selected an arbitrary local location with `getSingleOrNull()` even though the product endpoint returns a single `current_stock` value. It now writes that projection to the persisted active local location instead of whichever location happens to be first in the Locations table.
+
+Product create sync previously selected a stock row with `getSingleOrNull()`. A product can acquire another location's stock projection before its create mutation replays, so this was not deterministic. The handler now selects the oldest stock projection as the product's original initial-stock/location pair; later location stock changes remain separate stock-movement mutations. This reduces cross-location identity risk without conflating later stock with product creation.
+
+Important remaining contract item: the mobile repository cannot prove from this repo alone which server location `GET /api/inventory/products`'s singular `current_stock` represents. The endpoint has no location query parameter. The active-location write is therefore the safe client boundary, but the backend endpoint contract should be independently verified before declaring multi-location product pull fully closed.
+
+
+## 2026-09-25 — In-flight location-scoped stock/UI audit
+
+Status: 🟢 client-side location boundary verified.
+
+Inspected Stock overview, stock providers, record-stock flow, stock movement repository, Home, Reports, and the active-location refresh path. Stock products and movement streams are keyed by explicit location IDs. Stock mutations capture the active location when the user submits the mutation and persist that location on the movement before enqueueing. The repository updates the matching product/location stock projection transactionally, so an active-location switch after mutation creation cannot rewrite the mutation's location identity. Home and Reports reload their location-scoped projections from the active-location provider after a switch. The Sell flow separately rebuilds its CartCubit when the active location changes.
+
+No additional client-side change was required in this pass. Remaining location boundary work is now primarily server-side canonical pull/access verification and final regression/CI verification. The product GET endpoint's singular current_stock contract still requires backend-side verification before that specific pull path can be considered fully closed.
+
+
+## 2026-09-25 — Server-side location membership / canonical pull audit
+
+Status: 🟡 SECURITY / ACCESS-BOUNDARY GAP FOUND — NOT CLOSED
+
+The server schema explicitly defines `location_memberships` as the mechanism that "restricts users to the locations they may operate", and exposes `is_location_member(location_id)` for that purpose. However, the current repository-wide RPC audit found that `is_location_member()` is not used by the inspected location-bound mutation RPCs.
+
+Observed pattern:
+- location-bound RPCs commonly verify active business membership plus the target location belongs to the same business;
+- that proves tenant/business isolation, but does not by itself prove that a non-admin user is authorized to operate the selected location;
+- the restore snapshot is also business-wide: it returns all business locations, all location memberships, and all product stock levels for the business.
+
+This is distinct from the client-side A→B isolation work already proven. The mobile client correctly keeps a mutation tied to its persisted location identity, but server authorization must independently enforce whether the authenticated actor may use that location.
+
+Evidence:
+- `location_memberships` schema comment: it restricts users to locations they may operate.
+- `is_location_member(uuid)` exists but repository search found no production RPC call sites beyond its definition/security hardening.
+- Inventory RPCs checked validate business ownership of the target location but do not call `is_location_member()`.
+- The restore snapshot is business-scoped rather than filtered to the actor's location memberships.
+
+Required next step before declaring the location security boundary fully closed:
+1. Establish the authoritative role contract: whether owner/admin may operate every location and whether ordinary members require an active location membership.
+2. Audit every location-bound mutation RPC and read/canonical-pull path against that contract.
+3. Add server regression coverage for an authenticated user who belongs to business A but is not an active member of location B.
+4. Verify that such a user cannot mutate or receive unauthorized location-scoped operational data from B.
+5. Verify the selected location remains valid after membership suspension/removal.
+6. Only then classify server-side location membership enforcement as 🟢.
+
+No client-side change was made for this finding because changing the UI cannot substitute for authoritative server authorization.
+
+Current PR/CI boundary:
+- PR #71 remains open and unmerged.
+- Latest head: `bbd2a298213d6c8dc4f58248349fd6e97d5762c2`.
+- GitHub Actions reports no workflow run for this head yet.
+- Vercel status is currently successful.
+- Therefore the branch is not yet eligible for a "full CI green" claim.
+
+
+## 2026-09-25 — Server-side location authorization enforcement
+
+Status: 🟡 IMPLEMENTED IN PRODUCTION; ADVERSARIAL MEMBER TESTING STILL REQUIRED
+
+The authoritative role contract is now grounded in the existing schema: `is_business_admin()` already defines owner/admin as business-wide administrators, while `location_memberships` is explicitly documented as restricting users to locations they may operate. The new `require_location_access(business_id, location_id)` helper therefore permits an active owner/admin to operate any active location in their business and requires an active location membership for other users.
+
+Implemented in migration `20260925160000_enforce_location_membership_on_api_mutations.sql` and applied to production project `bejcuvoxemwomcatgyxz`:
+- direct location mutations: inventory adjustment, inventory quantity, sale creation, expense creation/update, cash-drawer opening, and income recording;
+- indirect location mutations: return creation and sale payment derive authorization from the referenced sale;
+- cash-drawer close derives authorization from the referenced shift;
+- inactive/unknown locations are rejected before mutation;
+- helper functions are revoked from direct client execution.
+
+Production verification:
+- all targeted authenticated API functions now contain the location authorization guard;
+- an owner of business B was successfully authorized for another active B location where that owner has no explicit location-membership row, confirming the existing owner/admin contract is preserved;
+- a user from business A was rejected when attempting to authorize against a B location, confirming cross-business isolation;
+- production currently contains only active owner memberships, so a true same-business non-admin/non-member adversarial case cannot be executed against an existing production identity without creating test identity data. That regression remains required.
+
+Remaining security work:
+- add/execute a dedicated non-admin same-business unauthorized-location regression;
+- verify suspension/removal immediately blocks location mutations;
+- audit canonical location-scoped reads/pulls, especially the singular product `current_stock` endpoint and business-wide restore/sync bootstrap payloads;
+- then re-run branch CI and reassess PR #71.
+
+
+## 2026-09-25 — Canonical sync read location isolation
+
+Status: 🟡 CODE FIXED ON BRANCH; PRODUCTION EDGE FUNCTION DEPLOYMENT PENDING
+
+Audit of `fulus-sync-state` found a separate read-boundary gap. The Edge Function authenticates the caller and verifies business membership, but it uses a service-role client and previously returned business-wide canonical rows. In particular, product canonical reads returned all `product_stock_levels` rows, while sale/expense/income/cash-drawer/stock-movement/location canonical reads were not checked against the caller's location access. Return reads also lacked an authorization check derived from their sale location.
+
+The branch now adds the same established authorization contract used by the mutation boundary:
+- owner/admin users receive access to all active locations in their business;
+- other users receive only locations with an active `location_memberships` row;
+- product canonical reads expose only stock levels from accessible locations;
+- sale, expense, income, cash-drawer, stock-movement and location reads reject unauthorized location entities;
+- return reads derive authorization from the referenced sale location;
+- batch canonical reads reject unauthorized location-scoped rows.
+
+The branch code was committed in `fulus-sync-state/index.ts`. The production Edge Function remains on its previous version because the Supabase Edge Function deployment action was blocked by the platform safety gate during this pass. No claim of production deployment is made.
+
+Remaining:
+- deploy the reviewed Edge Function through an approved Supabase deployment path;
+- exercise authorized and unauthorized canonical reads with real authenticated identities;
+- verify product stock never crosses location membership boundaries;
+- complete same-business non-admin adversarial mutation/read tests;
+- rerun CI/status after the branch changes.
+
+## 2026-09-25 — Incremental sync change-feed location isolation
+Status: 🟡 CODE FIXED ON BRANCH; PRODUCTION DEPLOYMENT/ADVERSARIAL VERIFICATION PENDING
+
+Audit finding: `supabase/functions/fulus-api/index.ts` served the business-wide `sync_changes` feed through a service-role client without location filtering. This could expose another location's operational change payload to a non-admin member of the same business.
+
+Fix on `feature/location-switching`:
+- Resolve active business role and location memberships for the authenticated user.
+- Treat owner/admin as business-wide location administrators, matching the canonical sync-read contract.
+- Filter location-scoped change types (`sale`, `expense`, `income_record`, `cash_drawer_shift`, `location`, `stock_movement`, `return`) by payload `location_id`.
+- Preserve business-global/catalog changes.
+- Scan the feed in sequence order and advance `next_cursor` to the last scanned sequence so filtered rows cannot cause authorized changes to be skipped.
+
+Commit: `d9581922fa2473173e0e2529efeba03b5e3c7e5f`
+
+Remaining: deploy the updated Edge Function(s), then exercise same-business non-admin/member and cross-location incremental-sync adversarial cases in a test environment.
+## 2026-09-25 — Restore snapshot authorization audit
+Status: 🟢 PRODUCTION AUTHORIZATION VERIFIED
+
+Audited production `build_fulus_restore_snapshot(p_business_id, p_user_id)`. The SECURITY DEFINER function only constructs a snapshot when the supplied user is an active business member with role `owner` or `admin`; otherwise it returns no snapshot and raises `Restore is not authorized for this business`. The snapshot is intentionally business-wide because restore is an administrative business-recovery operation, not an ordinary location-scoped operational read.
+
+No code change required for this path. Location-scoped canonical reads remain protected separately by the `fulus-sync-state` boundary and incremental sync feed.
+
+
+## 2026-09-25 — Incremental change-feed authoritative location derivation
+
+Status: 🟢 CODE FIXED AND PRODUCTION DEPLOYED; ADVERSARIAL NON-ADMIN EXECUTION STILL REQUIRES ISOLATED AUTH IDENTITY
+
+A deeper change-feed audit found that filtering solely on payload.location_id was insufficient:
+- sale change payloads emitted by the authoritative sale/payment paths do not consistently contain location_id;
+- location changes identify the location through entity_id, not a nested location field;
+- return location is derived from the referenced sale.
+
+The incremental sync filter in supabase/functions/fulus-api/index.ts was hardened to resolve location access from authoritative rows when the payload does not carry a location:
+- location uses entity_id;
+- sale resolves sales.location_id;
+- return resolves returns.sale_id -> sales.location_id;
+- entities that already carry payload.location_id continue using that explicit location;
+- sequence scanning and next_cursor behavior remain unchanged.
+
+Production deployment:
+- fulus-api version 51 is ACTIVE on project bejcuvoxemwomcatgyxz.
+- The deployed function was fetched back and verified to contain the authoritative sale/return/location derivation logic.
+
+This closes a real completeness/security issue where an overly strict payload-only filter could either suppress authorized sale changes or fail to establish a reliable location boundary.
+
+Remaining proof gap:
+- execute the same-business non-admin member/non-member adversarial read against an isolated authenticated identity. No production test identity was created.
+
+
+## 2026-09-25 — Cloud reporting location authorization
+
+Status: 🟢 FIXED AND PRODUCTION DEPLOYED
+
+The production `fulus-reporting-api` Edge Function was independently audited as another service-role read boundary. A non-admin business member could previously supply an arbitrary `location_id`, or omit it entirely, because the function checked only business membership. That meant the report API did not enforce the same location-membership contract as canonical sync and mutations.
+
+Fixed:
+- owner/admin users can report across active business locations;
+- non-admin users must have an active `location_memberships` row for the requested location;
+- non-admin users cannot request a business-wide report by omitting `location_id`;
+- unauthorized or inactive locations are rejected;
+- location-scoped cash-flow queries now filter `cash_ledger.location_id` as well as sales and expenses.
+
+Production deployment:
+- `fulus-reporting-api` version 4 is ACTIVE.
+- The deployed function was fetched back and verified to contain `LOCATION_REQUIRED`, location authorization, and the location-filtered cash ledger query.
+
+This closes the additional service-role reporting read boundary discovered during the final location-security pass.
 
 
 ## 2026-09-25 — Income rejection finalization audit
