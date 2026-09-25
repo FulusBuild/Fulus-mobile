@@ -64,6 +64,7 @@ class LocationSyncHandler implements SyncHandler {
     await _locationRepository.markSynced(
       localId: location.localId,
       serverId: serverId,
+    operationId: item.id,
     );
   }
 }
