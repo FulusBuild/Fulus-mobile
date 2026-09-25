@@ -137,6 +137,27 @@ class SyncQueue {
     });
   }
 
+  /// Returns whether a newer durable queue mutation exists for the same
+  /// entity, excluding [operationId]. Call this from a repository transaction
+  /// so the queue check and the final sync-state write share the same SQLite
+  /// writer transaction. This closes the stale-handler completion race: if a
+  /// newer local mutation already committed, an older network response may
+  /// still establish the server identity but must not settle the newer state.
+  Future<bool> hasNewerQueueMutation({
+    required String entityType,
+    required String entityLocalId,
+    required String operationId,
+    required DateTime enqueuedAt,
+  }) async {
+    final rows = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.entityType.equals(entityType))
+          ..where((q) => q.entityLocalId.equals(entityLocalId))
+          ..where((q) => q.id.isNotIn([operationId]))
+          ..where((q) => q.enqueuedAt.isBiggerOrEqualValue(enqueuedAt)))
+        .get();
+    return rows.isNotEmpty;
+  }
+
   /// Seeds the durable queue with business records that already existed
   /// before cloud backup was connected. Normal repository writes enqueue
   /// themselves, but a business created offline can contain historical rows
