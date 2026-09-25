@@ -36,7 +36,7 @@ class _FakeLocationRepository implements LocationRepository {
   @override
   Future<Location> getOrCreateDefaultLocation({required String name}) => throw UnimplementedError();
   @override
-  Future<void> markSynced({required String localId, required String serverId}) => throw UnimplementedError();
+  Future<void> markSynced({required String localId, required String serverId, String? operationId}) => throw UnimplementedError();
   @override
   Future<void> syncFromServer() => throw UnimplementedError();
 }
