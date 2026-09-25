@@ -187,7 +187,8 @@ class BusinessSettingsRepositoryImpl implements BusinessSettingsRepository {
     // referenced by another table (AuditLogs, AppNotifications,
     // PairedPrinters, SyncQueueItems, ExpenseCategories, Expenses,
     // IncomeRecords, Categories) can go in any order, grouped up front.
-    await _db.transaction(() async {\n      await _executionLease.ensureHeldForTransaction();
+    await _db.transaction(() async {
+        await _executionLease.ensureHeldForTransaction();
       await _db.delete(_db.saleItems).go();
       await _db.delete(_db.salePayments).go();
       await _db.delete(_db.customerLedgerEntries).go();
