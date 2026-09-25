@@ -40,7 +40,7 @@ class ProductSyncHandler implements SyncHandler {
     }
   }
 
-  Future<void> _syncCreate(String localId, {String? operationId, int? baseCursor}) async {
+  Future<void> _syncCreate(String localId, {required String operationId, int? baseCursor}) async {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
     final businessId = _fulusConnectionState.selectedBusinessId;
@@ -83,7 +83,7 @@ class ProductSyncHandler implements SyncHandler {
       // Otherwise the next pull can legitimately overwrite local-first stock to 0.
       'location_id': stockLocationId,
     };
-    final createOperationId = operationId ?? localId;
+    final createOperationId = operationId;
     final result = await _fulusSyncApi.submitOperation(
       businessId: businessId,
       operationType: 'product.create',
@@ -118,7 +118,7 @@ class ProductSyncHandler implements SyncHandler {
     await _productRepository.markSynced(localId: localId, serverId: serverId, operationId: operationId);
   }
 
-  Future<void> _syncUpdate(String localId, {String? operationId, int? baseCursor}) async {
+  Future<void> _syncUpdate(String localId, {required String operationId, int? baseCursor}) async {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
     final serverId = product.serverId;
@@ -138,7 +138,7 @@ class ProductSyncHandler implements SyncHandler {
       final result = await _fulusSyncApi.submitOperation(
         businessId: businessId,
         operationType: 'product.delete',
-        operationId: operationId ?? localId,
+        operationId: operationId,
         deviceClientId: device.deviceClientId,
         payload: {
           'server_id': serverId,
