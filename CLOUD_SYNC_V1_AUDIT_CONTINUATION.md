@@ -818,3 +818,14 @@ Remaining location audit work:
 - in-flight switch/read race coverage across the major location-scoped screens;
 - server-side location membership/access enforcement and canonical pull isolation;
 - process-death during an actual switch transition.
+
+
+## 2026-09-25 — Product stock pull/create location boundary
+
+Status: 🟢 targeted product location fixes applied; broader backend contract remains to be independently verified.
+
+Audit found two location-sensitive product paths. Product pull previously selected an arbitrary local location with `getSingleOrNull()` even though the product endpoint returns a single `current_stock` value. It now writes that projection to the persisted active local location instead of whichever location happens to be first in the Locations table.
+
+Product create sync previously selected a stock row with `getSingleOrNull()`. A product can acquire another location's stock projection before its create mutation replays, so this was not deterministic. The handler now selects the oldest stock projection as the product's original initial-stock/location pair; later location stock changes remain separate stock-movement mutations. This reduces cross-location identity risk without conflating later stock with product creation.
+
+Important remaining contract item: the mobile repository cannot prove from this repo alone which server location `GET /api/inventory/products`'s singular `current_stock` represents. The endpoint has no location query parameter. The active-location write is therefore the safe client boundary, but the backend endpoint contract should be independently verified before declaring multi-location product pull fully closed.
