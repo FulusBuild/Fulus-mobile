@@ -43,25 +43,8 @@ jobs:
       - name: Restart local Supabase after reset
         run: supabase start
 
-      - name: Show local Supabase status after reset
-        run: supabase status
-
-      - name: Wait for local Postgres after reset
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in {1..30}; do
-            if pg_isready -h 127.0.0.1 -p 54322 -U postgres >/dev/null 2>&1; then
-              echo "Local Postgres is ready."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::Local Postgres did not become ready after supabase db reset."
-          exit 1
-
       - name: Run location authorization adversarial tests
-        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/location_authorization.sql
+        run: supabase test db --local supabase/tests/location_authorization.sql
 
       - name: Show migration status
         run: supabase migration list --local
