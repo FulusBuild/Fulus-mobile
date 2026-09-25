@@ -152,7 +152,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
       rethrow;
     }
 
-    await _markSyncedFromResult(shift.localId, result);
+    await _markSyncedFromResult(shift.localId, item, result);
   }
 
   Future<void> _markSyncedFromResult(
