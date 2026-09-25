@@ -195,3 +195,56 @@ Make Cloud Sync V1 genuinely production-durable. Leave behind implementation, te
 The concurrency audit's durable-state mutation sweep found no additional unprotected production path that can delete/overwrite sync queue state or cloud-owned business state outside the established lease/transaction boundaries. Ordinary local queue insertion remains intentionally lease-free because user mutations must be allowed to create newer durable work while a sync runtime is active; the stale-recovery fence explicitly preserves such newer work.
 
 The established evidence standard remains: implementation plus regression/contract evidence plus green CI. No claim of exactly-once local execution is made; correctness relies on durable queue identity, server idempotency, canonical reconciliation, and at-least-once replay safety.
+
+
+## 2026-09-25 queue-lifecycle continuation
+
+### Section 1 audit progress
+
+Inspected the durable queue implementation, sync engine, all production enqueue call sites, catalog/customer lifecycle handlers, and queue regression tests.
+
+Verified:
+- Local create + outbox insertion are performed in the same Drift transaction on audited repositories.
+- Repeated updates replace the prior update queue identity instead of reusing it, protecting newer local mutations from stale queue completion.
+- Create and update remain distinct queue operations so a create can establish the server identity before an update runs.
+- Blocked/conflicted mutations can be superseded by a newer local mutation and the parked conflict is resolved.
+- Concurrent enqueue of the same mutation is deduplicated transactionally.
+- Pre-cloud seeding avoids already-server-backed rows and avoids duplicating an existing queued create.
+- Archived never-synced customer/product/category/supplier lifecycles have explicit create-first handling in the relevant handlers.
+- Product create/archive already sends the complete product create payload before the deterministic delete follow-up.
+- Customer create/archive uses a deterministic archive operation after the create establishes the server ID.
+
+### A6 - archived category/supplier create payload mismatch
+
+Status: FIXED_PENDING_CI
+
+Business impact:
+An archived category or supplier created locally before first cloud delivery could reach the create handler with deletedAt set. The handler selected category.create / supplier.create but used the delete-shaped payload whenever isDelete was true. That could omit required create fields and cause the authoritative create to fail or create incorrectly, preventing the subsequent delete/archive convergence.
+
+What was found:
+category_sync_handler.dart and supplier_sync_handler.dart selected the create operation type for a never-synced archived row but used a payload containing only server_id and optional base_cursor.
+
+What changed:
+The create/update payload is now selected by operation type. Delete-shaped payloads are used only when the actual operation type is *.delete.
+
+Regression coverage:
+- Archived category test now asserts the create payload contains the category name and does not contain a server ID.
+- Archived supplier test now asserts the create payload contains the supplier fields and does not contain a server ID.
+- The existing tests continue to verify the deterministic :delete follow-up and create sequence used for delete OCC.
+
+CI:
+Run 36102975452 is currently in progress for HEAD ddc221e4cb2fe1818f19146eae7ab0bdf0a50257.
+
+### Section 1 remaining audit questions
+
+Still to prove before Section 1 can be marked complete:
+- create -> update -> delete/archive ordering for every mutable entity, including same-transaction and in-flight replacement cases
+- whether any entity can be locally deleted/archived without an explicit queue mutation that the handler understands
+- handler finalization writes after network awaits, including server-ID assignment and sync-status settlement
+- stale queue item completion against a newer queue row/entity mutation (A3 remains open)
+- cash-drawer create -> close ordering and replacement
+- customer ledger repayment lifecycle versus server-derived ledger entries
+- return lifecycle where approval/completion is local-only versus cloud-authoritative
+- any entity-specific create/update coalescing or permanent-failure edge case not covered by the generic queue tests
+
+Do not mark Section 1 complete until these paths have evidence.
