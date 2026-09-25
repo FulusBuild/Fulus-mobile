@@ -1064,3 +1064,30 @@ Remaining Section 1 / lifecycle proof:
 6. create → update → archive/restore replacement across remaining mutable entities.
 
 Next audit focus: execute the entity-specific lifecycle adversarial coverage above, then continue with process-death and multi-device concurrency evidence.
+
+
+## 2026-09-25 — Sync timestamp and transaction-time audit
+
+Status: 🟢 DISPLAY SEMANTICS FIXED; NO PRODUCTION DATA-MUTATION PATH FOUND THAT RESETS SALE TIME ON LOGIN
+
+Investigation of the reported behavior where the cloud/backup timestamp and transaction times appear to change after login found:
+
+- SyncStatusNotifier.recordPushSuccess() records lastPushAt only after the durable sync queue is empty. This timestamp is therefore a cloud push/sync completion timestamp, not the timestamp of the last local database backup operation.
+- The Sync & backup screen previously labelled lastPushAt as "Last successful backup", which conflated cloud reconciliation with the separate local AutoBackupGate backup mechanism.
+- The label is now "Last successful cloud sync" so the timestamp has an accurate meaning.
+- Sale creation assigns saleDate, createdAt, and updatedAt once at local checkout time. The production sale sync payload sends that saleDate to the server.
+- Canonical sale reconciliation reads sale_date, created_at, and updated_at independently. It does not assign saleDate from DateTime.now() during login/bootstrap reconciliation.
+- markSynced() may update a sale's updatedAt when a create operation settles, but the transaction/reporting UI uses saleDate, not updatedAt, for displayed sale time.
+- The timestamp formatting layer previously displayed parsed UTC DateTime values without converting them to the device's local timezone. This could make a server-reconciled transaction appear to move by the timezone offset after login even though the underlying instant was unchanged.
+- Both shared and Money-specific time formatters now convert timestamps with toLocal() before deriving the displayed date/time.
+
+Important remaining distinction:
+- No current code evidence proves that login itself changes a persisted sale's saleDate to the login time. If an observed sale actually changes to the exact current login minute rather than only changing timezone representation, that requires a runtime reproduction/log trace of the affected sale's local row before and after login.
+
+Commits:
+- 820f85650235e520f3609edd987731b1afb56000 — shared timestamp formatting
+- 5ae5e8afc2ca601c342f3adaf7af3504964a4b43 — Money timestamp formatting
+- 4d4010c062d8d1eb7670a035ef2b2b8f63d443b3 — cloud-sync label correction
+
+Current CI note:
+- The commit currently reports a Vercel status failure caused by the external Vercel build-rate-limit target. This is not the Flutter CI result. Flutter/production CI must be checked separately before this audit item is marked fully green.
