@@ -43,6 +43,9 @@ jobs:
       - name: Restart local Supabase after reset
         run: supabase start
 
+      - name: Show local Supabase status after reset
+        run: supabase status
+
       - name: Wait for local Postgres after reset
         shell: bash
         run: |
