@@ -405,7 +405,7 @@ class _HealthCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _HealthLine(label: 'Last successful backup', value: _when(health.lastPushAt)),
+          _HealthLine(label: 'Last successful cloud sync', value: _when(health.lastPushAt)),
           const FulusListDivider(),
           _HealthLine(label: 'Last successful pull', value: _when(health.lastPullAt)),
           const FulusListDivider(),
