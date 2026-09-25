@@ -52,10 +52,15 @@ class CategorySyncHandler implements SyncHandler {
     final operationType = (isDelete && category.serverId != null)
         ? 'category.delete'
         : 'category.${item.operation}';
-    final payload = <String, dynamic>{
+    final createOrUpdatePayload = <String, dynamic>{
       'name': category.name,
       'description': category.description,
       if (category.serverId != null) 'server_id': category.serverId,
+      if (item.baseCursor != null) 'base_cursor': item.baseCursor,
+    };
+
+    final deletePayload = <String, dynamic>{
+      'server_id': category.serverId,
       if (item.baseCursor != null) 'base_cursor': item.baseCursor,
     };
 
@@ -64,12 +69,7 @@ class CategorySyncHandler implements SyncHandler {
       operationType: operationType,
       operationId: operationId,
       deviceClientId: device.deviceClientId,
-      payload: isDelete
-          ? {
-              'server_id': category.serverId,
-              if (item.baseCursor != null) 'base_cursor': item.baseCursor,
-            }
-          : payload,
+      payload: operationType == 'category.delete' ? deletePayload : createOrUpdatePayload,
     );
     final data = Map<String, dynamic>.from(result['data'] as Map);
     final createSequence = (data['sync_sequence'] as num?)?.toInt();
