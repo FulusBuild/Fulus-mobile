@@ -8,6 +8,7 @@ import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/permission.dart';
+import '../domain/entities/location.dart';
 import '../features/auth/presentation/screens/identity_picker_screen.dart';
 import '../shared/widgets/fulus_brand_logo.dart';
 import '../shared/widgets/fulus_button.dart';
@@ -123,6 +124,7 @@ class _FulusNavigationDrawer extends ConsumerWidget {
               ),
             ),
             Divider(height: 1, color: AppColors.borderOf(context).withValues(alpha: .6)),
+            _ActiveLocationDrawerCard(location: ref.watch(_drawerActiveLocationProvider).value),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.lg, AppSpacing.sm, AppSpacing.lg),
@@ -326,3 +328,48 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
 }
 
 final _shellSyncStatusProvider = StreamProvider<SyncStatus>((ref) => ref.watch(syncStatusNotifierProvider).watch());
+
+
+final _drawerActiveLocationProvider = FutureProvider.autoDispose<Location?>((ref) async {
+  final locationId = await ref.watch(activeLocationIdProvider.future);
+  return ref.read(locationRepositoryProvider).getLocationById(locationId);
+});
+
+class _ActiveLocationDrawerCard extends StatelessWidget {
+  const _ActiveLocationDrawerCard({required this.location});
+
+  final Location? location;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+      child: FulusCard(
+        outlined: true,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(FulusIcons.locations, size: AppIconSize.compact, color: primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Active location', style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context))),
+                  const SizedBox(height: 2),
+                  Text(
+                    location?.name ?? 'Loading…',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
