@@ -29,6 +29,8 @@ class MockProductRepository extends Mock implements ProductRepository {}
 class MockCustomerRepository extends Mock implements CustomerRepository {}
 
 class _FakeAuthRepository implements AuthRepository {
+  String? activeLocationId;
+
   @override
   AuthUser? get currentUser => null;
   @override
@@ -50,9 +52,11 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async => throw UnimplementedError();
   @override
-  Future<String?> getActiveLocationId() async => throw UnimplementedError();
+  Future<String?> getActiveLocationId() async => activeLocationId;
   @override
-  Future<void> setActiveLocationId(String locationId) async => throw UnimplementedError();
+  Future<void> setActiveLocationId(String locationId) async {
+    activeLocationId = locationId;
+  }
 }
 
 void main() {
@@ -65,6 +69,7 @@ void main() {
   late SaleRepositoryImpl saleRepository;
   late SaleSyncHandler handler;
   late SyncExecutionLease executionLease;
+  late _FakeAuthRepository authRepository;
 
   const locationId = 'loc-1';
   const productId = 'prod-1';
@@ -76,6 +81,7 @@ void main() {
     salesApi = MockSalesApi();
     fulusSyncApi = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
+    authRepository = _FakeAuthRepository();
     productRepository = MockProductRepository();
     customerRepository = MockCustomerRepository();
     when(() => connectionState.selectedBusinessId).thenReturn(null);
@@ -83,7 +89,7 @@ void main() {
     saleRepository = SaleRepositoryImpl(
       db: db,
       syncQueue: SyncQueue(db),
-      authRepository: _FakeAuthRepository(),
+      authRepository: authRepository,
       customerCreditRepository: CustomerCreditRepositoryImpl(db: db, syncQueue: SyncQueue(db)),
     );
     handler = SaleSyncHandler(
@@ -169,6 +175,69 @@ void main() {
       syncAttempts: 0,
     );
   }
+
+  test('submits a pending sale with its original location after active location switches', () async {
+    final now = DateTime.now();
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'loc-2',
+        name: 'Location B',
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-A')));
+    await (db.update(db.locations)..where((l) => l.localId.equals('loc-2')))
+        .write(const LocationsCompanion(serverId: Value('server-location-B')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+          'data': {'entity_id': 'server-sale-A'},
+        });
+
+    final sale = await createLocalSale();
+    await authRepository.setActiveLocationId('loc-2');
+
+    expect(await authRepository.getActiveLocationId(), 'loc-2');
+    expect(sale.locationId, locationId);
+
+    await handler.sync(queueItemFor(sale));
+
+    verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single;
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['location_id'], 'server-location-A');
+    expect(captured['location_id'], isNot('server-location-B'));
+  });
 
   test('pushes a Quick Sale through Fulus Cloud without a catalog product', () async {
     await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
