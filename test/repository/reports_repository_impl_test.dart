@@ -900,4 +900,84 @@ void main() {
       expect(perf.salesCount, 0);
     });
   });
+  group('location isolation', () {
+    test('sales report excludes sales from another location', () async {
+      await insertLocation('loc-1');
+      await insertLocation('loc-2');
+      await insertCompletedSale(
+        localId: 'sale-a',
+        locationId: 'loc-1',
+        saleDate: DateTime(2026, 1, 10),
+        total: 100,
+        amountPaid: 100,
+        items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
+      );
+      await insertCompletedSale(
+        localId: 'sale-b',
+        locationId: 'loc-2',
+        saleDate: DateTime(2026, 1, 10),
+        total: 900,
+        amountPaid: 900,
+        items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
+      );
+
+      final report = await repository.getSalesReport(
+        ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
+        currentAuthUserId: 'u1',
+        canViewAllSales: true,
+        locationId: 'loc-1',
+      );
+
+      expect(report.totalRevenue, 100);
+      expect(report.totalSalesCount, 1);
+      expect(report.transactions.single.saleLocalId, 'sale-a');
+    });
+
+    test('inventory report only aggregates stock and movements for its location', () async {
+      await insertLocation('loc-1');
+      await insertLocation('loc-2');
+      await insertProduct('product-a');
+      final now = DateTime(2026, 1, 10);
+      await db.into(db.productStockLevels).insert(
+        ProductStockLevelsCompanion.insert(
+          localId: 'stock-a',
+          productLocalId: 'product-a',
+          locationLocalId: 'loc-1',
+          currentStock: const Value(3),
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+      await db.into(db.productStockLevels).insert(
+        ProductStockLevelsCompanion.insert(
+          localId: 'stock-b',
+          productLocalId: 'product-a',
+          locationLocalId: 'loc-2',
+          currentStock: const Value(30),
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+      await db.into(db.stockMovements).insert(
+        StockMovementsCompanion.insert(
+          localId: 'move-b',
+          productLocalId: 'product-a',
+          locationId: 'loc-2',
+          movementType: 'in',
+          quantity: const Value(50),
+          createdAt: now,
+          updatedAt: now,
+          syncStatus: SyncStatus.settled,
+        ),
+      );
+
+      final report = await repository.getInventoryReport(locationId: 'loc-1');
+
+      expect(report.totalStockValue, 120);
+      expect(report.stockMovementsIn, 0);
+    });
+  });
+
 }
