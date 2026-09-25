@@ -354,9 +354,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
 
   @override
   Future<FinanceReport> getFinanceReport(ReportPeriod period, {required String locationId}) async {
-    final revenue = await _sumSalesRevenue(period.start, period.end);
-    final costOfGoodsSold = await _sumCostOfGoodsSold(period.start, period.end);
-    final expenses = await _sumExpenses(period.start, period.end);
+    final revenue = await _sumSalesRevenue(period.start, period.end, locationId);
+    final costOfGoodsSold = await _sumCostOfGoodsSold(period.start, period.end, locationId);
+    final expenses = await _sumExpenses(period.start, period.end, locationId);
     // Bug fix (business-logic audit): this used to be `revenue -
     // expenses`, omitting cost of goods sold entirely — the "Net
     // profit" figure on the Finance tab (the only screen that calls
@@ -372,9 +372,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final netProfit = revenue - costOfGoodsSold - expenses;
 
     final prev = period.previous;
-    final prevRevenue = await _sumSalesRevenue(prev.start, prev.end);
-    final prevCostOfGoodsSold = await _sumCostOfGoodsSold(prev.start, prev.end);
-    final prevExpenses = await _sumExpenses(prev.start, prev.end);
+    final prevRevenue = await _sumSalesRevenue(prev.start, prev.end, locationId);
+    final prevCostOfGoodsSold = await _sumCostOfGoodsSold(prev.start, prev.end, locationId);
+    final prevExpenses = await _sumExpenses(prev.start, prev.end, locationId);
     final prevNetProfit = prevRevenue - prevCostOfGoodsSold - prevExpenses;
     final hasPrevData = prevRevenue > 0 || prevExpenses > 0;
 
@@ -417,7 +417,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     );
   }
 
-  Future<double> _sumSalesRevenue(DateTime start, DateTime end) async {
+  Future<double> _sumSalesRevenue(DateTime start, DateTime end, String locationId) async {
     final sales = await (_db.select(_db.sales)..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(start, _endOfDay(end)))).get();
     // **Bug fix (void/refund audit):** see SaleReversalAdjustments' own
     // doc comment — a voided or refunded sale used to contribute its
@@ -449,9 +449,9 @@ class ReportsRepositoryImpl implements ReportsRepository {
   /// never should have counted. See SaleReversalAdjustments' own doc
   /// comment for the full trace and for how a partial (non-void) refund
   /// nets out only the refunded quantity's cost, not the whole sale's.
-  Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end) async {
+  Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end, String locationId) async {
     final sales = await (_db.select(_db.sales)
-          ..where((s) => s.saleDate.isBetweenValues(start, _endOfDay(end))))
+          ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(start, _endOfDay(end))))
         .get();
     final saleIds = sales.map((s) => s.localId).toSet();
     if (saleIds.isEmpty) return 0.0;
@@ -468,7 +468,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
         .fold<double>(0.0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
   }
 
-  Future<double> _sumExpenses(DateTime start, DateTime end) async {
+  Future<double> _sumExpenses(DateTime start, DateTime end, String locationId) async {
     final rows = await (_db.select(_db.expenses)
           ..where((e) =>
               e.locationId.equals(locationId) &
