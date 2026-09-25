@@ -30,6 +30,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
   Future<HomeHeroState> getHeroState({
     required String currentAuthUserId,
     required bool isOwner,
+    required String locationId,
   }) async {
     final now = _clock();
     final todayStart = DateTime(now.year, now.month, now.day);
@@ -56,7 +57,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
     // `showBusinessWide` computes the same thing for isOwner already;
     // this just finally consults it for the query too).
     final todaySalesQuery = _db.select(_db.sales)
-      ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.deletedAt.isNull());
+      ..where((s) => s.saleDate.isBiggerOrEqualValue(todayStart) & s.locationId.equals(locationId) & s.deletedAt.isNull());
     if (!isOwner) {
       todaySalesQuery.where((s) => s.cashierUserId.equals(currentAuthUserId));
     }
@@ -70,6 +71,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
             ..where((s) =>
                 s.saleDate.isBiggerOrEqualValue(yesterdayStart) &
                 s.saleDate.isSmallerThanValue(todayStart) &
+                s.locationId.equals(locationId) &
                 s.deletedAt.isNull()))
           .get();
       yesterdayTotal = yesterdaySales.fold<double>(0, (s, r) => s + r.total);
@@ -111,7 +113,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
     // location context to filter by until a location switcher exists
     // (Phase 2).
     final openShift = await (_db.select(_db.cashDrawerShifts)
-          ..where((s) => s.closedAt.isNull())
+          ..where((s) => s.closedAt.isNull() & s.locationId.equals(locationId))
           ..limit(1))
         .getSingleOrNull();
 
@@ -120,7 +122,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       dayStatus = ShopDayStatus.open;
     } else {
       final lastClosedShift = await (_db.select(_db.cashDrawerShifts)
-            ..where((s) => s.closedAt.isNotNull())
+            ..where((s) => s.closedAt.isNotNull() & s.locationId.equals(locationId))
             ..orderBy([(s) => OrderingTerm.desc(s.closedAt)])
             ..limit(1))
           .getSingleOrNull();
@@ -144,9 +146,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
   }
 
   @override
-  Future<SecondaryNoticeSelection> getSecondaryNotices({int max = 2}) async {
+  Future<SecondaryNoticeSelection> getSecondaryNotices({required String locationId, int max = 2}) async {
     final products = await (_db.select(_db.products)..where((p) => p.isActive.equals(true))).get();
-    final stockLevels = await _db.select(_db.productStockLevels).get();
+    final stockLevels = await (_db.select(_db.productStockLevels)..where((s) => s.locationId.equals(locationId))).get();
     final stockByProduct = <String, int>{};
     for (final level in stockLevels) {
       stockByProduct[level.productLocalId] = (stockByProduct[level.productLocalId] ?? 0) + level.currentStock;
