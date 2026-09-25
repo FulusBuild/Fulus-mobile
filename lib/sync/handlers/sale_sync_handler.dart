@@ -105,6 +105,7 @@ class SaleSyncHandler implements SyncHandler {
         localId: sale.localId,
         serverId: serverId,
         invoiceNumber: data['invoice_number'] as String? ?? sale.clientReference,
+      operationId: item.id,
       );
       return;
     }
