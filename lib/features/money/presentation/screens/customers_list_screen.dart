@@ -71,11 +71,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  _CustomerOverview(
-                    customerCount: customers.length,
-                    outstanding: outstanding,
-                    currencySymbol: currencySymbol,
-                  ),
+                  _CustomerOverview(customers: customers, filtered: filtered, outstanding: outstanding, currencySymbol: currencySymbol),
                   const SizedBox(height: AppSpacing.lg),
                   FulusSearchField(
                     hintText: 'Search by name or phone',
@@ -126,36 +122,75 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 }
 
 class _CustomerOverview extends StatelessWidget {
-  const _CustomerOverview({required this.customerCount, required this.outstanding, required this.currencySymbol});
-  final int customerCount; final double outstanding; final String currencySymbol;
+  const _CustomerOverview({required this.customers, required this.filtered, required this.outstanding, required this.currencySymbol});
+  final List<Customer> customers;
+  final List<Customer> filtered;
+  final double outstanding;
+  final String currencySymbol;
+
   @override
-  Widget build(BuildContext context) => Row(children: [
-    Expanded(child: Container(
-      constraints: const BoxConstraints(minHeight: 120),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(12)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(FulusIcons.customers, color: Colors.white, size: 28),
-        const Spacer(),
-        const Text('Total Customers', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-        Text(customerCount.toString(), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-        const Text('Active', style: TextStyle(color: Colors.white70, fontSize: 11)),
+  Widget build(BuildContext context) {
+    final first = customers.take(2).toList(growable: false);
+    return Column(children: [
+      Material(
+        color: const Color(0xFF1473E6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: SizedBox(height: 104, child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
+            const Spacer(),
+            Text('Total Customers  ${customers.length}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+            Text('Customer credit ${formatMoney(outstanding, symbol: currencySymbol, compact: true)}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          ]),
+        )),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Row(children: [
+        for (var i = 0; i < 2; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _CustomerCompactCard(customer: i < first.length ? first[i] : null, currencySymbol: currencySymbol)),
+        ],
       ]),
-    )),
-    const SizedBox(width: AppSpacing.sm),
-    Expanded(child: Container(
-      constraints: const BoxConstraints(minHeight: 120),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: const Color(0xFF7B3FF2), borderRadius: BorderRadius.circular(12)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(FulusIcons.money, color: Colors.white, size: 28),
-        const Spacer(),
-        const Text('Customer Credit', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(outstanding, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900))),
-        const Text('Owed to you', style: TextStyle(color: Colors.white70, fontSize: 11)),
-      ]),
-    )),
-  ]);
+      const SizedBox(height: AppSpacing.sm),
+      FulusCard(
+        padding: EdgeInsets.zero,
+        child: Column(children: [
+          for (var i = 0; i < filtered.length; i++) ...[
+            _CustomerRow(customer: filtered[i], currencySymbol: currencySymbol),
+            if (i < filtered.length - 1) const FulusListDivider(),
+          ],
+          if (filtered.isEmpty)
+            const Padding(padding: EdgeInsets.all(AppSpacing.lg), child: Text('No customers match this view.')),
+        ]),
+      ),
+    ]);
+  }
+}
+
+class _CustomerCompactCard extends StatelessWidget {
+  const _CustomerCompactCard({required this.customer, required this.currencySymbol});
+  final Customer? customer;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = customer?.name ?? 'No customer';
+    final amount = customer == null ? '—' : formatMoney(customer!.outstandingBalance, symbol: currencySymbol, compact: true);
+    return Material(
+      color: const Color(0xFF0BBE6E),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(height: 82, child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(FulusIcons.person, color: Colors.white, size: AppIconSize.compact),
+          const Spacer(),
+          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(amount, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ]),
+      )),
+    );
+  }
 }
 
 class _CustomerRow extends StatelessWidget {
