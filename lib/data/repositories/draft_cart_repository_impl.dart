@@ -44,7 +44,6 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   /// Draft carts never sync. They are therefore fenced while the selected
   /// business context is changing instead of being silently destroyed.
   Future<void> assertNoDraftCartMutationDuringSwitch() async {
-    _syncQueue.ensureLocalMutationAllowed();
   }
 
   Future<void> clearAllDraftCarts() async {
@@ -73,7 +72,6 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> getOrCreateDraftCart({required String locationId}) async {
-    _syncQueue.ensureLocalMutationAllowed();
     final existing = await (_db.select(_db.draftCarts)
           ..where((c) => c.locationId.equals(locationId)))
         .getSingleOrNull();
@@ -103,7 +101,6 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCartItem> addItem({
-    _syncQueue.ensureLocalMutationAllowed();
     required String draftCartLocalId,
     String? productLocalId,
     String? description,
@@ -111,6 +108,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     double? unitPrice,
     double lineDiscount = 0.0,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     if (quantity <= 0) {
       throw ArgumentError.value(quantity, 'quantity', 'must be > 0');
     }
@@ -197,10 +195,10 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCartItem> updateItemQuantity({
-    _syncQueue.ensureLocalMutationAllowed();
     required String itemLocalId,
     required int quantity,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     if (quantity <= 0) {
       throw ArgumentError.value(quantity, 'quantity', 'must be > 0');
     }
@@ -222,10 +220,10 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCartItem> updateItemDiscount({
-    _syncQueue.ensureLocalMutationAllowed();
     required String itemLocalId,
     required double lineDiscount,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     final existing = (await _requireItemRow(itemLocalId)).toDomain();
     if (lineDiscount < 0 || lineDiscount > existing.quantity * existing.unitPrice) {
       throw ArgumentError.value(
@@ -251,7 +249,6 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<void> removeItem(String itemLocalId) async {
-    _syncQueue.ensureLocalMutationAllowed();
     final existing = await _requireItemRow(itemLocalId);
     await (_db.delete(_db.draftCartItems)..where((i) => i.localId.equals(itemLocalId)))
         .go();
@@ -260,10 +257,10 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> setCustomer({
-    _syncQueue.ensureLocalMutationAllowed();
     required String draftCartLocalId,
     required String? customerLocalId,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     await _requireDraftCart(draftCartLocalId);
     await (_db.update(_db.draftCarts)..where((c) => c.localId.equals(draftCartLocalId)))
         .write(
@@ -277,10 +274,10 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> setWholeCartDiscount({
-    _syncQueue.ensureLocalMutationAllowed();
     required String draftCartLocalId,
     required double discount,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     if (discount < 0) {
       throw ArgumentError.value(discount, 'discount', 'must be ≥ 0');
     }
@@ -297,10 +294,10 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> setTax({
-    _syncQueue.ensureLocalMutationAllowed();
     required String draftCartLocalId,
     required double tax,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     if (tax < 0) {
       throw ArgumentError.value(tax, 'tax', 'must be ≥ 0');
     }
@@ -312,11 +309,11 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> addPayment({
-    _syncQueue.ensureLocalMutationAllowed();
     required String draftCartLocalId,
     required String method,
     required double amount,
   }) async {
+    _syncQueue.ensureLocalMutationAllowed();
     if (amount <= 0) {
       throw ArgumentError.value(amount, 'amount', 'must be > 0');
     }
@@ -337,7 +334,6 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<void> removePayment(String paymentLocalId) async {
-    _syncQueue.ensureLocalMutationAllowed();
     final row = await (_db.select(_db.draftCartPayments)
           ..where((p) => p.localId.equals(paymentLocalId)))
         .getSingleOrNull();
