@@ -90,7 +90,20 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [ ] Final hierarchy and spacing pass
 - [ ] Check that secondary screens do not regress into dense generic settings layouts
 
-### 9. Screen inventory / wiring audit
+#
+
+### Latest secondary-screen pass — More / Settings / Diagnostics
+Reviewed and visually aligned the remaining More-area secondary screens against the shared Fulus language:
+- Deactivated Employees: Fulus list/card hierarchy, empty/loading/error states and contextual navigation verified.
+- Sales Transactions: transaction cards, status pills, detail sheet and destructive void action retained because each control has the appropriate semantic weight.
+- Diagnostics + Diagnostic Detail: search/filter chips, diagnostic summary, event rows, plain-language detail hierarchy and share flow already use the shared primitives; no forced tile conversion needed.
+- Backup: card/section hierarchy and state presentation reviewed; retained as a settings workspace rather than converting every control into tiles.
+- Fulus Cloud Connection: connection/status workspace reviewed; retained form/status actions where button semantics are clearer than tiles.
+- Printer Pairing: pairing/status workspace reviewed; retained compact device actions where appropriate.
+- Sync Detail: sync history/status workspace reviewed; retained explicit operational controls rather than forcing them into decorative tiles.
+
+These screens are now considered covered by the dedicated UI pass; final global verification still remains for narrow widths, large text, dark theme and state transitions.
+## 9. Screen inventory / wiring audit
 The route tree and direct Navigator flows were reviewed after the onboarding rework. A screen being reachable is not treated as UI-audited; this section tracks screens that have not yet received a dedicated mockup-fidelity pass.
 
 #### Dedicated UI pass still required
