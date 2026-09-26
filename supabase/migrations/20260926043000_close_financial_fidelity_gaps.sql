@@ -1,3 +1,15 @@
+-- Diagnostic events are intentionally client-denied. The mobile client uploads
+-- diagnostics through the authenticated Edge Function/service-role boundary;
+-- direct table reads/writes must remain unavailable even when RLS is enabled.
+alter table public.diagnostic_events enable row level security;
+drop policy if exists diagnostic_events_client_deny on public.diagnostic_events;
+create policy diagnostic_events_client_deny
+  on public.diagnostic_events
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
 -- Close financial fidelity gaps: first-class split sale payments and
 -- server-authoritative return/refund accounting.
 --
