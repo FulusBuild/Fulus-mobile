@@ -199,10 +199,13 @@ final appRouter = GoRouter(
                     return const AuthGateScreen();
                   }
                   final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+                  final isOwner = user.role == AuthRole.owner;
                   return HomeScreen(
                     currentAuthUserId: user.id,
-                    isOwner: user.role == AuthRole.owner,
+                    isOwner: isOwner,
                     canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
+                    canViewMoney: permissions.contains(Permission.viewMoney),
+                    canViewReports: permissions.contains(Permission.viewReports),
                   );
                 },
               ),
