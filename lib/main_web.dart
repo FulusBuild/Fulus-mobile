@@ -226,7 +226,6 @@ class _FulusWebHomeFixtureState extends State<FulusWebHomeFixture> {
       bottomNavigationBar: _WebQaBottomNavigationBar(
         selectedIndex: _selectedNav,
         onSelected: (index) => setState(() => _selectedNav = index),
-        ),
       ),
     );
   }
