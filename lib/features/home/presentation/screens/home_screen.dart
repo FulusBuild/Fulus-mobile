@@ -180,7 +180,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      
                     ],
                   ),
                 ),
@@ -198,7 +197,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
 }
-
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({required this.businessName});
