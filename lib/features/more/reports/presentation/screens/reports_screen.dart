@@ -412,6 +412,7 @@ class _ReportCompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final foreground = AppColors.onColor(color);
     return Semantics(
       button: true,
       label: label,
@@ -428,13 +429,13 @@ class _ReportCompactCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, color: Colors.white, size: AppIconSize.base),
+                  Icon(icon, color: foreground, size: AppIconSize.base),
                   const Spacer(),
                   Text(
                     label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                    style: TextStyle(color: foreground, fontSize: 12, fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
