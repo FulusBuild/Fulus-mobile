@@ -65,8 +65,13 @@ class MoneyTransactionTile extends StatelessWidget {
       if (t.paymentMethod != null) t.paymentMethod!,
     ];
 
-    return FulusListRow(
-      leading: t.type == MoneyTransactionType.saleIncome
+    return Semantics(
+      button: onTap != null,
+      label: '${t.title}. ${formatMoney(t.signedAmount, symbol: currencySymbol, showSign: true)}. ${subtitleParts.join(', ')}',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: FulusListRow(
+          leading: t.type == MoneyTransactionType.saleIncome
           ? _SaleProductThumbnail(saleId: t.id.substring('sale-'.length))
           : Container(
               decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
@@ -88,7 +93,9 @@ class MoneyTransactionTile extends StatelessWidget {
           color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
         ),
       ),
-      onTap: onTap,
+          onTap: onTap,
+        ),
+      ),
     );
   }
 }
