@@ -4,6 +4,13 @@
 -- Existing V1 RPCs remain intact for backward compatibility. New clients use
 -- the V2 service wrappers below; both are idempotent by business+operation.
 
+-- Monetary fields are standardized to the same 2-decimal contract used by the
+-- rest of the financial schema. Existing production income values are already
+-- <= 500000 and have zero fractional cents, so this is a lossless tightening.
+alter table public.income_records
+  alter column amount type numeric(14,2)
+  using round(amount,2);
+
 create or replace function public.fulus_api_create_sale_atomic_v2(
   target_user_id uuid,
   target_business_id uuid,
