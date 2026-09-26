@@ -52,7 +52,7 @@ jobs:
           version: 2.117.0
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: "3.44.9"
           channel: stable
@@ -87,6 +87,7 @@ jobs:
           done
           echo "::error::Timed out waiting for Fulus Mobile CI for this exact commit."
           exit 1
+
       - name: Link production project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
