@@ -121,17 +121,18 @@ class _ReceiptPreviewSheetState extends ConsumerState<ReceiptPreviewSheet> {
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.share_outlined),
-                                  label: const Text('Share PDF'),
+                                child: FulusButton(
+                                  label: 'Share PDF',
+                                  icon: FulusIcons.share,
+                                  variant: FulusButtonVariant.secondary,
                                   onPressed: () => _sharePdf(data),
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
-                                child: FilledButton.icon(
-                                  icon: const Icon(Icons.print_outlined),
-                                  label: const Text('Print'),
+                                child: FulusButton(
+                                  label: 'Print',
+                                  icon: FulusIcons.print,
                                   onPressed: () => _print(context, data),
                                 ),
                               ),
