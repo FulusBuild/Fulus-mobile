@@ -16,12 +16,14 @@ class FulusActionTile extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.subtitle,
+    this.trailing,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final String? subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +81,8 @@ class FulusActionTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTap != null)
+              if (trailing != null) trailing!
+              else if (onTap != null)
                 Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: muted),
             ],
           ),
