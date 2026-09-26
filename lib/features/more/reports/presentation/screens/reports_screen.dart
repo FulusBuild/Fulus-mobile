@@ -161,16 +161,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
-            leading: const Icon(Icons.table_chart_outlined),
-            title: const Text('CSV'),
-            subtitle: const Text('Open in a spreadsheet'),
+          FulusActionTile(
+            icon: FulusIcons.tableChart,
+            label: 'CSV',
+            subtitle: 'Open in a spreadsheet',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
-          ListTile(
-            leading: const Icon(Icons.picture_as_pdf_outlined),
-            title: const Text('PDF'),
-            subtitle: const Text('Share a printable summary'),
+          const SizedBox(height: AppSpacing.sm),
+          FulusActionTile(
+            icon: FulusIcons.pictureAsPdf,
+            label: 'PDF',
+            subtitle: 'Share a printable summary',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
         ],
