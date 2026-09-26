@@ -298,7 +298,6 @@ class _BiometricAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
     return FulusButton(
       label: 'Use biometrics',
       icon: Icons.fingerprint_rounded,
