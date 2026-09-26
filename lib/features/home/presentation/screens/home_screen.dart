@@ -188,18 +188,18 @@ class _HomeMockupDashboard extends StatelessWidget {
     final recent = activity.take(2).toList(growable: false);
     return Column(
       children: [
-        _HomeHeroCard(icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(_cashTotal, symbol: currencySymbol, compact: true), secondary: 'Business cash position'),
+        _HomeHeroCard(icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(_cashTotal, symbol: currencySymbol, compact: true), secondary: 'Business cash position', onTap: () => context.goNamed('money')),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: '${_salesCount} sales')),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: '${_salesCount} sales', onTap: () => context.pushNamed('salesTransactions'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: '${_lowStockCount}', secondary: 'items')),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: '${_lowStockCount}', secondary: 'items', onTap: () => context.goNamed('stock'))),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding')),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding', onTap: () => context.pushNamed('moneyCustomers'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.red, icon: FulusIcons.money, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today')),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.red, icon: FulusIcons.money, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: () => context.goNamed('money'))),
         ]),
         const SizedBox(height: AppSpacing.sm),
         _HomeSellCard(),
@@ -209,12 +209,15 @@ class _HomeMockupDashboard extends StatelessWidget {
 }
 
 class _HomeHeroCard extends StatelessWidget {
-  const _HomeHeroCard({required this.icon, required this.label, required this.value, required this.secondary});
-  final IconData icon; final String label; final String value; final String secondary;
+  const _HomeHeroCard({required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
+  final IconData icon; final String label; final String value; final String secondary; final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
     color: _HomeColors.blue, borderRadius: BorderRadius.circular(AppRadius.md),
-    child: SizedBox(height: 112, child: Padding(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(height: 112, child: Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Icon(icon, color: Colors.white, size: AppIconSize.base), const SizedBox(width: AppSpacing.sm), Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700))]),
@@ -223,16 +226,20 @@ class _HomeHeroCard extends StatelessWidget {
         Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 10)),
       ]),
     )),
+    ),
   );
 }
 
 class _HomeCompactCard extends StatelessWidget {
-  const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary});
-  final Color color; final IconData icon; final String label; final String value; final String secondary;
+  const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
+  final Color color; final IconData icon; final String label; final String value; final String secondary; final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
     color: color, borderRadius: BorderRadius.circular(AppRadius.md),
-    child: SizedBox(height: 86, child: Padding(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(height: 86, child: Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: Colors.white, size: AppIconSize.compact),
@@ -242,6 +249,7 @@ class _HomeCompactCard extends StatelessWidget {
         Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 9)),
       ]),
     )),
+    ),
   );
 }
 
