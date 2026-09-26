@@ -361,10 +361,8 @@ class _MoneyQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <({IconData icon, String label, String subtitle, Color color, VoidCallback onTap})>[
-      (icon: FulusIcons.add, label: 'Money In', subtitle: 'Record income', color: const Color(0xFF1677FF), onTap: () => context.pushNamed('moneyAddIncome')),
-      (icon: FulusIcons.remove, label: 'Money Out', subtitle: 'Record expense', color: const Color(0xFFFF8A00), onTap: () => context.pushNamed('moneyAddExpense')),
-      (icon: FulusIcons.customers, label: 'Customer Credit', subtitle: 'Manage credit', color: const Color(0xFF7B3FF2), onTap: () => context.pushNamed('moneyCustomers')),
-      (icon: FulusIcons.localShipping, label: 'Supplier Payments', subtitle: 'Track suppliers', color: const Color(0xFF0EA5B7), onTap: () => context.pushNamed('moneySuppliers')),
+      (icon: FulusIcons.add, label: 'Money In', subtitle: 'Record income', color: const Color(0xFF0BBE6E), onTap: () => context.pushNamed('moneyAddIncome')),
+      (icon: FulusIcons.remove, label: 'Money Out', subtitle: 'Record expense', color: const Color(0xFF7B3FF2), onTap: () => context.pushNamed('moneyAddExpense')),
     ];
     return GridView.builder(
       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
