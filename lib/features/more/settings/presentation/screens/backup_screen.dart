@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../../app/providers.dart';
@@ -165,6 +166,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FulusActionTile(
+                        icon: FulusIcons.sync,
+                        label: 'Sync status',
+                        subtitle: 'See pending, completed and attention-needed sync work.',
+                        onTap: () => context.pushNamed('moreSyncDetail'),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       FutureBuilder<String>(
