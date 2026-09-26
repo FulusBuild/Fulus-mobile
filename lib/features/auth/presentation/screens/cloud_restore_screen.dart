@@ -313,13 +313,13 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusActionTile(
-                    title: _busy ? 'Restoring business…' : 'Restore my business',
+                    label: _busy ? 'Restoring business…' : 'Restore my business',
                     subtitle: _busy
                         ? 'Please keep Fulus open while your business is restored.'
                         : 'Bring your cloud business onto this device.',
                     icon: Icons.cloud_download_rounded,
                     onTap: _busy ? null : _restore,
-                    trailing: _busy ? const FulusLoadingIndicator(size: 20) : null,
+                    trailing: _busy ? const const FulusLoadingIndicator() : null,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
