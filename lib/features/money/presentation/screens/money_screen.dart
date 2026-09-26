@@ -266,33 +266,64 @@ class _MoneyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          'Money',
-          style: AppTypography.subheading.copyWith(
-            color: AppColors.textPrimaryOf(context),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const Spacer(),
-        if (onDebug != null)
-          FulusIconButton(
-            icon: FulusIcons.bugReport,
-            tooltip: 'Simulate error (debug)',
-            onPressed: onDebug,
-          ),
+    final actions = <Widget>[
+      if (onDebug != null)
         FulusIconButton(
-          icon: FulusIcons.history,
-          tooltip: 'Money history',
-          onPressed: onHistory,
+          icon: FulusIcons.bugReport,
+          tooltip: 'Simulate error (debug)',
+          onPressed: onDebug,
         ),
-        FulusIconButton(
-          icon: FulusIcons.receipt,
-          tooltip: 'Receipts',
-          onPressed: onReceipts,
-        ),
-      ],
+      FulusIconButton(
+        icon: FulusIcons.history,
+        tooltip: 'Money history',
+        onPressed: onHistory,
+      ),
+      FulusIconButton(
+        icon: FulusIcons.receipt,
+        tooltip: 'Receipts',
+        onPressed: onReceipts,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 360 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.15;
+        return compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Money',
+                    style: AppTypography.subheading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      children: actions,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Text(
+                    'Money',
+                    style: AppTypography.subheading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  ...actions,
+                ],
+              );
+      },
     );
   }
 }
