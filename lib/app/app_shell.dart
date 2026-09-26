@@ -285,8 +285,23 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       constraints: const BoxConstraints(minWidth: 14),
-                      decoration: BoxDecoration(color: status.kind == SyncStatusKind.attentionNeeded ? AppColors.warningOf(context) : AppColors.textSecondaryOf(context), borderRadius: BorderRadius.circular(8)),
-                      child: Text('$badgeCount', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(
+                        color: status.kind == SyncStatusKind.attentionNeeded
+                            ? AppColors.warningOf(context)
+                            : AppColors.textSecondaryOf(context),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: status.kind == SyncStatusKind.attentionNeeded
+                              ? AppColors.warningOnOf(context)
+                              : AppColors.onColor(AppColors.textSecondaryOf(context)),
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ]),
