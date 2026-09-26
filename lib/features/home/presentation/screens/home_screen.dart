@@ -149,6 +149,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   activity: activitySnapshot.data ?? const <MoneyTransaction>[],
                                   cashTotal: cashSnapshot.data!,
                                   currencySymbol: currencySymbol,
+                                  canViewMoney: widget.isOwner || widget.canViewMoney,
+                                  canViewReports: widget.isOwner || widget.canViewReports,
                                 );
                               },
                             ),
@@ -214,12 +216,16 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.activity,
     required this.cashTotal,
     required this.currencySymbol,
+    required this.canViewMoney,
+    required this.canViewReports,
   });
   final HomeHeroState hero;
   final List<SecondaryNotice> notices;
   final List<MoneyTransaction> activity;
   final double cashTotal;
   final String currencySymbol;
+  final bool canViewMoney;
+  final bool canViewReports;
 
   double get _salesTotal => switch (hero) {
     NotYetOpenedHero(:final yesterdayTotal) => yesterdayTotal,
@@ -242,19 +248,19 @@ class _HomeMockupDashboard extends StatelessWidget {
     return Column(
       children: [
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'cash position', onTap: () => context.goNamed('money'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding', onTap: () => context.pushNamed('moneyCustomers'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: () => context.goNamed('money'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeSellCard()),
         ]),
@@ -266,10 +272,11 @@ class _HomeMockupDashboard extends StatelessWidget {
 
 class _HomeCompactCard extends StatelessWidget {
   const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
-  final Color color; final IconData icon; final String label; final String value; final String secondary; final VoidCallback onTap;
+  final Color color; final IconData icon; final String label; final String value; final String secondary; final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Semantics(
-    button: true,
+    button: onTap != null,
+    enabled: onTap != null,
     label: '$label, $value',
     child: Material(
     color: color, borderRadius: BorderRadius.circular(AppRadius.md),
