@@ -89,10 +89,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: _HomeColors.navy,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
+        child: LayoutBuilder(
+          builder: (context, constraints) {
               final inset = fulusHorizontalInset(context);
               final maxWidth = constraints.maxWidth >= 760 ? 1120.0 : double.infinity;
               return Align(
@@ -100,7 +98,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    // Home is a dashboard, not a feed. The normal dashboard must
+                    // stay locked to the viewport rather than becoming vertically
+                    // scrollable just to reveal the six cards.
+                    physics: const NeverScrollableScrollPhysics(),
                     slivers: [
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.lg),
@@ -369,8 +370,8 @@ class _HomeCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 FittedBox(
@@ -381,8 +382,8 @@ class _HomeCompactCard extends StatelessWidget {
                     maxLines: 1,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -392,7 +393,7 @@ class _HomeCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 10,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -433,8 +434,8 @@ class _HomeSellCard extends StatelessWidget {
                     'Sell',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
