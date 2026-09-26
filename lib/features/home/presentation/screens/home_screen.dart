@@ -210,7 +210,8 @@ class _HomeHeader extends StatelessWidget {
       children: [
         const FulusBrandLogo(
           size: 56,
-          backgroundColor: Colors.white,
+          padding: 2,
+          showBackground: false,
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
