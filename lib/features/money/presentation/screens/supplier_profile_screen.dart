@@ -180,7 +180,7 @@ class _SupplierProfileBody extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.lg),
                           FulusActionTile(
                             icon: Icons.payments_outlined,
-                            title: 'Pay supplier',
+                            label: 'Pay supplier',
                             subtitle: 'Record a payment against this balance.',
                             onTap: () async {
                               final result = await context.pushNamed<bool>(
