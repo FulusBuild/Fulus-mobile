@@ -120,7 +120,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 ],
                 FulusActionTile(
                   icon: FulusIcons.add,
-                  title: 'Add a product',
+                  label: 'Add a product',
                   subtitle: 'Create your first real inventory item.',
                   trailing: _checking ? const FulusLoadingIndicator() : null,
                   onTap: _checking ? null : _openProductForm,
@@ -128,7 +128,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 const SizedBox(height: AppSpacing.md),
                 FulusActionTile(
                   icon: FulusIcons.stock,
-                  title: "I'll add products later",
+                  label: "I'll add products later",
                   subtitle: 'You can build your catalog from Stock anytime.',
                   onTap: _checking ? null : _skip,
                 ),
