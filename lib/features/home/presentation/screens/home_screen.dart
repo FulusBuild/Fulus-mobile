@@ -150,50 +150,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           if (transactions.isEmpty) return const FulusEmptyState(headline: 'No activity yet today', body: 'Sales, stock, and expenses you record will show up here.', icon: FulusIcons.receipt);
                           return FulusCard(padding: EdgeInsets.zero, child: Column(children: [for (var i = 0; i < transactions.length.clamp(0, 5); i++) ...[if (i > 0) const FulusListDivider(), MoneyTransactionTile(transaction: transactions[i], currencySymbol: currencySymbol, showDate: false, onTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': transactions[i].id}, extra: transactions[i]) : null)]]));
                         },
-                      ),                      FutureBuilder<List<MoneyTransaction>>(
-                        future: _activityFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState != ConnectionState.done) {
-                            return const Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]);
-                          }
-                          if (snapshot.hasError) {
-                            return FulusErrorState(
-                              message: "Couldn't load recent activity.",
-                              reassurance: 'Your sales and money records are still safe on this device.',
-                              onRetry: _refresh,
-                            );
-                          }
-                          final transactions = snapshot.data ?? const <MoneyTransaction>[];
-                          if (transactions.isEmpty) {
-                            return const FulusEmptyState(
-                              headline: 'No activity yet today',
-                              body: 'Sales, stock, and expenses you record will show up here.',
-                              icon: FulusIcons.receipt,
-                            );
-                          }
-                          return FulusCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < transactions.length.clamp(0, 5); i++) ...[
-                                  if (i > 0) const FulusListDivider(),
-                                  MoneyTransactionTile(
-                                    transaction: transactions[i],
-                                    currencySymbol: currencySymbol,
-                                    showDate: false,
-                                    onTap: (widget.isOwner || widget.canViewMoney)
-                                        ? () => context.pushNamed(
-                                            'moneyTransactionDetail',
-                                            pathParameters: {'id': transactions[i].id},
-                                            extra: transactions[i],
-                                          )
-                                        : null,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        },
                       ),
                     ],
                   ),
@@ -213,6 +169,199 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (isOwner) return profile?.businessName.trim().isNotEmpty == true ? profile!.businessName.trim() : 'there';
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
+}
+
+
+class _HomeMockupDashboard extends StatelessWidget {
+  const _HomeMockupDashboard({
+    required this.hero,
+    required this.notices,
+    required this.activity,
+    required this.currencySymbol,
+  });
+
+  final HomeHeroState hero;
+  final List<SecondaryNotice> notices;
+  final List<MoneyTransaction> activity;
+  final String currencySymbol;
+
+  double get _salesTotal => switch (hero) {
+    NotYetOpenedHero(:final yesterdayTotal) => yesterdayTotal,
+    OpenHero(:final todayTotal) => todayTotal,
+    ClosedHero(:final finalTotal) => finalTotal,
+    EmployeeShiftHero(:final shiftTotal) => shiftTotal,
+  };
+
+  int get _salesCount => switch (hero) {
+    NotYetOpenedHero(:final yesterdaySalesCount) => yesterdaySalesCount,
+    OpenHero(:final todaySalesCount) => todaySalesCount,
+    ClosedHero(:final finalSalesCount) => finalSalesCount,
+    EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
+  };
+
+  double get _cashTotal => activity.fold<double>(0, (sum, tx) => sum + tx.signedAmount);
+  double get _expensesTotal => activity
+      .where((tx) => tx.type == MoneyTransactionType.expense)
+      .fold<double>(0, (sum, tx) => sum + tx.amount);
+
+  int get _lowStockCount => notices
+      .where((notice) => notice.type == SecondaryNoticeType.lowStock)
+      .fold<int>(0, (sum, notice) => sum + notice.value.toInt());
+
+  double get _creditTotal => notices
+      .where((notice) => notice.type == SecondaryNoticeType.pendingCredit)
+      .fold<double>(0, (sum, notice) => sum + notice.value.toDouble());
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <Widget>[
+      _HomeMetricCard(
+        color: _HomeColors.blue,
+        icon: FulusIcons.money,
+        label: 'Total Cash',
+        value: formatMoney(_cashTotal, symbol: currencySymbol, compact: true),
+      ),
+      _HomeMetricCard(
+        color: _HomeColors.green,
+        icon: FulusIcons.sell,
+        label: 'Today’s Sales',
+        value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true),
+        secondary: '$_salesCount sales',
+      ),
+      _HomeMetricCard(
+        color: _HomeColors.orange,
+        icon: FulusIcons.stock,
+        label: 'Low Stock',
+        value: '$_lowStockCount',
+        secondary: 'items need attention',
+      ),
+      _HomeMetricCard(
+        color: _HomeColors.purple,
+        icon: FulusIcons.payments,
+        label: 'Customer Credit',
+        value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true),
+      ),
+      _HomeMetricCard(
+        color: _HomeColors.teal,
+        icon: FulusIcons.expenses,
+        label: 'Expenses',
+        value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true),
+      ),
+      _HomeQuickActionCard(
+        onSell: () => context.goNamed('sell'),
+        onStock: () => context.goNamed('stock'),
+      ),
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: cards.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
+        mainAxisExtent: 138,
+      ),
+      itemBuilder: (_, index) => cards[index],
+    );
+  }
+}
+
+class _HomeMetricCard extends StatelessWidget {
+  const _HomeMetricCard({
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.secondary,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? secondary;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white, size: AppIconSize.base),
+          const Spacer(),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+          ),
+          if (secondary != null)
+            Text(secondary!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ],
+      ),
+    ),
+  );
+}
+
+class _HomeQuickActionCard extends StatelessWidget {
+  const _HomeQuickActionCard({required this.onSell, required this.onStock});
+  final VoidCallback onSell;
+  final VoidCallback onStock;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Quick Actions', style: AppTypography.label.copyWith(color: _HomeColors.navy, fontWeight: FontWeight.w800)),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(child: _QuickActionButton(icon: FulusIcons.sell, label: 'Sell', color: _HomeColors.blue, onTap: onSell)),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(child: _QuickActionButton(icon: FulusIcons.stock, label: 'Stock', color: _HomeColors.orange, onTap: onStock)),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _QuickActionButton extends StatelessWidget {
+  const _QuickActionButton({required this.icon, required this.label, required this.color, required this.onTap});
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(AppRadius.sm),
+    child: Container(
+      height: 48,
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(AppRadius.sm)),
+      alignment: Alignment.center,
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, color: Colors.white, size: AppIconSize.compact),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+      ]),
+    ),
+  );
 }
 
 class _HomeHeader extends StatelessWidget {
