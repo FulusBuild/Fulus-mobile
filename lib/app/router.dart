@@ -682,10 +682,11 @@ class _MoreScreen extends ConsumerWidget {
     final isOwner = user?.role == AuthRole.owner;
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
 
-    final destinations = <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
+    final destinations = <({IconData icon, String title, String subtitle, Color color, VoidCallback onTap})>[
       if (isOwner || permissions.contains(Permission.manageEmployees))
         (
           icon: FulusIcons.staff,
+          color: const Color(0xFF1677FF),
           title: 'Employees',
           subtitle: 'Manage your team',
           onTap: () => context.goNamed('moreEmployees'),
@@ -693,6 +694,7 @@ class _MoreScreen extends ConsumerWidget {
       if (isOwner || permissions.contains(Permission.viewReports))
         (
           icon: FulusIcons.reports,
+          color: const Color(0xFF0BBE6E),
           title: 'Reports',
           subtitle: 'Understand business trends',
           onTap: () => context.goNamed('moreReports'),
@@ -700,18 +702,21 @@ class _MoreScreen extends ConsumerWidget {
       if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup))
         (
           icon: FulusIcons.settings,
+          color: const Color(0xFFFF8A00),
           title: 'Settings',
           subtitle: 'Business, security and sync',
           onTap: () => context.goNamed('moreSettings'),
         ),
       (
         icon: FulusIcons.notifications,
+        color: const Color(0xFF7B3FF2),
         title: 'Notifications',
         subtitle: 'Alerts and updates',
         onTap: () => context.goNamed('moreNotifications'),
       ),
       (
         icon: FulusIcons.bugReport,
+        color: const Color(0xFF0EA5B7),
         title: 'Diagnostics',
         subtitle: 'Error logs and crash reports',
         onTap: () => context.goNamed('moreDiagnostics'),
@@ -720,6 +725,8 @@ class _MoreScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: 'More',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -741,12 +748,7 @@ class _MoreScreen extends ConsumerWidget {
             itemCount: destinations.length,
             itemBuilder: (context, index) {
               final destination = destinations[index];
-              return FulusActionTile(
-                icon: destination.icon,
-                label: destination.title,
-                subtitle: destination.subtitle,
-                onTap: destination.onTap,
-              );
+              return Material(color: destination.color, borderRadius: BorderRadius.circular(14), child: InkWell(onTap: destination.onTap, borderRadius: BorderRadius.circular(14), child: Padding(padding: const EdgeInsets.all(AppSpacing.md), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(destination.icon, color: Colors.white, size: 28), const Spacer(), Text(destination.title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)), Text(destination.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11))]))));
             },
           );
         },
