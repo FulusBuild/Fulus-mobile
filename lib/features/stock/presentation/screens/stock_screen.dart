@@ -411,28 +411,3 @@ class _StockSummaryTile extends StatelessWidget {
     );
   }
 }
-
-class _StockMetric extends StatelessWidget {
-  const _StockMetric({required this.icon, required this.label, required this.value, required this.foot, required this.color, required this.onTap});
-  final IconData icon; final String label; final String value; final String foot; final Color color; final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Material(
-    color: color,
-    borderRadius: BorderRadius.circular(12),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 104),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: Colors.white, size: 24),
-          const Spacer(),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-          Text(foot, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        ]),
-      ),
-    ),
-  );
-}
