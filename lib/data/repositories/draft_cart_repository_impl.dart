@@ -74,7 +74,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> getOrCreateDraftCart({required String locationId}) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     final existing = await (_db.select(_db.draftCarts)
           ..where((c) => c.locationId.equals(locationId)))
         .getSingleOrNull();
@@ -111,7 +111,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     double? unitPrice,
     double lineDiscount = 0.0,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     if (quantity <= 0) {
       throw ArgumentError.value(quantity, 'quantity', 'must be > 0');
     }
@@ -201,7 +201,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String itemLocalId,
     required int quantity,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     if (quantity <= 0) {
       throw ArgumentError.value(quantity, 'quantity', 'must be > 0');
     }
@@ -226,7 +226,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String itemLocalId,
     required double lineDiscount,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     final existing = (await _requireItemRow(itemLocalId)).toDomain();
     if (lineDiscount < 0 || lineDiscount > existing.quantity * existing.unitPrice) {
       throw ArgumentError.value(
@@ -252,7 +252,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<void> removeItem(String itemLocalId) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     final existing = await _requireItemRow(itemLocalId);
     await (_db.delete(_db.draftCartItems)..where((i) => i.localId.equals(itemLocalId)))
         .go();
@@ -264,7 +264,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String draftCartLocalId,
     required String? customerLocalId,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     await _requireDraftCart(draftCartLocalId);
     await (_db.update(_db.draftCarts)..where((c) => c.localId.equals(draftCartLocalId)))
         .write(
@@ -281,7 +281,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String draftCartLocalId,
     required double discount,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     if (discount < 0) {
       throw ArgumentError.value(discount, 'discount', 'must be ≥ 0');
     }
@@ -301,7 +301,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String draftCartLocalId,
     required double tax,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     if (tax < 0) {
       throw ArgumentError.value(tax, 'tax', 'must be ≥ 0');
     }
@@ -317,7 +317,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String method,
     required double amount,
   }) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     if (amount <= 0) {
       throw ArgumentError.value(amount, 'amount', 'must be > 0');
     }
@@ -338,7 +338,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<void> removePayment(String paymentLocalId) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     final row = await (_db.select(_db.draftCartPayments)
           ..where((p) => p.localId.equals(paymentLocalId)))
         .getSingleOrNull();
@@ -351,7 +351,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<DraftCart> clearDraft(String draftCartLocalId) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     await _requireDraftCart(draftCartLocalId);
     return _db.transaction(() async {
       await (_db.delete(_db.draftCartItems)
@@ -398,7 +398,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
 
   @override
   Future<Sale> completeSale(String draftCartLocalId) async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
     // The "Complete Sale" operation the diagnostic-system brief's own
     // Section 5 uses as its worked example — stages named to match what
     // this method actually does (audited directly, not copied from the
