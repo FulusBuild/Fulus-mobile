@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,7 +32,7 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
               child: SizedBox(
                 width: contentWidth,
                 child: StreamBuilder<List<Employee>>(
-                  stream: _employeesStream,
+                  stream: _employeesStream.withFulusLoadingTimeout(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return FulusErrorState(
