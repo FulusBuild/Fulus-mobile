@@ -99,62 +99,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
-                  child: ListView(
+                  child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.xxxl),
-                    children: [
-                      _HomeHeader(
-                        businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
+                    slivers: [
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.lg),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _HomeHeader(
+                                businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              Text(
+                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)} 👋',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.heading.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                showBusinessWide
+                                    ? 'Here’s what’s happening with your business today.'
+                                    : 'Here’s what’s happening on your shift today.',
+                                style: AppTypography.caption.copyWith(color: _HomeColors.muted),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)} 👋',
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: AppTypography.heading.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        showBusinessWide ? 'Here’s what’s happening with your business today.' : 'Here’s what’s happening on your shift today.',
-                        style: AppTypography.caption.copyWith(color: _HomeColors.muted),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      FutureBuilder<HomeHeroState>(
-                        future: _heroFuture,
-                        builder: (context, heroSnapshot) => FutureBuilder<SecondaryNoticeSelection>(
-                          future: _noticesFuture,
-                          builder: (context, noticeSnapshot) => FutureBuilder<List<MoneyTransaction>>(
-                            future: _activityFuture,
-                            builder: (context, activitySnapshot) => FutureBuilder<double>(
-                              future: _cashFuture,
-                              builder: (context, cashSnapshot) {
-                                if (heroSnapshot.connectionState != ConnectionState.done ||
-                                    noticeSnapshot.connectionState != ConnectionState.done ||
-                                    activitySnapshot.connectionState != ConnectionState.done ||
-                                    cashSnapshot.connectionState != ConnectionState.done) {
-                                  return const _HomeHeroSkeleton();
-                                }
-                                if (heroSnapshot.hasError ||
-                                    noticeSnapshot.hasError ||
-                                    activitySnapshot.hasError ||
-                                    cashSnapshot.hasError) {
-                                  return FulusErrorState(
-                                    message: "Couldn't load today's overview.",
-                                    reassurance: 'Your business records are still safe on this device.',
-                                    onRetry: _refresh,
-                                  );
-                                }
-                                final hero = heroSnapshot.data;
-                                if (hero == null || cashSnapshot.data == null) return const SizedBox.shrink();
-                                return _HomeMockupDashboard(
-                                  hero: hero,
-                                  notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
-                                  activity: activitySnapshot.data ?? const <MoneyTransaction>[],
-                                  cashTotal: cashSnapshot.data!,
-                                  currencySymbol: currencySymbol,
-                                  canViewMoney: widget.isOwner || widget.canViewMoney,
-                                  canViewReports: widget.isOwner || widget.canViewReports,
-                                );
-                              },
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.xxxl),
+                        sliver: SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: FutureBuilder<HomeHeroState>(
+                            future: _heroFuture,
+                            builder: (context, heroSnapshot) => FutureBuilder<SecondaryNoticeSelection>(
+                              future: _noticesFuture,
+                              builder: (context, noticeSnapshot) => FutureBuilder<List<MoneyTransaction>>(
+                                future: _activityFuture,
+                                builder: (context, activitySnapshot) => FutureBuilder<double>(
+                                  future: _cashFuture,
+                                  builder: (context, cashSnapshot) {
+                                    if (heroSnapshot.connectionState != ConnectionState.done ||
+                                        noticeSnapshot.connectionState != ConnectionState.done ||
+                                        activitySnapshot.connectionState != ConnectionState.done ||
+                                        cashSnapshot.connectionState != ConnectionState.done) {
+                                      return const _HomeHeroSkeleton();
+                                    }
+                                    if (heroSnapshot.hasError ||
+                                        noticeSnapshot.hasError ||
+                                        activitySnapshot.hasError ||
+                                        cashSnapshot.hasError) {
+                                      return FulusErrorState(
+                                        message: "Couldn't load today's overview.",
+                                        reassurance: 'Your business records are still safe on this device.',
+                                        onRetry: _refresh,
+                                      );
+                                    }
+                                    final hero = heroSnapshot.data;
+                                    if (hero == null || cashSnapshot.data == null) return const SizedBox.shrink();
+                                    return _HomeMockupDashboard(
+                                      hero: hero,
+                                      notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
+                                      activity: activitySnapshot.data ?? const <MoneyTransaction>[],
+                                      cashTotal: cashSnapshot.data!,
+                                      currencySymbol: currencySymbol,
+                                      canViewMoney: widget.isOwner || widget.canViewMoney,
+                                      canViewReports: widget.isOwner || widget.canViewReports,
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -169,7 +189,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
-
   String _displayName(WidgetRef ref) {
     final profile = ref.watch(_businessProfileProvider).value;
     final user = ref.watch(sessionProvider);
@@ -247,27 +266,35 @@ class _HomeMockupDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: canViewMoney ? formatMoney(cashTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
-        ]),
-        const SizedBox(height: AppSpacing.sm),
-        Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
-        ]),
-        const SizedBox(height: AppSpacing.sm),
-        Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeSellCard()),
-        ]),
-
-      ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 3 * 118 + 2 * AppSpacing.sm),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(children: [
+              Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: canViewMoney ? formatMoney(cashTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
+            ]),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Expanded(
+            child: Row(children: [
+              Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
+            ]),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Expanded(
+            child: Row(children: [
+              Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(child: _HomeSellCard()),
+            ]),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -285,7 +312,7 @@ class _HomeCompactCard extends StatelessWidget {
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 118, child: Padding(
+      child: Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: Colors.white, size: AppIconSize.compact),
@@ -313,10 +340,8 @@ class _HomeSellCard extends StatelessWidget {
     child: InkWell(
       onTap: () => context.goNamed('sell'),
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: 118,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
             children: [
               const Icon(FulusIcons.sell, color: Colors.white, size: AppIconSize.base),
