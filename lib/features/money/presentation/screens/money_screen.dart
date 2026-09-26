@@ -165,6 +165,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Money summary',
+                        titleColor: Colors.white,
                         action: 'See all',
                         onActionTap: () => context.pushNamed('moneyHistory'),
                       ),
