@@ -369,7 +369,7 @@ class _HomeCompactCard extends StatelessWidget {
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: foreground.withValues(alpha: 0.9),
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -381,7 +381,7 @@ class _HomeCompactCard extends StatelessWidget {
                   child: Text(
                     value,
                     maxLines: 1,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: foreground,
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
