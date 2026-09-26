@@ -14,6 +14,7 @@ import '../../../../shared/widgets/widgets.dart';
 import '../../../stock/application/stock_providers.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
+import '../widgets/quick_sale_sheet.dart';
 import 'cart_screen.dart';
 
 class SellScreen extends ConsumerStatefulWidget {
@@ -298,8 +299,8 @@ class _ProductList extends StatelessWidget {
         headline: 'No products found',
         body: q.isEmpty ? 'Add products from Stock to start selling.' : 'Nothing matches “$query”.',
         icon: FulusIcons.search,
-        actionLabel: q.isEmpty ? null : 'Clear search',
-        onAction: q.isEmpty ? null : onClearSearch,
+        actionLabel: q.isEmpty ? 'Quick Sale' : 'Clear search',
+        onAction: q.isEmpty ? () => QuickSaleSheet.show(context) : onClearSearch,
       );
     }
 
