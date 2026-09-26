@@ -547,6 +547,47 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   }
 
   @override
+  Future<({MoneySummary summary, List<MoneyTransaction> transactions})>
+      getSummaryAndTransactions(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
+    final cashierUserId = canViewAllSales ? null : currentAuthUserId;
+    final inPeriod = await _transactionsForRange(
+      period.start,
+      period.end,
+      cashierUserId: cashierUserId,
+    );
+    final previousPeriod = period.previous;
+    final previousTransactions = await _transactionsForRange(
+      previousPeriod.start,
+      previousPeriod.end,
+      cashierUserId: cashierUserId,
+    );
+
+    double sumWhere(bool Function(MoneyTransaction) test) =>
+        inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
+
+    final moneyIn = sumWhere((t) => t.isInflow);
+    final moneyOut = sumWhere((t) => !t.isInflow);
+    final previousNet =
+        previousTransactions.fold<double>(0, (sum, t) => sum + t.signedAmount);
+
+    final summary = MoneySummary(
+      period: period,
+      moneyIn: moneyIn,
+      moneyOut: moneyOut,
+      previousNet: previousNet,
+      incomeBreakdown: _breakdownIncome(inPeriod),
+      expenseBreakdown: _breakdownExpense(inPeriod),
+      transactionCount: inPeriod.length,
+    );
+
+    return (summary: summary, transactions: inPeriod);
+  }
+
+  @override
   Future<MoneySummary> getSummary(
     ReportPeriod period, {
     required String currentAuthUserId,
