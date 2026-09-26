@@ -684,7 +684,7 @@ class _MoreScreen extends ConsumerWidget {
     final destinations = <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
       if (isOwner || permissions.contains(Permission.manageEmployees))
         (
-          icon: FulusIcons.people,
+          icon: FulusIcons.staff,
           title: 'Employees',
           subtitle: 'Manage your team',
           onTap: () => context.goNamed('moreEmployees'),
@@ -710,7 +710,7 @@ class _MoreScreen extends ConsumerWidget {
         onTap: () => context.goNamed('moreNotifications'),
       ),
       (
-        icon: FulusIcons.diagnostics,
+        icon: FulusIcons.bugReport,
         title: 'Diagnostics',
         subtitle: 'Error logs and crash reports',
         onTap: () => context.goNamed('moreDiagnostics'),
