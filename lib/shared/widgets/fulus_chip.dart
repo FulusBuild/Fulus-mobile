@@ -65,11 +65,18 @@ class FulusChip extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
               ],
-              Text(
-                label,
-                style: AppTypography.label.copyWith(
-                  color: foreground,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: AppTypography.label.copyWith(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
               ],
