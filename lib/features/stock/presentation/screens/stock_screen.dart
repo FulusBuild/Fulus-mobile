@@ -31,6 +31,8 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     return FulusScreen(
       title: 'Stock',
       subtitle: 'See what you have and record stock changes',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       actions: [
         FulusIconButton(
@@ -161,32 +163,19 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.md),
-                    child: FulusStatGrid(
-                      spacing: AppSpacing.sm,
-                      minTileWidth: 150,
-                      cards: [
-                        FulusStatCard(
-                          icon: FulusIcons.stock,
-                          label: 'Stock available',
-                          value: '${totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1)} units',
-                        ),
-                        FulusStatCard(
-                          icon: FulusIcons.money,
-                          label: 'Stock value',
-                          value: formatMoney(totalValue, symbol: currencySymbol, compact: true),
-                        ),
-                        FulusStatCard(
-                          icon: FulusIcons.warning,
-                          label: 'Low stock',
-                          value: '$lowStockCount items',
-                          valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
-                          onTap: lowStockCount > 0
-                              ? () => ref.read(stockFilterProvider.notifier).state =
-                                  filter.copyWith(lowStockOnly: true, outOfStockOnly: false)
-                              : null,
-                        ),
-                      ],
-                    ),
+                    child: Column(children: [
+                      Row(children: [
+                        Expanded(child: _StockMetric(icon: FulusIcons.stock, label: 'Products', value: products.length.toString(), foot: 'Total items', color: const Color(0xFF1677FF))),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: _StockMetric(icon: FulusIcons.category, label: 'Categories', value: categories.length.toString(), foot: 'Categories', color: const Color(0xFF0BBE6E))),
+                      ]),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(children: [
+                        Expanded(child: _StockMetric(icon: FulusIcons.arrowUp, label: 'Stock in', value: totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1), foot: 'Recent', color: const Color(0xFFFF8A00))),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: _StockMetric(icon: FulusIcons.reports, label: 'Stock movement', value: lowStockCount.toString(), foot: 'Today’s activity', color: const Color(0xFF7B3FF2))),
+                      ]),
+                    ]),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -289,5 +278,23 @@ class _StockBody extends ConsumerWidget {
       ),
     );
   }
+class _StockMetric extends StatelessWidget {
+  const _StockMetric({required this.icon, required this.label, required this.value, required this.foot, required this.color});
+  final IconData icon; final String label; final String value; final String foot; final Color color;
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 104),
+    padding: const EdgeInsets.all(AppSpacing.md),
+    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, color: Colors.white, size: 24),
+      const Spacer(),
+      Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+      Text(foot, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+    ]),
+  );
+}
+
 }
 
