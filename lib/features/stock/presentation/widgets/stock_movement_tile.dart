@@ -39,10 +39,14 @@ class StockMovementTile extends StatelessWidget {
             ? '${_timestamp(movement.createdAt)} · ${product!.name}'
             : _timestamp(movement.createdAt),
       ),
-      trailing: Text(
-        _quantityLabel(),
-        style: AppTypography.body.copyWith(color: color, fontWeight: FontWeight.w600),
-          ),
+      trailing: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          _quantityLabel(),
+          style: AppTypography.body.copyWith(color: color, fontWeight: FontWeight.w600),
+        ),
+      ),
         ),
       ),
     );
