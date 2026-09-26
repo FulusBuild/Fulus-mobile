@@ -682,79 +682,170 @@ class _MoreScreen extends ConsumerWidget {
     final isOwner = user?.role == AuthRole.owner;
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
 
-    final destinations = <({IconData icon, String title, String subtitle, Color color, VoidCallback onTap})>[
-      if (isOwner || permissions.contains(Permission.manageEmployees))
-        (
-          icon: FulusIcons.staff,
-          color: const Color(0xFF1677FF),
-          title: 'Employees',
-          subtitle: 'Manage your team',
-          onTap: () => context.goNamed('moreEmployees'),
-        ),
-      if (isOwner || permissions.contains(Permission.viewReports))
-        (
-          icon: FulusIcons.reports,
-          color: const Color(0xFF0BBE6E),
-          title: 'Reports',
-          subtitle: 'Understand business trends',
-          onTap: () => context.goNamed('moreReports'),
-        ),
-      if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup))
-        (
-          icon: FulusIcons.settings,
-          color: const Color(0xFFFF8A00),
-          title: 'Settings',
-          subtitle: 'Business, security and sync',
-          onTap: () => context.goNamed('moreSettings'),
-        ),
-      (
-        icon: FulusIcons.notifications,
-        color: const Color(0xFF7B3FF2),
-        title: 'Notifications',
-        subtitle: 'Alerts and updates',
-        onTap: () => context.goNamed('moreNotifications'),
-      ),
-      (
-        icon: FulusIcons.bugReport,
-        color: const Color(0xFF0EA5B7),
-        title: 'Diagnostics',
-        subtitle: 'Error logs and crash reports',
-        onTap: () => context.goNamed('moreDiagnostics'),
-      ),
-    ];
+    final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
+    final canReports = isOwner || permissions.contains(Permission.viewReports);
+    final canSettings = isOwner ||
+        permissions.contains(Permission.manageSettings) ||
+        permissions.contains(Permission.manageBackup);
 
     return FulusScreen(
       title: 'More',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
-      applyPadding: false,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final inset = fulusHorizontalInset(context);
-          final textScale = MediaQuery.textScalerOf(context).scale(1);
-          final columns = constraints.maxWidth >= 760
-              ? 3
-              : constraints.maxWidth < 360 || textScale > 1.15
-                  ? 1
-                  : 2;
-          return GridView.builder(
-            padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.xxxl),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              mainAxisExtent: 112,
+      subtitle: 'Settings & tools',
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+        children: [
+          _MoreListTile(
+            icon: FulusIcons.settings,
+            title: 'Business Settings',
+            subtitle: 'Business, security and sync',
+            onTap: canSettings ? () => context.goNamed('moreSettings') : null,
+          ),
+          _MoreListTile(
+            icon: FulusIcons.print,
+            title: 'Printers',
+            subtitle: 'Receipt printer setup',
+            onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+          ),
+          _MoreListTile(
+            icon: FulusIcons.cloudDone,
+            title: 'Backup & Sync',
+            subtitle: 'Keep your business data safe',
+            onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
+          ),
+          _MoreListTile(
+            icon: FulusIcons.staff,
+            title: 'Employees & Permissions',
+            subtitle: 'Manage your team',
+            onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
+          ),
+          _MoreListTile(
+            icon: FulusIcons.reports,
+            title: 'Reports',
+            subtitle: 'Understand business trends',
+            onTap: canReports ? () => context.goNamed('moreReports') : null,
+          ),
+          _MoreListTile(
+            icon: FulusIcons.notifications,
+            title: 'Alerts & Diagnostics',
+            subtitle: 'Notifications, sync and error logs',
+            onTap: () => context.goNamed('moreNotifications'),
+            trailing: Wrap(
+              spacing: AppSpacing.xs,
+              children: [
+                _MoreMiniAction(
+                  icon: FulusIcons.notifications,
+                  label: 'Alerts',
+                  onTap: () => context.goNamed('moreNotifications'),
+                ),
+                _MoreMiniAction(
+                  icon: FulusIcons.bugReport,
+                  label: 'Diagnostics',
+                  onTap: () => context.goNamed('moreDiagnostics'),
+                ),
+              ],
             ),
-            itemCount: destinations.length,
-            itemBuilder: (context, index) {
-              final destination = destinations[index];
-              return Material(color: destination.color, borderRadius: BorderRadius.circular(14), child: InkWell(onTap: destination.onTap, borderRadius: BorderRadius.circular(14), child: Padding(padding: const EdgeInsets.all(AppSpacing.md), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(destination.icon, color: Colors.white, size: 28), const Spacer(), Text(destination.title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)), Text(destination.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11))]))));
-            },
-          );
-        },
+          ),
+        ],
       ),
     );
   }
+}
+
+class _MoreListTile extends StatelessWidget {
+  const _MoreListTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        color: AppColors.surfaceOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        elevation: 0,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.selectedTintOf(context),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    icon,
+                    color: enabled ? AppColors.primaryOf(context) : AppColors.textSecondaryOf(context),
+                    size: AppIconSize.compact,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: AppTypography.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimaryOf(context),
+                      )),
+                      const SizedBox(height: 2),
+                      Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  trailing!,
+                ] else
+                  Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreMiniAction extends StatelessWidget {
+  const _MoreMiniAction({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(AppRadius.sm),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: AppIconSize.dense, color: AppColors.primaryOf(context)),
+          Text(label, style: AppTypography.label.copyWith(fontSize: 10, color: AppColors.primaryOf(context))),
+        ],
+      ),
+    ),
+  );
 }
 
 /// A defensive fallback for the handful of Money routes that need an
