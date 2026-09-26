@@ -142,7 +142,7 @@ class _FulusBottomNavigationItem extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
               child: AnimatedContainer(
-                duration: AppMotion.fast,
+                duration: fulusMotionDuration(context, AppMotion.fast),
                 curve: AppMotion.curveStandard,
                 decoration: BoxDecoration(
                   color: selected ? AppColors.selectedTintOf(context) : Colors.transparent,
