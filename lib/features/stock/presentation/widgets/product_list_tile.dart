@@ -32,8 +32,11 @@ class ProductListTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-      child: FulusListRow(
-        onTap: onTap,
+      child: FulusPressable(
+        onPressed: onTap,
+        semanticsLabel: '${product.name}, ${item.currentStock} ${product.unit}',
+        child: FulusListRow(
+        onTap: null,
         leading: _Thumbnail(name: product.name, photoPath: product.photoPath),
         title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
@@ -54,12 +57,16 @@ class ProductListTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '${item.currentStock}',
-                      style: AppTypography.body.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${item.currentStock}',
+                        style: AppTypography.body.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                     Text(product.unit, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
@@ -67,6 +74,7 @@ class ProductListTile extends StatelessWidget {
                 ),
               )
             : Text('—', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+        ),
       ),
     );
   }

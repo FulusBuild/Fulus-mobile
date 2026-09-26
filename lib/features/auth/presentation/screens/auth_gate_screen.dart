@@ -107,33 +107,67 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
             body: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Fulus could not finish starting.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Startup diagnostic:',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    SelectableText(
-                      error,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () {
-                        setState(() {
-                          _stageInputsFuture = _loadStageInputs();
-                        });
-                      },
-                      child: const Text('Try again'),
-                    ),
-                  ],
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FulusCard(
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 72,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Icon(
+                                Icons.warning_amber_rounded,
+                                size: 34,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Fulus could not finish starting.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'A startup check failed. Try again, or use the diagnostic below if the problem persists.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FulusActionTile(
+                        label: 'Try again',
+                        subtitle: 'Run the startup checks again.',
+                        icon: Icons.refresh_rounded,
+                        onTap: () => setState(() => _stageInputsFuture = _loadStageInputs()),
+                      ),
+                      const SizedBox(height: 12),
+                      FulusCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Startup diagnostic',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            SelectableText(error),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

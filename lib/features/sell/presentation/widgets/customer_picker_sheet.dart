@@ -133,9 +133,10 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
           controller: controller,
         ),
         actions: [
-          TextButton(
+          FulusButton(
+            label: 'Cancel',
+            variant: FulusButtonVariant.secondary,
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
           ),
           FulusButton(
             label: 'Add customer',

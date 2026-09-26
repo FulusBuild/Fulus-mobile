@@ -158,29 +158,31 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xxl),
-                      FulusButton(
-                        label: 'Continue Setup',
-                        onPressed: () => Navigator.of(context).push<void>(
+                      FulusActionTile(
+                        label: 'Continue setup',
+                        subtitle: 'Finish the missing owner setup and keep this business.',
+                        icon: Icons.person_add_alt_1_rounded,
+                        onTap: () => Navigator.of(context).push<void>(
                           MaterialPageRoute(
                             builder: (_) => const OwnerSetupScreen(linkToExistingBusiness: true),
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      FulusButton(
-                        label: 'Use Existing Business',
-                        variant: FulusButtonVariant.secondary,
-                        onPressed: () => Navigator.of(context).push<void>(
+                      const SizedBox(height: AppSpacing.sm),
+                      FulusActionTile(
+                        label: 'Use existing business',
+                        subtitle: 'Choose a local Fulus profile to continue.',
+                        icon: Icons.person_rounded,
+                        onTap: () => Navigator.of(context).push<void>(
                           MaterialPageRoute(builder: (_) => const IdentityPickerScreen()),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      FulusButton(
-                        label: 'Start Fresh',
-                        variant: FulusButtonVariant.text,
-                        loading: _clearing,
-                        loadingLabel: 'Clearing',
-                        onPressed: _clearing ? null : () => _startFresh(profile),
+                      const SizedBox(height: AppSpacing.sm),
+                      FulusActionTile(
+                        label: 'Start fresh',
+                        subtitle: 'Delete this local business and begin again.',
+                        icon: Icons.restart_alt_rounded,
+                        onTap: _clearing ? null : () => _startFresh(profile),
                       ),
                     ],
                   );

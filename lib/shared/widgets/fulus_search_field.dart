@@ -82,7 +82,7 @@ class _FulusSearchFieldState extends State<FulusSearchField> {
           hintText: widget.hintText,
           hintStyle: AppTypography.body.copyWith(color: secondary),
           filled: true,
-          fillColor: AppColors.surfaceAltOf(context),
+          fillColor: AppColors.surfaceOf(context),
           prefixIcon: IconButton(
             tooltip: 'Search',
             onPressed: _focusNode.requestFocus,
@@ -117,7 +117,7 @@ class _FulusSearchFieldState extends State<FulusSearchField> {
             borderRadius: BorderRadius.circular(AppRadius.pill),
             borderSide: BorderSide(
               color: primary,
-              width: 1.5,
+              width: 2,
             ),
           ),
           contentPadding: const EdgeInsets.symmetric(

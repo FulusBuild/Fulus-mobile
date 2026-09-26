@@ -121,13 +121,19 @@ class _DiscountSheetState extends State<DiscountSheet> {
           children: [
             Text(widget.title, style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
             const SizedBox(height: AppSpacing.lg),
-            SegmentedButton<_DiscountMode>(
-              segments: const [
-                ButtonSegment(value: _DiscountMode.amount, label: Text('Amount')),
-                ButtonSegment(value: _DiscountMode.percent, label: Text('Percent')),
+            FulusChipRow(
+              children: [
+                FulusChip(
+                  label: 'Amount',
+                  selected: _mode == _DiscountMode.amount,
+                  onTap: () => setState(() => _mode = _DiscountMode.amount),
+                ),
+                FulusChip(
+                  label: 'Percent',
+                  selected: _mode == _DiscountMode.percent,
+                  onTap: () => setState(() => _mode = _DiscountMode.percent),
+                ),
               ],
-              selected: {_mode},
-              onSelectionChanged: (s) => setState(() => _mode = s.first),
             ),
             const SizedBox(height: AppSpacing.md),
             FulusTextField(

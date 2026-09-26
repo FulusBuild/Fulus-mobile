@@ -36,7 +36,9 @@ class FulusButton extends StatelessWidget {
             onPressed!();
           };
     final child = _buildChild(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     const minimumSize = Size(48, 48);
+    final horizontalPadding = textScale > 1.15 ? AppSpacing.sm : AppSpacing.md;
 
     switch (variant) {
       case FulusButtonVariant.primary:
@@ -48,7 +50,9 @@ class FulusButton extends StatelessWidget {
             disabledBackgroundColor: AppColors.primaryOf(context).withValues(alpha: AppOpacity.disabled),
             disabledForegroundColor: AppColors.onPrimaryOf(context).withValues(alpha: AppOpacity.disabled),
             minimumSize: minimumSize,
-            elevation: 0,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: AppSpacing.sm),
+            elevation: 1,
+            shadowColor: AppColors.primaryOf(context).withValues(alpha: 0.18),
             textStyle: AppTypography.buttonLabel,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
@@ -61,6 +65,7 @@ class FulusButton extends StatelessWidget {
             foregroundColor: AppColors.textPrimaryOf(context),
             side: BorderSide(color: AppColors.borderOf(context)),
             minimumSize: minimumSize,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: AppSpacing.sm),
             textStyle: AppTypography.buttonLabel,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
@@ -180,9 +185,15 @@ class FulusIconButton extends StatelessWidget {
         overlayColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
       ),
     );
-    final wrapped = tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    final accessible = Semantics(
+      button: true,
+      enabled: onPressed != null,
+      label: tooltip ?? 'Button',
+      excludeSemantics: tooltip != null,
+      child: button,
+    );
     return tooltip == null
-        ? wrapped
-        : Semantics(button: true, label: tooltip, excludeSemantics: true, child: wrapped);
+        ? accessible
+        : Tooltip(message: tooltip!, child: accessible);
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -28,9 +29,13 @@ T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
 /// stack and left this whole pushed chain on screen underneath,
 /// looking frozen. `popUntil` unwinds it first — same fix, same reason,
 /// as CompletionScreen's own `_goAndClose`.
-void _goAndClose(BuildContext context, String routeName) {
+void _goAndClose(
+  BuildContext context,
+  String routeName, {
+  Map<String, String> pathParameters = const {},
+}) {
   Navigator.of(context).popUntil((route) => route.isFirst);
-  context.goNamed(routeName);
+  context.goNamed(routeName, pathParameters: pathParameters);
 }
 
 /// Walkthrough Phase 10 — "one sale flows through your business
@@ -109,6 +114,7 @@ class _VerificationErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+              const OnboardingStepHeader(step: 6, total: 7, title: 'Verify your first transaction', subtitle: 'See how the sale updates your business records.'),
           Text(
             "We couldn't load what changed from your sale. It's already saved — this is just "
             "this screen having trouble reading it back.",
@@ -253,7 +259,8 @@ class _InventorySection extends ConsumerWidget {
               body: '${match.product.name} — before: $before, sold: $sold, after: $after.',
               action: (
                 'View in Stock',
-                () => context.pushNamed(
+                () => _goAndClose(
+                  context,
                   'stockProductDetail',
                   pathParameters: {'productId': productLocalId},
                 ),

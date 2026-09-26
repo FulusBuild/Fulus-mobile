@@ -286,13 +286,20 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
                               separatorBuilder: (_, __) => const FulusListDivider(),
                               itemBuilder: (context, index) {
                                 final item = matches[index];
-                                return FulusListRow(
-                                  title: Text(item.product.name),
-                                  subtitle: Text('${item.currentStock} ${item.product.unit} in stock'),
-                                  onTap: () => setState(() {
-                                    _product = item.product;
-                                    _seedFromProduct(item.product);
-                                  }),
+                                return Semantics(
+                                  button: true,
+                                  label: '${item.product.name}. ${item.currentStock} ${item.product.unit} in stock',
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(minHeight: 56),
+                                    child: FulusListRow(
+                                      title: Text(item.product.name),
+                                      subtitle: Text('${item.currentStock} ${item.product.unit} in stock'),
+                                      onTap: () => setState(() {
+                                        _product = item.product;
+                                        _seedFromProduct(item.product);
+                                      }),
+                                    ),
+                                  ),
                                 );
                               },
                             ),

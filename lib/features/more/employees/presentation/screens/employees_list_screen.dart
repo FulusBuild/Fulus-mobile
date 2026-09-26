@@ -20,20 +20,23 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
-      title: 'Team',
+      title: 'Employees',
       subtitle: 'People, access and attendance',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
+        FulusIconButton(
+          icon: FulusIcons.add,
+          tooltip: 'Add team member',
+          onPressed: () => _openEmployeeSheet(context),
+        ),
         FulusIconButton(
           icon: FulusIcons.staff,
           tooltip: 'Deactivated team members',
           onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
         ),
       ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEmployeeSheet(context),
-        icon: const Icon(FulusIcons.person),
-        label: const Text('Add member'),
-      ),
+      floatingActionButton: null,
       body: StreamBuilder<List<Employee>>(
         stream: _employeesStream,
         builder: (context, snapshot) {
@@ -63,7 +66,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
                 children: [
-                  _TeamOverview(count: employees.length),
+                  _TeamOverview(employees: employees),
                   const SizedBox(height: AppSpacing.lg),
                   FulusSectionHeader(
                     title: 'Active team',
@@ -101,48 +104,34 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
 }
 
 class _TeamOverview extends StatelessWidget {
-  const _TeamOverview({required this.count});
-  final int count;
+  const _TeamOverview({required this.employees});
+  final List<Employee> employees;
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.selectedTintOf(context),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(FulusIcons.staff, color: AppColors.primaryOf(context)),
+    return Material(
+      color: const Color(0xFF1473E6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 118,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(FulusIcons.staff, color: Colors.white, size: AppIconSize.base),
+              const Spacer(),
+              Text(
+                'Employees  ${employees.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              const Text(
+                'People, access and attendance',
+                style: TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Your team', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                const SizedBox(height: 2),
-                Text(
-                  '$count active ${count == 1 ? 'member' : 'members'}',
-                  style: AppTypography.subheading.copyWith(
-                    color: AppColors.textPrimaryOf(context),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Manage access and attendance from each profile.',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

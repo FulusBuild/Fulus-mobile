@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
+import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
 import '../widgets/product_list_tile.dart';
+import '../widgets/stock_movement_tile.dart';
 
 class StockScreen extends ConsumerStatefulWidget {
   const StockScreen({super.key});
@@ -30,6 +31,8 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     return FulusScreen(
       title: 'Stock',
       subtitle: 'See what you have and record stock changes',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       actions: [
         FulusIconButton(
@@ -43,11 +46,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           onPressed: () => _showStockActions(context),
         ),
       ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.pushNamed('stockRecordMovement'),
-        icon: const Icon(FulusIcons.arrowUp),
-        label: const Text('Record stock'),
-      ),
+      floatingActionButton: null,
       body: locationAsync.when(
         loading: () => const FulusLoadingIndicator(),
         error: (error, _) => FulusErrorState(
@@ -100,6 +99,7 @@ class _StockBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
+    final movementsAsync = ref.watch(stockMovementsProvider(locationId));
     final filter = ref.watch(stockFilterProvider);
 
     return LayoutBuilder(
@@ -122,9 +122,6 @@ class _StockBody extends ConsumerWidget {
             final categories = categoriesAsync.asData?.value ?? const <Category>[];
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
-            final trackedProducts = products.where((p) => p.product.tracksStock);
-            final totalUnits = trackedProducts.fold<double>(0, (sum, p) => sum + p.currentStock);
-            final totalValue = totalStockValue(products);
             final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
             final outOfStock = outOfStockCount(products);
 
@@ -138,10 +135,9 @@ class _StockBody extends ConsumerWidget {
             }
 
             return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
+              slivers: [                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
                     child: FulusSearchField(
                       controller: searchController,
                       hintText: 'Search products, SKU, barcode…',
@@ -151,52 +147,114 @@ class _StockBody extends ConsumerWidget {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.md),
-                    child: FulusCard(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _InventoryMetric(
-                              label: 'Stock available',
-                              value: totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1),
-                              suffix: 'units',
-                            ),
-                          ),
-                          Container(width: 1, height: 42, color: AppColors.borderOf(context)),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: AppSpacing.md),
-                              child: _InventoryMetric(
-                                label: 'Stock value',
-                                value: formatMoney(totalValue, symbol: '₦', compact: true),
-                                suffix: 'at cost',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: AppSpacing.sm,
+                      mainAxisSpacing: AppSpacing.sm,
+                      childAspectRatio: 1.15,
+                      children: [
+                        _StockSummaryTile(
+                          color: const Color(0xFF1473E6),
+                          icon: FulusIcons.stock,
+                          label: 'Products',
+                          value: '${products.length}',
+                          subtitle: 'Total items',
+                        ),
+                        _StockSummaryTile(
+                          color: const Color(0xFF0BBE6E),
+                          icon: FulusIcons.category,
+                          label: 'Categories',
+                          value: '${categories.length}',
+                          subtitle: 'Categories',
+                          onTap: () => context.pushNamed('stockCategories'),
+                        ),
+                        _StockSummaryTile(
+                          color: const Color(0xFFFF8C00),
+                          icon: FulusIcons.arrowDown,
+                          label: 'Stock In',
+                          value: movementsAsync.asData?.value.where((m) => m.movementType == StockMovementType.stockIn).length.toString() ?? '—',
+                          subtitle: 'Recent',
+                          onTap: () => context.pushNamed('stockRecordMovement'),
+                        ),
+                        _StockSummaryTile(
+                          color: const Color(0xFF7B3FF2),
+                          icon: FulusIcons.swap,
+                          label: 'Stock Movement',
+                          value: movementsAsync.asData?.value.length.toString() ?? '—',
+                          subtitle: 'Recent activity',
+                          onTap: () => context.pushNamed('stockHistory'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: inset),
-                    child: FulusChipRow(children: [
-                      for (final category in categories)
-                        FulusChip(
-                          label: category.name,
-                          selected: filter.categoryId == category.localId,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state =
-                              filter.copyWith(
-                                categoryId: filter.categoryId == category.localId
-                                    ? null
-                                    : category.localId,
+                if (lowStockCount > 0)
+                  if (movementsAsync.hasValue && movementsAsync.value!.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+                      child: FulusCard(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Recent Stock Movement',
+                                      style: AppTypography.label.copyWith(
+                                        color: AppColors.textPrimaryOf(context),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => context.pushNamed('stockHistory'),
+                                    child: const Text('View all'),
+                                  ),
+                                ],
                               ),
+                            ),
+                            for (final movement in movementsAsync.value!.take(3))
+                              StockMovementTile(
+                                movement: movement,
+                                showProductName: true,
+                              ),
+                          ],
                         ),
-                    ]),
+                      ),
+                    ),
                   ),
-                ),
+                SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
+                      child: Material(
+                        color: const Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Row(children: [
+                          const Icon(FulusIcons.warning, color: Colors.white, size: 28),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('$lowStockCount items low in stock', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                            const Text('View details →', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                          ])),
+                              const Icon(FulusIcons.chevronRight, color: Colors.white),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
@@ -281,33 +339,55 @@ class _StockBody extends ConsumerWidget {
   }
 }
 
-class _InventoryMetric extends StatelessWidget {
-  const _InventoryMetric({required this.label, required this.value, required this.suffix});
+class _StockSummaryTile extends StatelessWidget {
+  const _StockSummaryTile({
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.subtitle,
+    this.onTap,
+  });
+
+  final Color color;
+  final IconData icon;
   final String label;
   final String value;
-  final String suffix;
+  final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
-        const SizedBox(height: 3),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-              const SizedBox(width: 4),
-              Text(suffix, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-            ],
-          ),
+    final child = SizedBox(
+      height: 118,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: Colors.white, size: AppIconSize.base),
+            const Spacer(),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+            ),
+            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          ],
         ),
-      ],
+      ),
+    );
+    return Semantics(
+      button: onTap != null,
+      label: '$label, $value',
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: onTap == null
+            ? child
+            : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppRadius.md), child: child),
+      ),
     );
   }
 }

@@ -263,11 +263,13 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
             onChanged: (_) => _clearErrors(),
           ),
           const SizedBox(height: AppSpacing.lg),
-          FulusButton(
-            label: _moreDetailsOpen ? 'Hide more details' : 'More details',
-            variant: FulusButtonVariant.text,
+          FulusActionTile(
             icon: _moreDetailsOpen ? FulusIcons.chevronUp : FulusIcons.chevronDown,
-            onPressed: () => setState(() => _moreDetailsOpen = !_moreDetailsOpen),
+            label: _moreDetailsOpen ? 'Hide more details' : 'More details',
+            subtitle: _moreDetailsOpen
+                ? 'Keep only the essentials visible when you are done.'
+                : 'Barcode, photo, category, supplier and stock settings.',
+            onTap: () => setState(() => _moreDetailsOpen = !_moreDetailsOpen),
           ),
           if (_moreDetailsOpen) ...[
             const SizedBox(height: AppSpacing.sm),

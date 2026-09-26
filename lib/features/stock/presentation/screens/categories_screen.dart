@@ -77,13 +77,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                               ),
                             ),
                           const SizedBox(height: AppSpacing.lg),
-                          SizedBox(
-                            width: wide ? null : double.infinity,
-                            child: FulusButton(
-                              label: 'Add category',
-                              icon: FulusIcons.add,
-                              onPressed: () => _openAddSheet(context),
-                            ),
+                          FulusActionTile(
+                            icon: FulusIcons.add,
+                            label: 'Add category',
+                            subtitle: 'Create a group for faster selling and stock management.',
+                            onTap: () => _openAddSheet(context),
                           ),
                         ],
                       ),

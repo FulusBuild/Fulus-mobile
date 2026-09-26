@@ -269,28 +269,57 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          _status,
-                          textAlign: TextAlign.center,
-                          style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.selectedTintOf(context),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: _busy
+                                  ? const FulusLoadingIndicator()
+                                  : Icon(
+                                      Icons.cloud_download_rounded,
+                                      color: AppColors.primaryOf(context),
+                                      size: 22,
+                                    ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(
+                                _status,
+                                style: AppTypography.body.copyWith(
+                                  color: AppColors.textPrimaryOf(context),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         if (_error != null) ...[
                           const SizedBox(height: AppSpacing.md),
                           Text(
                             _error!,
-                            textAlign: TextAlign.center,
                             style: TextStyle(color: Theme.of(context).colorScheme.error),
                           ),
                         ],
-                        const SizedBox(height: AppSpacing.lg),
-                        FulusButton(
-                          label: 'Restore my business',
-                          loading: _busy,
-                          onPressed: _busy ? null : _restore,
-                        ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusActionTile(
+                    label: _busy ? 'Restoring business…' : 'Restore my business',
+                    subtitle: _busy
+                        ? 'Please keep Fulus open while your business is restored.'
+                        : 'Bring your cloud business onto this device.',
+                    icon: Icons.cloud_download_rounded,
+                    onTap: _busy ? null : _restore,
+                    trailing: _busy ? const FulusLoadingIndicator() : null,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(

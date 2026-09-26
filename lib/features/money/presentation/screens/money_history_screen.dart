@@ -111,16 +111,17 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
       builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
-            leading: const Icon(FulusIcons.tableChart),
-            title: const Text('CSV'),
-            subtitle: const Text('Open in a spreadsheet'),
+          FulusActionTile(
+            icon: FulusIcons.tableChart,
+            label: 'CSV',
+            subtitle: 'Open in a spreadsheet',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
-          ListTile(
-            leading: const Icon(FulusIcons.pictureAsPdf),
-            title: const Text('PDF'),
-            subtitle: const Text('Share a printable summary'),
+          const SizedBox(height: AppSpacing.sm),
+          FulusActionTile(
+            icon: FulusIcons.pictureAsPdf,
+            label: 'PDF',
+            subtitle: 'Share a printable summary',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
         ],

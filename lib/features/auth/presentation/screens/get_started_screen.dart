@@ -48,46 +48,41 @@ class GetStartedScreen extends ConsumerWidget {
                     style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  FulusButton(
-                    label: 'Sign up',
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: () async {
+                  FulusActionTile(
+                    label: 'Create your business',
+                    subtitle: 'Set up Fulus in a few simple steps.',
+                    icon: Icons.storefront_rounded,
+                    onTap: () async {
                       final onboardingState = ref.read(onboardingStateProvider);
                       await onboardingState.advanceWalkthroughTo(OnboardingStep.businessSetup);
                       ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.businessSetup;
                       if (!context.mounted) return;
                       Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => const FulusAccountScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
                       );
                     },
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => const FulusAccountScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text('Login'),
-                    ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusActionTile(
+                    label: 'Sign in',
+                    subtitle: 'Restore a Fulus business to this device.',
+                    icon: Icons.login_rounded,
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
+                      );
+                    },
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => const OwnerSetupScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text('Continue offline'),
-                    ),
+                  FulusActionTile(
+                    label: 'Continue offline',
+                    subtitle: 'Run your business locally without an account.',
+                    icon: Icons.cloud_off_rounded,
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
+                      );
+                    },
                   ),
                 ],
               ),

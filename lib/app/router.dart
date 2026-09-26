@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/diagnostics/capture/current_screen_tracker.dart';
-import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
-import '../domain/entities/app_notification.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/customer.dart';
 import '../domain/entities/permission.dart';
@@ -201,10 +199,13 @@ final appRouter = GoRouter(
                     return const AuthGateScreen();
                   }
                   final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+                  final isOwner = user.role == AuthRole.owner;
                   return HomeScreen(
                     currentAuthUserId: user.id,
-                    isOwner: user.role == AuthRole.owner,
+                    isOwner: isOwner,
                     canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
+                    canViewMoney: permissions.contains(Permission.viewMoney),
+                    canViewReports: permissions.contains(Permission.viewReports),
                   );
                 },
               ),
@@ -679,107 +680,79 @@ class _MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user?.role == AuthRole.owner;
-    // Same fail-closed default as _ShellGate's own read of this — see
-    // that widget's own comment. Owner never needs this at all (every
-    // `isOwner ||` check below short-circuits before it matters).
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+    final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
+    final canReports = isOwner || permissions.contains(Permission.viewReports);
+    final canSettings = isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup);
+
+    final rows = <Widget>[
+      _MoreRow(
+        icon: FulusIcons.settings,
+        title: 'Business Settings',
+        subtitle: 'Profile, location, tax and business preferences',
+        onTap: canSettings ? () => context.goNamed('moreSettings') : null,
+      ),
+      _MoreRow(
+        icon: FulusIcons.print,
+        title: 'Printers',
+        subtitle: 'Bluetooth & thermal printers',
+        onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+      ),
+      _MoreRow(
+        icon: FulusIcons.cloudDone,
+        title: 'Backup & Sync',
+        subtitle: 'Cloud backup and sync status',
+        onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
+      ),
+      _MoreRow(
+        icon: FulusIcons.staff,
+        title: 'Employees & Permissions',
+        subtitle: 'Roles and access control',
+        onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
+      ),
+      _MoreRow(
+        icon: FulusIcons.reports,
+        title: 'Reports',
+        subtitle: 'Sales, stock and business insights',
+        onTap: canReports ? () => context.goNamed('moreReports') : null,
+      ),
+      _MoreRow(
+        icon: FulusIcons.notifications,
+        title: 'Alerts',
+        subtitle: 'Notifications and attention items',
+        onTap: () => context.goNamed('moreNotifications'),
+      ),
+      _MoreRow(
+        icon: FulusIcons.bugReport,
+        title: 'Diagnostics',
+        subtitle: 'Check app health and troubleshoot issues',
+        onTap: () => context.goNamed('moreDiagnostics'),
+      ),
+    ];
 
     return FulusScreen(
       title: 'More',
-      applyPadding: false,
-      body: ListView(
-        children: [
-          // Employees/Reports/Settings hide themselves entirely now,
-          // rather than this screen being reachable only once every row
-          // on it was already guaranteed visible — see
-          // _permissionForMoreRoute's own doc comment for the matching
-          // enforcement half of this (a hidden row alone isn't real
-          // enforcement, same point app_shell.dart's own doc comment
-          // makes about hidden nav buttons).
-          if (isOwner || permissions.contains(Permission.manageEmployees)) ...[
-            FulusListRow(
-              title: const Text('Employees'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreEmployees'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          if (isOwner || permissions.contains(Permission.viewReports)) ...[
-            FulusListRow(
-              title: const Text('Reports'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreReports'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup)) ...[
-            FulusListRow(
-              title: const Text('Settings'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreSettings'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          Consumer(
-            builder: (context, ref, _) {
-              final notificationsAsync = ref.watch(_moreNotificationsProvider);
-              final unread = notificationsAsync.value?.where((n) => !n.isRead).length ?? 0;
-              return FulusListRow(
-                title: const Text('Notifications'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (unread > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.warningOf(context),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () => context.goNamed('moreNotifications'),
-              );
-            },
+      actions: [
+        if (canSettings)
+          FulusIconButton(
+            icon: FulusIcons.settings,
+            tooltip: 'Business settings',
+            onPressed: () => context.goNamed('moreSettings'),
           ),
-          const FulusListDivider(indented: false),
-          Consumer(
-            builder: (context, ref, _) {
-              final eventsAsync = ref.watch(diagnosticEventsProvider);
-              final errorCount = eventsAsync.value
-                      ?.where((e) =>
-                          e.severity == DiagnosticSeverity.critical || e.severity == DiagnosticSeverity.error)
-                      .length ??
-                  0;
-              return FulusListRow(
-                title: const Text('Diagnostics'),
-                subtitle: const Text('Error logs & crash reports'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (errorCount > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.errorOf(context),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$errorCount',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () => context.goNamed('moreDiagnostics'),
-              );
-            },
+      ],
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+        children: [
+          FulusCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var i = 0; i < rows.length; i++) ...[
+                  rows[i],
+                  if (i < rows.length - 1) const FulusListDivider(indented: false),
+                ],
+              ],
+            ),
           ),
         ],
       ),
@@ -787,9 +760,50 @@ class _MoreScreen extends ConsumerWidget {
   }
 }
 
-final _moreNotificationsProvider = StreamProvider.autoDispose<List<AppNotification>>((ref) {
-  return ref.watch(notificationRepositoryProvider).watchAll();
-});
+class _MoreRow extends StatelessWidget {
+  const _MoreRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      label: '$title. $subtitle',
+      child: FulusListRow(
+        leading: Container(
+          width: FulusListRow.leadingSize,
+          height: FulusListRow.leadingSize,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAltOf(context),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            color: onTap == null ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context),
+            size: AppIconSize.compact,
+          ),
+        ),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: onTap == null
+            ? Icon(FulusIcons.lock, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact)
+            : Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
+        onTap: onTap,
+      ),
+    );
+  }
+}
 
 /// A defensive fallback for the handful of Money routes that need an
 /// object passed via `extra` (a `Customer`, `Supplier`, or

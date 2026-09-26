@@ -7,6 +7,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../stock/presentation/screens/add_edit_product_screen.dart';
 import '../widgets/onboarding_error_banner.dart';
+import '../widgets/onboarding_step_header.dart';
 
 /// Walkthrough Phase 4. Opens the real [AddEditProductScreen] rather
 /// than a tutorial copy of the form — it pops with no return value on
@@ -103,6 +104,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+              const OnboardingStepHeader(step: 3, total: 7, title: 'Add your first product', subtitle: 'Build a useful starting inventory before your first sale.'),
                 Text(
                   'Add your first product',
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
@@ -118,16 +120,19 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                   OnboardingErrorBanner(message: _errorMessage!),
                   const SizedBox(height: AppSpacing.md),
                 ],
-                FulusButton(
+                FulusActionTile(
+                  icon: FulusIcons.add,
                   label: 'Add a product',
-                  loading: _checking,
-                  onPressed: _checking ? null : _openProductForm,
+                  subtitle: 'Create your first real inventory item.',
+                  trailing: _checking ? const FulusLoadingIndicator() : null,
+                  onTap: _checking ? null : _openProductForm,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                FulusButton(
+                const SizedBox(height: AppSpacing.md),
+                FulusActionTile(
+                  icon: FulusIcons.stock,
                   label: "I'll add products later",
-                  variant: FulusButtonVariant.text,
-                  onPressed: _checking ? null : _skip,
+                  subtitle: 'You can build your catalog from Stock anytime.',
+                  onTap: _checking ? null : _skip,
                 ),
               ],
             ),

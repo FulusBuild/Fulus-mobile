@@ -33,7 +33,7 @@ Future<void> main() async {
   final dio = Dio(BaseOptions(
     baseUrl: baseUrl,
     connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 20),
+    receiveTimeout: const Duration(seconds: 45),
     headers: {
       'content-type': 'application/json',
       'Authorization': 'Bearer $token',

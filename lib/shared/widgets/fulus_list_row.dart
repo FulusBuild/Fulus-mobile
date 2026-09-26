@@ -44,13 +44,13 @@ class FulusListRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        splashColor: AppColors.primaryOf(context).withValues(alpha: 0.08),
-        highlightColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
+        splashColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
+        highlightColor: AppColors.primaryOf(context).withValues(alpha: 0.06),
         hoverColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+          constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
             child: Row(
               children: [
                 if (leading != null) ...[

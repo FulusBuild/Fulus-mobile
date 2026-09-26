@@ -1,0 +1,191 @@
+# Fulus UI/UX Mockup Fidelity Audit
+
+Active workstream: PR #81 (ux-ui-foundation)
+Source of truth: approved Fulus mockup + docs/UX_UI_REDESIGN_SPEC.md
+Rule: refine the mockup, do not replace its visual language with a generic SaaS dashboard, conventional POS, or unrelated Material layout.
+
+## Completed foundation
+- [x] Primary navigation: Home | Sell | Stock | Money | More
+- [x] Primary navigation uses large touch targets and persistent mobile navigation
+- [x] Global drawer/hamburger navigation removed from the workspace
+- [x] Shared FulusScreen header supports contextual back navigation
+- [x] Shared FulusListRow baseline raised to 56dp
+- [x] Shared FulusActionTile established for primary workspace actions
+- [x] Home uses glanceable business summary, action tiles, attention states and recent activity
+- [x] Stock uses visual summary metrics, search, filters and actionable inventory
+- [x] Money uses the shared action-tile language and glanceable financial summary
+- [x] More uses the same tile language instead of a dense settings list
+- [x] Important interaction targets and semantics have been hardened
+- [x] Loading, empty and error states have been added/refined across audited core screens
+- [x] Offline/sync messaging is kept separate from ordinary local data availability
+- [x] Reduced-motion behavior is preserved where motion exists
+- [x] Secondary actions use shared Fulus controls across Team, Reports, checkout, receipts and auth flows
+- [x] Material segmented controls in audited flows replaced with the shared Fulus chip language
+- [x] Common confirmation/action dialogs in audited flows use the shared Fulus button hierarchy
+
+## Current UI/UX audit areas
+
+### 1. Home
+- [x] Business context and sync status
+- [x] Large primary sales value
+- [x] Primary actions
+- [x] Attention state
+- [x] Recent activity
+- [x] Loading/error/empty states
+- [ ] Final whole-screen comparison against the supplied mockup at phone width
+- [ ] Final whole-screen comparison at narrow phone width
+- [ ] Final large-text/accessibility visual pass
+
+### 2. Sell
+- [x] Search/product discovery
+- [x] Product presentation
+- [x] Cart summary
+- [x] Touch-friendly product interactions
+- [x] Core spacing, density and hierarchy pass completed
+- [ ] Final whole-screen mockup comparison
+- [ ] Empty/search-no-results state visual pass
+- [ ] Narrow-width and large-text pass
+
+### 3. Cart / Payment / Sale complete
+- [x] Cart quantity interaction
+- [x] Customer selection interaction
+- [x] Large payment method targets
+- [x] Sale-success confirmation and next actions
+- [x] Receipt preview
+- [ ] Final visual consistency pass across the complete sale journey
+- [ ] Error/retry/loading state consistency pass
+
+### 4. Stock
+- [x] Glanceable stock metrics
+- [x] Search and category filtering
+- [x] Low/out-of-stock attention
+- [x] Product list touch targets
+- [x] Business-configured currency in stock value summary
+- [ ] Final mockup-fidelity pass for metric/tile composition
+- [ ] Narrow-width chip/filter behavior review
+- [ ] Large-text review
+
+### 5. Money
+- [x] Balance/summary hierarchy
+- [x] Shared action tiles
+- [x] Period filtering
+- [x] Recent activity
+- [x] History/search/filter states
+- [ ] Final mockup-fidelity pass for tile sizing and information density
+- [ ] Large-text and narrow-width pass
+
+### 6. Customers / Employees / Reports
+- [x] Shared list/card/tile primitives
+- [x] Customer credit visibility
+- [x] Employee overview
+- [x] Reports period/export/drill-down structure
+- [x] Secondary screen tile/card/row composition pass
+- [x] Empty/error/loading consistency review
+- [ ] Final whole-screen visual comparison against the mockup
+
+### 7. More / Settings / Secondary screens
+- [x] More workspace tiles
+- [x] Settings entry and contextual navigation
+- [x] Secondary destinations accessible without global drawer
+- [ ] Final hierarchy and spacing pass
+- [ ] Check that secondary screens do not regress into dense generic settings layouts
+
+#
+
+### Latest secondary-screen pass — More / Settings / Diagnostics
+Reviewed and visually aligned the remaining More-area secondary screens against the shared Fulus language:
+- Deactivated Employees: Fulus list/card hierarchy, empty/loading/error states and contextual navigation verified.
+- Sales Transactions: transaction cards, status pills, detail sheet and destructive void action retained because each control has the appropriate semantic weight.
+- Diagnostics + Diagnostic Detail: search/filter chips, diagnostic summary, event rows, plain-language detail hierarchy and share flow already use the shared primitives; no forced tile conversion needed.
+- Backup: card/section hierarchy and state presentation reviewed; retained as a settings workspace rather than converting every control into tiles.
+- Fulus Cloud Connection: connection/status workspace reviewed; retained form/status actions where button semantics are clearer than tiles.
+- Printer Pairing: pairing/status workspace reviewed; retained compact device actions where appropriate.
+- Sync Detail: sync history/status workspace reviewed; retained explicit operational controls rather than forcing them into decorative tiles.
+
+These screens are now considered covered by the dedicated UI pass; final global verification still remains for narrow widths, large text, dark theme and state transitions.
+
+
+### Global UI pass — completed review
+Global pass completed across the app shell, primary workspaces, shared primitives, onboarding and secondary flows.
+- Persistent shell: bottom navigation, offline banner, tablet content constraint, safe-area handling and selected-state feedback reviewed.
+- Shared primitives: FulusScreen, ActionTile, Card/StatCard, Button/IconButton, ListRow, Chip/ChipRow, SearchField and TextField reviewed for hierarchy, touch targets, dark-theme surfaces and large-text resilience.
+- Primary workspaces: Home, Sell, Stock and Money reviewed for responsive composition, shared spacing, loading/error/empty states and mockup hierarchy.
+- More, Settings, Diagnostics and secondary flows reviewed for consistent navigation, state treatment and action semantics.
+- Onboarding/recovery flows reviewed for the same tile language and responsive action presentation.
+- Accessibility checks: 48dp touch floors, semantics on interactive controls, color-independent status treatment and large-text stacking rules remain enforced through shared components.
+- Responsive checks: 320px/narrow layouts and textScale >1.15 have dedicated stacking/scrolling behavior where header, filters or action groups can otherwise overflow; tablet layouts use constrained content widths.
+- Dark mode/state surfaces reviewed through shared theme tokens rather than screen-specific colors.
+
+Remaining verification is runtime/browser visual QA only: exercise the complete screen inventory at 320px, 390px, 412px+, large text and dark mode, then capture any pixel-level deviations from the reference mockup.
+## 9. Screen inventory / wiring audit
+The route tree and direct Navigator flows were reviewed after the onboarding rework. A screen being reachable is not treated as UI-audited; this section tracks screens that have not yet received a dedicated mockup-fidelity pass.
+
+#### Dedicated UI pass still required
+- [x] Money secondary: Add Income, Add Expense, Customer Profile, Archived Customers, Daily Closing Summary, Transaction Detail, Suppliers, Supplier Profile, Pay Supplier / Ledger Payment, Record Repayment
+- [x] More secondary: Deactivated Employees, Sales Transactions, Diagnostics, Diagnostic Detail
+- [x] Settings secondary: Backup, Fulus Cloud Connection, Printer Pairing, Sync Detail
+- [x] Sell secondary: Refund Search, Refund Confirm, Void Sale, Sale Success
+- [x] Stock secondary: Add/Edit Product, Product Detail, Categories, Bulk Import, Bulk Import Review, Stock Movement History
+- [x] Auth/security: App Lock
+- [x] Remaining onboarding walkthrough: First Run Setup, Essential Settings, Add First Product, Navigation Intro, First Sale Intro, Transaction Verification, Completion
+
+#### Wiring status
+- [x] Primary Home / Sell / Stock / Money / More navigation is wired through the persistent shell.
+- [x] Routed secondary screens are connected through go_router.
+- [x] Plain-Navigator onboarding/recovery flows that intentionally sit outside the shell are reachable through their owning flow.
+- [x] Sale Success -> Transaction Verification -> Completion is directly wired as a deliberate walkthrough chain.
+- [x] Customer repayment and supplier payment share the LedgerPaymentScreen presentation workspace through their owning routes.
+- [ ] Dedicated UI pass for every screen above is still open even where routing/wiring already works.
+- [ ] Verify every secondary route at narrow width, large text, dark theme, loading/empty/error states after its visual pass.
+
+### Latest consolidated secondary-screen UI pass
+A single code-level UI/UX pass has now been completed across the remaining secondary inventory. The reviewed screens use the shared FulusScreen hierarchy and shared Fulus controls rather than raw Material navigation/action patterns. Form, status, history and destructive-action screens retain their native information architecture where that is clearer than forcing everything into tiles.
+
+Additional resilience fixes in this pass:
+- Supplier overview metrics now stack at narrow widths and large text instead of relying on a fixed horizontal row.
+- Backup introduction content now stacks at narrow widths and large text instead of relying on a fixed icon/text row.
+- Stock activity, ledger payment, App Lock and onboarding flows retain their purpose-specific full-screen compositions while using shared Fulus controls where appropriate.
+
+The remaining completion gate is runtime visual verification only: exercise the screen inventory at 320px, 390px, 412px+, large text and dark mode and compare against the supplied mockup. Browser/Vercel visual QA is intentionally deferred.
+
+### 8. Global polish
+- [ ] Verify 48dp minimum across all interactive controls
+- [ ] Verify primary actions are comfortably larger than the minimum where appropriate
+- [ ] Verify icon-only controls have semantics/tooltips
+- [ ] Verify no important information relies on color alone
+- [ ] Verify typography at large system text
+- [ ] Verify narrow phone layout
+- [ ] Verify wide/tablet layout
+- [ ] Verify dark theme
+- [ ] Verify loading/empty/error/offline states
+- [ ] Verify press feedback and reduced motion
+- [ ] Verify no duplicate or contradictory sync status
+- [ ] Whole-screen visual review of every primary tab
+
+## Current workstream boundary
+
+This workstream is intentionally UI/UX-only. Until the UI/UX completion gate is closed, defer unrelated production-readiness work unless it directly blocks UI validation.
+
+### Deferred outside this workstream
+- Full cloud-sync/backend audit
+- Supabase schema, RLS and server-side performance work
+- Sync conflict-resolution and background-sync architecture
+- Android WorkManager/background reliability work
+- Auth/backend architecture changes
+- Server-side location isolation work
+- Deployment/infrastructure work unrelated to UI validation
+- Hardware-specific validation such as printing/camera/background device behavior
+
+CI remains a validation gate for UI changes, but unrelated CI/Vercel failures are not UI blockers.
+
+
+### Vercel browser visual-QA setup
+- [x] Vercel project `fulus-mobile` connected to `FulusBuild/Fulus-mobile`.
+- [x] Flutter Web visual-QA build configuration committed (`vercel.json` + `scripts/vercel-build.sh`).
+- [ ] Verify a Vercel Preview Deployment builds from `ux-ui-foundation` and exposes the current UI fixture.
+- [ ] Use the branch preview URL for runtime visual QA at 320px, 390px, 412px+ and large-text/dark-mode states.
+
+## UI/UX completion gate
+A screen is complete only when its whole composition matches the approved visual direction, not merely when its individual widgets are technically correct.
+
+Do not move to unrelated production/cloud-sync audit work while this ledger has open UI/UX fidelity items unless explicitly instructed.

@@ -124,34 +124,20 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, i) {
                     final sale = sales[i];
-                    return FulusCard(
-                      onTap: () => context.pushNamed('sellRefundConfirm', pathParameters: {'saleId': sale.localId}),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  sale.invoiceNumber ?? 'Sale #${sale.localId.substring(0, 8)}',
-                                  style: AppTypography.body
-                                      .copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
-                                ),
-                                Text(
-                                  '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}'
-                                  '${sale.customerId != null && customerNameById[sale.customerId] != null ? ' · ${customerNameById[sale.customerId]}' : ''}',
-                                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            formatMoney(sale.total, symbol: currencySymbol),
-                            style: AppTypography.body.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimaryOf(context)),
-                          ),
-                          Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
-                        ],
+                    return FulusActionTile(
+                      icon: Icons.receipt_long_outlined,
+                      label: sale.invoiceNumber ?? 'Sale #${sale.localId.substring(0, 8)}',
+                      subtitle: '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}'
+                          '${sale.customerId != null && customerNameById[sale.customerId] != null ? ' · ${customerNameById[sale.customerId]}' : ''}',
+                      trailing: Text(
+                        formatMoney(sale.total, symbol: currencySymbol),
+                        style: AppTypography.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimaryOf(context),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
+                      onTap: () => context.pushNamed('sellRefundConfirm', pathParameters: {'saleId': sale.localId}),
                     );
                   },
                 );

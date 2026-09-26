@@ -29,6 +29,8 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
     return FulusScreen(
       title: 'Customers',
       subtitle: 'Your credit book and customer relationships',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
           icon: Icons.person_add_alt_outlined,
@@ -69,41 +71,21 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  _CustomerOverview(
-                    customerCount: customers.length,
+                  _CustomerOverviewHeader(
+                    customers: customers,
                     outstanding: outstanding,
                     currencySymbol: currencySymbol,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
                   FulusSearchField(
                     hintText: 'Search by name or phone',
                     onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (customers.isEmpty)
-                    const FulusEmptyState(
-                      icon: Icons.people_outline,
-                      headline: 'No customers yet',
-                      body: 'Customers you sell to on credit will show up here, with a running balance.',
-                    )
-                  else if (filtered.isEmpty)
-                    const FulusEmptyState(
-                      icon: Icons.search_off,
-                      headline: 'No customers match your search',
-                      body: 'Try a different name or phone number.',
-                    )
-                  else
-                    FulusCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < filtered.length; i++) ...[
-                            _CustomerRow(customer: filtered[i], currencySymbol: currencySymbol),
-                            if (i < filtered.length - 1) const FulusListDivider(),
-                          ],
-                        ],
-                      ),
-                    ),
+                  _CustomerListCard(
+                    filtered: filtered,
+                    currencySymbol: currencySymbol,
+                  ),
                 ],
               );
             },
@@ -123,78 +105,76 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
   }
 }
 
-class _CustomerOverview extends StatelessWidget {
-  const _CustomerOverview({required this.customerCount, required this.outstanding, required this.currencySymbol});
+class _CustomerOverviewHeader extends StatelessWidget {
+  const _CustomerOverviewHeader({
+    required this.customers,
+    required this.outstanding,
+    required this.currencySymbol,
+  });
 
-  final int customerCount;
+  final List<Customer> customers;
   final double outstanding;
   final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 430;
-          final customerMetric = _OverviewMetric(icon: Icons.people_outline, label: 'Customers', value: '$customerCount');
-          final balanceMetric = _OverviewMetric(
-            icon: Icons.account_balance_wallet_outlined,
-            label: 'Outstanding',
-            value: formatMoney(outstanding, symbol: currencySymbol),
-          );
-          if (compact) {
-            return Row(children: [Expanded(child: customerMetric), const SizedBox(width: AppSpacing.md), Expanded(child: balanceMetric)]);
-          }
-          return Row(
+    return Material(
+      color: const Color(0xFF1473E6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 104,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: customerMetric),
-              const SizedBox(width: AppSpacing.lg),
-              Container(width: 1, height: 44, color: AppColors.borderOf(context)),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(flex: 2, child: balanceMetric),
+              const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
+              const Spacer(),
+              Text(
+                'Total Customers  ${customers.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              Text(
+                'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
+              ),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
 
-class _OverviewMetric extends StatelessWidget {
-  const _OverviewMetric({required this.icon, required this.label, required this.value});
+class _CustomerListCard extends StatelessWidget {
+  const _CustomerListCard({
+    required this.filtered,
+    required this.currencySymbol,
+  });
 
-  final IconData icon;
-  final String label;
-  final String value;
+  final List<Customer> filtered;
+  final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-          child: Icon(icon, color: AppColors.primaryOf(context)),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-              const SizedBox(height: 2),
-              FittedBox(
-                alignment: Alignment.centerLeft,
-                fit: BoxFit.scaleDown,
-                child: Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return FulusCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < filtered.length; i++) ...[
+            _CustomerRow(
+              customer: filtered[i],
+              currencySymbol: currencySymbol,
+            ),
+            if (i < filtered.length - 1) const FulusListDivider(),
+          ],
+          if (filtered.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Text('No customers match this view.'),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -216,12 +196,16 @@ class _CustomerRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            formatMoney(outstanding, symbol: currencySymbol),
-            style: AppTypography.body.copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
-              fontWeight: FontWeight.w700,
-              color: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              formatMoney(outstanding, symbol: currencySymbol),
+              style: AppTypography.body.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+                fontWeight: FontWeight.w700,
+                color: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
+              ),
             ),
           ),
           const SizedBox(height: 2),

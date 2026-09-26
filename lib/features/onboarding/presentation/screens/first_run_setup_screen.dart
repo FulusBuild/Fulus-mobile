@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,6 +34,7 @@ class FirstRunSetupScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const OnboardingStepHeader(step: 1, total: 7, title: 'You’re ready to run your business', subtitle: 'Your setup is saved locally and you can start selling now.'),
               Center(
                 child: Container(
                   width: 72,
@@ -57,17 +59,18 @@ class FirstRunSetupScreen extends ConsumerWidget {
                 style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
               ),
               const SizedBox(height: AppSpacing.xxl),
-              FulusButton(
-                label: 'Make a sale',
+              FulusActionTile(
                 icon: FulusIcons.sell,
-                onPressed: () => _finish(context, ref, routeName: 'sell'),
+                label: 'Make a sale',
+                subtitle: 'Start selling right away.',
+                onTap: () => _finish(context, ref, routeName: 'sell'),
               ),
               const SizedBox(height: AppSpacing.md),
-              FulusButton(
-                label: 'Go to Home',
+              FulusActionTile(
                 icon: FulusIcons.home,
-                variant: FulusButtonVariant.text,
-                onPressed: () => _finish(context, ref),
+                label: 'Go to Home',
+                subtitle: 'See your business at a glance.',
+                onTap: () => _finish(context, ref),
               ),
             ],
           ),

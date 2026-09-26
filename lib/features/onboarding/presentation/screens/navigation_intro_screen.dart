@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
@@ -55,6 +56,7 @@ class NavigationIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+              const OnboardingStepHeader(step: 4, total: 7, title: 'Getting around Fulus', subtitle: 'Your main business tools stay one tap away.'),
                 Text(
                   'Getting around Fulus',
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
@@ -65,12 +67,18 @@ class NavigationIntroScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.md),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                FulusButton(label: 'Got it', onPressed: () => _continue(ref)),
-                const SizedBox(height: AppSpacing.sm),
-                FulusButton(
-                  label: 'Skip',
-                  variant: FulusButtonVariant.text,
-                  onPressed: () => _skip(ref),
+                FulusActionTile(
+                  icon: FulusIcons.check,
+                  label: 'Got it',
+                  subtitle: 'Continue to your first sale.',
+                  onTap: () => _continue(ref),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FulusActionTile(
+                  icon: Icons.skip_next_rounded,
+                  label: 'Skip walkthrough',
+                  subtitle: 'You can explore Fulus on your own.',
+                  onTap: () => _skip(ref),
                 ),
               ],
             ),

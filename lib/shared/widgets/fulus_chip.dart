@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// Compact, tappable filter/category chip. Selection is communicated with
 /// fill, border and a checkmark rather than colour alone.
@@ -24,16 +25,20 @@ class FulusChip extends StatelessWidget {
         ? primary
         : AppColors.textPrimaryOf(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: '$label${selected ? ', selected' : ''}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: AnimatedContainer(
-          duration: AppMotion.fast,
+          duration: fulusMotionDuration(context, AppMotion.fast),
           curve: AppMotion.curveStandard,
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
+            horizontal: AppSpacing.lg,
             vertical: AppSpacing.sm,
           ),
           alignment: Alignment.center,
@@ -43,11 +48,13 @@ class FulusChip extends StatelessWidget {
                 : AppColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
-              color: selected ? primary : border.withValues(alpha: 0.8),
+              color: selected ? primary : border.withValues(alpha: 0.75),
               width: selected ? 1.2 : 1,
             ),
           ),
-          child: Row(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+            child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
@@ -58,18 +65,27 @@ class FulusChip extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
               ],
-              Text(
-                label,
-                style: AppTypography.label.copyWith(
-                  color: foreground,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: AppTypography.label.copyWith(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -146,11 +162,18 @@ class FulusStatusPill extends StatelessWidget {
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: AppTypography.label.copyWith(
-              color: color,
-              letterSpacing: 0.2,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: AppTypography.label.copyWith(
+                  color: color,
+                  letterSpacing: 0.2,
+                ),
+              ),
             ),
           ),
         ],

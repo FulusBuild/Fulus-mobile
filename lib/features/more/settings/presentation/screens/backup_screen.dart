@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../../app/providers.dart';
@@ -77,47 +78,60 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       FulusCard(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final stacked = MediaQuery.textScalerOf(context).scale(1) > 1.15 ||
+                                constraints.maxWidth < 420;
+                            final content = Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Local backup',
+                                  style: AppTypography.heading.copyWith(
+                                    color: AppColors.textPrimaryOf(context),
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  'Fulus keeps your business local-first. Create a snapshot whenever you want, then restore it on this device later.',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textSecondaryOf(context),
+                                  ),
+                                ),
+                              ],
+                            );
+                            final icon = Container(
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.primaryOf(context)
-                                    .withValues(alpha: 0.10),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.md),
+                                color: AppColors.primaryOf(context).withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Icon(
                                 Icons.backup_outlined,
                                 color: AppColors.primaryOf(context),
                                 size: 25,
                               ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Local backup',
-                                    style: AppTypography.heading.copyWith(
-                                      color: AppColors.textPrimaryOf(context),
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    'Fulus keeps your business local-first. Create a snapshot whenever you want, then restore it on this device later.',
-                                    style: AppTypography.body.copyWith(
-                                      color: AppColors.textSecondaryOf(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                            );
+                            return stacked
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      icon,
+                                      const SizedBox(height: AppSpacing.md),
+                                      content,
+                                    ],
+                                  )
+                                : Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      icon,
+                                      const SizedBox(width: AppSpacing.md),
+                                      Expanded(child: content),
+                                    ],
+                                  );
+                          },
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -152,6 +166,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FulusActionTile(
+                        icon: FulusIcons.sync,
+                        label: 'Sync status',
+                        subtitle: 'See pending, completed and attention-needed sync work.',
+                        onTap: () => context.pushNamed('moreSyncDetail'),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       FutureBuilder<String>(
