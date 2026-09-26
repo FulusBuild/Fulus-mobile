@@ -214,11 +214,22 @@ class _OfflineBanner extends ConsumerWidget {
                 width: double.infinity,
                 color: AppColors.textSecondaryOf(context),
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.md),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(FulusIcons.cloudOff, color: Colors.white, size: AppIconSize.dense),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(child: Text("You're offline — your work is saved and will sync when you're back.", style: AppTypography.caption.copyWith(color: Colors.white), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis)),
-                ]),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(FulusIcons.cloudOff, color: Colors.white, size: AppIconSize.dense),
+                    const SizedBox(width: AppSpacing.xs),
+                    Flexible(
+                      child: Text(
+                        "You're offline — your work is saved and will sync when you're back.",
+                        maxLines: MediaQuery.textScalerOf(context).scale(1) > 1.3 ? 3 : 2,
+                        style: AppTypography.caption.copyWith(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
     );
