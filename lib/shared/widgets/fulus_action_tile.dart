@@ -63,7 +63,7 @@ class FulusActionTile extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      maxLines: 2,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.body.copyWith(
                         color: foreground,
@@ -74,7 +74,7 @@ class FulusActionTile extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         subtitle!,
-                        maxLines: 2,
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.caption.copyWith(color: muted),
                       ),
