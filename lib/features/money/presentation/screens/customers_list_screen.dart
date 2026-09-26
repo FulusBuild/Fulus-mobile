@@ -119,31 +119,29 @@ class _CustomerOverviewHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-          color: const Color(0xFF1473E6),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: SizedBox(
-            height: 104,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
-                  const Spacer(),
-                  Text(
-                    'Total Customers  ${customers.length}',
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                ],
+      color: const Color(0xFF1473E6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 104,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
+              const Spacer(),
+              Text(
+                'Total Customers  ${customers.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
               ),
-            ),
+              Text(
+                'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
