@@ -145,13 +145,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           ),
                         if (!canComplete) ...[
                           const SizedBox(height: AppSpacing.lg),
-                          FulusCard(
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0B294F),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
                                   'Amount received',
-                                  style: AppTypography.label.copyWith(color: AppColors.textSecondaryOf(context)),
+                                  style: AppTypography.label.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
                                 FulusTextField(
@@ -164,7 +170,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   _method == 'cash'
                                       ? 'Enter the cash received. Paying more than the balance shows the change due.'
                                       : 'Enter the amount paid. The remaining balance updates after each payment.',
-                                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                  style: AppTypography.caption.copyWith(color: Colors.white70),
                                 ),
                               ],
                             ),
@@ -413,8 +419,12 @@ class _AmountDueHeader extends StatelessWidget {
     final remaining = state.remaining > 0 ? state.remaining : 0.0;
     final changeDue = state.remaining < 0 ? -state.remaining : 0.0;
 
-    return FulusCard(
-      elevated: true,
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1473E6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -423,7 +433,7 @@ class _AmountDueHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Total',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  style: AppTypography.caption.copyWith(color: Colors.white70),
                 ),
               ),
               Icon(FulusIcons.lock, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
@@ -436,7 +446,7 @@ class _AmountDueHeader extends StatelessWidget {
             child: Text(
               formatMoney(state.total, symbol: state.currencySymbol),
               style: AppTypography.display.copyWith(
-                color: AppColors.textPrimaryOf(context),
+                color: Colors.white,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -530,10 +540,10 @@ class _PaymentMethodTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: AppIconSize.base, color: foreground),
+            Icon(icon, size: 34, color: foreground),
             const Spacer(),
             Row(children: [
-              Expanded(child: Text(label, style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w600))),
+              Expanded(child: Text(label, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))),
               if (selected) Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
             ]),
           ],
