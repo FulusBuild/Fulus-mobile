@@ -301,21 +301,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              fulusHorizontalInset(context),
-              AppSpacing.sm,
-              fulusHorizontalInset(context),
-              AppSpacing.xs,
-            ),
-            child: FulusChipRow(
-              children: [
-                for (var i = 0; i < 5; i++)
-                  FulusChip(
-                    label: const ['Sales', 'Inventory', 'Customers', 'Finance', 'Team'][i],
-                    selected: _tabs.index == i,
-                    onTap: () => setState(() => _tabs.animateTo(i)),
-                  ),
-              ],
+            padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.sm, fulusHorizontalInset(context), AppSpacing.xs),
+            child: SizedBox(
+              height: 126,
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                childAspectRatio: 2.35,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _ReportCategoryCard(label: 'Sales Report', icon: FulusIcons.reports, color: const Color(0xFF0BBE6E), onTap: () => setState(() => _tabs.animateTo(0))),
+                  _ReportCategoryCard(label: 'Stock Report', icon: FulusIcons.stock, color: const Color(0xFF1677FF), onTap: () => setState(() => _tabs.animateTo(1))),
+                  _ReportCategoryCard(label: 'Expense Report', icon: FulusIcons.receipt, color: const Color(0xFFFF8A00), onTap: () => setState(() => _tabs.animateTo(3))),
+                  _ReportCategoryCard(label: 'Customer Report', icon: FulusIcons.customers, color: const Color(0xFF7B3FF2), onTap: () => setState(() => _tabs.animateTo(2))),
+                ],
+              ),
             ),
           ),
           Padding(
@@ -365,6 +366,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       ),
     );
   }
+}
+
+class _ReportCategoryCard extends StatelessWidget {
+  const _ReportCategoryCard({required this.label, required this.icon, required this.color, required this.onTap});
+  final String label; final IconData icon; final Color color; final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color, borderRadius: BorderRadius.circular(10),
+    child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10), child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Row(children: [Icon(icon, color: Colors.white, size: 24), const SizedBox(width: AppSpacing.sm), Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)))])
+    )),
+  );
 }
 
 class _ExportPayload {
