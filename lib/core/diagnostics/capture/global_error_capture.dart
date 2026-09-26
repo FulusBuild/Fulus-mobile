@@ -118,30 +118,49 @@ String? _collectWidgetInfo(FlutterErrorDetails details) {
 /// widget tree, so it intentionally takes on the fewest possible
 /// dependencies that could also fail.
 Widget _releaseModeErrorBuilder(FlutterErrorDetails details) {
-  return Material(
-    color: Colors.white,
-    child: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 40, color: Colors.grey.shade500),
-            const SizedBox(height: 12),
-            const Text(
-              'Something went wrong on this screen.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+  return Builder(
+    builder: (context) {
+      final theme = Theme.maybeOf(context);
+      final surface = theme?.colorScheme.surface ?? Colors.white;
+      final foreground = theme?.colorScheme.onSurface ?? Colors.black;
+      final muted = theme?.colorScheme.onSurface.withValues(alpha: 0.62) ?? Colors.black54;
+      final error = theme?.colorScheme.error ?? Colors.red;
+
+      return ColoredBox(
+        color: surface,
+        child: Semantics(
+          container: true,
+          liveRegion: true,
+          label: 'Something went wrong on this screen.',
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline, size: 40, color: error),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Something went wrong on this screen.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Details were saved to Diagnostics in More.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: muted),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Details were saved to Diagnostics in More.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
