@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,7 +68,7 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: StreamBuilder<List<Customer>>(
-              stream: _customersStream,
+              stream: _customersStream.withFulusLoadingTimeout(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const FulusLoadingIndicator();
