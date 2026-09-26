@@ -319,7 +319,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                         : 'Bring your cloud business onto this device.',
                     icon: Icons.cloud_download_rounded,
                     onTap: _busy ? null : _restore,
-                    trailing: _busy ? const const FulusLoadingIndicator() : null,
+                    trailing: _busy ? const FulusLoadingIndicator() : null,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
