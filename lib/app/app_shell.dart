@@ -26,7 +26,7 @@ class FulusAppShell extends StatelessWidget {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-              child: navigationShell,
+              child: ClipRect(child: navigationShell),
             ),
           )
         : navigationShell;
