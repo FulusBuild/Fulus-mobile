@@ -48,10 +48,11 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                FulusButton(
-                  label: "Let's go",
+                FulusActionTile(
                   icon: FulusIcons.sell,
-                  onPressed: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
+                  title: "Let's go",
+                  subtitle: 'Open Sell and make your first real sale.',
+                  onTap: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
                 ),
               ],
             ),
