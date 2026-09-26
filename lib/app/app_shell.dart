@@ -188,7 +188,7 @@ class _OfflineBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(_isOnlineProvider).value ?? true;
     return AnimatedSize(
-      duration: AppMotion.standard,
+      duration: fulusMotionDuration(context, AppMotion.standard),
       child: isOnline
           ? const SizedBox(width: double.infinity)
           : SafeArea(
