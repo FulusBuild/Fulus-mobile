@@ -140,7 +140,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             padding: const EdgeInsets.only(top: AppSpacing.xs),
                             child: Text(
                               'Select a customer in Cart to sell on credit.',
-                              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                              style: AppTypography.caption.copyWith(color: Colors.white70),
                             ),
                           ),
                         if (!canComplete) ...[
@@ -362,7 +362,10 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Text(
           title,
-          style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+          style: AppTypography.subheading.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -529,7 +532,7 @@ class _PaymentMethodTile extends StatelessWidget {
             Icon(icon, size: AppIconSize.base, color: Colors.white),
             const Spacer(),
             Row(children: [
-              Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800))),
+              Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600))),
               if (selected) const Icon(FulusIcons.check, size: AppIconSize.compact, color: Colors.white),
             ]),
           ],
