@@ -324,16 +324,16 @@ class _BalanceHero extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     height: 142,
     child: Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
       child: Builder(builder: (context) {
         final foreground = AppColors.onColor(const Color(0xFF12B866));
         final muted = foreground.withValues(alpha: 0.9);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(FulusIcons.money, color: foreground, size: 28), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w700))]),
+        Row(children: [Icon(FulusIcons.money, color: foreground, size: 34), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const Spacer(),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 32, fontWeight: FontWeight.w900))),
-        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 13)),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 36, fontWeight: FontWeight.w900))),
+        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 15)),
       ]);
       }),
     ),
@@ -437,15 +437,15 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: foreground, size: 32),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w600)),
+                    Icon(action.icon, color: foreground, size: 36),
+                    const Spacer(),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 18, fontWeight: FontWeight.w700)),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w700)),
+                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 32, fontWeight: FontWeight.w800)),
                     ),
-                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 14, fontWeight: FontWeight.w500)),
+                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
