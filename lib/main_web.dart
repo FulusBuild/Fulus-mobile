@@ -53,7 +53,7 @@ class _FulusWebHomeFixtureState extends State<FulusWebHomeFixture> {
         builder: (context, constraints) {
           final horizontal = constraints.maxWidth >= 700 ? 32.0 : 20.0;
           return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 28),
+            padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
