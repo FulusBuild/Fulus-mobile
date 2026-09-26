@@ -138,7 +138,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
                     style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
                   ),
                   Text(
-                    'Customer credit ${formatMoney(outstanding, symbol: currencySymbol, compact: true)}',
+                    'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
                     style: const TextStyle(color: Colors.white70, fontSize: 10),
                   ),
                 ],
