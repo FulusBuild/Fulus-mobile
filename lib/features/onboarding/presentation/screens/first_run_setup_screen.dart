@@ -59,14 +59,14 @@ class FirstRunSetupScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xxl),
               FulusActionTile(
                 icon: FulusIcons.sell,
-                title: 'Make a sale',
+                label: 'Make a sale',
                 subtitle: 'Start selling right away.',
                 onTap: () => _finish(context, ref, routeName: 'sell'),
               ),
               const SizedBox(height: AppSpacing.md),
               FulusActionTile(
                 icon: FulusIcons.home,
-                title: 'Go to Home',
+                label: 'Go to Home',
                 subtitle: 'See your business at a glance.',
                 onTap: () => _finish(context, ref),
               ),
