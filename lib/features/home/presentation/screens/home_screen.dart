@@ -43,6 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
   late Future<SecondaryNoticeSelection> _noticesFuture;
   late Future<List<MoneyTransaction>> _activityFuture;
+  late Future<double> _cashFuture;
   static const _reportsEngine = ReportsEngine();
 
   @override
@@ -64,6 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           locationId: locationId,
           max: 3,
         ));
+    _cashFuture = ref.read(moneyRepositoryProvider).getAvailableBalance();
     _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
           _reportsEngine.resolvePeriod(ReportPeriodKind.today),
           currentAuthUserId: widget.currentAuthUserId,
@@ -73,7 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture, _activityFuture]);
+    await Future.wait([_heroFuture, _noticesFuture, _activityFuture, _cashFuture]);
   }
 
   @override
@@ -123,13 +125,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           future: _noticesFuture,
                           builder: (context, noticeSnapshot) => FutureBuilder<List<MoneyTransaction>>(
                             future: _activityFuture,
-                            builder: (context, activitySnapshot) {
-                              if (heroSnapshot.connectionState != ConnectionState.done || noticeSnapshot.connectionState != ConnectionState.done || activitySnapshot.connectionState != ConnectionState.done) return const _HomeHeroSkeleton();
-                              if (heroSnapshot.hasError || noticeSnapshot.hasError || activitySnapshot.hasError) return FulusErrorState(message: "Couldn't load today's overview.", reassurance: 'Your business records are still safe on this device.', onRetry: _refresh);
-                              final hero = heroSnapshot.data;
-                              if (hero == null) return const SizedBox.shrink();
-                              return _HomeMockupDashboard(hero: hero, notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[], activity: activitySnapshot.data ?? const <MoneyTransaction>[], currencySymbol: currencySymbol);
-                            },
+                            builder: (context, activitySnapshot) => FutureBuilder<double>(
+                              future: _cashFuture,
+                              builder: (context, cashSnapshot) {
+                                if (heroSnapshot.connectionState != ConnectionState.done ||
+                                    noticeSnapshot.connectionState != ConnectionState.done ||
+                                    activitySnapshot.connectionState != ConnectionState.done ||
+                                    cashSnapshot.connectionState != ConnectionState.done) {
+                                  return const _HomeHeroSkeleton();
+                                }
+                                if (heroSnapshot.hasError ||
+                                    noticeSnapshot.hasError ||
+                                    activitySnapshot.hasError ||
+                                    cashSnapshot.hasError) {
+                                  return FulusErrorState(
+                                    message: "Couldn't load today's overview.",
+                                    reassurance: 'Your business records are still safe on this device.',
+                                    onRetry: _refresh,
+                                  );
+                                }
+                                final hero = heroSnapshot.data;
+                                if (hero == null || cashSnapshot.data == null) return const SizedBox.shrink();
+                                return _HomeMockupDashboard(
+                                  hero: hero,
+                                  notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
+                                  activity: activitySnapshot.data ?? const <MoneyTransaction>[],
+                                  cashTotal: cashSnapshot.data!,
+                                  currencySymbol: currencySymbol,
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
@@ -159,11 +184,13 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.hero,
     required this.notices,
     required this.activity,
+    required this.cashTotal,
     required this.currencySymbol,
   });
   final HomeHeroState hero;
   final List<SecondaryNotice> notices;
   final List<MoneyTransaction> activity;
+  final double cashTotal;
   final String currencySymbol;
 
   double get _salesTotal => switch (hero) {
@@ -178,7 +205,6 @@ class _HomeMockupDashboard extends StatelessWidget {
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-  double get _cashTotal => activity.fold<double>(0, (sum, tx) => sum + tx.signedAmount);
   double get _expensesTotal => activity.where((tx) => tx.type == MoneyTransactionType.expense).fold<double>(0, (sum, tx) => sum + tx.amount);
   int get _lowStockCount => notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
   double get _creditTotal => notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
@@ -188,7 +214,7 @@ class _HomeMockupDashboard extends StatelessWidget {
     final recent = activity.take(2).toList(growable: false);
     return Column(
       children: [
-        _HomeHeroCard(icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(_cashTotal, symbol: currencySymbol, compact: true), secondary: 'Business cash position', onTap: () => context.goNamed('money')),
+        _HomeHeroCard(icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'Business cash position', onTap: () => context.goNamed('money')),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: '${_salesCount} sales', onTap: () => context.pushNamed(
