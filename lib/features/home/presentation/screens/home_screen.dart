@@ -101,7 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // Home is a dashboard, not a feed. The normal dashboard must
                     // stay locked to the viewport rather than becoming vertically
                     // scrollable just to reveal the six cards.
-                    physics: const NeverScrollableScrollPhysics(),
+                    physics: const ClampingScrollPhysics(),
                     slivers: [
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.lg),
@@ -134,7 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, 0, inset, inset),
+                        padding: EdgeInsets.fromLTRB(inset, 0, inset, 0),
                         sliver: SliverFillRemaining(
                           hasScrollBody: false,
                           child: FutureBuilder<HomeHeroState>(
@@ -179,6 +179,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: AppSpacing.lg),
                       ),
                     ],
                   ),
@@ -358,20 +361,20 @@ class _HomeCompactCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: 32),
-                const SizedBox(height: AppSpacing.md),
+                Icon(icon, color: foreground, size: 36),
+                const Spacer(),
                 Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: foreground.withValues(alpha: 0.9),
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                    color: foreground.withValues(alpha: 0.95),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 FittedBox(
@@ -382,8 +385,8 @@ class _HomeCompactCard extends StatelessWidget {
                     maxLines: 1,
                     style: TextStyle(
                       color: foreground,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -393,7 +396,7 @@ class _HomeCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground.withValues(alpha: 0.9),
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
