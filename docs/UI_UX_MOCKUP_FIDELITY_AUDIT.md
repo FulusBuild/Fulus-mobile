@@ -38,7 +38,8 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [x] Product presentation
 - [x] Cart summary
 - [x] Touch-friendly product interactions
-- [ ] Final mockup-fidelity pass for spacing, density and hierarchy
+- [x] Core spacing, density and hierarchy pass completed
+- [ ] Final whole-screen mockup comparison
 - [ ] Empty/search-no-results state visual pass
 - [ ] Narrow-width and large-text pass
 
