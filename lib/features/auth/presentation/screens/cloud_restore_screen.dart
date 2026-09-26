@@ -282,7 +282,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: _busy
-                                  ? const FulusLoadingIndicator(size: 20)
+                                  ? const FulusLoadingIndicator()
                                   : Icon(
                                       Icons.cloud_download_rounded,
                                       color: AppColors.primaryOf(context),
