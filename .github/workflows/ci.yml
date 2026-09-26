@@ -96,38 +96,6 @@ jobs:
           done
           echo "Validated core business-domain tables are reproducibly created by repository migrations."
 
-  change_scope:
-    name: Determine live E2E scope
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      migration_changed: ${{ steps.scope.outputs.migration_changed }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Detect migration changes
-        id: scope
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            base="${{ github.event.pull_request.base.sha }}"
-          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            base="${{ github.event.before }}"
-          else
-            base="HEAD^"
-          fi
-          changed="$(git diff --name-only "$base" "$GITHUB_SHA")"
-          if printf '%s\n' "$changed" | grep -q '^supabase/migrations/'; then
-            echo "migration_changed=true" >> "$GITHUB_OUTPUT"
-            echo "Supabase migration files changed; live E2E is deferred until after production deployment."
-          else
-            echo "migration_changed=false" >> "$GITHUB_OUTPUT"
-            echo "No Supabase migration files changed; live E2E remains part of pre-deploy CI."
-          fi
-
   dependencies:
     name: Resolve dependencies
     runs-on: ubuntu-latest
@@ -209,8 +177,8 @@ jobs:
 
   fulus_e2e:
     name: Fulus live sync contract test
-    needs: [test, change_scope]
-    if: (github.event_name != 'workflow_dispatch' || inputs.run_fulus_e2e == true) && needs.change_scope.outputs.migration_changed != 'true'
+    needs: test
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e == true)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -238,7 +206,6 @@ jobs:
   fulus_multi_device_e2e:
     name: Fulus multi-device convergence test
     needs: fulus_e2e
-    if: needs.fulus_e2e.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
