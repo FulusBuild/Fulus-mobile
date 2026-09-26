@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/diagnostics/capture/current_screen_tracker.dart';
-import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
-import '../domain/entities/app_notification.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/customer.dart';
 import '../domain/entities/permission.dart';
@@ -748,10 +746,6 @@ class _MoreScreen extends ConsumerWidget {
     );
   }
 }
-
-final _moreNotificationsProvider = StreamProvider.autoDispose<List<AppNotification>>((ref) {
-  return ref.watch(notificationRepositoryProvider).watchAll();
-});
 
 /// A defensive fallback for the handful of Money routes that need an
 /// object passed via `extra` (a `Customer`, `Supplier`, or
