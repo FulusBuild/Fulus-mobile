@@ -105,29 +105,29 @@ Future<void> main() async {
     final quickSalePayments = <Map<String, Object>>[
       {'method': 'cash', 'amount': 321},
     ];
-    final quickSaleResponse = await dio.post('', data: {
-      'action': 'sale_create',
-      'business_id': businessId,
-      'operation_id': quickSaleOperationId,
-      'client_reference': quickSaleOperationId,
-      'location_id': e2eLocationId,
-      'sale_date': DateTime.now().toUtc().toIso8601String(),
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 321,
-      'payment_method': 'cash',
-      'payments': quickSalePayments,
-      'notes': 'Cloud Sync V1 Quick Sale contract',
-      'items': [
-        {
-          'product_id': null,
-          'description': 'E2E Quick Sale $suffix',
-          'quantity': 1,
-          'unit_price': 321,
-          'cost_price_at_sale': 0,
-        },
-      ],
-    });
+    final quickSalePayload = <String, dynamic>{};
+    quickSalePayload['action'] = 'sale_create';
+    quickSalePayload['business_id'] = businessId;
+    quickSalePayload['operation_id'] = quickSaleOperationId;
+    quickSalePayload['client_reference'] = quickSaleOperationId;
+    quickSalePayload['location_id'] = e2eLocationId;
+    quickSalePayload['sale_date'] = DateTime.now().toUtc().toIso8601String();
+    quickSalePayload['discount'] = 0;
+    quickSalePayload['tax'] = 0;
+    quickSalePayload['amount_paid'] = 321;
+    quickSalePayload['payment_method'] = 'cash';
+    quickSalePayload['payments'] = quickSalePayments;
+    quickSalePayload['notes'] = 'Fulus E2E Quick Sale contract';
+    quickSalePayload['items'] = [
+      {
+        'product_id': null,
+        'description': 'E2E Quick Sale $suffix',
+        'quantity': 1,
+        'unit_price': 321,
+        'cost_price_at_sale': 0,
+      },
+    ];
+    final quickSaleResponse = await dio.post('', data: quickSalePayload);
     _expect2xx(quickSaleResponse, 'sale.create Quick Sale');
     final quickSaleData = quickSaleResponse.data is Map ? quickSaleResponse.data['data'] : null;
     if (quickSaleData is! Map || quickSaleData['sale_id'] is! String) {
