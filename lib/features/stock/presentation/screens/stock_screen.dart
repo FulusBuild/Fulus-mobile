@@ -123,7 +123,6 @@ class _StockBody extends ConsumerWidget {
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
             final trackedProducts = products.where((p) => p.product.tracksStock);
-            final totalUnits = trackedProducts.fold<double>(0, (sum, p) => sum + p.currentStock);
             final totalValue = totalStockValue(products);
             final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
             final outOfStock = outOfStockCount(products);
