@@ -179,8 +179,8 @@ class _FulusBottomNavigationItem extends StatelessWidget {
 class FulusNavBranch {
   FulusNavBranch._();
   static const home = 0;
-  static const stock = 1;
-  static const sell = 2;
+  static const sell = 1;
+  static const stock = 2;
   static const money = 3;
   static const more = 4;
 }
