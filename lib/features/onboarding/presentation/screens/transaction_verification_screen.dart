@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -236,7 +237,7 @@ class _InventorySection extends ConsumerWidget {
           return _unavailableCard(sold);
         }
         return StreamBuilder<List<ProductWithStock>>(
-          stream: ref.read(productRepositoryProvider).watchProducts(locationId: locationId),
+          stream: ref.read(productRepositoryProvider).watchProducts(locationId: locationId).withFulusLoadingTimeout(),
           builder: (context, snapshot) {
             if (snapshot.hasError) return _unavailableCard(sold);
             if (!snapshot.hasData) {
