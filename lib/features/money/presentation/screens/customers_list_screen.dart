@@ -78,30 +78,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
                     onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (customers.isEmpty)
-                    const FulusEmptyState(
-                      icon: Icons.people_outline,
-                      headline: 'No customers yet',
-                      body: 'Customers you sell to on credit will show up here, with a running balance.',
-                    )
-                  else if (filtered.isEmpty)
-                    const FulusEmptyState(
-                      icon: Icons.search_off,
-                      headline: 'No customers match your search',
-                      body: 'Try a different name or phone number.',
-                    )
-                  else
-                    FulusCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < filtered.length; i++) ...[
-                            _CustomerRow(customer: filtered[i], currencySymbol: currencySymbol),
-                            if (i < filtered.length - 1) const FulusListDivider(),
-                          ],
-                        ],
-                      ),
-                    ),
                 ],
               );
             },
