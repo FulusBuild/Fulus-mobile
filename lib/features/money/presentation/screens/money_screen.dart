@@ -387,9 +387,10 @@ class _MoneyQuickActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final customers = ref.watch(moneyCustomersProvider).asData?.value ?? const [];
-    final suppliers = ref.watch(moneySuppliersProvider).asData?.value ?? const [];
     final customerCredit = customers.fold<double>(0, (sum, customer) => sum + customer.outstandingBalance);
-    final supplierPayments = suppliers.fold<double>(0, (sum, supplier) => sum + supplier.outstandingBalance);
+    final supplierPayments = summary.expenseBreakdown
+        .where((row) => row.type == MoneyTransactionType.supplierPayment)
+        .fold<double>(0, (sum, row) => sum + row.amount);
 
     final actions = <_MoneyAction>[
       _MoneyAction(
@@ -421,7 +422,7 @@ class _MoneyQuickActions extends ConsumerWidget {
         icon: FulusIcons.localShipping,
         label: 'Supplier Payments',
         value: formatMoney(supplierPayments, symbol: currencySymbol, compact: true),
-        subtitle: 'Owed',
+        subtitle: 'Today',
         onTap: () => context.pushNamed('moneySuppliers'),
       ),
     ];
