@@ -196,7 +196,13 @@ class _HomeMockupDashboard extends StatelessWidget {
           Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: '${_lowStockCount}', secondary: 'items')),
         ]),
         const SizedBox(height: AppSpacing.sm),
-        _HomeSummaryCard(credit: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), expenses: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), recent: recent),
+        Row(children: [
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding')),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.red, icon: FulusIcons.money, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today')),
+        ]),
+        const SizedBox(height: AppSpacing.sm),
+        _HomeSellCard(),
       ],
     );
   }
@@ -236,6 +242,39 @@ class _HomeCompactCard extends StatelessWidget {
         Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 9)),
       ]),
     )),
+  );
+}
+
+class _HomeSellCard extends StatelessWidget {
+  const _HomeSellCard();
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: _HomeColors.blue,
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    child: InkWell(
+      onTap: () => context.goNamed('sell'),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 86,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Row(
+            children: [
+              const Icon(FulusIcons.sell, color: Colors.white, size: AppIconSize.base),
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
+                child: Text(
+                  'Sell',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                ),
+              ),
+              Icon(Icons.arrow_forward_rounded, color: Colors.white.withValues(alpha: 0.8)),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
