@@ -227,8 +227,7 @@ class _FulusWebHomeFixtureState extends State<FulusWebHomeFixture> {
         selectedIndex: _selectedNav,
         onSelected: (index) => setState(() => _selectedNav = index),
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -302,16 +301,15 @@ class _WebQaBottomNavigationBar extends StatelessWidget {
     final surface = Theme.of(context).colorScheme.surface;
     final border = Theme.of(context).dividerColor;
 
-    // Keep the custom bar explicitly bounded just like the production shell.
     // Scaffold can provide loose vertical constraints to a custom bottom widget;
-    // without a height, this Row can expand to the whole viewport.
+    // keep the web QA bar compact instead of allowing it to fill the viewport.
     const barContentHeight = 64.0;
     return SizedBox(
       height: barContentHeight + bottomInset,
       child: Material(
-        color: surface,
-        elevation: 12,
-        shadowColor: Colors.black.withValues(alpha: .12),
+      color: surface,
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: .12),
       child: Container(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: border.withValues(alpha: .7))),
@@ -388,6 +386,7 @@ class _WebQaBottomNavigationBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
