@@ -242,9 +242,9 @@ class _HomeMockupDashboard extends StatelessWidget {
     return Column(
       children: [
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'cash position', onTap: () => context.goNamed('money'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'cash position', onTap: () => context.goNamed('money'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)))),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
@@ -254,7 +254,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: AppColors.errorOf(context), icon: FulusIcons.money, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: () => context.goNamed('money'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: () => context.goNamed('money'))),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeSellCard()),
         ]),
@@ -268,21 +268,25 @@ class _HomeCompactCard extends StatelessWidget {
   const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
   final Color color; final IconData icon; final String label; final String value; final String secondary; final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '$label, $value',
+    child: Material(
     color: color, borderRadius: BorderRadius.circular(AppRadius.md),
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 86, child: Padding(
+      child: SizedBox(height: 118, child: Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: Colors.white, size: AppIconSize.compact),
         const Spacer(),
-        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w700)),
-        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900))),
-        Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+        Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900))),
+        Text(secondary, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 10)),
       ]),
     )),
+    ),
     ),
   );
 }
@@ -291,14 +295,17 @@ class _HomeSellCard extends StatelessWidget {
   const _HomeSellCard();
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: _HomeColors.blue,
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Sell',
+    child: Material(
+    color: _HomeColors.navy,
     borderRadius: BorderRadius.circular(AppRadius.md),
     child: InkWell(
       onTap: () => context.goNamed('sell'),
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
-        height: 86,
+        height: 118,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
@@ -317,13 +324,35 @@ class _HomeSellCard extends StatelessWidget {
         ),
       ),
     ),
+    ),
   );
 }
 
 class _HomeHeroSkeleton extends StatelessWidget {
   const _HomeHeroSkeleton();
+
   @override
-  Widget build(BuildContext context) => const FulusSkeletonBox(height: 170);
+  Widget build(BuildContext context) => const Column(
+        children: [
+          Row(children: [
+            Expanded(child: FulusSkeletonBox(height: 118)),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(child: FulusSkeletonBox(height: 118)),
+          ]),
+          SizedBox(height: AppSpacing.sm),
+          Row(children: [
+            Expanded(child: FulusSkeletonBox(height: 118)),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(child: FulusSkeletonBox(height: 118)),
+          ]),
+          SizedBox(height: AppSpacing.sm),
+          Row(children: [
+            Expanded(child: FulusSkeletonBox(height: 118)),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(child: FulusSkeletonBox(height: 118)),
+          ]),
+        ],
+      );
 }
 
 class _HomeColors {
@@ -332,6 +361,7 @@ class _HomeColors {
   static const blue = Color(0xFF1473E6);
   static const orange = Color(0xFFFF9F1C);
   static const purple = Color(0xFF7B3FF2);
+  static const teal = Color(0xFF0DA8C4);
   static const muted = Color(0xFFB7C7DB);
 }
 
