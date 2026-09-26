@@ -312,7 +312,10 @@ class _HomeSalesCard extends StatelessWidget {
             child: Text(formatMoney(amount, symbol: currencySymbol), style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context), fontFeatures: const [FontFeature.tabularFigures()])),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(\n            '$count ${countLabel.replaceFirst('sales', count == 1 ? 'sale' : 'sales')}',\n            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),\n          ),
+          Text(
+            '$count ${countLabel.replaceFirst('sales', count == 1 ? 'sale' : 'sales')}',
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
           ],
       ),
     );
