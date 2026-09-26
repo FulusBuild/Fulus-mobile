@@ -67,14 +67,14 @@ class NavigationIntroScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.md),
                 FulusActionTile(
                   icon: FulusIcons.check,
-                  title: 'Got it',
+                  label: 'Got it',
                   subtitle: 'Continue to your first sale.',
                   onTap: () => _continue(ref),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FulusActionTile(
                   icon: Icons.skip_next_rounded,
-                  title: 'Skip walkthrough',
+                  label: 'Skip walkthrough',
                   subtitle: 'You can explore Fulus on your own.',
                   onTap: () => _skip(ref),
                 ),
