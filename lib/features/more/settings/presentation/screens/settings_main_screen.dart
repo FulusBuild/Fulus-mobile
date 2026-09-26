@@ -192,13 +192,6 @@ class _AppLockStatusTile extends ConsumerStatefulWidget {
   const _AppLockStatusTile();
 
   @override
-  ConsumerState<_AppLockStatusRow> createState() => _AppLockStatusRowState();
-}
-
-class _AppLockStatusTile extends ConsumerStatefulWidget {
-  const _AppLockStatusTile();
-
-  @override
   ConsumerState<_AppLockStatusTile> createState() => _AppLockStatusTileState();
 }
 
