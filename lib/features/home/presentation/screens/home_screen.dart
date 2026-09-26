@@ -544,4 +544,13 @@ class _NoticeSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => const SizedBox(height: 92, child: Row(children: [Expanded(child: FulusSkeletonBox()), SizedBox(width: AppSpacing.sm), Expanded(child: FulusSkeletonBox())]));
 }
 
+class _HomeColors {
+  static const navy = Color(0xFF061B3A);
+  static const blue = Color(0xFF1473E6);
+  static const green = Color(0xFF0BBE6E);
+  static const orange = Color(0xFFFF9F1C);
+  static const purple = Color(0xFF7B3FF2);
+  static const muted = Color(0xFFB7C7DB);
+}
+
 final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings());
