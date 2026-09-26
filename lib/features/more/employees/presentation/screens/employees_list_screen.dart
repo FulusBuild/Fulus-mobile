@@ -106,44 +106,16 @@ class _TeamOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.selectedTintOf(context),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(FulusIcons.staff, color: AppColors.primaryOf(context)),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Your team', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-                const SizedBox(height: 2),
-                Text(
-                  '$count active ${count == 1 ? 'member' : 'members'}',
-                  style: AppTypography.subheading.copyWith(
-                    color: AppColors.textPrimaryOf(context),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Manage access and attendance from each profile.',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return FulusStatGrid(
+      spacing: AppSpacing.sm,
+      minTileWidth: 150,
+      cards: [
+        FulusStatCard(
+          icon: FulusIcons.staff,
+          label: 'Active team',
+          value: '\$count \${count == 1 ? 'member' : 'members'}',
+        ),
+      ],
     );
   }
 }
