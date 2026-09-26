@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../lib/core/theme/app_theme.dart';
-import '../../lib/shared/widgets/fulus_section_header.dart';
+import '../../../lib/core/theme/app_theme.dart';
+import '../../../lib/shared/widgets/fulus_section_header.dart';
 
 void main() {
   testWidgets('section header stacks action on narrow screens', (tester) async {
