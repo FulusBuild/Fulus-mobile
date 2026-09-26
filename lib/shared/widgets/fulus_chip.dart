@@ -74,7 +74,7 @@ class FulusChip extends StatelessWidget {
                     maxLines: 1,
                     style: AppTypography.label.copyWith(
                       color: foreground,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                     ),
                   ),
                 ),
