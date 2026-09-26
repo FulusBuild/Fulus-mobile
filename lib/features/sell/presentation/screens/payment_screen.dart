@@ -506,7 +506,7 @@ class _PaymentMethodTile extends StatelessWidget {
       onPressed: onTap,
       child: AnimatedContainer(
         duration: AppMotion.fast,
-        height: 64,
+        constraints: const BoxConstraints(minHeight: 72),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         decoration: BoxDecoration(
           color: selected ? AppColors.selectedTintOf(context) : AppColors.surfaceOf(context),
@@ -519,8 +519,8 @@ class _PaymentMethodTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected ? primary.withValues(alpha: 0.10) : AppColors.surfaceAltOf(context),
