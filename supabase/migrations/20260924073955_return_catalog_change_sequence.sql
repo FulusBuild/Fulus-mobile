@@ -1,0 +1,7 @@
+-- Historical migration provenance compatibility entry.
+--
+-- Production recorded this migration version before the repository migration
+-- chain was renamed/resequenced. The effective catalog mutation definition is
+-- carried by the subsequent repository migration 20260924074000. Keep this
+-- entry so the repository preserves the production history without replaying
+-- already-applied catalog DDL.
