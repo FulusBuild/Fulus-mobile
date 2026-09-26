@@ -308,3 +308,197 @@ class _ProductList extends StatelessWidget {
     return GridView.builder(
       padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xl),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.sizeOf(context).width < 390 ? 2 : 3,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
+        childAspectRatio: 0.82,
+      ),
+      itemCount: products.length,
+      itemBuilder: (context, index) =>
+          _ProductRow(entry: products[index], currency: state.currencySymbol),
+    );
+  }
+}
+
+class _ProductRow extends StatelessWidget {
+  const _ProductRow({required this.entry, required this.currency});
+  final ProductWithStock entry;
+  final String currency;
+  @override
+  Widget build(BuildContext context) {
+    final product = entry.product;
+    final out = product.tracksStock && entry.currentStock <= 0;
+    final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
+
+    return FulusPressable(
+      onPressed: out ? null : () => _add(context),
+      semanticsLabel: product.name,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.borderOf(context).withValues(alpha: .7),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: Container(
+                  width: double.infinity,
+                  color: AppColors.selectedTintOf(context),
+                  alignment: Alignment.center,
+                  child: product.photoPath == null
+                      ? Text(
+                          initial,
+                          style: AppTypography.heading.copyWith(
+                            color: AppColors.primaryOf(context),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                      : Image.file(
+                          File(product.photoPath!),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Text(
+                            initial,
+                            style: AppTypography.heading.copyWith(
+                              color: AppColors.primaryOf(context),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              product.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              currency + product.sellingPrice.toStringAsFixed(2),
+              style: AppTypography.body.copyWith(
+                color: AppColors.primaryOf(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (out)
+              Text(
+                'Out of stock',
+                style: AppTypography.label.copyWith(
+                  color: AppColors.errorOf(context),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _add(BuildContext context) async {
+    final product = entry.product;
+    final controller = TextEditingController(text: '1');
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Add ${product.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FulusTextField(
+              label: 'Quantity',
+              controller: controller,
+              keyboardType: TextInputType.number,
+            ),
+            if (product.tracksStock)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  '${entry.currentStock} available',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondaryOf(dialogContext),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FulusButton(
+            label: 'Add to cart',
+            onPressed: () => Navigator.of(dialogContext).pop(
+              int.tryParse(controller.text.trim()),
+            ),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (quantity == null || !context.mounted) return;
+    try {
+      await context.read<CartCubit>().addProductQuantity(
+            product.localId,
+            quantity,
+          );
+      FulusHaptics.selection();
+      if (context.mounted) {
+        showFulusSnackbar(
+          context,
+          message: '${quantity} × ${product.name} added to the cart.',
+        );
+      }
+    } on StateError catch (e) {
+      FulusHaptics.error();
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
+    }
+  }
+}
+
+class _CartSummaryBar extends StatelessWidget {
+  const _CartSummaryBar({required this.state});
+  final CartLoaded state;
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return SafeArea(top: false, child: Padding(
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+      child: Material(
+        color: const Color(0xFF1677FF),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: () {
+            final cubit = context.read<CartCubit>();
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen())));
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(height: 54, child: Row(children: [
+            const SizedBox(width: AppSpacing.md),
+            const Icon(FulusIcons.shoppingCart, color: Colors.white, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Text(state.itemCount.toString() + ' items', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text(state.currencySymbol + state.total.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('View Cart', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            const SizedBox(width: AppSpacing.md),
+          ])),
+        ),
+      ),
+    ));
+  }
+}
