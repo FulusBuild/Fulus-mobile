@@ -91,7 +91,7 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
   Widget build(BuildContext context) {
     final identities = _identities;
     if (identities == null) {
-      return const FulusScreen(body: Center(child: CircularProgressIndicator()));
+      return const FulusScreen(body: FulusLoadingIndicator());
     }
     final selected = _selected;
     if (selected == null) return _buildNameList(context, identities);
