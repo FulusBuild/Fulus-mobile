@@ -1,181 +1,73 @@
 # Fulus Production Readiness Audit — 2026-09
 
-## Scope
+## Final status
 
-This record covers the production-readiness audit of the Fulus Mobile application, including:
+Production-readiness closure is complete for the application architecture, database, offline/sync system, deployment pipeline, and live production verification.
 
-- Flutter/mobile application and local Drift/SQLite ledger
-- Durable offline sync queue, retries, leases, cursors, idempotency and reconciliation
-- Supabase/Postgres cloud schema, RLS, authorization, SECURITY DEFINER boundaries and RPCs
-- Edge Functions and cloud API wrappers
-- Sales, payments, returns, inventory, customer ledger, finance and cash-drawer invariants
-- Cross-business and per-location isolation
-- Production migration and deployment controls
-- CI, live sync E2E and multi-device convergence coverage
-- Live production database integrity checks
+Physical Android offline/process-death/reinstall recovery validation passed.
 
-The audit was read-only with respect to production business data.
+PR #74 established production migration provenance and deployment controls. PR #76 closed the remaining application/database fidelity gaps: business-switch mutation fencing, server-authoritative split payments and refunds, financial precision, explicit diagnostic-events RLS, and financial contract tests.
 
-## Audit result
+Final production deployment: main commit b2657fcce6c436cb5e23ea7c2ff4bbb0cd4b281b; GitHub Actions production run 36225334620 — success.
 
-The architectural audit is complete. The core local/cloud/sync architecture and live data invariants were reviewed.
+## Verified production evidence
 
-The physical Android process-death/recovery test has now been completed successfully.
+- Exact production migration history matches the repository: 126 migrations, ending at 20260926043000_close_financial_fidelity_gaps.
+- Production schema drift check: PASS.
+- Edge Function deployment: PASS.
+- Post-deploy live sync contract E2E: PASS.
+- Post-deploy multi-device convergence E2E: PASS.
+- Catalog optimistic-concurrency serialization: PASS.
+- Stale cursor rejection, restore boundary, device scoping, idempotency, credit-sale/payment/repayment, inventory, cash-drawer, tombstone and conflict-handling checks: PASS.
+- Live snapshot: 196 sales, 199 sale-payment legs, 73 returns, 73 return items, 2,351 idempotency keys.
+- Live sale-total and payment-total integrity checks: 0 violations.
+- Live negative-refund check: 0 violations.
+- diagnostic_events now has an explicit client-deny RLS policy.
+- income_records.amount is numeric(14,2).
 
-Repository production-deployment hardening has been merged to `main` in PR #74.
+## Closed architectural gaps
 
-The remaining release gates are deployment verification and administrative configuration rather than another architectural audit.
+### Business-switch mutation barrier
+Durable sync enqueueing is fenced while business context is switching, and the final switch decision occurs under the barrier. Draft carts are intentionally transient/local and are deterministically cleared on business switch.
 
-## Blockers and disposition
+### Split-payment fidelity
+Completed sales now send explicit payment legs. The server-authoritative sale RPC validates the legs against the server-calculated sale total and persists individual payment legs with idempotent operation identity.
 
-### 1. Android process-death / recovery validation — PASS
+### Refund accounting
+Returns now use a server-authoritative RPC that calculates returned merchandise value from canonical sale items, validates refund amount and method, separates credit reversal from external refund legs, and enforces authorization/idempotency. The production E2E identity correctly fails the return operation at the permission boundary; authorized return behavior is covered by the financial contract tests.
 
-A physical Android recovery test was completed.
+### Migration/deployment governance
+Production deployment is gated on the exact commit's CI, migration history is verified before/after deployment, schema drift fails deployment, Edge Functions deploy only after schema verification, and post-deploy live sync/convergence tests run before the deployment is considered successful.
 
-Test sequence:
 
-1. Internet was disabled.
-2. A sale was created while offline.
-3. The app/process was interrupted.
-4. Internet was restored.
-5. The app was uninstalled and reinstalled.
-6. The app was reopened and the sale was recovered from the cloud.
-7. The sale appeared only once in recent activity.
+## Remaining platform controls
 
-**Status:** PASS for the tested offline-sync, process-interruption, cloud-recovery and duplicate-prevention scenario.
+### Supabase Auth leaked-password protection — NOT YET ENABLED
+The Supabase security advisor still reports leaked-password protection disabled. This is an Auth service configuration rather than a Postgres migration. Supabase exposes the password_hibp_enabled setting through its Auth configuration API. The application/database closure is complete, but this platform control remains outstanding until enabled and re-verified.
 
-This test does not claim that an unsynced local database survives Android app uninstallation; app-local data is expected to be removed on uninstall.
+### GitHub main branch protection — NOT VERIFIED/CONFIGURED
+The available GitHub connection could not safely verify or change repository branch-protection rules. Recommended controls remain: pull-request requirement, review requirement, required CI/Supabase checks, stale-approval dismissal, and disabled force-push/branch deletion.
 
-### 2. Production migration provenance — REPAIRED IN REPOSITORY/CI PATH; PRODUCTION DEPLOYMENT PENDING VERIFICATION
+### Supabase performance advisor — OPTIMIZATION BACKLOG
+The current advisor reports 44 unused-index findings and 30 multiple-permissive-policy findings. These are performance optimization notices, not demonstrated authorization or data-integrity failures. They were not changed blindly during the production closure pass.
 
-Production history previously stopped at:
 
-`20260925135830_harden_return_sale_idempotency_actor_scope`
+## Release gate
 
-while the repository contained later migration files:
-
-- `20260925150000_harden_return_sale_idempotency_actor_scope.sql`
-- `20260925160000_enforce_location_membership_on_api_mutations.sql`
-
-Those migrations are preserved as the repository's authoritative continuation. The production deployment workflow has been hardened so it:
-
-1. waits for the exact commit's mobile + live sync CI to pass;
-2. verifies migration history before deployment;
-3. applies pending migrations;
-4. verifies migration history again;
-5. compares the live public schema against the repository migration result and fails on drift;
-6. only then deploys Edge Functions;
-7. verifies migration history again.
-
-The hardening changes have now been merged to `main`.
-
-**Important:** the migration history observed immediately after the merge still ended at `20260925135830`. The production migration workflow must complete before the repository's later migrations can be considered deployed and verified.
-
-### 3. Production CI/deployment gating — MERGED; DEPLOYMENT RUN PENDING/TO BE VERIFIED
-
-The production Supabase workflow now:
-
-- pins the Supabase CLI to `2.117.0`;
-- pins the checkout and Supabase setup actions to reviewed SHAs;
-- requires the exact production commit's `Fulus Mobile CI` workflow to complete successfully before any production migration or Edge Function deployment;
-- therefore gates production deployment on the Flutter test suite, live sync contract test and multi-device convergence test already contained in that workflow;
-- verifies the migration chain and live schema after migration application.
-
-The changes were merged in PR #74 as commit:
-
-`c82a346de20954b9cc914290912a5f12e51875fa`
-
-Production deployment success has not yet been independently verified from the available GitHub workflow status interface.
-
-### 4. GitHub branch protection / required-review setting — ADMINISTRATIVE SETTING
-
-Repository automation could not safely verify or change organization-level branch protection with the available GitHub connection.
-
-The repository should have `main` configured so that:
-
-- direct pushes are blocked;
-- pull requests are required;
-- at least one review is required;
-- required status checks include the mobile CI and relevant Supabase checks;
-- stale approvals are dismissed when new commits are pushed;
-- force pushes and branch deletion are disabled.
-
-This is a GitHub repository setting, not an application-code defect.
-
-## Other hardening findings
-
-The following were identified but are not demonstrated production data-corruption vulnerabilities:
-
-- refund semantics should become server-authoritative and represent refund legs explicitly;
-- cloud representation of split payments should become first-class rather than aggregate-only;
-- draft carts should have an explicit business boundary or deterministic switch/restore handling;
-- the business-switch check/switch sequence should eventually be replaced with a DB-backed mutation/context barrier;
-- `diagnostic_events` has RLS enabled with no policy, which currently defaults to deny but should be intentional/documented;
-- Supabase reported multiple permissive-policy and unused-index findings requiring separate performance cleanup;
-- `income_records.amount` should use the same explicit monetary precision/scale convention as the rest of the financial schema;
-- leaked-password protection remains a Supabase Auth hardening recommendation.
-
-These items should not be confused with the completed Android recovery test.
-
-## Cloud and sync audit coverage
-
-Cloud and sync were explicitly audited, including:
-
-- durable queue lifecycle
-- retry/backoff
-- operation identity and idempotency
-- optimistic concurrency
-- foreground/background sync serialization
-- SQLite lease behavior
-- change-feed sequence/cursor handling
-- cursor recovery
-- canonical reconciliation
-- stale-handler finalization
-- device-scoped authorization
-- business/location isolation
-- server-side mutation authorization
-- SECURITY DEFINER execution boundaries
-- RLS
-- live database invariants
-- multi-device convergence test coverage
-
-## Live integrity snapshot
-
-The live production database was checked for the audited invariants covering:
-
-- sale totals and line-item arithmetic
-- payment totals
-- inventory and stock/movement consistency
-- return quantity bounds
-- customer balances
-- duplicate/idempotency operation keys
-- sync sequence integrity
-- cross-business relationships
-- cross-location relationships
-- sale/payment/return relationships
-- current refund/cash-ledger consistency
-- stale processing sync operations
-
-The tested invariants returned no violations at audit time.
-
-## Current release gate
-
-### Completed
-
-- [x] Architectural production-readiness audit
-- [x] Physical Android offline-sync test
-- [x] Process interruption/recovery test
-- [x] Reinstall/cloud recovery test
-- [x] Duplicate check for recovered sale
-- [x] Production CI/migration hardening merged to `main`
-
-### Still required
-
-- [ ] Verify the production GitHub Actions deployment completes successfully
-- [ ] Verify production migration history reaches the repository's expected migration tip
-- [ ] Verify post-migration public-schema drift check passes
-- [ ] Verify all production Edge Functions deploy successfully
-- [ ] Re-run live financial/inventory/sync integrity checks after deployment
-- [ ] Verify `main` branch protection and required status checks in GitHub repository settings
-
-Until those deployment and administrative checks pass, the release should remain in the final verification stage.
+- [x] Architecture audit
+- [x] Physical Android recovery validation
+- [x] Migration provenance repair
+- [x] Production CI/deployment hardening
+- [x] Business-switch mutation fencing
+- [x] Split-payment fidelity
+- [x] Refund accounting
+- [x] Financial precision
+- [x] Diagnostic-events RLS
+- [x] Production deployment
+- [x] Schema verification
+- [x] Edge Function deployment
+- [x] Live sync E2E
+- [x] Multi-device convergence E2E
+- [x] Live integrity verification
+- [ ] Enable Supabase Auth leaked-password protection and clear the security advisor warning
+- [ ] Configure and verify GitHub main branch protection/required reviews
