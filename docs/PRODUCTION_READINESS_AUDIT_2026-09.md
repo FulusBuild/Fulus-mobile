@@ -42,8 +42,8 @@ Production deployment is gated on the exact commit's CI, migration history is ve
 
 ## Remaining platform controls
 
-### Supabase Auth leaked-password protection — NOT YET ENABLED
-The Supabase security advisor still reports leaked-password protection disabled. This is an Auth service configuration rather than a Postgres migration. Supabase exposes the password_hibp_enabled setting through its Auth configuration API. The application/database closure is complete, but this platform control remains outstanding until enabled and re-verified.
+### Supabase Auth leaked-password protection — PLAN-BLOCKED
+The Supabase security advisor still reports leaked-password protection disabled. The production environment was tested through the Supabase Management API; the API returned HTTP 402 with the explicit response that HaveIBeenPwned leaked-password protection is available on Pro Plans and up. Therefore this control cannot be enabled on the current project plan. No application or database workaround can legitimately substitute for the managed Auth feature. Upgrade the project to a supported Supabase plan, enable password_hibp_enabled, then re-run the security advisor.
 
 ### GitHub main branch protection — NOT VERIFIED/CONFIGURED
 The available GitHub connection could not safely verify or change repository branch-protection rules. Recommended controls remain: pull-request requirement, review requirement, required CI/Supabase checks, stale-approval dismissal, and disabled force-push/branch deletion.
@@ -69,5 +69,5 @@ The current advisor reports 44 unused-index findings and 30 multiple-permissive-
 - [x] Live sync E2E
 - [x] Multi-device convergence E2E
 - [x] Live integrity verification
-- [ ] Enable Supabase Auth leaked-password protection and clear the security advisor warning
+- [ ] Upgrade to a Supabase plan supporting leaked-password protection, enable it, and clear the security advisor warning
 - [ ] Configure and verify GitHub main branch protection/required reviews
