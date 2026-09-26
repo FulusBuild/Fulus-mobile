@@ -58,6 +58,8 @@ declare
   credit_paid numeric := 0;
   payment_method text;
   payment_index integer := 0;
+  payment_inserted boolean;
+
   method text;
   amount numeric;
 begin
@@ -167,7 +169,8 @@ begin
       on conflict(business_id,operation_id) do nothing
       returning id into payment_id;
 
-      if payment_id is not null then
+      payment_inserted := payment_id is not null;
+      if payment_inserted then
         perform public._fulus_append_change(
           target_business_id,'sale',sale_id,'upsert',
           jsonb_build_object(
