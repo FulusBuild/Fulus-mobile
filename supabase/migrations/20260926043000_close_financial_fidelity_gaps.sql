@@ -382,7 +382,19 @@ begin
 
   sale_credit_balance := greatest(round(sale.total-sale.amount_paid,2),0);
 
-  if sale.customer_id is not null and sale_credit_balance > 0 then
+  if method='credit' then
+    if sale.customer_id is null then
+      raise exception using errcode='22023',message='Credit refund requires a customer';
+    end if;
+    select outstanding_balance into customer_balance
+    from public.customers
+    where id=sale.customer_id and business_id=target_business_id
+    for update;
+    if coalesce(customer_balance,0) <= 0 then
+      raise exception using errcode='22023',message='Credit refund requires an outstanding customer balance';
+    end if;
+    credit_reversal := return_value;
+  elsif sale.customer_id is not null and sale_credit_balance > 0 then
     select outstanding_balance into customer_balance
     from public.customers
     where id=sale.customer_id and business_id=target_business_id
@@ -424,8 +436,8 @@ begin
   cash_refund := round(return_value-credit_reversal,2);
 
   if method='credit' then
-    if credit_reversal <= 0 or cash_refund <> 0 then
-      raise exception using errcode='22023',message='Credit refund requires an outstanding credit balance on the original sale';
+    if credit_reversal <= 0 then
+      raise exception using errcode='22023',message='Credit refund must be positive';
     end if;
   else
     if cash_refund <= 0 then
