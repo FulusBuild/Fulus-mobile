@@ -179,6 +179,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.businessName});
+
+  final String businessName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const FulusBrandLogo(
+          size: 56,
+          backgroundColor: Colors.white,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            businessName.isEmpty ? 'Fulus' : businessName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
@@ -312,28 +343,6 @@ class _HomeSellCard extends StatelessWidget {
         ),
       ),
     ),
-  );
-}
-
-class _HomeSummaryCard extends StatelessWidget {
-  const _HomeSummaryCard({required this.credit, required this.expenses, required this.recent});
-  final String credit; final String expenses; final List<MoneyTransaction> recent;
-  @override
-  Widget build(BuildContext context) => FulusCard(
-    padding: const EdgeInsets.all(AppSpacing.md),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Business snapshot', style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-      const SizedBox(height: AppSpacing.sm),
-      Text('Customer credit  $credit', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      Text('Expenses today  $expenses', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      if (recent.isNotEmpty) Text('Recent: ${recent.first.title}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      const SizedBox(height: AppSpacing.sm),
-      Row(children: [
-        Expanded(child: _QuickActionButton(icon: FulusIcons.sell, label: 'Sell', color: _HomeColors.blue, onTap: () => context.goNamed('sell'))),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(child: _QuickActionButton(icon: FulusIcons.stock, label: 'Stock', color: _HomeColors.orange, onTap: () => context.goNamed('stock'))),
-      ]),
-    ]),
   );
 }
 
