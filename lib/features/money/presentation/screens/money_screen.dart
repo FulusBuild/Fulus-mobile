@@ -345,16 +345,18 @@ class _BalanceHero extends StatelessWidget {
   final double balance;
   final String currencySymbol;
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 142),
-    padding: const EdgeInsets.all(AppSpacing.lg),
-    decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
-      const Spacer(),
-      FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900))),
-      const Text('Updated from your business records', style: TextStyle(color: Colors.white70, fontSize: 12)),
-    ]),
+  Widget build(BuildContext context) => SizedBox(
+    height: 142,
+    child: Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
+        const Spacer(),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900))),
+        const Text('Updated from your business records', style: TextStyle(color: Colors.white70, fontSize: 12)),
+      ]),
+    ),
   );
 }
 class _BalanceHeroSkeleton extends StatelessWidget {
