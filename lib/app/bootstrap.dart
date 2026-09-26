@@ -189,6 +189,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
 
+  final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
+  final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
+  final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
+  final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
+  final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
+  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
+  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
+
   fulusConnectionState.setBusinessSwitchGuard(
     () async {
       // The local cloud dataset is single-business. Wait for any active push,
@@ -203,13 +211,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     beforeSwitch: () => draftCartRepository.clearAllDraftCarts(),
   );
 
-  final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
-  final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
-  final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
-  final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
-  final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
-  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
   final categoryRepository = CategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
