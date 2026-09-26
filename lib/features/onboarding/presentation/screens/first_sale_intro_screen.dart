@@ -54,7 +54,10 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                   icon: FulusIcons.sell,
                   label: "Let's go",
                   subtitle: 'Open Sell and make your first real sale.',
-                  onTap: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
+                  onTap: () {
+                    ref.read(firstSaleIntroSeenProvider.notifier).state = true;
+                    context.goNamed('sell');
+                  },
                 ),
               ],
             ),
