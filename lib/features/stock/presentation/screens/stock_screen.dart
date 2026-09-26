@@ -7,6 +7,7 @@ import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../widgets/product_list_tile.dart';
 
 class StockScreen extends ConsumerStatefulWidget {
@@ -101,6 +102,7 @@ class _StockBody extends ConsumerWidget {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
     final filter = ref.watch(stockFilterProvider);
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -164,7 +166,7 @@ class _StockBody extends ConsumerWidget {
                         FulusStatCard(
                           icon: FulusIcons.money,
                           label: 'Stock value',
-                          value: formatMoney(totalValue, symbol: '₦', compact: true),
+                          value: formatMoney(totalValue, symbol: currencySymbol, compact: true),
                         ),
                         FulusStatCard(
                           icon: FulusIcons.warning,
