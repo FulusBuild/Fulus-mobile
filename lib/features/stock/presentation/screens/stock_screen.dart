@@ -44,11 +44,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           onPressed: () => _showStockActions(context),
         ),
       ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.pushNamed('stockRecordMovement'),
-        icon: const Icon(FulusIcons.arrowUp),
-        label: const Text('Record stock'),
-      ),
+      floatingActionButton: null,
       body: locationAsync.when(
         loading: () => const FulusLoadingIndicator(),
         error: (error, _) => FulusErrorState(
@@ -141,6 +137,17 @@ class _StockBody extends ConsumerWidget {
 
             return CustomScrollView(
               slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
+                    child: FulusActionTile(
+                      icon: FulusIcons.arrowUp,
+                      label: 'Record stock',
+                      subtitle: 'Add stock or record a movement',
+                      onTap: () => context.pushNamed('stockRecordMovement'),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
