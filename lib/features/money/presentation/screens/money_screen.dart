@@ -396,7 +396,7 @@ class _MoneyQuickActions extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 760 ? 4 : 2;
+        final columns = constraints.maxWidth >= 760 ? 4 : constraints.maxWidth < 360 ? 1 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
