@@ -48,7 +48,7 @@ class FulusListRow extends StatelessWidget {
         highlightColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
         hoverColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+          constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
             child: Row(
