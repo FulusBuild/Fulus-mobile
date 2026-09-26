@@ -102,6 +102,9 @@ Future<void> main() async {
     stdout.writeln('PASS: income.create');
 
     final quickSaleOperationId = 'e2e-quick-sale-$suffix';
+    final quickSalePayments = <Map<String, Object>>[
+      {'method': 'cash', 'amount': 321},
+    ];
     final quickSaleResponse = await dio.post('', data: {
       'action': 'sale_create',
       'business_id': businessId,
@@ -113,12 +116,7 @@ Future<void> main() async {
       'tax': 0,
       'amount_paid': 321,
       'payment_method': 'cash',
-      'payments': [
-        {
-          'method': 'cash',
-          'amount': 321,
-        },
-      ],
+      'payments': quickSalePayments,
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'items': [
         {
