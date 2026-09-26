@@ -323,8 +323,50 @@ class _ProductList extends StatelessWidget {
         mainAxisSpacing: AppSpacing.sm,
         childAspectRatio: 0.82,
       ),
-      itemCount: products.length,
-      itemBuilder: (context, index) => _ProductRow(entry: products[index], currency: state.currencySymbol),
+      itemCount: products.length + 1,
+      itemBuilder: (context, index) => index == products.length
+          ? const _AddProductTile()
+          : _ProductRow(entry: products[index], currency: state.currencySymbol),
+    );
+  }
+}
+
+class _AddProductTile extends StatelessWidget {
+  const _AddProductTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Add product',
+      child: InkWell(
+        onTap: () => context.pushNamed('stockAddProduct'),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceOf(context),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.borderOf(context).withValues(alpha: .7)),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(FulusIcons.add, color: AppColors.primary, size: AppIconSize.emphasis),
+                SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Add Product',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
