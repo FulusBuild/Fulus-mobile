@@ -168,7 +168,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       ),
                     ],
                   ),
-                )                ),
+                ),
               ),
             ),
           );
