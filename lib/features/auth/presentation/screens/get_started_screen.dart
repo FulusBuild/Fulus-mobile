@@ -53,16 +53,12 @@ class GetStartedScreen extends ConsumerWidget {
                     subtitle: 'Set up Fulus in a few simple steps.',
                     icon: Icons.storefront_rounded,
                     onTap: () async {
-                    icon: Icons.arrow_forward_rounded,
-                    onTap: () async {
                       final onboardingState = ref.read(onboardingStateProvider);
                       await onboardingState.advanceWalkthroughTo(OnboardingStep.businessSetup);
                       ref.read(walkthroughStepProvider.notifier).state = OnboardingStep.businessSetup;
                       if (!context.mounted) return;
                       Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => const FulusAccountScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
                       );
                     },
                   ),
@@ -72,12 +68,10 @@ class GetStartedScreen extends ConsumerWidget {
                     subtitle: 'Restore a Fulus business to this device.',
                     icon: Icons.login_rounded,
                     onTap: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => const FulusAccountScreen(),
-                          ),
-                        );
-                      },
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
+                      );
+                    },
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusActionTile(
@@ -85,12 +79,10 @@ class GetStartedScreen extends ConsumerWidget {
                     subtitle: 'Run your business locally without an account.',
                     icon: Icons.cloud_off_rounded,
                     onTap: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => const OwnerSetupScreen(),
-                          ),
-                        );
-                      },
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const OwnerSetupScreen()),
+                      );
+                    },
                   ),
                 ],
               ),
