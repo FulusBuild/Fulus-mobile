@@ -140,7 +140,26 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      const _MoneyQuickActions(),
+                      FutureBuilder<MoneySummary>(
+                        future: _summaryFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return _MoneyError(
+                              message: "Couldn't load this period's money actions.",
+                              onRetry: _refresh,
+                            );
+                          }
+                          if (!snapshot.hasData) {
+                            return const FulusDelayedSkeleton(
+                              skeleton: FulusSkeletonBox(height: 118),
+                            );
+                          }
+                          return _MoneyQuickActions(
+                            summary: snapshot.data!,
+                            currencySymbol: currencySymbol,
+                          );
+                        },
+                      ),
                       const SizedBox(height: AppSpacing.xl),
                       const MoneyPeriodFilterBar(),
                       const SizedBox(height: AppSpacing.xl),
@@ -169,25 +188,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             currencySymbol: currencySymbol,
                           );
                         },
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () => context.pushNamed('moneyCustomers'),
-                              icon: const Icon(FulusIcons.customers),
-                              label: const Text('Customer credit'),
-                            ),
-                          ),
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () => context.pushNamed('moneySuppliers'),
-                              icon: const Icon(FulusIcons.localShipping),
-                              label: const Text('Suppliers'),
-                            ),
-                          ),
-                        ],
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
@@ -348,7 +348,7 @@ class _BalanceHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(minHeight: 142),
     padding: const EdgeInsets.all(AppSpacing.lg),
-    decoration: BoxDecoration(color: const Color(0xFF1473E6), borderRadius: BorderRadius.circular(14)),
+    decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
       const Spacer(),
@@ -375,24 +375,119 @@ class _BalanceHeroSkeleton extends StatelessWidget {
   }
 }
 
-class _MoneyQuickActions extends StatelessWidget {
-  const _MoneyQuickActions();
+class _MoneyQuickActions extends ConsumerWidget {
+  const _MoneyQuickActions({
+    required this.summary,
+    required this.currencySymbol,
+  });
+
+  final MoneySummary summary;
+  final String currencySymbol;
+
   @override
-  Widget build(BuildContext context) {
-    final actions = <({IconData icon, String label, String subtitle, Color color, VoidCallback onTap})>[
-      (icon: FulusIcons.add, label: 'Money In', subtitle: 'Record income', color: const Color(0xFF0BBE6E), onTap: () => context.pushNamed('moneyAddIncome')),
-      (icon: FulusIcons.remove, label: 'Money Out', subtitle: 'Record expense', color: const Color(0xFF7B3FF2), onTap: () => context.pushNamed('moneyAddExpense')),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final customers = ref.watch(moneyCustomersProvider).asData?.value ?? const [];
+    final suppliers = ref.watch(moneySuppliersProvider).asData?.value ?? const [];
+    final customerCredit = customers.fold<double>(0, (sum, customer) => sum + customer.outstandingBalance);
+    final supplierPayments = suppliers.fold<double>(0, (sum, supplier) => sum + supplier.outstandingBalance);
+
+    final actions = <_MoneyAction>[
+      _MoneyAction(
+        color: const Color(0xFF1473E6),
+        icon: FulusIcons.arrowDown,
+        label: 'Money In',
+        value: formatMoney(summary.moneyIn, symbol: currencySymbol, compact: true),
+        subtitle: 'Today',
+        onTap: () => context.pushNamed('moneyAddIncome'),
+      ),
+      _MoneyAction(
+        color: const Color(0xFFFF8C00),
+        icon: FulusIcons.arrowUp,
+        label: 'Money Out',
+        value: formatMoney(summary.moneyOut, symbol: currencySymbol, compact: true),
+        subtitle: 'Today',
+        onTap: () => context.pushNamed('moneyAddExpense'),
+      ),
+      _MoneyAction(
+        color: const Color(0xFF7B3FF2),
+        icon: FulusIcons.customers,
+        label: 'Customer Credit',
+        value: formatMoney(customerCredit, symbol: currencySymbol, compact: true),
+        subtitle: 'Owed',
+        onTap: () => context.pushNamed('moneyCustomers'),
+      ),
+      _MoneyAction(
+        color: const Color(0xFF0DA8C4),
+        icon: FulusIcons.localShipping,
+        label: 'Supplier Payments',
+        value: formatMoney(supplierPayments, symbol: currencySymbol, compact: true),
+        subtitle: 'Owed',
+        onTap: () => context.pushNamed('moneySuppliers'),
+      ),
     ];
+
     return GridView.builder(
-      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: actions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: AppSpacing.sm, mainAxisSpacing: AppSpacing.sm, mainAxisExtent: 106),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
+        childAspectRatio: 1.45,
+      ),
       itemBuilder: (context, index) {
-        final a=actions[index];
-        return Material(color:a.color, borderRadius:BorderRadius.circular(12), child:InkWell(onTap:a.onTap,borderRadius:BorderRadius.circular(12),child:Padding(padding:const EdgeInsets.all(AppSpacing.md),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(a.icon,color:Colors.white,size:25),const Spacer(),Text(a.label,style:const TextStyle(color:Colors.white,fontSize:13,fontWeight:FontWeight.w800)),Text(a.subtitle,style:const TextStyle(color:Colors.white70,fontSize:10))]))));
+        final action = actions[index];
+        return Semantics(
+          button: true,
+          label: '${action.label}, ${action.value}',
+          child: Material(
+            color: action.color,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: InkWell(
+              onTap: action.onTap,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(action.icon, color: Colors.white, size: AppIconSize.base),
+                    const Spacer(),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(action.value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                    ),
+                    Text(action.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
       },
     );
   }
+}
+
+class _MoneyAction {
+  const _MoneyAction({
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String label;
+  final String value;
+  final String subtitle;
+  final VoidCallback onTap;
 }
 
 class _MoneySummary extends StatelessWidget {
