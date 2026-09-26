@@ -130,7 +130,15 @@ class _TeamOverview extends StatelessWidget {
       Row(children: [
         for (var i = 0; i < 2; i++) ...[
           if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _TeamCompactCard(employee: i < first.length ? first[i] : null)),
+          Expanded(child: _TeamCompactCard(
+            employee: i < first.length ? first[i] : null,
+            onTap: i < first.length
+                ? () => context.pushNamed(
+                    'moreEmployeeDetail',
+                    pathParameters: {'employeeId': first[i].id},
+                  )
+                : null,
+          )),
         ],
       ]),
       const SizedBox(height: AppSpacing.sm),
@@ -148,15 +156,19 @@ class _TeamOverview extends StatelessWidget {
 }
 
 class _TeamCompactCard extends StatelessWidget {
-  const _TeamCompactCard({required this.employee});
+  const _TeamCompactCard({required this.employee, required this.onTap});
   final Employee? employee;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFF0BBE6E),
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 82, child: Padding(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: SizedBox(height: 82, child: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Icon(FulusIcons.person, color: Colors.white, size: AppIconSize.compact),
@@ -165,6 +177,7 @@ class _TeamCompactCard extends StatelessWidget {
           Text(employee?.role ?? '—', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 9)),
         ]),
       )),
+      ),
     );
   }
 }
