@@ -724,7 +724,12 @@ class _MoreScreen extends ConsumerWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final inset = fulusHorizontalInset(context);
-          final columns = constraints.maxWidth >= 760 ? 3 : constraints.maxWidth < 360 ? 1 : 2;
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final columns = constraints.maxWidth >= 760
+              ? 3
+              : constraints.maxWidth < 360 || textScale > 1.15
+                  ? 1
+                  : 2;
           return GridView.builder(
             padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.xxxl),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
