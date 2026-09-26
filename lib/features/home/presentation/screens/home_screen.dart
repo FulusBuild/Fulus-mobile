@@ -187,7 +187,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
           ),
         ),
-      ),
     );
   }
   String _displayName(WidgetRef ref) {
