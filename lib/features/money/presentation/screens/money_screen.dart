@@ -163,7 +163,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       const MoneyPeriodFilterBar(),
                       const SizedBox(height: AppSpacing.xl),
-                      const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
                         titleColor: Colors.white,
