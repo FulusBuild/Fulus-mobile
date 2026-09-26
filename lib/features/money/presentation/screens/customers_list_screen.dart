@@ -132,67 +132,20 @@ class _CustomerOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 430;
-          final customerMetric = _OverviewMetric(icon: Icons.people_outline, label: 'Customers', value: '$customerCount');
-          final balanceMetric = _OverviewMetric(
-            icon: Icons.account_balance_wallet_outlined,
-            label: 'Outstanding',
-            value: formatMoney(outstanding, symbol: currencySymbol),
-          );
-          if (compact) {
-            return Row(children: [Expanded(child: customerMetric), const SizedBox(width: AppSpacing.md), Expanded(child: balanceMetric)]);
-          }
-          return Row(
-            children: [
-              Expanded(child: customerMetric),
-              const SizedBox(width: AppSpacing.lg),
-              Container(width: 1, height: 44, color: AppColors.borderOf(context)),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(flex: 2, child: balanceMetric),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _OverviewMetric extends StatelessWidget {
-  const _OverviewMetric({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-          child: Icon(icon, color: AppColors.primaryOf(context)),
+    return FulusStatGrid(
+      spacing: AppSpacing.sm,
+      minTileWidth: 150,
+      cards: [
+        FulusStatCard(
+          icon: Icons.people_outline,
+          label: 'Customers',
+          value: '$customerCount',
         ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-              const SizedBox(height: 2),
-              FittedBox(
-                alignment: Alignment.centerLeft,
-                fit: BoxFit.scaleDown,
-                child: Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
+        FulusStatCard(
+          icon: Icons.account_balance_wallet_outlined,
+          label: 'Outstanding credit',
+          value: formatMoney(outstanding, symbol: currencySymbol),
+          valueColor: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
         ),
       ],
     );
