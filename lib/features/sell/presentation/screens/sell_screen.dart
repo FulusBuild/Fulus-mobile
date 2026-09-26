@@ -316,8 +316,19 @@ class _ProductRow extends StatelessWidget {
     final product = entry.product;
     final out = product.tracksStock && entry.currentStock <= 0;
     final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
-    return FulusCard(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+    return FulusPressable(
+      onPressed: out ? null : () => _add(context),
+      semanticsLabel: '${product.name}, ${currency}${product.sellingPrice.toStringAsFixed(2)}${out ? ', out of stock' : ''}',
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 76),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.borderOf(context).withValues(alpha: 0.55)),
+        ),
+        child: Row(
+ const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       onTap: out ? null : () => _add(context),
       child: Row(
         children: [
