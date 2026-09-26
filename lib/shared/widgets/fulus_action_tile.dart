@@ -34,7 +34,7 @@ class FulusActionTile extends StatelessWidget {
       label: subtitle == null ? label : '$label. $subtitle',
       child: FulusPressable(
         onPressed: onTap,
-        semanticsLabel: label,
+        semanticsLabel: subtitle == null ? label : '$label. $subtitle',
         child: Container(
           constraints: const BoxConstraints(minHeight: 112, minWidth: 0),
           padding: const EdgeInsets.all(AppSpacing.md),
