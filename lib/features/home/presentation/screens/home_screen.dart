@@ -436,13 +436,10 @@ class _AttentionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 192,
-      child: Semantics(
-        button: true,
-        label: '$value $label',
-        child: FulusPressable(
-          onPressed: onTap,
-          semanticsLabel: label,
-          child: FulusCard(
+      child: FulusPressable(
+        onPressed: onTap,
+        semanticsLabel: '$value $label',
+        child: FulusCard(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
