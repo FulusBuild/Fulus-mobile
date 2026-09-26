@@ -205,6 +205,8 @@ class _SellContent extends ConsumerWidget {
                         MediaQuery.textScalerOf(context).scale(1) > 1.15;
                     final scanButton = FulusButton(
                       variant: FulusButtonVariant.secondary,
+                      foregroundColor: Colors.white,
+                      borderColor: Colors.white70,
                       icon: FulusIcons.scan,
                       label: 'Scan',
                       onPressed: onScan,
