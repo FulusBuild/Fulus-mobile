@@ -87,7 +87,7 @@ class _NotificationSummary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          unread == 0 ? 'All caught up' : '\$unread unread \${unread == 1 ? 'notification' : 'notifications'}',
+          unread == 0 ? 'All caught up' : '$unread unread ${unread == 1 ? 'notification' : 'notifications'}',
           style: AppTypography.subheading.copyWith(
             color: AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w700,
@@ -95,7 +95,7 @@ class _NotificationSummary extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          '\${notifications.length} \${notifications.length == 1 ? 'update' : 'updates'} in your inbox',
+          '${notifications.length} ${notifications.length == 1 ? 'update' : 'updates'} in your inbox',
           style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
         ),
       ],
