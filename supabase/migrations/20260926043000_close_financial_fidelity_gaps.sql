@@ -221,6 +221,7 @@ as $function$
 declare
   idem public.idempotency_keys%rowtype;
   request_hash text;
+  result jsonb;
   existing public.returns%rowtype;
   rid uuid;
   item jsonb;
