@@ -141,13 +141,14 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
                   Text(_bannerMessage!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
                   const SizedBox(height: AppSpacing.sm),
                 ],
-                SizedBox(
-                  width: double.infinity,
-                  child: FulusButton(
-                    label: 'Confirm refund${_totalSelectedQuantity > 0 ? ' — ${formatMoney(_estimatedRefund(data), symbol: currencySymbol)}' : ''}',
-                    loading: _submitting,
-                    onPressed: _submitting ? null : () => _submit(context, data),
-                  ),
+                FulusActionTile(
+                  icon: Icons.assignment_return_outlined,
+                  label: 'Confirm refund',
+                  subtitle: _totalSelectedQuantity > 0
+                      ? '${formatMoney(_estimatedRefund(data), symbol: currencySymbol)} · ${_totalSelectedQuantity} item${_totalSelectedQuantity == 1 ? '' : 's'}'
+                      : 'Select items to continue.',
+                  trailing: _submitting ? const FulusLoadingIndicator() : null,
+                  onTap: _submitting ? null : () => _submit(context, data),
                 ),
                 const SizedBox(height: AppSpacing.lg),
               ],

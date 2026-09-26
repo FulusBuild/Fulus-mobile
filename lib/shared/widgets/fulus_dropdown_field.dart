@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 import '../../core/theme/fulus_icons.dart';
 import 'fulus_bottom_sheet.dart';
 
@@ -60,7 +61,7 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
           labelText: widget.label,
           suffixIcon: AnimatedRotation(
             turns: _open ? 0.5 : 0,
-            duration: AppMotion.standard,
+            duration: fulusMotionDuration(context, AppMotion.standard),
             child: const Icon(FulusIcons.chevronDown),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),

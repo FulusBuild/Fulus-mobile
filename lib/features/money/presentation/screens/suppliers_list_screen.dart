@@ -125,16 +125,45 @@ class _SupplierOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.textScalerOf(context).scale(1) > 1.15;
     return FulusCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: [
-          Expanded(child: _Metric(icon: Icons.local_shipping_outlined, label: 'Suppliers', value: '$count')),
-          const SizedBox(width: AppSpacing.lg),
-          Container(width: 1, height: 44, color: AppColors.borderOf(context)),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(flex: 2, child: _Metric(icon: Icons.account_balance_wallet_outlined, label: 'Outstanding', value: formatMoney(outstanding, symbol: currencySymbol))),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = compact || constraints.maxWidth < 420;
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Metric(icon: Icons.local_shipping_outlined, label: 'Suppliers', value: '$count'),
+                const SizedBox(height: AppSpacing.lg),
+                Divider(height: 1, color: AppColors.borderOf(context)),
+                const SizedBox(height: AppSpacing.lg),
+                _Metric(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Outstanding',
+                  value: formatMoney(outstanding, symbol: currencySymbol),
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: _Metric(icon: Icons.local_shipping_outlined, label: 'Suppliers', value: '$count')),
+              const SizedBox(width: AppSpacing.lg),
+              Container(width: 1, height: 44, color: AppColors.borderOf(context)),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                flex: 2,
+                child: _Metric(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Outstanding',
+                  value: formatMoney(outstanding, symbol: currencySymbol),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

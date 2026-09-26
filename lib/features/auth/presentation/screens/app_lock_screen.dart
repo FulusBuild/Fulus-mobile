@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/security/biometric_auth.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../shared/widgets/fulus_button.dart';
 import '../../../../shared/widgets/fulus_brand_logo.dart';
 import '../../../../shared/widgets/pin_keypad.dart';
 
@@ -162,9 +163,9 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
+              child: FulusButton(
+                label: 'Got it',
                 onPressed: () => Navigator.of(sheetContext).pop(),
-                child: const Text('Got it'),
               ),
             ),
           ],
@@ -230,22 +231,18 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                           onTap: _checking ? null : _unlockWithBiometric,
                         )
                       else
-                        TextButton(
+                        FulusButton(
+                          label: 'Forgot PIN?',
+                          variant: FulusButtonVariant.text,
                           onPressed: _checking ? null : _showForgotPinInfo,
-                          child: const Text('Forgot PIN?'),
                         ),
                       const SizedBox(height: AppSpacing.sm),
                       SizedBox(
-                        width: 180,
-                        child: FilledButton(
+                        width: double.infinity,
+                        child: FulusButton(
+                          label: 'Unlock',
+                          loading: _checking,
                           onPressed: _checking ? null : _unlock,
-                          child: _checking
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Unlock'),
                         ),
                       ),
                       if (constraints.maxHeight > 760) const SizedBox(height: AppSpacing.sm),
@@ -301,17 +298,12 @@ class _BiometricAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
-    return TextButton.icon(
+    return FulusButton(
+      label: 'Use biometrics',
+      icon: Icons.fingerprint_rounded,
+      variant: FulusButtonVariant.secondary,
+      loading: loading,
       onPressed: onTap,
-      icon: loading
-          ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: primary),
-            )
-          : Icon(Icons.fingerprint_rounded, size: 21, color: primary),
-      label: Text('Use biometrics', style: TextStyle(color: primary, fontWeight: FontWeight.w700)),
     );
   }
 }

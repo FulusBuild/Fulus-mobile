@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_shell.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
 import '../../core/ux/consumer_polish.dart';
@@ -20,7 +19,8 @@ class FulusScreen extends StatelessWidget {
     this.bottomNavigationBar,
     this.padding = _defaultPadding,
     this.applyPadding = true,
-    this.showMenu = true,
+    this.backgroundColor,
+    this.headerBackgroundColor,
   });
 
   static const _defaultPadding = EdgeInsets.fromLTRB(
@@ -39,7 +39,8 @@ class FulusScreen extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final EdgeInsets padding;
   final bool applyPadding;
-  final bool showMenu;
+  final Color? backgroundColor;
+  final Color? headerBackgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +57,7 @@ class FulusScreen extends StatelessWidget {
     final content = applyPadding ? Padding(padding: adaptivePadding, child: body) : body;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundOf(context),
+      backgroundColor: backgroundColor ?? AppColors.backgroundOf(context),
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
       body: SafeArea(
@@ -69,7 +70,7 @@ class FulusScreen extends StatelessWidget {
                 actions: actions,
                 leading: leading,
                 showBack: canPop && leading == null,
-                showMenu: showMenu && !canPop && leading == null,
+                backgroundColor: headerBackgroundColor,
               ),
             Expanded(
               child: Align(
@@ -87,6 +88,52 @@ class FulusScreen extends StatelessWidget {
   }
 }
 
+class _HeaderText extends StatelessWidget {
+  const _HeaderText({
+    required this.title,
+    required this.subtitle,
+    required this.isWide,
+    required this.foreground,
+    required this.muted,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool isWide;
+  final Color foreground;
+  final Color muted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.heading.copyWith(
+            fontSize: isWide ? 22 : 20,
+            fontWeight: FontWeight.w700,
+            color: foreground,
+            letterSpacing: -0.35,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.caption.copyWith(color: muted),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _PageHeader extends StatelessWidget {
   const _PageHeader({
     required this.title,
@@ -94,7 +141,7 @@ class _PageHeader extends StatelessWidget {
     required this.actions,
     required this.leading,
     required this.showBack,
-    required this.showMenu,
+    this.backgroundColor,
   });
 
   final String title;
@@ -102,20 +149,25 @@ class _PageHeader extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? leading;
   final bool showBack;
-  final bool showMenu;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final muted = AppColors.mutedOf(context);
-    final foreground = AppColors.textPrimaryOf(context);
+    final darkHeader = backgroundColor != null && backgroundColor!.computeLuminance() < 0.25;
+    final muted = darkHeader ? Colors.white70 : AppColors.mutedOf(context);
+    final foreground = darkHeader ? Colors.white : AppColors.textPrimaryOf(context);
     final width = FulusLayout.width(context);
     final isWide = width >= FulusLayout.wideBreakpoint;
     final inset = FulusLayout.horizontalInset(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final stackActions = actions != null &&
+        actions!.isNotEmpty &&
+        (width < 360 || textScale > 1.15);
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.backgroundOf(context),
-        border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.55))),
+        color: backgroundColor ?? AppColors.backgroundOf(context),
+        border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.65))),
       ),
       child: Center(
         child: ConstrainedBox(
@@ -127,54 +179,75 @@ class _PageHeader extends StatelessWidget {
               inset,
               width >= FulusLayout.tabletBreakpoint ? AppSpacing.md : AppSpacing.xs,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (leading != null || showBack || showMenu)
+            child: stackActions
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (leading != null || showBack)
+                            SizedBox(
+                              width: AppTouchTarget.minimum,
+                              height: AppTouchTarget.minimum,
+                              child: leading ??
+                                  FulusIconButton(
+                                    icon: FulusIcons.arrowBack,
+                                    tooltip: 'Go back',
+                                    onPressed: () => Navigator.of(context).maybePop(),
+                                  ),
+                            ),
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: leading != null || showBack ? AppSpacing.xs : 0,
+                              ),
+                              child: _HeaderText(
+                                title: title,
+                                subtitle: subtitle,
+                                isWide: isWide,
+                                foreground: foreground,
+                                muted: muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: actions!,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                if (leading != null || showBack)
                   SizedBox(
                     width: AppTouchTarget.minimum,
                     height: AppTouchTarget.minimum,
-                    child: leading ?? (showBack
-                        ? FulusIconButton(
-                            icon: FulusIcons.arrowBack,
-                            tooltip: 'Go back',
-                            onPressed: () => Navigator.of(context).maybePop(),
-                          )
-                        : FulusIconButton(
-                            icon: FulusIcons.menu,
-                            tooltip: 'Open navigation',
-                            onPressed: FulusAppShell.openDrawer,
-                          )),
+                    child: leading ??
+                        FulusIconButton(
+                          icon: FulusIcons.arrowBack,
+                          tooltip: 'Go back',
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
                   ),
-                if (showMenu) const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.heading.copyWith(
-                            fontSize: isWide ? 22 : 20,
-                            fontWeight: FontWeight.w700,
-                            color: foreground,
-                            letterSpacing: -0.35,
-                          ),
-                        ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.caption.copyWith(color: muted),
-                          ),
-                        ],
-                      ],
+                    child: _HeaderText(
+                      title: title,
+                      subtitle: subtitle,
+                      isWide: isWide,
+                      foreground: foreground,
+                      muted: muted,
                     ),
                   ),
                 ),

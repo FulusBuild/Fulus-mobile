@@ -7,6 +7,7 @@ import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../widgets/product_list_tile.dart';
 
 class StockScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,8 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     return FulusScreen(
       title: 'Stock',
       subtitle: 'See what you have and record stock changes',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       actions: [
         FulusIconButton(
@@ -43,11 +46,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           onPressed: () => _showStockActions(context),
         ),
       ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.pushNamed('stockRecordMovement'),
-        icon: const Icon(FulusIcons.arrowUp),
-        label: const Text('Record stock'),
-      ),
+      floatingActionButton: null,
       body: locationAsync.when(
         loading: () => const FulusLoadingIndicator(),
         error: (error, _) => FulusErrorState(
@@ -101,6 +100,7 @@ class _StockBody extends ConsumerWidget {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
     final filter = ref.watch(stockFilterProvider);
+    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -122,8 +122,6 @@ class _StockBody extends ConsumerWidget {
             final categories = categoriesAsync.asData?.value ?? const <Category>[];
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
-            final trackedProducts = products.where((p) => p.product.tracksStock);
-            final totalUnits = trackedProducts.fold<double>(0, (sum, p) => sum + p.currentStock);
             final totalValue = totalStockValue(products);
             final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
             final outOfStock = outOfStockCount(products);
@@ -142,61 +140,82 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
-                    child: FulusSearchField(
-                      controller: searchController,
-                      hintText: 'Search products, SKU, barcode…',
-                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+                    child: Material(
+                      color: const Color(0xFF1473E6),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: SizedBox(height: 104, child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Icon(FulusIcons.stock, color: Colors.white, size: AppIconSize.base),
+                          const Spacer(),
+                          Text('Products  ${products.length}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                          Text('Stock value  ${formatMoney(totalValue, symbol: currencySymbol, compact: true)}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                        ]),
+                      )),
                     ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+                    child: Row(children: [
+                      Expanded(child: _StockMetric(icon: FulusIcons.category, label: 'Categories', value: '${categories.length}', foot: 'Categories', color: const Color(0xFF0BBE6E), onTap: () => context.pushNamed('stockCategories'))),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: _StockMetric(icon: FulusIcons.warning, label: 'Low Stock', value: '${lowStockCount}', foot: 'Items', color: const Color(0xFF7B3FF2), onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false))),
+                    ]),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.md),
                     child: FulusCard(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _InventoryMetric(
-                              label: 'Stock available',
-                              value: totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1),
-                              suffix: 'units',
-                            ),
-                          ),
-                          Container(width: 1, height: 42, color: AppColors.borderOf(context)),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: AppSpacing.md),
-                              child: _InventoryMetric(
-                                label: 'Stock value',
-                                value: formatMoney(totalValue, symbol: '₦', compact: true),
-                                suffix: 'at cost',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: Column(children: [
+                        FulusSearchField(
+                          controller: searchController,
+                          hintText: 'Search products, SKU, barcode…',
+                          onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(children: [
+                          Expanded(child: FulusActionTile(
+                            icon: FulusIcons.arrowUp,
+                            label: 'Record stock',
+                            subtitle: 'Add stock or record a movement',
+                            onTap: () => context.pushNamed('stockRecordMovement'),
+                          )),
+                          const SizedBox(width: AppSpacing.sm),
+                          FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
+                        ]),
+                      ]),
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: inset),
-                    child: FulusChipRow(children: [
-                      for (final category in categories)
-                        FulusChip(
-                          label: category.name,
-                          selected: filter.categoryId == category.localId,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state =
-                              filter.copyWith(
-                                categoryId: filter.categoryId == category.localId
-                                    ? null
-                                    : category.localId,
-                              ),
+                if (lowStockCount > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
+                      child: Material(
+                        color: const Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Row(children: [
+                          const Icon(FulusIcons.warning, color: Colors.white, size: 28),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('$lowStockCount items low in stock', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                            const Text('View details →', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                          ])),
+                              const Icon(FulusIcons.chevronRight, color: Colors.white),
+                            ]),
+                          ),
                         ),
-                    ]),
+                      ),
+                    ),
                   ),
-                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
@@ -281,33 +300,27 @@ class _StockBody extends ConsumerWidget {
   }
 }
 
-class _InventoryMetric extends StatelessWidget {
-  const _InventoryMetric({required this.label, required this.value, required this.suffix});
-  final String label;
-  final String value;
-  final String suffix;
-
+class _StockMetric extends StatelessWidget {
+  const _StockMetric({required this.icon, required this.label, required this.value, required this.foot, required this.color, required this.onTap});
+  final IconData icon; final String label; final String value; final String foot; final Color color; final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
-        const SizedBox(height: 3),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-              const SizedBox(width: 4),
-              Text(suffix, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 104),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const Spacer(),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+          Text(foot, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ]),
+      ),
+    ),
+  );
 }

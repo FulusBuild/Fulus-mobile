@@ -25,22 +25,29 @@ class FulusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.xl);
-    final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.55);
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceOf(context),
-        borderRadius: radius,
-        border: Border.all(color: borderColor),
-        boxShadow: elevated ? AppElevation.cardOf(context) : null,
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        borderRadius: radius,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
+    final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.65);
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
           borderRadius: radius,
-          child: Padding(padding: padding, child: child),
+          border: Border.all(color: borderColor),
+          boxShadow: elevated ? AppElevation.cardOf(context) : AppElevation.cardOf(context).map((s) => s.copyWith(color: s.color.withValues(alpha: 0.04))).toList(),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: radius,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+              child: Padding(padding: padding, child: child),
+            ),
+          ),
         ),
       ),
     );
@@ -90,7 +97,19 @@ class FulusStatCard extends StatelessWidget {
             ],
             Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.label.copyWith(color: AppColors.mutedOf(context))),
             const SizedBox(height: AppSpacing.xs),
-            Text(value, style: AppTypography.mono.copyWith(fontSize: 22, fontWeight: FontWeight.w700, color: dataColor)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: AppTypography.mono.copyWith(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: dataColor,
+                ),
+              ),
+            ),
             if (trend != null && trendLabel != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Row(

@@ -123,15 +123,12 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Choose a .csv file',
-              icon: FulusIcons.upload,
-              variant: FulusButtonVariant.secondary,
-              loading: _picking,
-              onPressed: _picking ? null : _pickFile,
-            ),
+          FulusActionTile(
+            icon: FulusIcons.upload,
+            label: 'Choose a .csv file',
+            subtitle: _picking ? 'Reading your file…' : 'Select a spreadsheet export from this device.',
+            trailing: _picking ? const FulusLoadingIndicator() : null,
+            onTap: _picking ? null : _pickFile,
           ),
           const SizedBox(height: AppSpacing.lg),
           const FulusSectionHeader(
@@ -146,14 +143,15 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Continue to review',
-              onPressed: _contentController.text.trim().isEmpty
-                  ? null
-                  : () => context.pushNamed('stockBulkImportReview', extra: _contentController.text),
-            ),
+          FulusActionTile(
+            icon: FulusIcons.chevronRight,
+            label: 'Continue to review',
+            subtitle: _contentController.text.trim().isEmpty
+                ? 'Paste or choose a CSV file first.'
+                : 'Check the rows before adding them to Stock.',
+            onTap: _contentController.text.trim().isEmpty
+                ? null
+                : () => context.pushNamed('stockBulkImportReview', extra: _contentController.text),
           ),
         ],
       ),

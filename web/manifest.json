@@ -1,0 +1,8 @@
+{
+  "name": "Fulus",
+  "short_name": "Fulus",
+  "start_url": ".",
+  "display": "standalone",
+  "description": "Fulus visual QA build",
+  "orientation": "portrait-primary"
+}

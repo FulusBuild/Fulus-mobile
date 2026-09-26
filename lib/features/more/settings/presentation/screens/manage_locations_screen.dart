@@ -50,11 +50,7 @@ class ManageLocationsScreen extends ConsumerWidget {
     return FulusScreen(
       title: 'Locations',
       subtitle: 'Choose where you are working',
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addLocation(context, ref),
-        icon: const Icon(FulusIcons.add),
-        label: const Text('Add location'),
-      ),
+
       body: locationsAsync.when(
         data: (locations) {
           if (locations.isEmpty) {
@@ -69,24 +65,43 @@ class ManageLocationsScreen extends ConsumerWidget {
           return LayoutBuilder(
             builder: (context, constraints) {
               final columns = FulusLayout.columns(constraints.maxWidth, minTileWidth: 260, maxColumns: 3);
-              return GridView.builder(
-                padding: const EdgeInsets.fromLTRB(0, AppSpacing.sm, 0, 112),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: AppSpacing.md,
-                  mainAxisSpacing: AppSpacing.md,
-                  childAspectRatio: columns == 1 ? 3.0 : 1.65,
+              final bottomInset = MediaQuery.viewPaddingOf(context).bottom + AppSpacing.xl;
+              final addTile = Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: FulusActionTile(
+                  icon: FulusIcons.add,
+                  label: 'Add location',
+                  subtitle: 'Create another place for this business',
+                  onTap: () => _addLocation(context, ref),
                 ),
-                itemCount: locations.length,
-                itemBuilder: (context, index) {
-                  final location = locations[index];
-                  final isActive = location.localId == activeId;
-                  return _LocationCard(
-                    location: location,
-                    isActive: isActive,
-                    onTap: isActive ? null : () => _setActive(context, ref, location),
-                  );
-                },
+              );
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: addTile),
+                  SliverPadding(
+                    padding: EdgeInsets.only(bottom: bottomInset),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: AppSpacing.md,
+                        mainAxisSpacing: AppSpacing.md,
+                        childAspectRatio: columns == 1 ? 3.0 : 1.65,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final location = locations[index];
+                          final isActive = location.localId == activeId;
+                          return _LocationCard(
+                            location: location,
+                            isActive: isActive,
+                            onTap: isActive ? null : () => _setActive(context, ref, location),
+                          );
+                        },
+                        childCount: locations.length,
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           );

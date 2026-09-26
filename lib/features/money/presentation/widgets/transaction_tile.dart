@@ -65,8 +65,13 @@ class MoneyTransactionTile extends StatelessWidget {
       if (t.paymentMethod != null) t.paymentMethod!,
     ];
 
-    return FulusListRow(
-      leading: t.type == MoneyTransactionType.saleIncome
+    return Semantics(
+      button: onTap != null,
+      label: '${t.title}. ${formatMoney(t.signedAmount, symbol: currencySymbol, showSign: true)}. ${subtitleParts.join(', ')}',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: FulusListRow(
+          leading: t.type == MoneyTransactionType.saleIncome
           ? _SaleProductThumbnail(saleId: t.id.substring('sale-'.length))
           : Container(
               decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
@@ -80,15 +85,21 @@ class MoneyTransactionTile extends StatelessWidget {
             ),
       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Text(
-        formatMoney(t.signedAmount, symbol: currencySymbol, showSign: true),
-        style: AppTypography.body.copyWith(
-          fontFeatures: const [FontFeature.tabularFigures()],
-          fontWeight: FontWeight.w600,
-          color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+      trailing: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          formatMoney(t.signedAmount, symbol: currencySymbol, showSign: true),
+          style: AppTypography.body.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+            fontWeight: FontWeight.w600,
+            color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+          ),
         ),
       ),
-      onTap: onTap,
+          onTap: onTap,
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
@@ -23,6 +24,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+              const OnboardingStepHeader(step: 5, total: 7, title: 'Make your first sale', subtitle: 'Use the real Sell, cart and payment flow — not a demo.'),
                 Center(
                   child: Container(
                     width: 64,
@@ -48,10 +50,11 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                   style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                FulusButton(
-                  label: "Let's go",
+                FulusActionTile(
                   icon: FulusIcons.sell,
-                  onPressed: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
+                  label: "Let's go",
+                  subtitle: 'Open Sell and make your first real sale.',
+                  onTap: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
                 ),
               ],
             ),

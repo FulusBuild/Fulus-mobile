@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/diagnostics/capture/current_screen_tracker.dart';
-import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/onboarding/onboarding_routing.dart';
 import '../core/theme/design_tokens.dart';
-import '../domain/entities/app_notification.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/entities/customer.dart';
 import '../domain/entities/permission.dart';
@@ -201,10 +199,13 @@ final appRouter = GoRouter(
                     return const AuthGateScreen();
                   }
                   final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+                  final isOwner = user.role == AuthRole.owner;
                   return HomeScreen(
                     currentAuthUserId: user.id,
-                    isOwner: user.role == AuthRole.owner,
+                    isOwner: isOwner,
                     canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
+                    canViewMoney: permissions.contains(Permission.viewMoney),
+                    canViewReports: permissions.contains(Permission.viewReports),
                   );
                 },
               ),
@@ -679,107 +680,70 @@ class _MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user?.role == AuthRole.owner;
-    // Same fail-closed default as _ShellGate's own read of this — see
-    // that widget's own comment. Owner never needs this at all (every
-    // `isOwner ||` check below short-circuits before it matters).
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+    final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
+    final canReports = isOwner || permissions.contains(Permission.viewReports);
+    final canSettings = isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup);
 
     return FulusScreen(
       title: 'More',
-      applyPadding: false,
+      subtitle: 'Settings & tools',
       body: ListView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: [
-          // Employees/Reports/Settings hide themselves entirely now,
-          // rather than this screen being reachable only once every row
-          // on it was already guaranteed visible — see
-          // _permissionForMoreRoute's own doc comment for the matching
-          // enforcement half of this (a hidden row alone isn't real
-          // enforcement, same point app_shell.dart's own doc comment
-          // makes about hidden nav buttons).
-          if (isOwner || permissions.contains(Permission.manageEmployees)) ...[
-            FulusListRow(
-              title: const Text('Employees'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreEmployees'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          if (isOwner || permissions.contains(Permission.viewReports)) ...[
-            FulusListRow(
-              title: const Text('Reports'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreReports'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup)) ...[
-            FulusListRow(
-              title: const Text('Settings'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreSettings'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          Consumer(
-            builder: (context, ref, _) {
-              final notificationsAsync = ref.watch(_moreNotificationsProvider);
-              final unread = notificationsAsync.value?.where((n) => !n.isRead).length ?? 0;
-              return FulusListRow(
-                title: const Text('Notifications'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (unread > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.warningOf(context),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () => context.goNamed('moreNotifications'),
-              );
-            },
+          _MoreHeroCard(
+            title: 'Business Settings',
+            subtitle: 'Business, security and sync',
+            onTap: canSettings ? () => context.goNamed('moreSettings') : null,
           ),
-          const FulusListDivider(indented: false),
-          Consumer(
-            builder: (context, ref, _) {
-              final eventsAsync = ref.watch(diagnosticEventsProvider);
-              final errorCount = eventsAsync.value
-                      ?.where((e) =>
-                          e.severity == DiagnosticSeverity.critical || e.severity == DiagnosticSeverity.error)
-                      .length ??
-                  0;
-              return FulusListRow(
-                title: const Text('Diagnostics'),
-                subtitle: const Text('Error logs & crash reports'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (errorCount > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.errorOf(context),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$errorCount',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    const Icon(Icons.chevron_right),
-                  ],
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(child: _MoreCompactCard(
+                color: const Color(0xFF0BBE6E),
+                icon: FulusIcons.print,
+                title: 'Printers',
+                onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+              )),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: _MoreCompactCard(
+                color: const Color(0xFF7B3FF2),
+                icon: FulusIcons.cloudDone,
+                title: 'Backup & Sync',
+                onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
+              )),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FulusCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tools', style: AppTypography.label.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimaryOf(context))),
+                const SizedBox(height: AppSpacing.xs),
+                _MoreSummaryRow(
+                  icon: FulusIcons.staff,
+                  title: 'Employees & Permissions',
+                  onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
                 ),
-                onTap: () => context.goNamed('moreDiagnostics'),
-              );
-            },
+                _MoreSummaryRow(
+                  icon: FulusIcons.reports,
+                  title: 'Reports',
+                  onTap: canReports ? () => context.goNamed('moreReports') : null,
+                ),
+                _MoreSummaryRow(
+                  icon: FulusIcons.notifications,
+                  title: 'Alerts',
+                  onTap: () => context.goNamed('moreNotifications'),
+                ),
+                _MoreSummaryRow(
+                  icon: FulusIcons.bugReport,
+                  title: 'Diagnostics',
+                  onTap: () => context.goNamed('moreDiagnostics'),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -787,9 +751,84 @@ class _MoreScreen extends ConsumerWidget {
   }
 }
 
-final _moreNotificationsProvider = StreamProvider.autoDispose<List<AppNotification>>((ref) {
-  return ref.watch(notificationRepositoryProvider).watchAll();
-});
+class _MoreHeroCard extends StatelessWidget {
+  const _MoreHeroCard({required this.title, required this.subtitle, required this.onTap});
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: const Color(0xFF1473E6),
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 104,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(FulusIcons.settings, color: Colors.white, size: AppIconSize.base),
+            const Spacer(),
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          ]),
+        ),
+      ),
+    ),
+  );
+}
+
+class _MoreCompactCard extends StatelessWidget {
+  const _MoreCompactCard({required this.color, required this.icon, required this.title, required this.onTap});
+  final Color color;
+  final IconData icon;
+  final String title;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 82,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon, color: Colors.white, size: AppIconSize.compact),
+            const Spacer(),
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      ),
+    ),
+  );
+}
+
+class _MoreSummaryRow extends StatelessWidget {
+  const _MoreSummaryRow({required this.icon, required this.title, required this.onTap});
+  final IconData icon;
+  final String title;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 48,
+    child: InkWell(
+      onTap: onTap,
+      child: Row(children: [
+        Icon(icon, color: onTap == null ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context), size: AppIconSize.compact),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(child: Text(title, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)))),
+        Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.dense),
+      ]),
+    ),
+  );
+}
 
 /// A defensive fallback for the handful of Money routes that need an
 /// object passed via `extra` (a `Customer`, `Supplier`, or

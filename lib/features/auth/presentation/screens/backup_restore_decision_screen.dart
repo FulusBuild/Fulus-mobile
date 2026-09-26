@@ -323,31 +323,34 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
                       ],
                       const SizedBox(height: AppSpacing.xxl),
                       if (newest != null)
-                        FulusButton(
-                          label: 'Restore from backup',
-                          loading: _busy,
-                          loadingLabel: 'Restoring',
-                          onPressed: _busy ? null : () => _restore(newest.fileName),
+                        FulusActionTile(
+                          label: 'Restore this backup',
+                          subtitle: 'Use the backup we found on this device.',
+                          icon: Icons.restore_rounded,
+                          trailing: _busy ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) : null,
+                          onTap: _busy ? null : () => _restore(newest.fileName),
                         )
                       else if (durablePath != null)
-                        FulusButton(
-                          label: 'Restore backup',
-                          loading: _busy,
-                          loadingLabel: 'Restoring',
-                          onPressed: _busy ? null : () => _restoreDurable(durablePath),
+                        FulusActionTile(
+                          label: 'Restore saved backup',
+                          subtitle: 'Use the backup found in Downloads.',
+                          icon: Icons.restore_rounded,
+                          trailing: _busy ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) : null,
+                          onTap: _busy ? null : () => _restoreDurable(durablePath),
                         ),
-                      const SizedBox(height: AppSpacing.md),
-                      FulusButton(
+                      if (newest != null || durablePath != null) const SizedBox(height: AppSpacing.sm),
+                      FulusActionTile(
                         label: somethingDetected ? 'Choose a different file' : 'Choose a backup file',
-                        variant: somethingDetected ? FulusButtonVariant.secondary : FulusButtonVariant.primary,
-                        loading: _busy && !somethingDetected,
-                        onPressed: _busy ? null : _pickAndRestore,
+                        subtitle: 'Select a Fulus backup from your device storage.',
+                        icon: Icons.folder_open_rounded,
+                        onTap: _busy ? null : _pickAndRestore,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      FulusButton(
-                        label: 'Start Fresh',
-                        variant: FulusButtonVariant.text,
-                        onPressed: _busy ? null : _startFresh,
+                      const SizedBox(height: AppSpacing.sm),
+                      FulusActionTile(
+                        label: 'Start fresh',
+                        subtitle: 'Set up Fulus without restoring a backup.',
+                        icon: Icons.restart_alt_rounded,
+                        onTap: _busy ? null : _startFresh,
                       ),
                     ],
                   );

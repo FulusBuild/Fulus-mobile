@@ -8,6 +8,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/onboarding_error_banner.dart';
+import '../widgets/onboarding_step_header.dart';
 
 /// Walkthrough Phase 3. Deliberately narrow: of everything a business
 /// can configure, tax is the one setting that materially changes what
@@ -144,6 +145,7 @@ class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              const OnboardingStepHeader(step: 2, total: 7, title: 'Essential business settings', subtitle: 'Set the one option that changes how your first sale is recorded.'),
               Text('One more thing', style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context))),
               const SizedBox(height: AppSpacing.sm),
               Text(

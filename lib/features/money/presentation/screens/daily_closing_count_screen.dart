@@ -77,8 +77,15 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Keep open')),
-          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Close day')),
+          FulusButton(
+            label: 'Keep open',
+            variant: FulusButtonVariant.secondary,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          FulusButton(
+            label: 'Close day',
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
         ],
       ),
     ) ?? false;

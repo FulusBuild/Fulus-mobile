@@ -77,6 +77,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
         return FulusScreen(
           title: 'Payment',
+          backgroundColor: const Color(0xFF061B3A),
+          headerBackgroundColor: const Color(0xFF061B3A),
           body: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 720;
@@ -103,20 +105,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         if (!splitActive)
-                          for (final method in _paymentMethods)
-                            if (method.key != 'credit' || creditEnabled)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                                child: _PaymentMethodTile(
-                                  icon: _iconForMethod(method.key),
-                                  label: method.label,
-                                  selected: _method == method.key,
-                                  onTap: () {
-                                    FulusHaptics.selection();
-                                    setState(() => _method = method.key);
-                                  },
-                                ),
-                              ),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: AppSpacing.sm,
+                            mainAxisSpacing: AppSpacing.sm,
+                            childAspectRatio: 1.45,
+                            children: [
+                              for (final method in _paymentMethods)
+                                if (method.key != 'credit' || creditEnabled)
+                                  _PaymentMethodTile(
+                                    icon: _iconForMethod(method.key),
+                                    label: method.label,
+                                    selected: _method == method.key,
+                                    onTap: () {
+                                      FulusHaptics.selection();
+                                      setState(() => _method = method.key);
+                                    },
+                                  ),
+                            ],
+                          ),
                         if (splitActive)
                           _SplitMethodWrap(
                             methods: _paymentMethods.where((m) => m.key != 'credit' || creditEnabled).toList(),
@@ -270,18 +279,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
         creditLimit: customer.creditLimit,
       );
       if (overage != null && context.mounted) {
-        final proceed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Over credit limit'),
-            content: Text(
+        final proceed = await showFulusConfirmDialog(
+          context,
+          title: 'Over credit limit',
+          message:
               'This would put ${customer.name} ${formatMoney(overage, symbol: state.currencySymbol)} over their ${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. Continue anyway?',
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Continue')),
-            ],
-          ),
+          confirmLabel: 'Continue',
+          cancelLabel: 'Cancel',
         );
         if (proceed != true || !context.mounted) return;
       }
@@ -500,57 +504,38 @@ class _PaymentMethodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
+    final color = switch (label) {
+      'Cash' => const Color(0xFF0BBE6E),
+      'Transfer' => const Color(0xFF7B3FF2),
+      'Card' => const Color(0xFF1473E6),
+      _ => const Color(0xFFFF8A00),
+    };
     return FulusPressable(
       semanticsLabel: '$label payment method',
       onPressed: onTap,
       child: AnimatedContainer(
-        duration: AppMotion.fast,
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        duration: fulusMotionDuration(context, AppMotion.fast),
+        constraints: const BoxConstraints(minHeight: 82),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: selected ? AppColors.selectedTintOf(context) : AppColors.surfaceOf(context),
+          color: color,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected ? primary.withValues(alpha: 0.7) : AppColors.borderOf(context),
-            width: selected ? 1.4 : 1,
-          ),
+          border: Border.all(color: selected ? Colors.white : Colors.transparent, width: selected ? 2 : 1),
+          boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: .16), blurRadius: 8, offset: const Offset(0, 3))] : null,
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? primary.withValues(alpha: 0.10) : AppColors.surfaceAltOf(context),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(
-                icon,
-                size: AppIconSize.base,
-                color: selected ? primary : AppColors.textSecondaryOf(context),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                label,
-                style: AppTypography.body.copyWith(
-                  color: selected ? primary : AppColors.textPrimaryOf(context),
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            AnimatedSwitcher(
-              duration: AppMotion.fast,
-              child: selected
-                  ? Icon(FulusIcons.check, key: const ValueKey('selected'), size: AppIconSize.compact, color: primary)
-                  : const SizedBox(key: ValueKey('unselected'), width: AppIconSize.compact),
-            ),
+            Icon(icon, size: AppIconSize.base, color: Colors.white),
+            const Spacer(),
+            Row(children: [
+              Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800))),
+              if (selected) const Icon(FulusIcons.check, size: AppIconSize.compact, color: Colors.white),
+            ]),
           ],
         ),
       ),
     );
   }
 }
+

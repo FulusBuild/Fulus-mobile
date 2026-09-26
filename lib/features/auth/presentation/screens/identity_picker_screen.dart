@@ -91,7 +91,7 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
   Widget build(BuildContext context) {
     final identities = _identities;
     if (identities == null) {
-      return const FulusScreen(body: Center(child: CircularProgressIndicator()));
+      return const FulusScreen(body: FulusLoadingIndicator());
     }
     final selected = _selected;
     if (selected == null) return _buildNameList(context, identities);
@@ -228,15 +228,10 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     SizedBox(
                       width: 190,
-                      child: FilledButton(
+                      child: FulusButton(
+                        label: 'Continue',
+                        loading: _submitting,
                         onPressed: _submitting ? null : () => _continueAs(identity, pin: _pinController.text.trim()),
-                        child: _submitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Continue'),
                       ),
                     ),
                     if (constraints.maxHeight > 760) const SizedBox(height: AppSpacing.sm),

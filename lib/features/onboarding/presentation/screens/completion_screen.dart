@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -26,6 +27,7 @@ class CompletionScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
+              const OnboardingStepHeader(step: 7, total: 7, title: 'Your business is ready', subtitle: 'Keep using the same clear tools as your business grows.'),
             Center(
               child: Container(
                 width: 72,
@@ -49,38 +51,39 @@ class CompletionScreen extends ConsumerWidget {
               style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
             ),
             const SizedBox(height: AppSpacing.xl),
-            FulusButton(
-              label: 'Add more products',
+            FulusActionTile(
               icon: FulusIcons.add,
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => _goAndClose(context, 'stockAddProduct'),
+              label: 'Add more products',
+              subtitle: 'Keep building your inventory.',
+              onTap: () => _goAndClose(context, 'stockAddProduct'),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            FulusButton(
-              label: 'Explore inventory',
+            const SizedBox(height: AppSpacing.md),
+            FulusActionTile(
               icon: FulusIcons.stock,
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => _goAndClose(context, 'stock'),
+              label: 'Explore inventory',
+              subtitle: 'Review your products and stock levels.',
+              onTap: () => _goAndClose(context, 'stock'),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            FulusButton(
-              label: 'View reports',
+            const SizedBox(height: AppSpacing.md),
+            FulusActionTile(
               icon: FulusIcons.reports,
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => _goAndClose(context, 'moreReports'),
+              label: 'View reports',
+              subtitle: 'See how your business is performing.',
+              onTap: () => _goAndClose(context, 'moreReports'),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            FulusButton(
-              label: 'Add customers',
+            const SizedBox(height: AppSpacing.md),
+            FulusActionTile(
               icon: FulusIcons.customers,
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => _goAndClose(context, 'moneyCustomers'),
+              label: 'Add customers',
+              subtitle: 'Keep customer relationships in one place.',
+              onTap: () => _goAndClose(context, 'moneyCustomers'),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            FulusButton(
-              label: 'Start using Fulus',
+            const SizedBox(height: AppSpacing.md),
+            FulusActionTile(
               icon: FulusIcons.home,
-              onPressed: () => _goAndClose(context, 'home'),
+              label: 'Start using Fulus',
+              subtitle: 'Return to your business home.',
+              onTap: () => _goAndClose(context, 'home'),
             ),
           ],
         ),

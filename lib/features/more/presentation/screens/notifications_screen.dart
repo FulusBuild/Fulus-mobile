@@ -53,17 +53,14 @@ class NotificationsScreen extends ConsumerWidget {
                         children: [
                           _NotificationSummary(notifications: notifications),
                           const SizedBox(height: AppSpacing.lg),
-                          FulusCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < notifications.length; i++) ...[
-                                  if (i > 0) const FulusListDivider(indented: false),
-                                  _NotificationRow(notification: notifications[i], onRead: () => repo.markRead(notifications[i].id)),
-                                ],
-                              ],
+                          for (final notification in notifications)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              child: _NotificationTile(
+                                notification: notification,
+                                onRead: () => repo.markRead(notification.id),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -85,48 +82,79 @@ class _NotificationSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unread = notifications.where((notification) => !notification.isRead).length;
-    return FulusCard(
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-            child: Icon(FulusIcons.notifications, color: AppColors.primaryOf(context)),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final summaryText = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          unread == 0 ? 'All caught up' : '$unread unread ${unread == 1 ? 'notification' : 'notifications'}',
+          style: AppTypography.subheading.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '${notifications.length} ${notifications.length == 1 ? 'update' : 'updates'} in your inbox',
+          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+        ),
+      ],
+    );
+
+    return FulusCard(
+      child: textScale > 1.15
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(unread == 0 ? 'All caught up' : '$unread unread ${unread == 1 ? 'notification' : 'notifications'}', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
-                const SizedBox(height: AppSpacing.xs),
-                Text('${notifications.length} ${notifications.length == 1 ? 'update' : 'updates'} in your inbox', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                _NotificationSummaryIcon(),
+                const SizedBox(height: AppSpacing.md),
+                summaryText,
+              ],
+            )
+          : Row(
+              children: [
+                _NotificationSummaryIcon(),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: summaryText),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _NotificationRow extends StatelessWidget {
-  const _NotificationRow({required this.notification, required this.onRead});
+
+class _NotificationSummaryIcon extends StatelessWidget {
+  const _NotificationSummaryIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.selectedTintOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Icon(FulusIcons.notifications, color: AppColors.primaryOf(context)),
+    );
+  }
+}
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({required this.notification, required this.onRead});
+
   final AppNotification notification;
   final VoidCallback onRead;
 
   @override
   Widget build(BuildContext context) {
     final isSync = notification.type == AppNotificationType.stuckSync;
-    final color = notification.isRead ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context);
-    return FulusListRow(
-      leading: Icon(isSync ? FulusIcons.sync : FulusIcons.check, color: color),
-      title: Text(notification.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: notification.isRead ? FontWeight.normal : FontWeight.w700)),
-      subtitle: Text(notification.body, maxLines: 3, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      trailing: notification.isRead ? null : FulusIconButton(icon: FulusIcons.check, tooltip: 'Mark as read', onPressed: onRead),
+    return FulusActionTile(
+      icon: isSync ? FulusIcons.sync : FulusIcons.check,
+      label: notification.title,
+      subtitle: notification.body,
       onTap: notification.isRead ? null : onRead,
     );
   }
 }
+

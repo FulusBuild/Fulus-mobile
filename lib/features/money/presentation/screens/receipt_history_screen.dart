@@ -265,18 +265,29 @@ class _ReceiptRow extends StatelessWidget {
       if (t.subtitle != null) t.subtitle!,
     ];
 
-    return FulusListRow(
-      leading: Container(
+    return Semantics(
+      button: onTap != null,
+      label: '${t.title}. ${formatMoney(t.amount, symbol: currencySymbol)}. ${subtitleParts.join(', ')}',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: FulusListRow(
+          leading: Container(
         decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceAltOf(context)),
         child: Center(child: Icon(moneyTransactionIcon(t), size: AppIconSize.compact, color: AppColors.primaryOf(context))),
       ),
       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Text(
-        formatMoney(t.amount, symbol: currencySymbol),
-        style: AppTypography.body.copyWith(fontFeatures: const [FontFeature.tabularFigures()], fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
+      trailing: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          formatMoney(t.amount, symbol: currencySymbol),
+          style: AppTypography.body.copyWith(fontFeatures: const [FontFeature.tabularFigures()], fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context)),
+        ),
       ),
-      onTap: onTap,
+          onTap: onTap,
+        ),
+      ),
     );
   }
 }

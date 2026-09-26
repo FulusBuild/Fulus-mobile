@@ -178,19 +178,18 @@ class _SupplierProfileBody extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FulusButton(
-                              label: 'Pay supplier',
-                              onPressed: () async {
-                                final result = await context.pushNamed<bool>(
-                                  'moneyPaySupplier',
-                                  pathParameters: {'id': supplier.localId},
-                                  extra: supplier,
-                                );
-                                if (result == true) onChanged();
-                              },
-                            ),
+                          FulusActionTile(
+                            icon: Icons.payments_outlined,
+                            label: 'Pay supplier',
+                            subtitle: 'Record a payment against this balance.',
+                            onTap: () async {
+                              final result = await context.pushNamed<bool>(
+                                'moneyPaySupplier',
+                                pathParameters: {'id': supplier.localId},
+                                extra: supplier,
+                              );
+                              if (result == true) onChanged();
+                            },
                           ),
                         ],
                       ),

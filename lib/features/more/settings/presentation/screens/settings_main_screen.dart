@@ -21,26 +21,22 @@ class SettingsMainScreen extends ConsumerStatefulWidget {
 class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
   late Future<BusinessProfile?> _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
 
-  Widget _group({required List<Widget> children}) {
-    return FulusCard(
-      padding: EdgeInsets.zero,
-      child: Column(children: children),
-    );
-  }
-
-  Widget _row({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
-    Widget? trailing,
-  }) {
-    return FulusListRow(
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle),
-      trailing: trailing ?? const Icon(FulusIcons.chevronRight),
-      onTap: onTap,
+  Widget _tileGrid(List<Widget> children) {
+    if (children.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final columns = constraints.maxWidth >= 560 && textScale <= 1.15 ? 2 : 1;
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          mainAxisExtent: 136,
+          children: children,
+        );
+      },
     );
   }
 
@@ -54,6 +50,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
     return FulusScreen(
       title: 'Settings',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       subtitle: 'Keep your business safe and up to date',
       body: FutureBuilder<BusinessProfile?>(
         future: _future,
@@ -89,44 +87,36 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                       title: 'Account & Backup',
                       subtitle: 'Devices, data, and cloud protection',
                     ),
-                    _group(
-                      children: [
-                        if (canManageBackup)
-                          _row(
-                            icon: FulusIcons.backup,
-                            title: 'Backup',
-                            subtitle: 'Back up and restore your business data',
-                            onTap: () => context.pushNamed('moreSettingsBackup'),
-                          ),
-                        if (canManageBackup && canManageSettings)
-                          const FulusListDivider(),
-                        if (canManageSettings)
-                          _row(
-                            icon: FulusIcons.print,
-                            title: 'Printers',
-                            subtitle: 'Receipt and printing settings',
-                            onTap: () => context.pushNamed('moreSettingsPrinters'),
-                          ),
-                        if (canManageSettings)
-                          const FulusListDivider(),
-                        if (canManageSettings)
-                          _row(
-                            icon: FulusIcons.sync,
-                            title: 'Sync',
-                            subtitle: 'Local and cloud synchronization status',
-                            onTap: () => context.pushNamed('moreSyncDetail'),
-                          ),
-                        if (canManageSettings)
-                          const FulusListDivider(),
-                        if (canManageSettings)
-                          _row(
-                            icon: FulusIcons.locations,
-                            title: 'Locations',
-                            subtitle: 'Manage the places where this business operates',
-                            onTap: () => context.pushNamed('moreSettingsLocations'),
-                          ),
-                      ],
-                    ),
+                    _tileGrid([
+                      if (canManageBackup)
+                        FulusActionTile(
+                          icon: FulusIcons.backup,
+                          label: 'Backup',
+                          subtitle: 'Back up and restore your business data',
+                          onTap: () => context.pushNamed('moreSettingsBackup'),
+                        ),
+                      if (canManageSettings)
+                        FulusActionTile(
+                          icon: FulusIcons.print,
+                          label: 'Printers',
+                          subtitle: 'Receipt and printing settings',
+                          onTap: () => context.pushNamed('moreSettingsPrinters'),
+                        ),
+                      if (canManageSettings)
+                        FulusActionTile(
+                          icon: FulusIcons.sync,
+                          label: 'Sync',
+                          subtitle: 'Local and cloud synchronization status',
+                          onTap: () => context.pushNamed('moreSyncDetail'),
+                        ),
+                      if (canManageSettings)
+                        FulusActionTile(
+                          icon: FulusIcons.locations,
+                          label: 'Locations',
+                          subtitle: 'Manage the places where this business operates',
+                          onTap: () => context.pushNamed('moreSettingsLocations'),
+                        ),
+                    ]),
                     const SizedBox(height: AppSpacing.lg),
                   ],
                   if (isOwner) ...[
@@ -134,50 +124,42 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                       title: 'Fulus Cloud',
                       subtitle: 'Back up this business and keep it available across devices',
                     ),
-                    _group(
-                      children: [
-                        _row(
-                          icon: FulusIcons.cloud,
-                          title: 'Fulus Cloud',
-                          subtitle: 'Connect this business for server-authoritative sync',
-                          onTap: () => context.pushNamed('moreSettingsCloud'),
-                        ),
-                      ],
-                    ),
+                    _tileGrid([
+                      FulusActionTile(
+                        icon: FulusIcons.cloud,
+                        label: 'Fulus Cloud',
+                        subtitle: 'Connect this business for server-authoritative sync',
+                        onTap: () => context.pushNamed('moreSettingsCloud'),
+                      ),
+                    ]),
                     const SizedBox(height: AppSpacing.lg),
                   ],
                   const FulusSectionHeader(
                     title: 'Security',
                     subtitle: 'Protect approvals and access to Fulus',
                   ),
-                  _group(
-                    children: [
-                      _row(
-                        icon: FulusIcons.lock,
-                        title: 'Change approval PIN',
-                        subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
-                        onTap: () => _openChangePinSheet(context),
-                      ),
-                      const FulusListDivider(),
-                      const _AppLockStatusRow(),
-                    ],
-                  ),
+                  _tileGrid([
+                    FulusActionTile(
+                      icon: FulusIcons.lock,
+                      label: 'Change approval PIN',
+                      subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
+                      onTap: () => _openChangePinSheet(context),
+                    ),
+                    const _AppLockStatusTile(),
+                  ]),
                   const SizedBox(height: AppSpacing.lg),
                   const FulusSectionHeader(
                     title: 'Account',
                     subtitle: 'Your local business account',
                   ),
-                  _group(
-                    children: [
-                      _row(
-                        icon: FulusIcons.logout,
-                        title: 'Log out',
-                        subtitle: 'Your data on this device stays put — sign back in any time.',
-                        trailing: const SizedBox.shrink(),
-                        onTap: () => _logout(context, ref),
-                      ),
-                    ],
-                  ),
+                  _tileGrid([
+                    FulusActionTile(
+                      icon: FulusIcons.logout,
+                      label: 'Log out',
+                      subtitle: 'Your data on this device stays put — sign back in any time.',
+                      onTap: () => _logout(context, ref),
+                    ),
+                  ]),
                   const SizedBox(height: AppSpacing.xxl),
                 ],
               );
@@ -209,14 +191,14 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
   }
 }
 
-class _AppLockStatusRow extends ConsumerStatefulWidget {
-  const _AppLockStatusRow();
+class _AppLockStatusTile extends ConsumerStatefulWidget {
+  const _AppLockStatusTile();
 
   @override
-  ConsumerState<_AppLockStatusRow> createState() => _AppLockStatusRowState();
+  ConsumerState<_AppLockStatusTile> createState() => _AppLockStatusTileState();
 }
 
-class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
+class _AppLockStatusTileState extends ConsumerState<_AppLockStatusTile> {
   Future<bool>? _future;
 
   Future<bool> _load() async {
@@ -231,11 +213,10 @@ class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
       future: _future,
       builder: (context, snap) {
         final active = snap.data ?? false;
-        return FulusListRow(
-          leading: const Icon(FulusIcons.lock),
-          title: const Text('App Lock'),
-          subtitle: Text(active ? 'On — a PIN is required to open Fulus' : 'Off'),
-          trailing: const Icon(FulusIcons.chevronRight),
+        return FulusActionTile(
+          icon: FulusIcons.lock,
+          label: 'App Lock',
+          subtitle: active ? 'On — a PIN is required to open Fulus' : 'Off',
           onTap: () async {
             await showModalBottomSheet<void>(
               context: context,

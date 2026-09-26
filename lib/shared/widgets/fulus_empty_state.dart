@@ -34,12 +34,21 @@ class FulusEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: AppIconSize.hero, color: AppColors.textSecondaryOf(context)),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.selectedTintOf(context),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: AppIconSize.hero, color: AppColors.primaryOf(context)),
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
               headline,
               textAlign: TextAlign.center,
-              style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+              style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
             ),
             if (body != null) ...[
               const SizedBox(height: AppSpacing.sm),
