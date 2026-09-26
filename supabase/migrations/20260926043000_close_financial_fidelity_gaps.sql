@@ -314,12 +314,16 @@ begin
       where id=(item->>'sale_item_id')::uuid and sale_id=target_sale_id
       for update;
     else
+      if (select count(*) from public.sale_items
+          where sale_id=target_sale_id
+            and product_id=(item->>'product_id')::uuid) <> 1 then
+        raise exception using errcode='22023',
+          message='Return item must identify an unambiguous sale item';
+      end if;
       select * into si
       from public.sale_items
       where sale_id=target_sale_id
         and product_id=(item->>'product_id')::uuid
-      order by id
-      limit 1
       for update;
     end if;
 
@@ -439,9 +443,36 @@ begin
   cash_refund := round(return_value-credit_reversal,2);
 
   if method='credit' then
-    if credit_reversal <= 0 then
-      raise exception using errcode='22023',message='Credit refund must be positive';
+    if credit_reversal <> return_value
+       or return_value > sale_credit_balance
+       or return_value > greatest(coalesce(customer_balance,0),0) then
+      raise exception using errcode='22023',
+        message='Account-credit refund must fully reverse an eligible customer credit balance';
     end if;
+
+    update public.customers
+    set outstanding_balance=round(outstanding_balance-credit_reversal,2),
+        updated_at=now()
+    where id=sale.customer_id;
+
+    insert into public.customer_ledger_entries(
+      business_id,customer_id,sale_id,amount,operation_id,entry_type,
+      created_by,device_id,note
+    )
+    values(
+      target_business_id,sale.customer_id,sale.id,credit_reversal,
+      target_client_reference||':credit-reversal','credit_reversal',
+      target_user_id,target_device_id,'Return credit reversal'
+    )
+    returning id into ledger_id;
+
+    perform public._fulus_append_change(
+      target_business_id,'customer_ledger',ledger_id,'upsert',
+      jsonb_build_object(
+        'id',ledger_id,'customer_id',sale.customer_id,
+        'entry_type','credit_reversal','amount',credit_reversal
+      )
+    );
   else
     if cash_refund <= 0 then
       raise exception using errcode='22023',message='Refund is fully settled by reversing customer credit';
