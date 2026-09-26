@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
@@ -72,7 +73,7 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
   Widget build(BuildContext context) {
     return FulusScreen(
       body: StreamBuilder<BusinessProfile?>(
-        stream: ref.watch(businessSettingsRepositoryProvider).watchSettings(),
+        stream: ref.watch(businessSettingsRepositoryProvider).watchSettings().withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           final profile = snapshot.data;
           if (profile == null) {
