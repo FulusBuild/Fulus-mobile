@@ -51,7 +51,7 @@ class GetStartedScreen extends ConsumerWidget {
                   FulusActionTile(
                     title: 'Create your business',
                     subtitle: 'Set up Fulus in a few simple steps.',
-                    icon: FulusIcons.addBusiness,
+                    icon: Icons.storefront_rounded,
                     onTap: () async {
                     icon: Icons.arrow_forward_rounded,
                     onTap: () async {
@@ -70,7 +70,7 @@ class GetStartedScreen extends ConsumerWidget {
                   FulusActionTile(
                     title: 'Sign in',
                     subtitle: 'Restore a Fulus business to this device.',
-                    icon: FulusIcons.login,
+                    icon: Icons.login_rounded,
                     onTap: () {
                         Navigator.of(context).push<void>(
                           MaterialPageRoute(
@@ -83,7 +83,7 @@ class GetStartedScreen extends ConsumerWidget {
                   FulusActionTile(
                     title: 'Continue offline',
                     subtitle: 'Run your business locally without an account.',
-                    icon: FulusIcons.cloudOff,
+                    icon: Icons.cloud_off_rounded,
                     onTap: () {
                         Navigator.of(context).push<void>(
                           MaterialPageRoute(
