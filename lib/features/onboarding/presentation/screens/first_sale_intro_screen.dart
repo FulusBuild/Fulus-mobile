@@ -50,7 +50,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xl),
                 FulusActionTile(
                   icon: FulusIcons.sell,
-                  title: "Let's go",
+                  label: "Let's go",
                   subtitle: 'Open Sell and make your first real sale.',
                   onTap: () => ref.read(firstSaleIntroSeenProvider.notifier).state = true,
                 ),
