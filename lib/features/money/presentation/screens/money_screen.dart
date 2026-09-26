@@ -328,7 +328,7 @@ class _MoneyHeader extends StatelessWidget {
                   Text(
                     'Money',
                     style: AppTypography.subheading.copyWith(
-                      color: AppColors.textPrimaryOf(context),
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -458,13 +458,13 @@ class _MoneyQuickActions extends ConsumerWidget {
                   children: [
                     Icon(action.icon, color: Colors.white, size: AppIconSize.base),
                     const Spacer(),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                      child: Text(action.value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                     ),
-                    Text(action.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                    Text(action.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
                 ),
               ),
@@ -548,39 +548,46 @@ class _MoneySummary extends StatelessWidget {
             ),
           ];
 
-          // The summary lives inside a vertical ListView, so its row
-          // must provide its own minimum cross-axis height. Without an
-          // explicit height/intrinsic constraint, three Expanded children
-          // can resolve to a zero-height row on some Flutter layouts,
-          // leaving "Money summary" followed by a completely blank area
-          // until another navigation rebuild happens.
+          // Keep the summary explicitly content-sized. The Money page is
+          // vertically scrollable only when real content exceeds the viewport;
+          // the summary itself must never manufacture a blank/infinite area.
           return ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 104),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < stats.length; i++) ...[
-                if (i > 0)
-                  Container(
-                    width: 1,
-                    margin: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.xs,
-                    ),
-                    color: AppColors.borderOf(context),
+            child: compact
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < stats.length; i++) ...[
+                        if (i > 0)
+                          Divider(
+                            height: AppSpacing.lg,
+                            color: AppColors.borderOf(context),
+                          ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: stats[i],
+                        ),
+                      ],
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      for (var i = 0; i < stats.length; i++) ...[
+                        if (i > 0)
+                          Container(
+                            width: 1,
+                            height: 72,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                            ),
+                            color: AppColors.borderOf(context),
+                          ),
+                        Expanded(child: stats[i]),
+                      ],
+                    ],
                   ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact
-                          ? AppSpacing.xs
-                          : AppSpacing.sm,
-                    ),
-                    child: stats[i],
-                  ),
-                ),
-                ],
-              ],
-            ),
           );
         },
       ),
