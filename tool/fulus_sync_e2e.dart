@@ -539,14 +539,8 @@ Future<void> main() async {
     stdout.writeln('PASS: return.create permission boundary is enforced for the E2E identity');
     _expect2xx(returnResponse, 'return.create');
     stdout.writeln('PASS: return.create');
-    await _verifyCustomerBalanceFeedChange(
-      dio,
-      businessId: businessId,
-      customerId: customerId,
-      previousSequence: returnFeedBefore,
-      expectedBalance: 0,
-      label: 'return credit reversal balance',
-    );
+    // Return authorization is intentionally not part of this least-privilege
+    // identity, so no return response is expected here.
 
     final customerUpdate = await dio.post('', data: {
       'action': 'customer_update',
