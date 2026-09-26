@@ -68,7 +68,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                     onTap: () => _openEmployeeSheet(context),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  _TeamOverview(count: employees.length),
+                  _TeamOverview(employees: employees),
                   const SizedBox(height: AppSpacing.lg),
                   FulusSectionHeader(
                     title: 'Active team',
@@ -106,21 +106,65 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
 }
 
 class _TeamOverview extends StatelessWidget {
-  const _TeamOverview({required this.count});
-  final int count;
+  const _TeamOverview({required this.employees});
+  final List<Employee> employees;
 
   @override
   Widget build(BuildContext context) {
-    return FulusStatGrid(
-      spacing: AppSpacing.sm,
-      minTileWidth: 150,
-      cards: [
-        FulusStatCard(
-          icon: FulusIcons.staff,
-          label: 'Active team',
-          value: '\$count \${count == 1 ? "member" : "members"}',
+    final first = employees.take(3).toList(growable: false);
+    return Column(children: [
+      Material(
+        color: const Color(0xFF1473E6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: SizedBox(height: 104, child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(FulusIcons.staff, color: Colors.white, size: AppIconSize.base),
+            const Spacer(),
+            Text('Employees  ${employees.length}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+            const Text('People, access and attendance', style: TextStyle(color: Colors.white70, fontSize: 10)),
+          ]),
+        )),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Row(children: [
+        for (var i = 0; i < 2; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _TeamCompactCard(employee: i < first.length ? first[i] : null)),
+        ],
+      ]),
+      const SizedBox(height: AppSpacing.sm),
+      FulusCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Text(
+          first.length > 2 ? '${first[2].fullName} — ${first[2].role ?? 'Team member'}' : 'Team details are available below.',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
         ),
-      ],
+      ),
+    ]);
+  }
+}
+
+class _TeamCompactCard extends StatelessWidget {
+  const _TeamCompactCard({required this.employee});
+  final Employee? employee;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF0BBE6E),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(height: 82, child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(FulusIcons.person, color: Colors.white, size: AppIconSize.compact),
+          const Spacer(),
+          Text(employee?.fullName ?? 'No team member', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(employee?.role ?? '—', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+        ]),
+      )),
     );
   }
 }
