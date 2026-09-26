@@ -38,7 +38,7 @@ class FulusChip extends StatelessWidget {
           duration: fulusMotionDuration(context, AppMotion.fast),
           curve: AppMotion.curveStandard,
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
+            horizontal: AppSpacing.lg,
             vertical: AppSpacing.sm,
           ),
           alignment: Alignment.center,
@@ -48,7 +48,7 @@ class FulusChip extends StatelessWidget {
                 : AppColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
-              color: selected ? primary : border.withValues(alpha: 0.8),
+              color: selected ? primary : border.withValues(alpha: 0.75),
               width: selected ? 1.2 : 1,
             ),
           ),
