@@ -20,7 +20,7 @@ class FulusActionTile extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? subtitle;
 
   @override
@@ -60,7 +60,7 @@ class FulusActionTile extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.body.copyWith(
                         color: foreground,
