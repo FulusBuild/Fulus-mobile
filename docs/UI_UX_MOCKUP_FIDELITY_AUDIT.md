@@ -90,6 +90,27 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [ ] Final hierarchy and spacing pass
 - [ ] Check that secondary screens do not regress into dense generic settings layouts
 
+### 9. Screen inventory / wiring audit
+The route tree and direct Navigator flows were reviewed after the onboarding rework. A screen being reachable is not treated as UI-audited; this section tracks screens that have not yet received a dedicated mockup-fidelity pass.
+
+#### Dedicated UI pass still required
+- [ ] Money secondary: Add Income, Add Expense, Customer Profile, Archived Customers, Daily Closing Summary, Transaction Detail, Suppliers, Supplier Profile, Pay Supplier / Ledger Payment, Record Repayment
+- [ ] More secondary: Deactivated Employees, Sales Transactions, Diagnostics, Diagnostic Detail
+- [ ] Settings secondary: Backup, Fulus Cloud Connection, Printer Pairing, Sync Detail
+- [ ] Sell secondary: Refund Search, Refund Confirm, Void Sale, Sale Success
+- [ ] Stock secondary: Add/Edit Product, Product Detail, Categories, Bulk Import, Bulk Import Review, Stock Movement History
+- [ ] Auth/security: App Lock
+- [ ] Remaining onboarding walkthrough: First Run Setup, Essential Settings, Add First Product, Navigation Intro, First Sale Intro, Transaction Verification, Completion
+
+#### Wiring status
+- [x] Primary Home / Sell / Stock / Money / More navigation is wired through the persistent shell.
+- [x] Routed secondary screens are connected through go_router.
+- [x] Plain-Navigator onboarding/recovery flows that intentionally sit outside the shell are reachable through their owning flow.
+- [x] Sale Success -> Transaction Verification -> Completion is directly wired as a deliberate walkthrough chain.
+- [x] Customer repayment and supplier payment share the LedgerPaymentScreen presentation workspace through their owning routes.
+- [ ] Dedicated UI pass for every screen above is still open even where routing/wiring already works.
+- [ ] Verify every secondary route at narrow width, large text, dark theme, loading/empty/error states after its visual pass.
+
 ### 8. Global polish
 - [ ] Verify 48dp minimum across all interactive controls
 - [ ] Verify primary actions are comfortably larger than the minimum where appropriate
