@@ -21,6 +21,8 @@ class FulusListRow extends StatelessWidget {
     this.leading,
     this.trailing,
     this.onTap,
+    this.titleColor,
+    this.subtitleColor,
   });
 
   final Widget title;
@@ -34,6 +36,8 @@ class FulusListRow extends StatelessWidget {
   /// 5.4's "Trailing value" rule.
   final Widget? trailing;
   final VoidCallback? onTap;
+  final Color? titleColor;
+  final Color? subtitleColor;
 
   static const leadingSize = 40.0;
 
@@ -63,12 +67,12 @@ class FulusListRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       DefaultTextStyle.merge(
-                        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                        style: AppTypography.body.copyWith(color: titleColor ?? AppColors.textPrimaryOf(context)),
                         child: title,
                       ),
                       if (subtitle != null)
                         DefaultTextStyle.merge(
-                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                          style: AppTypography.caption.copyWith(color: subtitleColor ?? AppColors.textSecondaryOf(context)),
                           child: subtitle!,
                         ),
                     ],
