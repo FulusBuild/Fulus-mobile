@@ -162,11 +162,18 @@ class FulusStatusPill extends StatelessWidget {
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: AppTypography.label.copyWith(
-              color: color,
-              letterSpacing: 0.2,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: AppTypography.label.copyWith(
+                  color: color,
+                  letterSpacing: 0.2,
+                ),
+              ),
             ),
           ),
         ],
