@@ -178,6 +178,25 @@ class _StockBody extends ConsumerWidget {
                     ]),
                   ),
                 ),
+                if (lowStockCount > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(color: const Color(0xFFFF3B30), borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          const Icon(FulusIcons.warning, color: Colors.white, size: 28),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('$lowStockCount items low in stock', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                            const Text('View details →', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                          ])),
+                          const Icon(FulusIcons.chevronRight, color: Colors.white),
+                        ]),
+                      ),
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: inset),
