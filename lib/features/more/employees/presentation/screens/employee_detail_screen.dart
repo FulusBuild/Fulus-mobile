@@ -202,7 +202,7 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (_error != null) Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
       PermissionEditor(selected: _editing, grantableBy: widget.grantableBy, onChanged: (next) => setState(() => _editing = next)),
-      if (dirty) ...[const SizedBox(height: AppSpacing.sm), Row(children: [Expanded(child: OutlinedButton(onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)), child: const Text('Cancel'))), const SizedBox(width: AppSpacing.sm), Expanded(child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save))])],
+      if (dirty) ...[const SizedBox(height: AppSpacing.sm), Row(children: [Expanded(child: FulusButton(variant: FulusButtonVariant.secondary, onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)), label: 'Cancel')), const SizedBox(width: AppSpacing.sm), Expanded(child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save))])],
     ]);
   });
 }
