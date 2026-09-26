@@ -265,7 +265,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           const SizedBox(height: AppSpacing.lg),
           FulusActionTile(
             icon: _moreDetailsOpen ? FulusIcons.chevronUp : FulusIcons.chevronDown,
-            title: _moreDetailsOpen ? 'Hide more details' : 'More details',
+            label: _moreDetailsOpen ? 'Hide more details' : 'More details',
             subtitle: _moreDetailsOpen
                 ? 'Keep only the essentials visible when you are done.'
                 : 'Barcode, photo, category, supplier and stock settings.',
