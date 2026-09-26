@@ -505,7 +505,7 @@ class _PaymentMethodTile extends StatelessWidget {
       semanticsLabel: '$label payment method',
       onPressed: onTap,
       child: AnimatedContainer(
-        duration: AppMotion.fast,
+        duration: fulusMotionDuration(context, AppMotion.fast),
         constraints: const BoxConstraints(minHeight: 72),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         decoration: BoxDecoration(
