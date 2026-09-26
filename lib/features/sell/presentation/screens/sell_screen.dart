@@ -338,33 +338,82 @@ class _ProductRow extends StatelessWidget {
     final product = entry.product;
     final out = product.tracksStock && entry.currentStock <= 0;
     final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
+
     return FulusPressable(
       onPressed: out ? null : () => _add(context),
       semanticsLabel: product.name,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(color: AppColors.surfaceOf(context), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderOf(context).withValues(alpha: .7))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: ClipRRect(
-            borderRadius: BorderRadius.circular(9),
-            child: Container(
-              width: double.infinity,
-              color: AppColors.selectedTintOf(context),
-              alignment: Alignment.center,
-              child: product.photoPath == null
-                  ? Text(initial, style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w800))
-                  : Image.file(File(product.photoPath!), fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => Text(initial, style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context))),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.borderOf(context).withValues(alpha: .7),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: Container(
+                  width: double.infinity,
+                  color: AppColors.selectedTintOf(context),
+                  alignment: Alignment.center,
+                  child: product.photoPath == null
+                      ? Text(
+                          initial,
+                          style: AppTypography.heading.copyWith(
+                            color: AppColors.primaryOf(context),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                      : Image.file(
+                          File(product.photoPath!),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Text(
+                            initial,
+                            style: AppTypography.heading.copyWith(
+                              color: AppColors.primaryOf(context),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
             ),
-          )),
-          const SizedBox(height: AppSpacing.xs),
-          Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(currency + product.sellingPrice.toStringAsFixed(2), style: AppTypography.label.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w700)),
-          if (out) Text('Out of stock', style: AppTypography.label.copyWith(color: AppColors.errorOf(context))),
-        ]),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              product.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              currency + product.sellingPrice.toStringAsFixed(2),
+              style: AppTypography.label.copyWith(
+                color: AppColors.primaryOf(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (out)
+              Text(
+                'Out of stock',
+                style: AppTypography.label.copyWith(
+                  color: AppColors.errorOf(context),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
+
   Future<void> _add(BuildContext context) async {
     final product = entry.product;
     final controller = TextEditingController(text: '1');
