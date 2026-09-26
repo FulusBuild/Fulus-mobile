@@ -260,18 +260,6 @@ class _SellContent extends ConsumerWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.xs),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => QuickSaleSheet.show(context),
-                    icon: const Icon(FulusIcons.sell),
-                    label: const Text('Quick sale without adding a product'),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                  ),
-                ),
-              ),
               Expanded(
                 child: _ProductList(
                   state: state,
@@ -394,7 +382,7 @@ class _ProductRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: AppTypography.caption.copyWith(
                 color: AppColors.textPrimaryOf(context),
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 2),
