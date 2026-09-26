@@ -1,0 +1,7 @@
+-- Historical migration provenance compatibility entry.
+--
+-- Production recorded this migration version for the return/sale actor-bound
+-- idempotency hardening. The repository retained the effective SQL under
+-- 20260925150000_harden_return_sale_idempotency_actor_scope.sql. Keep this
+-- historical version so production history remains an exact prefix without
+-- replaying the same hardening under a second timestamp.
