@@ -29,6 +29,8 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
     return FulusScreen(
       title: 'Customers',
       subtitle: 'Your credit book and customer relationships',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
           icon: Icons.person_add_alt_outlined,
@@ -125,31 +127,35 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 
 class _CustomerOverview extends StatelessWidget {
   const _CustomerOverview({required this.customerCount, required this.outstanding, required this.currencySymbol});
-
-  final int customerCount;
-  final double outstanding;
-  final String currencySymbol;
-
+  final int customerCount; final double outstanding; final String currencySymbol;
   @override
-  Widget build(BuildContext context) {
-    return FulusStatGrid(
-      spacing: AppSpacing.sm,
-      minTileWidth: 150,
-      cards: [
-        FulusStatCard(
-          icon: Icons.people_outline,
-          label: 'Customers',
-          value: '$customerCount',
-        ),
-        FulusStatCard(
-          icon: Icons.account_balance_wallet_outlined,
-          label: 'Outstanding credit',
-          value: formatMoney(outstanding, symbol: currencySymbol),
-          valueColor: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: Container(
+      constraints: const BoxConstraints(minHeight: 120),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(FulusIcons.customers, color: Colors.white, size: 28),
+        const Spacer(),
+        const Text('Total Customers', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(customerCount.toString(), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
+        const Text('Active', style: TextStyle(color: Colors.white70, fontSize: 11)),
+      ]),
+    )),
+    const SizedBox(width: AppSpacing.sm),
+    Expanded(child: Container(
+      constraints: const BoxConstraints(minHeight: 120),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(color: const Color(0xFF7B3FF2), borderRadius: BorderRadius.circular(12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(FulusIcons.money, color: Colors.white, size: 28),
+        const Spacer(),
+        const Text('Customer Credit', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(outstanding, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900))),
+        const Text('Owed to you', style: TextStyle(color: Colors.white70, fontSize: 11)),
+      ]),
+    )),
+  ]);
 }
 
 class _CustomerRow extends StatelessWidget {
