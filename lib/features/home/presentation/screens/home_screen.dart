@@ -305,15 +305,16 @@ class _HomeQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actions = <({IconData icon, String label, VoidCallback onTap})>[
-      (icon: FulusIcons.sell, label: 'Sell', onTap: () => context.goNamed('sell')),
-      (icon: FulusIcons.stock, label: 'Stock', onTap: () => context.goNamed('stock')),
-      (icon: FulusIcons.money, label: 'Money', onTap: () => context.goNamed('money')),
-      (icon: FulusIcons.reports, label: 'Reports', onTap: () => context.pushNamed('moreReports')),
+    final actions = <({IconData icon, String label, String subtitle, VoidCallback onTap})>[
+      (icon: FulusIcons.sell, label: 'Sell', subtitle: 'Start a sale', onTap: () => context.goNamed('sell')),
+      (icon: FulusIcons.stock, label: 'Stock', subtitle: 'Manage inventory', onTap: () => context.goNamed('stock')),
+      (icon: FulusIcons.money, label: 'Money', subtitle: 'Track your money', onTap: () => context.goNamed('money')),
+      (icon: FulusIcons.reports, label: 'Reports', subtitle: 'See business trends', onTap: () => context.pushNamed('moreReports')),
     ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 620 ? 4 : 2;
+        final columns = constraints.maxWidth >= 760 ? 4 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -322,9 +323,17 @@ class _HomeQuickActions extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: AppSpacing.sm,
             mainAxisSpacing: AppSpacing.sm,
-            childAspectRatio: columns == 2 ? 2.0 : 1.35,
+            mainAxisExtent: 112,
           ),
-          itemBuilder: (context, index) => FulusQuickAction(icon: actions[index].icon, label: actions[index].label, onTap: actions[index].onTap),
+          itemBuilder: (context, index) {
+            final action = actions[index];
+            return FulusActionTile(
+              icon: action.icon,
+              label: action.label,
+              subtitle: action.subtitle,
+              onTap: action.onTap,
+            );
+          },
         );
       },
     );
