@@ -135,7 +135,16 @@ class _StockBody extends ConsumerWidget {
             }
 
             return CustomScrollView(
-              slivers: [
+              slivers: [                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+                    child: FulusSearchField(
+                      controller: searchController,
+                      hintText: 'Search products, SKU, barcode…',
+                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
@@ -182,17 +191,8 @@ class _StockBody extends ConsumerWidget {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
-                    child: FulusSearchField(
-                      controller: searchController,
-                      hintText: 'Search products, SKU, barcode…',
-                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
-                    ),
-                  ),
-                ),
-                if (movementsAsync.hasValue && movementsAsync.value!.isNotEmpty)
+                if (lowStockCount > 0)
+                  if (movementsAsync.hasValue && movementsAsync.value!.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
@@ -230,8 +230,7 @@ class _StockBody extends ConsumerWidget {
                       ),
                     ),
                   ),
-                if (lowStockCount > 0)
-                  SliverToBoxAdapter(
+                SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
                       child: Material(
