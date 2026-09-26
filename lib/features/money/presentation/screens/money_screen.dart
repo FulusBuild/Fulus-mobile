@@ -170,6 +170,25 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                           );
                         },
                       ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton.icon(
+                              onPressed: () => context.pushNamed('moneyCustomers'),
+                              icon: const Icon(FulusIcons.customers),
+                              label: const Text('Customer credit'),
+                            ),
+                          ),
+                          Expanded(
+                            child: TextButton.icon(
+                              onPressed: () => context.pushNamed('moneySuppliers'),
+                              icon: const Icon(FulusIcons.localShipping),
+                              label: const Text('Suppliers'),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
