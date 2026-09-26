@@ -17,6 +17,8 @@ class FulusButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.loadingLabel,
+    this.foregroundColor,
+    this.borderColor,
   });
 
   final String label;
@@ -25,6 +27,8 @@ class FulusButton extends StatelessWidget {
   final FulusButtonVariant variant;
   final IconData? icon;
   final bool loading;
+  final Color? foregroundColor;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +66,8 @@ class FulusButton extends StatelessWidget {
         return OutlinedButton(
           onPressed: action,
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textPrimaryOf(context),
-            side: BorderSide(color: AppColors.borderOf(context)),
+            foregroundColor: foregroundColor ?? AppColors.textPrimaryOf(context),
+            side: BorderSide(color: borderColor ?? AppColors.borderOf(context)),
             minimumSize: minimumSize,
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: AppSpacing.sm),
             textStyle: AppTypography.buttonLabel,
