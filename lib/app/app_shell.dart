@@ -79,31 +79,44 @@ class _FulusBottomNavigationBar extends StatelessWidget {
     ];
 
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-    return Material(
-      color: AppColors.surfaceOf(context),
-      elevation: 12,
-      shadowColor: Colors.black.withValues(alpha: .12),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppColors.borderOf(context).withValues(alpha: .7)),
+    // Scaffold gives bottomNavigationBar a loose vertical constraint. Without
+    // an explicit height, the custom Row can grow to the available viewport on
+    // some Android devices, effectively covering the whole screen. Keep the
+    // Fulus bar compact while adding the system navigation inset separately.
+    const barContentHeight = 64.0;
+    return SizedBox(
+      height: barContentHeight + bottomInset,
+      child: Material(
+        color: AppColors.surfaceOf(context),
+        elevation: 12,
+        shadowColor: Colors.black.withValues(alpha: .12),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: AppColors.borderOf(context).withValues(alpha: .7)),
+            ),
           ),
-        ),
-        padding: EdgeInsets.fromLTRB(AppSpacing.xs, AppSpacing.xs, AppSpacing.xs, bottomInset > 0 ? AppSpacing.xs : AppSpacing.sm),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              for (final item in items)
-                Expanded(
-                  child: _FulusBottomNavigationItem(
-                    icon: item.$2,
-                    label: item.$3,
-                    selected: navigationShell.currentIndex == item.$1,
-                    onTap: () => _select(item.$1),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.xs,
+            AppSpacing.xs,
+            0,
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                for (final item in items)
+                  Expanded(
+                    child: _FulusBottomNavigationItem(
+                      icon: item.$2,
+                      label: item.$3,
+                      selected: navigationShell.currentIndex == item.$1,
+                      onTap: () => _select(item.$1),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
