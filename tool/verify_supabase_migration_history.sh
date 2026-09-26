@@ -15,7 +15,12 @@ remote_file="$tmp_dir/remote.tsv"
 
 find "$migration_dir" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' |
   sed -E 's/\.sql$//' |
-  awk -F_ '{version=$1; $1=""; sub(/^_/,""); print version "\t" $0}' |
+  awk -F_ '{
+    version=$1
+    name=$0
+    sub(/^[^_]*_/, "", name)
+    print version "\t" name
+  }' |
   sort > "$local_file"
 
 curl --fail --silent --show-error --location \
