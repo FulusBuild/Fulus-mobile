@@ -1,0 +1,51 @@
+name: Fulus Production Supabase Auth Hardening
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/supabase-auth-hardening.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fulus-production-supabase-auth-hardening
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify leaked-password protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - name: Validate deployment secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          test -n "${SUPABASE_PROJECT_ID:-}"
+
+      - name: Verify leaked-password protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error \
+            --url "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_ID}/config/auth" \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}")"
+          python3 - "$response" <<'PY'
+          import json, sys
+          data = json.loads(sys.argv[1])
+          if data.get("password_hibp_enabled") is True:
+              print("PASS: Supabase Auth leaked-password protection is enabled")
+              raise SystemExit(0)
+          print("BLOCKED: password_hibp_enabled is not enabled.")
+          print("Supabase Management API requires a Pro plan or higher for HaveIBeenPwned leaked-password protection.")
+          raise SystemExit(1)
+          PY
