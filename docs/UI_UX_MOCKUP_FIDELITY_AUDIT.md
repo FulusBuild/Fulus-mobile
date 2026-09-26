@@ -100,6 +100,22 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [ ] Verify no duplicate or contradictory sync status
 - [ ] Whole-screen visual review of every primary tab
 
+## Current workstream boundary
+
+This workstream is intentionally UI/UX-only. Until the UI/UX completion gate is closed, defer unrelated production-readiness work unless it directly blocks UI validation.
+
+### Deferred outside this workstream
+- Full cloud-sync/backend audit
+- Supabase schema, RLS and server-side performance work
+- Sync conflict-resolution and background-sync architecture
+- Android WorkManager/background reliability work
+- Auth/backend architecture changes
+- Server-side location isolation work
+- Deployment/infrastructure work unrelated to UI validation
+- Hardware-specific validation such as printing/camera/background device behavior
+
+CI remains a validation gate for UI changes, but unrelated CI/Vercel failures are not UI blockers.
+
 ## UI/UX completion gate
 A screen is complete only when its whole composition matches the approved visual direction, not merely when its individual widgets are technically correct.
 
