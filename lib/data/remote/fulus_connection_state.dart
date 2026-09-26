@@ -25,6 +25,7 @@ class FulusConnectionState extends ChangeNotifier {
   Future<bool> Function()? _canSwitchBusiness;
   Future<void> Function()? _beginBusinessSwitch;
   Future<void> Function()? _endBusinessSwitch;
+  Future<void> Function()? _beforeBusinessSwitch;
   FulusRegisteredDevice? _registeredDevice;
   FulusMembershipContext? _membershipContext;
   String? _selectedBusinessId;
@@ -190,10 +191,12 @@ class FulusConnectionState extends ChangeNotifier {
     Future<bool> Function()? guard, {
     Future<void> Function()? beginSwitch,
     Future<void> Function()? endSwitch,
+    Future<void> Function()? beforeSwitch,
   }) {
     _canSwitchBusiness = guard;
     _beginBusinessSwitch = beginSwitch;
     _endBusinessSwitch = endSwitch;
+    _beforeBusinessSwitch = beforeSwitch;
   }
 
   Future<StaffClaim> claimStaffInvite(String token) async {
@@ -273,6 +276,8 @@ class FulusConnectionState extends ChangeNotifier {
     final endSwitch = _endBusinessSwitch;
     if (beginSwitch != null) await beginSwitch();
     try {
+      final beforeSwitch = _beforeBusinessSwitch;
+      if (beforeSwitch != null) await beforeSwitch();
       if (canSwitch != null && !await canSwitch()) {
         throw StateError('Finish pending Cloud Sync work before switching businesses. Local business data is single-business and cannot be safely rebound while writes are queued.');
       }
