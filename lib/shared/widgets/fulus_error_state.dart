@@ -26,12 +26,21 @@ class FulusErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(FulusIcons.error, size: AppIconSize.hero, color: AppColors.errorOf(context)),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.errorOf(context).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+              ),
+              alignment: Alignment.center,
+              child: Icon(FulusIcons.error, size: AppIconSize.hero, color: AppColors.errorOf(context)),
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+              style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
             ),
             if (reassurance != null) ...[
               const SizedBox(height: AppSpacing.sm),
