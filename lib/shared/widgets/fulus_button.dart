@@ -36,7 +36,9 @@ class FulusButton extends StatelessWidget {
             onPressed!();
           };
     final child = _buildChild(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     const minimumSize = Size(48, 48);
+    final horizontalPadding = textScale > 1.15 ? AppSpacing.sm : AppSpacing.md;
 
     switch (variant) {
       case FulusButtonVariant.primary:
@@ -48,6 +50,7 @@ class FulusButton extends StatelessWidget {
             disabledBackgroundColor: AppColors.primaryOf(context).withValues(alpha: AppOpacity.disabled),
             disabledForegroundColor: AppColors.onPrimaryOf(context).withValues(alpha: AppOpacity.disabled),
             minimumSize: minimumSize,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: AppSpacing.sm),
             elevation: 0,
             textStyle: AppTypography.buttonLabel,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -61,6 +64,7 @@ class FulusButton extends StatelessWidget {
             foregroundColor: AppColors.textPrimaryOf(context),
             side: BorderSide(color: AppColors.borderOf(context)),
             minimumSize: minimumSize,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: AppSpacing.sm),
             textStyle: AppTypography.buttonLabel,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
