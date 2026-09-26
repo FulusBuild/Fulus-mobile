@@ -543,7 +543,7 @@ class _PaymentMethodTile extends StatelessWidget {
               ),
             ),
             AnimatedSwitcher(
-              duration: AppMotion.fast,
+              duration: fulusMotionDuration(context, AppMotion.fast),
               child: selected
                   ? Icon(FulusIcons.check, key: const ValueKey('selected'), size: AppIconSize.compact, color: primary)
                   : const SizedBox(key: ValueKey('unselected'), width: AppIconSize.compact),
