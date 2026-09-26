@@ -244,7 +244,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         Row(children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'cash position', onTap: () => context.goNamed('money'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: 'sales', onTap: () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)))),
         ]),
         const SizedBox(height: AppSpacing.sm),
         Row(children: [
