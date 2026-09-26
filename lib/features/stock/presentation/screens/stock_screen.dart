@@ -152,30 +152,31 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.md),
-                    child: FulusCard(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _InventoryMetric(
-                              label: 'Stock available',
-                              value: totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1),
-                              suffix: 'units',
-                            ),
-                          ),
-                          Container(width: 1, height: 42, color: AppColors.borderOf(context)),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: AppSpacing.md),
-                              child: _InventoryMetric(
-                                label: 'Stock value',
-                                value: formatMoney(totalValue, symbol: '₦', compact: true),
-                                suffix: 'at cost',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: FulusStatGrid(
+                      spacing: AppSpacing.sm,
+                      minTileWidth: 150,
+                      cards: [
+                        FulusStatCard(
+                          icon: FulusIcons.stock,
+                          label: 'Stock available',
+                          value: '${totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1)} units',
+                        ),
+                        FulusStatCard(
+                          icon: FulusIcons.money,
+                          label: 'Stock value',
+                          value: formatMoney(totalValue, symbol: '₦', compact: true),
+                        ),
+                        FulusStatCard(
+                          icon: FulusIcons.warning,
+                          label: 'Low stock',
+                          value: '$lowStockCount items',
+                          valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
+                          onTap: lowStockCount > 0
+                              ? () => ref.read(stockFilterProvider.notifier).state =
+                                  filter.copyWith(lowStockOnly: true, outOfStockOnly: false)
+                              : null,
+                        ),
+                      ],
                     ),
                   ),
                 ),
