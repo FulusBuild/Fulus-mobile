@@ -242,6 +242,12 @@ class _HomeMockupDashboard extends StatelessWidget {
     return Column(
       children: [
         Row(children: [
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'cash position', onTap: () => context.goNamed('money'))),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: 'sales', onTap: () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)))),
+        ]),
+        const SizedBox(height: AppSpacing.sm),
+        Row(children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding', onTap: () => context.pushNamed('moneyCustomers'))),
@@ -256,28 +262,6 @@ class _HomeMockupDashboard extends StatelessWidget {
       ],
     );
   }
-}
-
-class _HomeHeroCard extends StatelessWidget {
-  const _HomeHeroCard({required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
-  final IconData icon; final String label; final String value; final String secondary; final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Material(
-    color: _HomeColors.blue, borderRadius: BorderRadius.circular(AppRadius.md),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 112, child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(icon, color: Colors.white, size: AppIconSize.base), const SizedBox(width: AppSpacing.sm), Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700))]),
-        const Spacer(),
-        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900))),
-        Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-      ]),
-    )),
-    ),
-  );
 }
 
 class _HomeCompactCard extends StatelessWidget {
@@ -345,7 +329,6 @@ class _HomeHeroSkeleton extends StatelessWidget {
 class _HomeColors {
   static const navy = Color(0xFF061B3A);
   static const blue = Color(0xFF1473E6);
-  static const green = Color(0xFF0BBE6E);
   static const orange = Color(0xFFFF9F1C);
   static const purple = Color(0xFF7B3FF2);
   static const muted = Color(0xFFB7C7DB);
