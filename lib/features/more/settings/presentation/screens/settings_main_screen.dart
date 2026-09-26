@@ -32,7 +32,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
-          mainAxisExtent: 112,
+          mainAxisExtent: 136,
           children: children,
         );
       },
