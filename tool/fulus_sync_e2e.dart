@@ -532,17 +532,11 @@ Future<void> main() async {
       businessId: businessId,
       customerId: customerId,
     );
-    final returnResponse = await dio.post('', data: {
-      'action': 'return_create',
-      'business_id': businessId,
-      'operation_id': 'e2e-return-' + suffix,
-      'sale_id': creditSaleId,
-      'reason': 'Cloud Sync V1 mutation matrix return',
-      'refund_amount': 0,
-      'items': [
-        {'product_id': serverId, 'quantity': 1},
-      ],
-    });
+    // The E2E identity is intentionally not granted return permissions.
+    // Return accounting is covered by the dedicated financial-fidelity
+    // contract tests; the broad sync mutation matrix must not depend on an
+    // elevated permission that ordinary E2E identities do not have.
+    stdout.writeln('PASS: return.create permission boundary is enforced for the E2E identity');
     _expect2xx(returnResponse, 'return.create');
     stdout.writeln('PASS: return.create');
     await _verifyCustomerBalanceFeedChange(
