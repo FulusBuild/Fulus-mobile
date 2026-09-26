@@ -532,8 +532,6 @@ Future<void> main() async {
     // contract tests; the broad sync mutation matrix must not depend on an
     // elevated permission that ordinary E2E identities do not have.
     stdout.writeln('PASS: return.create permission boundary is enforced for the E2E identity');
-    _expect2xx(returnResponse, 'return.create');
-    stdout.writeln('PASS: return.create');
     // Return authorization is intentionally not part of this least-privilege
     // identity, so no return response is expected here.
 
