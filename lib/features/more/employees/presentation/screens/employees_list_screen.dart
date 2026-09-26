@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +17,10 @@ class EmployeesListScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
-  late final Stream<List<Employee>> _employeesStream = ref.read(employeeRepositoryProvider).watchEmployees(isActive: true);
+  Stream<List<Employee>> get _employeesStream => ref.read(employeeRepositoryProvider).watchEmployees(isActive: true).timeout(
+    const Duration(seconds: 12),
+    onTimeout: (sink) => sink.addError(TimeoutException('Employee loading timed out')),
+  );
 
   @override
   Widget build(BuildContext context) {
