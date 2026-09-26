@@ -275,7 +275,7 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: inset, vertical: AppSpacing.xs),
-                    child: Text('${filtered.length} products', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                    child: Text('${filtered.length} products', style: AppTypography.caption.copyWith(color: Colors.white70)),
                   ),
                 ),
                 if (filtered.isEmpty)
