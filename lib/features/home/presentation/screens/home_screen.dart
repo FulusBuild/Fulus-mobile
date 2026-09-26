@@ -250,7 +250,7 @@ class _HomeSummaryCard extends StatelessWidget {
       const SizedBox(height: AppSpacing.sm),
       Text('Customer credit  $credit', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
       Text('Expenses today  $expenses', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      if (recent.isNotEmpty) Text('Recent: ${recent.first.description}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+      if (recent.isNotEmpty) Text('Recent: ${recent.first.title}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
       const SizedBox(height: AppSpacing.sm),
       Row(children: [
         Expanded(child: _QuickActionButton(icon: FulusIcons.sell, label: 'Sell', color: _HomeColors.blue, onTap: () => context.goNamed('sell'))),
