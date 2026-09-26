@@ -513,6 +513,7 @@ class _PaymentMethodTile extends StatelessWidget {
       'Card' => const Color(0xFF1473E6),
       _ => const Color(0xFFFF8A00),
     };
+    final foreground = AppColors.onColor(color);
     return FulusPressable(
       semanticsLabel: '$label payment method',
       onPressed: onTap,
@@ -529,11 +530,11 @@ class _PaymentMethodTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: AppIconSize.base, color: Colors.white),
+            Icon(icon, size: AppIconSize.base, color: foreground),
             const Spacer(),
             Row(children: [
-              Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600))),
-              if (selected) const Icon(FulusIcons.check, size: AppIconSize.compact, color: Colors.white),
+              Expanded(child: Text(label, style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w600))),
+              if (selected) Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
             ]),
           ],
         ),
