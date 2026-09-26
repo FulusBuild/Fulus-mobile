@@ -22,6 +22,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     return FulusScreen(
       title: 'Team',
       subtitle: 'People, access and attendance',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
           icon: FulusIcons.staff,
