@@ -794,8 +794,19 @@ class _MoreRow extends StatelessWidget {
             size: AppIconSize.compact,
           ),
         ),
-        title: Text(title),
-        subtitle: Text(subtitle),
+        title: Text(
+          title,
+          style: AppTypography.body.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: AppTypography.caption.copyWith(
+            color: AppColors.textSecondaryOf(context),
+          ),
+        ),
         trailing: onTap == null
             ? Icon(FulusIcons.lock, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact)
             : Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
