@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/security/biometric_auth.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../shared/widgets/fulus_button.dart';
 import '../../../../shared/widgets/fulus_brand_logo.dart';
 import '../../../../shared/widgets/pin_keypad.dart';
 
