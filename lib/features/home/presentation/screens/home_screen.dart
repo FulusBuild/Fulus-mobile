@@ -133,22 +133,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xl),
-                      FulusSectionHeader(
-                        title: 'Recent activity',
-                        action: (widget.isOwner || widget.canViewMoney) ? 'See all' : null,
-                        onActionTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyHistory') : null,
-                      ),
-                      FutureBuilder<List<MoneyTransaction>>(
-                        future: _activityFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState != ConnectionState.done) return const Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]);
-                          if (snapshot.hasError) return FulusErrorState(message: "Couldn't load recent activity.", reassurance: 'Your sales and money records are still safe on this device.', onRetry: _refresh);
-                          final transactions = snapshot.data ?? const <MoneyTransaction>[];
-                          if (transactions.isEmpty) return const FulusEmptyState(headline: 'No activity yet today', body: 'Sales, stock, and expenses you record will show up here.', icon: FulusIcons.receipt);
-                          return FulusCard(padding: EdgeInsets.zero, child: Column(children: [for (var i = 0; i < transactions.length.clamp(0, 5); i++) ...[if (i > 0) const FulusListDivider(), MoneyTransactionTile(transaction: transactions[i], currencySymbol: currencySymbol, showDate: false, onTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': transactions[i].id}, extra: transactions[i]) : null)]]));
-                        },
-                      ),
                     ],
                   ),
                 ),
