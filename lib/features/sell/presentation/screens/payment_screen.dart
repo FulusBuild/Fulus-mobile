@@ -524,7 +524,7 @@ class _PaymentMethodTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: selected ? Colors.white : Colors.transparent, width: selected ? 2 : 1),
+          border: Border.all(color: selected ? foreground : Colors.transparent, width: selected ? 2 : 1),
           boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: .16), blurRadius: 8, offset: const Offset(0, 3))] : null,
         ),
         child: Column(
