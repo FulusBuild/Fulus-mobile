@@ -76,7 +76,8 @@ class FulusChip extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
