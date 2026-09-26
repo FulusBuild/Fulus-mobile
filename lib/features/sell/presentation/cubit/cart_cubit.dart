@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/diagnostics/diagnostic_logger.dart';
-import '../../../../core/utils/async_timeout.dart';
 import '../../../../core/diagnostics/models/diagnostic_enums.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
