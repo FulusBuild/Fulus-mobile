@@ -86,7 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundOf(context),
+      backgroundColor: _HomeColors.navy,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -103,81 +103,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.xxxl),
                     children: [
                       _HomeHeader(
-                        businessName:
-                            ref.watch(_businessProfileProvider).value?.businessName.trim() ??
-                                '',
+                        businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
-                        '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context)),
+                        '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)} 👋',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: AppTypography.heading.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        showBusinessWide ? 'Here’s what is happening in your business today.' : 'Here’s what is happening on your shift today.',
-                        style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                        showBusinessWide ? 'Here’s what’s happening with your business today.' : 'Here’s what’s happening on your shift today.',
+                        style: AppTypography.caption.copyWith(color: _HomeColors.muted),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       FutureBuilder<HomeHeroState>(
                         future: _heroFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState != ConnectionState.done) return const _HomeHeroSkeleton();
-                          if (snapshot.hasError) {
-                            return FulusErrorState(
-                              message: "Couldn't load today's sales.",
-                              reassurance: 'Your sales are still safe on this device.',
-                              onRetry: _refresh,
-                            );
-                          }
-                          if (!snapshot.hasData) {
-                            return const FulusEmptyState(
-                              headline: 'Nothing to show yet',
-                              body: 'Your sales summary will appear here when there is data to show.',
-                              icon: FulusIcons.stock,
-                            );
-                          }
-                          return _HomeSalesCard(state: snapshot.data!, currencySymbol: currencySymbol);
-                        },
+                        builder: (context, heroSnapshot) => FutureBuilder<SecondaryNoticeSelection>(
+                          future: _noticesFuture,
+                          builder: (context, noticeSnapshot) => FutureBuilder<List<MoneyTransaction>>(
+                            future: _activityFuture,
+                            builder: (context, activitySnapshot) {
+                              if (heroSnapshot.connectionState != ConnectionState.done || noticeSnapshot.connectionState != ConnectionState.done || activitySnapshot.connectionState != ConnectionState.done) return const _HomeHeroSkeleton();
+                              if (heroSnapshot.hasError || noticeSnapshot.hasError || activitySnapshot.hasError) return FulusErrorState(message: "Couldn't load today's overview.", reassurance: 'Your business records are still safe on this device.', onRetry: _refresh);
+                              final hero = heroSnapshot.data;
+                              if (hero == null) return const SizedBox.shrink();
+                              return _HomeMockupDashboard(hero: hero, notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[], activity: activitySnapshot.data ?? const <MoneyTransaction>[], currencySymbol: currencySymbol);
+                            },
+                          ),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      _HomeQuickActions(
-                        canViewMoney: widget.isOwner || widget.canViewMoney,
-                        canViewReports: widget.isOwner || widget.canViewReports,
-                      ),
-                      if (showBusinessWide) ...[
-                        const SizedBox(height: AppSpacing.xl),
-                        FutureBuilder<SecondaryNoticeSelection>(
-                          future: _noticesFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState != ConnectionState.done) return const _NoticeSkeleton();
-                            if (snapshot.hasError) {
-                              return FulusErrorState(
-                                message: "Couldn't load business alerts.",
-                                reassurance: 'Your business data is still safe on this device.',
-                                onRetry: _refresh,
-                              );
-                            }
-                            final selection = snapshot.data;
-                            if (selection == null || selection.shown.isEmpty) return const SizedBox.shrink();
-                            return _AttentionSection(
-                              selection: selection,
-                              currencySymbol: currencySymbol,
-                              canViewMoney: widget.isOwner || widget.canViewMoney,
-                            );
-                          },
-                        ),
-                      ],
+                      _HomeQuickActions(canViewMoney: widget.isOwner || widget.canViewMoney, canViewReports: widget.isOwner || widget.canViewReports),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
                         action: (widget.isOwner || widget.canViewMoney) ? 'See all' : null,
-                        onActionTap: (widget.isOwner || widget.canViewMoney)
-                            ? () => context.pushNamed('moneyHistory')
-                            : null,
+                        onActionTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyHistory') : null,
                       ),
                       FutureBuilder<List<MoneyTransaction>>(
+                        future: _activityFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState != ConnectionState.done) return const Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]);
+                          if (snapshot.hasError) return FulusErrorState(message: "Couldn't load recent activity.", reassurance: 'Your sales and money records are still safe on this device.', onRetry: _refresh);
+                          final transactions = snapshot.data ?? const <MoneyTransaction>[];
+                          if (transactions.isEmpty) return const FulusEmptyState(headline: 'No activity yet today', body: 'Sales, stock, and expenses you record will show up here.', icon: FulusIcons.receipt);
+                          return FulusCard(padding: EdgeInsets.zero, child: Column(children: [for (var i = 0; i < transactions.length.clamp(0, 5); i++) ...[if (i > 0) const FulusListDivider(), MoneyTransactionTile(transaction: transactions[i], currencySymbol: currencySymbol, showDate: false, onTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': transactions[i].id}, extra: transactions[i]) : null)]]));
+                        },
+                      ),                      FutureBuilder<List<MoneyTransaction>>(
                         future: _activityFuture,
                         builder: (context, snapshot) {
                           if (snapshot.connectionState != ConnectionState.done) {
@@ -244,29 +217,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({required this.businessName});
-
   final String businessName;
-
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            businessName.isEmpty ? 'Business' : businessName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.subheading.copyWith(
-              color: AppColors.textPrimaryOf(context),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        const Flexible(child: FulusSyncStatusIndicator()),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Row(children: [
+    Container(width: 38, height: 38, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text('F', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _HomeColors.blue))),
+    const SizedBox(width: AppSpacing.sm),
+    Expanded(child: Text(businessName.isEmpty ? 'Fulus' : businessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: Colors.white, fontWeight: FontWeight.w800))),
+    const SizedBox(width: AppSpacing.sm),
+    const Icon(FulusIcons.menu, color: Colors.white, size: 24),
+  ]);
+}
+
+class _HomeColors {
+  static const navy = Color(0xFF061B3A);
+  static const blue = Color(0xFF1677FF);
+  static const green = Color(0xFF0BBE6E);
+  static const orange = Color(0xFFFF8A00);
+  static const purple = Color(0xFF7B3FF2);
+  static const teal = Color(0xFF0EA5B7);
+  static const muted = Color(0xFFB8C6D9);
 }
 
 class _HomeSalesCard extends StatelessWidget {
@@ -320,6 +289,92 @@ class _HomeSalesCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HomeMockupDashboard extends StatelessWidget {
+  const _HomeMockupDashboard({required this.hero, required this.notices, required this.activity, required this.currencySymbol});
+  final HomeHeroState hero;
+  final List<SecondaryNotice> notices;
+  final List<MoneyTransaction> activity;
+  final String currencySymbol;
+
+  double get sales => switch (hero) {
+    OpenHero(:final todayTotal) => todayTotal,
+    ClosedHero(:final finalTotal) => finalTotal,
+    NotYetOpenedHero(:final yesterdayTotal) => yesterdayTotal,
+    EmployeeShiftHero(:final shiftTotal) => shiftTotal,
+  };
+  int get salesCount => switch (hero) {
+    OpenHero(:final todaySalesCount) => todaySalesCount,
+    ClosedHero(:final finalSalesCount) => finalSalesCount,
+    NotYetOpenedHero(:final yesterdaySalesCount) => yesterdaySalesCount,
+    EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
+  };
+  double get expenses => activity.where((t) => t.type == MoneyTransactionType.expense).fold(0, (sum, t) => sum + t.amount);
+  double get netToday => activity.fold(0, (sum, t) => sum + t.signedAmount);
+  num _notice(SecondaryNoticeType type) => notices.where((n) => n.type == type).fold<num>(0, (sum, n) => sum + n.value);
+
+  @override
+  Widget build(BuildContext context) {
+    final lowStock = _notice(SecondaryNoticeType.lowStock).toInt();
+    final credit = _notice(SecondaryNoticeType.pendingCredit).toDouble();
+    return Column(children: [
+      Row(children: [
+        Expanded(child: _HomeMetric(icon: FulusIcons.money, label: 'Money today', value: formatMoney(netToday, symbol: currencySymbol), color: _HomeColors.blue)),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(child: _HomeMetric(icon: FulusIcons.sell, label: 'Today’s sales', value: formatMoney(sales, symbol: currencySymbol), foot: '$salesCount sales today', color: _HomeColors.green)),
+      ]),
+      const SizedBox(height: AppSpacing.sm),
+      Row(children: [
+        Expanded(child: _HomeMetric(icon: FulusIcons.warning, label: 'Low stock', value: '$lowStock items', foot: lowStock > 0 ? 'Action needed →' : 'All good', color: _HomeColors.orange)),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(child: _HomeMetric(icon: FulusIcons.customers, label: 'Customer credit', value: formatMoney(credit, symbol: currencySymbol), foot: 'Owed to you', color: _HomeColors.purple)),
+      ]),
+      const SizedBox(height: AppSpacing.sm),
+      Row(children: [
+        Expanded(child: _HomeMetric(icon: FulusIcons.receipt, label: 'Expenses', value: formatMoney(expenses, symbol: currencySymbol), foot: 'Today', color: _HomeColors.teal)),
+        const SizedBox(width: AppSpacing.sm),
+        const Expanded(child: _HomeQuickActionCard()),
+      ]),
+    ]);
+  }
+}
+
+class _HomeMetric extends StatelessWidget {
+  const _HomeMetric({required this.icon, required this.label, required this.value, required this.color, this.foot});
+  final IconData icon; final String label; final String value; final Color color; final String? foot;
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 116),
+    padding: const EdgeInsets.all(AppSpacing.md),
+    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, color: Colors.white, size: 25),
+      const Spacer(),
+      Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 2),
+      FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800))),
+      if (foot != null) Text(foot!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+    ]),
+  );
+}
+
+class _HomeQuickActionCard extends StatelessWidget {
+  const _HomeQuickActionCard();
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 116),
+    padding: const EdgeInsets.all(AppSpacing.md),
+    decoration: BoxDecoration(color: const Color(0xFF263C64), borderRadius: BorderRadius.circular(12)),
+    child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(FulusIcons.add, color: Colors.white, size: 25),
+      Spacer(),
+      Text('Quick Actions', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+      SizedBox(height: 3),
+      Text('Add product, new sale, etc.', style: TextStyle(color: Colors.white70, fontSize: 11)),
+      Align(alignment: Alignment.bottomRight, child: Icon(FulusIcons.arrowForward, color: Colors.white, size: 18)),
+    ]),
+  );
 }
 
 class _HomeQuickActions extends StatelessWidget {
