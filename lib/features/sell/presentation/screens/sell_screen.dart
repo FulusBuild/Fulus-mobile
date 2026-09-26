@@ -316,6 +316,7 @@ class _ProductRow extends StatelessWidget {
     final product = entry.product;
     final out = product.tracksStock && entry.currentStock <= 0;
     final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
+
     return FulusPressable(
       onPressed: out ? null : () => _add(context),
       semanticsLabel: '${product.name}, ${currency}${product.sellingPrice.toStringAsFixed(2)}${out ? ', out of stock' : ''}',
@@ -328,52 +329,50 @@ class _ProductRow extends StatelessWidget {
           border: Border.all(color: AppColors.borderOf(context).withValues(alpha: 0.55)),
         ),
         child: Row(
- const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      onTap: out ? null : () => _add(context),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: Container(
-              width: 52,
-              height: 52,
-              color: AppColors.selectedTintOf(context),
-              alignment: Alignment.center,
-              child: product.photoPath == null
-                  ? Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)))
-                  : Image.file(
-                      File(product.photoPath!),
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.cover,
-                      cacheWidth: 120,
-                      errorBuilder: (_, __, ___) => Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context))),
-                    ),
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: Container(
+                width: 52,
+                height: 52,
+                color: AppColors.selectedTintOf(context),
+                alignment: Alignment.center,
+                child: product.photoPath == null
+                    ? Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)))
+                    : Image.file(
+                        File(product.photoPath!),
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                        cacheWidth: 120,
+                        errorBuilder: (_, __, ___) => Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context))),
+                      ),
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context))),
-                const SizedBox(height: 3),
-                Text('$currency${product.sellingPrice.toStringAsFixed(2)}', style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600)),
-                if (out) Text('Out of stock', style: AppTypography.caption.copyWith(color: AppColors.errorOf(context))),
-              ],
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context))),
+                  const SizedBox(height: 3),
+                  Text('$currency${product.sellingPrice.toStringAsFixed(2)}', style: AppTypography.caption.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w600)),
+                  if (out)
+                    Text('Out of stock', style: AppTypography.caption.copyWith(color: AppColors.errorOf(context))),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Icon(
-            FulusIcons.chevronRight,
-            size: AppIconSize.compact,
-            color: out ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.sm),
+            Icon(
+              FulusIcons.chevronRight,
+              size: AppIconSize.compact,
+              color: out ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context),
+            ),
+          ],
+        ),
       ),
     );
   }
-
   Future<void> _add(BuildContext context) async {
     final product = entry.product;
     final controller = TextEditingController(text: '1');
