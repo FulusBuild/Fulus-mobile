@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// Compact, tappable filter/category chip. Selection is communicated with
 /// fill, border and a checkmark rather than colour alone.
