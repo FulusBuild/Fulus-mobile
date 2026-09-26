@@ -153,13 +153,15 @@ class _FulusBottomNavigationItem extends StatelessWidget {
                   children: [
                     Icon(icon, size: AppIconSize.base, color: foreground),
                     const SizedBox(height: 2),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.label.copyWith(
-                        color: foreground,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: AppTypography.label.copyWith(
+                          color: foreground,
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
