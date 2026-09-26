@@ -327,6 +327,7 @@ class _HomeHeroSkeleton extends StatelessWidget {
 }
 
 class _HomeColors {
+  static const green = Color(0xFF0BBE6E);
   static const navy = Color(0xFF061B3A);
   static const blue = Color(0xFF1473E6);
   static const orange = Color(0xFFFF9F1C);
