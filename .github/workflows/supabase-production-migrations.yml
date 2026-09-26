@@ -1,5 +1,7 @@
 name: Fulus Production Supabase Migrations
 
+# Deployment is commit-exact and is intentionally gated on the full CI workflow.
+
 on:
   push:
     branches:
