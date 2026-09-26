@@ -442,6 +442,9 @@ Future<void> main() async {
       'tax': 0,
       'amount_paid': 0,
       'payment_method': 'credit',
+      'payments': [
+        {'method': 'credit', 'amount': 150},
+      ],
       'notes': 'Cloud Sync V1 mutation matrix credit sale',
       'items': [
         {
