@@ -162,9 +162,9 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
+              child: FulusButton(
+                label: 'Got it',
                 onPressed: () => Navigator.of(sheetContext).pop(),
-                child: const Text('Got it'),
               ),
             ),
           ],
@@ -230,22 +230,18 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                           onTap: _checking ? null : _unlockWithBiometric,
                         )
                       else
-                        TextButton(
+                        FulusButton(
+                          label: 'Forgot PIN?',
+                          variant: FulusButtonVariant.text,
                           onPressed: _checking ? null : _showForgotPinInfo,
-                          child: const Text('Forgot PIN?'),
                         ),
                       const SizedBox(height: AppSpacing.sm),
                       SizedBox(
                         width: 180,
-                        child: FilledButton(
+                        child: FulusButton(
+                          label: 'Unlock',
+                          loading: _checking,
                           onPressed: _checking ? null : _unlock,
-                          child: _checking
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Unlock'),
                         ),
                       ),
                       if (constraints.maxHeight > 760) const SizedBox(height: AppSpacing.sm),
