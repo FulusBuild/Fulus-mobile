@@ -30,7 +30,7 @@ class FulusChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: AnimatedContainer(
-          duration: AppMotion.fast,
+          duration: fulusMotionDuration(context, AppMotion.fast),
           curve: AppMotion.curveStandard,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
