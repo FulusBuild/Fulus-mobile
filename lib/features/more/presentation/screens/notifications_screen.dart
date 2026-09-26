@@ -82,33 +82,64 @@ class _NotificationSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unread = notifications.where((notification) => !notification.isRead).length;
-    return FulusCard(
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.selectedTintOf(context), borderRadius: BorderRadius.circular(AppRadius.md)),
-            child: Icon(FulusIcons.notifications, color: AppColors.primaryOf(context)),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final summaryText = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          unread == 0 ? 'All caught up' : '\$unread unread \${unread == 1 ? 'notification' : 'notifications'}',
+          style: AppTypography.subheading.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '\${notifications.length} \${notifications.length == 1 ? 'update' : 'updates'} in your inbox',
+          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+        ),
+      ],
+    );
+
+    return FulusCard(
+      child: textScale > 1.15
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(unread == 0 ? 'All caught up' : '$unread unread ${unread == 1 ? 'notification' : 'notifications'}', style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
-                const SizedBox(height: AppSpacing.xs),
-                Text('${notifications.length} ${notifications.length == 1 ? 'update' : 'updates'} in your inbox', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                _NotificationSummaryIcon(),
+                const SizedBox(height: AppSpacing.md),
+                summaryText,
+              ],
+            )
+          : Row(
+              children: [
+                _NotificationSummaryIcon(),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: summaryText),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
 
+
+class _NotificationSummaryIcon extends StatelessWidget {
+  const _NotificationSummaryIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.selectedTintOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Icon(FulusIcons.notifications, color: AppColors.primaryOf(context)),
+    );
+  }
+}
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.notification, required this.onRead});
 
