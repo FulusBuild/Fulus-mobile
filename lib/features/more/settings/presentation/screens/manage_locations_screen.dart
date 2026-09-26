@@ -88,16 +88,17 @@ class ManageLocationsScreen extends ConsumerWidget {
                         childAspectRatio: columns == 1 ? 3.0 : 1.65,
                       ),
                       delegate: SliverChildBuilderDelegate(
-                      childCount: locations.length,
-                      childBuilder: (context, index) {
-                        final location = locations[index];
-                        final isActive = location.localId == activeId;
-                        return _LocationCard(
-                          location: location,
-                          isActive: isActive,
-                          onTap: isActive ? null : () => _setActive(context, ref, location),
-                        );
-                      },
+                        (context, index) {
+                          final location = locations[index];
+                          final isActive = location.localId == activeId;
+                          return _LocationCard(
+                            location: location,
+                            isActive: isActive,
+                            onTap: isActive ? null : () => _setActive(context, ref, location),
+                          );
+                        },
+                        childCount: locations.length,
+                      ),
                     ),
                   ),
                 ],
