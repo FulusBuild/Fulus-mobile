@@ -13,15 +13,34 @@ class FulusBrandLogo extends StatelessWidget {
     this.size = 64,
     this.backgroundColor,
     this.padding = 10,
+    this.showBackground = true,
   });
 
   final double size;
   final Color? backgroundColor;
   final double padding;
+  final bool showBackground;
 
   @override
   Widget build(BuildContext context) {
     if (size <= 48) return const SizedBox.shrink();
+
+    final mark = Image.asset(
+      'assets/branding/fulus_mark_transparent.png',
+      fit: BoxFit.contain,
+      semanticLabel: 'Fulus',
+    );
+
+    if (!showBackground) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: mark,
+        ),
+      );
+    }
 
     return Container(
       width: size,
@@ -31,11 +50,7 @@ class FulusBrandLogo extends StatelessWidget {
         color: backgroundColor ?? AppColors.primaryOf(context),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: Image.asset(
-        'assets/branding/fulus_mark_transparent.png',
-        fit: BoxFit.contain,
-        semanticLabel: 'Fulus',
-      ),
+      child: mark,
     );
   }
 }
