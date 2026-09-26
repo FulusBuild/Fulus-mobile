@@ -24,9 +24,13 @@ class FulusChip extends StatelessWidget {
         ? primary
         : AppColors.textPrimaryOf(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: '$label${selected ? ', selected' : ''}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: AnimatedContainer(
@@ -47,7 +51,9 @@ class FulusChip extends StatelessWidget {
               width: selected ? 1.2 : 1,
             ),
           ),
-          child: Row(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+            child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
@@ -65,7 +71,8 @@ class FulusChip extends StatelessWidget {
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
