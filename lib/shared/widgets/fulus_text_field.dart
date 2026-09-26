@@ -69,7 +69,7 @@ class FulusTextField extends StatelessWidget {
         helperText: errorText == null ? helperText : null,
         errorText: errorText,
         suffixIcon: suffixIcon,
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
       ),
     );
   }
