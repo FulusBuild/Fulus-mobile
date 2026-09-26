@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
@@ -23,7 +24,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       title: 'Categories',
       subtitle: 'Organize products for faster selling and stock management',
       body: StreamBuilder<List<Category>>(
-        stream: _categoriesStream,
+        stream: _categoriesStream.withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return FulusErrorState(
