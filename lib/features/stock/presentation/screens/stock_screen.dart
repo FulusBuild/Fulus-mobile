@@ -358,6 +358,8 @@ class _StockSummaryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final foreground = AppColors.onColor(color);
+    final muted = foreground.withValues(alpha: 0.9);
     final child = SizedBox(
       height: 118,
       child: Padding(
@@ -365,15 +367,15 @@ class _StockSummaryTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: Colors.white, size: AppIconSize.base),
+            Icon(icon, color: foreground, size: AppIconSize.base),
             const Spacer(),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: muted, fontSize: 14, fontWeight: FontWeight.w600)),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+              child: Text(value, style: const TextStyle(color: foreground, fontSize: 22, fontWeight: FontWeight.w900)),
             ),
-            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: muted, fontSize: 12)),
           ],
         ),
       ),
