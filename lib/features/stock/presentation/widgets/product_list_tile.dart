@@ -32,7 +32,10 @@ class ProductListTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-      child: FulusListRow(
+      child: FulusPressable(
+        onPressed: onTap,
+        semanticsLabel: '${product.name}, ${item.currentStock} ${product.unit}',
+        child: FulusListRow(
         onTap: onTap,
         leading: _Thumbnail(name: product.name, photoPath: product.photoPath),
         title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -67,6 +70,7 @@ class ProductListTile extends StatelessWidget {
                 ),
               )
             : Text('—', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+        ),
       ),
     );
   }
