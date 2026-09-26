@@ -188,26 +188,11 @@ class _StockBody extends ConsumerWidget {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.md),
-                    child: FulusCard(
-                      child: Column(children: [
-                        FulusSearchField(
-                          controller: searchController,
-                          hintText: 'Search products, SKU, barcode…',
-                          onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Row(children: [
-                          Expanded(child: FulusActionTile(
-                            icon: FulusIcons.arrowUp,
-                            label: 'Record stock',
-                            subtitle: 'Add stock or record a movement',
-                            onTap: () => context.pushNamed('stockRecordMovement'),
-                          )),
-                          const SizedBox(width: AppSpacing.sm),
-                          FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
-                        ]),
-                      ]),
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+                    child: FulusSearchField(
+                      controller: searchController,
+                      hintText: 'Search products, SKU, barcode…',
+                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
                     ),
                   ),
                 ),
