@@ -201,6 +201,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
+  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
   final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
   final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
@@ -210,7 +211,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
   final categoryRepository = CategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
-  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
   final returnCanonicalRepository = ReturnCanonicalRepositoryImpl(db: database);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);
