@@ -163,34 +163,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       const MoneyPeriodFilterBar(),
                       const SizedBox(height: AppSpacing.xl),
-                      FulusSectionHeader(
-                        title: 'Money summary',
-                        titleColor: Colors.white,
-                        subtitleColor: Colors.white70,
-                        action: 'See all',
-                        onActionTap: () => context.pushNamed('moneyHistory'),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      FutureBuilder<MoneySummary>(
-                        future: _summaryFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return _MoneyError(
-                              message: "Couldn't load this period's summary.",
-                              onRetry: _refresh,
-                            );
-                          }
-                          if (!snapshot.hasData) {
-                            return const FulusDelayedSkeleton(
-                              skeleton: _SummarySkeleton(),
-                            );
-                          }
-                          return _MoneySummary(
-                            summary: snapshot.data!,
-                            currencySymbol: currencySymbol,
-                          );
-                        },
-                      ),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
@@ -465,15 +437,15 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: foreground, size: AppIconSize.base),
-                    const Spacer(),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
+                    Icon(action.icon, color: foreground, size: 32),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w600)),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 24, fontWeight: FontWeight.w700)),
+                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w700)),
                     ),
-                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 12)),
+                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 14, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
