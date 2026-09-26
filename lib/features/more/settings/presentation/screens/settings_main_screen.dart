@@ -25,7 +25,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     if (children.isEmpty) return const SizedBox.shrink();
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 560 ? 2 : 1;
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final columns = constraints.maxWidth >= 560 && textScale <= 1.15 ? 2 : 1;
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
