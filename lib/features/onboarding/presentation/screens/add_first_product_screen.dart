@@ -118,16 +118,19 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                   OnboardingErrorBanner(message: _errorMessage!),
                   const SizedBox(height: AppSpacing.md),
                 ],
-                FulusButton(
-                  label: 'Add a product',
-                  loading: _checking,
-                  onPressed: _checking ? null : _openProductForm,
+                FulusActionTile(
+                  icon: FulusIcons.add,
+                  title: 'Add a product',
+                  subtitle: 'Create your first real inventory item.',
+                  trailing: _checking ? const FulusLoadingIndicator() : null,
+                  onTap: _checking ? null : _openProductForm,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                FulusButton(
-                  label: "I'll add products later",
-                  variant: FulusButtonVariant.text,
-                  onPressed: _checking ? null : _skip,
+                const SizedBox(height: AppSpacing.md),
+                FulusActionTile(
+                  icon: FulusIcons.inventory,
+                  title: "I'll add products later",
+                  subtitle: 'You can build your catalog from Stock anytime.',
+                  onTap: _checking ? null : _skip,
                 ),
               ],
             ),
