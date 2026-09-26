@@ -105,4 +105,5 @@ class FulusSectionHeader extends StatelessWidget {
               ],
             ),
     );
-  }}
+  }
+}
