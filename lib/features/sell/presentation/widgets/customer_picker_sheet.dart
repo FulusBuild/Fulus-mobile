@@ -70,6 +70,13 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
             child: StreamBuilder<List<Customer>>(
               stream: _customersStream.withFulusLoadingTimeout(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return FulusErrorState(
+                    message: "Couldn't load customers.",
+                    reassurance: 'No customer data was changed — this is only a loading problem.',
+                    onRetry: () => setState(() {}),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const FulusLoadingIndicator();
                 }
