@@ -347,6 +347,7 @@ class _HomeCompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final foreground = AppColors.onColor(color);
     return Semantics(
       button: onTap != null,
       enabled: onTap != null,
@@ -362,14 +363,14 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: Colors.white, size: AppIconSize.compact),
+                Icon(icon, color: foreground, size: AppIconSize.compact),
                 const Spacer(),
                 Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: foreground.withValues(alpha: 0.9),
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
@@ -381,7 +382,7 @@ class _HomeCompactCard extends StatelessWidget {
                     value,
                     maxLines: 1,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: foreground,
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                     ),
@@ -392,7 +393,7 @@ class _HomeCompactCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: foreground.withValues(alpha: 0.9),
                     fontSize: 13,
                   ),
                 ),
