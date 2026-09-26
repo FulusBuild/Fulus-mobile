@@ -180,19 +180,18 @@ class _ProfileBody extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FulusButton(
-                              label: 'Record repayment',
-                              onPressed: () async {
-                                final result = await context.pushNamed<bool>(
-                                  'moneyRecordRepayment',
-                                  pathParameters: {'id': customer.localId},
-                                  extra: customer,
-                                );
-                                if (result == true) onChanged();
-                              },
-                            ),
+                          FulusActionTile(
+                            icon: Icons.payments_outlined,
+                            title: 'Record repayment',
+                            subtitle: 'Record money received from this customer.',
+                            onTap: () async {
+                              final result = await context.pushNamed<bool>(
+                                'moneyRecordRepayment',
+                                pathParameters: {'id': customer.localId},
+                                extra: customer,
+                              );
+                              if (result == true) onChanged();
+                            },
                           ),
                         ],
                       ),
