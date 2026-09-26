@@ -71,13 +71,21 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  _CustomerOverview(customers: customers, filtered: filtered, outstanding: outstanding, currencySymbol: currencySymbol),
-                  const SizedBox(height: AppSpacing.lg),
+                  _CustomerOverviewHeader(
+                    customers: customers,
+                    outstanding: outstanding,
+                    currencySymbol: currencySymbol,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   FulusSearchField(
                     hintText: 'Search by name or phone',
                     onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
                   ),
                   const SizedBox(height: AppSpacing.md),
+                  _CustomerListCard(
+                    filtered: filtered,
+                    currencySymbol: currencySymbol,
+                  ),
                 ],
               );
             },
@@ -97,50 +105,96 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
   }
 }
 
-class _CustomerOverview extends StatelessWidget {
-  const _CustomerOverview({required this.customers, required this.filtered, required this.outstanding, required this.currencySymbol});
+class _CustomerOverviewHeader extends StatelessWidget {
+  const _CustomerOverviewHeader({
+    required this.customers,
+    required this.outstanding,
+    required this.currencySymbol,
+  });
+
   final List<Customer> customers;
-  final List<Customer> filtered;
   final double outstanding;
   final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
     final first = customers.take(2).toList(growable: false);
-    return Column(children: [
-      Material(
-        color: const Color(0xFF1473E6),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: SizedBox(height: 104, child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
-            const Spacer(),
-            Text('Total Customers  ${customers.length}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-            Text('Customer credit ${formatMoney(outstanding, symbol: currencySymbol, compact: true)}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-          ]),
-        )),
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      Row(children: [
-        for (var i = 0; i < 2; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _CustomerCompactCard(customer: i < first.length ? first[i] : null, currencySymbol: currencySymbol)),
-        ],
-      ]),
-      const SizedBox(height: AppSpacing.sm),
-      FulusCard(
-        padding: EdgeInsets.zero,
-        child: Column(children: [
+    return Column(
+      children: [
+        Material(
+          color: const Color(0xFF1473E6),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: SizedBox(
+            height: 104,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
+                  const Spacer(),
+                  Text(
+                    'Total Customers  ${customers.length}',
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'Customer credit ${formatMoney(outstanding, symbol: currencySymbol, compact: true)}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            for (var i = 0; i < 2; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _CustomerCompactCard(
+                  customer: i < first.length ? first[i] : null,
+                  currencySymbol: currencySymbol,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _CustomerListCard extends StatelessWidget {
+  const _CustomerListCard({
+    required this.filtered,
+    required this.currencySymbol,
+  });
+
+  final List<Customer> filtered;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    return FulusCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
           for (var i = 0; i < filtered.length; i++) ...[
-            _CustomerRow(customer: filtered[i], currencySymbol: currencySymbol),
+            _CustomerRow(
+              customer: filtered[i],
+              currencySymbol: currencySymbol,
+            ),
             if (i < filtered.length - 1) const FulusListDivider(),
           ],
           if (filtered.isEmpty)
-            const Padding(padding: EdgeInsets.all(AppSpacing.lg), child: Text('No customers match this view.')),
-        ]),
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Text('No customers match this view.'),
+            ),
+        ],
       ),
-    ]);
+    );
   }
 }
 
