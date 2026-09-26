@@ -25,7 +25,7 @@ class FulusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.xl);
-    final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.55);
+    final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.65);
     return Semantics(
       button: onTap != null,
       enabled: onTap != null,
@@ -34,7 +34,7 @@ class FulusCard extends StatelessWidget {
           color: AppColors.surfaceOf(context),
           borderRadius: radius,
           border: Border.all(color: borderColor),
-          boxShadow: elevated ? AppElevation.cardOf(context) : null,
+          boxShadow: elevated ? AppElevation.cardOf(context) : AppElevation.cardOf(context).map((s) => s.copyWith(color: s.color.withValues(alpha: 0.04))).toList(),
         ),
         child: Material(
           type: MaterialType.transparency,
@@ -104,7 +104,7 @@ class FulusStatCard extends StatelessWidget {
                 value,
                 maxLines: 1,
                 style: AppTypography.mono.copyWith(
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: dataColor,
                 ),
