@@ -25,11 +25,15 @@ class HomeScreen extends ConsumerStatefulWidget {
     required this.currentAuthUserId,
     required this.isOwner,
     required this.canViewDashboardStats,
+    required this.canViewMoney,
+    required this.canViewReports,
   });
 
   final String currentAuthUserId;
   final bool isOwner;
   final bool canViewDashboardStats;
+  final bool canViewMoney;
+  final bool canViewReports;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -138,7 +142,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      const _HomeQuickActions(),
+                      _HomeQuickActions(
+                        canViewMoney: widget.isOwner || widget.canViewMoney,
+                        canViewReports: widget.isOwner || widget.canViewReports,
+                      ),
                       if (showBusinessWide) ...[
                         const SizedBox(height: AppSpacing.xl),
                         FutureBuilder<SecondaryNoticeSelection>(
@@ -154,15 +161,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             }
                             final selection = snapshot.data;
                             if (selection == null || selection.shown.isEmpty) return const SizedBox.shrink();
-                            return _AttentionSection(selection: selection, currencySymbol: currencySymbol);
+                            return _AttentionSection(
+                              selection: selection,
+                              currencySymbol: currencySymbol,
+                              canViewMoney: widget.isOwner || widget.canViewMoney,
+                            );
                           },
                         ),
                       ],
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
-                        action: 'See all',
-                        onActionTap: () => context.pushNamed('moneyHistory'),
+                        action: (widget.isOwner || widget.canViewMoney) ? 'See all' : null,
+                        onActionTap: (widget.isOwner || widget.canViewMoney)
+                            ? () => context.pushNamed('moneyHistory')
+                            : null,
                       ),
                       FutureBuilder<List<MoneyTransaction>>(
                         future: _activityFuture,
@@ -301,15 +314,23 @@ class _HomeSalesCard extends StatelessWidget {
 }
 
 class _HomeQuickActions extends StatelessWidget {
-  const _HomeQuickActions();
+  const _HomeQuickActions({
+    required this.canViewMoney,
+    required this.canViewReports,
+  });
+
+  final bool canViewMoney;
+  final bool canViewReports;
 
   @override
   Widget build(BuildContext context) {
     final actions = <({IconData icon, String label, String subtitle, VoidCallback onTap})>[
       (icon: FulusIcons.sell, label: 'Sell', subtitle: 'Start a sale', onTap: () => context.goNamed('sell')),
       (icon: FulusIcons.stock, label: 'Stock', subtitle: 'Manage inventory', onTap: () => context.goNamed('stock')),
-      (icon: FulusIcons.money, label: 'Money', subtitle: 'Track your money', onTap: () => context.goNamed('money')),
-      (icon: FulusIcons.reports, label: 'Reports', subtitle: 'See business trends', onTap: () => context.pushNamed('moreReports')),
+      if (canViewMoney)
+        (icon: FulusIcons.money, label: 'Money', subtitle: 'Track your money', onTap: () => context.goNamed('money')),
+      if (canViewReports)
+        (icon: FulusIcons.reports, label: 'Reports', subtitle: 'See business trends', onTap: () => context.pushNamed('moreReports')),
     ];
 
     return LayoutBuilder(
@@ -341,13 +362,23 @@ class _HomeQuickActions extends StatelessWidget {
 }
 
 class _AttentionSection extends StatelessWidget {
-  const _AttentionSection({required this.selection, required this.currencySymbol});
+  const _AttentionSection({
+    required this.selection,
+    required this.currencySymbol,
+    required this.canViewMoney,
+  });
+
   final SecondaryNoticeSelection selection;
   final String currencySymbol;
+  final bool canViewMoney;
 
   @override
   Widget build(BuildContext context) {
-    final shown = selection.shown.where((notice) => notice.type != SecondaryNoticeType.unsyncedItems).toList();
+    final shown = selection.shown.where((notice) {
+      if (notice.type == SecondaryNoticeType.unsyncedItems) return false;
+      if (notice.type == SecondaryNoticeType.pendingCredit && !canViewMoney) return false;
+      return true;
+    }).toList();
     if (shown.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
