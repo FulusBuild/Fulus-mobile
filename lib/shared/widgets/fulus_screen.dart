@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_shell.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/fulus_icons.dart';
 import '../../core/ux/consumer_polish.dart';
@@ -20,7 +19,6 @@ class FulusScreen extends StatelessWidget {
     this.bottomNavigationBar,
     this.padding = _defaultPadding,
     this.applyPadding = true,
-    this.showMenu = true,
   });
 
   static const _defaultPadding = EdgeInsets.fromLTRB(
@@ -39,7 +37,6 @@ class FulusScreen extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final EdgeInsets padding;
   final bool applyPadding;
-  final bool showMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +66,6 @@ class FulusScreen extends StatelessWidget {
                 actions: actions,
                 leading: leading,
                 showBack: canPop && leading == null,
-                showMenu: showMenu && !canPop && leading == null,
               ),
             Expanded(
               child: Align(
@@ -94,7 +90,6 @@ class _PageHeader extends StatelessWidget {
     required this.actions,
     required this.leading,
     required this.showBack,
-    required this.showMenu,
   });
 
   final String title;
@@ -102,7 +97,6 @@ class _PageHeader extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? leading;
   final bool showBack;
-  final bool showMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +124,7 @@ class _PageHeader extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (leading != null || showBack || showMenu)
+                if (leading != null || showBack)
                   SizedBox(
                     width: AppTouchTarget.minimum,
                     height: AppTouchTarget.minimum,
@@ -140,13 +134,8 @@ class _PageHeader extends StatelessWidget {
                             tooltip: 'Go back',
                             onPressed: () => Navigator.of(context).maybePop(),
                           )
-                        : FulusIconButton(
-                            icon: FulusIcons.menu,
-                            tooltip: 'Open navigation',
-                            onPressed: FulusAppShell.openDrawer,
-                          )),
+                        )),
                   ),
-                if (showMenu) const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
