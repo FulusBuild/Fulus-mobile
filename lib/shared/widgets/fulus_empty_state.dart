@@ -18,6 +18,8 @@ class FulusEmptyState extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.icon = FulusIcons.inbox,
+    this.headlineColor,
+    this.bodyColor,
   });
 
   final String headline;
@@ -25,6 +27,8 @@ class FulusEmptyState extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final IconData icon;
+  final Color? headlineColor;
+  final Color? bodyColor;
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +52,14 @@ class FulusEmptyState extends StatelessWidget {
             Text(
               headline,
               textAlign: TextAlign.center,
-              style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
+              style: AppTypography.heading.copyWith(color: headlineColor ?? AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
             ),
             if (body != null) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
                 body!,
                 textAlign: TextAlign.center,
-                style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                style: AppTypography.body.copyWith(color: bodyColor ?? AppColors.textSecondaryOf(context)),
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
