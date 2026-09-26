@@ -35,12 +35,19 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     required VoidCallback onTap,
     Widget? trailing,
   }) {
-    return FulusListRow(
-      leading: Icon(icon),
+    return Semantics(
+      button: true,
+      label: subtitle == null ? title : '$title. $subtitle',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: FulusListRow(
+          leading: Icon(icon),
       title: Text(title),
       subtitle: subtitle == null ? null : Text(subtitle),
       trailing: trailing ?? const Icon(FulusIcons.chevronRight),
-      onTap: onTap,
+          onTap: onTap,
+        ),
+      ),
     );
   }
 
@@ -231,8 +238,13 @@ class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
       future: _future,
       builder: (context, snap) {
         final active = snap.data ?? false;
-        return FulusListRow(
-          leading: const Icon(FulusIcons.lock),
+        return Semantics(
+          button: true,
+          label: active ? 'App Lock. On. A PIN is required to open Fulus' : 'App Lock. Off',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: FulusListRow(
+              leading: const Icon(FulusIcons.lock),
           title: const Text('App Lock'),
           subtitle: Text(active ? 'On — a PIN is required to open Fulus' : 'Off'),
           trailing: const Icon(FulusIcons.chevronRight),
@@ -243,8 +255,10 @@ class _AppLockStatusRowState extends ConsumerState<_AppLockStatusRow> {
               builder: (_) => const _AppLockSheet(),
             );
             if (mounted) setState(() => _future = _load());
-          },
-        );
+            },
+          ),
+        ),
+      );
       },
     );
   }
