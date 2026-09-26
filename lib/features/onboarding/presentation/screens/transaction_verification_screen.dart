@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -109,6 +110,7 @@ class _VerificationErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+              const OnboardingStepHeader(step: 6, total: 7, title: 'Verify your first transaction', subtitle: 'See how the sale updates your business records.'),
           Text(
             "We couldn't load what changed from your sale. It's already saved — this is just "
             "this screen having trouble reading it back.",
