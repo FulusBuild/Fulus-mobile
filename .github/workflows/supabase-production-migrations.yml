@@ -1,6 +1,7 @@
 name: Fulus Production Supabase Migrations
 
 # Deployment is commit-exact and is intentionally gated on the full CI workflow.
+# Live sync/convergence E2E runs after migrations and Edge Functions are deployed.
 
 on:
   push:
