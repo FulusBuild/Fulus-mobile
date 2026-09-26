@@ -238,7 +238,7 @@ jobs:
   fulus_multi_device_e2e:
     name: Fulus multi-device convergence test
     needs: fulus_e2e
-    if: needs.fuluse2e.result == 'success'
+    if: needs.fulus_e2e.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
