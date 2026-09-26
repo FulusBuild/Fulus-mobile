@@ -297,6 +297,8 @@ class _StockBody extends ConsumerWidget {
       ),
     );
   }
+}
+
 class _StockMetric extends StatelessWidget {
   const _StockMetric({required this.icon, required this.label, required this.value, required this.foot, required this.color});
   final IconData icon; final String label; final String value; final String foot; final Color color;
