@@ -244,9 +244,11 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.md),
             onTap: () => context.pushNamed('moreSyncDetail'),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xs),
-              child: Stack(clipBehavior: Clip.none, children: [
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                child: Stack(clipBehavior: Clip.none, children: [
                 Icon(icon, color: color, size: AppIconSize.compact),
                 if (badgeCount > 0)
                   Positioned(
@@ -259,7 +261,8 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
                       child: Text('$badgeCount', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                     ),
                   ),
-              ]),
+                ]),
+              ),
             ),
           ),
         ),
