@@ -118,8 +118,10 @@ class _CustomerOverviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const color = Color(0xFF1473E6);
+    final foreground = AppColors.onColor(color);
     return Material(
-      color: const Color(0xFF1473E6),
+      color: color,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
         height: 104,
@@ -128,15 +130,15 @@ class _CustomerOverviewHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(FulusIcons.customers, color: Colors.white, size: AppIconSize.base),
+              Icon(FulusIcons.customers, color: foreground, size: AppIconSize.base),
               const Spacer(),
               Text(
                 'Total Customers  ${customers.length}',
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+                style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w800),
               ),
               Text(
                 'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
-                style: const TextStyle(color: Colors.white70, fontSize: 10),
+                style: TextStyle(color: foreground.withValues(alpha: 0.9), fontSize: 10),
               ),
             ],
           ),
