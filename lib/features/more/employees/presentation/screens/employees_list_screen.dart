@@ -26,6 +26,11 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
+          icon: FulusIcons.add,
+          tooltip: 'Add team member',
+          onPressed: () => _openEmployeeSheet(context),
+        ),
+        FulusIconButton(
           icon: FulusIcons.staff,
           tooltip: 'Deactivated team members',
           onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
@@ -61,13 +66,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
                 children: [
-                  FulusActionTile(
-                    icon: FulusIcons.person,
-                    label: 'Add team member',
-                    subtitle: 'Add a person and manage their access',
-                    onTap: () => _openEmployeeSheet(context),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
                   _TeamOverview(employees: employees),
                   const SizedBox(height: AppSpacing.lg),
                   FulusSectionHeader(
@@ -111,72 +109,29 @@ class _TeamOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final first = employees.take(3).toList(growable: false);
-    return Column(children: [
-      Material(
-        color: const Color(0xFF1473E6),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: SizedBox(height: 104, child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(FulusIcons.staff, color: Colors.white, size: AppIconSize.base),
-            const Spacer(),
-            Text('Employees  ${employees.length}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-            const Text('People, access and attendance', style: TextStyle(color: Colors.white70, fontSize: 10)),
-          ]),
-        )),
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      Row(children: [
-        for (var i = 0; i < 2; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _TeamCompactCard(
-            employee: i < first.length ? first[i] : null,
-            onTap: i < first.length
-                ? () => context.pushNamed(
-                    'moreEmployeeDetail',
-                    pathParameters: {'employeeId': first[i].id},
-                  )
-                : null,
-          )),
-        ],
-      ]),
-      const SizedBox(height: AppSpacing.sm),
-      FulusCard(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Text(
-          first.length > 2 ? '${first[2].fullName} — ${first[2].role ?? 'Team member'}' : 'Team details are available below.',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
-        ),
-      ),
-    ]);
-  }
-}
-
-class _TeamCompactCard extends StatelessWidget {
-  const _TeamCompactCard({required this.employee, required this.onTap});
-  final Employee? employee;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF0BBE6E),
+      color: const Color(0xFF1473E6),
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: SizedBox(height: 82, child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(FulusIcons.person, color: Colors.white, size: AppIconSize.compact),
-          const Spacer(),
-          Text(employee?.fullName ?? 'No team member', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-          Text(employee?.role ?? '—', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 9)),
-        ]),
-      )),
+      child: SizedBox(
+        height: 118,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(FulusIcons.staff, color: Colors.white, size: AppIconSize.base),
+              const Spacer(),
+              Text(
+                'Employees  ${employees.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              const Text(
+                'People, access and attendance',
+                style: TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
