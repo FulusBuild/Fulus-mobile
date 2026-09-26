@@ -358,7 +358,7 @@ class _BalanceHero extends StatelessWidget {
         const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
         const Spacer(),
         FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900))),
-        const Text('Updated from your business records', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        const Text('Updated from your business records', style: TextStyle(color: Colors.white70, fontSize: 13)),
       ]),
     ),
   );
@@ -461,11 +461,11 @@ class _MoneyQuickActions extends ConsumerWidget {
                   children: [
                     Icon(action.icon, color: Colors.white, size: AppIconSize.base),
                     const Spacer(),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w500)),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                      child: Text(action.value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
                     ),
                     Text(action.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
