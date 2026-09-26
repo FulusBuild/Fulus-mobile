@@ -241,15 +241,20 @@ class _StockBody extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           child: Padding(
                             padding: const EdgeInsets.all(AppSpacing.md),
-                            child: Row(children: [
-                          const Icon(FulusIcons.warning, color: Colors.white, size: 28),
+                            child: Builder(builder: (context) {
+                              const alertColor = Color(0xFFFF3B30);
+                              final foreground = AppColors.onColor(alertColor);
+                              final muted = foreground.withValues(alpha: 0.9);
+                              return Row(children: [
+                          Icon(FulusIcons.warning, color: foreground, size: 28),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('$lowStockCount items low in stock', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                             const Text('View details →', style: TextStyle(color: Colors.white70, fontSize: 11)),
                           ])),
-                              const Icon(FulusIcons.chevronRight, color: Colors.white),
-                            ]),
+                              Icon(FulusIcons.chevronRight, color: foreground),
+                            ]);
+                            }),
                           ),
                         ),
                       ),
