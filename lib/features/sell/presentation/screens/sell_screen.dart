@@ -360,9 +360,7 @@ class _ProductRow extends StatelessWidget {
           Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
           Text(currency + product.sellingPrice.toStringAsFixed(2), style: AppTypography.label.copyWith(color: AppColors.primaryOf(context), fontWeight: FontWeight.w700)),
-          if (out) ...[
-            Text('Out of stock', style: AppTypography.label.copyWith(color: AppColors.errorOf(context))),
-          ],
+          if (out) Text('Out of stock', style: AppTypography.label.copyWith(color: AppColors.errorOf(context))),
         ]),
       ),
     );
