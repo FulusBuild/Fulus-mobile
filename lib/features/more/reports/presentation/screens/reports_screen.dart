@@ -408,33 +408,10 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.md);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      decoration: BoxDecoration(color: AppColors.surfaceOf(context), borderRadius: radius, boxShadow: AppElevation.cardOf(context)),
-      child: Material(
-        type: MaterialType.transparency,
-        borderRadius: radius,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(label, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)))),
-                Text(value, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700)),
-                if (onTap != null) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  Icon(Icons.chevron_right, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+    return FulusStatCard(
+      label: label,
+      value: value,
+      onTap: onTap,
     );
   }
 }
