@@ -143,7 +143,7 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
                 ],
                 FulusActionTile(
                   icon: Icons.assignment_return_outlined,
-                  title: 'Confirm refund',
+                  label: 'Confirm refund',
                   subtitle: _totalSelectedQuantity > 0
                       ? '${formatMoney(_estimatedRefund(data), symbol: currencySymbol)} · ${_totalSelectedQuantity} item${_totalSelectedQuantity == 1 ? '' : 's'}'
                       : 'Select items to continue.',
