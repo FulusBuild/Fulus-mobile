@@ -120,11 +120,11 @@ String? _collectWidgetInfo(FlutterErrorDetails details) {
 Widget _releaseModeErrorBuilder(FlutterErrorDetails details) {
   return Builder(
     builder: (context) {
-      final theme = Theme.maybeOf(context);
-      final surface = theme?.colorScheme.surface ?? Colors.white;
-      final foreground = theme?.colorScheme.onSurface ?? Colors.black;
-      final muted = theme?.colorScheme.onSurface.withValues(alpha: 0.62) ?? Colors.black54;
-      final error = theme?.colorScheme.error ?? Colors.red;
+      final theme = Theme.of(context);
+      final surface = theme.colorScheme.surface;
+      final foreground = theme.colorScheme.onSurface;
+      final muted = theme.colorScheme.onSurface.withValues(alpha: 0.62);
+      final error = theme.colorScheme.error;
 
       return ColoredBox(
         color: surface,
