@@ -374,13 +374,13 @@ class _StockSummaryTile extends StatelessWidget {
           children: [
             Icon(icon, color: foreground, size: AppIconSize.base),
             const Spacer(),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: muted, fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 14, fontWeight: FontWeight.w600)),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: const TextStyle(color: foreground, fontSize: 22, fontWeight: FontWeight.w900)),
+              child: Text(value, style: TextStyle(color: foreground, fontSize: 22, fontWeight: FontWeight.w900)),
             ),
-            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: muted, fontSize: 12)),
+            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 12)),
           ],
         ),
       ),
