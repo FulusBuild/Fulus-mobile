@@ -159,7 +159,7 @@ class _PageHeader extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.backgroundOf(context),
-        border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.55))),
+        border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.65))),
       ),
       child: Center(
         child: ConstrainedBox(
