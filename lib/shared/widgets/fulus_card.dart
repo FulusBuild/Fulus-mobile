@@ -97,7 +97,19 @@ class FulusStatCard extends StatelessWidget {
             ],
             Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.label.copyWith(color: AppColors.mutedOf(context))),
             const SizedBox(height: AppSpacing.xs),
-            Text(value, style: AppTypography.mono.copyWith(fontSize: 22, fontWeight: FontWeight.w700, color: dataColor)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: AppTypography.mono.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: dataColor,
+                ),
+              ),
+            ),
             if (trend != null && trendLabel != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Row(
