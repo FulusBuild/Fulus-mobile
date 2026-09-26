@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/ux/consumer_polish.dart';
+import '../../core/theme/fulus_icons.dart';
 
 /// A primary Fulus workspace tile.
 ///
@@ -81,7 +82,7 @@ class FulusActionTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: AppIconSize.compact, color: muted),
+              Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: muted),
             ],
           ),
         ),
