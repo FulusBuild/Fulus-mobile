@@ -103,6 +103,20 @@ Reviewed and visually aligned the remaining More-area secondary screens against 
 - Sync Detail: sync history/status workspace reviewed; retained explicit operational controls rather than forcing them into decorative tiles.
 
 These screens are now considered covered by the dedicated UI pass; final global verification still remains for narrow widths, large text, dark theme and state transitions.
+
+
+### Global UI pass — completed review
+Global pass completed across the app shell, primary workspaces, shared primitives, onboarding and secondary flows.
+- Persistent shell: bottom navigation, offline banner, tablet content constraint, safe-area handling and selected-state feedback reviewed.
+- Shared primitives: FulusScreen, ActionTile, Card/StatCard, Button/IconButton, ListRow, Chip/ChipRow, SearchField and TextField reviewed for hierarchy, touch targets, dark-theme surfaces and large-text resilience.
+- Primary workspaces: Home, Sell, Stock and Money reviewed for responsive composition, shared spacing, loading/error/empty states and mockup hierarchy.
+- More, Settings, Diagnostics and secondary flows reviewed for consistent navigation, state treatment and action semantics.
+- Onboarding/recovery flows reviewed for the same tile language and responsive action presentation.
+- Accessibility checks: 48dp touch floors, semantics on interactive controls, color-independent status treatment and large-text stacking rules remain enforced through shared components.
+- Responsive checks: 320px/narrow layouts and textScale >1.15 have dedicated stacking/scrolling behavior where header, filters or action groups can otherwise overflow; tablet layouts use constrained content widths.
+- Dark mode/state surfaces reviewed through shared theme tokens rather than screen-specific colors.
+
+Remaining verification is runtime/browser visual QA only: exercise the complete screen inventory at 320px, 390px, 412px+, large text and dark mode, then capture any pixel-level deviations from the reference mockup.
 ## 9. Screen inventory / wiring audit
 The route tree and direct Navigator flows were reviewed after the onboarding rework. A screen being reachable is not treated as UI-audited; this section tracks screens that have not yet received a dedicated mockup-fidelity pass.
 
