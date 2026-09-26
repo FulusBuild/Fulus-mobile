@@ -139,7 +139,7 @@ class _ProductDetailBody extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.lg),
                           FulusActionTile(
                             icon: FulusIcons.swap,
-                            title: 'Record stock',
+                            label: 'Record stock',
                             subtitle: 'Add, remove or adjust this product quantity.',
                             onTap: () => context.pushNamed('stockRecordMovement', extra: product),
                           ),
