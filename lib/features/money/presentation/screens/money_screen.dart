@@ -445,6 +445,8 @@ class _MoneyQuickActions extends ConsumerWidget {
       ),
       itemBuilder: (context, index) {
         final action = actions[index];
+        final foreground = AppColors.onColor(action.color);
+        final muted = foreground.withValues(alpha: 0.9);
         return Semantics(
           button: true,
           label: '${action.label}, ${action.value}',
@@ -459,15 +461,15 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: Colors.white, size: AppIconSize.base),
+                    Icon(action.icon, color: foreground, size: AppIconSize.base),
                     const Spacer(),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w500)),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
+                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 24, fontWeight: FontWeight.w700)),
                     ),
-                    Text(action.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 12)),
                   ],
                 ),
               ),
