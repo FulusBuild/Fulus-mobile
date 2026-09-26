@@ -29,9 +29,13 @@ T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
 /// stack and left this whole pushed chain on screen underneath,
 /// looking frozen. `popUntil` unwinds it first — same fix, same reason,
 /// as CompletionScreen's own `_goAndClose`.
-void _goAndClose(BuildContext context, String routeName) {
+void _goAndClose(
+  BuildContext context,
+  String routeName, {
+  Map<String, String> pathParameters = const {},
+}) {
   Navigator.of(context).popUntil((route) => route.isFirst);
-  context.goNamed(routeName);
+  context.goNamed(routeName, pathParameters: pathParameters);
 }
 
 /// Walkthrough Phase 10 — "one sale flows through your business
@@ -258,6 +262,7 @@ class _InventorySection extends ConsumerWidget {
                 () => _goAndClose(
                   context,
                   'stockProductDetail',
+                  pathParameters: {'productId': productLocalId},
                 ),
               ),
             );
