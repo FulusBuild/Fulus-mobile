@@ -210,7 +210,14 @@ class _CustomerCompactCard extends StatelessWidget {
     return Material(
       color: const Color(0xFF0BBE6E),
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 82, child: Padding(
+      child: InkWell(
+        onTap: customer == null ? null : () => context.pushNamed(
+          'moneyCustomerProfile',
+          pathParameters: {'id': customer!.localId},
+          extra: customer,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: SizedBox(height: 82, child: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Icon(FulusIcons.person, color: Colors.white, size: AppIconSize.compact),
@@ -219,6 +226,7 @@ class _CustomerCompactCard extends StatelessWidget {
           Text(amount, style: const TextStyle(color: Colors.white70, fontSize: 10)),
         ]),
       )),
+      ),
     );
   }
 }
