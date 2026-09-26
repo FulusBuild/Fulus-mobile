@@ -177,7 +177,6 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.activity,
     required this.currencySymbol,
   });
-
   final HomeHeroState hero;
   final List<SecondaryNotice> notices;
   final List<MoneyTransaction> activity;
@@ -189,200 +188,95 @@ class _HomeMockupDashboard extends StatelessWidget {
     ClosedHero(:final finalTotal) => finalTotal,
     EmployeeShiftHero(:final shiftTotal) => shiftTotal,
   };
-
   int get _salesCount => switch (hero) {
     NotYetOpenedHero(:final yesterdaySalesCount) => yesterdaySalesCount,
     OpenHero(:final todaySalesCount) => todaySalesCount,
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-
   double get _cashTotal => activity.fold<double>(0, (sum, tx) => sum + tx.signedAmount);
-  double get _expensesTotal => activity
-      .where((tx) => tx.type == MoneyTransactionType.expense)
-      .fold<double>(0, (sum, tx) => sum + tx.amount);
-
-  int get _lowStockCount => notices
-      .where((notice) => notice.type == SecondaryNoticeType.lowStock)
-      .fold<int>(0, (sum, notice) => sum + notice.value.toInt());
-
-  double get _creditTotal => notices
-      .where((notice) => notice.type == SecondaryNoticeType.pendingCredit)
-      .fold<double>(0, (sum, notice) => sum + notice.value.toDouble());
+  double get _expensesTotal => activity.where((tx) => tx.type == MoneyTransactionType.expense).fold<double>(0, (sum, tx) => sum + tx.amount);
+  int get _lowStockCount => notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
+  double get _creditTotal => notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
 
   @override
   Widget build(BuildContext context) {
-    final cards = <Widget>[
-      _HomeMetricCard(
-        color: _HomeColors.blue,
-        icon: FulusIcons.money,
-        label: 'Total Cash',
-        value: formatMoney(_cashTotal, symbol: currencySymbol, compact: true),
-      ),
-      _HomeMetricCard(
-        color: _HomeColors.green,
-        icon: FulusIcons.sell,
-        label: 'Today’s Sales',
-        value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true),
-        secondary: '$_salesCount sales',
-      ),
-      _HomeMetricCard(
-        color: _HomeColors.orange,
-        icon: FulusIcons.stock,
-        label: 'Low Stock',
-        value: '$_lowStockCount',
-        secondary: 'items need attention',
-      ),
-      _HomeMetricCard(
-        color: _HomeColors.purple,
-        icon: FulusIcons.payments,
-        label: 'Customer Credit',
-        value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true),
-      ),
-      _HomeMetricCard(
-        color: _HomeColors.teal,
-        icon: FulusIcons.money,
-        label: 'Expenses',
-        value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true),
-      ),
-      _HomeQuickActionCard(
-        onSell: () => context.goNamed('sell'),
-        onStock: () => context.goNamed('stock'),
-      ),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: cards.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.sm,
-        mainAxisSpacing: AppSpacing.sm,
-        mainAxisExtent: 138,
-      ),
-      itemBuilder: (_, index) => cards[index],
+    final recent = activity.take(2).toList(growable: false);
+    return Column(
+      children: [
+        _HomeHeroCard(icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(_cashTotal, symbol: currencySymbol, compact: true), secondary: 'Business cash position'),
+        const SizedBox(height: AppSpacing.sm),
+        Row(children: [
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: '${_salesCount} sales')),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: '${_lowStockCount}', secondary: 'items')),
+        ]),
+        const SizedBox(height: AppSpacing.sm),
+        _HomeSummaryCard(credit: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), expenses: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), recent: recent),
+      ],
     );
   }
 }
 
-class _HomeMetricCard extends StatelessWidget {
-  const _HomeMetricCard({
-    required this.color,
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.secondary,
-  });
-
-  final Color color;
-  final IconData icon;
-  final String label;
-  final String value;
-  final String? secondary;
-
+class _HomeHeroCard extends StatelessWidget {
+  const _HomeHeroCard({required this.icon, required this.label, required this.value, required this.secondary});
+  final IconData icon; final String label; final String value; final String secondary;
   @override
   Widget build(BuildContext context) => Material(
-    color: color,
-    borderRadius: BorderRadius.circular(AppRadius.md),
-    child: Padding(
+    color: _HomeColors.blue, borderRadius: BorderRadius.circular(AppRadius.md),
+    child: SizedBox(height: 112, child: Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.white, size: AppIconSize.base),
-          const Spacer(),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-          ),
-          if (secondary != null)
-            Text(secondary!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        ],
-      ),
-    ),
-  );
-}
-
-class _HomeQuickActionCard extends StatelessWidget {
-  const _HomeQuickActionCard({required this.onSell, required this.onStock});
-  final VoidCallback onSell;
-  final VoidCallback onStock;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(AppRadius.md),
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Quick Actions', style: AppTypography.label.copyWith(color: _HomeColors.navy, fontWeight: FontWeight.w800)),
-          const Spacer(),
-          Row(
-            children: [
-              Expanded(child: _QuickActionButton(icon: FulusIcons.sell, label: 'Sell', color: _HomeColors.blue, onTap: onSell)),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(child: _QuickActionButton(icon: FulusIcons.stock, label: 'Stock', color: _HomeColors.orange, onTap: onStock)),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _QuickActionButton extends StatelessWidget {
-  const _QuickActionButton({required this.icon, required this.label, required this.color, required this.onTap});
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(AppRadius.sm),
-    child: Container(
-      height: 48,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(AppRadius.sm)),
-      alignment: Alignment.center,
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(icon, color: Colors.white, size: AppIconSize.compact),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Icon(icon, color: Colors.white, size: AppIconSize.base), const SizedBox(width: AppSpacing.sm), Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700))]),
+        const Spacer(),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900))),
+        Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 10)),
       ]),
-    ),
+    )),
   );
 }
 
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.businessName});
-  final String businessName;
+class _HomeCompactCard extends StatelessWidget {
+  const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary});
+  final Color color; final IconData icon; final String label; final String value; final String secondary;
   @override
-  Widget build(BuildContext context) => Row(children: [
-    Container(width: 38, height: 38, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text('F', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _HomeColors.blue))),
-    const SizedBox(width: AppSpacing.sm),
-    Expanded(child: Text(businessName.isEmpty ? 'Fulus' : businessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: Colors.white, fontWeight: FontWeight.w800))),
-    const SizedBox(width: AppSpacing.sm),
-    const Icon(FulusIcons.menu, color: Colors.white, size: 24),
-  ]);
+  Widget build(BuildContext context) => Material(
+    color: color, borderRadius: BorderRadius.circular(AppRadius.md),
+    child: SizedBox(height: 86, child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, color: Colors.white, size: AppIconSize.compact),
+        const Spacer(),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w700)),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900))),
+        Text(secondary, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+      ]),
+    )),
+  );
 }
-class _HomeColors {
-  static const navy = Color(0xFF061B3A);
-  static const blue = Color(0xFF1677FF);
-  static const green = Color(0xFF0BBE6E);
-  static const orange = Color(0xFFFF8A00);
-  static const purple = Color(0xFF7B3FF2);
-  static const teal = Color(0xFF0EA5B7);
-  static const muted = Color(0xFFB8C6D9);
+
+class _HomeSummaryCard extends StatelessWidget {
+  const _HomeSummaryCard({required this.credit, required this.expenses, required this.recent});
+  final String credit; final String expenses; final List<MoneyTransaction> recent;
+  @override
+  Widget build(BuildContext context) => FulusCard(
+    padding: const EdgeInsets.all(AppSpacing.md),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Business snapshot', style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
+      const SizedBox(height: AppSpacing.sm),
+      Text('Customer credit  $credit', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+      Text('Expenses today  $expenses', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+      if (recent.isNotEmpty) Text('Recent: ${recent.first.description}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+      const SizedBox(height: AppSpacing.sm),
+      Row(children: [
+        Expanded(child: _QuickActionButton(icon: FulusIcons.sell, label: 'Sell', color: _HomeColors.blue, onTap: () => context.goNamed('sell'))),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(child: _QuickActionButton(icon: FulusIcons.stock, label: 'Stock', color: _HomeColors.orange, onTap: () => context.goNamed('stock'))),
+      ]),
+    ]),
+  );
 }
+
 class _HomeSalesCard extends StatelessWidget {
   const _HomeSalesCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
