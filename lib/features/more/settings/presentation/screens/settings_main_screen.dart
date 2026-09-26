@@ -27,13 +27,18 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final columns = constraints.maxWidth >= 560 && textScale <= 1.15 ? 2 : 1;
+        final tileExtent = textScale <= 1.15
+            ? 136.0
+            : textScale <= 1.5
+                ? 176.0
+                : 216.0;
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
-          mainAxisExtent: 136,
+          mainAxisExtent: tileExtent,
           children: children,
         );
       },
