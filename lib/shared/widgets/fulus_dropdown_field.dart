@@ -60,7 +60,7 @@ class _FulusDropdownFieldState<T> extends State<FulusDropdownField<T>> {
           labelText: widget.label,
           suffixIcon: AnimatedRotation(
             turns: _open ? 0.5 : 0,
-            duration: AppMotion.standard,
+            duration: fulusMotionDuration(context, AppMotion.standard),
             child: const Icon(FulusIcons.chevronDown),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
