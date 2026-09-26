@@ -52,34 +52,36 @@ class FulusSectionHeader extends StatelessWidget {
       ],
     );
 
-    final actionButton = TextButton(
-      onPressed: onActionTap,
-      style: TextButton.styleFrom(
-        foregroundColor: primary,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        overlayColor: primary.withValues(alpha: 0.08),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(
-              action!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.buttonLabel.copyWith(color: primary),
+    final actionButton = action == null
+        ? null
+        : TextButton(
+            onPressed: onActionTap,
+            style: TextButton.styleFrom(
+              foregroundColor: primary,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              minimumSize: const Size(AppTouchTarget.minimum, AppTouchTarget.minimum),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              overlayColor: primary.withValues(alpha: 0.08),
             ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          const Icon(FulusIcons.arrowForward, size: AppIconSize.dense),
-        ],
-      ),
-    );
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    action!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.buttonLabel.copyWith(color: primary),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                const Icon(FulusIcons.arrowForward, size: AppIconSize.dense),
+              ],
+            ),
+          );
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
@@ -88,7 +90,7 @@ class FulusSectionHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 titleBlock,
-                if (action != null) ...[
+                if (actionButton != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Align(alignment: Alignment.centerRight, child: actionButton),
                 ],
@@ -98,7 +100,7 @@ class FulusSectionHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(child: titleBlock),
-                if (action != null) ...[
+                if (actionButton != null) ...[
                   const SizedBox(width: AppSpacing.sm),
                   actionButton,
                 ],
