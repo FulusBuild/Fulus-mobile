@@ -324,7 +324,7 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
                       const SizedBox(height: AppSpacing.xxl),
                       if (newest != null)
                         FulusActionTile(
-                          title: 'Restore this backup',
+                          label: 'Restore this backup',
                           subtitle: 'Use the backup we found on this device.',
                           icon: Icons.restore_rounded,
                           trailing: _busy ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) : null,
@@ -332,7 +332,7 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
                         )
                       else if (durablePath != null)
                         FulusActionTile(
-                          title: 'Restore saved backup',
+                          label: 'Restore saved backup',
                           subtitle: 'Use the backup found in Downloads.',
                           icon: Icons.restore_rounded,
                           trailing: _busy ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) : null,
@@ -340,14 +340,14 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
                         ),
                       if (newest != null || durablePath != null) const SizedBox(height: AppSpacing.sm),
                       FulusActionTile(
-                        title: somethingDetected ? 'Choose a different file' : 'Choose a backup file',
+                        label: somethingDetected ? 'Choose a different file' : 'Choose a backup file',
                         subtitle: 'Select a Fulus backup from your device storage.',
                         icon: Icons.folder_open_rounded,
                         onTap: _busy ? null : _pickAndRestore,
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       FulusActionTile(
-                        title: 'Start fresh',
+                        label: 'Start fresh',
                         subtitle: 'Set up Fulus without restoring a backup.',
                         icon: Icons.restart_alt_rounded,
                         onTap: _busy ? null : _startFresh,
