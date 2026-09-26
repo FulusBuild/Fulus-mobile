@@ -436,7 +436,7 @@ class _AmountDueHeader extends StatelessWidget {
                   style: AppTypography.caption.copyWith(color: Colors.white70),
                 ),
               ),
-              Icon(FulusIcons.lock, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
+              Icon(FulusIcons.lock, size: AppIconSize.compact, color: Colors.white70),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -488,7 +488,7 @@ class _PaymentRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+          Text(label, style: AppTypography.body.copyWith(color: Colors.white70)),
           Flexible(
             child: Text(
               formatMoney(value, symbol: symbol),
@@ -496,7 +496,7 @@ class _PaymentRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: (emphasized ? AppTypography.subheading : AppTypography.body).copyWith(
-                color: emphasized ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+                color: Colors.white,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
