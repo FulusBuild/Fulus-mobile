@@ -180,9 +180,15 @@ class FulusIconButton extends StatelessWidget {
         overlayColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
       ),
     );
-    final wrapped = tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    final accessible = Semantics(
+      button: true,
+      enabled: onPressed != null,
+      label: tooltip ?? 'Button',
+      excludeSemantics: tooltip != null,
+      child: button,
+    );
     return tooltip == null
-        ? wrapped
-        : Semantics(button: true, label: tooltip, excludeSemantics: true, child: wrapped);
+        ? accessible
+        : Tooltip(message: tooltip!, child: accessible);
   }
 }
