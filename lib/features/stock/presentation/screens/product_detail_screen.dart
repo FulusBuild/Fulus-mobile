@@ -137,13 +137,11 @@ class _ProductDetailBody extends ConsumerWidget {
                           ],
                           _PriceAndStockCard(item: item!, category: category, currencySymbol: currencySymbol),
                           const SizedBox(height: AppSpacing.lg),
-                          SizedBox(
-                            width: wide ? null : double.infinity,
-                            child: FulusButton(
-                              label: 'Record stock',
-                              icon: FulusIcons.swap,
-                              onPressed: () => context.pushNamed('stockRecordMovement', extra: product),
-                            ),
+                          FulusActionTile(
+                            icon: FulusIcons.swap,
+                            title: 'Record stock',
+                            subtitle: 'Add, remove or adjust this product quantity.',
+                            onTap: () => context.pushNamed('stockRecordMovement', extra: product),
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           const FulusSectionHeader(
