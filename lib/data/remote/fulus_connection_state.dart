@@ -276,10 +276,13 @@ class FulusConnectionState extends ChangeNotifier {
     final endSwitch = _endBusinessSwitch;
     if (beginSwitch != null) await beginSwitch();
     try {
+      if (canSwitch != null && !await canSwitch()) {
+        throw StateError('Finish pending Cloud Sync work before switching businesses. Local business data is single-business and cannot be safely rebound while writes are queued.');
+      }
       final beforeSwitch = _beforeBusinessSwitch;
       if (beforeSwitch != null) await beforeSwitch();
       if (canSwitch != null && !await canSwitch()) {
-        throw StateError('Finish pending Cloud Sync work before switching businesses. Local business data is single-business and cannot be safely rebound while writes are queued.');
+        throw StateError('Business switch was invalidated by a concurrent local mutation.');
       }
       _selectedBusinessId = businessId;
       _registeredDevice = null;
