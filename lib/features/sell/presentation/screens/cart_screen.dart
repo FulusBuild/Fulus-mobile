@@ -393,9 +393,11 @@ class _CustomerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
-      onTap: () => CustomerPickerSheet.show(context),
-      child: Row(
+    return FulusPressable(
+      semanticsLabel: customer == null ? 'Add customer to sale' : 'Change sale customer',
+      onPressed: () => CustomerPickerSheet.show(context),
+      child: FulusCard(
+        child: Row(
         children: [
           Container(
             width: 42,
