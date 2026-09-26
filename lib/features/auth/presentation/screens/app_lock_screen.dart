@@ -238,7 +238,7 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
                         ),
                       const SizedBox(height: AppSpacing.sm),
                       SizedBox(
-                        width: 180,
+                        width: double.infinity,
                         child: FulusButton(
                           label: 'Unlock',
                           loading: _checking,
@@ -299,16 +299,12 @@ class _BiometricAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = AppColors.primaryOf(context);
-    return TextButton.icon(
+    return FulusButton(
+      label: 'Use biometrics',
+      icon: Icons.fingerprint_rounded,
+      variant: FulusButtonVariant.secondary,
+      loading: loading,
       onPressed: onTap,
-      icon: loading
-          ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: primary),
-            )
-          : Icon(Icons.fingerprint_rounded, size: 21, color: primary),
-      label: Text('Use biometrics', style: TextStyle(color: primary, fontWeight: FontWeight.w700)),
     );
   }
 }
