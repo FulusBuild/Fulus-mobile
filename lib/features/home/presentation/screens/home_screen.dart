@@ -380,7 +380,13 @@ class _AttentionSection extends StatelessWidget {
 }
 
 class _AttentionCard extends StatelessWidget {
-  const _AttentionCard({required this.label, required this.value, required this.icon, required this.onTap});
+  const _AttentionCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
   final String label;
   final String value;
   final IconData icon;
@@ -389,21 +395,45 @@ class _AttentionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 176,
+      width: 192,
       child: FulusCard(
         onTap: onTap,
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.primaryOf(context)),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.selectedTintOf(context),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: AppIconSize.compact, color: AppColors.primaryOf(context)),
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-                  Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.subheading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -413,7 +443,6 @@ class _AttentionCard extends StatelessWidget {
     );
   }
 }
-
 class _HomeHeroSkeleton extends StatelessWidget {
   const _HomeHeroSkeleton();
   @override
