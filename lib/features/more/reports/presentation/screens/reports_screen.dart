@@ -288,44 +288,55 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundOf(context),
-      appBar: AppBar(
-        title: const Text('Reports'),
-        actions: [
-          FulusIconButton(icon: Icons.ios_share, tooltip: 'Export', onPressed: _export),
-        ],
-        bottom: TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'Sales'),
-            Tab(text: 'Inventory'),
-            Tab(text: 'Customers'),
-            Tab(text: 'Finance'),
-            Tab(text: 'Team'),
-          ],
-        ),
-      ),
+    return FulusScreen(
+      title: 'Reports',
+      subtitle: 'Understand sales, stock, customers, money and team activity',
+      actions: [
+        FulusIconButton(icon: Icons.ios_share, tooltip: 'Export report', onPressed: _export),
+      ],
+      applyPadding: false,
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            padding: EdgeInsets.fromLTRB(
+              fulusHorizontalInset(context),
+              AppSpacing.sm,
+              fulusHorizontalInset(context),
+              AppSpacing.xs,
+            ),
+            child: FulusChipRow(
+              children: [
+                for (var i = 0; i < 5; i++)
+                  FulusChip(
+                    label: const ['Sales', 'Inventory', 'Customers', 'Finance', 'Team'][i],
+                    selected: _tabs.index == i,
+                    onTap: () => setState(() => _tabs.animateTo(i)),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              fulusHorizontalInset(context),
+              AppSpacing.xs,
+              fulusHorizontalInset(context),
+              AppSpacing.sm,
+            ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SegmentedButton<ReportPeriodKind>(
-              segments: [
-                const ButtonSegment(value: ReportPeriodKind.today, label: Text('Today')),
-                const ButtonSegment(value: ReportPeriodKind.thisWeek, label: Text('This week')),
-                const ButtonSegment(value: ReportPeriodKind.thisMonth, label: Text('This month')),
-                ButtonSegment(
-                  value: ReportPeriodKind.custom,
-                  label: Text(_customRange == null
-                      ? 'Custom'
-                      : '${formatRelativeDay(_customRange!.start)} – ${formatRelativeDay(_customRange!.end)}'),
-                ),
-              ],
-              selected: {_periodKind},
+                segments: [
+                  const ButtonSegment(value: ReportPeriodKind.today, label: Text('Today')),
+                  const ButtonSegment(value: ReportPeriodKind.thisWeek, label: Text('This week')),
+                  const ButtonSegment(value: ReportPeriodKind.thisMonth, label: Text('This month')),
+                  ButtonSegment(
+                    value: ReportPeriodKind.custom,
+                    label: Text(_customRange == null
+                        ? 'Custom'
+                        : '${formatRelativeDay(_customRange!.start)} – ${formatRelativeDay(_customRange!.end)}'),
+                  ),
+                ],
+                selected: {_periodKind},
                 onSelectionChanged: _onPeriodSelectionChanged,
               ),
             ),
