@@ -301,31 +301,80 @@ class _HomeMockupDashboard extends StatelessWidget {
 }
 
 class _HomeCompactCard extends StatelessWidget {
-  const _HomeCompactCard({required this.color, required this.icon, required this.label, required this.value, required this.secondary, required this.onTap});
-  final Color color; final IconData icon; final String label; final String value; final String secondary; final VoidCallback? onTap;
+  const _HomeCompactCard({
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.secondary,
+    required this.onTap,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String label;
+  final String value;
+  final String secondary;
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: onTap != null,
-    enabled: onTap != null,
-    label: '$label, $value',
-    child: Material(
-    color: color, borderRadius: BorderRadius.circular(AppRadius.md),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: Colors.white, size: AppIconSize.compact),
-        const Spacer(),
-        Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
-        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900))),
-        Text(secondary, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-      ]),
-    )),
-    ),
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      label: '$label, $value',
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: Colors.white, size: AppIconSize.compact),
+                const Spacer(),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Text(
+                  secondary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _HomeSellCard extends StatelessWidget {
