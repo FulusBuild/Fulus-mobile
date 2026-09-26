@@ -26,21 +26,28 @@ class FulusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.xl);
     final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.55);
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceOf(context),
-        borderRadius: radius,
-        border: Border.all(color: borderColor),
-        boxShadow: elevated ? AppElevation.cardOf(context) : null,
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        borderRadius: radius,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
           borderRadius: radius,
-          child: Padding(padding: padding, child: child),
+          border: Border.all(color: borderColor),
+          boxShadow: elevated ? AppElevation.cardOf(context) : null,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: radius,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+              child: Padding(padding: padding, child: child),
+            ),
+          ),
         ),
       ),
     );
