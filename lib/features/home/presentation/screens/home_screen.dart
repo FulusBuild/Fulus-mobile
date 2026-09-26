@@ -296,22 +296,33 @@ class _HomeMockupDashboard extends StatelessWidget {
       ),
     ];
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 3 * 118 + 2 * AppSpacing.sm),
-      child: Column(
-        children: [
-          for (final row in rows)
-            if (row is Row)
-              IntrinsicHeight(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 118),
-                  child: row,
-                ),
-              )
-            else
-              row,
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // SliverFillRemaining gives this dashboard the remaining viewport height.
+        // Use that space when it is available, while still allowing the cards to
+        // grow beyond it when large text or narrow screens need more room.
+        final availableHeight = constraints.maxHeight;
+        final minRowHeight = 118.0;
+        final rowGap = AppSpacing.sm;
+        final responsiveRowHeight = availableHeight.isFinite && availableHeight > 0
+            ? ((availableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity)
+            : minRowHeight;
+
+        return Column(
+          children: [
+            for (final row in rows)
+              if (row is Row)
+                IntrinsicHeight(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: responsiveRowHeight),
+                    child: row,
+                  ),
+                )
+              else
+                row,
+          ],
+        );
+      },
     );
   }
 }
@@ -444,26 +455,36 @@ class _HomeHeroSkeleton extends StatelessWidget {
   const _HomeHeroSkeleton();
 
   @override
-  Widget build(BuildContext context) => const Column(
-        children: [
-          Row(children: [
-            Expanded(child: FulusSkeletonBox(height: 118)),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(child: FulusSkeletonBox(height: 118)),
-          ]),
-          SizedBox(height: AppSpacing.sm),
-          Row(children: [
-            Expanded(child: FulusSkeletonBox(height: 118)),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(child: FulusSkeletonBox(height: 118)),
-          ]),
-          SizedBox(height: AppSpacing.sm),
-          Row(children: [
-            Expanded(child: FulusSkeletonBox(height: 118)),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(child: FulusSkeletonBox(height: 118)),
-          ]),
-        ],
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          const minRowHeight = 118.0;
+          final rowGap = AppSpacing.sm;
+          final rowHeight = constraints.maxHeight.isFinite && constraints.maxHeight > 0
+              ? ((constraints.maxHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity)
+              : minRowHeight;
+
+          return Column(
+            children: [
+              Row(children: [
+                Expanded(child: FulusSkeletonBox(height: rowHeight)),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(child: FulusSkeletonBox(height: rowHeight)),
+              ]),
+              SizedBox(height: AppSpacing.sm),
+              Row(children: [
+                Expanded(child: FulusSkeletonBox(height: rowHeight)),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(child: FulusSkeletonBox(height: rowHeight)),
+              ]),
+              SizedBox(height: AppSpacing.sm),
+              Row(children: [
+                Expanded(child: FulusSkeletonBox(height: rowHeight)),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(child: FulusSkeletonBox(height: rowHeight)),
+              ]),
+            ],
+          );
+        },
       );
 }
 
