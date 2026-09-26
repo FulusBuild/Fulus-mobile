@@ -545,7 +545,7 @@ class _SwipeToCartState extends State<_SwipeToCart> {
                   ),
                 ),
                 AnimatedPositioned(
-                  duration: _dragging ? Duration.zero : AppMotion.fast,
+                  duration: _dragging || MediaQuery.disableAnimationsOf(context) ? Duration.zero : AppMotion.fast,
                   curve: AppMotion.curveStandard,
                   left: left,
                   top: (_trackHeight - _thumbSize) / 2,
