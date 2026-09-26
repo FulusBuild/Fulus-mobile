@@ -679,109 +679,71 @@ class _MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user?.role == AuthRole.owner;
-    // Same fail-closed default as _ShellGate's own read of this — see
-    // that widget's own comment. Owner never needs this at all (every
-    // `isOwner ||` check below short-circuits before it matters).
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+
+    final destinations = <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
+      if (isOwner || permissions.contains(Permission.manageEmployees))
+        (
+          icon: FulusIcons.people,
+          title: 'Employees',
+          subtitle: 'Manage your team',
+          onTap: () => context.goNamed('moreEmployees'),
+        ),
+      if (isOwner || permissions.contains(Permission.viewReports))
+        (
+          icon: FulusIcons.reports,
+          title: 'Reports',
+          subtitle: 'Understand business trends',
+          onTap: () => context.goNamed('moreReports'),
+        ),
+      if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup))
+        (
+          icon: FulusIcons.settings,
+          title: 'Settings',
+          subtitle: 'Business, security and sync',
+          onTap: () => context.goNamed('moreSettings'),
+        ),
+      (
+        icon: FulusIcons.notifications,
+        title: 'Notifications',
+        subtitle: 'Alerts and updates',
+        onTap: () => context.goNamed('moreNotifications'),
+      ),
+      (
+        icon: FulusIcons.diagnostics,
+        title: 'Diagnostics',
+        subtitle: 'Error logs and crash reports',
+        onTap: () => context.goNamed('moreDiagnostics'),
+      ),
+    ];
 
     return FulusScreen(
       title: 'More',
       applyPadding: false,
-      body: ListView(
-        children: [
-          // Employees/Reports/Settings hide themselves entirely now,
-          // rather than this screen being reachable only once every row
-          // on it was already guaranteed visible — see
-          // _permissionForMoreRoute's own doc comment for the matching
-          // enforcement half of this (a hidden row alone isn't real
-          // enforcement, same point app_shell.dart's own doc comment
-          // makes about hidden nav buttons).
-          if (isOwner || permissions.contains(Permission.manageEmployees)) ...[
-            FulusListRow(
-              title: const Text('Employees'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreEmployees'),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final inset = fulusHorizontalInset(context);
+          final columns = constraints.maxWidth >= 760 ? 3 : 2;
+          return GridView.builder(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.xxxl),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              mainAxisExtent: 112,
             ),
-            const FulusListDivider(indented: false),
-          ],
-          if (isOwner || permissions.contains(Permission.viewReports)) ...[
-            FulusListRow(
-              title: const Text('Reports'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreReports'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          if (isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup)) ...[
-            FulusListRow(
-              title: const Text('Settings'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.goNamed('moreSettings'),
-            ),
-            const FulusListDivider(indented: false),
-          ],
-          Consumer(
-            builder: (context, ref, _) {
-              final notificationsAsync = ref.watch(_moreNotificationsProvider);
-              final unread = notificationsAsync.value?.where((n) => !n.isRead).length ?? 0;
-              return FulusListRow(
-                title: const Text('Notifications'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (unread > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.warningOf(context),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () => context.goNamed('moreNotifications'),
+            itemCount: destinations.length,
+            itemBuilder: (context, index) {
+              final destination = destinations[index];
+              return FulusActionTile(
+                icon: destination.icon,
+                label: destination.title,
+                subtitle: destination.subtitle,
+                onTap: destination.onTap,
               );
             },
-          ),
-          const FulusListDivider(indented: false),
-          Consumer(
-            builder: (context, ref, _) {
-              final eventsAsync = ref.watch(diagnosticEventsProvider);
-              final errorCount = eventsAsync.value
-                      ?.where((e) =>
-                          e.severity == DiagnosticSeverity.critical || e.severity == DiagnosticSeverity.error)
-                      .length ??
-                  0;
-              return FulusListRow(
-                title: const Text('Diagnostics'),
-                subtitle: const Text('Error logs & crash reports'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (errorCount > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.errorOf(context),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$errorCount',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () => context.goNamed('moreDiagnostics'),
-              );
-            },
-          ),
-        ],
+          );
+        },
       ),
     );
   }
