@@ -113,13 +113,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
-                        'Money',
-                        style: AppTypography.heading.copyWith(
-                          color: AppColors.textPrimaryOf(context),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
                         'Here’s what is happening with your money today.',
                         style: AppTypography.body.copyWith(
                           color: AppColors.textSecondaryOf(context),
