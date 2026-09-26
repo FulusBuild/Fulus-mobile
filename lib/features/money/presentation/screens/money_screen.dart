@@ -354,12 +354,16 @@ class _BalanceHero extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
+      child: Builder(builder: (context) {
+        final foreground = AppColors.onColor(const Color(0xFF12B866));
+        final muted = foreground.withValues(alpha: 0.9);
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Icon(FulusIcons.money, color: foreground, size: 28), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w700))]),
         const Spacer(),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900))),
-        const Text('Updated from your business records', style: TextStyle(color: Colors.white70, fontSize: 13)),
-      ]),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 32, fontWeight: FontWeight.w900))),
+        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 13)),
+      ]);
+      }),
     ),
   );
 }
