@@ -127,7 +127,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FulusActionTile(
-                  icon: FulusIcons.inventory,
+                  icon: FulusIcons.stock,
                   title: "I'll add products later",
                   subtitle: 'You can build your catalog from Stock anytime.',
                   onTap: _checking ? null : _skip,
