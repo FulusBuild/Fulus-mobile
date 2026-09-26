@@ -35,21 +35,22 @@ class FulusActionTile extends StatelessWidget {
       onPressed: onTap,
       semanticsLabel: subtitle == null ? label : '$label. $subtitle',
       child: Container(
-          constraints: const BoxConstraints(minHeight: 112, minWidth: 0),
-          padding: const EdgeInsets.all(AppSpacing.md),
+          constraints: const BoxConstraints(minHeight: 120, minWidth: 0),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: AppColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.borderOf(context)),
+            border: Border.all(color: AppColors.borderOf(context).withValues(alpha: 0.75)),
+            boxShadow: AppElevation.cardOf(context),
           ),
           child: Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: AppColors.selectedTintOf(context),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 alignment: Alignment.center,
                 child: Icon(icon, size: AppIconSize.emphasis, color: primary),
@@ -66,7 +67,7 @@ class FulusActionTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.body.copyWith(
                         color: foreground,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     if (subtitle != null) ...[
