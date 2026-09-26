@@ -79,7 +79,8 @@ class FulusActionTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: muted),
+              if (onTap != null)
+                Icon(FulusIcons.chevronRight, size: AppIconSize.compact, color: muted),
             ],
           ),
         ),
