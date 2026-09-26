@@ -186,27 +186,33 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   late final SyncTriggers syncTriggers;
 
-  fulusConnectionState.setBusinessSwitchGuard(() async {
-    if (await syncQueue.hasPendingItems()) return false;
-    // The local cloud dataset is single-business. Wait for any active push,
-    // pull, or recovery cycle before changing the selected business so an
-    // in-flight old-business pull can never write into the newly selected
-    // business's local dataset.
-    await syncTriggers.waitForIdle();
-    return !(await syncQueue.hasPendingItems());
-  });
-
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
+
   final saleCanonicalRepository = SaleCanonicalRepositoryImpl(db: database);
   final customerRepository = CustomerRepositoryImpl(db: database, syncQueue: syncQueue);
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
   final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
+  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
+
+  fulusConnectionState.setBusinessSwitchGuard(
+    () async {
+      // The local cloud dataset is single-business. Wait for any active push,
+      // pull, or recovery cycle before changing the selected business so an
+      // in-flight old-business pull can never write into the newly selected
+      // business's local dataset.
+      await syncTriggers.waitForIdle();
+      return !(await syncQueue.hasPendingItems());
+    },
+    beginSwitch: syncQueue.beginBusinessSwitchBarrier,
+    endSwitch: () async => syncQueue.endBusinessSwitchBarrier(),
+    beforeSwitch: () => draftCartRepository.assertNoDraftCartMutationDuringSwitch(),
+  );
+
   final categoryRepository = CategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
-  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
   final returnCanonicalRepository = ReturnCanonicalRepositoryImpl(db: database);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);

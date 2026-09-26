@@ -23,6 +23,9 @@ class FulusConnectionState extends ChangeNotifier {
   final FulusDeviceRegistration _deviceRegistration;
   final FulusStaffAccessApi? _staffAccessApi;
   Future<bool> Function()? _canSwitchBusiness;
+  Future<void> Function()? _beginBusinessSwitch;
+  Future<void> Function()? _endBusinessSwitch;
+  Future<void> Function()? _beforeBusinessSwitch;
   FulusRegisteredDevice? _registeredDevice;
   FulusMembershipContext? _membershipContext;
   String? _selectedBusinessId;
@@ -184,8 +187,16 @@ class FulusConnectionState extends ChangeNotifier {
     );
   }
 
-  void setBusinessSwitchGuard(Future<bool> Function()? guard) {
+  void setBusinessSwitchGuard(
+    Future<bool> Function()? guard, {
+    Future<void> Function()? beginSwitch,
+    Future<void> Function()? endSwitch,
+    Future<void> Function()? beforeSwitch,
+  }) {
     _canSwitchBusiness = guard;
+    _beginBusinessSwitch = beginSwitch;
+    _endBusinessSwitch = endSwitch;
+    _beforeBusinessSwitch = beforeSwitch;
   }
 
   Future<StaffClaim> claimStaffInvite(String token) async {
@@ -261,14 +272,25 @@ class FulusConnectionState extends ChangeNotifier {
     }
     if (_selectedBusinessId == businessId) return;
     final canSwitch = _canSwitchBusiness;
-    if (canSwitch != null && !await canSwitch()) {
-      throw StateError('Finish pending Cloud Sync work before switching businesses. Local business data is single-business and cannot be safely rebound while writes are queued.');
+    final beginSwitch = _beginBusinessSwitch;
+    final endSwitch = _endBusinessSwitch;
+    if (beginSwitch != null) await beginSwitch();
+    try {
+      // The barrier is now held for the complete decision/commit interval.
+      // Mutations attempting to enqueue during this interval are rejected.
+      final beforeSwitch = _beforeBusinessSwitch;
+      if (beforeSwitch != null) await beforeSwitch();
+      if (canSwitch != null && !await canSwitch()) {
+        throw StateError('Business switch was invalidated by a concurrent local mutation.');
+      }
+      _selectedBusinessId = businessId;
+      _registeredDevice = null;
+      _syncReady = false;
+      unawaited(_syncOnboardingBusiness(businessId));
+      notifyListeners();
+    } finally {
+      if (endSwitch != null) await endSwitch();
     }
-    _selectedBusinessId = businessId;
-    _registeredDevice = null;
-    _syncReady = false;
-    unawaited(_syncOnboardingBusiness(businessId));
-    notifyListeners();
   }
 
   void disconnect() {

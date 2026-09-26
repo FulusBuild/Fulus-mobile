@@ -62,6 +62,12 @@ class SaleSyncHandler implements SyncHandler {
     final device = _fulusConnectionState?.registeredDevice;
     if (_fulusSyncApi != null && businessId != null && device?.status == 'active') {
       final customerId = await _resolveCustomerServerId(sale);
+      final paymentRows = await (_db.select(_db.salePayments)
+            ..where((p) => p.saleLocalId.equals(sale.localId)))
+          .get();
+      final paymentLegs = paymentRows
+          .map((payment) => {'method': payment.method, 'amount': payment.amount})
+          .toList(growable: false);
       final locationId = await _resolveLocationServerId(sale.locationId);
       final items = await _resolveItems(sale);
       late final Map<String, dynamic> result;
@@ -84,6 +90,7 @@ class SaleSyncHandler implements SyncHandler {
             'payment_method': sale.paymentMethod,
             'notes': sale.notes,
             'items': items,
+            'payments': paymentLegs,
           },
         );
       } on BusinessRuleFailure {

@@ -112,9 +112,34 @@ class SyncQueue {
   final AppDatabase _db;
   final int? Function()? _baseCursorProvider;
   Future<void> Function()? _onEnqueued;
+  bool _businessSwitchBarrier = false;
 
   void setOnEnqueued(Future<void> Function() callback) {
     _onEnqueued = callback;
+  }
+
+  /// Fences durable local mutations while a business context switch is being
+  /// coordinated. Repositories enqueue inside their business write
+  /// transaction, so rejecting here rolls that transaction back instead of
+  /// allowing a mutation to land between the final pending-work check and
+  /// the context change.
+  Future<void> beginBusinessSwitchBarrier() async {
+    if (_businessSwitchBarrier) {
+      throw StateError('Another business switch is already in progress.');
+    }
+    _businessSwitchBarrier = true;
+  }
+
+  void endBusinessSwitchBarrier() {
+    _businessSwitchBarrier = false;
+  }
+
+  /// Guards local-only mutations (such as draft carts) that do not pass
+  /// through the durable sync outbox.
+  void ensureLocalMutationAllowed() {
+    if (_businessSwitchBarrier) {
+      throw StateError('Business context is switching; local mutation was rejected.');
+    }
   }
 
   /// Repairs queue rows written by older builds where sales were processed
@@ -415,7 +440,13 @@ class SyncQueue {
   }
 
   Future<void> enqueue(SyncTask task) async {
+    if (_businessSwitchBarrier) {
+      throw StateError('Business context is switching; local mutation was rejected before durable enqueue.');
+    }
     await _db.transaction(() async {
+      if (_businessSwitchBarrier) {
+        throw StateError('Business context is switching; local mutation was rejected before durable enqueue.');
+      }
       final existing = await (_db.select(_db.syncQueueItems)
             ..where((q) => q.entityType.equals(task.entityType))
             ..where((q) => q.entityLocalId.equals(task.entityLocalId))
