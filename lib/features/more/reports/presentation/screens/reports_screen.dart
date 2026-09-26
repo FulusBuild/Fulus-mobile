@@ -291,7 +291,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
 
     return FulusScreen(
       title: 'Reports',
-      backgroundColor: const Color(0xFF061B3A),
+      backgroundColor: AppColors.backgroundOf(context),
       headerBackgroundColor: const Color(0xFF061B3A),
       subtitle: 'Understand sales, stock, customers, money and team activity',
       actions: [
@@ -304,26 +304,46 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.sm, fulusHorizontalInset(context), AppSpacing.xs),
             child: Column(
               children: [
-                _ReportHeroCard(onTap: () => setState(() => _tabs.animateTo(0))),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: AppSpacing.sm,
+                  mainAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: 1.35,
                   children: [
-                    Expanded(child: _ReportCompactCard(icon: FulusIcons.stock, label: 'Stock Report', color: const Color(0xFF0BBE6E), onTap: () => setState(() => _tabs.animateTo(1)))),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: _ReportCompactCard(icon: FulusIcons.receipt, label: 'Expense Report', color: const Color(0xFF7B3FF2), onTap: () => setState(() => _tabs.animateTo(3)))),
+                    _ReportCompactCard(
+                      icon: FulusIcons.reports,
+                      label: 'Sales Report',
+                      color: const Color(0xFF0BBE6E),
+                      onTap: () => setState(() => _tabs.animateTo(0)),
+                    ),
+                    _ReportCompactCard(
+                      icon: FulusIcons.stock,
+                      label: 'Stock Report',
+                      color: const Color(0xFF1473E6),
+                      onTap: () => setState(() => _tabs.animateTo(1)),
+                    ),
+                    _ReportCompactCard(
+                      icon: FulusIcons.receipt,
+                      label: 'Expense Report',
+                      color: const Color(0xFFFF8C00),
+                      onTap: () => setState(() => _tabs.animateTo(3)),
+                    ),
+                    _ReportCompactCard(
+                      icon: FulusIcons.customers,
+                      label: 'Customer Report',
+                      color: const Color(0xFF7B3FF2),
+                      onTap: () => setState(() => _tabs.animateTo(2)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                FulusCard(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: Row(
-                    children: [
-                      const Icon(FulusIcons.customers, color: Color(0xFF1473E6), size: AppIconSize.compact),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text('Customer Report', style: AppTypography.body.copyWith(fontWeight: FontWeight.w700))),
-                      TextButton(onPressed: () => setState(() => _tabs.animateTo(2)), child: const Text('Open')),
-                    ],
-                  ),
+                FulusActionTile(
+                  icon: FulusIcons.staff,
+                  label: 'Team Report',
+                  subtitle: 'Attendance and employee performance',
+                  onTap: () => setState(() => _tabs.animateTo(4)),
                 ),
               ],
             ),
@@ -377,52 +397,53 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   }
 }
 
-class _ReportHeroCard extends StatelessWidget {
-  const _ReportHeroCard({required this.onTap});
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Material(
-    color: const Color(0xFF1473E6),
-    borderRadius: BorderRadius.circular(AppRadius.md),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 104, child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(FulusIcons.reports, color: Colors.white, size: AppIconSize.base),
-          const Spacer(),
-          const Text('Sales Report', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-          const Text('Business performance and sales activity', style: TextStyle(color: Colors.white70, fontSize: 10)),
-        ]),
-      )),
-    ),
-  );
-}
-
 class _ReportCompactCard extends StatelessWidget {
-  const _ReportCompactCard({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ReportCompactCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
+
   @override
-  Widget build(BuildContext context) => Material(
-    color: color,
-    borderRadius: BorderRadius.circular(AppRadius.md),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(height: 82, child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: Colors.white, size: AppIconSize.compact),
-          const Spacer(),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-        ]),
-      )),
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: SizedBox(
+            height: 118,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: Colors.white, size: AppIconSize.base),
+                  const Spacer(),
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ExportPayload {
