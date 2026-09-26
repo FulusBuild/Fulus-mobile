@@ -84,7 +84,6 @@ class FulusActionTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
