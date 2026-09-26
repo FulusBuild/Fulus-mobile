@@ -57,17 +57,18 @@ class FirstRunSetupScreen extends ConsumerWidget {
                 style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
               ),
               const SizedBox(height: AppSpacing.xxl),
-              FulusButton(
-                label: 'Make a sale',
+              FulusActionTile(
                 icon: FulusIcons.sell,
-                onPressed: () => _finish(context, ref, routeName: 'sell'),
+                title: 'Make a sale',
+                subtitle: 'Start selling right away.',
+                onTap: () => _finish(context, ref, routeName: 'sell'),
               ),
               const SizedBox(height: AppSpacing.md),
-              FulusButton(
-                label: 'Go to Home',
+              FulusActionTile(
                 icon: FulusIcons.home,
-                variant: FulusButtonVariant.text,
-                onPressed: () => _finish(context, ref),
+                title: 'Go to Home',
+                subtitle: 'See your business at a glance.',
+                onTap: () => _finish(context, ref),
               ),
             ],
           ),
