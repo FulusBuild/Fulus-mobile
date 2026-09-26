@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/permission.dart';
+import '../../../../../shared/widgets/widgets.dart';
 
 /// Display name + one-line description for each [Permission] — kept
 /// here in the presentation layer rather than on the enum itself, same
@@ -88,28 +89,40 @@ class PermissionEditor extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final permission in Permission.values)
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            title: Text(permissionLabel(permission), style: AppTypography.body),
-            subtitle: Text(
-              grantableBy.contains(permission)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: FulusActionTile(
+              icon: FulusIcons.lock,
+              label: permissionLabel(permission),
+              subtitle: grantableBy.contains(permission)
                   ? permissionDescription(permission)
-                  : '${permissionDescription(permission)} (you don\'t hold this permission yourself, so you can\'t change it here.)',
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-            ),
-            value: selected.contains(permission),
-            onChanged: grantableBy.contains(permission)
-                ? (checked) {
-                    final next = Set<Permission>.of(selected);
-                    if (checked ?? false) {
-                      next.add(permission);
-                    } else {
-                      next.remove(permission);
+                  : '${permissionDescription(permission)} (you can\'t change this permission.)',
+              onTap: grantableBy.contains(permission)
+                  ? () {
+                      final next = Set<Permission>.of(selected);
+                      if (next.contains(permission)) {
+                        next.remove(permission);
+                      } else {
+                        next.add(permission);
+                      }
+                      onChanged(next);
                     }
-                    onChanged(next);
-                  }
-                : null,
+                  : null,
+              trailing: Checkbox(
+                value: selected.contains(permission),
+                onChanged: grantableBy.contains(permission)
+                    ? (checked) {
+                        final next = Set<Permission>.of(selected);
+                        if (checked ?? false) {
+                          next.add(permission);
+                        } else {
+                          next.remove(permission);
+                        }
+                        onChanged(next);
+                      }
+                    : null,
+              ),
+            ),
           ),
       ],
     );
