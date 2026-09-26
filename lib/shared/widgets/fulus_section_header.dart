@@ -35,7 +35,7 @@ class FulusSectionHeader extends StatelessWidget {
           style: AppTypography.heading.copyWith(
             color: AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.25,
+            letterSpacing: -0.35,
           ),
         ),
         if (subtitle != null) ...[
