@@ -159,7 +159,7 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xxl),
                       FulusActionTile(
-                        title: 'Continue setup',
+                        label: 'Continue setup',
                         subtitle: 'Finish the missing owner setup and keep this business.',
                         icon: Icons.person_add_alt_1_rounded,
                         onTap: () => Navigator.of(context).push<void>(
@@ -170,7 +170,7 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       FulusActionTile(
-                        title: 'Use existing business',
+                        label: 'Use existing business',
                         subtitle: 'Choose a local Fulus profile to continue.',
                         icon: Icons.person_rounded,
                         onTap: () => Navigator.of(context).push<void>(
@@ -179,7 +179,7 @@ class _RestoreProgressScreenState extends ConsumerState<RestoreProgressScreen> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       FulusActionTile(
-                        title: 'Start fresh',
+                        label: 'Start fresh',
                         subtitle: 'Delete this local business and begin again.',
                         icon: Icons.restart_alt_rounded,
                         onTap: _clearing ? null : () => _startFresh(profile),
