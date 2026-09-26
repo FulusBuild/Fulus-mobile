@@ -118,10 +118,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final first = customers.take(2).toList(growable: false);
-    return Column(
-      children: [
-        Material(
+    return Material(
           color: const Color(0xFF1473E6),
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: SizedBox(
@@ -145,20 +142,6 @@ class _CustomerOverviewHeader extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            for (var i = 0; i < 2; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _CustomerCompactCard(
-                  customer: i < first.length ? first[i] : null,
-                  currencySymbol: currencySymbol,
-                ),
-              ),
-            ],
-          ],
         ),
       ],
     );
@@ -193,39 +176,6 @@ class _CustomerListCard extends StatelessWidget {
               child: Text('No customers match this view.'),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _CustomerCompactCard extends StatelessWidget {
-  const _CustomerCompactCard({required this.customer, required this.currencySymbol});
-  final Customer? customer;
-  final String currencySymbol;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = customer?.name ?? 'No customer';
-    final amount = customer == null ? '—' : formatMoney(customer!.outstandingBalance, symbol: currencySymbol);
-    return Material(
-      color: const Color(0xFF0BBE6E),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: customer == null ? null : () => context.pushNamed(
-          'moneyCustomerProfile',
-          pathParameters: {'id': customer!.localId},
-          extra: customer,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: SizedBox(height: 82, child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(FulusIcons.person, color: Colors.white, size: AppIconSize.compact),
-          const Spacer(),
-          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-          Text(amount, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        ]),
-      )),
       ),
     );
   }
