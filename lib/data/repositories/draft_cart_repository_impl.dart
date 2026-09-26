@@ -38,6 +38,17 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   /// a multi-step business operation in the same sense.
   final DiagnosticLogger? _diagnosticLogger;
 
+  /// Draft carts never sync, so they cannot safely cross a business-context
+  /// boundary. Switching business contexts therefore deterministically clears
+  /// all transient carts before the selected business changes.
+  Future<void> clearAllDraftCarts() async {
+    await _db.transaction(() async {
+      await _db.delete(_db.draftCartItems).go();
+      await _db.delete(_db.draftCartPayments).go();
+      await _db.delete(_db.draftCarts).go();
+    });
+  }
+
   Future<DraftCartRow> _requireDraftCart(String localId) async {
     final row = await (_db.select(_db.draftCarts)
           ..where((c) => c.localId.equals(localId)))
