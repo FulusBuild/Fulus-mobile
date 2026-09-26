@@ -36,7 +36,7 @@ class ProductListTile extends StatelessWidget {
         onPressed: onTap,
         semanticsLabel: '${product.name}, ${item.currentStock} ${product.unit}',
         child: FulusListRow(
-        onTap: onTap,
+        onTap: null,
         leading: _Thumbnail(name: product.name, photoPath: product.photoPath),
         title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
