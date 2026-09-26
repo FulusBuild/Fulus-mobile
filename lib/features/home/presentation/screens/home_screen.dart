@@ -208,11 +208,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     transaction: transactions[i],
                                     currencySymbol: currencySymbol,
                                     showDate: false,
-                                    onTap: () => context.pushNamed(
-                                      'moneyTransactionDetail',
-                                      pathParameters: {'id': transactions[i].id},
-                                      extra: transactions[i],
-                                    ),
+                                    onTap: (widget.isOwner || widget.canViewMoney)
+                                        ? () => context.pushNamed(
+                                            'moneyTransactionDetail',
+                                            pathParameters: {'id': transactions[i].id},
+                                            extra: transactions[i],
+                                          )
+                                        : null,
                                   ),
                                 ],
                               ],
