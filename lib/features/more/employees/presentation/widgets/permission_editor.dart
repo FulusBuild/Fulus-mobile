@@ -141,15 +141,24 @@ class RolePresetSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<AuthRolePreset>(
-      segments: const [
-        ButtonSegment(value: AuthRolePreset.manager, label: Text('Manager')),
-        ButtonSegment(value: AuthRolePreset.cashier, label: Text('Cashier')),
-        ButtonSegment(value: AuthRolePreset.employee, label: Text('Employee')),
+    return FulusChipRow(
+      children: [
+        FulusChip(
+          label: 'Manager',
+          selected: selected == AuthRolePreset.manager,
+          onTap: () => onChanged(AuthRolePreset.manager),
+        ),
+        FulusChip(
+          label: 'Cashier',
+          selected: selected == AuthRolePreset.cashier,
+          onTap: () => onChanged(AuthRolePreset.cashier),
+        ),
+        FulusChip(
+          label: 'Employee',
+          selected: selected == AuthRolePreset.employee,
+          onTap: () => onChanged(AuthRolePreset.employee),
+        ),
       ],
-      selected: {selected},
-      onSelectionChanged: (s) => onChanged(s.first),
-      style: const ButtonStyle(visualDensity: VisualDensity.compact),
     );
   }
 }
