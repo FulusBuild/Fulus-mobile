@@ -129,69 +129,93 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     DateTime end, {
     String? cashierUserId,
   }) async {
+    // These are independent local reads. Keep the location resolution as the
+    // only prerequisite, then issue the repository reads together instead of
+    // serializing several Drift queries behind one another.
     final locationId = await _locationId;
 
-    final sales = await _saleRepository.getSalesForPeriod(
+    final salesFuture = _saleRepository.getSalesForPeriod(
       locationId: locationId,
       start: start,
       end: end,
       cashierUserId: cashierUserId,
     );
-    // Employee data isolation: none of these four carry a "recorded by"
-    // user field (checked — no schema support for it today), so there's
-    // no correct way to scope them to one cashier. Skipped entirely
-    // rather than shown unscoped: showing every expense/income/
-    // repayment/supplier-payment the whole business ever recorded to a
-    // cashier who's only supposed to see their own sales would defeat
-    // the actual point of this scoping, even if each individual row
-    // can't be pinned on anyone in particular.
-    final expenses = cashierUserId != null
-        ? const <Expense>[]
-        : await _expenseRepository.getExpensesForPeriod(locationId: locationId, start: start, end: end);
-    final incomeRecords = cashierUserId != null
-        ? const <IncomeRecord>[]
-        : await _incomeRecordRepository.getIncomeRecordsForPeriod(locationId: locationId, start: start, end: end);
-    final repayments = cashierUserId != null
-        ? const <CustomerLedgerEntry>[]
-        : await _customerCreditRepository.getRepaymentsForPeriod(start: start, end: end);
-    final payments = cashierUserId != null
-        ? const <SupplierLedgerEntry>[]
-        : await _supplierCreditRepository.getPaymentsForPeriod(start: start, end: end);
+    final expensesFuture = cashierUserId != null
+        ? Future.value(const <Expense>[])
+        : _expenseRepository.getExpensesForPeriod(
+            locationId: locationId,
+            start: start,
+            end: end,
+          );
+    final incomeFuture = cashierUserId != null
+        ? Future.value(const <IncomeRecord>[])
+        : _incomeRecordRepository.getIncomeRecordsForPeriod(
+            locationId: locationId,
+            start: start,
+            end: end,
+          );
+    final repaymentsFuture = cashierUserId != null
+        ? Future.value(const <CustomerLedgerEntry>[])
+        : _customerCreditRepository.getRepaymentsForPeriod(
+            start: start,
+            end: end,
+          );
+    final paymentsFuture = cashierUserId != null
+        ? Future.value(const <SupplierLedgerEntry>[])
+        : _supplierCreditRepository.getPaymentsForPeriod(
+            start: start,
+            end: end,
+          );
+    final categoriesFuture =
+        _expenseCategoryRepository.watchExpenseCategories().first;
+    final customersFuture = _customerRepository.watchCustomers().first;
 
-    // Resolved once per call, not once per row — watchExpenseCategories
-    // is already a reactive Stream elsewhere in the app; `.first` here
-    // is the same one-shot-snapshot idiom SellScreen/
-    // ImportProductsFromCsv already use to read a reactive source from
-    // a Future-based context.
-    final categories = await _expenseCategoryRepository.watchExpenseCategories().first;
-    final categoryNamesById = {for (final c in categories) c.localId: c.name};
+    final (
+      sales,
+      expenses,
+      incomeRecords,
+      repayments,
+      payments,
+      categories,
+      customers,
+    ) = await (
+      salesFuture,
+      expensesFuture,
+      incomeFuture,
+      repaymentsFuture,
+      paymentsFuture,
+      categoriesFuture,
+      customersFuture,
+    ).wait;
 
-    // Bug fix (Receipt History gap-closure): `_fromSale` used to never
-    // resolve a sale's customer name at all — only `_fromSaleDetailed`
-    // did, via its own per-sale `getCustomerById` lookup, deliberately
-    // left list-path-only because doing that per sale here would be
-    // exactly the N+1-across-a-date-range cost that method's own doc
-    // comment already avoids for line items/payment breakdown. Customers
-    // is a small, business-wide table — same cost tradeoff already made
-    // for categoryNamesById just above, not a new N+1 — so one bulk read
-    // here is enough for a list row to show "who this sale was for"
-    // without paying a per-row lookup.
-    final customers = await _customerRepository.watchCustomers().first;
-    final customerNamesById = {for (final c in customers) c.localId: c.name};
+    final categoryNamesById = {
+      for (final c in categories) c.localId: c.name,
+    };
+    final customerNamesById = {
+      for (final c in customers) c.localId: c.name,
+    };
 
     final transactions = <MoneyTransaction>[
       for (final sale in sales) _fromSale(sale, customerNamesById),
       for (final expense in expenses) _fromExpense(expense, categoryNamesById),
       for (final income in incomeRecords) _fromIncomeRecord(income),
     ];
-    for (final entry in repayments) {
-      transactions.add(await _fromRepayment(entry));
-    }
-    for (final entry in payments) {
-      transactions.add(await _fromPayment(entry));
-    }
 
-    transactions.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    // These conversions may each perform one local customer/supplier lookup.
+    // Run them together rather than turning a repayment/payment list into a
+    // sequential N+1 wait chain.
+    final repaymentTransactions = await Future.wait(
+      repayments.map(_fromRepayment),
+    );
+    final paymentTransactions = await Future.wait(
+      payments.map(_fromPayment),
+    );
+
+    transactions
+      ..addAll(repaymentTransactions)
+      ..addAll(paymentTransactions)
+      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+
     return transactions;
   }
 
