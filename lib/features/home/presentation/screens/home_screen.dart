@@ -241,24 +241,18 @@ class _HomeMockupDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _HomeHeroCard(icon: FulusIcons.money, label: 'Total Cash', value: formatMoney(cashTotal, symbol: currencySymbol, compact: true), secondary: 'Business cash position', onTap: () => context.goNamed('money')),
-        const SizedBox(height: AppSpacing.sm),
         Row(children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), secondary: '${_salesCount} sales', onTap: () => context.pushNamed(
-            'moreReportsSalesTransactions',
-            extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today),
-          ))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: 'LOW', secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: '${_lowStockCount}', secondary: 'items', onTap: () => context.goNamed('stock'))),
-        ]),
-        const SizedBox(height: AppSpacing.sm),
-        Row(children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.payments, label: 'Customer Credit', value: formatMoney(_creditTotal, symbol: currencySymbol, compact: true), secondary: 'outstanding', onTap: () => context.pushNamed('moneyCustomers'))),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: AppColors.errorOf(context), icon: FulusIcons.money, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: () => context.goNamed('money'))),
         ]),
         const SizedBox(height: AppSpacing.sm),
-        _HomeSellCard(),
+        Row(children: [
+          Expanded(child: _HomeCompactCard(color: AppColors.errorOf(context), icon: FulusIcons.money, label: 'Expenses', value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true), secondary: 'today', onTap: () => context.goNamed('money'))),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _HomeSellCard()),
+        ]),
+
       ],
     );
   }
