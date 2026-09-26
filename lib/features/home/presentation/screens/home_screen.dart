@@ -133,8 +133,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _HomeQuickActions(canViewMoney: widget.isOwner || widget.canViewMoney, canViewReports: widget.isOwner || widget.canViewReports),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
