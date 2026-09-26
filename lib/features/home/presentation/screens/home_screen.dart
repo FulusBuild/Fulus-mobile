@@ -236,7 +236,7 @@ class _HomeColors {
   static const teal = Color(0xFF0EA5B7);
   static const muted = Color(0xFFB8C6D9);
 }
-clclass _HomeSalesCard extends StatelessWidget {
+class _HomeSalesCard extends StatelessWidget {
   const _HomeSalesCard({required this.state, required this.currencySymbol});
   final HomeHeroState state;
   final String currencySymbol;
