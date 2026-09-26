@@ -142,40 +142,54 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
-                    child: FulusActionTile(
-                      icon: FulusIcons.arrowUp,
-                      label: 'Record stock',
-                      subtitle: 'Add stock or record a movement',
-                      onTap: () => context.pushNamed('stockRecordMovement'),
+                    child: Material(
+                      color: const Color(0xFF1473E6),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: SizedBox(height: 104, child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Icon(FulusIcons.stock, color: Colors.white, size: AppIconSize.base),
+                          const Spacer(),
+                          Text('Products  ${products.length}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                          Text('Stock value  ${formatMoney(totalValue, symbol: currencySymbol, compact: true)}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                        ]),
+                      )),
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
-                    child: FulusSearchField(
-                      controller: searchController,
-                      hintText: 'Search products, SKU, barcode…',
-                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
-                    ),
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+                    child: Row(children: [
+                      Expanded(child: _StockMetric(icon: FulusIcons.category, label: 'Categories', value: '${categories.length}', foot: 'Categories', color: const Color(0xFF0BBE6E))),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: _StockMetric(icon: FulusIcons.warning, label: 'Low Stock', value: '${lowStockCount}', foot: 'Items', color: const Color(0xFF7B3FF2))),
+                    ]),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.md),
-                    child: Column(children: [
-                      Row(children: [
-                        Expanded(child: _StockMetric(icon: FulusIcons.stock, label: 'Products', value: products.length.toString(), foot: 'Total items', color: const Color(0xFF1677FF))),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _StockMetric(icon: FulusIcons.category, label: 'Categories', value: categories.length.toString(), foot: 'Categories', color: const Color(0xFF0BBE6E))),
+                    child: FulusCard(
+                      child: Column(children: [
+                        FulusSearchField(
+                          controller: searchController,
+                          hintText: 'Search products, SKU, barcode…',
+                          onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(children: [
+                          Expanded(child: FulusActionTile(
+                            icon: FulusIcons.arrowUp,
+                            label: 'Record stock',
+                            subtitle: 'Add stock or record a movement',
+                            onTap: () => context.pushNamed('stockRecordMovement'),
+                          )),
+                          const SizedBox(width: AppSpacing.sm),
+                          FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
+                        ]),
                       ]),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(children: [
-                        Expanded(child: _StockMetric(icon: FulusIcons.arrowUp, label: 'Stock in', value: totalUnits.toStringAsFixed(totalUnits == totalUnits.roundToDouble() ? 0 : 1), foot: 'Recent', color: const Color(0xFFFF8A00))),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _StockMetric(icon: FulusIcons.reports, label: 'Stock movement', value: lowStockCount.toString(), foot: 'Today’s activity', color: const Color(0xFF7B3FF2))),
-                      ]),
-                    ]),
+                    ),
                   ),
                 ),
                 if (lowStockCount > 0)
@@ -197,24 +211,6 @@ class _StockBody extends ConsumerWidget {
                       ),
                     ),
                   ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: inset),
-                    child: FulusChipRow(children: [
-                      for (final category in categories)
-                        FulusChip(
-                          label: category.name,
-                          selected: filter.categoryId == category.localId,
-                          onTap: () => ref.read(stockFilterProvider.notifier).state =
-                              filter.copyWith(
-                                categoryId: filter.categoryId == category.localId
-                                    ? null
-                                    : category.localId,
-                              ),
-                        ),
-                    ]),
-                  ),
-                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
