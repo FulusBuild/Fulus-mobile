@@ -20,7 +20,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
-      title: 'Team',
+      title: 'Employees',
       subtitle: 'People, access and attendance',
       backgroundColor: const Color(0xFF061B3A),
       headerBackgroundColor: const Color(0xFF061B3A),
