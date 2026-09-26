@@ -19,6 +19,9 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [x] Loading, empty and error states have been added/refined across audited core screens
 - [x] Offline/sync messaging is kept separate from ordinary local data availability
 - [x] Reduced-motion behavior is preserved where motion exists
+- [x] Secondary actions use shared Fulus controls across Team, Reports, checkout, receipts and auth flows
+- [x] Material segmented controls in audited flows replaced with the shared Fulus chip language
+- [x] Common confirmation/action dialogs in audited flows use the shared Fulus button hierarchy
 
 ## Current UI/UX audit areas
 
@@ -76,8 +79,8 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [x] Customer credit visibility
 - [x] Employee overview
 - [x] Reports period/export/drill-down structure
-- [ ] Final visual pass against the Fulus tile language
-- [ ] Empty/error/loading consistency review
+- [x] Final visual pass against the Fulus tile language
+- [x] Empty/error/loading consistency review
 
 ### 7. More / Settings / Secondary screens
 - [x] More workspace tiles
