@@ -122,7 +122,6 @@ class _StockBody extends ConsumerWidget {
             final categories = categoriesAsync.asData?.value ?? const <Category>[];
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
-            final trackedProducts = products.where((p) => p.product.tracksStock);
             final totalValue = totalStockValue(products);
             final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
             final outOfStock = outOfStockCount(products);
