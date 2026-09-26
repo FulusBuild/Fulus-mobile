@@ -52,7 +52,7 @@ class FulusActionTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: AppIconSize.large, color: primary),
+                child: Icon(icon, size: AppIconSize.emphasis, color: primary),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
