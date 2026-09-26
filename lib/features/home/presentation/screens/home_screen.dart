@@ -148,14 +148,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   builder: (context, cashSnapshot) {
                                     if (heroSnapshot.connectionState != ConnectionState.done ||
                                         noticeSnapshot.connectionState != ConnectionState.done ||
-                                        activitySnapshot.connectionState != ConnectionState.done ||
-                                        cashSnapshot.connectionState != ConnectionState.done) {
+                                        activitySnapshot.connectionState != ConnectionState.done) {
                                       return const _HomeHeroSkeleton();
                                     }
                                     if (heroSnapshot.hasError ||
                                         noticeSnapshot.hasError ||
-                                        activitySnapshot.hasError ||
-                                        cashSnapshot.hasError) {
+                                        activitySnapshot.hasError) {
                                       return FulusErrorState(
                                         message: "Couldn't load today's overview.",
                                         reassurance: 'Your business records are still safe on this device.',
@@ -163,12 +161,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       );
                                     }
                                     final hero = heroSnapshot.data;
-                                    if (hero == null || cashSnapshot.data == null) return const SizedBox.shrink();
+                                    if (hero == null) return const SizedBox.shrink();
                                     return _HomeMockupDashboard(
                                       hero: hero,
                                       notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
                                       activity: activitySnapshot.data ?? const <MoneyTransaction>[],
-                                      cashTotal: cashSnapshot.data!,
+                                      cashTotal: cashSnapshot.data,
                                       currencySymbol: currencySymbol,
                                       canViewMoney: widget.isOwner || widget.canViewMoney,
                                       canViewReports: widget.isOwner || widget.canViewReports,
