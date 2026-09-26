@@ -7,6 +7,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../stock/presentation/screens/add_edit_product_screen.dart';
 import '../widgets/onboarding_error_banner.dart';
+import '../widgets/onboarding_step_header.dart';
 
 /// Walkthrough Phase 4. Opens the real [AddEditProductScreen] rather
 /// than a tutorial copy of the form — it pops with no return value on
@@ -103,6 +104,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+              const OnboardingStepHeader(step: 3, total: 7, title: 'Add your first product', subtitle: 'Build a useful starting inventory before your first sale.'),
                 Text(
                   'Add your first product',
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
