@@ -255,9 +255,9 @@ class _InventorySection extends ConsumerWidget {
               body: '${match.product.name} — before: $before, sold: $sold, after: $after.',
               action: (
                 'View in Stock',
-                () => context.pushNamed(
+                () => _goAndClose(
+                  context,
                   'stockProductDetail',
-                  pathParameters: {'productId': productLocalId},
                 ),
               ),
             );
