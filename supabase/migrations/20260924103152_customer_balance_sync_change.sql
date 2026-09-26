@@ -1,0 +1,5 @@
+-- Historical migration provenance compatibility entry.
+--
+-- Production recorded this migration version before the repository migration
+-- was renamed to 20260924093000_customer_balance_sync_change.sql. The trigger
+-- definition is already represented by that earlier repository migration.
