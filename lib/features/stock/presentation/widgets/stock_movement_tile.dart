@@ -26,8 +26,13 @@ class StockMovementTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, label, color) = _presentation(context);
-    return FulusListRow(
-      leading: Icon(icon, color: color),
+    return Semantics(
+      button: false,
+      label: label,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: FulusListRow(
+          leading: Icon(icon, color: color),
       title: Text(label),
       subtitle: Text(
         showProductName && product != null
@@ -37,6 +42,8 @@ class StockMovementTile extends StatelessWidget {
       trailing: Text(
         _quantityLabel(),
         style: AppTypography.body.copyWith(color: color, fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
     );
   }
