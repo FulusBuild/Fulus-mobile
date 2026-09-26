@@ -348,7 +348,7 @@ class _BalanceHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(minHeight: 142),
     padding: const EdgeInsets.all(AppSpacing.lg),
-    decoration: BoxDecoration(color: const Color(0xFF0BBE6E), borderRadius: BorderRadius.circular(14)),
+    decoration: BoxDecoration(color: const Color(0xFF1473E6), borderRadius: BorderRadius.circular(14)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
       const Spacer(),
