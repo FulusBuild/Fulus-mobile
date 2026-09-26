@@ -254,7 +254,7 @@ class _HomeHeader extends StatelessWidget {
         Expanded(
           child: Text(
             businessName.isEmpty ? 'Business' : businessName,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.subheading.copyWith(
               color: AppColors.textPrimaryOf(context),
@@ -262,8 +262,8 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
         ),
-        const Spacer(),
-        const FulusSyncStatusIndicator(),
+        const SizedBox(width: AppSpacing.sm),
+        const Flexible(child: FulusSyncStatusIndicator()),
       ],
     );
   }
