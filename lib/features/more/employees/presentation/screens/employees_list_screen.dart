@@ -29,11 +29,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
           onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
         ),
       ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEmployeeSheet(context),
-        icon: const Icon(FulusIcons.person),
-        label: const Text('Add member'),
-      ),
+      floatingActionButton: null,
       body: StreamBuilder<List<Employee>>(
         stream: _employeesStream,
         builder: (context, snapshot) {
@@ -63,6 +59,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
                 children: [
+                  FulusActionTile(
+                    icon: FulusIcons.person,
+                    label: 'Add team member',
+                    subtitle: 'Add a person and manage their access',
+                    onTap: () => _openEmployeeSheet(context),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   _TeamOverview(count: employees.length),
                   const SizedBox(height: AppSpacing.lg),
                   FulusSectionHeader(
