@@ -14,7 +14,7 @@ import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../local/database/database.dart';
 import 'draft_cart_mapper.dart';
-import '../sync/sync_queue.dart';
+import '../../sync/sync_queue.dart';
 
 class DraftCartRepositoryImpl implements DraftCartRepository {
   DraftCartRepositoryImpl({
