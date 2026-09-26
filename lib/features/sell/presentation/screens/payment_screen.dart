@@ -270,18 +270,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
         creditLimit: customer.creditLimit,
       );
       if (overage != null && context.mounted) {
-        final proceed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Over credit limit'),
-            content: Text(
+        final proceed = await showFulusConfirmDialog(
+          context,
+          title: 'Over credit limit',
+          message:
               'This would put ${customer.name} ${formatMoney(overage, symbol: state.currencySymbol)} over their ${formatMoney(customer.creditLimit!, symbol: state.currencySymbol)} credit limit. Continue anyway?',
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Continue')),
-            ],
-          ),
+          confirmLabel: 'Continue',
+          cancelLabel: 'Cancel',
         );
         if (proceed != true || !context.mounted) return;
       }
