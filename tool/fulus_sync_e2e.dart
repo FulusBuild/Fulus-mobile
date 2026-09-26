@@ -527,11 +527,6 @@ Future<void> main() async {
       label: 'customer repayment balance',
     );
 
-    final returnFeedBefore = await _customerBalanceFeedSequence(
-      dio,
-      businessId: businessId,
-      customerId: customerId,
-    );
     // The E2E identity is intentionally not granted return permissions.
     // Return accounting is covered by the dedicated financial-fidelity
     // contract tests; the broad sync mutation matrix must not depend on an
