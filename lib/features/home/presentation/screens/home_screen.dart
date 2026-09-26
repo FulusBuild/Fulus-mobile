@@ -101,7 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // Home is a dashboard, not a feed. The normal dashboard must
                     // stay locked to the viewport rather than becoming vertically
                     // scrollable just to reveal the six cards.
-                    physics: const ClampingScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     slivers: [
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.lg),
@@ -134,7 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, 0, inset, 0),
+                        padding: EdgeInsets.fromLTRB(inset, 0, inset, inset * 1.75),
                         sliver: SliverFillRemaining(
                           hasScrollBody: false,
                           child: FutureBuilder<HomeHeroState>(
@@ -180,9 +180,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: AppSpacing.lg),
-                      ),
+                      
                     ],
                   ),
                 ),
