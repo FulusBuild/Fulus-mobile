@@ -206,7 +206,7 @@ class _CustomerCompactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = customer?.name ?? 'No customer';
-    final amount = customer == null ? '—' : formatMoney(customer!.outstandingBalance, symbol: currencySymbol, compact: true);
+    final amount = customer == null ? '—' : formatMoney(customer!.outstandingBalance, symbol: currencySymbol);
     return Material(
       color: const Color(0xFF0BBE6E),
       borderRadius: BorderRadius.circular(AppRadius.md),
