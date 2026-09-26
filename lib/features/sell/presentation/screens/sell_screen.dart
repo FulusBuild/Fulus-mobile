@@ -196,30 +196,53 @@ class _SellContent extends ConsumerWidget {
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: FulusSearchField(
-                        controller: searchController,
-                        hintText: 'Search by product name or barcode',
-                        onChanged: onQueryChanged,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    SizedBox(
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: onScan,
-                        icon: const Icon(FulusIcons.scan),
-                        label: const Text('Scan'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 360 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.15;
+                    final scanButton = OutlinedButton.icon(
+                      onPressed: onScan,
+                      icon: const Icon(FulusIcons.scan),
+                      label: const Text('Scan'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 52),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
                         ),
                       ),
-                    ),
-                  ],
+                    );
+
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          FulusSearchField(
+                            controller: searchController,
+                            hintText: 'Search by product name or barcode',
+                            onChanged: onQueryChanged,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          scanButton,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: FulusSearchField(
+                            controller: searchController,
+                            hintText: 'Search by product name or barcode',
+                            onChanged: onQueryChanged,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        scanButton,
+                      ],
+                    );
+                  },
                 ),
               ),
               SizedBox(
