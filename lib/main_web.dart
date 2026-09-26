@@ -223,36 +223,9 @@ class _FulusWebHomeFixtureState extends State<FulusWebHomeFixture> {
           );
         },
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _WebQaBottomNavigationBar(
         selectedIndex: _selectedNav,
-        onDestinationSelected: (index) => setState(() => _selectedNav = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.point_of_sale_outlined),
-            selectedIcon: Icon(Icons.point_of_sale),
-            label: 'Sell',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Stock',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Money',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            selectedIcon: Icon(Icons.more_horiz),
-            label: 'More',
-          ),
-        ],
+        onSelected: (index) => setState(() => _selectedNav = index),
       ),
     );
   }
@@ -299,6 +272,116 @@ class _ActivityRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class _WebQaBottomNavigationBar extends StatelessWidget {
+  const _WebQaBottomNavigationBar({
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  static const _items = <(IconData, IconData, String)>[
+    (Icons.home_outlined, Icons.home, 'Home'),
+    (Icons.point_of_sale_outlined, Icons.point_of_sale, 'Sell'),
+    (Icons.inventory_2_outlined, Icons.inventory_2, 'Stock'),
+    (Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Money'),
+    (Icons.more_horiz, Icons.more_horiz, 'More'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    final primary = Theme.of(context).colorScheme.primary;
+    final surface = Theme.of(context).colorScheme.surface;
+    final border = Theme.of(context).dividerColor;
+
+    return Material(
+      color: surface,
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: .12),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: border.withValues(alpha: .7))),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          4,
+          4,
+          4,
+          bottomInset > 0 ? 4 : 8,
+        ),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              for (var index = 0; index < _items.length; index++)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: selectedIndex == index,
+                    label: _items[index].$3,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onSelected(index),
+                        borderRadius: BorderRadius.circular(12),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 56),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              decoration: BoxDecoration(
+                                color: selectedIndex == index
+                                    ? primary.withValues(alpha: .10)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    selectedIndex == index ? _items[index].$2 : _items[index].$1,
+                                    size: 24,
+                                    color: selectedIndex == index
+                                        ? primary
+                                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      _items[index].$3,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontWeight: selectedIndex == index
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: selectedIndex == index
+                                            ? primary
+                                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
