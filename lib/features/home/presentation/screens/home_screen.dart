@@ -274,11 +274,15 @@ class _HomeSalesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, amount, count) = switch (state) {
-      NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => ('Yesterday', yesterdayTotal, yesterdaySalesCount),
-      OpenHero(:final todayTotal, :final todaySalesCount) => ('Today’s sales', todayTotal, todaySalesCount),
-      ClosedHero(:final finalTotal, :final finalSalesCount) => ('Today’s sales · Closed', finalTotal, finalSalesCount),
-      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => ('Your shift', shiftTotal, shiftSalesCount),
+    final (label, amount, count, countLabel) = switch (state) {
+      NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) =>
+        ('Yesterday', yesterdayTotal, yesterdaySalesCount, 'sales yesterday'),
+      OpenHero(:final todayTotal, :final todaySalesCount) =>
+        ('Today’s sales', todayTotal, todaySalesCount, 'sales today'),
+      ClosedHero(:final finalTotal, :final finalSalesCount) =>
+        ('Today’s sales · Closed', finalTotal, finalSalesCount, 'sales today'),
+      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) =>
+        ('Your shift', shiftTotal, shiftSalesCount, 'sales in your shift'),
     };
 
     String? trend;
@@ -306,7 +310,7 @@ class _HomeSalesCard extends StatelessWidget {
             child: Text(formatMoney(amount, symbol: currencySymbol), style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context), fontFeatures: const [FontFeature.tabularFigures()])),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text('$count sale${count == 1 ? '' : 's'} today', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+          Text(\n            '$count ${countLabel.replaceFirst('sales', count == 1 ? 'sale' : 'sales')}',\n            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),\n          ),
           ],
       ),
     );
