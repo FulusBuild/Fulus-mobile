@@ -1,4 +1,5 @@
 name: Fulus Production Supabase Migrations
+# Production verification: post-deploy live E2E is part of the deployment contract.
 
 # Deployment is commit-exact and is intentionally gated on the full CI workflow.
 # Live sync/convergence E2E runs after migrations and Edge Functions are deployed.
