@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 import '../../core/theme/fulus_icons.dart';
 import 'fulus_bottom_sheet.dart';
 
