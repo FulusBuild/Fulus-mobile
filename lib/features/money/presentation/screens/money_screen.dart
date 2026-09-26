@@ -83,7 +83,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundOf(context),
+      backgroundColor: const Color(0xFF061B3A),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -115,7 +115,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       Text(
                         'Here’s what is happening with your money today.',
                         style: AppTypography.body.copyWith(
-                          color: AppColors.textSecondaryOf(context),
+                          color: Colors.white70,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -289,7 +289,7 @@ class _MoneyHeader extends StatelessWidget {
                   Text(
                     'Money',
                     style: AppTypography.subheading.copyWith(
-                      color: AppColors.textPrimaryOf(context),
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -322,52 +322,22 @@ class _MoneyHeader extends StatelessWidget {
 }
 
 class _BalanceHero extends StatelessWidget {
-  const _BalanceHero({
-    required this.balance,
-    required this.currencySymbol,
-  });
-
+  const _BalanceHero({required this.balance, required this.currencySymbol});
   final double balance;
   final String currencySymbol;
-
   @override
-  Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Available balance',
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondaryOf(context),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          FittedBox(
-            alignment: Alignment.centerLeft,
-            fit: BoxFit.scaleDown,
-            child: Text(
-              formatMoney(balance, symbol: currencySymbol),
-              style: AppTypography.display.copyWith(
-                color: AppColors.textPrimaryOf(context),
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Net of every sale, income, expense, and payment recorded',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondaryOf(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 142),
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    decoration: BoxDecoration(color: const Color(0xFF0BBE6E), borderRadius: BorderRadius.circular(14)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Row(children: [Icon(FulusIcons.money, color: Colors.white, size: 28), SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))]),
+      const Spacer(),
+      FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900))),
+      const Text('Updated from your business records', style: TextStyle(color: Colors.white70, fontSize: 12)),
+    ]),
+  );
 }
-
 class _BalanceHeroSkeleton extends StatelessWidget {
   const _BalanceHeroSkeleton();
 
@@ -388,59 +358,21 @@ class _BalanceHeroSkeleton extends StatelessWidget {
 
 class _MoneyQuickActions extends StatelessWidget {
   const _MoneyQuickActions();
-
   @override
   Widget build(BuildContext context) {
-    final actions = <({IconData icon, String label, String subtitle, VoidCallback onTap})>[
-      (
-        icon: FulusIcons.add,
-        label: 'Add income',
-        subtitle: 'Record money in',
-        onTap: () => context.pushNamed('moneyAddIncome'),
-      ),
-      (
-        icon: FulusIcons.remove,
-        label: 'Add expense',
-        subtitle: 'Record money out',
-        onTap: () => context.pushNamed('moneyAddExpense'),
-      ),
-      (
-        icon: FulusIcons.customers,
-        label: 'Customers',
-        subtitle: 'Manage credit',
-        onTap: () => context.pushNamed('moneyCustomers'),
-      ),
-      (
-        icon: FulusIcons.localShipping,
-        label: 'Suppliers',
-        subtitle: 'Track supplier money',
-        onTap: () => context.pushNamed('moneySuppliers'),
-      ),
+    final actions = <({IconData icon, String label, String subtitle, Color color, VoidCallback onTap})>[
+      (icon: FulusIcons.add, label: 'Money In', subtitle: 'Record income', color: const Color(0xFF1677FF), onTap: () => context.pushNamed('moneyAddIncome')),
+      (icon: FulusIcons.remove, label: 'Money Out', subtitle: 'Record expense', color: const Color(0xFFFF8A00), onTap: () => context.pushNamed('moneyAddExpense')),
+      (icon: FulusIcons.customers, label: 'Customer Credit', subtitle: 'Manage credit', color: const Color(0xFF7B3FF2), onTap: () => context.pushNamed('moneyCustomers')),
+      (icon: FulusIcons.localShipping, label: 'Supplier Payments', subtitle: 'Track suppliers', color: const Color(0xFF0EA5B7), onTap: () => context.pushNamed('moneySuppliers')),
     ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 760 ? 4 : constraints.maxWidth < 360 ? 1 : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: AppSpacing.sm,
-            mainAxisSpacing: AppSpacing.sm,
-            mainAxisExtent: 112,
-          ),
-          itemBuilder: (context, index) {
-            final action = actions[index];
-            return FulusActionTile(
-              icon: action.icon,
-              label: action.label,
-              subtitle: action.subtitle,
-              onTap: action.onTap,
-            );
-          },
-        );
+    return GridView.builder(
+      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+      itemCount: actions.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: AppSpacing.sm, mainAxisSpacing: AppSpacing.sm, mainAxisExtent: 106),
+      itemBuilder: (context, index) {
+        final a=actions[index];
+        return Material(color:a.color, borderRadius:BorderRadius.circular(12), child:InkWell(onTap:a.onTap,borderRadius:BorderRadius.circular(12),child:Padding(padding:const EdgeInsets.all(AppSpacing.md),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(a.icon,color:Colors.white,size:25),const Spacer(),Text(a.label,style:const TextStyle(color:Colors.white,fontSize:13,fontWeight:FontWeight.w800)),Text(a.subtitle,style:const TextStyle(color:Colors.white70,fontSize:10))]))));
       },
     );
   }
