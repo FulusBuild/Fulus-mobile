@@ -85,12 +85,16 @@ class MoneyTransactionTile extends StatelessWidget {
             ),
       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Text(
-        formatMoney(t.signedAmount, symbol: currencySymbol, showSign: true),
-        style: AppTypography.body.copyWith(
-          fontFeatures: const [FontFeature.tabularFigures()],
-          fontWeight: FontWeight.w600,
-          color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+      trailing: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          formatMoney(t.signedAmount, symbol: currencySymbol, showSign: true),
+          style: AppTypography.body.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+            fontWeight: FontWeight.w600,
+            color: t.isInflow ? AppColors.primaryOf(context) : AppColors.textPrimaryOf(context),
+          ),
         ),
       ),
           onTap: onTap,
