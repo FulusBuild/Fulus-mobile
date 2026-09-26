@@ -134,6 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
+                      _HomeQuickActions(canViewMoney: widget.isOwner || widget.canViewMoney, canViewReports: widget.isOwner || widget.canViewReports),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
@@ -141,6 +142,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         onActionTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyHistory') : null,
                       ),
                       FutureBuilder<List<MoneyTransaction>>(
+                        future: _activityFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState != ConnectionState.done) return const Column(children: [FulusListRowSkeleton(), FulusListRowSkeleton(), FulusListRowSkeleton()]);
+                          if (snapshot.hasError) return FulusErrorState(message: "Couldn't load recent activity.", reassurance: 'Your sales and money records are still safe on this device.', onRetry: _refresh);
+                          final transactions = snapshot.data ?? const <MoneyTransaction>[];
+                          if (transactions.isEmpty) return const FulusEmptyState(headline: 'No activity yet today', body: 'Sales, stock, and expenses you record will show up here.', icon: FulusIcons.receipt);
+                          return FulusCard(padding: EdgeInsets.zero, child: Column(children: [for (var i = 0; i < transactions.length.clamp(0, 5); i++) ...[if (i > 0) const FulusListDivider(), MoneyTransactionTile(transaction: transactions[i], currencySymbol: currencySymbol, showDate: false, onTap: (widget.isOwner || widget.canViewMoney) ? () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': transactions[i].id}, extra: transactions[i]) : null)]]));
+                        },
+                      ),                      FutureBuilder<List<MoneyTransaction>>(
                         future: _activityFuture,
                         builder: (context, snapshot) {
                           if (snapshot.connectionState != ConnectionState.done) {
@@ -185,3 +195,252 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         },
                       ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _displayName(WidgetRef ref) {
+    final profile = ref.watch(_businessProfileProvider).value;
+    final user = ref.watch(sessionProvider);
+    final isOwner = user == null || user.role == AuthRole.owner;
+    if (isOwner) return profile?.businessName.trim().isNotEmpty == true ? profile!.businessName.trim() : 'there';
+    return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.businessName});
+  final String businessName;
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Container(width: 38, height: 38, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text('F', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _HomeColors.blue))),
+    const SizedBox(width: AppSpacing.sm),
+    Expanded(child: Text(businessName.isEmpty ? 'Fulus' : businessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: Colors.white, fontWeight: FontWeight.w800))),
+    const SizedBox(width: AppSpacing.sm),
+    const Icon(FulusIcons.menu, color: Colors.white, size: 24),
+  ]);
+}
+class _HomeColors {
+  static const navy = Color(0xFF061B3A);
+  static const blue = Color(0xFF1677FF);
+  static const green = Color(0xFF0BBE6E);
+  static const orange = Color(0xFFFF8A00);
+  static const purple = Color(0xFF7B3FF2);
+  static const teal = Color(0xFF0EA5B7);
+  static const muted = Color(0xFFB8C6D9);
+}
+clclass _HomeSalesCard extends StatelessWidget {
+  const _HomeSalesCard({required this.state, required this.currencySymbol});
+  final HomeHeroState state;
+  final String currencySymbol;
+  @override
+  Widget build(BuildContext context) {
+    final (label, amount, count, countLabel) = switch (state) {
+      NotYetOpenedHero(:final yesterdayTotal, :final yesterdaySalesCount) => ('Yesterday', yesterdayTotal, yesterdaySalesCount, 'sales yesterday'),
+      OpenHero(:final todayTotal, :final todaySalesCount) => ('Today’s sales', todayTotal, todaySalesCount, 'sales today'),
+      ClosedHero(:final finalTotal, :final finalSalesCount) => ('Today’s sales · Closed', finalTotal, finalSalesCount, 'sales today'),
+      EmployeeShiftHero(:final shiftTotal, :final shiftSalesCount) => ('Your shift', shiftTotal, shiftSalesCount, 'sales in your shift'),
+    };
+    return Container(
+      constraints: const BoxConstraints(minHeight: 150),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(color: _HomeColors.green, borderRadius: BorderRadius.circular(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(FulusIcons.sell, color: Colors.white, size: 28),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700))),
+        ]),
+        const Spacer(),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(amount, symbol: currencySymbol), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900))),
+        Text(count.toString() + ' ' + countLabel.replaceFirst('sales', count == 1 ? 'sale' : 'sales'), style: const TextStyle(color: Colors.white70, fontSize: 13)),
+      ]),
+    );
+  }
+}
+class _HomeQuickActions extends StatelessWidget {
+  const _HomeQuickActions({required this.canViewMoney, required this.canViewReports});
+  final bool canViewMoney;
+  final bool canViewReports;
+  @override
+  Widget build(BuildContext context) {
+    final actions = <({IconData icon, String label, String subtitle, Color color, VoidCallback onTap})>[
+      (icon: FulusIcons.sell, label: 'Sell', subtitle: 'Start a sale', color: _HomeColors.blue, onTap: () => context.goNamed('sell')),
+      (icon: FulusIcons.stock, label: 'Stock', subtitle: 'Manage inventory', color: _HomeColors.orange, onTap: () => context.goNamed('stock')),
+      if (canViewMoney) (icon: FulusIcons.money, label: 'Money', subtitle: 'Track your money', color: _HomeColors.green, onTap: () => context.goNamed('money')),
+      if (canViewReports) (icon: FulusIcons.reports, label: 'Reports', subtitle: 'See business trends', color: _HomeColors.purple, onTap: () => context.pushNamed('moreReports')),
+    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 760 ? 4 : 2;
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: actions.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, crossAxisSpacing: AppSpacing.sm, mainAxisSpacing: AppSpacing.sm, mainAxisExtent: 112),
+        itemBuilder: (context, index) {
+          final a = actions[index];
+          return _HomeActionCard(icon: a.icon, label: a.label, subtitle: a.subtitle, color: a.color, onTap: a.onTap);
+        },
+      );
+    });
+  }
+}
+class _HomeActionCard extends StatelessWidget {
+  const _HomeActionCard({required this.icon, required this.label, required this.subtitle, required this.color, required this.onTap});
+  final IconData icon; final String label; final String subtitle; final Color color; final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(14),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: Colors.white, size: 28),
+          const Spacer(),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+          Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        ]),
+      ),
+    ),
+  );
+}
+class _AttentionSection extends StatelessWidget {
+  const _AttentionSection({
+    required this.selection,
+    required this.currencySymbol,
+    required this.canViewMoney,
+  });
+
+  final SecondaryNoticeSelection selection;
+  final String currencySymbol;
+  final bool canViewMoney;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = selection.shown.where((notice) {
+      if (notice.type == SecondaryNoticeType.unsyncedItems) return false;
+      if (notice.type == SecondaryNoticeType.pendingCredit && !canViewMoney) return false;
+      return true;
+    }).toList();
+    if (shown.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FulusSectionHeader(title: 'Needs attention'),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: shown.length,
+            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              final notice = shown[index];
+              switch (notice.type) {
+                case SecondaryNoticeType.lowStock:
+                  return _AttentionCard(label: notice.label, value: notice.value.toInt().toString(), icon: FulusIcons.stock, onTap: () => context.goNamed('stock'));
+                case SecondaryNoticeType.pendingCredit:
+                  return _AttentionCard(label: notice.label, value: formatMoney(notice.value.toDouble(), symbol: currencySymbol, compact: true), icon: FulusIcons.payments, onTap: () => context.pushNamed('moneyCustomers'));
+                case SecondaryNoticeType.unsyncedItems:
+                  // Filtered above; keep the switch exhaustive for the enum.
+                  return const SizedBox.shrink();
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AttentionCard extends StatelessWidget {
+  const _AttentionCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 192,
+      child: FulusPressable(
+        onPressed: onTap,
+        semanticsLabel: '$value $label',
+        child: FulusCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.selectedTintOf(context),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: AppIconSize.compact, color: AppColors.primaryOf(context)),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.subheading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeHeroSkeleton extends StatelessWidget {
+  const _HomeHeroSkeleton();
+  @override
+  Widget build(BuildContext context) => const FulusSkeletonBox(height: 170);
+}
+
+class _NoticeSkeleton extends StatelessWidget {
+  const _NoticeSkeleton();
+  @override
+  Widget build(BuildContext context) => const SizedBox(height: 92, child: Row(children: [Expanded(child: FulusSkeletonBox()), SizedBox(width: AppSpacing.sm), Expanded(child: FulusSkeletonBox())]));
+}
+
+final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings());
