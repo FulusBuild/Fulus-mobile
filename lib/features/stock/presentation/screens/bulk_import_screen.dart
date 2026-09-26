@@ -125,7 +125,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
           const SizedBox(height: AppSpacing.lg),
           FulusActionTile(
             icon: FulusIcons.upload,
-            title: 'Choose a .csv file',
+            label: 'Choose a .csv file',
             subtitle: _picking ? 'Reading your file…' : 'Select a spreadsheet export from this device.',
             trailing: _picking ? const FulusLoadingIndicator() : null,
             onTap: _picking ? null : _pickFile,
@@ -145,7 +145,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
           const SizedBox(height: AppSpacing.lg),
           FulusActionTile(
             icon: FulusIcons.chevronRight,
-            title: 'Continue to review',
+            label: 'Continue to review',
             subtitle: _contentController.text.trim().isEmpty
                 ? 'Paste or choose a CSV file first.'
                 : 'Check the rows before adding them to Stock.',
