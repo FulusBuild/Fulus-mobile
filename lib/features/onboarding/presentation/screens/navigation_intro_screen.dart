@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
@@ -55,6 +56,7 @@ class NavigationIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+              const OnboardingStepHeader(step: 4, total: 7, title: 'Getting around Fulus', subtitle: 'Your main business tools stay one tap away.'),
                 Text(
                   'Getting around Fulus',
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),
