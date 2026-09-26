@@ -168,6 +168,13 @@ This workstream is intentionally UI/UX-only. Until the UI/UX completion gate is 
 
 CI remains a validation gate for UI changes, but unrelated CI/Vercel failures are not UI blockers.
 
+
+### Vercel browser visual-QA setup
+- [x] Vercel project `fulus-mobile` connected to `FulusBuild/Fulus-mobile`.
+- [x] Flutter Web visual-QA build configuration committed (`vercel.json` + `scripts/vercel-build.sh`).
+- [ ] Verify a Vercel Preview Deployment builds from `ux-ui-foundation` and exposes the current UI fixture.
+- [ ] Use the branch preview URL for runtime visual QA at 320px, 390px, 412px+ and large-text/dark-mode states.
+
 ## UI/UX completion gate
 A screen is complete only when its whole composition matches the approved visual direction, not merely when its individual widgets are technically correct.
 
