@@ -310,8 +310,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: SegmentedButton<ReportPeriodKind>(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<ReportPeriodKind>(
               segments: [
                 const ButtonSegment(value: ReportPeriodKind.today, label: Text('Today')),
                 const ButtonSegment(value: ReportPeriodKind.thisWeek, label: Text('This week')),
@@ -324,7 +326,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                 ),
               ],
               selected: {_periodKind},
-              onSelectionChanged: _onPeriodSelectionChanged,
+                onSelectionChanged: _onPeriodSelectionChanged,
+              ),
             ),
           ),
           Expanded(
