@@ -161,9 +161,9 @@ class _StockBody extends ConsumerWidget {
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
                     child: Row(children: [
-                      Expanded(child: _StockMetric(icon: FulusIcons.category, label: 'Categories', value: '${categories.length}', foot: 'Categories', color: const Color(0xFF0BBE6E))),
+                      Expanded(child: _StockMetric(icon: FulusIcons.category, label: 'Categories', value: '${categories.length}', foot: 'Categories', color: const Color(0xFF0BBE6E), onTap: () => context.pushNamed('stockCategories'))),
                       const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: _StockMetric(icon: FulusIcons.warning, label: 'Low Stock', value: '${lowStockCount}', foot: 'Items', color: const Color(0xFF7B3FF2))),
+                      Expanded(child: _StockMetric(icon: FulusIcons.warning, label: 'Low Stock', value: '${lowStockCount}', foot: 'Items', color: const Color(0xFF7B3FF2), onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false))),
                     ]),
                   ),
                 ),
@@ -196,18 +196,25 @@ class _StockBody extends ConsumerWidget {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
-                      child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(color: const Color(0xFFFF3B30), borderRadius: BorderRadius.circular(12)),
-                        child: Row(children: [
+                      child: Material(
+                        color: const Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Row(children: [
                           const Icon(FulusIcons.warning, color: Colors.white, size: 28),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('$lowStockCount items low in stock', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                             const Text('View details →', style: TextStyle(color: Colors.white70, fontSize: 11)),
                           ])),
-                          const Icon(FulusIcons.chevronRight, color: Colors.white),
-                        ]),
+                              const Icon(FulusIcons.chevronRight, color: Colors.white),
+                            ]),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -296,19 +303,26 @@ class _StockBody extends ConsumerWidget {
 }
 
 class _StockMetric extends StatelessWidget {
-  const _StockMetric({required this.icon, required this.label, required this.value, required this.foot, required this.color});
-  final IconData icon; final String label; final String value; final String foot; final Color color;
+  const _StockMetric({required this.icon, required this.label, required this.value, required this.foot, required this.color, required this.onTap});
+  final IconData icon; final String label; final String value; final String foot; final Color color; final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 104),
-    padding: const EdgeInsets.all(AppSpacing.md),
-    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, color: Colors.white, size: 24),
-      const Spacer(),
-      Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-      Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-      Text(foot, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-    ]),
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 104),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const Spacer(),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+          Text(foot, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ]),
+      ),
+    ),
   );
 }
