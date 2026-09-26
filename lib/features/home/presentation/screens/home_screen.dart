@@ -305,7 +305,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         final minRowHeight = 118.0;
         final rowGap = AppSpacing.sm;
         final responsiveRowHeight = availableHeight.isFinite && availableHeight > 0
-            ? ((availableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity)
+            ? ((availableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
             : minRowHeight;
 
         return Column(
@@ -460,7 +460,7 @@ class _HomeHeroSkeleton extends StatelessWidget {
           const minRowHeight = 118.0;
           final rowGap = AppSpacing.sm;
           final rowHeight = constraints.maxHeight.isFinite && constraints.maxHeight > 0
-              ? ((constraints.maxHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity)
+              ? ((constraints.maxHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
               : minRowHeight;
 
           return Column(
