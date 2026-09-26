@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/app_shell.dart';
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/auth_user.dart';
@@ -269,12 +268,6 @@ class _MoneyHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        FulusIconButton(
-          icon: FulusIcons.menu,
-          tooltip: 'Open navigation',
-          onPressed: FulusAppShell.openDrawer,
-        ),
-        const SizedBox(width: AppSpacing.xs),
         Text(
           'Money',
           style: AppTypography.subheading.copyWith(
