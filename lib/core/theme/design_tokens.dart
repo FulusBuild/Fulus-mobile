@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// colours only where they communicate a meaningful state.
 class AppColors {
   AppColors._();
-  static const primary = Color(0xFF3B82F6);
+  static const primary = Color(0xFF2563EB);
   static const brand = primary;
   static const brandDark = Color(0xFF2563EB);
   static const brandLight = Color(0xFFEFF6FF);
@@ -107,6 +107,15 @@ class AppColors {
   static Color textSecondaryOf(BuildContext context) => isDark(context) ? darkTextSecondary : textSecondaryLight;
   static Color mutedOf(BuildContext context) => isDark(context) ? darkMuted : mutedLight;
   static Color selectedTintOf(BuildContext context) => isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
+
+  /// Returns a foreground that meets normal-text contrast against a colored
+  /// surface. Bright semantic cards use dark text; darker brand cards keep
+  /// white text.
+  static Color onColor(Color background) {
+    final luminance = background.computeLuminance();
+    final whiteContrast = (1.0 + 0.05) / (luminance + 0.05);
+    return whiteContrast >= kMinimumContrastRatio ? neutral0 : neutral900;
+  }
 }
 
 class AppTypography {
