@@ -29,13 +29,10 @@ class FulusActionTile extends StatelessWidget {
     final foreground = AppColors.textPrimaryOf(context);
     final muted = AppColors.textSecondaryOf(context);
 
-    return Semantics(
-      button: true,
-      label: subtitle == null ? label : '$label. $subtitle',
-      child: FulusPressable(
-        onPressed: onTap,
-        semanticsLabel: subtitle == null ? label : '$label. $subtitle',
-        child: Container(
+    return FulusPressable(
+      onPressed: onTap,
+      semanticsLabel: subtitle == null ? label : '$label. $subtitle',
+      child: Container(
           constraints: const BoxConstraints(minHeight: 112, minWidth: 0),
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
