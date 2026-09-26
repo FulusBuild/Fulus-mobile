@@ -19,6 +19,8 @@ class FulusScreen extends StatelessWidget {
     this.bottomNavigationBar,
     this.padding = _defaultPadding,
     this.applyPadding = true,
+    this.backgroundColor,
+    this.headerBackgroundColor,
   });
 
   static const _defaultPadding = EdgeInsets.fromLTRB(
@@ -37,6 +39,8 @@ class FulusScreen extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final EdgeInsets padding;
   final bool applyPadding;
+  final Color? backgroundColor;
+  final Color? headerBackgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +57,7 @@ class FulusScreen extends StatelessWidget {
     final content = applyPadding ? Padding(padding: adaptivePadding, child: body) : body;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundOf(context),
+      backgroundColor: backgroundColor ?? AppColors.backgroundOf(context),
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
       body: SafeArea(
@@ -66,6 +70,7 @@ class FulusScreen extends StatelessWidget {
                 actions: actions,
                 leading: leading,
                 showBack: canPop && leading == null,
+                backgroundColor: headerBackgroundColor,
               ),
             Expanded(
               child: Align(
@@ -136,6 +141,7 @@ class _PageHeader extends StatelessWidget {
     required this.actions,
     required this.leading,
     required this.showBack,
+    this.backgroundColor,
   });
 
   final String title;
@@ -143,11 +149,13 @@ class _PageHeader extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? leading;
   final bool showBack;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final muted = AppColors.mutedOf(context);
-    final foreground = AppColors.textPrimaryOf(context);
+    final darkHeader = backgroundColor != null && backgroundColor!.computeLuminance() < 0.25;
+    final muted = darkHeader ? Colors.white70 : AppColors.mutedOf(context);
+    final foreground = darkHeader ? Colors.white : AppColors.textPrimaryOf(context);
     final width = FulusLayout.width(context);
     final isWide = width >= FulusLayout.wideBreakpoint;
     final inset = FulusLayout.horizontalInset(context);
@@ -158,7 +166,7 @@ class _PageHeader extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.backgroundOf(context),
+        color: backgroundColor ?? AppColors.backgroundOf(context),
         border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.65))),
       ),
       child: Center(
