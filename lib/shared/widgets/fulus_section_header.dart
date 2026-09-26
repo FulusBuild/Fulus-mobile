@@ -12,12 +12,16 @@ class FulusSectionHeader extends StatelessWidget {
     this.subtitle,
     this.action,
     this.onActionTap,
+    this.titleColor,
+    this.subtitleColor,
   });
 
   final String title;
   final String? subtitle;
   final String? action;
   final VoidCallback? onActionTap;
+  final Color? titleColor;
+  final Color? subtitleColor;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +37,7 @@ class FulusSectionHeader extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: AppTypography.heading.copyWith(
-            color: AppColors.textPrimaryOf(context),
+            color: titleColor ?? AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w700,
             letterSpacing: -0.35,
           ),
@@ -45,7 +49,7 @@ class FulusSectionHeader extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondaryOf(context),
+              color: subtitleColor ?? AppColors.textSecondaryOf(context),
             ),
           ),
         ],
