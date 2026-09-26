@@ -234,7 +234,7 @@ jobs:
   fulus_multi_device_e2e:
     name: Fulus multi-device convergence test
     needs: [fulus_e2e, change_scope]
-    if: needs.change_scope.outputs.migration_changed != 'true'
+    if: needs.fulus_e2e.result == 'success' && needs.change_scope.outputs.migration_changed != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
