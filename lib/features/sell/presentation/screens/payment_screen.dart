@@ -77,6 +77,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
         return FulusScreen(
           title: 'Payment',
+          backgroundColor: const Color(0xFF061B3A),
+          headerBackgroundColor: const Color(0xFF061B3A),
           body: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 720;
@@ -103,20 +105,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         if (!splitActive)
-                          for (final method in _paymentMethods)
-                            if (method.key != 'credit' || creditEnabled)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                                child: _PaymentMethodTile(
-                                  icon: _iconForMethod(method.key),
-                                  label: method.label,
-                                  selected: _method == method.key,
-                                  onTap: () {
-                                    FulusHaptics.selection();
-                                    setState(() => _method = method.key);
-                                  },
-                                ),
-                              ),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: AppSpacing.sm,
+                            mainAxisSpacing: AppSpacing.sm,
+                            childAspectRatio: 1.45,
+                            children: [
+                              for (final method in _paymentMethods)
+                                if (method.key != 'credit' || creditEnabled)
+                                  _PaymentMethodTile(
+                                    icon: _iconForMethod(method.key),
+                                    label: method.label,
+                                    selected: _method == method.key,
+                                    onTap: () {
+                                      FulusHaptics.selection();
+                                      setState(() => _method = method.key);
+                                    },
+                                  ),
+                            ],
+                          ),
                         if (splitActive)
                           _SplitMethodWrap(
                             methods: _paymentMethods.where((m) => m.key != 'credit' || creditEnabled).toList(),
