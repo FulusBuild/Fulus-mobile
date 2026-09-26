@@ -59,6 +59,132 @@ class FulusAppShell extends StatelessWidget {
           ),
         ],
       ),
+      bottomNavigationBar: _FulusBottomNavigationBar(
+        navigationShell: navigationShell,
+        showMoneyTab: showMoneyTab,
+      ),
+    );
+  }
+}
+
+class _FulusBottomNavigationBar extends StatelessWidget {
+  const _FulusBottomNavigationBar({
+    required this.navigationShell,
+    required this.showMoneyTab,
+  });
+
+  final StatefulNavigationShell navigationShell;
+  final bool showMoneyTab;
+
+  void _select(int branch) {
+    navigationShell.goBranch(
+      branch,
+      initialLocation: navigationShell.currentIndex == branch,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <(int, IconData, String)>[
+      (FulusNavBranch.home, FulusIcons.home, 'Home'),
+      (FulusNavBranch.sell, FulusIcons.sell, 'Sell'),
+      (FulusNavBranch.stock, FulusIcons.stock, 'Stock'),
+      if (showMoneyTab) (FulusNavBranch.money, FulusIcons.money, 'Money'),
+      (FulusNavBranch.more, FulusIcons.more, 'More'),
+    ];
+
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    return Material(
+      color: AppColors.surfaceOf(context),
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: .12),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppColors.borderOf(context).withValues(alpha: .7)),
+          ),
+        ),
+        padding: EdgeInsets.fromLTRB(AppSpacing.xs, AppSpacing.xs, AppSpacing.xs, bottomInset > 0 ? AppSpacing.xs : AppSpacing.sm),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              for (final item in items)
+                Expanded(
+                  child: _FulusBottomNavigationItem(
+                    icon: item.$2,
+                    label: item.$3,
+                    selected: navigationShell.currentIndex == item.$1,
+                    onTap: () => _select(item.$1),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FulusBottomNavigationItem extends StatelessWidget {
+  const _FulusBottomNavigationItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    final foreground = selected ? primary : AppColors.textSecondaryOf(context);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+              child: AnimatedContainer(
+                duration: AppMotion.fast,
+                curve: AppMotion.curveStandard,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.selectedTintOf(context) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: AppIconSize.base, color: foreground),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.label.copyWith(
+                        color: foreground,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
