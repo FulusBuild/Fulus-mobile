@@ -114,6 +114,9 @@ Future<void> main() async {
       'amount_paid': 321,
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
+      'payments': [
+        {'method': 'cash', 'amount': 321},
+      ],
       'items': [
         {
           'product_id': null,
