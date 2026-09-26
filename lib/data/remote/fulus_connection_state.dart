@@ -276,6 +276,8 @@ class FulusConnectionState extends ChangeNotifier {
     final endSwitch = _endBusinessSwitch;
     if (beginSwitch != null) await beginSwitch();
     try {
+      // The barrier is now held for the complete decision/commit interval.
+      // Mutations attempting to enqueue during this interval are rejected.
       final beforeSwitch = _beforeBusinessSwitch;
       if (beforeSwitch != null) await beforeSwitch();
       if (canSwitch != null && !await canSwitch()) {
