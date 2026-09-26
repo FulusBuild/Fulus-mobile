@@ -147,7 +147,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       ),
                       const SizedBox(height: 12),
                       FulusActionTile(
-                        title: 'Try again',
+                        label: 'Try again',
                         subtitle: 'Run the startup checks again.',
                         icon: Icons.refresh_rounded,
                         onTap: () => setState(() => _stageInputsFuture = _loadStageInputs()),
