@@ -316,6 +316,3 @@ class _StockMetric extends StatelessWidget {
     ]),
   );
 }
-
-}
-
