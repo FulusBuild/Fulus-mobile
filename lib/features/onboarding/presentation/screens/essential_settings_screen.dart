@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/onboarding_error_banner.dart';
