@@ -391,7 +391,7 @@ class _HomeCompactCard extends StatelessWidget {
                   secondary,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: foreground.withValues(alpha: 0.9),
                     fontSize: 13,
                   ),
