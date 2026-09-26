@@ -285,10 +285,20 @@ begin
   returning id into rid;
 
   for item in select * from jsonb_array_elements(target_items) loop
-    select * into si
-    from public.sale_items
-    where id=(item->>'sale_item_id')::uuid and sale_id=target_sale_id
-    for update;
+    if nullif(trim(item->>'sale_item_id'),'') is not null then
+      select * into si
+      from public.sale_items
+      where id=(item->>'sale_item_id')::uuid and sale_id=target_sale_id
+      for update;
+    else
+      select * into si
+      from public.sale_items
+      where sale_id=target_sale_id
+        and product_id=(item->>'product_id')::uuid
+      order by id
+      limit 1
+      for update;
+    end if;
 
     if si.id is null then
       raise exception using errcode='22023',message='Invalid return item';
