@@ -381,35 +381,47 @@ class _HomeSellCard extends StatelessWidget {
   const _HomeSellCard();
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: 'Sell',
-    child: Material(
-    color: _HomeColors.navy,
-    borderRadius: BorderRadius.circular(AppRadius.md),
-    child: InkWell(
-      onTap: () => context.goNamed('sell'),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Row(
-            children: [
-              const Icon(FulusIcons.sell, color: Colors.white, size: AppIconSize.base),
-              const SizedBox(width: AppSpacing.sm),
-              const Expanded(
-                child: Text(
-                  'Sell',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Sell',
+      child: Material(
+        color: _HomeColors.navy,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: () => context.goNamed('sell'),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Row(
+              children: [
+                const Icon(
+                  FulusIcons.sell,
+                  color: Colors.white,
+                  size: AppIconSize.base,
                 ),
-              ),
-              Icon(Icons.arrow_forward_rounded, color: Colors.white.withValues(alpha: 0.8)),
-            ],
+                const SizedBox(width: AppSpacing.sm),
+                const Expanded(
+                  child: Text(
+                    'Sell',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-    ),
-  );
+    );
+  }
 }
 
 class _HomeHeroSkeleton extends StatelessWidget {
