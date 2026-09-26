@@ -448,7 +448,25 @@ Deno.serve(async req => {
   }
 
   if (action === "sale_payment") ({ data, error } = await serviceDb.rpc("fulus_api_record_sale_payment", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : "cash", target_device_id: d.id }));
-  else if (action === "sale_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_sale_atomic", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null, target_client_reference: b.client_reference, target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(), target_discount: Number(b.discount ?? 0), target_tax: Number(b.tax ?? 0), target_amount_paid: Number(b.amount_paid ?? 0), target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_notes: typeof b.notes === "string" ? b.notes : null, target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
+  else if (action === "sale_create") {
+    const payments = Array.isArray(b.payments) ? b.payments : [];
+    ({ data, error } = await serviceDb.rpc("fulus_api_create_sale_atomic_v2", {
+      target_user_id: uid,
+      target_business_id: bid,
+      target_location_id: b.location_id,
+      target_customer_id: typeof b.customer_id === "string" ? b.customer_id : null,
+      target_client_reference: b.client_reference,
+      target_sale_date: typeof b.sale_date === "string" ? b.sale_date : new Date().toISOString(),
+      target_discount: Number(b.discount ?? 0),
+      target_tax: Number(b.tax ?? 0),
+      target_amount_paid: Number(b.amount_paid ?? 0),
+      target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null,
+      target_notes: typeof b.notes === "string" ? b.notes : null,
+      target_device_id: d.id,
+      target_items: Array.isArray(b.items) ? b.items : [],
+      target_payments: payments,
+    }));
+  }
   else if (action === "customer_create") {
     const requestEnvelope = {
       action,
@@ -483,7 +501,7 @@ Deno.serve(async req => {
   }
   else if (action === "customer_repayment") ({ data, error } = await serviceDb.rpc("fulus_api_record_customer_repayment", { target_user_id: uid, target_business_id: bid, target_customer_id: b.customer_id, target_amount: Number(b.amount), target_operation_id: oid, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null, target_note: typeof b.note === "string" ? b.note : null, target_device_id: d.id }));
   else if (action === "expense_create") ({ data, error } = await serviceDb.rpc("fulus_api_record_expense", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_amount: Number(b.amount), target_category: typeof b.category === "string" ? b.category : "general", target_description: typeof b.description === "string" ? b.description : null, target_operation_id: oid, target_device_id: d.id, target_payment_method: typeof b.payment_method === "string" ? b.payment_method : null }));
-  else if (action === "return_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_return_atomic", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_client_reference: oid, target_reason: typeof b.reason === "string" ? b.reason : "Customer return", target_refund_amount: Number(b.refund_amount ?? 0), target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
+  else if (action === "return_create") ({ data, error } = await serviceDb.rpc("fulus_api_create_return_atomic_v2", { target_user_id: uid, target_business_id: bid, target_sale_id: b.sale_id, target_client_reference: oid, target_reason: typeof b.reason === "string" ? b.reason : "Customer return", target_refund_amount: Number(b.refund_amount ?? 0), target_refund_method: typeof b.refund_method === "string" ? b.refund_method : "cash", target_device_id: d.id, target_items: Array.isArray(b.items) ? b.items : [] }));
   else if (action === "inventory_adjust") ({ data, error } = await serviceDb.rpc("fulus_api_apply_inventory_adjustment", { target_user_id: uid, target_business_id: bid, target_product_id: b.product_id, target_location_id: b.location_id, target_quantity_delta: Number(b.quantity_delta), target_reason: b.reason, target_operation_id: oid, target_device_id: d.id }));
   else if (action === "inventory_set") ({ data, error } = await serviceDb.rpc("fulus_api_set_inventory_quantity", { target_user_id: uid, target_business_id: bid, target_product_id: b.product_id, target_location_id: b.location_id, target_new_quantity: Number(b.new_quantity), target_reason: b.reason, target_operation_id: oid, target_device_id: d.id }));
   else if (action === "income_create") ({ data, error } = await serviceDb.rpc("fulus_api_cloud_record_income", { target_user_id: uid, target_business_id: bid, target_location_id: b.location_id, target_source: b.source, target_amount: Number(b.amount), target_income_date: b.income_date, target_notes: typeof b.notes === "string" ? b.notes : null, target_operation_id: oid, target_device_id: d.id }));
