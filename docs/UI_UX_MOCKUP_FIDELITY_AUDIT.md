@@ -79,8 +79,9 @@ Rule: refine the mockup, do not replace its visual language with a generic SaaS 
 - [x] Customer credit visibility
 - [x] Employee overview
 - [x] Reports period/export/drill-down structure
-- [x] Final visual pass against the Fulus tile language
+- [x] Secondary screen tile/card/row composition pass
 - [x] Empty/error/loading consistency review
+- [ ] Final whole-screen visual comparison against the mockup
 
 ### 7. More / Settings / Secondary screens
 - [x] More workspace tiles
