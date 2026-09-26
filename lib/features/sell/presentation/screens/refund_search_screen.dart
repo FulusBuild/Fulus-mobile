@@ -126,7 +126,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                     final sale = sales[i];
                     return FulusActionTile(
                       icon: Icons.receipt_long_outlined,
-                      title: sale.invoiceNumber ?? 'Sale #${sale.localId.substring(0, 8)}',
+                      label: sale.invoiceNumber ?? 'Sale #${sale.localId.substring(0, 8)}',
                       subtitle: '${formatRelativeDay(sale.saleDate)} · ${sale.items.length} item${sale.items.length == 1 ? '' : 's'}'
                           '${sale.customerId != null && customerNameById[sale.customerId] != null ? ' · ${customerNameById[sale.customerId]}' : ''}',
                       trailing: Text(
