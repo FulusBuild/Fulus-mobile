@@ -127,21 +127,3 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
-class _NotificationRow extends StatelessWidget {
-  const _NotificationRow({required this.notification, required this.onRead});
-  final AppNotification notification;
-  final VoidCallback onRead;
-
-  @override
-  Widget build(BuildContext context) {
-    final isSync = notification.type == AppNotificationType.stuckSync;
-    final color = notification.isRead ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context);
-    return FulusListRow(
-      leading: Icon(isSync ? FulusIcons.sync : FulusIcons.check, color: color),
-      title: Text(notification.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: notification.isRead ? FontWeight.normal : FontWeight.w700)),
-      subtitle: Text(notification.body, maxLines: 3, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-      trailing: notification.isRead ? null : FulusIconButton(icon: FulusIcons.check, tooltip: 'Mark as read', onPressed: onRead),
-      onTap: notification.isRead ? null : onRead,
-    );
-  }
-}
