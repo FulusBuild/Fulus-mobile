@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/onboarding_step_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,6 +34,7 @@ class FirstRunSetupScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const OnboardingStepHeader(step: 1, total: 7, title: 'You’re ready to run your business', subtitle: 'Your setup is saved locally and you can start selling now.'),
               Center(
                 child: Container(
                   width: 72,
