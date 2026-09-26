@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../core/utils/async_timeout.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,10 +18,7 @@ class EmployeesListScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
-  Stream<List<Employee>> get _employeesStream => ref.read(employeeRepositoryProvider).watchEmployees(isActive: true).timeout(
-    const Duration(seconds: 12),
-    onTimeout: (sink) => sink.addError(TimeoutException('Employee loading timed out')),
-  );
+  Stream<List<Employee>> get _employeesStream => ref.read(employeeRepositoryProvider).watchEmployees(isActive: true);
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +41,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       ],
       floatingActionButton: null,
       body: StreamBuilder<List<Employee>>(
-        stream: _employeesStream,
+        stream: _employeesStream.withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return FulusErrorState(
