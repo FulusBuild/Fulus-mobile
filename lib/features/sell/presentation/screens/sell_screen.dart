@@ -200,17 +200,11 @@ class _SellContent extends ConsumerWidget {
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 360 ||
                         MediaQuery.textScalerOf(context).scale(1) > 1.15;
-                    final scanButton = OutlinedButton.icon(
+                    final scanButton = FulusButton(
+                      variant: FulusButtonVariant.secondary,
+                      icon: FulusIcons.scan,
+                      label: 'Scan',
                       onPressed: onScan,
-                      icon: const Icon(FulusIcons.scan),
-                      label: const Text('Scan'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 52),
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                        ),
-                      ),
                     );
 
                     if (compact) {
