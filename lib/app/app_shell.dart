@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
+import '../core/ux/consumer_polish.dart';
 import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
 import '../sync/sync_status.dart';
