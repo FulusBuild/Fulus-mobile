@@ -125,13 +125,13 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    FilledButton(
+                    FulusButton(
+                      label: 'Try again',
                       onPressed: () {
                         setState(() {
                           _stageInputsFuture = _loadStageInputs();
                         });
                       },
-                      child: const Text('Try again'),
                     ),
                   ],
                 ),
