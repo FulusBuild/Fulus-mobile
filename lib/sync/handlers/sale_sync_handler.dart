@@ -84,6 +84,12 @@ class SaleSyncHandler implements SyncHandler {
             'payment_method': sale.paymentMethod,
             'notes': sale.notes,
             'items': items,
+            'payments': sale.payments
+                .map((payment) => {
+                      'method': payment.method,
+                      'amount': payment.amount,
+                    })
+                .toList(growable: false),
           },
         );
       } on BusinessRuleFailure {
