@@ -134,6 +134,14 @@ class SyncQueue {
     _businessSwitchBarrier = false;
   }
 
+  /// Guards local-only mutations (such as draft carts) that do not pass
+  /// through the durable sync outbox.
+  void ensureLocalMutationAllowed() {
+    if (_businessSwitchBarrier) {
+      throw StateError('Business context is switching; local mutation was rejected.');
+    }
+  }
+
   /// Repairs queue rows written by older builds where sales were processed
   /// ahead of their catalog/customer/location dependencies. Safe to run on
   /// every startup and intentionally only changes ordering metadata.
