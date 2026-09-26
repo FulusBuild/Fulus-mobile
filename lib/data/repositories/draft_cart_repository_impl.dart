@@ -14,13 +14,14 @@ import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../local/database/database.dart';
 import 'draft_cart_mapper.dart';
+import '../sync/sync_queue.dart';
 
 class DraftCartRepositoryImpl implements DraftCartRepository {
   DraftCartRepositoryImpl({
     required AppDatabase db,
     required ProductRepository productRepository,
     required SaleRepository saleRepository,
-    required SyncQueue syncQueue,
+    SyncQueue? syncQueue,
     DiagnosticLogger? diagnosticLogger,
   })  : _db = db,
         _productRepository = productRepository,
@@ -31,7 +32,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   final AppDatabase _db;
   final ProductRepository _productRepository;
   final SaleRepository _saleRepository;
-  final SyncQueue _syncQueue;
+  final SyncQueue? _syncQueue;
 
   /// Optional, same reasoning as SaleRepositoryImpl's own
   /// `_diagnosticLogger` field. This is the class where the "Complete
@@ -44,7 +45,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   /// Draft carts never sync. They are therefore fenced while the selected
   /// business context is changing instead of being silently destroyed.
   Future<void> assertNoDraftCartMutationDuringSwitch() async {
-    _syncQueue.ensureLocalMutationAllowed();
+    _syncQueue?.ensureLocalMutationAllowed();
   }
 
   Future<void> clearAllDraftCarts() async {
