@@ -50,6 +50,13 @@ jobs:
         with:
           version: 2.117.0
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.9"
+          channel: stable
+          cache: true
+
       - name: Gate production deployment on mobile and cloud-sync CI
         env:
           GH_TOKEN: ${{ github.token }}
@@ -123,6 +130,41 @@ jobs:
             echo "Deploying $function"
             supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_ID"
           done
+
+      - name: Post-deploy live sync contract test
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: https://bejcuvoxemwomcatgyxz.supabase.co
+          FULUS_PUBLISHABLE_KEY: sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: |
+          set -euo pipefail
+          for name in FULUS_API_URL FULUS_E2E_EMAIL FULUS_E2E_PASSWORD FULUS_BUSINESS_ID FULUS_DEVICE_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required live E2E secret: $name"
+              exit 1
+            fi
+          done
+          echo "Running post-deploy live sync contract test against production."
+          flutter pub get
+          dart run tool/fulus_sync_e2e.dart
+
+      - name: Post-deploy multi-device convergence test
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: https://bejcuvoxemwomcatgyxz.supabase.co
+          FULUS_PUBLISHABLE_KEY: sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: |
+          set -euo pipefail
+          echo "Running post-deploy multi-device convergence test against production."
+          dart run tool/fulus_multi_device_e2e.dart
 
       - name: Verify production migration history after function deployment
         run: bash tool/verify_supabase_migration_history.sh
