@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+<rect width="1200" height="900" fill="#0b2345"/>
+<text x="40" y="45" font-family="Arial" font-size="22" fill="#fff">Fulus Mobile — UX/UI Foundation Mockup</text>
+<text x="40" y="72" font-family="Arial" font-size="13" fill="#b8c8df">Reference board saved from the supplied 10-screen mobile mockup</text>
+<g font-family="Arial">
+<g><rect x="28" y="100" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="36" y="128" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="46" y="120" font-size="11" fill="#fff">1. Home</text>
+ <text x="50" y="158" font-size="16" font-weight="700" fill="#0b2345">Home</text>
+ <rect x="46" y="176" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="56" y="201" font-size="11" fill="#fff">Good morning, Amina 👋</text>
+ <rect x="46" y="236" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="137" y="236" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="55" y="260" font-size="9" fill="#fff">Total Cash  ₦245,800</text>
+ <text x="146" y="260" font-size="9" fill="#fff">Today's Sales  38</text>
+ <rect x="46" y="308" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="56" y="332" font-size="10" fill="#0b2345">Good morning, Amina 👋</text>
+ <text x="56" y="353" font-size="10" fill="#60748e">Total Cash  ₦245,800</text>
+ <text x="56" y="371" font-size="10" fill="#60748e">Today's Sales  38</text>
+ <text x="50" y="422" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="262" y="100" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="270" y="128" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="280" y="120" font-size="11" fill="#fff">2. Sell</text>
+ <text x="284" y="158" font-size="16" font-weight="700" fill="#0b2345">Sell</text>
+ <rect x="280" y="176" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="290" y="201" font-size="11" fill="#fff">Search products…</text>
+ <rect x="280" y="236" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="371" y="236" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="289" y="260" font-size="9" fill="#fff">Indomie  ₦4,600</text>
+ <text x="380" y="260" font-size="9" fill="#fff">Peak Milk  ₦1,200</text>
+ <rect x="280" y="308" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="290" y="332" font-size="10" fill="#0b2345">Search products…</text>
+ <text x="290" y="353" font-size="10" fill="#60748e">Indomie  ₦4,600</text>
+ <text x="290" y="371" font-size="10" fill="#60748e">Peak Milk  ₦1,200</text>
+ <text x="284" y="422" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="496" y="100" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="504" y="128" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="514" y="120" font-size="11" fill="#fff">3. Stock</text>
+ <text x="518" y="158" font-size="16" font-weight="700" fill="#0b2345">Stock</text>
+ <rect x="514" y="176" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="524" y="201" font-size="11" fill="#fff">Products  142</text>
+ <rect x="514" y="236" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="605" y="236" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="523" y="260" font-size="9" fill="#fff">Categories  12</text>
+ <text x="614" y="260" font-size="9" fill="#fff">Low Stock  7 items</text>
+ <rect x="514" y="308" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="524" y="332" font-size="10" fill="#0b2345">Products  142</text>
+ <text x="524" y="353" font-size="10" fill="#60748e">Categories  12</text>
+ <text x="524" y="371" font-size="10" fill="#60748e">Low Stock  7 items</text>
+ <text x="518" y="422" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="730" y="100" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="738" y="128" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="748" y="120" font-size="11" fill="#fff">4. Money</text>
+ <text x="752" y="158" font-size="16" font-weight="700" fill="#0b2345">Money</text>
+ <rect x="748" y="176" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="758" y="201" font-size="11" fill="#fff">Available Balance  ₦245,800</text>
+ <rect x="748" y="236" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="839" y="236" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="757" y="260" font-size="9" fill="#fff">Money In  ₦182,400</text>
+ <text x="848" y="260" font-size="9" fill="#fff">Money Out  ₦31,500</text>
+ <rect x="748" y="308" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="758" y="332" font-size="10" fill="#0b2345">Available Balance  ₦245,800</text>
+ <text x="758" y="353" font-size="10" fill="#60748e">Money In  ₦182,400</text>
+ <text x="758" y="371" font-size="10" fill="#60748e">Money Out  ₦31,500</text>
+ <text x="752" y="422" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="964" y="100" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="972" y="128" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="982" y="120" font-size="11" fill="#fff">5. Customers</text>
+ <text x="986" y="158" font-size="16" font-weight="700" fill="#0b2345">Customers</text>
+ <rect x="982" y="176" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="992" y="201" font-size="11" fill="#fff">Total Customers  24</text>
+ <rect x="982" y="236" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="1073" y="236" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="991" y="260" font-size="9" fill="#fff">Aisha Bello  ₦12,500</text>
+ <text x="1082" y="260" font-size="9" fill="#fff">James Okafor  ₦8,200</text>
+ <rect x="982" y="308" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="992" y="332" font-size="10" fill="#0b2345">Total Customers  24</text>
+ <text x="992" y="353" font-size="10" fill="#60748e">Aisha Bello  ₦12,500</text>
+ <text x="992" y="371" font-size="10" fill="#60748e">James Okafor  ₦8,200</text>
+ <text x="986" y="422" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="28" y="480" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="36" y="508" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="46" y="500" font-size="11" fill="#fff">6. New Sale</text>
+ <text x="50" y="538" font-size="16" font-weight="700" fill="#0b2345">New Sale</text>
+ <rect x="46" y="556" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="56" y="581" font-size="11" fill="#fff">3 items  ₦7,450</text>
+ <rect x="46" y="616" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="137" y="616" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="55" y="640" font-size="9" fill="#fff">Cash</text>
+ <text x="146" y="640" font-size="9" fill="#fff">Bank Transfer</text>
+ <rect x="46" y="688" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="56" y="712" font-size="10" fill="#0b2345">3 items  ₦7,450</text>
+ <text x="56" y="733" font-size="10" fill="#60748e">Cash</text>
+ <text x="56" y="751" font-size="10" fill="#60748e">Bank Transfer</text>
+ <text x="50" y="802" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="262" y="480" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="270" y="508" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="280" y="500" font-size="11" fill="#fff">7. Low Stock Alert</text>
+ <text x="284" y="538" font-size="16" font-weight="700" fill="#0b2345">Low Stock Alert</text>
+ <rect x="280" y="556" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="290" y="581" font-size="11" fill="#fff">7 products are running low</text>
+ <rect x="280" y="616" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="371" y="616" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="289" y="640" font-size="9" fill="#fff">Indomie  3 left</text>
+ <text x="380" y="640" font-size="9" fill="#fff">Peak Milk  2 left</text>
+ <rect x="280" y="688" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="290" y="712" font-size="10" fill="#0b2345">7 products are running low</text>
+ <text x="290" y="733" font-size="10" fill="#60748e">Indomie  3 left</text>
+ <text x="290" y="751" font-size="10" fill="#60748e">Peak Milk  2 left</text>
+ <text x="284" y="802" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="496" y="480" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="504" y="508" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="514" y="500" font-size="11" fill="#fff">8. Employees</text>
+ <text x="518" y="538" font-size="16" font-weight="700" fill="#0b2345">Employees</text>
+ <rect x="514" y="556" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="524" y="581" font-size="11" fill="#fff">Amina Yusuf — Owner</text>
+ <rect x="514" y="616" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="605" y="616" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="523" y="640" font-size="9" fill="#fff">Tunde Bello — Manager</text>
+ <text x="614" y="640" font-size="9" fill="#fff">Fatima Ali — Cashier</text>
+ <rect x="514" y="688" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="524" y="712" font-size="10" fill="#0b2345">Amina Yusuf — Owner</text>
+ <text x="524" y="733" font-size="10" fill="#60748e">Tunde Bello — Manager</text>
+ <text x="524" y="751" font-size="10" fill="#60748e">Fatima Ali — Cashier</text>
+ <text x="518" y="802" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="730" y="480" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="738" y="508" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="748" y="500" font-size="11" fill="#fff">9. Reports</text>
+ <text x="752" y="538" font-size="16" font-weight="700" fill="#0b2345">Reports</text>
+ <rect x="748" y="556" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="758" y="581" font-size="11" fill="#fff">Sales Report</text>
+ <rect x="748" y="616" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="839" y="616" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="757" y="640" font-size="9" fill="#fff">Stock Report</text>
+ <text x="848" y="640" font-size="9" fill="#fff">Expense Report</text>
+ <rect x="748" y="688" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="758" y="712" font-size="10" fill="#0b2345">Sales Report</text>
+ <text x="758" y="733" font-size="10" fill="#60748e">Stock Report</text>
+ <text x="758" y="751" font-size="10" fill="#60748e">Expense Report</text>
+ <text x="752" y="802" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g><g><rect x="964" y="480" width="210" height="350" rx="22" fill="#07172f" stroke="#38567d" stroke-width="2"/>
+ <rect x="972" y="508" width="194" height="314" rx="15" fill="#f7f9fc"/>
+ <text x="982" y="500" font-size="11" fill="#fff">10. More</text>
+ <text x="986" y="538" font-size="16" font-weight="700" fill="#0b2345">More</text>
+ <rect x="982" y="556" width="174" height="48" rx="10" fill="#1473e6"/>
+ <text x="992" y="581" font-size="11" fill="#fff">Business Settings</text>
+ <rect x="982" y="616" width="83" height="58" rx="9" fill="#12b866"/>
+ <rect x="1073" y="616" width="83" height="58" rx="9" fill="#7a43e8"/>
+ <text x="991" y="640" font-size="9" fill="#fff">Printers</text>
+ <text x="1082" y="640" font-size="9" fill="#fff">Backup & Sync</text>
+ <rect x="982" y="688" width="174" height="70" rx="10" fill="#eef3f9"/>
+ <text x="992" y="712" font-size="10" fill="#0b2345">Business Settings</text>
+ <text x="992" y="733" font-size="10" fill="#60748e">Printers</text>
+ <text x="992" y="751" font-size="10" fill="#60748e">Backup & Sync</text>
+ <text x="986" y="802" font-size="9" fill="#60748e">Home   Sell   Stock   Money   More</text></g>
+</g>
+</svg>
