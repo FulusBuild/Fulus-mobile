@@ -118,10 +118,10 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 0),
-                  child: TextButton.icon(
+                  child: FulusIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back',
                     onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('Back'),
                   ),
                 ),
               ),
@@ -178,10 +178,10 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               alignment: Alignment.centerLeft,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 0),
-                child: TextButton.icon(
+                child: FulusIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back',
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('Back'),
                 ),
               ),
             ),
