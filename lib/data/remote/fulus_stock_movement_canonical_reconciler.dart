@@ -42,7 +42,10 @@ class FulusStockMovementCanonicalReconciler {
       newQuantity: newQuantity,
       reason: _nullableString(row['reason']),
       createdAt: _date(row['created_at']),
-      updatedAt: _date(row['updated_at']),
+      // inventory_movements has a creation timestamp but does not guarantee a
+      // separate updated_at value. Canonical stock movements are immutable
+      // ledger entries, so created_at is the authoritative fallback.
+      updatedAt: _date(row['updated_at'] ?? row['created_at']),
       deletedAt: _nullableDate(row['deleted_at']),
     );
   }
