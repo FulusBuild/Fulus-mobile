@@ -359,7 +359,14 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
                   ),
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: AppSpacing.lg),
+                  FulusChipRow(
+                    children: [
+                      FulusChip(label: 'Sign in', selected: !creating, onTap: () => _switchMode(_AccountMode.signIn)),
+                      FulusChip(label: 'Create account', selected: creating, onTap: () => _switchMode(_AccountMode.create)),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   FulusCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -410,13 +417,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Center(
-                    child: TextButton(
-                      onPressed: _busy ? null : () => _switchMode(creating ? _AccountMode.signIn : _AccountMode.create),
-                      child: Text(creating ? 'I already have an account' : 'Create a Fulus account'),
-                    ),
-                  ),
+
                 ],
               ),
             ),
