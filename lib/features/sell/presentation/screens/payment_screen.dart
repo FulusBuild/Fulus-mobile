@@ -504,57 +504,38 @@ class _PaymentMethodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
+    final color = switch (label) {
+      'Cash' => const Color(0xFF0BBE6E),
+      'Transfer' => const Color(0xFF7B3FF2),
+      'Card' => const Color(0xFF1473E6),
+      _ => const Color(0xFFFF8A00),
+    };
     return FulusPressable(
       semanticsLabel: '$label payment method',
       onPressed: onTap,
       child: AnimatedContainer(
         duration: fulusMotionDuration(context, AppMotion.fast),
-        constraints: const BoxConstraints(minHeight: 72),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        constraints: const BoxConstraints(minHeight: 82),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: selected ? AppColors.selectedTintOf(context) : AppColors.surfaceOf(context),
+          color: color,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected ? primary.withValues(alpha: 0.7) : AppColors.borderOf(context),
-            width: selected ? 1.4 : 1,
-          ),
+          border: Border.all(color: selected ? Colors.white : Colors.transparent, width: selected ? 2 : 1),
+          boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: .16), blurRadius: 8, offset: const Offset(0, 3))] : null,
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? primary.withValues(alpha: 0.10) : AppColors.surfaceAltOf(context),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(
-                icon,
-                size: AppIconSize.base,
-                color: selected ? primary : AppColors.textSecondaryOf(context),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                label,
-                style: AppTypography.body.copyWith(
-                  color: selected ? primary : AppColors.textPrimaryOf(context),
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            AnimatedSwitcher(
-              duration: fulusMotionDuration(context, AppMotion.fast),
-              child: selected
-                  ? Icon(FulusIcons.check, key: const ValueKey('selected'), size: AppIconSize.compact, color: primary)
-                  : const SizedBox(key: ValueKey('unselected'), width: AppIconSize.compact),
-            ),
+            Icon(icon, size: AppIconSize.base, color: Colors.white),
+            const Spacer(),
+            Row(children: [
+              Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800))),
+              if (selected) const Icon(FulusIcons.check, size: AppIconSize.compact, color: Colors.white),
+            ]),
           ],
         ),
       ),
     );
   }
 }
+
