@@ -847,13 +847,17 @@ The existing Home screen already has important business-state behavior: not-yet-
 
 Therefore, the redesign should build on the existing product foundation rather than replace it.
 
-### Important current gap
+### Navigation direction
 
-The current FulusAppShell uses a navigation drawer as its primary navigation mechanism.
+The redesign removes the navigation drawer from the Fulus workspace shell.
 
-The target UX specification calls for Home | Sell | Stock | Money | More with persistent bottom navigation on the primary mobile experience.
+The target UX specification uses a single persistent primary navigation model:
 
-This is now an explicit design-system work item. The existing drawer can remain useful for secondary or expanded navigation where appropriate, especially on larger layouts, but it must not cause the primary mobile experience to diverge from the mockup.
+**Home | Sell | Stock | Money | More**
+
+The bottom navigation is the navigation surface for the main workspace on mobile and remains the canonical model as the design system evolves. Secondary features belong inside **More** or within the relevant feature flow rather than behind a competing drawer.
+
+The drawer must not be reintroduced as an alternate primary navigation mechanism. This keeps the product faithful to the mockup, reduces competing navigation models, and strengthens glanceable one-hand operation.
 
 ---
 
@@ -968,3 +972,18 @@ The implementation goal is:
 > **Make the actual Fulus app look and feel like the mockup, then make that design work exceptionally well with real Fulus data, real business states, real offline behavior, and real production constraints.**
 
 The final product should feel immediately recognizable as the same design shown in the mockup on every major screen.
+
+
+# 29. Navigation Decision — Drawer Removed
+
+The navigation drawer is explicitly removed from the new Fulus design.
+
+The persistent bottom navigation is now the sole primary workspace navigation model:
+
+**Home | Sell | Stock | Money | More**
+
+Secondary destinations such as Customers, Staff, Locations, Reports, Account & Backup, and Settings should be reached through **More** or the relevant contextual screen. They should not be exposed through a second global navigation system.
+
+Screen headers should not reintroduce a hamburger/menu affordance for global navigation. Back buttons remain appropriate for nested/detail routes, and contextual actions remain appropriate where they belong to the current screen.
+
+This is a visual and interaction-system decision, not merely a shell implementation detail: the app should feel like one coherent navigation model everywhere.
