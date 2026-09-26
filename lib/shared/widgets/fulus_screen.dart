@@ -128,13 +128,12 @@ class _PageHeader extends StatelessWidget {
                   SizedBox(
                     width: AppTouchTarget.minimum,
                     height: AppTouchTarget.minimum,
-                    child: leading ?? (showBack
-                        ? FulusIconButton(
-                            icon: FulusIcons.arrowBack,
-                            tooltip: 'Go back',
-                            onPressed: () => Navigator.of(context).maybePop(),
-                          )
-                        )),
+                    child: leading ??
+                        FulusIconButton(
+                          icon: FulusIcons.arrowBack,
+                          tooltip: 'Go back',
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
                   ),
                 Expanded(
                   child: Padding(
