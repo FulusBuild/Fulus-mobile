@@ -83,6 +83,52 @@ class FulusScreen extends StatelessWidget {
   }
 }
 
+class _HeaderText extends StatelessWidget {
+  const _HeaderText({
+    required this.title,
+    required this.subtitle,
+    required this.isWide,
+    required this.foreground,
+    required this.muted,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool isWide;
+  final Color foreground;
+  final Color muted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.heading.copyWith(
+            fontSize: isWide ? 22 : 20,
+            fontWeight: FontWeight.w700,
+            color: foreground,
+            letterSpacing: -0.35,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.caption.copyWith(color: muted),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _PageHeader extends StatelessWidget {
   const _PageHeader({
     required this.title,
@@ -105,6 +151,10 @@ class _PageHeader extends StatelessWidget {
     final width = FulusLayout.width(context);
     final isWide = width >= FulusLayout.wideBreakpoint;
     final inset = FulusLayout.horizontalInset(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final stackActions = actions != null &&
+        actions!.isNotEmpty &&
+        (width < 360 || textScale > 1.15);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -121,9 +171,55 @@ class _PageHeader extends StatelessWidget {
               inset,
               width >= FulusLayout.tabletBreakpoint ? AppSpacing.md : AppSpacing.xs,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+            child: stackActions
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (leading != null || showBack)
+                            SizedBox(
+                              width: AppTouchTarget.minimum,
+                              height: AppTouchTarget.minimum,
+                              child: leading ??
+                                  FulusIconButton(
+                                    icon: FulusIcons.arrowBack,
+                                    tooltip: 'Go back',
+                                    onPressed: () => Navigator.of(context).maybePop(),
+                                  ),
+                            ),
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: leading != null || showBack ? AppSpacing.xs : 0,
+                              ),
+                              child: _HeaderText(
+                                title: title,
+                                subtitle: subtitle,
+                                isWide: isWide,
+                                foreground: foreground,
+                                muted: muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: actions!,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
                 if (leading != null || showBack)
                   SizedBox(
                     width: AppTouchTarget.minimum,
@@ -138,31 +234,12 @@ class _PageHeader extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.heading.copyWith(
-                            fontSize: isWide ? 22 : 20,
-                            fontWeight: FontWeight.w700,
-                            color: foreground,
-                            letterSpacing: -0.35,
-                          ),
-                        ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.caption.copyWith(color: muted),
-                          ),
-                        ],
-                      ],
+                    child: _HeaderText(
+                      title: title,
+                      subtitle: subtitle,
+                      isWide: isWide,
+                      foreground: foreground,
+                      muted: muted,
                     ),
                   ),
                 ),
