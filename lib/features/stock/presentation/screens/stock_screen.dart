@@ -282,33 +282,3 @@ class _StockBody extends ConsumerWidget {
   }
 }
 
-class _InventoryMetric extends StatelessWidget {
-  const _InventoryMetric({required this.label, required this.value, required this.suffix});
-  final String label;
-  final String value;
-  final String suffix;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
-        const SizedBox(height: 3),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-              const SizedBox(width: 4),
-              Text(suffix, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
