@@ -195,7 +195,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
   final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
-  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
+  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
 
   fulusConnectionState.setBusinessSwitchGuard(
     () async {
@@ -208,7 +208,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     beginSwitch: syncQueue.beginBusinessSwitchBarrier,
     endSwitch: () async => syncQueue.endBusinessSwitchBarrier(),
-    beforeSwitch: () => draftCartRepository.clearAllDraftCarts(),
+    beforeSwitch: () => draftCartRepository.assertNoDraftCartMutationDuringSwitch(),
   );
 
   final categoryRepository = CategoryRepositoryImpl(db: database, syncQueue: syncQueue);
