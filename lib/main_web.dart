@@ -227,7 +227,8 @@ class _FulusWebHomeFixtureState extends State<FulusWebHomeFixture> {
         selectedIndex: _selectedNav,
         onSelected: (index) => setState(() => _selectedNav = index),
       ),
-    );
+    ),
+  );
   }
 }
 
