@@ -367,32 +367,36 @@ class _MoneyQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actions = <({IconData icon, String label, VoidCallback onTap})>[
+    final actions = <({IconData icon, String label, String subtitle, VoidCallback onTap})>[
       (
         icon: FulusIcons.add,
         label: 'Add income',
+        subtitle: 'Record money in',
         onTap: () => context.pushNamed('moneyAddIncome'),
       ),
       (
         icon: FulusIcons.remove,
         label: 'Add expense',
+        subtitle: 'Record money out',
         onTap: () => context.pushNamed('moneyAddExpense'),
       ),
       (
         icon: FulusIcons.customers,
         label: 'Customers',
+        subtitle: 'Manage credit',
         onTap: () => context.pushNamed('moneyCustomers'),
       ),
       (
         icon: FulusIcons.localShipping,
         label: 'Suppliers',
+        subtitle: 'Track supplier money',
         onTap: () => context.pushNamed('moneySuppliers'),
       ),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 620 ? 4 : 2;
+        final columns = constraints.maxWidth >= 760 ? 4 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -401,13 +405,17 @@ class _MoneyQuickActions extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: AppSpacing.sm,
             mainAxisSpacing: AppSpacing.sm,
-            childAspectRatio: columns == 2 ? 1.7 : 1.25,
+            mainAxisExtent: 112,
           ),
-          itemBuilder: (context, index) => FulusQuickAction(
-            icon: actions[index].icon,
-            label: actions[index].label,
-            onTap: actions[index].onTap,
-          ),
+          itemBuilder: (context, index) {
+            final action = actions[index];
+            return FulusActionTile(
+              icon: action.icon,
+              label: action.label,
+              subtitle: action.subtitle,
+              onTap: action.onTap,
+            );
+          },
         );
       },
     );
