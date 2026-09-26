@@ -57,12 +57,16 @@ class ProductListTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '${item.currentStock}',
-                      style: AppTypography.body.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${item.currentStock}',
+                        style: AppTypography.body.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                     Text(product.unit, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
