@@ -98,7 +98,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: const ClampingScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(
                       inset,
                       AppSpacing.md,
@@ -166,6 +166,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       FulusSectionHeader(
                         title: 'Money summary',
                         titleColor: Colors.white,
+                        subtitleColor: Colors.white70,
                         action: 'See all',
                         onActionTap: () => context.pushNamed('moneyHistory'),
                       ),
@@ -193,6 +194,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
+                        titleColor: Colors.white,
+                        subtitleColor: Colors.white70,
                         action: 'See all',
                         onActionTap: () =>
                             context.pushNamed('moneyHistory'),
