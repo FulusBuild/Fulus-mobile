@@ -323,23 +323,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
               fulusHorizontalInset(context),
               AppSpacing.sm,
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<ReportPeriodKind>(
-                segments: [
-                  const ButtonSegment(value: ReportPeriodKind.today, label: Text('Today')),
-                  const ButtonSegment(value: ReportPeriodKind.thisWeek, label: Text('This week')),
-                  const ButtonSegment(value: ReportPeriodKind.thisMonth, label: Text('This month')),
-                  ButtonSegment(
-                    value: ReportPeriodKind.custom,
-                    label: Text(_customRange == null
-                        ? 'Custom'
-                        : '${formatRelativeDay(_customRange!.start)} – ${formatRelativeDay(_customRange!.end)}'),
-                  ),
-                ],
-                selected: {_periodKind},
-                onSelectionChanged: _onPeriodSelectionChanged,
-              ),
+            child: FulusChipRow(
+              children: [
+                FulusChip(label: 'Today', selected: _periodKind == ReportPeriodKind.today, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.today})),
+                FulusChip(label: 'This week', selected: _periodKind == ReportPeriodKind.thisWeek, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisWeek})),
+                FulusChip(label: 'This month', selected: _periodKind == ReportPeriodKind.thisMonth, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisMonth})),
+                FulusChip(label: _customRange == null ? 'Custom' : formatRelativeDay(_customRange!.start) + ' – ' + formatRelativeDay(_customRange!.end), selected: _periodKind == ReportPeriodKind.custom, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.custom})),
+              ],
             ),
           ),
           Expanded(
