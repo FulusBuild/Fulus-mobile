@@ -30,8 +30,8 @@ class MoneyScreen extends ConsumerStatefulWidget {
 class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   ReportPeriod? _builtForPeriod;
   late Future<double> _balanceFuture;
-  late Future<MoneySummary> _summaryFuture;
-  late Future<List<MoneyTransaction>> _transactionsFuture;
+  late Future<({MoneySummary summary, List<MoneyTransaction> transactions})>
+      _summaryAndTransactionsFuture;
 
   void _load(ReportPeriod period) {
     final repo = ref.read(moneyRepositoryProvider);
@@ -43,12 +43,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         permissions.contains(Permission.viewDashboardStats);
 
     _balanceFuture = repo.getAvailableBalance();
-    _summaryFuture = repo.getSummary(
-      period,
-      currentAuthUserId: currentAuthUserId,
-      canViewAllSales: canViewAllSales,
-    );
-    _transactionsFuture = repo.getTransactions(
+    _summaryAndTransactionsFuture = repo.getSummaryAndTransactions(
       period,
       currentAuthUserId: currentAuthUserId,
       canViewAllSales: canViewAllSales,
@@ -57,7 +52,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
 
   Future<void> _refresh() async {
     setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
-    await Future.wait([_balanceFuture, _summaryFuture, _transactionsFuture]);
+    await Future.wait([_balanceFuture, _summaryAndTransactionsFuture]);
   }
 
   void _toggleSimulatedError() {
@@ -140,12 +135,12 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      FutureBuilder<MoneySummary>(
-                        future: _summaryFuture,
+                      FutureBuilder<({MoneySummary summary, List<MoneyTransaction> transactions})>(
+                        future: _summaryAndTransactionsFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return _MoneyError(
-                              message: "Couldn't load this period's money actions.",
+                              message: "Couldn't load this period's money data.",
                               onRetry: _refresh,
                             );
                           }
@@ -155,7 +150,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             );
                           }
                           return _MoneyQuickActions(
-                            summary: snapshot.data!,
+                            summary: snapshot.data!.summary,
                             currencySymbol: currencySymbol,
                           );
                         },
@@ -172,8 +167,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             context.pushNamed('moneyHistory'),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      FutureBuilder<List<MoneyTransaction>>(
-                        future: _transactionsFuture,
+                      FutureBuilder<({MoneySummary summary, List<MoneyTransaction> transactions})>(
+                        future: _summaryAndTransactionsFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return _MoneyError(
@@ -192,7 +187,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                           }
 
                           final transactions =
-                              snapshot.data!.take(5).toList();
+                              snapshot.data!.transactions.take(5).toList();
                           if (transactions.isEmpty) {
                             return const FulusEmptyState(
                               icon: FulusIcons.receipt,
