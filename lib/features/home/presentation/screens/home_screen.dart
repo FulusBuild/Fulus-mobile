@@ -243,7 +243,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       ),
       _HomeMetricCard(
         color: _HomeColors.teal,
-        icon: FulusIcons.expenses,
+        icon: FulusIcons.money,
         label: 'Expenses',
         value: formatMoney(_expensesTotal, symbol: currencySymbol, compact: true),
       ),
