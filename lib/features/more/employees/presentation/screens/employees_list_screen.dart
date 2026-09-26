@@ -113,7 +113,7 @@ class _TeamOverview extends StatelessWidget {
         FulusStatCard(
           icon: FulusIcons.staff,
           label: 'Active team',
-          value: '\$count \${count == 1 ? 'member' : 'members'}',
+          value: '\$count \${count == 1 ? "member" : "members"}',
         ),
       ],
     );
