@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../widgets/product_list_tile.dart';
 import '../widgets/stock_movement_tile.dart';
 
@@ -103,7 +101,6 @@ class _StockBody extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     final movementsAsync = ref.watch(stockMovementsProvider(locationId));
     final filter = ref.watch(stockFilterProvider);
-    final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -125,7 +122,6 @@ class _StockBody extends ConsumerWidget {
             final categories = categoriesAsync.asData?.value ?? const <Category>[];
             final categoryById = {for (final c in categories) c.localId: c};
             final filtered = applyStockFilter(products, filter);
-            final totalValue = totalStockValue(products);
             final lowStockCount = products.where((p) => p.product.tracksStock && p.isLowStock && p.currentStock > 0).length;
             final outOfStock = outOfStockCount(products);
 
