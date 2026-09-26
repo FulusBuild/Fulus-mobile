@@ -49,7 +49,7 @@ class GetStartedScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                   FulusActionTile(
-                    title: 'Create your business',
+                    label: 'Create your business',
                     subtitle: 'Set up Fulus in a few simple steps.',
                     icon: Icons.storefront_rounded,
                     onTap: () async {
@@ -64,7 +64,7 @@ class GetStartedScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusActionTile(
-                    title: 'Sign in',
+                    label: 'Sign in',
                     subtitle: 'Restore a Fulus business to this device.',
                     icon: Icons.login_rounded,
                     onTap: () {
@@ -75,7 +75,7 @@ class GetStartedScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusActionTile(
-                    title: 'Continue offline',
+                    label: 'Continue offline',
                     subtitle: 'Run your business locally without an account.',
                     icon: Icons.cloud_off_rounded,
                     onTap: () {
