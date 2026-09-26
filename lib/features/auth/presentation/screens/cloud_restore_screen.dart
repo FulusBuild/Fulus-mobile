@@ -234,101 +234,137 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = AppColors.primaryOf(context);
+    final muted = AppColors.textSecondaryOf(context);
+
     return FulusScreen(
       title: 'Restore Fulus',
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Welcome back',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.display.copyWith(color: AppColors.textPrimaryOf(context)),
+      body: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.xxxl,
+              AppSpacing.xl,
+              AppSpacing.xxl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Welcome back',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.display.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                    fontSize: 34,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Your Fulus account is signed in. Restore your cloud business to this device.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondaryOf(context)),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  FulusCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          widget.ownerEmail,
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyLarge.copyWith(
-                            color: AppColors.textPrimaryOf(context),
-                            fontWeight: FontWeight.w600,
-                          ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Your Fulus account is signed in. Restore your cloud business to this device.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.body.copyWith(color: muted),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                FulusCard(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.selectedTintOf(context),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
+                        child: Icon(
+                          Icons.cloud_done_rounded,
+                          color: primary,
+                          size: AppIconSize.base,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: AppColors.selectedTintOf(context),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: _busy
-                                  ? const FulusLoadingIndicator()
-                                  : Icon(
-                                      Icons.cloud_download_rounded,
-                                      color: AppColors.primaryOf(context),
-                                      size: 22,
-                                    ),
+                            Text(
+                              'Signed-in account',
+                              style: AppTypography.label.copyWith(color: muted),
                             ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Text(
-                                _status,
-                                style: AppTypography.body.copyWith(
-                                  color: AppColors.textPrimaryOf(context),
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              widget.ownerEmail,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.body.copyWith(
+                                color: AppColors.textPrimaryOf(context),
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
                         ),
-                        if (_error != null) ...[
-                          const SizedBox(height: AppSpacing.md),
-                          Text(
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FulusActionTile(
+                  label: _busy ? 'Restoring your business…' : 'Restore my business',
+                  subtitle: _busy
+                      ? _status
+                      : 'Bring your cloud business onto this device.',
+                  icon: Icons.cloud_download_rounded,
+                  onTap: _busy ? null : _restore,
+                  trailing: _busy ? const FulusLoadingIndicator() : null,
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  FulusCard(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.error_outline_rounded,
+                          size: AppIconSize.compact,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
                             _error!,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            style: AppTypography.caption.copyWith(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusActionTile(
-                    label: _busy ? 'Restoring business…' : 'Restore my business',
-                    subtitle: _busy
-                        ? 'Please keep Fulus open while your business is restored.'
-                        : 'Bring your cloud business onto this device.',
-                    icon: Icons.cloud_download_rounded,
-                    onTap: _busy ? null : _restore,
-                    trailing: _busy ? const FulusLoadingIndicator() : null,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    'This restores the business belonging to the signed-in Fulus account. Your existing local data is not merged with the cloud business.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                  ),
                 ],
-              ),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: AppIconSize.dense,
+                      color: muted,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Your existing local data is not merged with the cloud business. Keep Fulus open while the restore is in progress.',
+                        textAlign: TextAlign.left,
+                        style: AppTypography.caption.copyWith(color: muted),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
