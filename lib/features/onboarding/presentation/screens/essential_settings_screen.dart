@@ -75,6 +75,13 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
       body: StreamBuilder<BusinessProfile?>(
         stream: ref.watch(businessSettingsRepositoryProvider).watchSettings().withFulusLoadingTimeout(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return FulusErrorState(
+              message: "Couldn't load your business settings.",
+              reassurance: 'Nothing was changed — try loading the settings again.',
+              onRetry: () => setState(() {}),
+            );
+          }
           final profile = snapshot.data;
           if (profile == null) {
             return const FulusLoadingIndicator();
