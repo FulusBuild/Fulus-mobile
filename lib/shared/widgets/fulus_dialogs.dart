@@ -31,7 +31,9 @@ Future<bool> showFulusPermissionPrimer(
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: AppColors.surfaceOf(dialogContext),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
       // Responsive UI audit — see showFulusConfirmDialog's own note
       // below: caller-supplied [message] plus a small screen or larger
       // system text can otherwise overflow rather than scroll.
@@ -89,7 +91,7 @@ Future<bool> showFulusConfirmDialog(
       // screen or larger system text can overflow the dialog instead of
       // scrolling within it.
       scrollable: true,
-      title: Text(title, style: AppTypography.heading),
+      title: Text(title, style: AppTypography.heading.copyWith(fontWeight: FontWeight.w700)),
       content: Text(message, style: AppTypography.body),
       // "Dialog default focus: Cancel/Text button sits visually
       // secondary to the destructive action, but is what a screen
