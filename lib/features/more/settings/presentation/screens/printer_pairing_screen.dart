@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
@@ -80,7 +81,7 @@ class _PrinterPairingScreenState extends ConsumerState<PrinterPairingScreen> {
                         subtitle: 'Manage the receipt printers available to this device',
                       ),
                       StreamBuilder<List<PairedPrinter>>(
-                        stream: ref.watch(printerRepositoryProvider).watchPaired(),
+                        stream: ref.watch(printerRepositoryProvider).watchPaired().withFulusLoadingTimeout(),
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return FulusErrorState(
