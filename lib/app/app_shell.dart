@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
@@ -269,47 +270,3 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
 
 final _shellSyncStatusProvider = StreamProvider<SyncStatus>((ref) => ref.watch(syncStatusNotifierProvider).watch());
 
-
-final _drawerActiveLocationProvider = FutureProvider.autoDispose<Location?>((ref) async {
-  final locationId = await ref.watch(activeLocationIdProvider.future);
-  return ref.read(locationRepositoryProvider).getLocationById(locationId);
-});
-
-class _ActiveLocationDrawerCard extends StatelessWidget {
-  const _ActiveLocationDrawerCard({required this.location});
-
-  final Location? location;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = AppColors.primaryOf(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
-      child: FulusCard(
-        outlined: true,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        child: Row(
-          children: [
-            Icon(FulusIcons.locations, size: AppIconSize.compact, color: primary),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Active location', style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context))),
-                  const SizedBox(height: 2),
-                  Text(
-                    location?.name ?? 'Loading…',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
