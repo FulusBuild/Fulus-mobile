@@ -196,7 +196,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       return !(await syncQueue.hasPendingItems());
     },
     beginSwitch: syncQueue.beginBusinessSwitchBarrier,
-    endSwitch: syncQueue.endBusinessSwitchBarrier,
+    endSwitch: () async => syncQueue.endBusinessSwitchBarrier(),
   );
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
@@ -209,7 +209,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
   final categoryRepository = CategoryRepositoryImpl(db: database, syncQueue: syncQueue);
   final supplierRepository = SupplierRepositoryImpl(db: database, syncQueue: syncQueue);
-  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger, currentBusinessId: () => fulusConnectionState.selectedBusinessId);
+  final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, diagnosticLogger: diagnosticLogger);
+  fulusConnectionState.setBusinessSwitchGuard(
+    () async => !(await syncQueue.hasPendingItems()),
+    beginSwitch: syncQueue.beginBusinessSwitchBarrier,
+    endSwitch: () async => syncQueue.endBusinessSwitchBarrier(),
+    beforeSwitch: draftCartRepository.clearAllDraftCarts,
+  );
   final returnRepository = ReturnRepositoryImpl(db: database, syncQueue: syncQueue, customerCreditRepository: customerCreditRepository);
   final returnCanonicalRepository = ReturnCanonicalRepositoryImpl(db: database);
   final expenseCategoryRepository = ExpenseCategoryRepositoryImpl(db: database, syncQueue: syncQueue);
