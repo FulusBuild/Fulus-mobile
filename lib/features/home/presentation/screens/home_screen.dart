@@ -483,10 +483,10 @@ class _AttentionCard extends StatelessWidget {
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
+
 class _HomeHeroSkeleton extends StatelessWidget {
   const _HomeHeroSkeleton();
   @override
