@@ -53,17 +53,14 @@ class NotificationsScreen extends ConsumerWidget {
                         children: [
                           _NotificationSummary(notifications: notifications),
                           const SizedBox(height: AppSpacing.lg),
-                          FulusCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < notifications.length; i++) ...[
-                                  if (i > 0) const FulusListDivider(indented: false),
-                                  _NotificationRow(notification: notifications[i], onRead: () => repo.markRead(notifications[i].id)),
-                                ],
-                              ],
+                          for (final notification in notifications)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              child: _NotificationTile(
+                                notification: notification,
+                                onRead: () => repo.markRead(notification.id),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -108,6 +105,24 @@ class _NotificationSummary extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({required this.notification, required this.onRead});
+
+  final AppNotification notification;
+  final VoidCallback onRead;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSync = notification.type == AppNotificationType.stuckSync;
+    return FulusActionTile(
+      icon: isSync ? FulusIcons.sync : FulusIcons.check,
+      label: notification.title,
+      subtitle: notification.body,
+      onTap: notification.isRead ? null : onRead,
     );
   }
 }
