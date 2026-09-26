@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/async_timeout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
@@ -20,7 +21,7 @@ class NotificationsScreen extends ConsumerWidget {
         FulusIconButton(icon: FulusIcons.check, tooltip: 'Mark all read', onPressed: () => repo.markAllRead()),
       ],
       body: StreamBuilder<List<AppNotification>>(
-        stream: repo.watchAll(),
+        stream: repo.watchAll().withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return FulusErrorState(
