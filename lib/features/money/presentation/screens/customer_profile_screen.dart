@@ -182,7 +182,7 @@ class _ProfileBody extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.lg),
                           FulusActionTile(
                             icon: Icons.payments_outlined,
-                            title: 'Record repayment',
+                            label: 'Record repayment',
                             subtitle: 'Record money received from this customer.',
                             onTap: () async {
                               final result = await context.pushNamed<bool>(
