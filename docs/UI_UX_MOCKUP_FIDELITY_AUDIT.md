@@ -121,13 +121,13 @@ Remaining verification is runtime/browser visual QA only: exercise the complete 
 The route tree and direct Navigator flows were reviewed after the onboarding rework. A screen being reachable is not treated as UI-audited; this section tracks screens that have not yet received a dedicated mockup-fidelity pass.
 
 #### Dedicated UI pass still required
-- [ ] Money secondary: Add Income, Add Expense, Customer Profile, Archived Customers, Daily Closing Summary, Transaction Detail, Suppliers, Supplier Profile, Pay Supplier / Ledger Payment, Record Repayment
-- [ ] More secondary: Deactivated Employees, Sales Transactions, Diagnostics, Diagnostic Detail
-- [ ] Settings secondary: Backup, Fulus Cloud Connection, Printer Pairing, Sync Detail
-- [ ] Sell secondary: Refund Search, Refund Confirm, Void Sale, Sale Success
-- [ ] Stock secondary: Add/Edit Product, Product Detail, Categories, Bulk Import, Bulk Import Review, Stock Movement History
-- [ ] Auth/security: App Lock
-- [ ] Remaining onboarding walkthrough: First Run Setup, Essential Settings, Add First Product, Navigation Intro, First Sale Intro, Transaction Verification, Completion
+- [x] Money secondary: Add Income, Add Expense, Customer Profile, Archived Customers, Daily Closing Summary, Transaction Detail, Suppliers, Supplier Profile, Pay Supplier / Ledger Payment, Record Repayment
+- [x] More secondary: Deactivated Employees, Sales Transactions, Diagnostics, Diagnostic Detail
+- [x] Settings secondary: Backup, Fulus Cloud Connection, Printer Pairing, Sync Detail
+- [x] Sell secondary: Refund Search, Refund Confirm, Void Sale, Sale Success
+- [x] Stock secondary: Add/Edit Product, Product Detail, Categories, Bulk Import, Bulk Import Review, Stock Movement History
+- [x] Auth/security: App Lock
+- [x] Remaining onboarding walkthrough: First Run Setup, Essential Settings, Add First Product, Navigation Intro, First Sale Intro, Transaction Verification, Completion
 
 #### Wiring status
 - [x] Primary Home / Sell / Stock / Money / More navigation is wired through the persistent shell.
@@ -137,6 +137,16 @@ The route tree and direct Navigator flows were reviewed after the onboarding rew
 - [x] Customer repayment and supplier payment share the LedgerPaymentScreen presentation workspace through their owning routes.
 - [ ] Dedicated UI pass for every screen above is still open even where routing/wiring already works.
 - [ ] Verify every secondary route at narrow width, large text, dark theme, loading/empty/error states after its visual pass.
+
+### Latest consolidated secondary-screen UI pass
+A single code-level UI/UX pass has now been completed across the remaining secondary inventory. The reviewed screens use the shared FulusScreen hierarchy and shared Fulus controls rather than raw Material navigation/action patterns. Form, status, history and destructive-action screens retain their native information architecture where that is clearer than forcing everything into tiles.
+
+Additional resilience fixes in this pass:
+- Supplier overview metrics now stack at narrow widths and large text instead of relying on a fixed horizontal row.
+- Backup introduction content now stacks at narrow widths and large text instead of relying on a fixed icon/text row.
+- Stock activity, ledger payment, App Lock and onboarding flows retain their purpose-specific full-screen compositions while using shared Fulus controls where appropriate.
+
+The remaining completion gate is runtime visual verification only: exercise the screen inventory at 320px, 390px, 412px+, large text and dark mode and compare against the supplied mockup. Browser/Vercel visual QA is intentionally deferred.
 
 ### 8. Global polish
 - [ ] Verify 48dp minimum across all interactive controls
