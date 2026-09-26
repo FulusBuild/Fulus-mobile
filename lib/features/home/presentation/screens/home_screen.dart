@@ -134,7 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.xxxl),
+                        padding: EdgeInsets.fromLTRB(inset, 0, inset, inset),
                         sliver: SliverFillRemaining(
                           hasScrollBody: false,
                           child: FutureBuilder<HomeHeroState>(
@@ -362,16 +362,16 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: AppIconSize.compact),
-                const Spacer(),
+                Icon(icon, color: foreground, size: 32),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground.withValues(alpha: 0.9),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 FittedBox(
@@ -382,7 +382,7 @@ class _HomeCompactCard extends StatelessWidget {
                     maxLines: 1,
                     style: TextStyle(
                       color: foreground,
-                      fontSize: 26,
+                      fontSize: 30,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -393,7 +393,8 @@ class _HomeCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground.withValues(alpha: 0.9),
-                    fontSize: 13,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
