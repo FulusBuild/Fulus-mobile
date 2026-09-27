@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/design_tokens.dart';
+
 /// Home and stock metric cards share this composition because they have the
 /// same hierarchy: icon, label, value, then supporting text.
 ///
