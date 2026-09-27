@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Fulus visual tokens: blue for actions, neutral surfaces, and semantic
@@ -137,6 +138,41 @@ class AppElevation { AppElevation._(); static const cardLight=[BoxShadow(offset:
 class AppOpacity { AppOpacity._(); static const groundShadow=.06; static const subtleTintDark=.08; static const badgeTintDark=.14; static const disabled=.4; static const scrim=.45; }
 class AppTouchTarget { AppTouchTarget._(); static const minimum=48.0; }
 class AppMotion { AppMotion._(); static const fast=Duration(milliseconds:150); static const standard=Duration(milliseconds:220); static const ceiling=Duration(milliseconds:320); static const curveStandard=Cubic(.4,0,.2,1); static const curveDecelerate=Cubic(0,0,.2,1); }
-class AppIconSize { AppIconSize._(); static const dense=16.0; static const compact=20.0; static const base=24.0; static const emphasis=32.0; static const hero=48.0; static const strokeWidth=2.0; }
+class AppIconSize {
+  AppIconSize._();
+
+  static const dense = 16.0;
+  static const compact = 20.0;
+  static const base = 24.0;
+  static const emphasis = 32.0;
+  static const hero = 48.0;
+  static const strokeWidth = 2.0;
+
+  /// Derives a metric-card icon box from the card's available height.
+  ///
+  /// The icon is not assigned a universal pixel size. The card's own
+  /// geometry reserves space for padding, text and inter-element gaps first;
+  /// whatever vertical space remains becomes the icon box.
+  static double metric({
+    required double cardHeight,
+    required double padding,
+    required double labelFontSize,
+    required double valueFontSize,
+    required double secondaryFontSize,
+    double gapAfterIcon = AppSpacing.sm,
+    double gapAfterLabel = AppSpacing.xs,
+    double gapAfterValue = AppSpacing.xs,
+  }) {
+    final fixedContent = (padding * 2) +
+        gapAfterIcon +
+        gapAfterLabel +
+        gapAfterValue +
+        (labelFontSize * 1.2) +
+        (valueFontSize * 1.1) +
+        (secondaryFontSize * 1.2);
+
+    return math.max(0, cardHeight - fixedContent);
+  }
+}
 const double kMinimumContrastRatio=4.5;
 class AppGradients { AppGradients._(); static LinearGradient heroOf(BuildContext context){final color=AppColors.isDark(context)?AppColors.brandDark:AppColors.primary;return LinearGradient(colors:[color,color]);} static LinearGradient successOf(BuildContext context)=>LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:AppColors.isDark(context)?[AppColors.surfaceDark,AppColors.backgroundDark]:[AppColors.successLight,AppColors.surfaceLight]); }
