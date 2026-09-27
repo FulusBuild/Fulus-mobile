@@ -256,7 +256,6 @@ class _HomeMockupDashboard extends StatelessWidget {
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-  double get _expensesTotal => activity.where((tx) => tx.type == MoneyTransactionType.expense).fold<double>(0, (sum, tx) => sum + tx.amount);
   int get _lowStockCount => notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
   double get _creditTotal => notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
 
@@ -284,7 +283,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.moneyOut, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
           const SizedBox(width: AppSpacing.sm),
           const Expanded(child: _HomeSellCard()),
         ],
@@ -416,29 +415,55 @@ class _HomeSellCard extends StatelessWidget {
         child: InkWell(
           onTap: () => context.goNamed('sell'),
           borderRadius: BorderRadius.circular(AppRadius.md),
+          child: const Center(
+            child: Text(
+              'Sell',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 90,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeReportCard extends StatelessWidget {
+  const _HomeReportCard({required this.canViewReports});
+
+  final bool canViewReports;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: canViewReports,
+      enabled: canViewReports,
+      label: 'Reports',
+      child: Material(
+        color: _HomeColors.teal,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: canViewReports ? () => context.goNamed('moreReports') : null,
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Row(
-              children: [
-                const Icon(
-                  FulusIcons.sell,
-                  color: Colors.white,
-                  size: 32,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                const Expanded(
-                  child: Text(
-                    'Sell',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: FulusMetricCardColumn(
+              icon: FulusIcons.reports,
+              iconColor: Colors.white,
+              children: const [
+                Text(
+                  'Reports',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
-                ),
-                Icon(
-                  FulusIcons.arrowForward,
-                  color: Colors.white.withValues(alpha: 0.8),
                 ),
               ],
             ),
@@ -448,7 +473,6 @@ class _HomeSellCard extends StatelessWidget {
     );
   }
 }
-
 class _HomeHeroSkeleton extends StatelessWidget {
   const _HomeHeroSkeleton();
 
