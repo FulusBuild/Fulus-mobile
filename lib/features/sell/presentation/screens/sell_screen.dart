@@ -576,7 +576,14 @@ class _CartSummaryBar extends StatelessWidget {
         child: InkWell(
           onTap: () {
             final cubit = context.read<CartCubit>();
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen())));
+            Navigator.of(context).push(
+              PageRouteBuilder<void>(
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+                pageBuilder: (_, __, ___) =>
+                    BlocProvider.value(value: cubit, child: const CartScreen()),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(10),
           child: SizedBox(height: 54, child: Row(children: [
