@@ -48,7 +48,7 @@ class StockOverviewStats extends StatelessWidget {
         FulusStatCard(
           label: 'Products',
           value: '${products.length}',
-          icon: FulusIcons.lowStock,
+          icon: FulusIcons.stock,
         ),
       ],
     );
