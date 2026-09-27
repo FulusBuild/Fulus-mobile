@@ -173,7 +173,7 @@ class _FulusBottomNavigationItem extends StatelessWidget {
                         grade: 0,
                         opticalSize: 24,
                       ),
-                      child: Icon(icon, size: AppIconSize.base),
+                      child: Icon(icon, size: AppIconSize.compact),
                     ),
                     const SizedBox(height: 2),
                     FittedBox(
