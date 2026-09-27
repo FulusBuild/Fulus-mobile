@@ -90,7 +90,7 @@ class _PrinterPairingScreenState extends ConsumerState<PrinterPairingScreen> {
                               onRetry: () => setState(() {}),
                             );
                           }
-                          if (!snapshot.hasData) return const FulusLoadingIndicator();
+                          if (!snapshot.hasData) return const _PrinterLoadingSkeleton();
 
                           final printers = snapshot.data!;
                           if (printers.isEmpty) {
@@ -328,7 +328,7 @@ class _FindPrinterSheetState extends ConsumerState<_FindPrinterSheet> {
                               final message = snap.error is DeviceFailure ? (snap.error as DeviceFailure).message : "Couldn't scan for printers.";
                               return FulusErrorState(message: message, reassurance: 'You can try another discovery method.');
                             }
-                            if (!snap.hasData) return const FulusLoadingIndicator();
+                            if (!snap.hasData) return const _PrinterLoadingSkeleton();
                             final devices = snap.data!;
                             if (devices.isEmpty) {
                               return FulusEmptyState(
@@ -388,4 +388,15 @@ class _DiscoveryButton extends StatelessWidget {
       onPressed: onPressed,
     );
   }
+}
+
+
+class _PrinterLoadingSkeleton extends StatelessWidget {
+  const _PrinterLoadingSkeleton();
+  @override Widget build(BuildContext context) => ListView.separated(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    itemCount: 4,
+    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+    itemBuilder: (_, __) => const FulusListRowSkeleton(),
+  );
 }
