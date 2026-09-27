@@ -192,22 +192,25 @@ final appRouter = GoRouter(
               // it does (Riverpod 3.x: AsyncValue.value is now the
               // safe non-throwing accessor — .valueOrNull was renamed
               // to .value, not kept as a separate getter).
-              builder: (context, state) => Consumer(
-                builder: (context, ref, _) {
-                  final user = ref.watch(sessionProvider);
-                  if (user == null) {
-                    return const AuthGateScreen();
-                  }
-                  final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
-                  final isOwner = user.role == AuthRole.owner;
-                  return HomeScreen(
-                    currentAuthUserId: user.id,
-                    isOwner: isOwner,
-                    canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
-                    canViewMoney: permissions.contains(Permission.viewMoney),
-                    canViewReports: permissions.contains(Permission.viewReports),
-                  );
-                },
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final user = ref.watch(sessionProvider);
+                    if (user == null) {
+                      return const AuthGateScreen();
+                    }
+                    final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+                    final isOwner = user.role == AuthRole.owner;
+                    return HomeScreen(
+                      currentAuthUserId: user.id,
+                      isOwner: isOwner,
+                      canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
+                      canViewMoney: permissions.contains(Permission.viewMoney),
+                      canViewReports: permissions.contains(Permission.viewReports),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -217,7 +220,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/stock',
               name: 'stock',
-              builder: (context, state) => const StockScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: StockScreen()),
               routes: [
                 GoRoute(
                   path: 'product/:productId',
@@ -272,7 +275,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/sell',
               name: 'sell',
-              builder: (context, state) => const SellScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: SellScreen()),
               routes: [
                 GoRoute(
                   path: 'refund',
@@ -296,7 +299,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/money',
               name: 'money',
-              builder: (context, state) => const MoneyScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: MoneyScreen()),
               routes: [
                 GoRoute(
                   path: 'history',
@@ -429,7 +432,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/more',
               name: 'more',
-              builder: (context, state) => const _MoreScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: _MoreScreen()),
               routes: [
                 GoRoute(
                   path: 'employees',
