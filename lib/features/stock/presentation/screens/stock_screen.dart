@@ -369,7 +369,7 @@ class _StockSummaryTile extends StatelessWidget {
       height: 146,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: FulusAdaptiveCardColumn(
+        child: FulusMetricCardColumn(
           icon: icon,
           iconColor: foreground,
           children: [
