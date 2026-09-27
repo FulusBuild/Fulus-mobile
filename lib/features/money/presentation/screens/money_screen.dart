@@ -429,18 +429,10 @@ class _MoneyQuickActions extends ConsumerWidget {
               borderRadius: BorderRadius.circular(AppRadius.md),
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: FulusMetricCardColumn(
+                  icon: action.icon,
+                  iconColor: foreground,
                   children: [
-                    SizedBox(
-                      height: 48,
-                      width: 48,
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Icon(action.icon, color: foreground, size: 42),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       action.label,
                       maxLines: 1,
