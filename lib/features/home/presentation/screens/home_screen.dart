@@ -279,7 +279,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.lowStock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.creditCard, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
@@ -429,7 +429,7 @@ class _HomeSellCard extends StatelessWidget {
             child: Row(
               children: [
                 const Icon(
-                  FulusIcons.sell,
+                  FulusIcons.quickActions,
                   color: Colors.white,
                   size: 32,
                 ),
