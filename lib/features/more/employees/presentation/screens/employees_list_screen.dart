@@ -128,7 +128,7 @@ class _TeamOverview extends StatelessWidget {
               const Spacer(),
               Text(
                 'Employees  ${employees.length}',
-                style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w800),
+                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const Text(
                 'People, access and attendance',
