@@ -272,7 +272,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/sell',
               name: 'sell',
-              builder: (context, state) => const SellScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: SellScreen()),
               routes: [
                 GoRoute(
                   path: 'refund',
@@ -296,7 +296,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/money',
               name: 'money',
-              builder: (context, state) => const MoneyScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: MoneyScreen()),
               routes: [
                 GoRoute(
                   path: 'history',
@@ -429,7 +429,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/more',
               name: 'more',
-              builder: (context, state) => const _MoreScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: _MoreScreen()),
               routes: [
                 GoRoute(
                   path: 'employees',
