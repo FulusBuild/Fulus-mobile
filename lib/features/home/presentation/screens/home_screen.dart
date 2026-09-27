@@ -310,11 +310,9 @@ class _HomeMockupDashboard extends StatelessWidget {
           children: [
             for (final row in rows)
               if (row is Row)
-                IntrinsicHeight(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: responsiveRowHeight),
-                    child: row,
-                  ),
+                SizedBox(
+                  height: responsiveRowHeight,
+                  child: row,
                 )
               else
                 row,
