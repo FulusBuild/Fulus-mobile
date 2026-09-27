@@ -30,7 +30,7 @@ class NotificationsScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(notificationRepositoryProvider),
             );
           }
-          if (!snapshot.hasData) return const FulusLoadingIndicator();
+          if (!snapshot.hasData) return const _NotificationsSkeleton();
           final notifications = snapshot.data!;
           if (notifications.isEmpty) {
             return const FulusEmptyState(
@@ -159,3 +159,24 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
+
+
+class _NotificationsSkeleton extends StatelessWidget {
+  const _NotificationsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return ListView(
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+      ],
+    );
+  }
+}
