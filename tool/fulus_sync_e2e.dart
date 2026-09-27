@@ -151,7 +151,7 @@ Future<void> main() async {
       'items': [
         {
           'product_id': null,
-          'description': 'E2E Quick Sale \$suffix',
+          'description': 'E2E Quick Sale $suffix',
           'quantity': 1,
           'unit_price': 321,
           'cost_price_at_sale': 0,
