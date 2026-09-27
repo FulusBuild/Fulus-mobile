@@ -56,7 +56,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             return FulusErrorState(message: "Couldn't load this customer.", onRetry: _reload);
           }
           if (!snapshot.hasData) {
-            return const Center(child: FulusLoadingIndicator());
+            return const _CustomerProfileLoadingSkeleton();
           }
           final customer = snapshot.data;
           if (customer == null) {
@@ -436,4 +436,21 @@ class _PurchaseHistoryRow extends StatelessWidget {
       onTap: onTap,
     );
   }
+}
+class _CustomerProfileLoadingSkeleton extends StatelessWidget {
+  const _CustomerProfileLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusListRowSkeleton(hasLeading: false),
+      FulusListRowSkeleton(hasLeading: false),
+      FulusListRowSkeleton(hasLeading: false),
+    ],
+  );
 }
