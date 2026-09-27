@@ -5,9 +5,8 @@ import '../../../../domain/entities/product.dart';
 
 /// State for `CartCubit` — mirrors the sealed-class-per-state pattern
 /// `dashboard_summary.dart`'s `HomeHeroState` already established for
-/// this codebase, rather than reaching for `freezed` (a pubspec
-/// dependency, but not otherwise used anywhere in this tree yet — no
-/// reason for the cart to be the first).
+/// this codebase, rather than introducing another generated state
+/// representation. The cart state is intentionally small and explicit.
 sealed class CartState {
   const CartState();
 }
