@@ -289,7 +289,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
                     return Column(
                       children: [
                         const _HistoryRefreshNotice(error: true),
-                        Expanded(child: _HistoryList(items: _visibleItems!, currencySymbol: currencySymbol)),
+                        Expanded(child: _GroupedTransactionList(items: _visibleItems!, currencySymbol: currencySymbol)),
                       ],
                     );
                   }
@@ -312,7 +312,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
                   return Column(
                     children: [
                       const _HistoryRefreshNotice(),
-                      Expanded(child: _HistoryList(items: _visibleItems!, currencySymbol: currencySymbol)),
+                      Expanded(child: _GroupedTransactionList(items: _visibleItems!, currencySymbol: currencySymbol)),
                     ],
                   );
                 }
@@ -417,7 +417,7 @@ class _HistoryRefreshNotice extends StatelessWidget {
               if (!error)
                 const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
               else
-                Icon(FulusIcons.warning, size: AppIconSize.compact, color: AppColors.warningOf(context)),
+                Icon(Icons.warning_amber_outlined, size: AppIconSize.compact, color: AppColors.warningOf(context)),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text(error ? "Couldn't refresh the latest history." : 'Updating history…')),
             ],
