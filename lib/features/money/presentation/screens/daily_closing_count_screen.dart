@@ -118,7 +118,7 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
           if (snapshot.hasError) {
             return FulusErrorState(message: "Couldn't load the drawer.", onRetry: () => setState(() => _future = _load()));
           }
-          if (!snapshot.hasData) return const Center(child: FulusLoadingIndicator());
+          if (!snapshot.hasData) return const _DailyClosingLoadingSkeleton();
           final data = snapshot.data!;
           if (data.session == null) {
             return FulusEmptyState(
@@ -244,4 +244,13 @@ class _DifferencePill extends StatelessWidget {
       child: Row(children: [Icon(matches ? Icons.check_circle_outline : Icons.info_outline, size: AppIconSize.compact, color: color), const SizedBox(width: AppSpacing.sm), Flexible(child: Text(label, style: AppTypography.body.copyWith(color: color, fontWeight: FontWeight.w600)))]),
     );
   }
+}
+
+
+class _DailyClosingLoadingSkeleton extends StatelessWidget {
+  const _DailyClosingLoadingSkeleton();
+  @override Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(AppSpacing.lg),
+    child: FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+  );
 }
