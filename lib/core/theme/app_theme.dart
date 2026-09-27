@@ -274,23 +274,23 @@ class AppTheme {
   /// is resolving or being built for the first time. Top-level shell tabs
   /// already use NoTransitionPage; this builder covers ordinary pushed
   /// routes throughout the app.
+  /// Primary Fulus navigation is an operating-surface switch, not a
+  /// presentation animation. Ordinary pushed routes must not reveal the
+  /// previous screen while the destination is entering.
   static const _pageTransitionsTheme = PageTransitionsTheme(
     builders: {
-      TargetPlatform.android: _FulusFadePageTransitionsBuilder(),
-      TargetPlatform.iOS: _FulusFadePageTransitionsBuilder(),
-      TargetPlatform.fuchsia: _FulusFadePageTransitionsBuilder(),
-      TargetPlatform.linux: _FulusFadePageTransitionsBuilder(),
-      TargetPlatform.macOS: _FulusFadePageTransitionsBuilder(),
-      TargetPlatform.windows: _FulusFadePageTransitionsBuilder(),
+      TargetPlatform.android: _FulusNoPageTransitionsBuilder(),
+      TargetPlatform.iOS: _FulusNoPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: _FulusNoPageTransitionsBuilder(),
+      TargetPlatform.linux: _FulusNoPageTransitionsBuilder(),
+      TargetPlatform.macOS: _FulusNoPageTransitionsBuilder(),
+      TargetPlatform.windows: _FulusNoPageTransitionsBuilder(),
     },
   );
 }
 
-/// A single short fade is the app-wide transition for ordinary routes.
-/// It avoids platform-specific movement while still giving the user a
-/// clear visual hand-off between screens.
-class _FulusFadePageTransitionsBuilder extends PageTransitionsBuilder {
-  const _FulusFadePageTransitionsBuilder();
+class _FulusNoPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FulusNoPageTransitionsBuilder();
 
   @override
   Widget buildTransitions<T>(
@@ -299,16 +299,5 @@ class _FulusFadePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
-  ) {
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-    );
-    // Keep the destination almost fully visible from its first painted
-    // frame. A fade from 0.0 makes the previous route visible underneath
-    // while the new screen is being built, which can look like a brief
-    // flash back to the previous screen on slower first visits.
-    final opacity = Tween<double>(begin: 0.92, end: 1).animate(curved);
-    return FadeTransition(opacity: opacity, child: child);
-  }
+  ) => child;
 }

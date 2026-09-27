@@ -67,7 +67,12 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
       }
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => TransactionVerificationScreen(saleId: widget.saleId)),
+        PageRouteBuilder<void>(
+          pageBuilder: (_, __, ___) =>
+              TransactionVerificationScreen(saleId: widget.saleId),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
       return;
     }

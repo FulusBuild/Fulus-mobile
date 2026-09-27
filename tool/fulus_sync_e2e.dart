@@ -102,13 +102,14 @@ Future<void> main() async {
     stdout.writeln('PASS: income.create');
 
     final quickSaleOperationId = 'e2e-quick-sale-$suffix';
+    final quickSaleDate = DateTime.now().toUtc().toIso8601String();
     final quickSaleResponse = await dio.post('', data: {
       'action': 'sale_create',
       'business_id': businessId,
       'operation_id': quickSaleOperationId,
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
-      'sale_date': DateTime.now().toUtc().toIso8601String(),
+      'sale_date': quickSaleDate,
       'discount': 0,
       'tax': 0,
       'amount_paid': 321,
@@ -139,7 +140,7 @@ Future<void> main() async {
       'operation_id': quickSaleOperationId,
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
-      'sale_date': quickSaleResponse.data['data']['sale_date'],
+      'sale_date': quickSaleDate,
       'discount': 0,
       'tax': 0,
       'amount_paid': 321,
@@ -151,7 +152,7 @@ Future<void> main() async {
       'items': [
         {
           'product_id': null,
-          'description': 'E2E Quick Sale \$suffix',
+          'description': 'E2E Quick Sale $suffix',
           'quantity': 1,
           'unit_price': 321,
           'cost_price_at_sale': 0,

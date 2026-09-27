@@ -58,127 +58,128 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       backgroundColor: const Color(0xFF061B3A),
       headerBackgroundColor: const Color(0xFF061B3A),
       subtitle: 'Keep your business safe and up to date',
-      body: FutureBuilder<BusinessProfile?>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return FulusErrorState(
-              message: "Couldn't load business settings.",
-              onRetry: () => setState(() {
-                _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
-              }),
-            );
-          }
-          if (!snap.hasData) return const _SettingsLoadingSkeleton();
-          final profile = snap.data;
-
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 760;
-              final inset = wide ? AppSpacing.lg : AppSpacing.xs;
-              return ListView(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
-                children: [
-                  if (canManageSettings) ...[
-                    const FulusSectionHeader(
-                      title: 'Business',
-                      titleColor: Colors.white,
-                      subtitleColor: Colors.white70,
-                      subtitle: 'Business details and workspace configuration',
-                    ),
-                    if (profile != null) _BusinessInfoForm(profile: profile),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                  if (canManageSettings || canManageBackup) ...[
-                    const FulusSectionHeader(
-                      title: 'Account & Backup',
-                      titleColor: Colors.white,
-                      subtitleColor: Colors.white70,
-                      subtitle: 'Devices, data, and cloud protection',
-                    ),
-                    _tileGrid([
-                      if (canManageBackup)
-                        FulusActionTile(
-                          icon: FulusIcons.backup,
-                          label: 'Backup',
-                          subtitle: 'Back up and restore your business data',
-                          onTap: () => context.pushNamed('moreSettingsBackup'),
-                        ),
-                      if (canManageSettings)
-                        FulusActionTile(
-                          icon: FulusIcons.print,
-                          label: 'Printers',
-                          subtitle: 'Receipt and printing settings',
-                          onTap: () => context.pushNamed('moreSettingsPrinters'),
-                        ),
-                      if (canManageSettings)
-                        FulusActionTile(
-                          icon: FulusIcons.sync,
-                          label: 'Sync',
-                          subtitle: 'Local and cloud synchronization status',
-                          onTap: () => context.pushNamed('moreSyncDetail'),
-                        ),
-                      if (canManageSettings)
-                        FulusActionTile(
-                          icon: FulusIcons.locations,
-                          label: 'Locations',
-                          subtitle: 'Manage the places where this business operates',
-                          onTap: () => context.pushNamed('moreSettingsLocations'),
-                        ),
-                    ]),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                  if (isOwner) ...[
-                    const FulusSectionHeader(
-                      title: 'Fulus Cloud',
-                      titleColor: Colors.white,
-                      subtitleColor: Colors.white70,
-                      subtitle: 'Back up this business and keep it available across devices',
-                    ),
-                    _tileGrid([
-                      FulusActionTile(
-                        icon: FulusIcons.cloud,
-                        label: 'Fulus Cloud',
-                        subtitle: 'Connect this business for server-authoritative sync',
-                        onTap: () => context.pushNamed('moreSettingsCloud'),
-                      ),
-                    ]),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                  const FulusSectionHeader(
-                    title: 'Security',
-                    titleColor: Colors.white,
-                    subtitleColor: Colors.white70,
-                    subtitle: 'Protect approvals and access to Fulus',
-                  ),
-                  _tileGrid([
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+          final inset = wide ? AppSpacing.lg : AppSpacing.xs;
+          return ListView(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            children: [
+              if (canManageSettings) ...[
+                const FulusSectionHeader(
+                  title: 'Business',
+                  titleColor: Colors.white,
+                  subtitleColor: Colors.white70,
+                  subtitle: 'Business details and workspace configuration',
+                ),
+                FutureBuilder<BusinessProfile?>(
+                  future: _future,
+                  builder: (context, snap) {
+                    if (snap.hasError) {
+                      return FulusErrorState(
+                        message: "Couldn't load business settings.",
+                        onRetry: () => setState(() {
+                          _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
+                        }),
+                      );
+                    }
+                    if (!snap.hasData) return const _BusinessInfoSkeleton();
+                    final profile = snap.data;
+                    return profile == null
+                        ? const _BusinessInfoSkeleton()
+                        : _BusinessInfoForm(profile: profile);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (canManageSettings || canManageBackup) ...[
+                const FulusSectionHeader(
+                  title: 'Account & Backup',
+                  titleColor: Colors.white,
+                  subtitleColor: Colors.white70,
+                  subtitle: 'Devices, data, and cloud protection',
+                ),
+                _tileGrid([
+                  if (canManageBackup)
                     FulusActionTile(
-                      icon: FulusIcons.lock,
-                      label: 'Change approval PIN',
-                      subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
-                      onTap: () => _openChangePinSheet(context),
+                      icon: FulusIcons.backup,
+                      label: 'Backup',
+                      subtitle: 'Back up and restore your business data',
+                      onTap: () => context.pushNamed('moreSettingsBackup'),
                     ),
-                    const _AppLockStatusTile(),
-                  ]),
-                  const SizedBox(height: AppSpacing.lg),
-                  const FulusSectionHeader(
-                    title: 'Account',
-                    titleColor: Colors.white,
-                    subtitleColor: Colors.white70,
-                    subtitle: 'Your local business account',
-                  ),
-                  _tileGrid([
+                  if (canManageSettings)
                     FulusActionTile(
-                      icon: FulusIcons.logout,
-                      label: 'Log out',
-                      subtitle: 'Your data on this device stays put — sign back in any time.',
-                      onTap: () => _logout(context, ref),
+                      icon: FulusIcons.print,
+                      label: 'Printers',
+                      subtitle: 'Receipt and printing settings',
+                      onTap: () => context.pushNamed('moreSettingsPrinters'),
                     ),
-                  ]),
-                  const SizedBox(height: AppSpacing.xxl),
-                ],
-              );
-            },
+                  if (canManageSettings)
+                    FulusActionTile(
+                      icon: FulusIcons.sync,
+                      label: 'Sync',
+                      subtitle: 'Local and cloud synchronization status',
+                      onTap: () => context.pushNamed('moreSyncDetail'),
+                    ),
+                  if (canManageSettings)
+                    FulusActionTile(
+                      icon: FulusIcons.locations,
+                      label: 'Locations',
+                      subtitle: 'Manage the places where this business operates',
+                      onTap: () => context.pushNamed('moreSettingsLocations'),
+                    ),
+                ]),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (isOwner) ...[
+                const FulusSectionHeader(
+                  title: 'Fulus Cloud',
+                  titleColor: Colors.white,
+                  subtitleColor: Colors.white70,
+                  subtitle: 'Back up this business and keep it available across devices',
+                ),
+                _tileGrid([
+                  FulusActionTile(
+                    icon: FulusIcons.cloud,
+                    label: 'Fulus Cloud',
+                    subtitle: 'Connect this business for server-authoritative sync',
+                    onTap: () => context.pushNamed('moreSettingsCloud'),
+                  ),
+                ]),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              const FulusSectionHeader(
+                title: 'Security',
+                titleColor: Colors.white,
+                subtitleColor: Colors.white70,
+                subtitle: 'Protect approvals and access to Fulus',
+              ),
+              _tileGrid([
+                FulusActionTile(
+                  icon: FulusIcons.lock,
+                  label: 'Change approval PIN',
+                  subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
+                  onTap: () => _openChangePinSheet(context),
+                ),
+                const _AppLockStatusTile(),
+              ]),
+              const SizedBox(height: AppSpacing.lg),
+              const FulusSectionHeader(
+                title: 'Account',
+                titleColor: Colors.white,
+                subtitleColor: Colors.white70,
+                subtitle: 'Your local business account',
+              ),
+              _tileGrid([
+                FulusActionTile(
+                  icon: FulusIcons.logout,
+                  label: 'Log out',
+                  subtitle: 'Your data on this device stays put — sign back in any time.',
+                  onTap: () => _logout(context, ref),
+                ),
+              ]),
+              const SizedBox(height: AppSpacing.xxl),
+            ],
           );
         },
       ),
@@ -675,24 +676,9 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
             ),
     );
   }
-}class _SettingsLoadingSkeleton extends StatelessWidget {
-  const _SettingsLoadingSkeleton();
+}class _BusinessInfoSkeleton extends StatelessWidget {
+  const _BusinessInfoSkeleton();
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(AppSpacing.sm),
-    children: const [
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.lg),
-      FulusSkeletonBox(width: 120, height: 18),
-      SizedBox(height: AppSpacing.sm),
-      FulusCardSkeleton(),
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.lg),
-      FulusSkeletonBox(width: 150, height: 18),
-      SizedBox(height: AppSpacing.sm),
-      FulusCardSkeleton(),
-      FulusCardSkeleton(),
-    ],
-  );
+  Widget build(BuildContext context) => const FulusCardSkeleton();
 }

@@ -24,44 +24,86 @@ class EmployeeDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<EmployeeDetailScreen> createState() => _EmployeeDetailScreenState();
 }
 
-typedef _DetailData = ({Employee? employee, AttendanceSummary? attendance, List<LeaveRequest> leaveRequests});
+typedef _RelatedDetailData = ({AttendanceSummary attendance, List<LeaveRequest> leaveRequests});
 
 class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
-  late Future<_DetailData> _future;
+  late Future<Employee?> _employeeFuture;
+  Future<_RelatedDetailData>? _relatedFuture;
+  Employee? _visibleEmployee;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _employeeFuture = _loadEmployee();
+    _employeeFuture.then((employee) {
+      if (mounted && employee != null) setState(() => _visibleEmployee = employee);
+    }, onError: (_) {});
   }
 
-  Future<_DetailData> _load() async {
+  Future<Employee?> _loadEmployee() {
+    return ref.read(employeeRepositoryProvider).getEmployeeById(widget.employeeId, includeInactive: true);
+  }
+
+  Future<_RelatedDetailData> _loadRelatedData(String employeeId) async {
     final repo = ref.read(employeeRepositoryProvider);
-    final employee = await repo.getEmployeeById(widget.employeeId, includeInactive: true);
-    if (employee == null) return (employee: null, attendance: null, leaveRequests: const <LeaveRequest>[]);
     final now = DateTime.now();
     final results = await Future.wait([
-      repo.getAttendanceSummary(employeeId: employee.id, month: now.month, year: now.year),
-      repo.listLeaveRequests(employeeId: employee.id),
+      repo.getAttendanceSummary(employeeId: employeeId, month: now.month, year: now.year),
+      repo.listLeaveRequests(employeeId: employeeId),
     ]);
-    return (employee: employee, attendance: results[0] as AttendanceSummary, leaveRequests: results[1] as List<LeaveRequest>);
+    return (attendance: results[0] as AttendanceSummary, leaveRequests: results[1] as List<LeaveRequest>);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() {
+    final future = _loadEmployee();
+    setState(() {
+      _employeeFuture = future;
+      _relatedFuture = null;
+    });
+    future.then((employee) {
+      if (mounted && employee != null) setState(() => _visibleEmployee = employee);
+    }, onError: (_) {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Team member',
-      body: FutureBuilder<_DetailData>(
-        future: _future,
+      body: FutureBuilder<Employee?>(
+        future: _employeeFuture,
         builder: (context, snap) {
-          if (snap.hasError) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
-          if (!snap.hasData) return const _EmployeeDetailSkeleton();
-          final data = snap.data!;
-          final employee = data.employee;
+          if (snap.hasError && _visibleEmployee == null) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
+          if (!snap.hasData && _visibleEmployee == null) return const _EmployeeDetailSkeleton();
+          if (snap.connectionState == ConnectionState.done && !snap.hasData) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
+          final employee = snap.hasData ? snap.data : _visibleEmployee;
           if (employee == null) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
-          return _EmployeeDetailBody(employee: employee, attendance: data.attendance, leaveRequests: data.leaveRequests, onChanged: _reload);
+
+          _relatedFuture ??= _loadRelatedData(employee.id);
+          return FutureBuilder<_RelatedDetailData>(
+            future: _relatedFuture,
+            builder: (context, relatedSnap) {
+              final attendance = relatedSnap.data?.attendance;
+              final leaveRequests = relatedSnap.data?.leaveRequests ?? const <LeaveRequest>[];
+              if (relatedSnap.hasError) {
+                return _EmployeeDetailBody(
+                  employee: employee,
+                  attendance: attendance,
+                  leaveRequests: leaveRequests,
+                  relatedLoading: false,
+                  relatedError: true,
+                  onChanged: _reload,
+                );
+              }
+              return _EmployeeDetailBody(
+                employee: employee,
+                attendance: attendance,
+                leaveRequests: leaveRequests,
+                relatedLoading: !relatedSnap.hasData,
+                relatedError: false,
+                onChanged: _reload,
+              );
+            },
+          );
         },
       ),
     );
@@ -69,10 +111,19 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
 }
 
 class _EmployeeDetailBody extends ConsumerWidget {
-  const _EmployeeDetailBody({required this.employee, required this.attendance, required this.leaveRequests, required this.onChanged});
+  const _EmployeeDetailBody({
+    required this.employee,
+    required this.attendance,
+    required this.leaveRequests,
+    required this.relatedLoading,
+    required this.relatedError,
+    required this.onChanged,
+  });
   final Employee employee;
   final AttendanceSummary? attendance;
   final List<LeaveRequest> leaveRequests;
+  final bool relatedLoading;
+  final bool relatedError;
   final VoidCallback onChanged;
 
   @override
@@ -95,10 +146,40 @@ class _EmployeeDetailBody extends ConsumerWidget {
         if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
-        FulusCard(child: wide ? Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: _stats(context)) : Wrap(alignment: WrapAlignment.spaceAround, spacing: AppSpacing.xl, runSpacing: AppSpacing.md, children: _stats(context))),
+        if (relatedError)
+          FulusCard(
+            child: Text(
+              "Couldn't load attendance right now.",
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+          )
+        else if (relatedLoading)
+          const _EmployeeRelatedLoadingCard()
+        else
+          FulusCard(
+            child: wide
+                ? Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: _stats(context))
+                : Wrap(
+                    alignment: WrapAlignment.spaceAround,
+                    spacing: AppSpacing.xl,
+                    runSpacing: AppSpacing.md,
+                    children: _stats(context),
+                  ),
+          ),
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Leave requests'),
-        if (leaveRequests.isEmpty) FulusEmptyState(icon: Icons.event_busy_outlined, headline: 'No leave requests.') else ...[
+        if (relatedError)
+          FulusCard(
+            child: Text(
+              "Couldn't load leave requests right now.",
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+          )
+        else if (relatedLoading)
+          const _EmployeeRelatedLoadingCard()
+        else if (leaveRequests.isEmpty)
+          const FulusEmptyState(icon: Icons.event_busy_outlined, headline: 'No leave requests.')
+        else ...[
           if (pending.isNotEmpty) _LeaveGroupLabel(label: 'Needs review'),
           for (final leave in pending) _LeaveRequestTile(leave: leave, onChanged: onChanged),
           if (decided.isNotEmpty) _LeaveGroupLabel(label: 'History'),
@@ -205,6 +286,24 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
       if (dirty) ...[const SizedBox(height: AppSpacing.sm), Row(children: [Expanded(child: FulusButton(variant: FulusButtonVariant.secondary, onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)), label: 'Cancel')), const SizedBox(width: AppSpacing.sm), Expanded(child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save))])],
     ]);
   });
+}
+
+class _EmployeeRelatedLoadingCard extends StatelessWidget {
+  const _EmployeeRelatedLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const FulusCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FulusSkeletonBox(height: 18, width: 140),
+          SizedBox(height: AppSpacing.md),
+          FulusSkeletonBox(height: 52),
+        ],
+      ),
+    );
+  }
 }
 
 class _AttendanceStat extends StatelessWidget {

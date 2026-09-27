@@ -26,20 +26,26 @@ class CustomerProfileScreen extends ConsumerStatefulWidget {
 
 class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   late Future<Customer?> _future;
+  Customer? _visibleCustomer;
 
   @override
   void initState() {
     super.initState();
+    _visibleCustomer = widget.preloaded;
     _future = widget.preloaded != null
         ? Future.value(widget.preloaded)
-        : ref.read(customerRepositoryProvider).getCustomerById(widget.customerId);
+        : _loadCustomer();
+    _future.then((customer) {
+      if (mounted && customer != null) setState(() => _visibleCustomer = customer);
+    }, onError: (_) {});
   }
 
+  Future<Customer?> _loadCustomer() => ref.read(customerRepositoryProvider).getCustomerById(widget.customerId);
+
   Future<void> _reload() async {
-    setState(() {
-      _future = ref.read(customerRepositoryProvider).getCustomerById(widget.customerId);
-    });
-    await _future;
+    final future = _loadCustomer();
+    setState(() => _future = future);
+    await future;
   }
 
   @override
@@ -52,13 +58,16 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
       body: FutureBuilder<Customer?>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
+          if (snapshot.hasError && _visibleCustomer == null) {
             return FulusErrorState(message: "Couldn't load this customer.", onRetry: _reload);
           }
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData && _visibleCustomer == null) {
             return const _CustomerProfileLoadingSkeleton();
           }
-          final customer = snapshot.data;
+          if (snapshot.connectionState == ConnectionState.done && !snapshot.hasData) {
+            return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
+          }
+          final customer = snapshot.hasData ? snapshot.data : _visibleCustomer;
           if (customer == null) {
             return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
           }

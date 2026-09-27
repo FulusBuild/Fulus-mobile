@@ -20,6 +20,23 @@ final class CartInitial extends CartState {
   const CartInitial();
 }
 
+/// Local Sell data is already hydrating while the durable draft cart is being
+/// resolved. The catalog and business settings are safe to render now, but
+/// cart mutations remain disabled until [CartLoaded] has a durable draft.
+final class CartHydrating extends CartState {
+  const CartHydrating({
+    required this.locationId,
+    required this.currencySymbol,
+    required this.catalog,
+    required this.catalogLoaded,
+  });
+
+  final String locationId;
+  final String currencySymbol;
+  final Map<String, ProductWithStock> catalog;
+  final bool catalogLoaded;
+}
+
 /// Opening or mutating the cart itself failed (not a normal empty-cart
 /// or out-of-stock case — those stay inside [CartLoaded]). Distinct
 /// from [CartInitial] so the Sell screen can show `FulusErrorState`

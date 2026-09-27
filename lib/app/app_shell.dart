@@ -156,7 +156,9 @@ class _FulusBottomNavigationItem extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
               child: AnimatedContainer(
-                duration: fulusMotionDuration(context, AppMotion.fast),
+                // Workspace selection is immediate. A moving selection pill makes the
+                // previous and destination workspace visible together in slow motion.
+                duration: Duration.zero,
                 curve: AppMotion.curveStandard,
                 decoration: BoxDecoration(
                   color: selected ? AppColors.selectedTintOf(context) : Colors.transparent,

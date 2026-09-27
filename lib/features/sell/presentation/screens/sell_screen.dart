@@ -158,6 +158,50 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   }
 }
 
+class _SellContentSkeleton extends StatelessWidget {
+  const _SellContentSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+          child: Row(
+            children: [
+              const Expanded(child: FulusSkeletonBox(height: 48)),
+              const SizedBox(width: AppSpacing.sm),
+              const FulusSkeletonBox(width: 92, height: 48),
+            ],
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: FulusSkeletonBox(height: 46),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.md),
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 6,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                childAspectRatio: 1.05,
+              ),
+              itemBuilder: (_, __) => const FulusSkeletonBox(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SellLocationSkeleton extends StatelessWidget {
   const _SellLocationSkeleton();
 
@@ -238,15 +282,43 @@ class _SellContent extends ConsumerWidget {
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
-          if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
-          if (state is! CartLoaded) return const FulusLoadingIndicator();
+          if (state is CartFailure) {
+            return FulusErrorState(message: state.message, onRetry: onRetry);
+          }
+
+          final catalog = switch (state) {
+            CartHydrating s => s.catalog,
+            CartLoaded s => s.catalog,
+            _ => const <String, ProductWithStock>{},
+          };
+          final catalogLoaded = switch (state) {
+            CartHydrating s => s.catalogLoaded,
+            CartLoaded s => s.catalogLoaded,
+            _ => false,
+          };
+          final currency = switch (state) {
+            CartHydrating s => s.currencySymbol,
+            CartLoaded s => s.currencySymbol,
+            _ => '₦',
+          };
+          final cartReady = state is CartLoaded;
+
+          if (state is CartInitial) return const _SellContentSkeleton();
+
           final inset = fulusHorizontalInset(context);
-          final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()
-            ..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
+          final categoryIds = catalog.values
+              .map((entry) => entry.product.categoryId)
+              .whereType<String>()
+              .toSet()
+              .toList()
+            ..sort((a, b) =>
+                (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
+
           return Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+                padding: EdgeInsets.fromLTRB(
+                    inset, AppSpacing.md, inset, AppSpacing.sm),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 360 ||
@@ -257,7 +329,7 @@ class _SellContent extends ConsumerWidget {
                       borderColor: Colors.white70,
                       icon: FulusIcons.scan,
                       label: 'Scan',
-                      onPressed: onScan,
+                      onPressed: cartReady ? onScan : null,
                     );
 
                     if (compact) {
@@ -298,7 +370,11 @@ class _SellContent extends ConsumerWidget {
                   padding: EdgeInsets.symmetric(horizontal: inset),
                   scrollDirection: Axis.horizontal,
                   children: [
-                    FulusChip(label: 'All', selected: selectedCategoryId == null, onTap: () => onCategoryChanged(null)),
+                    FulusChip(
+                      label: 'All',
+                      selected: selectedCategoryId == null,
+                      onTap: () => onCategoryChanged(null),
+                    ),
                     for (final id in categoryIds)
                       FulusChip(
                         label: categoryById[id]?.name ?? id,
@@ -310,13 +386,17 @@ class _SellContent extends ConsumerWidget {
               ),
               Expanded(
                 child: _ProductList(
-                  state: state,
+                  catalog: catalog,
+                  catalogLoaded: catalogLoaded,
+                  currency: currency,
                   query: query,
                   categoryId: selectedCategoryId,
                   onClearSearch: onClearSearch,
+                  cartReady: cartReady,
                 ),
               ),
-              if (state.items.isNotEmpty) _CartSummaryBar(state: state),
+              if (state is CartLoaded && (state).items.isNotEmpty)
+                _CartSummaryBar(state: state),
             ],
           );
         },
@@ -326,21 +406,36 @@ class _SellContent extends ConsumerWidget {
 }
 
 class _ProductList extends StatelessWidget {
-  const _ProductList({required this.state, required this.query, required this.categoryId, required this.onClearSearch});
+  const _ProductList({
+    required this.catalog,
+    required this.catalogLoaded,
+    required this.currency,
+    required this.query,
+    required this.categoryId,
+    required this.onClearSearch,
+    required this.cartReady,
+  });
 
-  final CartLoaded state;
+  final Map<String, ProductWithStock> catalog;
+  final bool catalogLoaded;
+  final String currency;
   final String query;
   final String? categoryId;
   final VoidCallback onClearSearch;
+  final bool cartReady;
 
   @override
   Widget build(BuildContext context) {
+    if (!catalogLoaded) return const _SellContentSkeleton();
+
     final q = query.trim().toLowerCase();
-    final products = state.catalog.values.where((entry) {
+    final products = catalog.values.where((entry) {
       final p = entry.product;
       if (categoryId != null && p.categoryId != categoryId) return false;
       if (q.isEmpty) return true;
-      return p.name.toLowerCase().contains(q) || p.sku.toLowerCase().contains(q) || (p.barcode?.toLowerCase().contains(q) ?? false);
+      return p.name.toLowerCase().contains(q) ||
+          p.sku.toLowerCase().contains(q) ||
+          (p.barcode?.toLowerCase().contains(q) ?? false);
     }).toList()..sort((a, b) => a.product.name.compareTo(b.product.name));
 
     if (products.isEmpty) {
@@ -348,8 +443,8 @@ class _ProductList extends StatelessWidget {
         headline: 'No products found',
         body: q.isEmpty ? 'Add products from Stock to start selling.' : 'Nothing matches “$query”.',
         icon: FulusIcons.search,
-        actionLabel: q.isEmpty ? 'Quick Sale' : 'Clear search',
-        onAction: q.isEmpty ? () => QuickSaleSheet.show(context) : onClearSearch,
+        actionLabel: q.isEmpty && cartReady ? 'Quick Sale' : 'Clear search',
+        onAction: q.isEmpty && cartReady ? () => QuickSaleSheet.show(context) : onClearSearch,
       );
     }
 
@@ -363,16 +458,20 @@ class _ProductList extends StatelessWidget {
         childAspectRatio: 0.82,
       ),
       itemCount: products.length,
-      itemBuilder: (context, index) =>
-          _ProductRow(entry: products[index], currency: state.currencySymbol),
+      itemBuilder: (context, index) => _ProductRow(
+        entry: products[index],
+        currency: currency,
+        enabled: cartReady,
+      ),
     );
   }
 }
 
 class _ProductRow extends StatelessWidget {
-  const _ProductRow({required this.entry, required this.currency});
+  const _ProductRow({required this.entry, required this.currency, required this.enabled});
   final ProductWithStock entry;
   final String currency;
+  final bool enabled;
   @override
   Widget build(BuildContext context) {
     final product = entry.product;
@@ -380,7 +479,7 @@ class _ProductRow extends StatelessWidget {
     final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
 
     return FulusPressable(
-      onPressed: out ? null : () => _add(context),
+      onPressed: !enabled || out ? null : () => _add(context),
       semanticsLabel: product.name,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
@@ -532,7 +631,14 @@ class _CartSummaryBar extends StatelessWidget {
         child: InkWell(
           onTap: () {
             final cubit = context.read<CartCubit>();
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlocProvider.value(value: cubit, child: const CartScreen())));
+            Navigator.of(context).push(
+              PageRouteBuilder<void>(
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+                pageBuilder: (_, __, ___) =>
+                    BlocProvider.value(value: cubit, child: const CartScreen()),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(10),
           child: SizedBox(height: 54, child: Row(children: [

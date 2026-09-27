@@ -11,7 +11,6 @@ import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/domain/money_transaction.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
 
 /// Owner/manager workspace home. Data and permissions remain repository-backed;
@@ -39,9 +38,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
   late Future<SecondaryNoticeSelection> _noticesFuture;
-  late Future<List<MoneyTransaction>> _activityFuture;
   late Future<double> _cashFuture;
-  static const _reportsEngine = ReportsEngine();
 
   @override
   void initState() {
@@ -65,16 +62,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _cashFuture = (widget.isOwner || widget.canViewMoney)
         ? ref.read(moneyRepositoryProvider).getAvailableBalance()
         : Future.value(0);
-    _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
-          _reportsEngine.resolvePeriod(ReportPeriodKind.today),
-          currentAuthUserId: widget.currentAuthUserId,
-          canViewAllSales: showBusinessWide,
-        );
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture, _activityFuture, _cashFuture]);
+    await Future.wait([_heroFuture, _noticesFuture, _cashFuture]);
   }
 
   @override
@@ -135,44 +127,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, 0, inset, 0),
                         sliver: SliverToBoxAdapter(
-                          child: FutureBuilder<HomeHeroState>(
-                            future: _heroFuture,
-                            builder: (context, heroSnapshot) => FutureBuilder<SecondaryNoticeSelection>(
-                              future: _noticesFuture,
-                              builder: (context, noticeSnapshot) => FutureBuilder<List<MoneyTransaction>>(
-                                future: _activityFuture,
-                                builder: (context, activitySnapshot) => FutureBuilder<double>(
-                                  future: _cashFuture,
-                                  builder: (context, cashSnapshot) {
-                                    if (heroSnapshot.connectionState != ConnectionState.done ||
-                                        noticeSnapshot.connectionState != ConnectionState.done ||
-                                        activitySnapshot.connectionState != ConnectionState.done) {
-                                      return const _HomeHeroSkeleton();
-                                    }
-                                    if (heroSnapshot.hasError ||
-                                        noticeSnapshot.hasError ||
-                                        activitySnapshot.hasError) {
-                                      return FulusErrorState(
-                                        message: "Couldn't load today's overview.",
-                                        reassurance: 'Your business records are still safe on this device.',
-                                        onRetry: _refresh,
-                                      );
-                                    }
-                                    final hero = heroSnapshot.data;
-                                    if (hero == null) return const SizedBox.shrink();
-                                    return _HomeMockupDashboard(
-                                      hero: hero,
-                                      notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
-                                      activity: activitySnapshot.data ?? const <MoneyTransaction>[],
-                                      cashTotal: cashSnapshot.data,
-                                      currencySymbol: currencySymbol,
-                                      canViewMoney: widget.isOwner || widget.canViewMoney,
-                                      canViewReports: widget.isOwner || widget.canViewReports,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
+                          child: _HomeDashboardHydration(
+                            heroFuture: _heroFuture,
+                            noticesFuture: _noticesFuture,
+                            cashFuture: _cashFuture,
+                            currencySymbol: currencySymbol,
+                            canViewMoney: widget.isOwner || widget.canViewMoney,
+                            canViewReports: widget.isOwner || widget.canViewReports,
+                            onRetry: _refresh,
                           ),
                         ),
                       ),
@@ -226,38 +188,143 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
+class _HomeDashboardHydration extends StatefulWidget {
+  const _HomeDashboardHydration({
+    required this.heroFuture,
+    required this.noticesFuture,
+    required this.cashFuture,
+    required this.currencySymbol,
+    required this.canViewMoney,
+    required this.canViewReports,
+    required this.onRetry,
+  });
+
+  final Future<HomeHeroState> heroFuture;
+  final Future<SecondaryNoticeSelection> noticesFuture;
+  final Future<double> cashFuture;
+  final String currencySymbol;
+  final bool canViewMoney;
+  final bool canViewReports;
+  final VoidCallback onRetry;
+
+  @override
+  State<_HomeDashboardHydration> createState() => _HomeDashboardHydrationState();
+}
+
+class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
+  HomeHeroState? _hero;
+  SecondaryNoticeSelection? _noticeSelection;
+  bool _heroError = false;
+  bool _noticesError = false;
+  bool _cashError = false;
+  double? _cashTotal;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start all independent local reads together. None waits for another
+    // FutureBuilder to build before its own future is observed.
+    widget.heroFuture.then(_setHero, onError: _setHeroError);
+    widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
+    widget.cashFuture.then(_setCash, onError: _setCashError);
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.heroFuture != widget.heroFuture ||
+        oldWidget.noticesFuture != widget.noticesFuture ||
+        oldWidget.cashFuture != widget.cashFuture) {
+      _hero = null;
+      _noticeSelection = null;
+      _cashTotal = null;
+      _heroError = false;
+      _noticesError = false;
+      _cashError = false;
+      widget.heroFuture.then(_setHero, onError: _setHeroError);
+      widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
+      widget.cashFuture.then(_setCash, onError: _setCashError);
+    }
+  }
+
+  void _setHero(HomeHeroState value) {
+    if (mounted) setState(() { _hero = value; _heroError = false; });
+  }
+
+  void _setNotices(SecondaryNoticeSelection value) {
+    if (mounted) setState(() { _noticeSelection = value; _noticesError = false; });
+  }
+
+  void _setCash(double value) {
+    if (mounted) setState(() { _cashTotal = value; _cashError = false; });
+  }
+
+  void _setHeroError(Object _, StackTrace __) {
+    if (mounted) setState(() => _heroError = true);
+  }
+
+  void _setNoticesError(Object _, StackTrace __) {
+    if (mounted) setState(() => _noticesError = true);
+  }
+
+  void _setCashError(Object _, StackTrace __) {
+    if (mounted) setState(() => _cashError = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _HomeMockupDashboard(
+      hero: _hero,
+      notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
+      noticesError: _noticesError,
+      heroError: _heroError,
+      cashError: _cashError,
+      cashTotal: _cashTotal,
+      currencySymbol: widget.currencySymbol,
+      canViewMoney: widget.canViewMoney,
+      canViewReports: widget.canViewReports,
+    );
+  }
+}
+
 class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
     required this.notices,
-    required this.activity,
     required this.cashTotal,
+    required this.noticesError,
+    required this.heroError,
+    required this.cashError,
     required this.currencySymbol,
     required this.canViewMoney,
     required this.canViewReports,
   });
-  final HomeHeroState hero;
+  final HomeHeroState? hero;
   final List<SecondaryNotice> notices;
-  final List<MoneyTransaction> activity;
+  final bool noticesError;
+  final bool heroError;
+  final bool cashError;
   final double? cashTotal;
   final String currencySymbol;
   final bool canViewMoney;
   final bool canViewReports;
 
-  double get _salesTotal => switch (hero) {
+  double? get _salesTotal => switch (hero) {
+    null => null,
     NotYetOpenedHero(:final yesterdayTotal) => yesterdayTotal,
     OpenHero(:final todayTotal) => todayTotal,
     ClosedHero(:final finalTotal) => finalTotal,
     EmployeeShiftHero(:final shiftTotal) => shiftTotal,
   };
-  int get _salesCount => switch (hero) {
+  int? get _salesCount => switch (hero) {
+    null => null,
     NotYetOpenedHero(:final yesterdaySalesCount) => yesterdaySalesCount,
     OpenHero(:final todaySalesCount) => todaySalesCount,
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-  int get _lowStockCount => notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
-  double get _creditTotal => notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
+  int? get _lowStockCount => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
+  double? get _creditTotal => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
 
   @override
   Widget build(BuildContext context) {
@@ -265,18 +332,18 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashError ? '—' : canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: heroError ? '—' : _salesCount?.toString() ?? '—', secondary: heroError ? 'data unavailable' : _salesTotal == null ? 'waiting for local data' : formatMoney(_salesTotal!, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount?.toString() ?? '—', secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney && _creditTotal != null ? formatMoney(_creditTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
@@ -473,43 +540,6 @@ class _HomeReportCard extends StatelessWidget {
     );
   }
 }
-class _HomeHeroSkeleton extends StatelessWidget {
-  const _HomeHeroSkeleton();
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          const minRowHeight = 118.0;
-          final rowGap = AppSpacing.sm;
-          final rowHeight = constraints.maxHeight.isFinite && constraints.maxHeight > 0
-              ? ((constraints.maxHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
-              : minRowHeight;
-
-          return Column(
-            children: [
-              Row(children: [
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-              ]),
-              SizedBox(height: AppSpacing.sm),
-              Row(children: [
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-              ]),
-              SizedBox(height: AppSpacing.sm),
-              Row(children: [
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-              ]),
-            ],
-          );
-        },
-      );
-}
-
 class _HomeColors {
   static const green = Color(0xFF0BBE6E);
   static const navy = Color(0xFF061B3A);

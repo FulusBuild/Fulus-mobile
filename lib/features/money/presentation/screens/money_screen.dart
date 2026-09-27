@@ -30,8 +30,8 @@ class MoneyScreen extends ConsumerStatefulWidget {
 class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   ReportPeriod? _builtForPeriod;
   late Future<double> _balanceFuture;
-  late Future<({MoneySummary summary, List<MoneyTransaction> transactions})>
-      _summaryAndTransactionsFuture;
+  late Future<MoneySummary> _summaryFuture;
+  late Future<List<MoneyTransaction>> _transactionsFuture;
 
   void _load(ReportPeriod period) {
     final repo = ref.read(moneyRepositoryProvider);
@@ -43,7 +43,16 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         permissions.contains(Permission.viewDashboardStats);
 
     _balanceFuture = repo.getAvailableBalance();
-    _summaryAndTransactionsFuture = repo.getSummaryAndTransactions(
+    // Keep the first useful frame independent: recent activity can hydrate
+    // as soon as its transaction read completes, without waiting for the
+    // summary aggregation. Both reads start together and preserve the same
+    // permission/location scoping.
+    _summaryFuture = repo.getSummary(
+      period,
+      currentAuthUserId: currentAuthUserId,
+      canViewAllSales: canViewAllSales,
+    );
+    _transactionsFuture = repo.getTransactions(
       period,
       currentAuthUserId: currentAuthUserId,
       canViewAllSales: canViewAllSales,
@@ -52,7 +61,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
 
   Future<void> _refresh() async {
     setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
-    await Future.wait([_balanceFuture, _summaryAndTransactionsFuture]);
+    await Future.wait([_balanceFuture, _summaryFuture, _transactionsFuture]);
   }
 
   void _toggleSimulatedError() {
@@ -135,8 +144,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      FutureBuilder<({MoneySummary summary, List<MoneyTransaction> transactions})>(
-                        future: _summaryAndTransactionsFuture,
+                      FutureBuilder<MoneySummary>(
+                        future: _summaryFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return _MoneyError(
@@ -150,7 +159,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             );
                           }
                           return _MoneyQuickActions(
-                            summary: snapshot.data!.summary,
+                            summary: snapshot.data!,
                             currencySymbol: currencySymbol,
                           );
                         },
@@ -167,8 +176,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             context.pushNamed('moneyHistory'),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      FutureBuilder<({MoneySummary summary, List<MoneyTransaction> transactions})>(
-                        future: _summaryAndTransactionsFuture,
+                      FutureBuilder<List<MoneyTransaction>>(
+                        future: _transactionsFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return _MoneyError(
@@ -186,8 +195,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             );
                           }
 
-                          final transactions =
-                              snapshot.data!.transactions.take(5).toList();
+                          final transactions = snapshot.data!.take(5).toList();
                           if (transactions.isEmpty) {
                             return const FulusEmptyState(
                               icon: FulusIcons.receipt,

@@ -27,6 +27,7 @@ class SalesTransactionsScreen extends ConsumerStatefulWidget {
 
 class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScreen> {
   late Future<SalesReport> _future;
+  List<SaleRecord>? _visibleTransactions;
 
   // Employee data isolation — same "sees business-wide" check used
   // throughout Home/Money; see money_screen.dart's identical block for
@@ -35,13 +36,17 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    return ref.read(activeLocationIdProvider.future).then((locationId) =>
+    final future = ref.read(activeLocationIdProvider.future).then((locationId) =>
         ref.read(reportsRepositoryProvider).getSalesReport(
           widget.period,
           currentAuthUserId: user?.id ?? '',
           canViewAllSales: canViewAllSales,
           locationId: locationId,
         ));
+    future.then((report) {
+      if (mounted) setState(() => _visibleTransactions = report.transactions);
+    }, onError: (_) {});
+    return future;
   }
 
   @override
@@ -60,17 +65,31 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
+            if (_visibleTransactions != null) {
+              return Column(
+                children: [
+                  const _SalesRefreshNotice(error: true),
+                  Expanded(child: _SalesTransactionList(transactions: _visibleTransactions!, currencySymbol: currencySymbol, onTap: _showDetail)),
+                ],
+              );
+            }
             return FulusErrorState(
               message: "Couldn't load these transactions.",
-              onRetry: () => setState(() {
-                _future = _fetch();
-              }),
+              onRetry: () => setState(() => _future = _fetch()),
             );
           }
-          if (!snap.hasData) {
+          if (!snap.hasData && _visibleTransactions == null) {
             return const _SalesTransactionsLoadingSkeleton();
           }
-          final transactions = snap.data!.transactions;
+          final transactions = snap.data?.transactions ?? _visibleTransactions!;
+          if (!snap.hasData && _visibleTransactions != null) {
+            return Column(
+              children: [
+                const _SalesRefreshNotice(),
+                Expanded(child: _SalesTransactionList(transactions: _visibleTransactions!, currencySymbol: currencySymbol, onTap: _showDetail)),
+              ],
+            );
+          }
           if (transactions.isEmpty) {
             return FulusEmptyState(
               icon: FulusIcons.receipt,
@@ -141,6 +160,47 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
   }
 }
 
+
+class _SalesTransactionList extends StatelessWidget {
+  const _SalesTransactionList({required this.transactions, required this.currencySymbol, required this.onTap});
+  final List<SaleRecord> transactions;
+  final String currencySymbol;
+  final void Function(BuildContext, SaleRecord) onTap;
+
+  @override
+  Widget build(BuildContext context) => ListView.separated(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        itemCount: transactions.length,
+        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+        itemBuilder: (context, i) => _SaleRecordCard(
+          record: transactions[i],
+          currencySymbol: currencySymbol,
+          onTap: () => onTap(context, transactions[i]),
+        ),
+      );
+}
+
+class _SalesRefreshNotice extends StatelessWidget {
+  const _SalesRefreshNotice({this.error = false});
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+        child: FulusCard(
+          child: Row(
+            children: [
+              if (error)
+                Icon(Icons.warning_amber_outlined, size: AppIconSize.compact, color: AppColors.warningOf(context))
+              else
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(error ? "Couldn't refresh the latest sales." : 'Updating sales…')),
+            ],
+          ),
+        ),
+      );
+}
 class _DetailRow extends StatelessWidget {
   const _DetailRow({required this.label, required this.value});
   final String label;

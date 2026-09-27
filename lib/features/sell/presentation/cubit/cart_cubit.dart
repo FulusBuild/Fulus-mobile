@@ -70,6 +70,26 @@ class CartCubit extends Cubit<CartState> {
     _initializing = true;
     _diagnosticLogger?.breadcrumb('Sell screen opened', category: DiagnosticCategory.sales);
     try {
+      // The catalog/settings are safe local workspace data and do not depend on
+      // the durable draft. Subscribe to them immediately so Sell can paint its
+      // real product grid while the draft is being resolved.
+      _settingsSub = _businessSettingsRepository.watchSettings().listen((profile) {
+        _profile = profile;
+        _emitHydrating();
+        _applyTax();
+        _emitLoaded();
+      });
+      _catalogSub = _productRepository.watchProducts(locationId: _locationId).listen((products) {
+        _catalog
+          ..clear()
+          ..addEntries(products.map((p) => MapEntry(p.product.localId, p)));
+        _catalogSnapshot = Map.unmodifiable(_catalog);
+        _catalogLoaded = true;
+        _emitHydrating();
+        _emitLoaded();
+      });
+      _emitHydrating();
+
       final draft = await _draftCartRepository.getOrCreateDraftCart(locationId: _locationId).withFulusLoadingTimeout();
       if (isClosed) return;
       _draft = draft;
@@ -98,20 +118,6 @@ class CartCubit extends Cubit<CartState> {
         _payments = payments;
         _emitLoaded();
       });
-      _settingsSub = _businessSettingsRepository.watchSettings().listen((profile) {
-        _profile = profile;
-        _applyTax();
-        _emitLoaded();
-      });
-      _catalogSub = _productRepository.watchProducts(locationId: _locationId).listen((products) {
-        _catalog
-          ..clear()
-          ..addEntries(products.map((p) => MapEntry(p.product.localId, p)));
-        _catalogSnapshot = Map.unmodifiable(_catalog);
-        _catalogLoaded = true;
-        _emitLoaded();
-      });
-
       _emitLoaded();
     } catch (e) {
       if (!isClosed) emit(CartFailure("Couldn't open the cart. ${e.toString()}"));
@@ -139,6 +145,16 @@ class CartCubit extends Cubit<CartState> {
 
   void _emitInitial() {
     if (!isClosed) emit(const CartInitial());
+  }
+
+  void _emitHydrating() {
+    if (isClosed || _draft != null) return;
+    emit(CartHydrating(
+      locationId: _locationId,
+      currencySymbol: _profile?.currencySymbol ?? '₦',
+      catalog: _catalogSnapshot,
+      catalogLoaded: _catalogLoaded,
+    ));
   }
 
   Future<void> _cancelSubscriptions() async {

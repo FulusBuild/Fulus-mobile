@@ -476,8 +476,11 @@ class _TotalsFooter extends StatelessWidget {
                 onPressed: () {
                   final cubit = context.read<CartCubit>();
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(value: cubit, child: const PaymentScreen()),
+                    PageRouteBuilder<void>(
+                      pageBuilder: (_, __, ___) =>
+                          BlocProvider.value(value: cubit, child: const PaymentScreen()),
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
                     ),
                   );
                 },
