@@ -130,7 +130,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(FulusIcons.customers, color: foreground, size: 34),
+              Icon(FulusIcons.customers, color: foreground, size: 42),
               const Spacer(),
               Text(
                 'Total Customers  ${customers.length}',
