@@ -26,12 +26,9 @@ class FulusMetricCardColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: _FulusGeometryIcon(
-              icon: icon,
-              color: iconColor,
-            ),
+          child: _FulusGeometryIcon(
+            icon: icon,
+            color: iconColor,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -66,12 +63,9 @@ class FulusCustomerOverviewColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: _FulusGeometryIcon(
-              icon: icon,
-              color: iconColor,
-            ),
+          child: _FulusGeometryIcon(
+            icon: icon,
+            color: iconColor,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -105,12 +99,9 @@ class FulusReportCardColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: _FulusGeometryIcon(
-              icon: icon,
-              color: iconColor,
-            ),
+          child: _FulusGeometryIcon(
+            icon: icon,
+            color: iconColor,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -146,12 +137,9 @@ class FulusPaymentMethodCardColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: _FulusGeometryIcon(
-              icon: icon,
-              color: iconColor,
-            ),
+          child: _FulusGeometryIcon(
+            icon: icon,
+            color: iconColor,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
