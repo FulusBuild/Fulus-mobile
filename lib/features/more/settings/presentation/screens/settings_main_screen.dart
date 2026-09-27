@@ -58,29 +58,41 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       backgroundColor: const Color(0xFF061B3A),
       headerBackgroundColor: const Color(0xFF061B3A),
       subtitle: 'Keep your business safe and up to date',
-      body: FutureBuilder<BusinessProfile?>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return FulusErrorState(
-              message: "Couldn't load business settings.",
-              onRetry: () => setState(() {
-                _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
-              }),
-            );
-          }
-          if (!snap.hasData) return const _SettingsLoadingSkeleton();
-          final profile = snap.data;
-
-          return LayoutBuilder(
-            builder: (context, constraints) {
+      body: LayoutBuilder(
+        builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
-              final inset = wide ? AppSpacing.lg : AppSpacing.xs;
-              return ListView(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
-                children: [
-                  if (canManageSettings) ...[
-                    const FulusSectionHeader(
+          final inset = wide ? AppSpacing.lg : AppSpacing.xs;
+          return ListView(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+            children: [
+              if (canManageSettings) ...[
+                const FulusSectionHeader(
+                  title: 'Business',
+                  titleColor: Colors.white,
+                  subtitleColor: Colors.white70,
+                  subtitle: 'Business details and workspace configuration',
+                ),
+                FutureBuilder<BusinessProfile?>(
+                  future: _future,
+                  builder: (context, snap) {
+                    if (snap.hasError) {
+                      return FulusErrorState(
+                        message: "Couldn't load business settings.",
+                        onRetry: () => setState(() {
+                          _future = ref.read(businessSettingsRepositoryProvider).watchSettings().first;
+                        }),
+                      );
+                    }
+                    if (!snap.hasData) return const _BusinessInfoSkeleton();
+                    final profile = snap.data;
+                    return profile == null
+                        ? const _BusinessInfoSkeleton()
+                        : _BusinessInfoForm(profile: profile);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              if (canManageSettings || canManageBackup) ...[
+                const FulusSectionHeader(
                       title: 'Business',
                       titleColor: Colors.white,
                       subtitleColor: Colors.white70,
@@ -176,9 +188,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                     ),
                   ]),
                   const SizedBox(height: AppSpacing.xxl),
-                ],
-              );
-            },
+            ],
           );
         },
       ),
@@ -675,24 +685,9 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
             ),
     );
   }
-}class _SettingsLoadingSkeleton extends StatelessWidget {
-  const _SettingsLoadingSkeleton();
+}class _BusinessInfoSkeleton extends StatelessWidget {
+  const _BusinessInfoSkeleton();
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(AppSpacing.sm),
-    children: const [
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.lg),
-      FulusSkeletonBox(width: 120, height: 18),
-      SizedBox(height: AppSpacing.sm),
-      FulusCardSkeleton(),
-      FulusCardSkeleton(),
-      SizedBox(height: AppSpacing.lg),
-      FulusSkeletonBox(width: 150, height: 18),
-      SizedBox(height: AppSpacing.sm),
-      FulusCardSkeleton(),
-      FulusCardSkeleton(),
-    ],
-  );
+  Widget build(BuildContext context) => const FulusCardSkeleton();
 }
