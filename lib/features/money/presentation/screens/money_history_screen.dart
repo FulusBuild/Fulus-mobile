@@ -43,6 +43,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
   String? _builtForCategory;
   String _builtForQuery = '';
   late Future<List<MoneyTransaction>> _future;
+  List<MoneyTransaction>? _visibleItems;
 
   bool _needsReload(ReportPeriod period) =>
       _builtForPeriod != period ||
@@ -71,6 +72,9 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
       category: _categoryFilter,
       searchQuery: _searchQuery,
     );
+    _future.then((items) {
+      if (mounted) setState(() => _visibleItems = items);
+    }, onError: (_) {});
   }
 
   Future<void> _refresh() async {
@@ -281,13 +285,21 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
+                  if (_visibleItems != null) {
+                    return Column(
+                      children: [
+                        const _HistoryRefreshNotice(error: true),
+                        Expanded(child: _HistoryList(items: _visibleItems!, currencySymbol: currencySymbol)),
+                      ],
+                    );
+                  }
                   return FulusErrorState(
                     message: "Couldn't load your transactions.",
                     reassurance: 'Nothing recorded has been lost — this is only about showing the list right now.',
                     onRetry: _refresh,
                   );
                 }
-                if (!snapshot.hasData) {
+                if (!snapshot.hasData && _visibleItems == null) {
                   return FulusDelayedSkeleton(
                     skeleton: ListView(
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -295,7 +307,15 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
                     ),
                   );
                 }
-                final items = snapshot.data!;
+                final items = snapshot.data ?? _visibleItems!;
+                if (!snapshot.hasData && _visibleItems != null) {
+                  return Column(
+                    children: [
+                      const _HistoryRefreshNotice(),
+                      Expanded(child: _HistoryList(items: _visibleItems!, currencySymbol: currencySymbol)),
+                    ],
+                  );
+                }
                 if (items.isEmpty) {
                   return SingleChildScrollView(
                     child: FulusEmptyState(
@@ -384,3 +404,25 @@ class _GroupedTransactionList extends StatelessWidget {
     );
   }
 }
+class _HistoryRefreshNotice extends StatelessWidget {
+  const _HistoryRefreshNotice({this.error = false});
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, 0),
+        child: FulusCard(
+          child: Row(
+            children: [
+              if (!error)
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                Icon(FulusIcons.warning, size: AppIconSize.compact, color: AppColors.warningOf(context)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(error ? "Couldn't refresh the latest history." : 'Updating history…')),
+            ],
+          ),
+        ),
+      );
+}
+
