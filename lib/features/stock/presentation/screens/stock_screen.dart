@@ -366,20 +366,22 @@ class _StockSummaryTile extends StatelessWidget {
     final foreground = AppColors.onColor(color);
     final muted = foreground.withValues(alpha: 0.9);
     final child = SizedBox(
-      height: 118,
+      height: 146,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: foreground, size: 48),
-            const Spacer(),
+            Icon(icon, color: foreground, size: 32),
+            const SizedBox(height: AppSpacing.sm),
             Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.xs),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: TextStyle(color: foreground, fontSize: 30, fontWeight: FontWeight.w900)),
+              child: Text(value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 30, fontWeight: FontWeight.w900)),
             ),
+            const SizedBox(height: AppSpacing.xs),
             Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
           ],
         ),
