@@ -516,43 +516,6 @@ class _HomeReportCard extends StatelessWidget {
     );
   }
 }
-class _HomeHeroSkeleton extends StatelessWidget {
-  const _HomeHeroSkeleton();
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          const minRowHeight = 118.0;
-          final rowGap = AppSpacing.sm;
-          final rowHeight = constraints.maxHeight.isFinite && constraints.maxHeight > 0
-              ? ((constraints.maxHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
-              : minRowHeight;
-
-          return Column(
-            children: [
-              Row(children: [
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-              ]),
-              SizedBox(height: AppSpacing.sm),
-              Row(children: [
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-              ]),
-              SizedBox(height: AppSpacing.sm),
-              Row(children: [
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(child: FulusSkeletonBox(height: rowHeight)),
-              ]),
-            ],
-          );
-        },
-      );
-}
-
 class _HomeColors {
   static const green = Color(0xFF0BBE6E);
   static const navy = Color(0xFF061B3A);
