@@ -134,11 +134,11 @@ class _CustomerOverviewHeader extends StatelessWidget {
               const Spacer(),
               Text(
                 'Total Customers  ${customers.length}',
-                style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w800),
+                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
               ),
               Text(
                 'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
-                style: TextStyle(color: foreground.withValues(alpha: 0.9), fontSize: 10),
+                style: TextStyle(color: foreground.withValues(alpha: 0.9), fontSize: 14),
               ),
             ],
           ),
