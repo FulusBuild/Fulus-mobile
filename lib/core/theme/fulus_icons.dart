@@ -12,6 +12,9 @@ abstract final class FulusIcons {
   static const sell = Symbols.shopping_cart;
   static const stock = Symbols.inventory_2;
   static const money = Symbols.payments;
+  // Dedicated bottom-navigation glyphs keep contextual icons unchanged.
+  static const navMoney = Symbols.account_balance_wallet;
+  static const navMore = Symbols.apps;
   // Mockup-specific semantic icons. Keep these distinct so the same glyph is
   // not reused where the reference UI intentionally uses different artwork.
   static const cash = Symbols.payments;
