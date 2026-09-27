@@ -431,7 +431,7 @@ class _HomeSellCard extends StatelessWidget {
                 const Icon(
                   FulusIcons.sell,
                   color: Colors.white,
-                  size: 30,
+                  size: 32,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 const Expanded(
