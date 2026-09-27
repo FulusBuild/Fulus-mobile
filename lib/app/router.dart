@@ -192,22 +192,25 @@ final appRouter = GoRouter(
               // it does (Riverpod 3.x: AsyncValue.value is now the
               // safe non-throwing accessor — .valueOrNull was renamed
               // to .value, not kept as a separate getter).
-              builder: (context, state) => Consumer(
-                builder: (context, ref, _) {
-                  final user = ref.watch(sessionProvider);
-                  if (user == null) {
-                    return const AuthGateScreen();
-                  }
-                  final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
-                  final isOwner = user.role == AuthRole.owner;
-                  return HomeScreen(
-                    currentAuthUserId: user.id,
-                    isOwner: isOwner,
-                    canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
-                    canViewMoney: permissions.contains(Permission.viewMoney),
-                    canViewReports: permissions.contains(Permission.viewReports),
-                  );
-                },
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final user = ref.watch(sessionProvider);
+                    if (user == null) {
+                      return const AuthGateScreen();
+                    }
+                    final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+                    final isOwner = user.role == AuthRole.owner;
+                    return HomeScreen(
+                      currentAuthUserId: user.id,
+                      isOwner: isOwner,
+                      canViewDashboardStats: permissions.contains(Permission.viewDashboardStats),
+                      canViewMoney: permissions.contains(Permission.viewMoney),
+                      canViewReports: permissions.contains(Permission.viewReports),
+                    );
+                  },
+                ),
               ),
             ),
           ],
