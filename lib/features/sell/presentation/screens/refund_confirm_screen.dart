@@ -92,7 +92,7 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
             );
           }
           if (!snap.hasData) {
-            return const FulusLoadingIndicator();
+            return const _RefundConfirmLoadingSkeleton();
           }
           final data = snap.data!;
           final eligibleLines = data.eligibility.where((e) => e.remainingReturnable > 0).toList();
@@ -305,6 +305,27 @@ class _EligibilityRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+class _RefundConfirmLoadingSkeleton extends StatelessWidget {
+  const _RefundConfirmLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      children: const [
+        FulusSkeletonBox(width: 100, height: 18),
+        SizedBox(height: AppSpacing.sm),
+        FulusCardSkeleton(),
+        FulusCardSkeleton(),
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 120, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+      ],
     );
   }
 }
