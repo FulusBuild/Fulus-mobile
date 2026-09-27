@@ -55,7 +55,7 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
             return FulusErrorState(message: "Couldn't load this supplier.", onRetry: _reload);
           }
           if (!snapshot.hasData) {
-            return const Center(child: FulusLoadingIndicator());
+            return const _SupplierProfileLoadingSkeleton();
           }
           final supplier = snapshot.data;
           if (supplier == null) {
@@ -295,4 +295,21 @@ class _SupplierLedgerRow extends StatelessWidget {
       ),
     );
   }
+}
+class _SupplierProfileLoadingSkeleton extends StatelessWidget {
+  const _SupplierProfileLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusListRowSkeleton(hasLeading: false),
+      FulusListRowSkeleton(hasLeading: false),
+      FulusListRowSkeleton(hasLeading: false),
+    ],
+  );
 }
