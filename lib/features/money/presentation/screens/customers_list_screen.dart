@@ -127,18 +127,16 @@ class _CustomerOverviewHeader extends StatelessWidget {
         height: 108,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: FulusAdaptiveCardColumn(
+            icon: FulusIcons.customers,
+            iconColor: foreground,
             children: [
-              Icon(FulusIcons.customers, color: foreground, size: AppIconSize.action(cardHeight: 108, padding: AppSpacing.md, labelFontSize: 16)),
-              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Total Customers  ${customers.length}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: AppSpacing.xs),
               Text(
                 'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
                 maxLines: 1,
@@ -146,7 +144,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
                 style: TextStyle(color: foreground.withValues(alpha: 0.9), fontSize: 14),
               ),
             ],
-          ),
+          )
         ),
       ),
     );
