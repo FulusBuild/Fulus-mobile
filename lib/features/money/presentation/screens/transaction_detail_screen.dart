@@ -36,6 +36,7 @@ class TransactionDetailScreen extends ConsumerStatefulWidget {
 
 class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScreen> {
   late Future<MoneyTransaction?> _future;
+  MoneyTransaction? _visibleTransaction;
 
   @override
   void initState() {
@@ -52,9 +53,13 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     // transaction type has nothing to enrich, so it keeps the instant,
     // no-loading-flash preloaded path unchanged.
     final preloaded = widget.preloaded;
+    _visibleTransaction = preloaded;
     _future = (preloaded != null && preloaded.type != MoneyTransactionType.saleIncome)
         ? Future.value(preloaded)
         : ref.read(moneyRepositoryProvider).getTransactionById(widget.transactionId);
+    _future.then((transaction) {
+      if (mounted) setState(() => _visibleTransaction = transaction);
+    }, onError: (_) {});
   }
 
   /// Re-fetches after the receipt-photo section below changes
@@ -85,6 +90,14 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
               }),
             );
           }
+          if (!snapshot.hasData && _visibleTransaction != null) {
+            return _DetailBody(
+              transaction: _visibleTransaction!,
+              currencySymbol: currencySymbol,
+              onChanged: _reload,
+              enriching: true,
+            );
+          }
           if (!snapshot.hasData) {
             return const _DetailSkeleton();
           }
@@ -104,10 +117,16 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
 }
 
 class _DetailBody extends ConsumerWidget {
-  const _DetailBody({required this.transaction, required this.currencySymbol, required this.onChanged});
+  const _DetailBody({
+    required this.transaction,
+    required this.currencySymbol,
+    required this.onChanged,
+    this.enriching = false,
+  });
 
   final MoneyTransaction transaction;
   final String currencySymbol;
+  final bool enriching;
 
   /// Called after the receipt-photo section below successfully
   /// attaches or removes a photo, so the parent screen re-fetches
@@ -144,6 +163,19 @@ class _DetailBody extends ConsumerWidget {
     final t = transaction;
     return ListView(
       children: [
+        if (enriching)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: FulusCard(
+              child: Row(
+                children: [
+                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(child: Text('Loading full transaction details…')),
+                ],
+              ),
+            ),
+          ),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
