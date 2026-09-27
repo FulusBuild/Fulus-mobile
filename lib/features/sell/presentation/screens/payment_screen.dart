@@ -60,7 +60,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return BlocBuilder<CartCubit, CartState>(
       builder: (context, cartState) {
         if (cartState is! CartLoaded) {
-          return const FulusScreen(title: 'Payment', body: _PaymentLoadingSkeleton());
+          return const FulusScreen(
+            title: 'Payment',
+            backgroundColor: Color(0xFF061B3A),
+            headerBackgroundColor: Color(0xFF061B3A),
+            applyPadding: false,
+            body: _PaymentLoadingSkeleton(),
+          );
         }
 
         _syncAmountDefault(cartState.remaining);
