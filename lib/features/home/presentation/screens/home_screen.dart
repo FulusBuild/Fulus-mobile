@@ -98,10 +98,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: CustomScrollView(
-                    // Home is a dashboard, not a feed. The normal dashboard must
-                    // stay locked to the viewport rather than becoming vertically
-                    // scrollable just to reveal the six cards.
-                    physics: const NeverScrollableScrollPhysics(),
+                    // Keep the dashboard vertically scrollable so larger cards remain accessible
+                    // on smaller screens without adding extra whitespace above the navbar.
+                    physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.lg),
@@ -134,7 +133,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, 0, inset, inset * 1.75),
+                        padding: EdgeInsets.fromLTRB(inset, 0, inset, 0),
                         sliver: SliverFillRemaining(
                           hasScrollBody: false,
                           child: FutureBuilder<HomeHeroState>(
@@ -295,11 +294,8 @@ class _HomeMockupDashboard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // SliverFillRemaining gives this dashboard the remaining viewport height.
-        // Reserve a deliberate breathing space above the persistent bottom
-        // navigation bar so the last card never visually touches the nav.
-        // Keep the reserved space inside the height calculation so the three
-        // dashboard rows shrink slightly rather than being pushed underneath it.
+        // Reserve only the deliberate breathing space requested above the persistent
+        // bottom navigation bar. No additional bottom padding is added here.
         const dashboardBottomGap = AppSpacing.md;
         final availableHeight = constraints.maxHeight;
         final minRowHeight = 118.0;
