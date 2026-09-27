@@ -94,7 +94,10 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _searchQuery = value);
+      if (mounted) setState(() {
+        _searchQuery = value;
+        _visibleItems = null;
+      });
     });
   }
 
@@ -109,7 +112,10 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
     if (picked != null && mounted) setState(() => _dateRange = picked);
   }
 
-  void _clearDateRange() => setState(() => _dateRange = null);
+  void _clearDateRange() => setState(() {
+    _dateRange = null;
+    _visibleItems = null;
+  });
 
   @override
   void dispose() {
