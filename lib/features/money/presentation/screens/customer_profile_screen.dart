@@ -71,9 +71,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           if (customer == null) {
             return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
           }
-          if (customer == null) {
-            return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
-          }
           return _ProfileBody(customer: customer, currencySymbol: currencySymbol, onChanged: _reload);
         },
       ),
