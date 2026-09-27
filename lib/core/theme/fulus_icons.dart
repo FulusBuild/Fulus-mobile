@@ -18,7 +18,8 @@ abstract final class FulusIcons {
   static const quickActions = Symbols.bolt;
   // Mockup-specific semantic icons. Keep these distinct so the same glyph is
   // not reused where the reference UI intentionally uses different artwork.
-  static const cash = Symbols.account_balance_wallet;
+  static const cash = Symbols.payments;
+  static const cashBalance = Symbols.account_balance_wallet;
   static const wallet = Symbols.account_balance_wallet;
   static const reports = Symbols.bar_chart;
   static const salesReport = Symbols.monitoring;
@@ -45,8 +46,8 @@ abstract final class FulusIcons {
   static const removeShoppingCart = Symbols.remove_shopping_cart;
   static const arrowForward = Symbols.arrow_forward;
   static const arrowBack = Symbols.arrow_back;
-  static const arrowUp = Symbols.north_east;
-  static const arrowDown = Symbols.south_west;
+  static const arrowUp = Symbols.arrow_upward;
+  static const arrowDown = Symbols.arrow_downward;
   static const chevronRight = Symbols.chevron_right;
   static const chevronDown = Symbols.keyboard_arrow_down;
   static const chevronUp = Symbols.keyboard_arrow_up;
@@ -90,6 +91,8 @@ abstract final class FulusIcons {
   static const lowStock = Symbols.inventory_2;
   static const stockIn = Symbols.local_shipping;
   static const stockMovement = Symbols.monitoring;
+  static const moneyIn = Symbols.arrow_downward;
+  static const moneyOut = Symbols.north_east;
   static const accountBalance = Symbols.account_balance;
   static const creditCard = Symbols.credit_card;
   static const payment = Symbols.payment;
