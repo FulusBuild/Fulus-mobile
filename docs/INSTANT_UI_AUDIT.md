@@ -301,3 +301,31 @@ Vercel deployment status is intentionally not treated as UI correctness or Flutt
 Reports had the same subtle refresh-continuity issue previously found in Money History: the shared report tab builder correctly preserves visible data during ordinary refresh, but changing the report period also replaced its future while retaining the previous period's report data. That could temporarily show semantically stale numbers under the newly selected period.
 
 Report tabs are now keyed by the resolved report period. A period change creates a fresh tab data state while retaining the already-painted report structure and loading skeleton; ordinary data-refresh signals keep the existing report visible while the new local report hydrates. This preserves the distinction between same-query refresh and a new semantic query without changing repository queries, permissions, location isolation, or financial calculations.
+
+
+## Implementation pass 8 — re-audit fixes
+
+A second implementation audit checked the actual branch rather than relying only on the audit notes.
+
+### Fixed
+
+- Removed Home's unused activity query. Home no longer performs a money-history read that is not consumed by the current dashboard.
+- Home local hydration now distinguishes loading/error from valid zero values. Hero, notices, and cash failures no longer silently become misleading dashboard metrics such as zero low-stock items or zero customer credit.
+- Money now starts summary and recent-activity reads independently and concurrently. Recent activity no longer waits for the summary aggregation to finish before it can render.
+- Reports Cash Flow no longer falls back to a generic spinner; it uses the same shaped loading treatment as the surrounding report workspace.
+
+### Deliberately preserved
+
+- Sell and Stock authoritative active-location resolution remains intact. Their useful workspace/skeleton is shown while the resolver completes; the resolver is not bypassed without a proven safe cached-location source.
+- Exact all-history Money balance semantics remain intact. No approximate cache or financial shortcut was introduced.
+- Secondary FutureBuilders that represent route-local detail hydration, explicit file/device/action work, or already-painted report/detail sections remain selective rather than being replaced wholesale.
+
+### Re-audit findings
+
+The previous audit incorrectly described Home activity as an active dashboard dependency even though the current dashboard did not consume it, and it treated failed Home section futures as harmless null state. Both were corrected.
+
+The current target remains:
+
+**tap -> screen immediately -> local data hydrates -> UI updates -> cloud sync independently**
+
+Final closure still requires CI green and runtime/cold-warm verification.
