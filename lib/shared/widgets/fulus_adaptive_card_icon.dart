@@ -28,11 +28,9 @@ class FulusMetricCardColumn extends StatelessWidget {
         Expanded(
           child: Align(
             alignment: Alignment.topLeft,
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.topLeft,
-              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
-              // Its rendered size is determined entirely by the space this box receives.\n              child: Icon(icon, color: iconColor, size: 256),
+            child: _FulusGeometryIcon(
+              icon: icon,
+              color: iconColor,
             ),
           ),
         ),
@@ -70,12 +68,9 @@ class FulusCustomerOverviewColumn extends StatelessWidget {
         Expanded(
           child: Align(
             alignment: Alignment.topLeft,
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.topLeft,
-              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
-              // Its rendered size is determined entirely by the space this box receives.
-              child: Icon(icon, color: iconColor, size: 256),
+            child: _FulusGeometryIcon(
+              icon: icon,
+              color: iconColor,
             ),
           ),
         ),
@@ -112,12 +107,9 @@ class FulusReportCardColumn extends StatelessWidget {
         Expanded(
           child: Align(
             alignment: Alignment.topLeft,
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.topLeft,
-              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
-              // Its rendered size is determined entirely by the space this box receives.
-              child: Icon(icon, color: iconColor, size: 256),
+            child: _FulusGeometryIcon(
+              icon: icon,
+              color: iconColor,
             ),
           ),
         ),
@@ -156,12 +148,9 @@ class FulusPaymentMethodCardColumn extends StatelessWidget {
         Expanded(
           child: Align(
             alignment: Alignment.topLeft,
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.topLeft,
-              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
-              // Its rendered size is determined entirely by the space this box receives.
-              child: Icon(icon, color: iconColor, size: 256),
+            child: _FulusGeometryIcon(
+              icon: icon,
+              color: iconColor,
             ),
           ),
         ),
@@ -184,6 +173,28 @@ class FulusPaymentMethodCardColumn extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+
+/// Scales an icon to the geometry supplied by its parent.
+/// The icon has no design pixel size here; the parent owns the available box.
+class _FulusGeometryIcon extends StatelessWidget {
+  const _FulusGeometryIcon({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.contain,
+      alignment: Alignment.topLeft,
+      child: SizedBox.square(
+        dimension: 1,
+        child: Icon(icon, color: color, size: 1),
+      ),
     );
   }
 }
