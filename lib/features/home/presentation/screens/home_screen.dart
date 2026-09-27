@@ -192,7 +192,6 @@ class _HomeDashboardHydration extends StatefulWidget {
   const _HomeDashboardHydration({
     required this.heroFuture,
     required this.noticesFuture,
-    required this.activityFuture,
     required this.cashFuture,
     required this.currencySymbol,
     required this.canViewMoney,
@@ -235,7 +234,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.heroFuture != widget.heroFuture ||
         oldWidget.noticesFuture != widget.noticesFuture ||
-        oldWidget.activityFuture != widget.activityFuture ||
         oldWidget.cashFuture != widget.cashFuture) {
       _hero = null;
       _noticeSelection = null;
@@ -293,7 +291,6 @@ class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
     required this.notices,
-    required this.activity,
     required this.cashTotal,
     required this.currencySymbol,
     required this.canViewMoney,
