@@ -283,7 +283,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Expanded(child: _HomeReportCard()),
+          Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
           const SizedBox(width: AppSpacing.sm),
           const Expanded(child: _HomeSellCard()),
         ],
@@ -433,18 +433,21 @@ class _HomeSellCard extends StatelessWidget {
 }
 
 class _HomeReportCard extends StatelessWidget {
-  const _HomeReportCard();
+  const _HomeReportCard({required this.canViewReports});
+
+  final bool canViewReports;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: true,
+      button: canViewReports,
+      enabled: canViewReports,
       label: 'Reports',
       child: Material(
         color: _HomeColors.teal,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: InkWell(
-          onTap: () => context.goNamed('moreReports'),
+          onTap: canViewReports ? () => context.goNamed('moreReports') : null,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -470,7 +473,6 @@ class _HomeReportCard extends StatelessWidget {
     );
   }
 }
-
 class _HomeHeroSkeleton extends StatelessWidget {
   const _HomeHeroSkeleton();
 
