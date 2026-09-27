@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,7 +8,6 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/mock_money_repository.dart';
 import '../../domain/money_summary.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
@@ -55,14 +53,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     await Future.wait([_balanceFuture, _summaryAndTransactionsFuture]);
   }
 
-  void _toggleSimulatedError() {
-    final repo = ref.read(moneyRepositoryProvider);
-    if (repo is MockMoneyRepository) {
-      repo.debugSimulateFailure = !repo.debugSimulateFailure;
-    }
-    _refresh();
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
@@ -104,7 +94,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       _MoneyHeader(
                         onHistory: () => context.pushNamed('moneyHistory'),
                         onReceipts: () => context.pushNamed('receiptHistory'),
-                        onDebug: kDebugMode ? _toggleSimulatedError : null,
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
