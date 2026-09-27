@@ -255,10 +255,7 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
                 future: _detectedFuture,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Padding(
-                      padding: EdgeInsets.all(AppSpacing.xxl),
-                      child: FulusLoadingIndicator(),
-                    );
+                    return const _BackupRestoreLoadingSkeleton();
                   }
                   final detected = snapshot.data!;
                   final newest = detected.local.isEmpty ? null : detected.local.first;
@@ -407,6 +404,34 @@ class _DetectedRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class _BackupRestoreLoadingSkeleton extends StatelessWidget {
+  const _BackupRestoreLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 42)),
+          const SizedBox(height: AppSpacing.sm),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 44)),
+          const SizedBox(height: AppSpacing.xxl),
+          const FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+          const SizedBox(height: AppSpacing.xxl),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 72)),
+          const SizedBox(height: AppSpacing.sm),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 72)),
+          const SizedBox(height: AppSpacing.sm),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 72)),
+        ],
+      ),
     );
   }
 }
