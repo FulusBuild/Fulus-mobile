@@ -370,12 +370,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
       if (!context.mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => SaleSuccessScreen(
+        PageRouteBuilder<void>(
+          pageBuilder: (_, __, ___) => SaleSuccessScreen(
             saleId: sale.localId,
             changeDue: sale.changeDue,
             currencySymbol: currencySymbol,
           ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
         ),
       );
     } catch (_) {
