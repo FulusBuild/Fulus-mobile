@@ -161,11 +161,14 @@ final appRouter = GoRouter(
             : const <Permission>{};
     if (requiredPermissions.isEmpty) return null;
 
-    final permissionRepo = container.read(permissionRepositoryProvider);
-    for (final permission in requiredPermissions) {
-      final allowed = await permissionRepo.hasPermission(userId: user.id, role: user.role, permission: permission);
-      if (allowed) return null;
-    }
+    // Reuse the app-scoped permission provider instead of performing a
+    // fresh repository lookup on every navigation. The shell and its
+    // protected screens already warm this provider, so normal taps resolve
+    // from the cached permission set rather than introducing a second async
+    // hop in the navigation path. The provider still comes from the same
+    // repository and remains the enforcement source for direct/deep links.
+    final permissions = await container.read(sessionPermissionsProvider.future);
+    if (requiredPermissions.any(permissions.contains)) return null;
     return '/';
   },
   routes: [
