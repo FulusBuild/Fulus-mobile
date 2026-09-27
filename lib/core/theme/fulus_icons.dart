@@ -74,6 +74,8 @@ abstract final class FulusIcons {
   static const language = Symbols.language;
   static const palette = Symbols.palette;
   static const person = Symbols.person;
+  static const personAdd = Symbols.person_add;
+  static const archive = Symbols.archive;
   static const logout = Symbols.logout;
   static const backspace = Symbols.backspace;
   static const visibility = Symbols.visibility;
