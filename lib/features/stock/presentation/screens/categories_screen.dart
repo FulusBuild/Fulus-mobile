@@ -33,7 +33,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               onRetry: () => setState(() {}),
             );
           }
-          if (!snapshot.hasData) return const FulusLoadingIndicator();
+          if (!snapshot.hasData) return const _CategoriesLoadingSkeleton();
 
           final categories = snapshot.data!;
           return LayoutBuilder(
@@ -295,6 +295,30 @@ class _AddCategorySheetState extends ConsumerState<_AddCategorySheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+class _CategoriesLoadingSkeleton extends StatelessWidget {
+  const _CategoriesLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return ListView(
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.xl),
+        FulusSkeletonBox(width: 150, height: 18),
+        SizedBox(height: AppSpacing.sm),
+        FulusCardSkeleton(),
+        FulusCardSkeleton(),
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 64, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+      ],
     );
   }
 }
