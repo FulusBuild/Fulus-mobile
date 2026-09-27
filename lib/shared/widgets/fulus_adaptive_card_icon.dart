@@ -31,7 +31,8 @@ class FulusMetricCardColumn extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.contain,
               alignment: Alignment.topLeft,
-              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.\n              // Its rendered size is determined entirely by the space this box receives.\n              child: Icon(icon, color: iconColor, size: 256),
+              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
+              // Its rendered size is determined entirely by the space this box receives.\n              child: Icon(icon, color: iconColor, size: 256),
             ),
           ),
         ),
