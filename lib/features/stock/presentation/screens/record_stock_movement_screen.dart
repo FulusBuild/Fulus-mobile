@@ -254,12 +254,12 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
       builder: (context, ref, _) {
         final locationAsync = ref.watch(currentLocationIdProvider);
         return locationAsync.when(
-          loading: () => const FulusLoadingIndicator(),
+          loading: () => const _StockMovementLoadingSkeleton(),
           error: (e, _) => FulusErrorState(message: "Couldn't load your products.", onRetry: () {}),
           data: (locationId) {
             final productsAsync = ref.watch(productsWithStockProvider(locationId));
             return productsAsync.when(
-              loading: () => const FulusLoadingIndicator(),
+              loading: () => const _StockMovementLoadingSkeleton(),
               error: (e, _) => FulusErrorState(message: "Couldn't load your products.", onRetry: () {}),
               data: (products) {
                 final query = _searchController.text.trim().toLowerCase();
@@ -468,4 +468,21 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
       ],
     );
   }
+}
+
+
+class _StockMovementLoadingSkeleton extends StatelessWidget {
+  const _StockMovementLoadingSkeleton();
+  @override Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(AppSpacing.lg),
+    child: Column(
+      children: [
+        FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+        SizedBox(height: AppSpacing.md),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 52)),
+        SizedBox(height: AppSpacing.md),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 52)),
+      ],
+    ),
+  );
 }
