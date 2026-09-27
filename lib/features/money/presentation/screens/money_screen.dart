@@ -228,22 +228,14 @@ class _MoneyHeader extends StatelessWidget {
   const _MoneyHeader({
     required this.onHistory,
     required this.onReceipts,
-    required this.onDebug,
   });
 
   final VoidCallback onHistory;
   final VoidCallback onReceipts;
-  final VoidCallback? onDebug;
 
   @override
   Widget build(BuildContext context) {
     final actions = <Widget>[
-      if (onDebug != null)
-        FulusIconButton(
-          icon: FulusIcons.bugReport,
-          tooltip: 'Simulate error (debug)',
-          onPressed: onDebug,
-        ),
       FulusIconButton(
         icon: FulusIcons.history,
         tooltip: 'Money history',
