@@ -74,8 +74,8 @@ class _FulusBottomNavigationBar extends StatelessWidget {
       (FulusNavBranch.home, FulusIcons.home, 'Home'),
       (FulusNavBranch.sell, FulusIcons.sell, 'Sell'),
       (FulusNavBranch.stock, FulusIcons.stock, 'Stock'),
-      if (showMoneyTab) (FulusNavBranch.money, FulusIcons.money, 'Money'),
-      (FulusNavBranch.more, FulusIcons.more, 'More'),
+      if (showMoneyTab) (FulusNavBranch.money, FulusIcons.navMoney, 'Money'),
+      (FulusNavBranch.more, FulusIcons.navMore, 'More'),
     ];
 
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
@@ -165,7 +165,16 @@ class _FulusBottomNavigationItem extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(icon, size: AppIconSize.base, color: foreground),
+                    IconTheme(
+                      data: IconThemeData(
+                        color: foreground,
+                        fill: selected ? 1 : 0,
+                        weight: 300,
+                        grade: 0,
+                        opticalSize: 24,
+                      ),
+                      child: Icon(icon, size: AppIconSize.base),
+                    ),
                     const SizedBox(height: 2),
                     FittedBox(
                       fit: BoxFit.scaleDown,
