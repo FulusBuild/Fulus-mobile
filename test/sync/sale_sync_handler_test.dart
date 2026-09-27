@@ -396,7 +396,13 @@ void main() {
     ));
 
     final sale = await createLocalSale();
-    final queued = queueItemFor(sale);
+    // Use the actual durable outbox row created atomically with the sale.
+    // A fabricated queue item has no database identity, so it cannot model
+    // restart/retry persistence after the first request loses its response.
+    final queued = await (db.select(db.syncQueueItems)
+          ..where((q) => q.entityType.equals('sale'))
+          ..where((q) => q.entityLocalId.equals(sale.localId)))
+        .getSingle();
     var attempts = 0;
     String? acceptedClientReference;
     when(() => fulusSyncApi.submitOperation(
