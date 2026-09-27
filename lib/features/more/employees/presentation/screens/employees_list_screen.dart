@@ -118,18 +118,19 @@ class _TeamOverview extends StatelessWidget {
       color: color,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
-        height: 118,
+        height: 132,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(FulusIcons.staff, color: foreground, size: 42),
-              const Spacer(),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Employees  ${employees.length}',
                 style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: AppSpacing.xs),
               const Text(
                 'People, access and attendance',
                 style: TextStyle(color: Colors.white70, fontSize: 14),
