@@ -646,9 +646,6 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
         if (!snapshot.hasData) {
           return const FulusScreen(body: FulusLoadingIndicator());
         }
-        if (stage == PostSignInStage.enterShell) {
-          _warmShellData();
-        }
         // Resolved through resolvePostSignInStage
         // (core/onboarding/onboarding_routing.dart) rather than the two
         // inline ifs this used to be — same behavior, now unit-testable
@@ -669,12 +666,15 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
             return const NavigationIntroScreen();
           case PostSignInStage.showFirstSaleIntro:
             final introSeen = ref.watch(firstSaleIntroSeenProvider);
-            return introSeen
-                ? FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true)
-                : const FirstSaleIntroScreen();
+            if (introSeen) {
+              _warmShellData();
+              return FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true);
+            }
+            return const FirstSaleIntroScreen();
           case PostSignInStage.showFirstRunPrompt:
             return const FirstRunSetupScreen();
           case PostSignInStage.enterShell:
+            _warmShellData();
             return FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true);
         }
       },
