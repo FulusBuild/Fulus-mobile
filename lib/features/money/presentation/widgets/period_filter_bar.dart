@@ -51,11 +51,13 @@ class MoneyPeriodFilterBar extends ConsumerWidget {
         FulusChip(
           label: labelFor(k),
           selected: kind == k,
+          compact: true,
           onTap: () => ref.read(moneyPeriodKindProvider.notifier).state = k,
         ),
       FulusChip(
         label: labelFor(ReportPeriodKind.custom),
         selected: kind == ReportPeriodKind.custom,
+        compact: true,
         onTap: pickCustomRange,
       ),
     ]);
