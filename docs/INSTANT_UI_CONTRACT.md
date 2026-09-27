@@ -223,20 +223,22 @@ This contract does not authorize:
 - replacing correct location isolation with convenience;
 - broad architecture rewrites without evidence.
 
-## Current implementation gaps
+## Current implementation status
 
-The Instant UI audit currently tracks these remaining areas:
+The primary Instant UI implementation gaps found in the original audit have now been addressed or deliberately preserved for correctness:
 
-- **IUI-02:** Sell active-location resolution remains on the first useful-frame path.
-- **IUI-03:** Sell draft-cart initialization remains an async gate before full cart state.
-- **IUI-04:** Home hero still has a first-useful-frame dependency on its hero future.
-- **IUI-05:** Money still performs expensive local aggregation on entry.
-- **IUI-06:** Stock active-location resolution remains a first-frame gate.
-- **IUI-07:** Secondary/detail screens have inconsistent loading replacement.
-- **IUI-08:** Loading architecture is not yet standardized.
-- **IUI-09:** StatefulShellRoute branch state reuse still needs explicit verification.
+- **IUI-02 / IUI-06:** Sell and Stock retain authoritative active-location resolution. Their useful workspace/skeleton is visible while location resolves. The resolver is not bypassed without a proven safe cached-location source.
+- **IUI-03:** Sell catalog/settings hydrate before durable draft-cart readiness; mutations remain gated until the durable cart is ready.
+- **IUI-04:** Home paints its complete dashboard structure immediately and hydrates hero, notices, and cash independently. Unused Home activity loading was removed.
+- **IUI-05:** Money balance remains exact; summary and recent activity now hydrate independently. No approximate financial cache was introduced.
+- **IUI-07 / IUI-08:** Remaining secondary async states are selective and shaped where they are workspace hydration; action/file/device waits remain explicit operation states.
+- **IUI-09:** StatefulShellRoute indexed-stack branch preservation remains the navigation architecture.
 
-These are engineering work items, not permission to rewrite the architecture speculatively.
+The remaining acceptance work is verification, not a speculative architecture rewrite:
+- final CI must be green;
+- cold/warm navigation and delayed local hydration should be runtime-checked;
+- offline rendering and section-level error isolation should be exercised on device;
+- any new first-frame violation found by those checks must be fixed before closure.
 
 ## Completion definition
 
