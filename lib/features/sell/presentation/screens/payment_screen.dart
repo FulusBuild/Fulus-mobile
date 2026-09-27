@@ -540,7 +540,7 @@ class _PaymentMethodTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 40, color: foreground),
+            Icon(icon, size: 42, color: foreground),
             const Spacer(),
             Row(children: [
               Expanded(child: Text(label, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))),
