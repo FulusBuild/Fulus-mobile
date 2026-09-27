@@ -33,12 +33,12 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
       headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
-          icon: Icons.person_add_alt_outlined,
+          icon: FulusIcons.personAdd,
           tooltip: 'Add customer',
           onPressed: () => CustomerFormSheet.show(context),
         ),
         FulusIconButton(
-          icon: Icons.archive_outlined,
+          icon: FulusIcons.archive,
           tooltip: 'Archived customers',
           onPressed: () => context.pushNamed('moneyArchivedCustomers'),
         ),
