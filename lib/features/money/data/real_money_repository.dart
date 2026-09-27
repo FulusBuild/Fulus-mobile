@@ -554,17 +554,22 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     required bool canViewAllSales,
   }) async {
     final cashierUserId = canViewAllSales ? null : currentAuthUserId;
-    final inPeriod = await _transactionsForRange(
+    // These ranges are independent reads. Start them together so the
+    // previous-period comparison never adds a second full aggregation wait
+    // after the current-period data has already been fetched.
+    final inPeriodFuture = _transactionsForRange(
       period.start,
       period.end,
       cashierUserId: cashierUserId,
     );
     final previousPeriod = period.previous;
-    final previousTransactions = await _transactionsForRange(
+    final previousTransactionsFuture = _transactionsForRange(
       previousPeriod.start,
       previousPeriod.end,
       cashierUserId: cashierUserId,
     );
+    final (inPeriod, previousTransactions) =
+        await (inPeriodFuture, previousTransactionsFuture).wait;
 
     double sumWhere(bool Function(MoneyTransaction) test) =>
         inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
