@@ -11,7 +11,6 @@ import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/domain/money_transaction.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
 
 /// Owner/manager workspace home. Data and permissions remain repository-backed;
@@ -39,9 +38,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
   late Future<SecondaryNoticeSelection> _noticesFuture;
-  late Future<List<MoneyTransaction>> _activityFuture;
   late Future<double> _cashFuture;
-  static const _reportsEngine = ReportsEngine();
 
   @override
   void initState() {
@@ -65,16 +62,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _cashFuture = (widget.isOwner || widget.canViewMoney)
         ? ref.read(moneyRepositoryProvider).getAvailableBalance()
         : Future.value(0);
-    _activityFuture = ref.read(moneyRepositoryProvider).getTransactions(
-          _reportsEngine.resolvePeriod(ReportPeriodKind.today),
-          currentAuthUserId: widget.currentAuthUserId,
-          canViewAllSales: showBusinessWide,
-        );
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture, _activityFuture, _cashFuture]);
+    await Future.wait([_heroFuture, _noticesFuture, _cashFuture]);
   }
 
   @override
@@ -138,7 +130,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: _HomeDashboardHydration(
                             heroFuture: _heroFuture,
                             noticesFuture: _noticesFuture,
-                            activityFuture: _activityFuture,
                             cashFuture: _cashFuture,
                             currencySymbol: currencySymbol,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
@@ -211,7 +202,6 @@ class _HomeDashboardHydration extends StatefulWidget {
 
   final Future<HomeHeroState> heroFuture;
   final Future<SecondaryNoticeSelection> noticesFuture;
-  final Future<List<MoneyTransaction>> activityFuture;
   final Future<double> cashFuture;
   final String currencySymbol;
   final bool canViewMoney;
@@ -225,7 +215,9 @@ class _HomeDashboardHydration extends StatefulWidget {
 class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   HomeHeroState? _hero;
   SecondaryNoticeSelection? _noticeSelection;
-  List<MoneyTransaction> _activity = const [];
+  bool _heroError = false;
+  bool _noticesError = false;
+  bool _cashError = false;
   double? _cashTotal;
 
   @override
@@ -233,10 +225,9 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     super.initState();
     // Start all independent local reads together. None waits for another
     // FutureBuilder to build before its own future is observed.
-    widget.heroFuture.then(_setHero, onError: _ignoreFutureError);
-    widget.noticesFuture.then(_setNotices, onError: _ignoreFutureError);
-    widget.activityFuture.then(_setActivity, onError: _ignoreFutureError);
-    widget.cashFuture.then(_setCash, onError: _ignoreFutureError);
+    widget.heroFuture.then(_setHero, onError: _setHeroError);
+    widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
+    widget.cashFuture.then(_setCash, onError: _setCashError);
   }
 
   @override
@@ -248,33 +239,38 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
         oldWidget.cashFuture != widget.cashFuture) {
       _hero = null;
       _noticeSelection = null;
-      _activity = const [];
       _cashTotal = null;
-      widget.heroFuture.then(_setHero, onError: _ignoreFutureError);
-      widget.noticesFuture.then(_setNotices, onError: _ignoreFutureError);
-      widget.activityFuture.then(_setActivity, onError: _ignoreFutureError);
-      widget.cashFuture.then(_setCash, onError: _ignoreFutureError);
+      _heroError = false;
+      _noticesError = false;
+      _cashError = false;
+      widget.heroFuture.then(_setHero, onError: _setHeroError);
+      widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
+      widget.cashFuture.then(_setCash, onError: _setCashError);
     }
   }
 
   void _setHero(HomeHeroState value) {
-    if (mounted) setState(() => _hero = value);
+    if (mounted) setState(() { _hero = value; _heroError = false; });
   }
 
   void _setNotices(SecondaryNoticeSelection value) {
-    if (mounted) setState(() => _noticeSelection = value);
-  }
-
-  void _setActivity(List<MoneyTransaction> value) {
-    if (mounted) setState(() => _activity = value);
+    if (mounted) setState(() { _noticeSelection = value; _noticesError = false; });
   }
 
   void _setCash(double value) {
-    if (mounted) setState(() => _cashTotal = value);
+    if (mounted) setState(() { _cashTotal = value; _cashError = false; });
   }
 
-  void _ignoreFutureError(Object _, StackTrace __) {
-    // A failed local section must not remove the rest of the dashboard.
+  void _setHeroError(Object _, StackTrace __) {
+    if (mounted) setState(() => _heroError = true);
+  }
+
+  void _setNoticesError(Object _, StackTrace __) {
+    if (mounted) setState(() => _noticesError = true);
+  }
+
+  void _setCashError(Object _, StackTrace __) {
+    if (mounted) setState(() => _cashError = true);
   }
 
   @override
@@ -282,7 +278,9 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     return _HomeMockupDashboard(
       hero: _hero,
       notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
-      activity: _activity,
+      noticesError: _noticesError,
+      heroError: _heroError,
+      cashError: _cashError,
       cashTotal: _cashTotal,
       currencySymbol: widget.currencySymbol,
       canViewMoney: widget.canViewMoney,
@@ -303,7 +301,9 @@ class _HomeMockupDashboard extends StatelessWidget {
   });
   final HomeHeroState? hero;
   final List<SecondaryNotice> notices;
-  final List<MoneyTransaction> activity;
+  final bool noticesError;
+  final bool heroError;
+  final bool cashError;
   final double? cashTotal;
   final String currencySymbol;
   final bool canViewMoney;
@@ -323,8 +323,8 @@ class _HomeMockupDashboard extends StatelessWidget {
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-  int get _lowStockCount => notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
-  double get _creditTotal => notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
+  int? get _lowStockCount => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
+  double? get _creditTotal => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
 
   @override
   Widget build(BuildContext context) {
@@ -332,18 +332,18 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashError ? '—' : canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount?.toString() ?? '—', secondary: _salesTotal == null ? 'waiting for local data' : formatMoney(_salesTotal!, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: heroError ? '—' : _salesCount?.toString() ?? '—', secondary: heroError ? 'data unavailable' : _salesTotal == null ? 'waiting for local data' : formatMoney(_salesTotal!, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount?.toString() ?? '—', secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney && _creditTotal != null ? formatMoney(_creditTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
