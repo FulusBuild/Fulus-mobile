@@ -173,7 +173,7 @@ class _StockBody extends ConsumerWidget {
                         ),
                         _StockSummaryTile(
                           color: const Color(0xFFFF8C00),
-                          icon: FulusIcons.arrowDown,
+                          icon: FulusIcons.stockIn,
                           label: 'Stock In',
                           value: movementsAsync.asData?.value.where((m) => m.movementType == StockMovementType.stockIn).length.toString() ?? '—',
                           subtitle: 'Recent',
@@ -181,7 +181,7 @@ class _StockBody extends ConsumerWidget {
                         ),
                         _StockSummaryTile(
                           color: const Color(0xFF7B3FF2),
-                          icon: FulusIcons.swap,
+                          icon: FulusIcons.stockMovement,
                           label: 'Stock Movement',
                           value: movementsAsync.asData?.value.length.toString() ?? '—',
                           subtitle: 'Recent activity',
