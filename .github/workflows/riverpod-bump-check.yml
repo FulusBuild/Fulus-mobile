@@ -22,7 +22,7 @@ jobs:
           flutter pub upgrade --major-versions \
             flutter_riverpod riverpod_annotation riverpod_generator \
             sqlite3 sqlite3_flutter_libs
-          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:|freezed:|freezed_annotation:|sqlite3:|sqlite3_flutter_libs:" pubspec.yaml
+          grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:|sqlite3:|sqlite3_flutter_libs:" pubspec.yaml
 
       - name: Try code generation against this narrower dependency set
         run: dart run build_runner build --delete-conflicting-outputs
