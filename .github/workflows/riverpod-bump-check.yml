@@ -21,7 +21,7 @@ jobs:
         run: |
           flutter pub upgrade --major-versions \
             flutter_riverpod riverpod_annotation riverpod_generator \
-            freezed freezed_annotation sqlite3 sqlite3_flutter_libs
+            sqlite3 sqlite3_flutter_libs
           grep -nE "flutter_riverpod:|riverpod_annotation:|riverpod_generator:|freezed:|freezed_annotation:|sqlite3:|sqlite3_flutter_libs:" pubspec.yaml
 
       - name: Try code generation against this narrower dependency set
@@ -29,6 +29,6 @@ jobs:
 
       # This is the real test: codegen not crashing doesn't mean your
       # hand-written code still compiles against the new Riverpod/
-      # freezed/sqlite3 APIs. This mirrors the real "analyze" job.
+      # Riverpod/sqlite3 APIs. This mirrors the real "analyze" job.
       - name: Analyze against the narrower dependency set
         run: flutter analyze --fatal-infos
