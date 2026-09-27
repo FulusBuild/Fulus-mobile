@@ -12,7 +12,15 @@ abstract final class FulusIcons {
   static const sell = Symbols.shopping_cart;
   static const stock = Symbols.inventory_2;
   static const money = Symbols.payments;
+  // Mockup-specific semantic icons. Keep these distinct so the same glyph is
+  // not reused where the reference UI intentionally uses different artwork.
+  static const cash = Symbols.payments;
+  static const wallet = Symbols.account_balance_wallet;
   static const reports = Symbols.bar_chart;
+  static const salesReport = Symbols.bar_chart;
+  static const stockReport = Symbols.inventory_2;
+  static const expenseReport = Symbols.receipt_long;
+  static const customerReport = Symbols.groups;
   static const customers = Symbols.groups;
   static const staff = Symbols.badge;
   static const locations = Symbols.location_on;
@@ -73,6 +81,9 @@ abstract final class FulusIcons {
   static const bugReport = Symbols.bug_report;
   static const localShipping = Symbols.local_shipping;
   static const payments = Symbols.payments;
+  static const lowStock = Symbols.inventory_2;
+  static const stockIn = Symbols.arrow_downward;
+  static const stockMovement = Symbols.swap_vert;
   static const accountBalance = Symbols.account_balance;
   static const creditCard = Symbols.credit_card;
   static const payment = Symbols.payment;
