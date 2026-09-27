@@ -6,7 +6,7 @@ import '../domain/money_transaction.dart';
 /// See `money_transaction.dart`'s doc comment for the full real-vs-mock
 /// history. `RealMoneyRepositoryImpl` (`real_money_repository.dart`) is
 /// the real implementation `moneyRepositoryProvider` returns now;
-/// [MockMoneyRepository] remains as a reference/testing implementation
+/// the former mock Money implementation remains as a reference/testing implementation
 /// only.
 abstract class MoneyRepository {
   /// All-time net (every transaction ever recorded, signed and summed) —
