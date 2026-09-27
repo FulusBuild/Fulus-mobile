@@ -355,9 +355,13 @@ jobs:
           if [ -z "$API_BASE_URL" ]; then API_BASE_URL="$REPOSITORY_API_BASE_URL"; fi
           if [ -z "$API_BASE_URL" ]; then echo "::error::API_BASE_URL is not configured."; exit 1; fi
           if [ "$API_BASE_URL" = "http://10.0.2.2:8000" ]; then echo "::error::API_BASE_URL still points to the Android emulator."; exit 1; fi
+          case "$API_BASE_URL" in
+            https://*) ;;
+            *) echo "::error::Release API_BASE_URL must use HTTPS."; exit 1 ;;
+          esac
           echo "API_BASE_URL=$API_BASE_URL" >> "$GITHUB_OUTPUT"
       - name: Build release APK
-        run: flutter build apk --release --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}"
+        run: flutter build apk --release --build-number="${{ github.run_number }}" --dart-define=API_BASE_URL="${{ steps.api.outputs.API_BASE_URL }}"
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
