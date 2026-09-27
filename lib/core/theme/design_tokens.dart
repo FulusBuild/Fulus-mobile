@@ -163,7 +163,7 @@ class AppIconSize {
     final fixedContent = (padding * 2) +
         gapAfterIcon +
         (labelFontSize * 1.2 * labelLines);
-    return math.max(0, cardHeight - fixedContent);
+    return math.max(24, cardHeight - fixedContent);
   }
 
   static double metric({
@@ -184,7 +184,7 @@ class AppIconSize {
         (valueFontSize * 1.1) +
         (secondaryFontSize * 1.2);
 
-    return math.max(0, cardHeight - fixedContent);
+    return math.max(24, cardHeight - fixedContent);
   }
 }
 const double kMinimumContrastRatio=4.5;
