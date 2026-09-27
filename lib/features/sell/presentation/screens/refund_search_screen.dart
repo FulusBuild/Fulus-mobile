@@ -101,7 +101,7 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
                   );
                 }
                 if (!snap.hasData) {
-                  return const FulusLoadingIndicator();
+                  return const _RefundSearchLoadingSkeleton();
                 }
                 var sales = snap.data!;
                 if (_query.isNotEmpty) {
@@ -149,4 +149,24 @@ class _RefundSearchScreenState extends ConsumerState<RefundSearchScreen> {
     );
   }
 
+}
+
+
+class _RefundSearchLoadingSkeleton extends StatelessWidget {
+  const _RefundSearchLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return ListView(
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+      children: const [
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+        FulusListRowSkeleton(hasLeading: true),
+      ],
+    );
+  }
 }
