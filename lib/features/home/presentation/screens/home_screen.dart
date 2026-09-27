@@ -346,8 +346,7 @@ class _HomeCompactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = AppColors.onColor(color);
-    return LayoutBuilder(
-      builder: (context, constraints) => Semantics(
+    return Semantics(
       button: onTap != null,
       enabled: onTap != null,
       label: '$label, $value',
@@ -359,21 +358,10 @@ class _HomeCompactCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: FulusAdaptiveCardColumn(
+              icon: icon,
+              iconColor: foreground,
               children: [
-                Icon(
-                  icon,
-                  color: foreground,
-                  size: AppIconSize.metric(
-                    cardHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 180,
-                    padding: AppSpacing.md,
-                    labelFontSize: 18,
-                    valueFontSize: 34,
-                    secondaryFontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
                 Text(
                   label,
                   maxLines: 1,
@@ -384,7 +372,6 @@ class _HomeCompactCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -398,7 +385,6 @@ class _HomeCompactCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
                 Text(
                   secondary,
                   maxLines: 1,
@@ -411,7 +397,7 @@ class _HomeCompactCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
+          )
         ),
       ),
     );
