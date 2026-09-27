@@ -48,7 +48,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
       ],
       floatingActionButton: null,
       body: locationAsync.when(
-        loading: () => const FulusLoadingIndicator(),
+        loading: () => const _StockLocationSkeleton(),
         error: (error, _) => FulusErrorState(
           message: "Couldn't load Stock.",
           reassurance: 'Nothing here has changed on the device — this is only about loading the view.',
@@ -369,6 +369,50 @@ class _StockSummaryTile extends StatelessWidget {
             ? child
             : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppRadius.md), child: child),
       ),
+    );
+  }
+}
+
+
+class _StockLocationSkeleton extends StatelessWidget {
+  const _StockLocationSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final inset = width >= 1200
+            ? ((width - 1120.0) / 2) + AppSpacing.lg
+            : AppSpacing.lg;
+        return ListView(
+          padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxxl),
+          children: [
+            const FulusDelayedSkeleton(
+              skeleton: FulusSkeletonBox(height: 52),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              childAspectRatio: 1.15,
+              children: const [
+                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+                FulusSkeletonBox(borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const FulusListRowSkeleton(),
+            const FulusListRowSkeleton(),
+            const FulusListRowSkeleton(),
+          ],
+        );
+      },
     );
   }
 }
