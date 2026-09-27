@@ -326,3 +326,81 @@ Next:
 ## Audit rule
 
 No architectural rewrite is justified merely because a different pattern would be cleaner. Changes must be tied to a verified duplicate, obsolete path, production risk, or missing invariant.
+
+
+## 9. Completed Phase 1 cross-checks
+
+### Dependency classification
+
+Direct dependencies were checked against repository imports/usages rather than judged from the manifest alone.
+
+**Core application/runtime:** Riverpod, go_router, Drift/SQLite, Dio, secure storage, connectivity, SharedPreferences, path/path_provider, ULID, Equatable, JSON/Freezed annotations, crypto and cryptography.
+
+**Device/platform integrations:** local_auth, WorkManager, camera, mobile_scanner, permission_handler, file_picker, local notifications, share_plus, Bluetooth/USB printing, printing, app_links, package_info_plus and device_info_plus. These have concrete source usage in the current tree.
+
+**Active second state-management dependency:** flutter_bloc is demonstrably used by the Sell/cart flow and is not dead.
+
+**Potential cleanup candidate:** cupertino_icons appears in the manifest/lockfile but repository search did not identify an application source import. Verify with a final generated/import check before removal.
+
+### Navigation audit
+
+GoRouter remains the canonical application router. Imperative navigation is present in deliberate boundary cases: onboarding/auth flows outside the shell branch tree; Sell/cart flows that preserve an active CartCubit; shared barcode/photo capture utilities that return a value; and restore/account flows.
+
+The conclusion is not that all Navigator usage is accidental. The current boundary is: GoRouter owns durable application destinations, while imperative Navigator is used for transient/value-returning and some pre-shell flows. The codebase contains defensive helpers because both mechanisms coexist.
+
+**Disposition:** keep the boundary explicit for now; do not perform a mass navigation rewrite. The Sell/cart state-machine flow needs lifecycle tests mapped before changing ownership.
+
+### State ownership audit
+
+Riverpod is the canonical application dependency/state layer. BLoC is a contained exception for the Sell/cart state machine: CartCubit, BlocProvider, and cart/payment/quick-sale/customer-picker consumers. No evidence justifies declaring BLoC globally obsolete, but the bounded exception should be documented before further feature growth.
+
+### Startup/auth/onboarding path
+
+Verified ownership: main.dart → bootstrap() → bootstrap-created Riverpod container → FulusApp → canonical appRouter → _ShellGate → authenticated shell or onboarding/auth gate.
+
+main.dart also reconciles WorkManager with persisted sync configuration after bootstrap. Diagnostics start after the authenticated API client and cloud connection state exist. Router-level permission checks use the app-scoped session permission provider, so hidden navigation controls are not the only access boundary.
+
+### Persistence ownership
+
+The local-first boundary is coherent: Drift/SQLite owns durable business data and sync queue state; repositories provide domain-facing access; secure storage holds sensitive local/auth material; SharedPreferences holds lightweight non-sensitive settings; remote adapters remain separate; sync handlers coordinate durable local changes with backend reconciliation. No second general-purpose database layer was found in the audited paths.
+
+### Legacy/duplicate implementation findings
+
+The clearest verified obsolete production-source candidates are:
+1. MockMoneyRepository plus generated mock Money data, because the real provider uses RealMoneyRepositoryImpl and current source documentation says the mock is no longer constructed.
+2. Money-screen simulated-error hooks tied specifically to MockMoneyRepository.
+3. cupertino_icons as a direct dependency with no application import found by repository search.
+
+These should be cleaned in a separate controlled change after tests and references are explicitly checked. They should not be mixed into this documentation-only audit commit.
+
+## 10. Final Phase 1 blocker/risk classification
+
+### Production blockers
+
+**P1 — Release artifact validation is incomplete on green main CI.** The latest successful main CI run does not execute release APK, debug APK, live sync contract, or multi-device convergence jobs.
+
+**P2 — Main branch has no enforced protection/status checks.** This is a repository governance/release-control issue rather than an application runtime defect.
+
+**P3 — Canonical state-management policy is undocumented.** Riverpod is the application-wide system while BLoC is active for Sell/cart. The implementation is bounded, but the boundary should be explicit before further feature growth.
+
+### Cleanup blockers
+
+**C1 — Dead Money mock/debug source remains in production tree.** It is not the provider's canonical implementation, but it increases obsolete code surface.
+
+**C2 — At least one direct dependency appears unused.** cupertino_icons has no application import found in repository search and should be verified/removed in a controlled cleanup.
+
+### Architecture risks
+
+**R1 — Mixed navigation mechanisms.** The coexistence is intentional in several places, but every imperative flow should remain limited to transient/value-returning/pre-shell cases.
+
+**R2 — Large composition root.** bootstrap.dart constructs a substantial application graph. This is appropriate for explicit DI, but changes should preserve ownership boundaries rather than moving construction into feature widgets.
+
+## 11. Phase 1 conclusion
+
+The repository has a recognizable production architecture with a real composition root, canonical GoRouter shell, repository/data boundaries, durable local persistence and an isolated sync subsystem.
+
+The audit did not find evidence that a broad architectural rewrite is required.
+
+The highest-value Phase 1 outcomes are instead: remove verified dead/obsolete source in a controlled cleanup; document the bounded BLoC exception; keep GoRouter canonical while preserving legitimate transient Navigator flows; classify/remove unused dependencies; and strengthen release validation and branch governance in the appropriate later production-readiness phase.
+
+No application behavior was changed by the audit itself.
