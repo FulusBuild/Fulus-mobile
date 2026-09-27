@@ -239,7 +239,10 @@ class _SellContent extends ConsumerWidget {
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
           if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
-          if (state is! CartLoaded) return const FulusLoadingIndicator();
+          // Keep the Sell workspace shape visible while the durable cart
+          // and local catalog streams attach. A centered spinner here makes
+          // an offline-first screen feel like it is waiting on a server.
+          if (state is! CartLoaded) return const _SellLocationSkeleton();
           final inset = fulusHorizontalInset(context);
           final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()
             ..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
