@@ -55,6 +55,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
   DateTimeRange? _builtForDateRange;
   Timer? _debounce;
   late Future<List<MoneyTransaction>> _future;
+  List<MoneyTransaction>? _visibleItems;
 
   @override
   void initState() {
@@ -82,6 +83,7 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
       typeFilter: MoneyTransactionType.saleIncome,
       searchQuery: _searchQuery,
     );
+    _future.then((items) { if (mounted) setState(() => _visibleItems = items); }, onError: (_) {});
   }
 
   Future<void> _refresh() async {
@@ -160,6 +162,14 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
+                  if (_visibleItems != null) {
+                    return Column(
+                      children: [
+                        const _ReceiptRefreshNotice(error: true),
+                        Expanded(child: _GroupedReceiptList(items: _visibleItems!, currencySymbol: currencySymbol)),
+                      ],
+                    );
+                  }
                   return FulusErrorState(
                     message: "Couldn't load your receipts.",
                     reassurance: 'Nothing recorded has been lost — this is only about showing the list right now.',
@@ -167,6 +177,14 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
                   );
                 }
                 if (!snapshot.hasData) {
+                  if (_visibleItems != null) {
+                    return Column(
+                      children: [
+                        const _ReceiptRefreshNotice(),
+                        Expanded(child: _GroupedReceiptList(items: _visibleItems!, currencySymbol: currencySymbol)),
+                      ],
+                    );
+                  }
                   return FulusDelayedSkeleton(
                     skeleton: ListView(
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -199,6 +217,29 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
       ),
     );
   }
+}
+
+
+class _ReceiptRefreshNotice extends StatelessWidget {
+  const _ReceiptRefreshNotice({this.error = false});
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+        child: FulusCard(
+          child: Row(
+            children: [
+              if (error)
+                Icon(Icons.warning_amber_outlined, size: AppIconSize.compact, color: AppColors.warningOf(context))
+              else
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(error ? "Couldn't refresh receipts." : 'Updating receipts…')),
+            ],
+          ),
+        ),
+      );
 }
 
 class _GroupedReceiptList extends StatelessWidget {
