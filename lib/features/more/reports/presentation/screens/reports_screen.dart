@@ -313,25 +313,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                   childAspectRatio: 1.35,
                   children: [
                     _ReportCompactCard(
-                      icon: FulusIcons.reports,
+                      icon: FulusIcons.salesReport,
                       label: 'Sales Report',
                       color: const Color(0xFF0BBE6E),
                       onTap: () => setState(() => _tabs.animateTo(0)),
                     ),
                     _ReportCompactCard(
-                      icon: FulusIcons.stock,
+                      icon: FulusIcons.stockReport,
                       label: 'Stock Report',
                       color: const Color(0xFF1473E6),
                       onTap: () => setState(() => _tabs.animateTo(1)),
                     ),
                     _ReportCompactCard(
-                      icon: FulusIcons.receipt,
+                      icon: FulusIcons.expenseReport,
                       label: 'Expense Report',
                       color: const Color(0xFFFF8C00),
                       onTap: () => setState(() => _tabs.animateTo(3)),
                     ),
                     _ReportCompactCard(
-                      icon: FulusIcons.customers,
+                      icon: FulusIcons.customerReport,
                       label: 'Customer Report',
                       color: const Color(0xFF7B3FF2),
                       onTap: () => setState(() => _tabs.animateTo(2)),
@@ -429,7 +429,7 @@ class _ReportCompactCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, color: foreground, size: AppIconSize.base),
+                  Icon(icon, color: foreground, size: 34),
                   const Spacer(),
                   Text(
                     label,
