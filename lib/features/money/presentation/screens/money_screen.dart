@@ -431,15 +431,46 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: foreground, size: 42),
-                    const Spacer(),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 18, fontWeight: FontWeight.w700)),
+                    SizedBox(
+                      height: 48,
+                      width: 48,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Icon(action.icon, color: foreground, size: 42),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      action.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: muted,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 32, fontWeight: FontWeight.w800)),
+                      child: Text(
+                        action.value,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: foreground,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
+                    Text(
+                      action.subtitle,
+                      style: TextStyle(
+                        color: muted,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
