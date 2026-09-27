@@ -381,6 +381,79 @@ void main() {
     expect(stored.serverId, 'server-sale-A');
   });
 
+  test('retries after an accepted cloud sale whose response is lost without changing the client reference', () async {
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-1')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+
+    final sale = await createLocalSale();
+    final queued = queueItemFor(sale);
+    var attempts = 0;
+    String? acceptedClientReference;
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) async {
+      attempts++;
+      final clientReference =
+          invocation.namedArguments[#clientReference] as String;
+      if (attempts == 1) {
+        // Model the server committing the transaction successfully, followed
+        // by the network response being lost before the client receives it.
+        acceptedClientReference = clientReference;
+        throw TimeoutException('response lost after cloud commit');
+      }
+      expect(clientReference, acceptedClientReference);
+      return {
+        'data': {
+          'entity_id': 'server-sale-after-retry',
+          'invoice_number': sale.clientReference,
+        },
+      };
+    });
+
+    expect(
+      () => handler.sync(queued),
+      throwsA(isA<TimeoutException>()),
+    );
+    final pendingAfterLostResponse =
+        await (db.select(db.syncQueueItems)..where((q) => q.id.equals(queued.id)))
+            .getSingleOrNull();
+    expect(pendingAfterLostResponse, isNotNull);
+
+    final restartedHandler = SaleSyncHandler(
+      db: db,
+      fulusSyncApi: fulusSyncApi,
+      fulusConnectionState: connectionState,
+      salesApi: salesApi,
+      saleRepository: saleRepository,
+      productRepository: productRepository,
+      customerRepository: customerRepository,
+      executionLease: executionLease,
+    );
+
+    await restartedHandler.sync(pendingAfterLostResponse!);
+
+    final restored = await saleRepository.getSaleByLocalId(sale.localId);
+    expect(restored!.serverId, 'server-sale-after-retry');
+    expect(restored.clientReference, sale.clientReference);
+    expect(attempts, 2);
+    expect(acceptedClientReference, sale.clientReference);
+  });
+
   test('pushes a Quick Sale through Fulus Cloud without a catalog product', () async {
     await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
         .write(const LocationsCompanion(serverId: Value('server-location-1')));
