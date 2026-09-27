@@ -191,10 +191,9 @@ class _FulusGeometryIcon extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.contain,
       alignment: Alignment.topLeft,
-      child: SizedBox.square(
-        dimension: 1,
-        child: Icon(icon, color: color, size: 1),
-      ),
+      // Icon has its normal intrinsic size; FittedBox scales that child to
+      // the geometry supplied by the parent. No final visual size is chosen
+      // here.
     );
   }
 }
