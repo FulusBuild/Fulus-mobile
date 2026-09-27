@@ -294,3 +294,10 @@ The audit is not yet declared complete.
 5. **CI:** completion requires verification of the final Flutter CI run for the final implementation head.
 
 Vercel deployment status is intentionally not treated as UI correctness or Flutter CI evidence.
+
+
+## Implementation pass 7 — secondary report semantic refresh
+
+Reports had the same subtle refresh-continuity issue previously found in Money History: the shared report tab builder correctly preserves visible data during ordinary refresh, but changing the report period also replaced its future while retaining the previous period's report data. That could temporarily show semantically stale numbers under the newly selected period.
+
+Report tabs are now keyed by the resolved report period. A period change creates a fresh tab data state while retaining the already-painted report structure and loading skeleton; ordinary data-refresh signals keep the existing report visible while the new local report hydrates. This preserves the distinction between same-query refresh and a new semantic query without changing repository queries, permissions, location isolation, or financial calculations.
