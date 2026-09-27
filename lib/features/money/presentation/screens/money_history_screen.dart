@@ -51,12 +51,13 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
       _builtForCategory != _categoryFilter ||
       _builtForQuery != _searchQuery;
 
-  void _load(ReportPeriod period) {
+  void _load(ReportPeriod period, {bool preserveVisibleItems = true}) {
     final repo = ref.read(moneyRepositoryProvider);
     _builtForPeriod = period;
     _builtForType = _typeFilter;
     _builtForCategory = _categoryFilter;
     _builtForQuery = _searchQuery;
+    if (!preserveVisibleItems) _visibleItems = null;
     // Employee data isolation — see money_screen.dart's identical block
     // for the full reasoning; this is the same check, applied to the
     // full history list rather than just the recent-5 preview.
@@ -78,7 +79,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
+    setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider), preserveVisibleItems: true));
     await _future;
   }
 
@@ -185,7 +186,7 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
     // Future/setState fetch cycle Money's main screen does.
     ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
       if (previous != null && previous != next) {
-        setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
+        setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider), preserveVisibleItems: true));
       }
     });
     if (!_initializedFromExtra) {
@@ -198,7 +199,12 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
     }
     final period = ref.watch(moneyPeriodProvider);
     if (_needsReload(period)) {
-      _load(period);
+      final semanticChange = _builtForPeriod != null &&
+          (_builtForPeriod != period ||
+              _builtForType != _typeFilter ||
+              _builtForCategory != _categoryFilter ||
+              _builtForQuery != _searchQuery);
+      _load(period, preserveVisibleItems: !semanticChange);
     }
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
