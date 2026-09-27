@@ -158,6 +158,50 @@ class _SellScreenState extends ConsumerState<SellScreen> {
   }
 }
 
+class _SellContentSkeleton extends StatelessWidget {
+  const _SellContentSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+          child: Row(
+            children: [
+              const Expanded(child: FulusSkeletonBox(height: 48)),
+              const SizedBox(width: AppSpacing.sm),
+              const FulusSkeletonBox(width: 92, height: 48),
+            ],
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: FulusSkeletonBox(height: 46),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.md),
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 6,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                childAspectRatio: 1.05,
+              ),
+              itemBuilder: (_, __) => const FulusSkeletonBox(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SellLocationSkeleton extends StatelessWidget {
   const _SellLocationSkeleton();
 
@@ -239,7 +283,7 @@ class _SellContent extends ConsumerWidget {
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
           if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
-          if (state is! CartLoaded) return const FulusLoadingIndicator();
+          if (state is! CartLoaded) return const _SellContentSkeleton();
           final inset = fulusHorizontalInset(context);
           final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()
             ..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
