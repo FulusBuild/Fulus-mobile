@@ -526,7 +526,7 @@ class _ReportTabBuilder<T> extends StatelessWidget {
             onRetry: onRetry,
           );
         }
-        if (!snap.hasData) return const FulusLoadingIndicator();
+        if (!snap.hasData) return const _ReportLoadingSkeleton();
         final data = snap.data as T;
         if (isEmpty(data)) {
           return FulusEmptyState(
@@ -922,4 +922,25 @@ class _EmployeesTab extends StatelessWidget {
       ]),
     );
   }
+}
+
+
+class _ReportLoadingSkeleton extends StatelessWidget {
+  const _ReportLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.sm),
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.sm),
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+    ],
+  );
 }
