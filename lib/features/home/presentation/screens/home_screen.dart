@@ -268,7 +268,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cash, label: 'Total Cash', value: canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ],
@@ -286,7 +286,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.arrowUp, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.teal, icon: FulusIcons.moneyOut, label: 'Expenses', value: canViewMoney ? formatMoney(_expensesTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'today', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
           const Expanded(child: _HomeSellCard()),
         ],
