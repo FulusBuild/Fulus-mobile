@@ -118,7 +118,10 @@ class _SellScreenState extends ConsumerState<SellScreen> {
           return const FulusScreen(
             title: 'Sell',
             subtitle: 'Add products to today’s sale',
-            body: Center(child: FulusLoadingIndicator()),
+            backgroundColor: Color(0xFF061B3A),
+            headerBackgroundColor: Color(0xFF061B3A),
+            applyPadding: false,
+            body: _SellLocationSkeleton(),
           );
         }
         if (locationSnapshot.hasError || !locationSnapshot.hasData || locationSnapshot.data!.isEmpty) {
@@ -151,6 +154,52 @@ class _SellScreenState extends ConsumerState<SellScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SellLocationSkeleton extends StatelessWidget {
+  const _SellLocationSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+          child: const FulusDelayedSkeleton(
+            skeleton: FulusSkeletonBox(height: 52),
+          ),
+        ),
+        SizedBox(
+          height: 48,
+          child: ListView(
+            padding: EdgeInsets.symmetric(horizontal: inset),
+            scrollDirection: Axis.horizontal,
+            children: const [
+              FulusSkeletonBox(width: 64, height: 36),
+              SizedBox(width: AppSpacing.sm),
+              FulusSkeletonBox(width: 92, height: 36),
+              SizedBox(width: AppSpacing.sm),
+              FulusSkeletonBox(width: 82, height: 36),
+            ],
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xl),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: MediaQuery.sizeOf(context).width < 390 ? 2 : 3,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              childAspectRatio: 0.82,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, __) => const FulusCardSkeleton(),
+          ),
+        ),
+      ],
     );
   }
 }
