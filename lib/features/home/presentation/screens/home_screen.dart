@@ -134,8 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, 0, inset, 0),
-                        sliver: SliverFillRemaining(
-                          hasScrollBody: false,
+                        sliver: SliverToBoxAdapter(
                           child: FutureBuilder<HomeHeroState>(
                             future: _heroFuture,
                             builder: (context, heroSnapshot) => FutureBuilder<SecondaryNoticeSelection>(
@@ -276,7 +275,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.lowStock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount.toString(), secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney ? formatMoney(_creditTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ],
@@ -294,7 +293,7 @@ class _HomeMockupDashboard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Reserve only the deliberate breathing space requested above the persistent
+        // Reserve exactly 48px of breathing space above the persistent
         // bottom navigation bar. No additional bottom padding is added here.
         const dashboardBottomGap = AppSpacing.md * 3;
         final availableHeight = constraints.maxHeight;
@@ -425,7 +424,7 @@ class _HomeSellCard extends StatelessWidget {
             child: Row(
               children: [
                 const Icon(
-                  FulusIcons.quickActions,
+                  FulusIcons.sell,
                   color: Colors.white,
                   size: 32,
                 ),
