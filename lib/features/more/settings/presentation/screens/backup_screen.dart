@@ -217,7 +217,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                           }
                           final backups = snapshot.data;
                           if (backups == null) {
-                            return const FulusLoadingIndicator();
+                            return const _BackupLoadingSkeleton();
                           }
                           if (backups.isEmpty) {
                             return const FulusEmptyState(
@@ -438,4 +438,21 @@ class _BackupTile extends StatelessWidget {
       ),
     );
   }
+}
+
+
+class _BackupLoadingSkeleton extends StatelessWidget {
+  const _BackupLoadingSkeleton();
+  @override Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(AppSpacing.lg),
+    child: Column(
+      children: [
+        FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+        SizedBox(height: AppSpacing.md),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 72)),
+        SizedBox(height: AppSpacing.sm),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 72)),
+      ],
+    ),
+  );
 }
