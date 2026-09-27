@@ -135,44 +135,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(inset, 0, inset, 0),
                         sliver: SliverToBoxAdapter(
-                          child: FutureBuilder<HomeHeroState>(
-                            future: _heroFuture,
-                            builder: (context, heroSnapshot) => FutureBuilder<SecondaryNoticeSelection>(
-                              future: _noticesFuture,
-                              builder: (context, noticeSnapshot) => FutureBuilder<List<MoneyTransaction>>(
-                                future: _activityFuture,
-                                builder: (context, activitySnapshot) => FutureBuilder<double>(
-                                  future: _cashFuture,
-                                  builder: (context, cashSnapshot) {
-                                    if (heroSnapshot.connectionState != ConnectionState.done ||
-                                        noticeSnapshot.connectionState != ConnectionState.done ||
-                                        activitySnapshot.connectionState != ConnectionState.done) {
-                                      return const _HomeHeroSkeleton();
-                                    }
-                                    if (heroSnapshot.hasError ||
-                                        noticeSnapshot.hasError ||
-                                        activitySnapshot.hasError) {
-                                      return FulusErrorState(
-                                        message: "Couldn't load today's overview.",
-                                        reassurance: 'Your business records are still safe on this device.',
-                                        onRetry: _refresh,
-                                      );
-                                    }
-                                    final hero = heroSnapshot.data;
-                                    if (hero == null) return const SizedBox.shrink();
-                                    return _HomeMockupDashboard(
-                                      hero: hero,
-                                      notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
-                                      activity: activitySnapshot.data ?? const <MoneyTransaction>[],
-                                      cashTotal: cashSnapshot.data,
-                                      currencySymbol: currencySymbol,
-                                      canViewMoney: widget.isOwner || widget.canViewMoney,
-                                      canViewReports: widget.isOwner || widget.canViewReports,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
+                          child: _HomeDashboardHydration(
+                            heroFuture: _heroFuture,
+                            noticesFuture: _noticesFuture,
+                            activityFuture: _activityFuture,
+                            cashFuture: _cashFuture,
+                            currencySymbol: currencySymbol,
+                            canViewMoney: widget.isOwner || widget.canViewMoney,
+                            canViewReports: widget.isOwner || widget.canViewReports,
+                            onRetry: _refresh,
                           ),
                         ),
                       ),
@@ -222,6 +193,80 @@ class _HomeHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HomeDashboardHydration extends StatelessWidget {
+  const _HomeDashboardHydration({
+    required this.heroFuture,
+    required this.noticesFuture,
+    required this.activityFuture,
+    required this.cashFuture,
+    required this.currencySymbol,
+    required this.canViewMoney,
+    required this.canViewReports,
+    required this.onRetry,
+  });
+
+  final Future<HomeHeroState> heroFuture;
+  final Future<SecondaryNoticeSelection> noticesFuture;
+  final Future<List<MoneyTransaction>> activityFuture;
+  final Future<double> cashFuture;
+  final String currencySymbol;
+  final bool canViewMoney;
+  final bool canViewReports;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    // Do not gate the entire dashboard on four independent local reads.
+    // Each section hydrates independently so the workspace is useful on
+    // the first frame even when one local aggregation is slower.
+    return FutureBuilder<HomeHeroState>(
+      future: heroFuture,
+      builder: (context, heroSnapshot) {
+        if (heroSnapshot.hasError) {
+          return FulusErrorState(
+            message: "Couldn't load today's overview.",
+            reassurance: 'Your business records are still safe on this device.',
+            onRetry: onRetry,
+          );
+        }
+
+        return FutureBuilder<SecondaryNoticeSelection>(
+          future: noticesFuture,
+          builder: (context, noticeSnapshot) {
+            final hero = heroSnapshot.data;
+            final notices = noticeSnapshot.data?.shown ?? const <SecondaryNotice>[];
+            final activity = const <MoneyTransaction>[];
+
+            if (hero == null) {
+              return const _HomeHeroSkeleton();
+            }
+
+            return FutureBuilder<List<MoneyTransaction>>(
+              future: activityFuture,
+              builder: (context, activitySnapshot) {
+                return FutureBuilder<double>(
+                  future: cashFuture,
+                  builder: (context, cashSnapshot) {
+                    return _HomeMockupDashboard(
+                      hero: hero,
+                      notices: notices,
+                      activity: activitySnapshot.data ?? activity,
+                      cashTotal: cashSnapshot.data,
+                      currencySymbol: currencySymbol,
+                      canViewMoney: canViewMoney,
+                      canViewReports: canViewReports,
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
