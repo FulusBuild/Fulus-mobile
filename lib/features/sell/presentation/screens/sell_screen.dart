@@ -406,21 +406,36 @@ class _SellContent extends ConsumerWidget {
 }
 
 class _ProductList extends StatelessWidget {
-  const _ProductList({required this.state, required this.query, required this.categoryId, required this.onClearSearch});
+  const _ProductList({
+    required this.catalog,
+    required this.catalogLoaded,
+    required this.currency,
+    required this.query,
+    required this.categoryId,
+    required this.onClearSearch,
+    required this.cartReady,
+  });
 
-  final CartLoaded state;
+  final Map<String, ProductWithStock> catalog;
+  final bool catalogLoaded;
+  final String currency;
   final String query;
   final String? categoryId;
   final VoidCallback onClearSearch;
+  final bool cartReady;
 
   @override
   Widget build(BuildContext context) {
+    if (!catalogLoaded) return const _SellContentSkeleton();
+
     final q = query.trim().toLowerCase();
-    final products = state.catalog.values.where((entry) {
+    final products = catalog.values.where((entry) {
       final p = entry.product;
       if (categoryId != null && p.categoryId != categoryId) return false;
       if (q.isEmpty) return true;
-      return p.name.toLowerCase().contains(q) || p.sku.toLowerCase().contains(q) || (p.barcode?.toLowerCase().contains(q) ?? false);
+      return p.name.toLowerCase().contains(q) ||
+          p.sku.toLowerCase().contains(q) ||
+          (p.barcode?.toLowerCase().contains(q) ?? false);
     }).toList()..sort((a, b) => a.product.name.compareTo(b.product.name));
 
     if (products.isEmpty) {
@@ -428,8 +443,8 @@ class _ProductList extends StatelessWidget {
         headline: 'No products found',
         body: q.isEmpty ? 'Add products from Stock to start selling.' : 'Nothing matches “$query”.',
         icon: FulusIcons.search,
-        actionLabel: q.isEmpty ? 'Quick Sale' : 'Clear search',
-        onAction: q.isEmpty ? () => QuickSaleSheet.show(context) : onClearSearch,
+        actionLabel: q.isEmpty && cartReady ? 'Quick Sale' : 'Clear search',
+        onAction: q.isEmpty && cartReady ? () => QuickSaleSheet.show(context) : onClearSearch,
       );
     }
 
@@ -443,8 +458,11 @@ class _ProductList extends StatelessWidget {
         childAspectRatio: 0.82,
       ),
       itemCount: products.length,
-      itemBuilder: (context, index) =>
-          _ProductRow(entry: products[index], currency: state.currencySymbol),
+      itemBuilder: (context, index) => _ProductRow(
+        entry: products[index],
+        currency: currency,
+        enabled: cartReady,
+      ),
     );
   }
 }
