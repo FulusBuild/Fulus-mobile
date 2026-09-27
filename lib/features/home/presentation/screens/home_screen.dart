@@ -445,7 +445,7 @@ class _HomeSellCard extends StatelessWidget {
                   ),
                 ),
                 Icon(
-                  Icons.arrow_forward_rounded,
+                  FulusIcons.arrowForward,
                   color: Colors.white.withValues(alpha: 0.8),
                 ),
               ],
