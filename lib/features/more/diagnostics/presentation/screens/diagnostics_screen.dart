@@ -88,7 +88,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       title: 'Diagnostics',
       applyPadding: false,
       body: eventsAsync.when(
-        loading: () => const FulusLoadingIndicator(),
+        loading: () => const _DiagnosticsLoadingSkeleton(),
         error: (error, stack) => FulusErrorState(
           message: "Couldn't load diagnostics.",
           reassurance: 'Nothing about your business data is affected — this is only '
@@ -255,6 +255,36 @@ class _EventRow extends StatelessWidget {
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.goNamed('moreDiagnosticDetail', pathParameters: {'eventId': event.id}),
+    );
+  }
+}
+
+
+class _DiagnosticsLoadingSkeleton extends StatelessWidget {
+  const _DiagnosticsLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 96)),
+          const SizedBox(height: AppSpacing.md),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 52)),
+          const SizedBox(height: AppSpacing.sm),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 40)),
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: ListView.separated(
+              itemCount: 5,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (_, __) => const FulusListRowSkeleton(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
