@@ -24,44 +24,77 @@ class EmployeeDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<EmployeeDetailScreen> createState() => _EmployeeDetailScreenState();
 }
 
-typedef _DetailData = ({Employee? employee, AttendanceSummary? attendance, List<LeaveRequest> leaveRequests});
+typedef _RelatedDetailData = ({AttendanceSummary attendance, List<LeaveRequest> leaveRequests});
 
 class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
-  late Future<_DetailData> _future;
+  late Future<Employee?> _employeeFuture;
+  Future<_RelatedDetailData>? _relatedFuture;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _employeeFuture = _loadEmployee();
   }
 
-  Future<_DetailData> _load() async {
+  Future<Employee?> _loadEmployee() {
+    return ref.read(employeeRepositoryProvider).getEmployeeById(widget.employeeId, includeInactive: true);
+  }
+
+  Future<_RelatedDetailData> _loadRelatedData(String employeeId) async {
     final repo = ref.read(employeeRepositoryProvider);
-    final employee = await repo.getEmployeeById(widget.employeeId, includeInactive: true);
-    if (employee == null) return (employee: null, attendance: null, leaveRequests: const <LeaveRequest>[]);
     final now = DateTime.now();
     final results = await Future.wait([
-      repo.getAttendanceSummary(employeeId: employee.id, month: now.month, year: now.year),
-      repo.listLeaveRequests(employeeId: employee.id),
+      repo.getAttendanceSummary(employeeId: employeeId, month: now.month, year: now.year),
+      repo.listLeaveRequests(employeeId: employeeId),
     ]);
-    return (employee: employee, attendance: results[0] as AttendanceSummary, leaveRequests: results[1] as List<LeaveRequest>);
+    return (attendance: results[0] as AttendanceSummary, leaveRequests: results[1] as List<LeaveRequest>);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() {
+    setState(() {
+      _employeeFuture = _loadEmployee();
+      _relatedFuture = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Team member',
-      body: FutureBuilder<_DetailData>(
-        future: _future,
+      body: FutureBuilder<Employee?>(
+        future: _employeeFuture,
         builder: (context, snap) {
           if (snap.hasError) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
           if (!snap.hasData) return const _EmployeeDetailSkeleton();
-          final data = snap.data!;
-          final employee = data.employee;
+          final employee = snap.data;
           if (employee == null) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
-          return _EmployeeDetailBody(employee: employee, attendance: data.attendance, leaveRequests: data.leaveRequests, onChanged: _reload);
+
+          _relatedFuture ??= _loadRelatedData(employee.id);
+          return FutureBuilder<_RelatedDetailData>(
+            future: _relatedFuture,
+            builder: (context, relatedSnap) {
+              final attendance = relatedSnap.data?.attendance;
+              final leaveRequests = relatedSnap.data?.leaveRequests ?? const <LeaveRequest>[];
+              if (relatedSnap.hasError) {
+                return _EmployeeDetailBody(
+                  employee: employee,
+                  attendance: attendance,
+                  leaveRequests: leaveRequests,
+                  relatedLoading: false,
+                  relatedError: true,
+                  onChanged: _reload,
+                );
+              }
+              return _EmployeeDetailBody(
+                employee: employee,
+                attendance: attendance,
+                leaveRequests: leaveRequests,
+                relatedLoading: !relatedSnap.hasData,
+                relatedError: false,
+                onChanged: _reload,
+              );
+            },
+          );
         },
       ),
     );
@@ -69,10 +102,19 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
 }
 
 class _EmployeeDetailBody extends ConsumerWidget {
-  const _EmployeeDetailBody({required this.employee, required this.attendance, required this.leaveRequests, required this.onChanged});
+  const _EmployeeDetailBody({
+    required this.employee,
+    required this.attendance,
+    required this.leaveRequests,
+    required this.relatedLoading,
+    required this.relatedError,
+    required this.onChanged,
+  });
   final Employee employee;
   final AttendanceSummary? attendance;
   final List<LeaveRequest> leaveRequests;
+  final bool relatedLoading;
+  final bool relatedError;
   final VoidCallback onChanged;
 
   @override
