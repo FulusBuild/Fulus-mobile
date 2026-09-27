@@ -96,7 +96,7 @@ abstract final class FulusIcons {
 /// Default visual treatment for Fulus Material Symbols.
 const fulusIconTheme = IconThemeData(
   fill: 0,
-  weight: 400,
+  weight: 300,
   grade: 0,
   opticalSize: 24,
 );
