@@ -21,7 +21,7 @@ const _paymentMethods = <_PaymentMethodOption>[
 ];
 
 IconData _iconForMethod(String key) => switch (key) {
-      'cash' => FulusIcons.payments,
+      'cash' => FulusIcons.cash,
       'mobile_money' => FulusIcons.accountBalance,
       'card' => FulusIcons.creditCard,
       'credit' => FulusIcons.receipt,
