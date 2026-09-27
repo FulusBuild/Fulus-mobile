@@ -57,7 +57,7 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
-          if (!snap.hasData) return const FulusLoadingIndicator();
+          if (!snap.hasData) return const _EmployeeDetailSkeleton();
           final data = snap.data!;
           final employee = data.employee;
           if (employee == null) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
@@ -293,4 +293,32 @@ class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
   void _onPresetChanged(AuthRolePreset preset) { setState(() { _preset = preset; if (!_permissionsCustomized) _permissions = _defaultsWithinGrant(preset.role); }); }
   Future<void> _submit() async { final pin = _pinController.text.trim(); final errors = <String, String>{}; if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.'; if (_confirmController.text.trim() != pin) errors['confirm'] = "PINs don't match."; if (errors.isNotEmpty) { setState(() => _errors = errors); return; } setState(() { _submitting = true; _errors = {}; }); try { final acting = ref.read(sessionProvider); final created = await ref.read(authRepositoryProvider).createEmployeeAccount(employeeId: widget.employee.id, pin: pin, role: _preset.role); if (acting != null) await ref.read(permissionRepositoryProvider).setPermissions(userId: created.id, permissions: _permissions, grantedBy: acting.id); if (mounted) Navigator.of(context).pop(pin); } on Failure catch (f) { if (mounted) setState(() { _submitting = false; _errors = {'form': f.message}; }); } }
   @override Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Set up login for ${widget.employee.fullName}', style: AppTypography.heading), const SizedBox(height: AppSpacing.xs), Text("They'll use this PIN to switch to their own account on this device.", style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))), const SizedBox(height: AppSpacing.lg), if (_errors['form'] != null) Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), FulusTextField(label: 'PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['pin'], helperText: 'At least 4 digits.'), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['confirm']), const SizedBox(height: AppSpacing.lg), Text('Role', style: AppTypography.subheading), const SizedBox(height: AppSpacing.xs), RolePresetSelector(selected: _preset, onChanged: _onPresetChanged), const SizedBox(height: AppSpacing.md), Text('Permissions', style: AppTypography.subheading), Text('Starts from the role above — adjust anything before creating the login.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))), PermissionEditor(selected: _permissions, grantableBy: widget.grantableBy, onChanged: (next) => setState(() { _permissions = next; _permissionsCustomized = true; })), const SizedBox(height: AppSpacing.lg), SizedBox(width: double.infinity, child: FulusButton(label: 'Create login', loading: _submitting, onPressed: _submitting ? null : _submit))])));
+}
+
+class _EmployeeDetailSkeleton extends StatelessWidget {
+  const _EmployeeDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xxl),
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 18, width: 120),
+        SizedBox(height: AppSpacing.sm),
+        FulusSkeletonBox(height: 84, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 18, width: 150),
+        SizedBox(height: AppSpacing.sm),
+        FulusSkeletonBox(height: 100, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 18, width: 120),
+        SizedBox(height: AppSpacing.sm),
+        FulusListRowSkeleton(hasLeading: false),
+        FulusListRowSkeleton(hasLeading: false),
+        FulusListRowSkeleton(hasLeading: false),
+      ],
+    );
+  }
 }
