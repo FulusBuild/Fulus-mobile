@@ -497,7 +497,7 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _ReportTabBuilder<T> extends StatelessWidget {
+class _ReportTabBuilder<T> extends StatefulWidget {
   const _ReportTabBuilder({
     required this.future,
     required this.onRetry,
@@ -515,30 +515,95 @@ class _ReportTabBuilder<T> extends StatelessWidget {
   final Widget Function(BuildContext context, T data) builder;
 
   @override
+  State<_ReportTabBuilder<T>> createState() => _ReportTabBuilderState<T>();
+}
+
+class _ReportTabBuilderState<T> extends State<_ReportTabBuilder<T>> {
+  T? _visibleData;
+
+  @override
+  void initState() {
+    super.initState();
+    _watch(widget.future);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReportTabBuilder<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.future != widget.future) _watch(widget.future);
+  }
+
+  void _watch(Future<T> future) {
+    future.then((data) {
+      if (mounted) setState(() => _visibleData = data);
+    }, onError: (_) {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<T>(
-      future: future,
+      future: widget.future,
       builder: (context, snap) {
         if (snap.hasError) {
+          if (_visibleData != null) {
+            return Column(
+              children: [
+                const _ReportRefreshNotice(error: true),
+                Expanded(child: widget.builder(context, _visibleData as T)),
+              ],
+            );
+          }
           return FulusErrorState(
             message: "Couldn't load this report.",
             reassurance: 'Nothing recorded was changed — this is only about loading the numbers.',
-            onRetry: onRetry,
+            onRetry: widget.onRetry,
           );
         }
-        if (!snap.hasData) return const _ReportLoadingSkeleton();
+        if (!snap.hasData) {
+          if (_visibleData != null) {
+            return Column(
+              children: [
+                const _ReportRefreshNotice(),
+                Expanded(child: widget.builder(context, _visibleData as T)),
+              ],
+            );
+          }
+          return const _ReportLoadingSkeleton();
+        }
         final data = snap.data as T;
-        if (isEmpty(data)) {
+        if (widget.isEmpty(data)) {
           return FulusEmptyState(
             icon: Icons.bar_chart_outlined,
-            headline: emptyHeadline,
-            body: emptyBody,
+            headline: widget.emptyHeadline,
+            body: widget.emptyBody,
           );
         }
-        return builder(context, data);
+        return widget.builder(context, data);
       },
     );
   }
+}
+
+class _ReportRefreshNotice extends StatelessWidget {
+  const _ReportRefreshNotice({this.error = false});
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+        child: FulusCard(
+          child: Row(
+            children: [
+              if (error)
+                Icon(Icons.warning_amber_outlined, size: AppIconSize.compact, color: AppColors.warningOf(context))
+              else
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(error ? "Couldn't refresh this report." : 'Updating report…')),
+            ],
+          ),
+        ),
+      );
 }
 
 class _SalesTab extends StatelessWidget {
