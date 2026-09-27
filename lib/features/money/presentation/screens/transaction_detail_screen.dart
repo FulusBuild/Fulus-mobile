@@ -82,6 +82,14 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
+            if (_visibleTransaction != null) {
+              return _DetailBody(
+                transaction: _visibleTransaction!,
+                currencySymbol: currencySymbol,
+                onChanged: _reload,
+                enrichmentError: true,
+              );
+            }
             return FulusErrorState(
               message: "Couldn't load this transaction.",
               reassurance: 'Your record of it is safe — this is only about showing it right now.',
@@ -122,11 +130,13 @@ class _DetailBody extends ConsumerWidget {
     required this.currencySymbol,
     required this.onChanged,
     this.enriching = false,
+    this.enrichmentError = false,
   });
 
   final MoneyTransaction transaction;
   final String currencySymbol;
   final bool enriching;
+  final bool enrichmentError;
 
   /// Called after the receipt-photo section below successfully
   /// attaches or removes a photo, so the parent screen re-fetches
@@ -172,6 +182,18 @@ class _DetailBody extends ConsumerWidget {
                   SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                   SizedBox(width: AppSpacing.sm),
                   Expanded(child: Text('Loading full transaction details…')),
+                ],
+              ),
+            ),
+          ),
+        if (enrichmentError)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: FulusCard(
+              child: Row(
+                children: [
+                  Expanded(child: Text("Couldn't load the full transaction details.")),
+                  TextButton(onPressed: onChanged, child: const Text('Retry')),
                 ],
               ),
             ),
