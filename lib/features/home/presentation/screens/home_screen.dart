@@ -361,11 +361,11 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: 56),
+                Icon(icon, color: foreground, size: 40),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   label,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground.withValues(alpha: 0.95),
