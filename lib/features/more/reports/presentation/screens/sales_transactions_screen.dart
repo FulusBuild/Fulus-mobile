@@ -36,16 +36,17 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    return ref.read(activeLocationIdProvider.future).then((locationId) =>
+    final future = ref.read(activeLocationIdProvider.future).then((locationId) =>
         ref.read(reportsRepositoryProvider).getSalesReport(
           widget.period,
           currentAuthUserId: user?.id ?? '',
           canViewAllSales: canViewAllSales,
           locationId: locationId,
         ));
-    _future.then((report) {
+    future.then((report) {
       if (mounted) setState(() => _visibleTransactions = report.transactions);
     }, onError: (_) {});
+    return future;
   }
 
   @override
