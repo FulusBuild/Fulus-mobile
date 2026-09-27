@@ -85,7 +85,7 @@ class _TransactionVerificationScreenState extends ConsumerState<TransactionVerif
         future: _saleFuture,
         builder: (context, saleSnapshot) {
           if (saleSnapshot.connectionState != ConnectionState.done) {
-            return const FulusLoadingIndicator();
+            return const _TransactionVerificationLoadingSkeleton();
           }
           if (saleSnapshot.hasError) {
             return _VerificationErrorView(onRetry: _retry, onContinue: _continue);
@@ -309,6 +309,33 @@ class _VerificationCard extends StatelessWidget {
               onPressed: action!.$2,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+
+class _TransactionVerificationLoadingSkeleton extends StatelessWidget {
+  const _TransactionVerificationLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 32)),
+          const SizedBox(height: AppSpacing.lg),
+          const FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+          const SizedBox(height: AppSpacing.md),
+          const FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+          const SizedBox(height: AppSpacing.md),
+          const FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+          const SizedBox(height: AppSpacing.md),
+          const FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+          const SizedBox(height: AppSpacing.xl),
+          const FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 52)),
         ],
       ),
     );
