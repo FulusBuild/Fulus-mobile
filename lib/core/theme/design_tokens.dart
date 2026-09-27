@@ -153,6 +153,19 @@ class AppIconSize {
   /// The icon is not assigned a universal pixel size. The card's own
   /// geometry reserves space for padding, text and inter-element gaps first;
   /// whatever vertical space remains becomes the icon box.
+  static double action({
+    required double cardHeight,
+    required double padding,
+    required double labelFontSize,
+    int labelLines = 1,
+    double gapAfterIcon = AppSpacing.sm,
+  }) {
+    final fixedContent = (padding * 2) +
+        gapAfterIcon +
+        (labelFontSize * 1.2 * labelLines);
+    return math.max(0, cardHeight - fixedContent);
+  }
+
   static double metric({
     required double cardHeight,
     required double padding,
