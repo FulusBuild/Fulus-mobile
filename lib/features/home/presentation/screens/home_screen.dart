@@ -361,7 +361,7 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: 128),
+                Icon(icon, color: foreground, size: 116),
                 const Spacer(),
                 Text(
                   label,
