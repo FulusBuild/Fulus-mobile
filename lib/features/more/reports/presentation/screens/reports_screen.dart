@@ -423,14 +423,14 @@ class _ReportCompactCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: SizedBox(
-            height: 118,
+            height: 100,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(icon, color: foreground, size: 42),
-                  const Spacer(),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     label,
                     maxLines: 2,
