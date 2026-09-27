@@ -217,7 +217,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/stock',
               name: 'stock',
-              builder: (context, state) => const StockScreen(),
+              pageBuilder: (context, state) => const NoTransitionPage(child: StockScreen()),
               routes: [
                 GoRoute(
                   path: 'product/:productId',
