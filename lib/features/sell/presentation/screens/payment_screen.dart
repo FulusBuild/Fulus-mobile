@@ -572,16 +572,12 @@ class _PaymentMethodTile extends StatelessWidget {
           border: Border.all(color: selected ? foreground : Colors.transparent, width: selected ? 2 : 1),
           boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: .16), blurRadius: 8, offset: const Offset(0, 3))] : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 48, color: foreground),
-            const SizedBox(height: AppSpacing.sm),
-            Row(children: [
-              Expanded(child: Text(label, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))),
-              if (selected) Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
-            ]),
-          ],
+        child: FulusPaymentMethodCardColumn(
+          icon: icon,
+          iconColor: foreground,
+          label: label,
+          selected: selected,
+          selectedMark: Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
         ),
       ),
     );
