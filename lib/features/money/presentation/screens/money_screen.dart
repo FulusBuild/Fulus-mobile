@@ -324,7 +324,7 @@ class _BalanceHero extends StatelessWidget {
         final foreground = AppColors.onColor(const Color(0xFF12B866));
         final muted = foreground.withValues(alpha: 0.9);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(FulusIcons.money, color: foreground, size: 34), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
+        Row(children: [Icon(FulusIcons.wallet, color: foreground, size: 40), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const Spacer(),
         FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 36, fontWeight: FontWeight.w900))),
         Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 15)),
@@ -431,7 +431,7 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: foreground, size: 36),
+                    Icon(action.icon, color: foreground, size: 42),
                     const Spacer(),
                     Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 18, fontWeight: FontWeight.w700)),
                     FittedBox(
