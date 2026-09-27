@@ -346,7 +346,8 @@ class _HomeCompactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = AppColors.onColor(color);
-    return Semantics(
+    return LayoutBuilder(
+      builder: (context, constraints) => Semantics(
       button: onTap != null,
       enabled: onTap != null,
       label: '$label, $value',
@@ -361,17 +362,17 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LayoutBuilder(
-                  builder: (context, iconConstraints) {
+                Builder(
+                  builder: (context) {
                     final iconSize = AppIconSize.metric(
-                      cardHeight: iconConstraints.maxHeight.isFinite ? iconConstraints.maxHeight : 180,
+                      cardHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 180,
                       padding: AppSpacing.md,
                       labelFontSize: 18,
                       valueFontSize: 34,
                       secondaryFontSize: 16,
                     );
-                    return Icon(icon, color: foreground, size: iconSize);
-                  },
+                  return Icon(icon, color: foreground, size: iconSize);
+                },
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
