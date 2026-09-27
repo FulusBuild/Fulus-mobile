@@ -41,7 +41,7 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                         onRetry: () => setState(() {}),
                       );
                     }
-                    if (!snapshot.hasData) return const FulusLoadingIndicator();
+                    if (!snapshot.hasData) return const _DeactivatedEmployeesLoadingSkeleton();
                     final employees = snapshot.data!;
                     if (employees.isEmpty) {
                       return const FulusEmptyState(
@@ -101,4 +101,19 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
           },
         ),
       );
+}
+class _DeactivatedEmployeesLoadingSkeleton extends StatelessWidget {
+  const _DeactivatedEmployeesLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.sm),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+    ],
+  );
 }
