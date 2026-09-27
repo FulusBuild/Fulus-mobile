@@ -29,11 +29,15 @@ typedef _RelatedDetailData = ({AttendanceSummary attendance, List<LeaveRequest> 
 class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
   late Future<Employee?> _employeeFuture;
   Future<_RelatedDetailData>? _relatedFuture;
+  Employee? _visibleEmployee;
 
   @override
   void initState() {
     super.initState();
     _employeeFuture = _loadEmployee();
+    _employeeFuture.then((employee) {
+      if (mounted && employee != null) setState(() => _visibleEmployee = employee);
+    }, onError: (_) {});
   }
 
   Future<Employee?> _loadEmployee() {
@@ -51,10 +55,14 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
   }
 
   void _reload() {
+    final future = _loadEmployee();
     setState(() {
-      _employeeFuture = _loadEmployee();
+      _employeeFuture = future;
       _relatedFuture = null;
     });
+    future.then((employee) {
+      if (mounted && employee != null) setState(() => _visibleEmployee = employee);
+    }, onError: (_) {});
   }
 
   @override
@@ -65,8 +73,9 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
         future: _employeeFuture,
         builder: (context, snap) {
           if (snap.hasError) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
-          if (!snap.hasData) return const _EmployeeDetailSkeleton();
-          final employee = snap.data;
+          if (!snap.hasData && _visibleEmployee == null) return const _EmployeeDetailSkeleton();
+          if (snap.connectionState == ConnectionState.done && !snap.hasData) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
+          final employee = snap.hasData ? snap.data : _visibleEmployee;
           if (employee == null) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
 
           _relatedFuture ??= _loadRelatedData(employee.id);
