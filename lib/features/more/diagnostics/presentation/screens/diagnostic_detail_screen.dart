@@ -47,7 +47,7 @@ class _DiagnosticDetailScreenState extends ConsumerState<DiagnosticDetailScreen>
         ),
       ],
       body: eventAsync.when(
-        loading: () => const FulusLoadingIndicator(),
+        loading: () => const _DiagnosticDetailSkeleton(),
         error: (error, stack) => const FulusErrorState(message: "Couldn't load this event."),
         data: (event) {
           if (event == null) {
@@ -352,6 +352,25 @@ class _TechnicalDetailsSectionState extends State<_TechnicalDetailsSection> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+class _DiagnosticDetailSkeleton extends StatelessWidget {
+  const _DiagnosticDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 180, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+      ],
     );
   }
 }
