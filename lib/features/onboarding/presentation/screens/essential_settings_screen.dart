@@ -84,7 +84,7 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
           }
           final profile = snapshot.data;
           if (profile == null) {
-            return const FulusLoadingIndicator();
+            return const _EssentialSettingsLoadingSkeleton();
           }
           return _EssentialSettingsForm(
             profile: profile,
@@ -200,4 +200,23 @@ class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
       ),
     );
   }
+}
+
+
+class _EssentialSettingsLoadingSkeleton extends StatelessWidget {
+  const _EssentialSettingsLoadingSkeleton();
+  @override Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(AppSpacing.lg),
+    child: Column(
+      children: [
+        FulusDelayedSkeleton(skeleton: FulusCardSkeleton()),
+        SizedBox(height: AppSpacing.md),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 56)),
+        SizedBox(height: AppSpacing.sm),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 56)),
+        SizedBox(height: AppSpacing.md),
+        FulusDelayedSkeleton(skeleton: FulusSkeletonBox(height: 52)),
+      ],
+    ),
+  );
 }
