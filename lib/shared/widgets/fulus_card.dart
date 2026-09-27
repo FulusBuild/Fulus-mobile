@@ -92,7 +92,22 @@ class FulusStatCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 128, color: iconColor ?? dataColor),
+              AspectRatio(
+                // The stat-card family owns an icon region; the icon itself
+                // receives whatever size that region provides.
+                aspectRatio: 1.6,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.topLeft,
+                    child: SizedBox.square(
+                      dimension: 1,
+                      child: Icon(icon, color: iconColor ?? dataColor, size: 1),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
             ],
             Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.mutedOf(context))),
