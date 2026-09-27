@@ -106,7 +106,7 @@ class ManageLocationsScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: FulusLoadingIndicator()),
+        loading: () => const _LocationsLoadingSkeleton(),
         error: (error, stackTrace) => FulusErrorState(
           message: "Couldn't load locations.",
           onRetry: () => ref.invalidate(_locationsProvider),
@@ -191,4 +191,15 @@ class _AddLocationSheetState extends State<_AddLocationSheet> {
       ],
     );
   }
+}
+
+
+class _LocationsLoadingSkeleton extends StatelessWidget {
+  const _LocationsLoadingSkeleton();
+  @override Widget build(BuildContext context) => ListView.separated(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    itemCount: 4,
+    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+    itemBuilder: (_, __) => const FulusListRowSkeleton(),
+  );
 }
