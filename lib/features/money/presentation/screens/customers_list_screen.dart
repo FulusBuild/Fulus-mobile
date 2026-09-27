@@ -127,7 +127,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
         height: 108,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: FulusAdaptiveCardColumn(
+          child: FulusCustomerOverviewColumn(
             icon: FulusIcons.customers,
             iconColor: foreground,
             children: [
