@@ -68,7 +68,7 @@ class _SalesTransactionsScreenState extends ConsumerState<SalesTransactionsScree
             );
           }
           if (!snap.hasData) {
-            return const FulusLoadingIndicator();
+            return const _SalesTransactionsLoadingSkeleton();
           }
           final transactions = snap.data!.transactions;
           if (transactions.isEmpty) {
@@ -242,4 +242,18 @@ class _SaleRecordCard extends StatelessWidget {
       ),
     );
   }
+}
+class _SalesTransactionsLoadingSkeleton extends StatelessWidget {
+  const _SalesTransactionsLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.md),
+    children: const [
+      FulusCardSkeleton(),
+      FulusCardSkeleton(),
+      FulusCardSkeleton(),
+      FulusCardSkeleton(),
+    ],
+  );
 }
