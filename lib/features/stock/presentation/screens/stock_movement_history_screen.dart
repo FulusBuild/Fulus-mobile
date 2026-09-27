@@ -41,7 +41,7 @@ class StockMovementHistoryScreen extends ConsumerWidget {
         ),
       ],
       body: locationAsync.when(
-        loading: () => const FulusLoadingIndicator(),
+        loading: () => const _StockHistorySkeleton(),
         error: (e, _) => FulusErrorState(
           message: "Couldn't load activity.",
           reassurance: 'Your stock records were not changed.',
@@ -105,6 +105,25 @@ class _HistoryList extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+
+class _StockHistorySkeleton extends StatelessWidget {
+  const _StockHistorySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      children: const [
+        FulusListRowSkeleton(),
+        FulusListRowSkeleton(),
+        FulusListRowSkeleton(),
+        FulusListRowSkeleton(),
+        FulusListRowSkeleton(),
+      ],
     );
   }
 }
