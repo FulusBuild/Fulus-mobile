@@ -137,10 +137,40 @@ class _EmployeeDetailBody extends ConsumerWidget {
         if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
-        FulusCard(child: wide ? Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: _stats(context)) : Wrap(alignment: WrapAlignment.spaceAround, spacing: AppSpacing.xl, runSpacing: AppSpacing.md, children: _stats(context))),
+        if (relatedError)
+          FulusCard(
+            child: Text(
+              "Couldn't load attendance right now.",
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+          )
+        else if (relatedLoading)
+          const _EmployeeRelatedLoadingCard()
+        else
+          FulusCard(
+            child: wide
+                ? Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: _stats(context))
+                : Wrap(
+                    alignment: WrapAlignment.spaceAround,
+                    spacing: AppSpacing.xl,
+                    runSpacing: AppSpacing.md,
+                    children: _stats(context),
+                  ),
+          ),
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Leave requests'),
-        if (leaveRequests.isEmpty) FulusEmptyState(icon: Icons.event_busy_outlined, headline: 'No leave requests.') else ...[
+        if (relatedError)
+          FulusCard(
+            child: Text(
+              "Couldn't load leave requests right now.",
+              style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+            ),
+          )
+        else if (relatedLoading)
+          const _EmployeeRelatedLoadingCard()
+        else if (leaveRequests.isEmpty)
+          const FulusEmptyState(icon: Icons.event_busy_outlined, headline: 'No leave requests.')
+        else ...[
           if (pending.isNotEmpty) _LeaveGroupLabel(label: 'Needs review'),
           for (final leave in pending) _LeaveRequestTile(leave: leave, onChanged: onChanged),
           if (decided.isNotEmpty) _LeaveGroupLabel(label: 'History'),
@@ -247,6 +277,24 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
       if (dirty) ...[const SizedBox(height: AppSpacing.sm), Row(children: [Expanded(child: FulusButton(variant: FulusButtonVariant.secondary, onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)), label: 'Cancel')), const SizedBox(width: AppSpacing.sm), Expanded(child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save))])],
     ]);
   });
+}
+
+class _EmployeeRelatedLoadingCard extends StatelessWidget {
+  const _EmployeeRelatedLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const FulusCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FulusSkeletonBox(height: 18, width: 140),
+          SizedBox(height: AppSpacing.md),
+          FulusSkeletonBox(height: 52),
+        ],
+      ),
+    );
+  }
 }
 
 class _AttendanceStat extends StatelessWidget {
