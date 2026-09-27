@@ -44,7 +44,7 @@ class FulusQuickAction extends StatelessWidget {
                       color: AppColors.isDark(context) ? AppColors.surfaceAltDark : AppColors.neutral100,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, size: AppIconSize.base, color: primary),
+                    child: Icon(icon, size: 32, color: primary),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   SizedBox(
