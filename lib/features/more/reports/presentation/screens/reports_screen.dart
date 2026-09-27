@@ -429,7 +429,7 @@ class _ReportCompactCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, color: foreground, size: 42),
+                  Icon(icon, color: foreground, size: 32),
                   const Spacer(),
                   Text(
                     label,
