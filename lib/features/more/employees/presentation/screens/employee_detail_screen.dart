@@ -72,7 +72,7 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
       body: FutureBuilder<Employee?>(
         future: _employeeFuture,
         builder: (context, snap) {
-          if (snap.hasError) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
+          if (snap.hasError && _visibleEmployee == null) return FulusErrorState(message: "Couldn't load this profile.", onRetry: _reload);
           if (!snap.hasData && _visibleEmployee == null) return const _EmployeeDetailSkeleton();
           if (snap.connectionState == ConnectionState.done && !snap.hasData) return FulusErrorState(message: 'This team member no longer exists.', reassurance: 'They may have been removed.', onRetry: () => context.pop());
           final employee = snap.hasData ? snap.data : _visibleEmployee;
