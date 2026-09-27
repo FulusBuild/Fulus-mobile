@@ -385,9 +385,9 @@ These should be cleaned in a separate controlled change after tests and referenc
 
 ### Cleanup blockers
 
-**C1 — Dead Money mock/debug source remains in production tree.** It is not the provider's canonical implementation, but it increases obsolete code surface.
+**C1 — RESOLVED.** The obsolete Money mock repository/data and production debug hooks were removed after verifying the real repository is the canonical provider.
 
-**C2 — At least one direct dependency appears unused.** cupertino_icons has no application import found in repository search and should be verified/removed in a controlled cleanup.
+**C2 — RESOLVED.** `cupertino_icons`, `freezed_annotation`, and the unused `freezed` generator dependency were removed after repository usage verification; the lockfile was synchronized.
 
 ### Architecture risks
 
@@ -401,6 +401,6 @@ The repository has a recognizable production architecture with a real compositio
 
 The audit did not find evidence that a broad architectural rewrite is required.
 
-The highest-value Phase 1 outcomes are instead: remove verified dead/obsolete source in a controlled cleanup; document the bounded BLoC exception; keep GoRouter canonical while preserving legitimate transient Navigator flows; classify/remove unused dependencies; and strengthen release validation and branch governance in the appropriate later production-readiness phase.
+The highest-value Phase 1 outcomes are instead: close verified dead/obsolete source (now completed); document the bounded BLoC exception; keep GoRouter canonical while preserving legitimate transient Navigator flows; classify/remove unused dependencies (completed for the verified candidates); and strengthen release validation and branch governance in the appropriate later production-readiness phase.
 
 No application behavior was changed by the audit itself.
