@@ -25,20 +25,26 @@ class SupplierProfileScreen extends ConsumerStatefulWidget {
 
 class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
   late Future<Supplier?> _future;
+  Supplier? _visibleSupplier;
 
   @override
   void initState() {
     super.initState();
+    _visibleSupplier = widget.preloaded;
     _future = widget.preloaded != null
         ? Future.value(widget.preloaded)
-        : ref.read(supplierRepositoryProvider).getSupplierById(widget.supplierId);
+        : _loadSupplier();
+    _future.then((supplier) {
+      if (mounted && supplier != null) setState(() => _visibleSupplier = supplier);
+    }, onError: (_) {});
   }
 
+  Future<Supplier?> _loadSupplier() => ref.read(supplierRepositoryProvider).getSupplierById(widget.supplierId);
+
   Future<void> _reload() async {
-    setState(() {
-      _future = ref.read(supplierRepositoryProvider).getSupplierById(widget.supplierId);
-    });
-    await _future;
+    final future = _loadSupplier();
+    setState(() => _future = future);
+    await future;
   }
 
   @override
@@ -51,13 +57,16 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
       body: FutureBuilder<Supplier?>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
+          if (snapshot.hasError && _visibleSupplier == null) {
             return FulusErrorState(message: "Couldn't load this supplier.", onRetry: _reload);
           }
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData && _visibleSupplier == null) {
             return const _SupplierProfileLoadingSkeleton();
           }
-          final supplier = snapshot.data;
+          final supplier = snapshot.data ?? _visibleSupplier;
+          if (supplier == null) {
+            return const FulusEmptyState(icon: Icons.local_shipping_outlined, headline: 'This supplier could not be found.');
+          }
           if (supplier == null) {
             return const FulusEmptyState(icon: Icons.local_shipping_outlined, headline: 'This supplier could not be found.');
           }
