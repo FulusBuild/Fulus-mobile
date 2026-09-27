@@ -245,3 +245,7 @@ The Instant UI work is complete only when the primary workspace routes satisfy t
 The target remains:
 
 **tap -> screen immediately -> local data hydrates -> UI updates -> cloud sync independently**
+
+
+## Current implementation note
+Sell now separates safe local workspace hydration from durable cart readiness: catalog/settings may render during CartHydrating, while cart mutations remain unavailable until a verified durable draft reaches CartLoaded. Location resolution remains authoritative and is not bypassed.
