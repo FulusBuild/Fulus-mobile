@@ -250,7 +250,7 @@ class _StockBody extends ConsumerWidget {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('$lowStockCount items low in stock', style: TextStyle(color: foreground, fontSize: 14, fontWeight: FontWeight.w800)),
-                            Text('View details →', style: TextStyle(color: muted, fontSize: 11)),
+                            Text('View details →', style: TextStyle(color: muted, fontSize: 14)),
                           ])),
                               Icon(FulusIcons.chevronRight, color: foreground),
                             ]);
