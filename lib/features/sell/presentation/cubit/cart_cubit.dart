@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/diagnostics/diagnostic_logger.dart';
 import '../../../../core/diagnostics/models/diagnostic_enums.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
@@ -69,7 +70,7 @@ class CartCubit extends Cubit<CartState> {
     _initializing = true;
     _diagnosticLogger?.breadcrumb('Sell screen opened', category: DiagnosticCategory.sales);
     try {
-      final draft = await _draftCartRepository.getOrCreateDraftCart(locationId: _locationId);
+      final draft = await _draftCartRepository.getOrCreateDraftCart(locationId: _locationId).withFulusLoadingTimeout();
       if (isClosed) return;
       _draft = draft;
       _draftCartId = draft.localId;

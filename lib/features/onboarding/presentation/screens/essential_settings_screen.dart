@@ -5,6 +5,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../widgets/onboarding_error_banner.dart';
@@ -72,8 +73,15 @@ class _EssentialSettingsScreenState extends ConsumerState<EssentialSettingsScree
   Widget build(BuildContext context) {
     return FulusScreen(
       body: StreamBuilder<BusinessProfile?>(
-        stream: ref.watch(businessSettingsRepositoryProvider).watchSettings(),
+        stream: ref.watch(businessSettingsRepositoryProvider).watchSettings().withFulusLoadingTimeout(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return FulusErrorState(
+              message: "Couldn't load your business settings.",
+              reassurance: 'Nothing was changed — try loading the settings again.',
+              onRetry: () => setState(() {}),
+            );
+          }
           final profile = snapshot.data;
           if (profile == null) {
             return const FulusLoadingIndicator();

@@ -32,6 +32,16 @@ abstract class MoneyRepository {
     required bool canViewAllSales,
   });
 
+  /// Loads the period summary and its transaction rows from one shared
+  /// aggregation pass. Money's main screen needs both values, so the real
+  /// implementation can avoid querying the same period twice.
+  Future<({MoneySummary summary, List<MoneyTransaction> transactions})>
+      getSummaryAndTransactions(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  });
+
   /// Reverse-chronological, matching every other history view in this
   /// codebase's own convention. See [getSummary] on the scoping params.
   Future<List<MoneyTransaction>> getTransactions(

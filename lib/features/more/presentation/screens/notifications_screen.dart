@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/app_notification.dart';
 import '../../../../shared/widgets/widgets.dart';
 
@@ -20,7 +21,7 @@ class NotificationsScreen extends ConsumerWidget {
         FulusIconButton(icon: FulusIcons.check, tooltip: 'Mark all read', onPressed: () => repo.markAllRead()),
       ],
       body: StreamBuilder<List<AppNotification>>(
-        stream: repo.watchAll(),
+        stream: repo.watchAll().withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return FulusErrorState(

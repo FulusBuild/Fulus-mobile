@@ -58,6 +58,35 @@ class MockMoneyRepository implements MoneyRepository {
   }
 
   @override
+  Future<({MoneySummary summary, List<MoneyTransaction> transactions})>
+      getSummaryAndTransactions(
+    ReportPeriod period, {
+    required String currentAuthUserId,
+    required bool canViewAllSales,
+  }) async {
+    await _delay();
+    final inPeriod = _transactions.where((t) => _inPeriod(t, period)).toList();
+    final previousPeriod = period.previous;
+
+    double sumWhere(bool Function(MoneyTransaction) test) =>
+        inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
+
+    final summary = MoneySummary(
+      period: period,
+      moneyIn: sumWhere((t) => t.isInflow),
+      moneyOut: sumWhere((t) => !t.isInflow),
+      previousNet: _transactions
+          .where((t) => _inPeriod(t, previousPeriod))
+          .fold<double>(0, (sum, t) => sum + t.signedAmount),
+      incomeBreakdown: _breakdownIncome(inPeriod),
+      expenseBreakdown: _breakdownExpense(inPeriod),
+      transactionCount: inPeriod.length,
+    );
+
+    return (summary: summary, transactions: inPeriod);
+  }
+
+  @override
   Future<MoneySummary> getSummary(
     ReportPeriod period, {
     required String currentAuthUserId,

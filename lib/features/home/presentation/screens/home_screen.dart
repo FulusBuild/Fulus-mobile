@@ -134,7 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.xxxl),
+                        padding: EdgeInsets.fromLTRB(inset, 0, inset, inset * 1.75),
                         sliver: SliverFillRemaining(
                           hasScrollBody: false,
                           child: FutureBuilder<HomeHeroState>(
@@ -148,14 +148,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   builder: (context, cashSnapshot) {
                                     if (heroSnapshot.connectionState != ConnectionState.done ||
                                         noticeSnapshot.connectionState != ConnectionState.done ||
-                                        activitySnapshot.connectionState != ConnectionState.done ||
-                                        cashSnapshot.connectionState != ConnectionState.done) {
+                                        activitySnapshot.connectionState != ConnectionState.done) {
                                       return const _HomeHeroSkeleton();
                                     }
                                     if (heroSnapshot.hasError ||
                                         noticeSnapshot.hasError ||
-                                        activitySnapshot.hasError ||
-                                        cashSnapshot.hasError) {
+                                        activitySnapshot.hasError) {
                                       return FulusErrorState(
                                         message: "Couldn't load today's overview.",
                                         reassurance: 'Your business records are still safe on this device.',
@@ -163,12 +161,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       );
                                     }
                                     final hero = heroSnapshot.data;
-                                    if (hero == null || cashSnapshot.data == null) return const SizedBox.shrink();
+                                    if (hero == null) return const SizedBox.shrink();
                                     return _HomeMockupDashboard(
                                       hero: hero,
                                       notices: noticeSnapshot.data?.shown ?? const <SecondaryNotice>[],
                                       activity: activitySnapshot.data ?? const <MoneyTransaction>[],
-                                      cashTotal: cashSnapshot.data!,
+                                      cashTotal: cashSnapshot.data,
                                       currencySymbol: currencySymbol,
                                       canViewMoney: widget.isOwner || widget.canViewMoney,
                                       canViewReports: widget.isOwner || widget.canViewReports,
@@ -197,7 +195,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
 }
-
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({required this.businessName});
@@ -244,7 +241,7 @@ class _HomeMockupDashboard extends StatelessWidget {
   final HomeHeroState hero;
   final List<SecondaryNotice> notices;
   final List<MoneyTransaction> activity;
-  final double cashTotal;
+  final double? cashTotal;
   final String currencySymbol;
   final bool canViewMoney;
   final bool canViewReports;
@@ -271,7 +268,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: canViewMoney ? formatMoney(cashTotal, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.money, label: 'Total Cash', value: canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ],
@@ -358,20 +355,20 @@ class _HomeCompactCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: AppIconSize.compact),
+                Icon(icon, color: foreground, size: 36),
                 const Spacer(),
                 Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: foreground.withValues(alpha: 0.9),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    color: foreground.withValues(alpha: 0.95),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 FittedBox(
@@ -382,8 +379,8 @@ class _HomeCompactCard extends StatelessWidget {
                     maxLines: 1,
                     style: TextStyle(
                       color: foreground,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -393,7 +390,8 @@ class _HomeCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground.withValues(alpha: 0.9),
-                    fontSize: 13,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

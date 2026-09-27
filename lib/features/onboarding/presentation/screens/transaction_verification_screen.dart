@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../domain/entities/sale.dart';
@@ -236,7 +237,7 @@ class _InventorySection extends ConsumerWidget {
           return _unavailableCard(sold);
         }
         return StreamBuilder<List<ProductWithStock>>(
-          stream: ref.read(productRepositoryProvider).watchProducts(locationId: locationId),
+          stream: ref.read(productRepositoryProvider).watchProducts(locationId: locationId).withFulusLoadingTimeout(),
           builder: (context, snapshot) {
             if (snapshot.hasError) return _unavailableCard(sold);
             if (!snapshot.hasData) {

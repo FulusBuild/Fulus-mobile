@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../domain/entities/employee.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
@@ -31,7 +32,7 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
               child: SizedBox(
                 width: contentWidth,
                 child: StreamBuilder<List<Employee>>(
-                  stream: _employeesStream,
+                  stream: _employeesStream.withFulusLoadingTimeout(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return FulusErrorState(

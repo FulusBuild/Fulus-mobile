@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../domain/entities/employee.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
@@ -15,7 +16,7 @@ class EmployeesListScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
-  late final Stream<List<Employee>> _employeesStream = ref.read(employeeRepositoryProvider).watchEmployees(isActive: true);
+  Stream<List<Employee>> get _employeesStream => ref.read(employeeRepositoryProvider).watchEmployees(isActive: true);
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +39,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
       ],
       floatingActionButton: null,
       body: StreamBuilder<List<Employee>>(
-        stream: _employeesStream,
+        stream: _employeesStream.withFulusLoadingTimeout(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return FulusErrorState(

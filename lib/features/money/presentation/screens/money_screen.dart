@@ -30,8 +30,8 @@ class MoneyScreen extends ConsumerStatefulWidget {
 class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   ReportPeriod? _builtForPeriod;
   late Future<double> _balanceFuture;
-  late Future<MoneySummary> _summaryFuture;
-  late Future<List<MoneyTransaction>> _transactionsFuture;
+  late Future<({MoneySummary summary, List<MoneyTransaction> transactions})>
+      _summaryAndTransactionsFuture;
 
   void _load(ReportPeriod period) {
     final repo = ref.read(moneyRepositoryProvider);
@@ -43,12 +43,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         permissions.contains(Permission.viewDashboardStats);
 
     _balanceFuture = repo.getAvailableBalance();
-    _summaryFuture = repo.getSummary(
-      period,
-      currentAuthUserId: currentAuthUserId,
-      canViewAllSales: canViewAllSales,
-    );
-    _transactionsFuture = repo.getTransactions(
+    _summaryAndTransactionsFuture = repo.getSummaryAndTransactions(
       period,
       currentAuthUserId: currentAuthUserId,
       canViewAllSales: canViewAllSales,
@@ -57,7 +52,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
 
   Future<void> _refresh() async {
     setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
-    await Future.wait([_balanceFuture, _summaryFuture, _transactionsFuture]);
+    await Future.wait([_balanceFuture, _summaryAndTransactionsFuture]);
   }
 
   void _toggleSimulatedError() {
@@ -140,12 +135,12 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      FutureBuilder<MoneySummary>(
-                        future: _summaryFuture,
+                      FutureBuilder<({MoneySummary summary, List<MoneyTransaction> transactions})>(
+                        future: _summaryAndTransactionsFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return _MoneyError(
-                              message: "Couldn't load this period's money actions.",
+                              message: "Couldn't load this period's money data.",
                               onRetry: _refresh,
                             );
                           }
@@ -155,42 +150,13 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             );
                           }
                           return _MoneyQuickActions(
-                            summary: snapshot.data!,
+                            summary: snapshot.data!.summary,
                             currencySymbol: currencySymbol,
                           );
                         },
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       const MoneyPeriodFilterBar(),
-                      const SizedBox(height: AppSpacing.xl),
-                      FulusSectionHeader(
-                        title: 'Money summary',
-                        titleColor: Colors.white,
-                        subtitleColor: Colors.white70,
-                        action: 'See all',
-                        onActionTap: () => context.pushNamed('moneyHistory'),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      FutureBuilder<MoneySummary>(
-                        future: _summaryFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return _MoneyError(
-                              message: "Couldn't load this period's summary.",
-                              onRetry: _refresh,
-                            );
-                          }
-                          if (!snapshot.hasData) {
-                            return const FulusDelayedSkeleton(
-                              skeleton: _SummarySkeleton(),
-                            );
-                          }
-                          return _MoneySummary(
-                            summary: snapshot.data!,
-                            currencySymbol: currencySymbol,
-                          );
-                        },
-                      ),
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
@@ -201,8 +167,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             context.pushNamed('moneyHistory'),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      FutureBuilder<List<MoneyTransaction>>(
-                        future: _transactionsFuture,
+                      FutureBuilder<({MoneySummary summary, List<MoneyTransaction> transactions})>(
+                        future: _summaryAndTransactionsFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return _MoneyError(
@@ -221,7 +187,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                           }
 
                           final transactions =
-                              snapshot.data!.take(5).toList();
+                              snapshot.data!.transactions.take(5).toList();
                           if (transactions.isEmpty) {
                             return const FulusEmptyState(
                               icon: FulusIcons.receipt,
@@ -352,16 +318,16 @@ class _BalanceHero extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     height: 142,
     child: Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
       child: Builder(builder: (context) {
         final foreground = AppColors.onColor(const Color(0xFF12B866));
         final muted = foreground.withValues(alpha: 0.9);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(FulusIcons.money, color: foreground, size: 28), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 15, fontWeight: FontWeight.w700))]),
+        Row(children: [Icon(FulusIcons.money, color: foreground, size: 34), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const Spacer(),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 32, fontWeight: FontWeight.w900))),
-        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 13)),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 36, fontWeight: FontWeight.w900))),
+        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 15)),
       ]);
       }),
     ),
@@ -465,15 +431,15 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: foreground, size: AppIconSize.base),
+                    Icon(action.icon, color: foreground, size: 36),
                     const Spacer(),
-                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
+                    Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 18, fontWeight: FontWeight.w700)),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 24, fontWeight: FontWeight.w700)),
+                      child: Text(action.value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 32, fontWeight: FontWeight.w800)),
                     ),
-                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 12)),
+                    Text(action.subtitle, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -501,190 +467,6 @@ class _MoneyAction {
   final String value;
   final String subtitle;
   final VoidCallback onTap;
-}
-
-class _MoneySummary extends StatelessWidget {
-  const _MoneySummary({
-    required this.summary,
-    required this.currencySymbol,
-  });
-
-  final MoneySummary summary;
-  final String currencySymbol;
-
-  @override
-  Widget build(BuildContext context) {
-    final net = summary.net;
-    final netUp = net >= summary.previousNet;
-
-    return FulusCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.lg,
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 360;
-
-          final stats = [
-            _MoneyStat(
-              label: 'Money in',
-              value: formatMoney(
-                summary.moneyIn,
-                symbol: currencySymbol,
-              ),
-              valueColor: AppColors.primaryOf(context),
-            ),
-            _MoneyStat(
-              label: 'Money out',
-              value: formatMoney(
-                summary.moneyOut,
-                symbol: currencySymbol,
-              ),
-              valueColor: AppColors.errorOf(context),
-            ),
-            _MoneyStat(
-              label: 'Net',
-              value: formatMoney(
-                net,
-                symbol: currencySymbol,
-                showSign: true,
-              ),
-              valueColor: net >= 0
-                  ? AppColors.primaryOf(context)
-                  : AppColors.errorOf(context),
-              trend: netUp ? 'vs previous period' : 'below previous period',
-            ),
-          ];
-
-          // Keep the summary explicitly content-sized. The Money page is
-          // vertically scrollable only when real content exceeds the viewport;
-          // the summary itself must never manufacture a blank/infinite area.
-          return ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 104),
-            child: compact
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < stats.length; i++) ...[
-                        if (i > 0)
-                          Divider(
-                            height: AppSpacing.lg,
-                            color: AppColors.borderOf(context),
-                          ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: stats[i],
-                        ),
-                      ],
-                    ],
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      for (var i = 0; i < stats.length; i++) ...[
-                        if (i > 0)
-                          Container(
-                            width: 1,
-                            height: 72,
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs,
-                            ),
-                            color: AppColors.borderOf(context),
-                          ),
-                        Expanded(child: stats[i]),
-                      ],
-                    ],
-                  ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _MoneyStat extends StatelessWidget {
-  const _MoneyStat({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    this.trend,
-  });
-
-  final String label;
-  final String value;
-  final Color valueColor;
-  final String? trend;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: AppTypography.caption.copyWith(
-            color: AppColors.textSecondaryOf(context),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        FittedBox(
-          alignment: Alignment.centerLeft,
-          fit: BoxFit.scaleDown,
-          child: Text(
-            value,
-            maxLines: 1,
-            style: AppTypography.subheading.copyWith(
-              color: valueColor,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        if (trend != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            trend!,
-            maxLines: 2,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondaryOf(context),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _SummarySkeleton extends StatelessWidget {
-  const _SummarySkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.lg,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Expanded(child: FulusStatCardSkeleton()),
-          Container(
-            width: 1,
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          ),
-          const Expanded(child: FulusStatCardSkeleton()),
-          Container(
-            width: 1,
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          ),
-          const Expanded(child: FulusStatCardSkeleton()),
-        ],
-      ),
-    );
-  }
 }
 
 class _MoneyError extends StatelessWidget {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../cubit/cart_cubit.dart';
@@ -67,8 +68,15 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: StreamBuilder<List<Customer>>(
-              stream: _customersStream,
+              stream: _customersStream.withFulusLoadingTimeout(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return FulusErrorState(
+                    message: "Couldn't load customers.",
+                    reassurance: 'No customer data was changed — this is only a loading problem.',
+                    onRetry: () => setState(() {}),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const FulusLoadingIndicator();
                 }
