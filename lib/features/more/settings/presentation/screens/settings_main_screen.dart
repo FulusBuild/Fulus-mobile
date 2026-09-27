@@ -69,7 +69,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               }),
             );
           }
-          if (!snap.hasData) return const FulusLoadingIndicator();
+          if (!snap.hasData) return const _SettingsLoadingSkeleton();
           final profile = snap.data;
 
           return LayoutBuilder(
@@ -675,4 +675,24 @@ class _AppLockSheetState extends ConsumerState<_AppLockSheet> {
             ),
     );
   }
+}class _SettingsLoadingSkeleton extends StatelessWidget {
+  const _SettingsLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusSkeletonBox(width: 120, height: 18),
+      SizedBox(height: AppSpacing.sm),
+      FulusCardSkeleton(),
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusSkeletonBox(width: 150, height: 18),
+      SizedBox(height: AppSpacing.sm),
+      FulusCardSkeleton(),
+      FulusCardSkeleton(),
+    ],
+  );
 }
