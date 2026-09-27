@@ -72,7 +72,9 @@ class FulusCustomerOverviewColumn extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.contain,
               alignment: Alignment.topLeft,
-              child: Icon(icon, color: iconColor),
+              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
+              // Its rendered size is determined entirely by the space this box receives.
+              child: Icon(icon, color: iconColor, size: 256),
             ),
           ),
         ),
@@ -112,7 +114,9 @@ class FulusReportCardColumn extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.contain,
               alignment: Alignment.topLeft,
-              child: Icon(icon, color: iconColor),
+              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
+              // Its rendered size is determined entirely by the space this box receives.
+              child: Icon(icon, color: iconColor, size: 256),
             ),
           ),
         ),
@@ -154,7 +158,9 @@ class FulusPaymentMethodCardColumn extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.contain,
               alignment: Alignment.topLeft,
-              child: Icon(icon, color: iconColor),
+              // Icon uses a large intrinsic canvas only so FittedBox can scale it both up and down.
+              // Its rendered size is determined entirely by the space this box receives.
+              child: Icon(icon, color: iconColor, size: 256),
             ),
           ),
         ),
