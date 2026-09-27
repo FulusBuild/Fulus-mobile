@@ -362,17 +362,16 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Builder(
-                  builder: (context) {
-                    final iconSize = AppIconSize.metric(
-                      cardHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 180,
-                      padding: AppSpacing.md,
-                      labelFontSize: 18,
-                      valueFontSize: 34,
-                      secondaryFontSize: 16,
-                    );
-                  return Icon(icon, color: foreground, size: iconSize);
-                },
+                Icon(
+                  icon,
+                  color: foreground,
+                  size: AppIconSize.metric(
+                    cardHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 180,
+                    padding: AppSpacing.md,
+                    labelFontSize: 18,
+                    valueFontSize: 34,
+                    secondaryFontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
