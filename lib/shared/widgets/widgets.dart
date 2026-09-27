@@ -13,6 +13,7 @@ library;
 export '../../core/theme/fulus_icons.dart';
 export '../../core/ux/consumer_polish.dart';
 export 'fulus_action_tile.dart';
+export 'fulus_adaptive_card_icon.dart';
 export 'fulus_avatar.dart';
 export 'fulus_bottom_sheet.dart';
 export 'fulus_brand_logo.dart';

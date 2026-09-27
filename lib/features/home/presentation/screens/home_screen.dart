@@ -293,28 +293,26 @@ class _HomeMockupDashboard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Reserve exactly 48px of breathing space above the persistent
-        // bottom navigation bar. No additional bottom padding is added here.
+        // The dashboard lives inside a scrollable sliver, so its vertical
+        // constraint is not a reliable viewport measurement. The Home card
+        // family therefore owns a width-based aspect ratio rather than
+        // deriving an icon size from the available width.
         const dashboardBottomGap = AppSpacing.md * 3;
-        final availableHeight = constraints.maxHeight;
-        final minRowHeight = 180.0;
-        final rowGap = AppSpacing.sm;
-        final usableHeight = availableHeight.isFinite && availableHeight > 0
-            ? availableHeight - dashboardBottomGap
-            : availableHeight;
-        final responsiveRowHeight = usableHeight.isFinite && usableHeight > 0
-            ? ((usableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
-            : minRowHeight;
+        const homeCardAspectRatio = 1.0;
+        const minRowHeight = 180.0;
+        const rowGap = AppSpacing.sm;
+        final cardWidth = (constraints.maxWidth - rowGap) / 2;
+        final widthDrivenRowHeight = (cardWidth / homeCardAspectRatio)
+            .clamp(minRowHeight, double.infinity)
+            .toDouble();
 
         return Column(
           children: [
             for (final row in rows)
               if (row is Row)
-                IntrinsicHeight(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: responsiveRowHeight),
-                    child: row,
-                  ),
+                SizedBox(
+                  height: widthDrivenRowHeight,
+                  child: row,
                 )
               else
                 row,
@@ -346,8 +344,7 @@ class _HomeCompactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = AppColors.onColor(color);
-    return LayoutBuilder(
-      builder: (context, constraints) => Semantics(
+    return Semantics(
       button: onTap != null,
       enabled: onTap != null,
       label: '$label, $value',
@@ -359,21 +356,10 @@ class _HomeCompactCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: FulusMetricCardColumn(
+              icon: icon,
+              iconColor: foreground,
               children: [
-                Icon(
-                  icon,
-                  color: foreground,
-                  size: AppIconSize.metric(
-                    cardHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 180,
-                    padding: AppSpacing.md,
-                    labelFontSize: 18,
-                    valueFontSize: 34,
-                    secondaryFontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
                 Text(
                   label,
                   maxLines: 1,
@@ -384,7 +370,6 @@ class _HomeCompactCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -398,7 +383,6 @@ class _HomeCompactCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
                 Text(
                   secondary,
                   maxLines: 1,
@@ -411,7 +395,7 @@ class _HomeCompactCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
+          )
         ),
       ),
     );

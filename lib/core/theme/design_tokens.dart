@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Fulus visual tokens: blue for actions, neutral surfaces, and semantic
@@ -147,45 +146,6 @@ class AppIconSize {
   static const emphasis = 32.0;
   static const hero = 48.0;
   static const strokeWidth = 2.0;
-
-  /// Derives a metric-card icon box from the card's available height.
-  ///
-  /// The icon is not assigned a universal pixel size. The card's own
-  /// geometry reserves space for padding, text and inter-element gaps first;
-  /// whatever vertical space remains becomes the icon box.
-  static double action({
-    required double cardHeight,
-    required double padding,
-    required double labelFontSize,
-    int labelLines = 1,
-    double gapAfterIcon = AppSpacing.sm,
-  }) {
-    final fixedContent = (padding * 2) +
-        gapAfterIcon +
-        (labelFontSize * 1.2 * labelLines);
-    return math.max(24, cardHeight - fixedContent);
-  }
-
-  static double metric({
-    required double cardHeight,
-    required double padding,
-    required double labelFontSize,
-    required double valueFontSize,
-    required double secondaryFontSize,
-    double gapAfterIcon = AppSpacing.sm,
-    double gapAfterLabel = AppSpacing.xs,
-    double gapAfterValue = AppSpacing.xs,
-  }) {
-    final fixedContent = (padding * 2) +
-        gapAfterIcon +
-        gapAfterLabel +
-        gapAfterValue +
-        (labelFontSize * 1.2) +
-        (valueFontSize * 1.1) +
-        (secondaryFontSize * 1.2);
-
-    return math.max(24, cardHeight - fixedContent);
-  }
 }
 const double kMinimumContrastRatio=4.5;
 class AppGradients { AppGradients._(); static LinearGradient heroOf(BuildContext context){final color=AppColors.isDark(context)?AppColors.brandDark:AppColors.primary;return LinearGradient(colors:[color,color]);} static LinearGradient successOf(BuildContext context)=>LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:AppColors.isDark(context)?[AppColors.surfaceDark,AppColors.backgroundDark]:[AppColors.successLight,AppColors.surfaceLight]); }

@@ -78,50 +78,111 @@ class FulusStatCard extends StatelessWidget {
   final Color? iconColor;
   final VoidCallback? onTap;
   static const minWidth = 136.0;
+  static const contentAspectRatio = 1.6;
 
   @override
   Widget build(BuildContext context) {
     final dataColor = valueColor ?? AppColors.textPrimaryOf(context);
+
+    Widget buildContent({required bool hasFiniteIconRegion}) {
+      final content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: hasFiniteIconRegion ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          if (icon != null && hasFiniteIconRegion)
+            Expanded(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topLeft,
+                  child: Icon(icon, color: iconColor ?? dataColor),
+                ),
+              ),
+            )
+          else if (icon != null) ...[
+            FittedBox(
+              fit: BoxFit.contain,
+              alignment: Alignment.topLeft,
+              child: Icon(icon, color: iconColor ?? dataColor),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.body.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.mutedOf(context),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: AppTypography.mono.copyWith(
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                color: dataColor,
+              ),
+            ),
+          ),
+          if (trend != null && trendLabel != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  trend == FulusTrend.up
+                      ? FulusIcons.arrowUp
+                      : FulusIcons.arrowDown,
+                  size: 20,
+                  color: AppColors.mutedOf(context),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: Text(
+                    trendLabel!,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      fontSize: 16,
+                      color: AppColors.mutedOf(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+
+      if (icon == null || !hasFiniteIconRegion) return content;
+
+      return AspectRatio(
+        // The stat-card family owns the overall content geometry. The
+        // prominent icon receives the remaining vertical space after the
+        // label/value/trend composition has been laid out.
+        aspectRatio: contentAspectRatio,
+        child: content,
+      );
+    }
+
     return FulusCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: minWidth),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 128, color: iconColor ?? dataColor),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.mutedOf(context))),
-            const SizedBox(height: AppSpacing.xs),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                maxLines: 1,
-                style: AppTypography.mono.copyWith(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: dataColor,
-                ),
-              ),
-            ),
-            if (trend != null && trendLabel != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(trend == FulusTrend.up ? FulusIcons.arrowUp : FulusIcons.arrowDown, size: 20, color: AppColors.mutedOf(context)),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(child: Text(trendLabel!, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(fontSize: 16, color: AppColors.mutedOf(context)))),
-                ],
-              ),
-            ],
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return buildContent(
+              hasFiniteIconRegion: constraints.hasBoundedHeight,
+            );
+          },
         ),
       ),
     );

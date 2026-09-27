@@ -426,18 +426,15 @@ class _ReportCompactCard extends StatelessWidget {
             height: 100,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(icon, color: foreground, size: AppIconSize.action(cardHeight: 100, padding: AppSpacing.md, labelFontSize: 16, labelLines: 2)),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
-                ],
+              child: FulusReportCardColumn(
+                icon: icon,
+                iconColor: foreground,
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ),

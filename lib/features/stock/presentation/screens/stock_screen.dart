@@ -369,20 +369,31 @@ class _StockSummaryTile extends StatelessWidget {
       height: 146,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: FulusMetricCardColumn(
+          icon: icon,
+          iconColor: foreground,
           children: [
-            Icon(icon, color: foreground, size: AppIconSize.metric(cardHeight: 146, padding: AppSpacing.md, labelFontSize: 17, valueFontSize: 30, secondaryFontSize: 15)),
-            const SizedBox(height: AppSpacing.sm),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w700)),
-            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w700),
+            ),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, maxLines: 1, style: TextStyle(color: foreground, fontSize: 30, fontWeight: FontWeight.w900)),
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(color: foreground, fontSize: 30, fontWeight: FontWeight.w900),
+              ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500)),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
