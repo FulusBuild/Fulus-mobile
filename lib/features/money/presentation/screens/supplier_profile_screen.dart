@@ -63,7 +63,10 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
           if (!snapshot.hasData && _visibleSupplier == null) {
             return const _SupplierProfileLoadingSkeleton();
           }
-          final supplier = snapshot.data ?? _visibleSupplier;
+          if (snapshot.connectionState == ConnectionState.done && !snapshot.hasData) {
+            return const FulusEmptyState(icon: Icons.local_shipping_outlined, headline: 'This supplier could not be found.');
+          }
+          final supplier = snapshot.hasData ? snapshot.data : _visibleSupplier;
           if (supplier == null) {
             return const FulusEmptyState(icon: Icons.local_shipping_outlined, headline: 'This supplier could not be found.');
           }
