@@ -387,7 +387,7 @@ These should be cleaned in a separate controlled change after tests and referenc
 
 **C1 — RESOLVED.** The obsolete Money mock repository/data and production debug hooks were removed after verifying the real repository is the canonical provider.
 
-**C2 — RESOLVED.** `cupertino_icons`, `freezed_annotation`, and the unused `freezed` generator dependency were removed after repository usage verification; the lockfile was synchronized.
+**C2 — RESOLVED.** `cupertino_icons`, `freezed_annotation`, and the unused `freezed` generator dependency were removed after repository usage verification; the lockfile was synchronized, and the manual Riverpod bump workflow was updated to stop requesting the retired packages.
 
 ### Architecture risks
 
