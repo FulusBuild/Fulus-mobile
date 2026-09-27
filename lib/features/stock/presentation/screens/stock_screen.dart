@@ -191,9 +191,7 @@ class _StockBody extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (lowStockCount > 0)
-                  if (movementsAsync.hasValue && movementsAsync.value!.isNotEmpty)
-                  SliverToBoxAdapter(
+                SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
                       child: FulusCard(
