@@ -426,11 +426,10 @@ class _ReportCompactCard extends StatelessWidget {
             height: 100,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: FulusAdaptiveCardColumn(
+                icon: icon,
+                iconColor: foreground,
                 children: [
-                  Icon(icon, color: foreground, size: AppIconSize.action(cardHeight: 100, padding: AppSpacing.md, labelFontSize: 16, labelLines: 2)),
-                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     label,
                     maxLines: 2,
