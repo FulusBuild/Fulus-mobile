@@ -101,8 +101,7 @@ class FulusStatCard extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.contain,
                     alignment: Alignment.topLeft,
-                    // FittedBox determines the rendered size from the
-                    // stat-card icon region; this widget does not choose it.
+                    child: Icon(icon, color: iconColor ?? dataColor),
                   ),
                 ),
               ),
