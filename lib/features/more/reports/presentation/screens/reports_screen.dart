@@ -963,7 +963,7 @@ class _FinanceTab extends StatelessWidget {
             future: cashFlowFuture,
             builder: (context, snap) {
               if (snap.hasError) return Text("Couldn't load cash flow for this period.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)));
-              if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.md), child: Center(child: CircularProgressIndicator()));
+              if (!snap.hasData) return const FulusDelayedSkeleton(skeleton: FulusCardSkeleton());
               final cf = snap.data!;
               return Column(children: [
                 _StatCard(label: 'Money in', value: formatMoney(cf.inflow, symbol: currencySymbol)),
