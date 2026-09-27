@@ -304,6 +304,11 @@ class _FulusFadePageTransitionsBuilder extends PageTransitionsBuilder {
       parent: animation,
       curve: Curves.easeOutCubic,
     );
-    return FadeTransition(opacity: curved, child: child);
+    // Keep the destination almost fully visible from its first painted
+    // frame. A fade from 0.0 makes the previous route visible underneath
+    // while the new screen is being built, which can look like a brief
+    // flash back to the previous screen on slower first visits.
+    final opacity = Tween<double>(begin: 0.92, end: 1).animate(curved);
+    return FadeTransition(opacity: opacity, child: child);
   }
 }
