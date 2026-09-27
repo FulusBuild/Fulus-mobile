@@ -294,16 +294,17 @@ class _HomeMockupDashboard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // The dashboard lives inside a scrollable sliver, so its vertical
-        // constraint is not a reliable viewport measurement. Size the
-        // two-column cards from their actual available width instead.
+        // constraint is not a reliable viewport measurement. The Home card
+        // family therefore owns a width-based aspect ratio rather than
+        // deriving an icon size from the available width.
         const dashboardBottomGap = AppSpacing.md * 3;
+        const homeCardAspectRatio = 1.6;
         const minRowHeight = 180.0;
         const rowGap = AppSpacing.sm;
         final cardWidth = (constraints.maxWidth - rowGap) / 2;
-        final widthDrivenRowHeight = (cardWidth * 1.07).clamp(
-          minRowHeight,
-          double.infinity,
-        ).toDouble();
+        final widthDrivenRowHeight = (cardWidth / homeCardAspectRatio)
+            .clamp(minRowHeight, double.infinity)
+            .toDouble();
 
         return Column(
           children: [
