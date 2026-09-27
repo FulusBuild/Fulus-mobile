@@ -31,7 +31,7 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
       subtitle: 'People and businesses you buy from',
       actions: [
         FulusIconButton(
-          icon: Icons.add_business_outlined,
+          icon: FulusIcons.localShipping,
           tooltip: 'Add supplier',
           onPressed: () => SupplierFormSheet.show(context),
         ),
@@ -73,7 +73,7 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
                   const SizedBox(height: AppSpacing.md),
                   if (suppliers.isEmpty)
                     FulusEmptyState(
-                      icon: Icons.local_shipping_outlined,
+                      icon: FulusIcons.localShipping,
                       headline: 'No suppliers yet',
                       body: 'Suppliers you owe for stock bought on credit will show up here, with a running balance.',
                       actionLabel: 'Add supplier',
@@ -81,7 +81,7 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
                     )
                   else if (filtered.isEmpty)
                     const FulusEmptyState(
-                      icon: Icons.search_off,
+                      icon: FulusIcons.searchOff,
                       headline: 'No suppliers match your search',
                       body: 'Try a different name or phone number.',
                     )
@@ -140,7 +140,7 @@ class _SupplierOverview extends StatelessWidget {
                 Divider(height: 1, color: AppColors.borderOf(context)),
                 const SizedBox(height: AppSpacing.lg),
                 _Metric(
-                  icon: Icons.account_balance_wallet_outlined,
+                  icon: FulusIcons.wallet,
                   label: 'Outstanding',
                   value: formatMoney(outstanding, symbol: currencySymbol),
                 ),
