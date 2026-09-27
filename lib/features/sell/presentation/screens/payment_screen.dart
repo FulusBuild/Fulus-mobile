@@ -60,7 +60,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return BlocBuilder<CartCubit, CartState>(
       builder: (context, cartState) {
         if (cartState is! CartLoaded) {
-          return const FulusScreen(title: 'Payment', body: FulusLoadingIndicator());
+          return const FulusScreen(title: 'Payment', body: _PaymentLoadingSkeleton());
         }
 
         _syncAmountDefault(cartState.remaining);
@@ -584,3 +584,26 @@ class _PaymentMethodTile extends StatelessWidget {
   }
 }
 
+
+
+class _PaymentLoadingSkeleton extends StatelessWidget {
+  const _PaymentLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return ListView(
+      padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.xxl),
+      children: const [
+        FulusSkeletonBox(height: 92, borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg))),
+        SizedBox(height: AppSpacing.xl),
+        FulusSkeletonBox(width: 140, height: 18),
+        SizedBox(height: AppSpacing.sm),
+        FulusCardSkeleton(),
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 64, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+      ],
+    );
+  }
+}
