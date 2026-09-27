@@ -78,7 +78,7 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                           syncingNow: _syncingNow,
                           onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
                         ),
-                        loading: () => const FulusLoadingIndicator(),
+                        loading: () => const _SyncStatusSkeleton(),
                         error: (_, __) => FulusErrorState(
                           message: "Couldn't read backup status.",
                           reassurance: 'Your local business data is not affected by this status check.',
@@ -501,5 +501,15 @@ class _InfoRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+
+class _SyncStatusSkeleton extends StatelessWidget {
+  const _SyncStatusSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const FulusCardSkeleton();
   }
 }
