@@ -122,3 +122,61 @@ class FulusReportCardColumn extends StatelessWidget {
     );
   }
 }
+
+
+/// Payment-method cards use the same geometry principle but have a different
+/// hierarchy: a prominent icon, then the method name and optional state mark.
+/// The card owns the spacing instead of inheriting metric-card rules.
+class FulusPaymentMethodCardColumn extends StatelessWidget {
+  const FulusPaymentMethodCardColumn({
+    super.key,
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.selected = false,
+    this.selectedMark,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final bool selected;
+  final Widget? selectedMark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              alignment: Alignment.topLeft,
+              child: Icon(icon, color: iconColor),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (selected && selectedMark != null) selectedMark!,
+          ],
+        ),
+      ],
+    );
+  }
+}
