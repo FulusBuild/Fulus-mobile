@@ -329,3 +329,28 @@ The current target remains:
 **tap -> screen immediately -> local data hydrates -> UI updates -> cloud sync independently**
 
 Final closure still requires CI green and runtime/cold-warm verification.
+
+
+## Implementation pass 9 — Settings workspace first-frame isolation
+
+The Settings route was re-audited against the strict secondary-route contract: route/header/body structure should paint immediately, while profile-dependent content hydrates locally inside its own section.
+
+Previously, the entire Settings body was gated by the business-profile FutureBuilder. A delayed or failed business-profile read therefore replaced the whole settings workspace with a loading/error state, even though Account & Backup, Fulus Cloud, Security, and Account sections did not depend on that profile read.
+
+The gate is now narrowed to the Business section only:
+
+- Settings list structure and all independent action tiles paint immediately.
+- The Business section header paints immediately.
+- Business profile data hydrates inside that section with a shaped skeleton/error state.
+- A profile read failure no longer blocks unrelated settings actions.
+- No authorization, persistence, or business-settings semantics were changed.
+
+This closes the identified Settings first-frame architecture issue without introducing a global loading abstraction.
+
+## Remaining closure items after pass 9
+
+1. **Sell/Stock location path:** authoritative active-location resolution remains intentionally intact until a synchronous cached-location source is proven safe.
+2. **Money aggregation:** exact all-history balance calculation remains the main repository performance hotspot; optimize only with proven exact invalidation/projection semantics.
+3. **Secondary routes:** continue selective runtime verification of post-action reload continuity and semantic refresh behavior.
+4. **Runtime verification:** cold start, warm branch switching, offline rendering, delayed local hydration, and isolated local errors still require device/runtime evidence.
+5. **CI:** final closure requires the CI run for the latest implementation head to complete green.
