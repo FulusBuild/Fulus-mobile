@@ -387,6 +387,7 @@ class _HomeCompactCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   secondary,
                   maxLines: 1,
