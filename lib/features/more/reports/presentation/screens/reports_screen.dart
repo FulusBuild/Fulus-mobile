@@ -426,7 +426,7 @@ class _ReportCompactCard extends StatelessWidget {
             height: 100,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: FulusAdaptiveCardColumn(
+              child: FulusReportCardColumn(
                 icon: icon,
                 iconColor: foreground,
                 children: [
