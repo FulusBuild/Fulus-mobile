@@ -297,7 +297,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         // bottom navigation bar. No additional bottom padding is added here.
         const dashboardBottomGap = AppSpacing.md * 3;
         final availableHeight = constraints.maxHeight;
-        final minRowHeight = 118.0;
+        final minRowHeight = 180.0;
         final rowGap = AppSpacing.sm;
         final usableHeight = availableHeight.isFinite && availableHeight > 0
             ? availableHeight - dashboardBottomGap
@@ -361,7 +361,7 @@ class _HomeCompactCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: 116),
+                Icon(icon, color: foreground, size: 56),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   label,
