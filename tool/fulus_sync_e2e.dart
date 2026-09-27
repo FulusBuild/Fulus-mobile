@@ -102,13 +102,17 @@ Future<void> main() async {
     stdout.writeln('PASS: income.create');
 
     final quickSaleOperationId = 'e2e-quick-sale-$suffix';
+    // Reuse the exact request value for replay. The API may normalize
+    // sale_date in its response, but idempotent replay must hash the
+    // original request bytes/values, not a server-normalized timestamp.
+    final quickSaleDate = DateTime.now().toUtc().toIso8601String();
     final quickSaleResponse = await dio.post('', data: {
       'action': 'sale_create',
       'business_id': businessId,
       'operation_id': quickSaleOperationId,
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
-      'sale_date': DateTime.now().toUtc().toIso8601String(),
+      'sale_date': quickSaleDate,
       'discount': 0,
       'tax': 0,
       'amount_paid': 321,
@@ -139,7 +143,7 @@ Future<void> main() async {
       'operation_id': quickSaleOperationId,
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
-      'sale_date': quickSaleResponse.data['data']['sale_date'],
+      'sale_date': quickSaleDate,
       'discount': 0,
       'tax': 0,
       'amount_paid': 321,
