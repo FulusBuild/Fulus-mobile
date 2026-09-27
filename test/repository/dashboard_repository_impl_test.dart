@@ -79,14 +79,19 @@ void main() {
     });
 
     test('a shift that has already been closed does not count as the day being open', () async {
+      // Keep the clock and fixture on the same side of midnight so this test
+      // does not depend on the wall-clock moment when CI happens to run.
+      final testNow = DateTime(2026, 9, 27, 12);
+      repository = DashboardRepositoryImpl(db: db, clock: () => testNow);
+
       await db.into(db.cashDrawerShifts).insert(CashDrawerShiftsCompanion.insert(
             localId: 'shift-1',
             cashierUserId: 'u1',
             locationId: locationId,
-            openedAt: DateTime.now().subtract(const Duration(hours: 5)),
-            closedAt: Value(DateTime.now().subtract(const Duration(hours: 1))),
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
+            openedAt: testNow.subtract(const Duration(hours: 5)),
+            closedAt: Value(testNow.subtract(const Duration(hours: 1))),
+            createdAt: testNow,
+            updatedAt: testNow,
             syncStatus: SyncStatus.settled,
           ));
 
