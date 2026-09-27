@@ -241,10 +241,6 @@ class _HomeDashboardHydration extends StatelessWidget {
             final notices = noticeSnapshot.data?.shown ?? const <SecondaryNotice>[];
             final activity = const <MoneyTransaction>[];
 
-            if (hero == null) {
-              return const _HomeHeroSkeleton();
-            }
-
             return FutureBuilder<List<MoneyTransaction>>(
               future: activityFuture,
               builder: (context, activitySnapshot) {
@@ -281,7 +277,7 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.canViewMoney,
     required this.canViewReports,
   });
-  final HomeHeroState hero;
+  final HomeHeroState? hero;
   final List<SecondaryNotice> notices;
   final List<MoneyTransaction> activity;
   final double? cashTotal;
@@ -289,13 +285,15 @@ class _HomeMockupDashboard extends StatelessWidget {
   final bool canViewMoney;
   final bool canViewReports;
 
-  double get _salesTotal => switch (hero) {
+  double? get _salesTotal => switch (hero) {
+    null => null,
     NotYetOpenedHero(:final yesterdayTotal) => yesterdayTotal,
     OpenHero(:final todayTotal) => todayTotal,
     ClosedHero(:final finalTotal) => finalTotal,
     EmployeeShiftHero(:final shiftTotal) => shiftTotal,
   };
-  int get _salesCount => switch (hero) {
+  int? get _salesCount => switch (hero) {
+    null => null,
     NotYetOpenedHero(:final yesterdaySalesCount) => yesterdaySalesCount,
     OpenHero(:final todaySalesCount) => todaySalesCount,
     ClosedHero(:final finalSalesCount) => finalSalesCount,
@@ -312,7 +310,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount.toString(), secondary: formatMoney(_salesTotal, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: _salesCount?.toString() ?? '—', secondary: _salesTotal == null ? 'waiting for local data' : formatMoney(_salesTotal!, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
