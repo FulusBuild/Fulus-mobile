@@ -229,3 +229,13 @@ The router was re-checked on the Instant UI branch. Primary Home/Stock/Sell/Mone
 Secondary FutureBuilder routes were reclassified: report tabs, customer/supplier profiles, transaction/refund detail, employee detail, and similar screens already expose their route/header structure and use shaped loading or section-level states. These should be improved selectively where they unnecessarily replace useful content, rather than through a blanket FutureBuilder rewrite. Action/restore/hardware routes remain legitimate async-operation cases.
 
 The contract is now the governing rule for future fixes: no speculative global loading-framework rewrite; fix only proven critical-path gates and preserve business/location/financial correctness.
+
+
+## Implementation pass 4 — Sell local workspace hydration
+
+- **IUI-03 reduced:** Sell no longer waits for the durable draft cart before subscribing to safe local workspace data. The product catalog and business settings now hydrate immediately after the verified location is known.
+- Added CartHydrating: the Sell workspace can render the real local product catalog while the durable draft cart is being resolved.
+- Cart mutations remain gated behind CartLoaded, so no product/payment write can occur without a verified durable draft cart.
+- Location isolation is unchanged: ResolveActiveLocation remains the prerequisite for creating the location-scoped CartCubit.
+- Draft/cart streams still begin only after getOrCreateDraftCart returns, preserving durable-cart correctness.
+- This is a targeted hydration change, not a replacement of the existing cart repository or location architecture.
