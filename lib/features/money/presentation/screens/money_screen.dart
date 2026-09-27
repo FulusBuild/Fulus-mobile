@@ -371,7 +371,7 @@ class _MoneyQuickActions extends ConsumerWidget {
     final actions = <_MoneyAction>[
       _MoneyAction(
         color: const Color(0xFF1473E6),
-        icon: FulusIcons.arrowDown,
+        icon: FulusIcons.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol, compact: true),
         subtitle: 'Today',
@@ -379,7 +379,7 @@ class _MoneyQuickActions extends ConsumerWidget {
       ),
       _MoneyAction(
         color: const Color(0xFFFF8C00),
-        icon: FulusIcons.arrowUp,
+        icon: FulusIcons.moneyOut,
         label: 'Money Out',
         value: formatMoney(summary.moneyOut, symbol: currencySymbol, compact: true),
         subtitle: 'Today',
