@@ -601,6 +601,15 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
   AuthUser? _futureBuiltForUser;
   Future<bool>? _businessConfiguredFuture;
 
+  /// Start location resolution as soon as the authenticated shell is
+  /// entered. Stock, Sell, Home and several detail/report screens all depend
+  /// on this same app-scoped value. Starting it here lets the first tab tap
+  /// reuse the in-flight/cached result instead of briefly replacing the
+  /// destination with a full-screen loading state.
+  void _warmShellData() {
+    ref.read(activeLocationIdProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(sessionProvider);
@@ -608,6 +617,7 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       return const AuthGateScreen();
     }
     if (user.role != AuthRole.owner) {
+      _warmShellData();
       // Owner's `showMoneyTab: true` below needs no lookup at all (see
       // FulusAppShell's own doc comment on the owner exemption); a
       // non-owner session does, via the same sessionPermissionsProvider
@@ -635,6 +645,9 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const FulusScreen(body: FulusLoadingIndicator());
+        }
+        if (stage == PostSignInStage.enterShell) {
+          _warmShellData();
         }
         // Resolved through resolvePostSignInStage
         // (core/onboarding/onboarding_routing.dart) rather than the two
