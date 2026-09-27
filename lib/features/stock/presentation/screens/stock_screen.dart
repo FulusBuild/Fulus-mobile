@@ -191,45 +191,6 @@ class _StockBody extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (lowStockCount > 0)
-                  if (movementsAsync.hasValue && movementsAsync.value!.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
-                      child: FulusCard(
-                        padding: EdgeInsets.zero,
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Recent Stock Movement',
-                                      style: AppTypography.label.copyWith(
-                                        color: AppColors.textPrimaryOf(context),
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => context.pushNamed('stockHistory'),
-                                    child: const Text('View all'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            for (final movement in movementsAsync.value!.take(3))
-                              StockMovementTile(
-                                movement: movement,
-                                showProductName: true,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                 SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
@@ -267,9 +228,9 @@ class _StockBody extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: FulusChipRow(children: [
-                            FulusChip(label: 'All', selected: !filter.lowStockOnly && !filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false)),
-                            FulusChip(label: 'Low stock · $lowStockCount', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
-                            FulusChip(label: 'Out of stock · $outOfStock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
+                            FulusChip(compact: true, label: 'All', selected: !filter.lowStockOnly && !filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false)),
+                            FulusChip(compact: true, label: 'Low stock · $lowStockCount', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
+                            FulusChip(compact: true, label: 'Out of stock · $outOfStock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
                           ]),
                         ),
                         FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
