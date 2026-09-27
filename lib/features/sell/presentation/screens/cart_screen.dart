@@ -29,7 +29,13 @@ class CartScreen extends StatelessWidget {
           );
         }
         if (cartState is! CartLoaded) {
-          return const FulusScreen(title: 'Cart', body: _CartLoadingSkeleton());
+          return const FulusScreen(
+            title: 'Cart',
+            backgroundColor: Color(0xFF061B3A),
+            headerBackgroundColor: Color(0xFF061B3A),
+            applyPadding: false,
+            body: _CartLoadingSkeleton(),
+          );
         }
         if (cartState.items.isEmpty) {
           return FulusScreen(
