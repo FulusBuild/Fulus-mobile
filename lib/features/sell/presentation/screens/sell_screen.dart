@@ -282,15 +282,43 @@ class _SellContent extends ConsumerWidget {
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
-          if (state is CartFailure) return FulusErrorState(message: state.message, onRetry: onRetry);
-          if (state is! CartLoaded) return const _SellContentSkeleton();
+          if (state is CartFailure) {
+            return FulusErrorState(message: state.message, onRetry: onRetry);
+          }
+
+          final catalog = switch (state) {
+            CartHydrating s => s.catalog,
+            CartLoaded s => s.catalog,
+            _ => const <String, ProductWithStock>{},
+          };
+          final catalogLoaded = switch (state) {
+            CartHydrating s => s.catalogLoaded,
+            CartLoaded s => s.catalogLoaded,
+            _ => false,
+          };
+          final currency = switch (state) {
+            CartHydrating s => s.currencySymbol,
+            CartLoaded s => s.currencySymbol,
+            _ => '₦',
+          };
+          final cartReady = state is CartLoaded;
+
+          if (state is CartInitial) return const _SellContentSkeleton();
+
           final inset = fulusHorizontalInset(context);
-          final categoryIds = state.catalog.values.map((entry) => entry.product.categoryId).whereType<String>().toSet().toList()
-            ..sort((a, b) => (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
+          final categoryIds = catalog.values
+              .map((entry) => entry.product.categoryId)
+              .whereType<String>()
+              .toSet()
+              .toList()
+            ..sort((a, b) =>
+                (categoryById[a]?.name ?? a).compareTo(categoryById[b]?.name ?? b));
+
           return Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+                padding: EdgeInsets.fromLTRB(
+                    inset, AppSpacing.md, inset, AppSpacing.sm),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 360 ||
@@ -301,7 +329,7 @@ class _SellContent extends ConsumerWidget {
                       borderColor: Colors.white70,
                       icon: FulusIcons.scan,
                       label: 'Scan',
-                      onPressed: onScan,
+                      onPressed: cartReady ? onScan : null,
                     );
 
                     if (compact) {
@@ -342,7 +370,11 @@ class _SellContent extends ConsumerWidget {
                   padding: EdgeInsets.symmetric(horizontal: inset),
                   scrollDirection: Axis.horizontal,
                   children: [
-                    FulusChip(label: 'All', selected: selectedCategoryId == null, onTap: () => onCategoryChanged(null)),
+                    FulusChip(
+                      label: 'All',
+                      selected: selectedCategoryId == null,
+                      onTap: () => onCategoryChanged(null),
+                    ),
                     for (final id in categoryIds)
                       FulusChip(
                         label: categoryById[id]?.name ?? id,
@@ -354,13 +386,17 @@ class _SellContent extends ConsumerWidget {
               ),
               Expanded(
                 child: _ProductList(
-                  state: state,
+                  catalog: catalog,
+                  catalogLoaded: catalogLoaded,
+                  currency: currency,
                   query: query,
                   categoryId: selectedCategoryId,
                   onClearSearch: onClearSearch,
+                  cartReady: cartReady,
                 ),
               ),
-              if (state.items.isNotEmpty) _CartSummaryBar(state: state),
+              if (state is CartLoaded && (state).items.isNotEmpty)
+                _CartSummaryBar(state: state),
             ],
           );
         },
