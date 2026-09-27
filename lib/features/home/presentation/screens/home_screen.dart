@@ -197,7 +197,7 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-class _HomeDashboardHydration extends StatelessWidget {
+class _HomeDashboardHydration extends StatefulWidget {
   const _HomeDashboardHydration({
     required this.heroFuture,
     required this.noticesFuture,
@@ -219,45 +219,74 @@ class _HomeDashboardHydration extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    // Do not gate the entire dashboard on four independent local reads.
-    // Each section hydrates independently so the workspace is useful on
-    // the first frame even when one local aggregation is slower.
-    return FutureBuilder<HomeHeroState>(
-      future: heroFuture,
-      builder: (context, heroSnapshot) {
-        // A single local read must never replace the whole workspace with an
-        // error screen. Failed sections remain empty/unknown and the dashboard
-        // continues to render so the user can still operate locally.
-        return FutureBuilder<SecondaryNoticeSelection>(
-          future: noticesFuture,
-          builder: (context, noticeSnapshot) {
-            final hero = heroSnapshot.data;
-            final notices = noticeSnapshot.data?.shown ?? const <SecondaryNotice>[];
-            final activity = const <MoneyTransaction>[];
+  State<_HomeDashboardHydration> createState() => _HomeDashboardHydrationState();
+}
 
-            return FutureBuilder<List<MoneyTransaction>>(
-              future: activityFuture,
-              builder: (context, activitySnapshot) {
-                return FutureBuilder<double>(
-                  future: cashFuture,
-                  builder: (context, cashSnapshot) {
-                    return _HomeMockupDashboard(
-                      hero: hero,
-                      notices: notices,
-                      activity: activitySnapshot.data ?? activity,
-                      cashTotal: cashSnapshot.data,
-                      currencySymbol: currencySymbol,
-                      canViewMoney: canViewMoney,
-                      canViewReports: canViewReports,
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
+class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
+  HomeHeroState? _hero;
+  SecondaryNoticeSelection? _noticeSelection;
+  List<MoneyTransaction> _activity = const [];
+  double? _cashTotal;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start all independent local reads together. None waits for another
+    // FutureBuilder to build before its own future is observed.
+    widget.heroFuture.then(_setHero, onError: _ignoreFutureError);
+    widget.noticesFuture.then(_setNotices, onError: _ignoreFutureError);
+    widget.activityFuture.then(_setActivity, onError: _ignoreFutureError);
+    widget.cashFuture.then(_setCash, onError: _ignoreFutureError);
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.heroFuture != widget.heroFuture ||
+        oldWidget.noticesFuture != widget.noticesFuture ||
+        oldWidget.activityFuture != widget.activityFuture ||
+        oldWidget.cashFuture != widget.cashFuture) {
+      _hero = null;
+      _noticeSelection = null;
+      _activity = const [];
+      _cashTotal = null;
+      widget.heroFuture.then(_setHero, onError: _ignoreFutureError);
+      widget.noticesFuture.then(_setNotices, onError: _ignoreFutureError);
+      widget.activityFuture.then(_setActivity, onError: _ignoreFutureError);
+      widget.cashFuture.then(_setCash, onError: _ignoreFutureError);
+    }
+  }
+
+  void _setHero(HomeHeroState value) {
+    if (mounted) setState(() => _hero = value);
+  }
+
+  void _setNotices(SecondaryNoticeSelection value) {
+    if (mounted) setState(() => _noticeSelection = value);
+  }
+
+  void _setActivity(List<MoneyTransaction> value) {
+    if (mounted) setState(() => _activity = value);
+  }
+
+  void _setCash(double value) {
+    if (mounted) setState(() => _cashTotal = value);
+  }
+
+  void _ignoreFutureError(Object _, StackTrace __) {
+    // A failed local section must not remove the rest of the dashboard.
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _HomeMockupDashboard(
+      hero: _hero,
+      notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
+      activity: _activity,
+      cashTotal: _cashTotal,
+      currencySymbol: widget.currencySymbol,
+      canViewMoney: widget.canViewMoney,
+      canViewReports: widget.canViewReports,
     );
   }
 }
