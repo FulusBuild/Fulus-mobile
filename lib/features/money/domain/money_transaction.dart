@@ -18,7 +18,7 @@
 /// exist "once a location is resolvable" — exactly as predicted, the
 /// screens themselves needed no changes, only which implementation
 /// `moneyRepositoryProvider` returns (`money_providers.dart`).
-/// `MockMoneyRepository` still exists but nothing constructs it
+/// the former mock Money implementation still exists but nothing constructs it
 /// anymore.
 ///
 /// `RealMoneyRepositoryImpl` deliberately does not read from
