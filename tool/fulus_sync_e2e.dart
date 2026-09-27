@@ -133,6 +133,40 @@ Future<void> main() async {
       throw StateError('Quick Sale returned no sale_id: ${quickSaleResponse.data}');
     }
     stdout.writeln('PASS: sale.create Quick Sale');
+    final quickSaleReplay = await dio.post('', data: {
+      'action': 'sale_create',
+      'business_id': businessId,
+      'operation_id': quickSaleOperationId,
+      'client_reference': quickSaleOperationId,
+      'location_id': e2eLocationId,
+      'sale_date': quickSaleResponse.data['data']['sale_date'],
+      'discount': 0,
+      'tax': 0,
+      'amount_paid': 321,
+      'payment_method': 'cash',
+      'notes': 'Cloud Sync V1 Quick Sale contract',
+      'payments': [
+        {'method': 'cash', 'amount': 321},
+      ],
+      'items': [
+        {
+          'product_id': null,
+          'description': 'E2E Quick Sale \$suffix',
+          'quantity': 1,
+          'unit_price': 321,
+          'cost_price_at_sale': 0,
+        },
+      ],
+    });
+    _expect2xx(quickSaleReplay, 'sale.create Quick Sale idempotent replay');
+    final quickSaleReplayData = _actionData(quickSaleReplay);
+    if (quickSaleReplayData?['sale_id'] != quickSaleData['sale_id']) {
+      throw StateError(
+        'Quick Sale idempotent replay returned a different sale: ' +
+        quickSaleReplay.data.toString(),
+      );
+    }
+    stdout.writeln('PASS: sale.create Quick Sale idempotent replay returned the original sale');
 
     final categoryOperationId = 'e2e-category-$suffix';
     final categoryResponse = await _submitCatalog(
