@@ -362,7 +362,7 @@ class _HomeCompactCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(icon, color: foreground, size: 116),
-                const Spacer(),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   label,
                   maxLines: 2,
@@ -373,6 +373,7 @@ class _HomeCompactCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
