@@ -64,7 +64,10 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           if (!snapshot.hasData && _visibleCustomer == null) {
             return const _CustomerProfileLoadingSkeleton();
           }
-          final customer = snapshot.data ?? _visibleCustomer;
+          if (snapshot.connectionState == ConnectionState.done && !snapshot.hasData) {
+            return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
+          }
+          final customer = snapshot.hasData ? snapshot.data : _visibleCustomer;
           if (customer == null) {
             return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
           }
