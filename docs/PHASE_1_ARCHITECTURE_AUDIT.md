@@ -20,7 +20,7 @@ Phase 1 covers:
 - canonical implementations
 - production blockers
 
-No application behavior was changed as part of this audit pass.
+The initial audit was documentation-only. The subsequent finding-closure pass removed verified dead/debug-only Money source and unused dependencies; no business behavior or sync behavior was changed.
 
 ## 1. Repository map
 
