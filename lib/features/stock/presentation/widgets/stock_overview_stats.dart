@@ -29,12 +29,12 @@ class StockOverviewStats extends StatelessWidget {
         FulusStatCard(
           label: 'Stock value',
           value: formatMoney(value, compact: true),
-          icon: FulusIcons.payments,
+          icon: FulusIcons.cash,
         ),
         FulusStatCard(
           label: 'Low stock',
           value: '$lowStockCount',
-          icon: FulusIcons.arrowDown,
+          icon: FulusIcons.stockIn,
           valueColor: lowStockCount > 0 ? AppColors.warningOf(context) : null,
           onTap: onTapLowStock,
         ),
@@ -48,7 +48,7 @@ class StockOverviewStats extends StatelessWidget {
         FulusStatCard(
           label: 'Products',
           value: '${products.length}',
-          icon: FulusIcons.stock,
+          icon: FulusIcons.lowStock,
         ),
       ],
     );
