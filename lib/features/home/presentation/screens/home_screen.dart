@@ -356,7 +356,7 @@ class _HomeCompactCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: FulusAdaptiveCardColumn(
+            child: FulusMetricCardColumn(
               icon: icon,
               iconColor: foreground,
               children: [
