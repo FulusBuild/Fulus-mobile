@@ -156,7 +156,10 @@ class _FulusBottomNavigationItem extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
               child: AnimatedContainer(
-                duration: fulusMotionDuration(context, AppMotion.fast),
+                // Selection follows the branch immediately; animating the old
+                // and new pills together makes slow-motion captures show two
+                // selected destinations at once.
+                duration: Duration.zero,
                 curve: AppMotion.curveStandard,
                 decoration: BoxDecoration(
                   color: selected ? AppColors.selectedTintOf(context) : Colors.transparent,
