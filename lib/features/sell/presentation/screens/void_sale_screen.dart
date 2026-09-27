@@ -79,7 +79,7 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
             );
           }
           if (!snap.hasData) {
-            return const FulusLoadingIndicator();
+            return const _VoidSaleLoadingSkeleton();
           }
           final data = snap.data!;
           final voidableQuantity = data.eligibility.fold<int>(0, (sum, e) => sum + e.remainingReturnable);
@@ -192,5 +192,26 @@ class _VoidSaleScreenState extends ConsumerState<VoidSaleScreen> {
         _bannerMessage = "Couldn't void this sale. Please try again.";
       });
     }
+  }
+}
+
+
+class _VoidSaleLoadingSkeleton extends StatelessWidget {
+  const _VoidSaleLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(width: 100, height: 18),
+        SizedBox(height: AppSpacing.sm),
+        FulusSkeletonBox(height: 92, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 56, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+      ],
+    );
   }
 }
