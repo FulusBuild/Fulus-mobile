@@ -29,7 +29,7 @@ class CartScreen extends StatelessWidget {
           );
         }
         if (cartState is! CartLoaded) {
-          return const FulusScreen(title: 'Cart', body: FulusLoadingIndicator());
+          return const FulusScreen(title: 'Cart', body: _CartLoadingSkeleton());
         }
         if (cartState.items.isEmpty) {
           return FulusScreen(
@@ -559,6 +559,35 @@ class _TotalRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _CartLoadingSkeleton extends StatelessWidget {
+  const _CartLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.md),
+            children: const [
+              FulusSkeletonBox(width: 140, height: 18),
+              SizedBox(height: AppSpacing.md),
+              FulusCardSkeleton(),
+              SizedBox(height: AppSpacing.sm),
+              FulusCardSkeleton(),
+              SizedBox(height: AppSpacing.md),
+              FulusSkeletonBox(height: 64, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+            ],
+          ),
+        ),
+        FulusSkeletonBox(height: 76, borderRadius: BorderRadius.zero),
+      ],
     );
   }
 }
