@@ -10,7 +10,7 @@ import 'package:material_symbols_icons/symbols.dart';
 abstract final class FulusIcons {
   static const home = Symbols.home;
   static const sell = Symbols.shopping_cart;
-  static const stock = Symbols.inventory_2;
+  static const stock = Symbols.deployed_code;
   static const money = Symbols.payments;
   // Dedicated bottom-navigation glyphs keep contextual icons unchanged.
   static const navMoney = Symbols.account_balance_wallet;
@@ -23,7 +23,7 @@ abstract final class FulusIcons {
   static const wallet = Symbols.account_balance_wallet;
   static const reports = Symbols.bar_chart;
   static const salesReport = Symbols.monitoring;
-  static const stockReport = Symbols.inventory_2;
+  static const stockReport = Symbols.deployed_code;
   static const expenseReport = Symbols.receipt_long;
   static const customerReport = Symbols.groups;
   static const customers = Symbols.groups;
