@@ -425,8 +425,8 @@ void main() {
       };
     });
 
-    expect(
-      () => handler.sync(queued),
+    await expectLater(
+      handler.sync(queued),
       throwsA(isA<TimeoutException>()),
     );
     final pendingAfterLostResponse =
