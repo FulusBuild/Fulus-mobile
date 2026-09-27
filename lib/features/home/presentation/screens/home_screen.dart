@@ -298,13 +298,13 @@ class _HomeMockupDashboard extends StatelessWidget {
         // family therefore owns a width-based aspect ratio rather than
         // deriving an icon size from the available width.
         const dashboardBottomGap = AppSpacing.md * 3;
+        const homeCardAspectRatio = 1.0;
         const minRowHeight = 180.0;
         const rowGap = AppSpacing.sm;
         final cardWidth = (constraints.maxWidth - rowGap) / 2;
-        final widthDrivenRowHeight = (cardWidth * 1.07).clamp(
-          minRowHeight,
-          double.infinity,
-        ).toDouble();
+        final widthDrivenRowHeight = (cardWidth / homeCardAspectRatio)
+            .clamp(minRowHeight, double.infinity)
+            .toDouble();
 
         return Column(
           children: [
