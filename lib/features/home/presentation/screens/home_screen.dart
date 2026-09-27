@@ -296,7 +296,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       builder: (context, constraints) {
         // Reserve only the deliberate breathing space requested above the persistent
         // bottom navigation bar. No additional bottom padding is added here.
-        const dashboardBottomGap = AppSpacing.md;
+        const dashboardBottomGap = AppSpacing.md * 3;
         final availableHeight = constraints.maxHeight;
         final minRowHeight = 118.0;
         final rowGap = AppSpacing.sm;
