@@ -8,7 +8,6 @@ import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
 import '../widgets/product_list_tile.dart';
-import '../widgets/stock_movement_tile.dart';
 
 class StockScreen extends ConsumerStatefulWidget {
   const StockScreen({super.key});
