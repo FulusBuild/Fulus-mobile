@@ -293,25 +293,24 @@ class _HomeMockupDashboard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Reserve exactly 48px of breathing space above the persistent
-        // bottom navigation bar. No additional bottom padding is added here.
+        // The dashboard lives inside a scrollable sliver, so its vertical
+        // constraint is not a reliable viewport measurement. Size the
+        // two-column cards from their actual available width instead.
         const dashboardBottomGap = AppSpacing.md * 3;
-        final availableHeight = constraints.maxHeight;
-        final minRowHeight = 180.0;
-        final rowGap = AppSpacing.sm;
-        final usableHeight = availableHeight.isFinite && availableHeight > 0
-            ? availableHeight - dashboardBottomGap
-            : availableHeight;
-        final responsiveRowHeight = usableHeight.isFinite && usableHeight > 0
-            ? ((usableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
-            : minRowHeight;
+        const minRowHeight = 180.0;
+        const rowGap = AppSpacing.sm;
+        final cardWidth = (constraints.maxWidth - rowGap) / 2;
+        final widthDrivenRowHeight = (cardWidth * 1.07).clamp(
+          minRowHeight,
+          double.infinity,
+        ).toDouble();
 
         return Column(
           children: [
             for (final row in rows)
               if (row is Row)
                 SizedBox(
-                  height: responsiveRowHeight,
+                  height: widthDrivenRowHeight,
                   child: row,
                 )
               else
