@@ -49,7 +49,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
             );
           }
           final employees = snapshot.data ?? const <Employee>[];
-          if (!snapshot.hasData) return const FulusLoadingIndicator();
+          if (!snapshot.hasData) return const _EmployeesLoadingSkeleton();
           if (employees.isEmpty) {
             return FulusEmptyState(
               icon: FulusIcons.staff,
@@ -330,4 +330,20 @@ class _EmployeeTile extends ConsumerWidget {
       }
     }
   }
+}
+class _EmployeesLoadingSkeleton extends StatelessWidget {
+  const _EmployeesLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.sm),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+    ],
+  );
 }
