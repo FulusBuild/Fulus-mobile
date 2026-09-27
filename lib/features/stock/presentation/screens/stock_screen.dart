@@ -372,7 +372,7 @@ class _StockSummaryTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: foreground, size: 32),
+            Icon(icon, color: foreground, size: 42),
             const Spacer(),
             Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w700)),
             FittedBox(
