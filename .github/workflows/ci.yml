@@ -295,7 +295,8 @@ jobs:
 
   release_apk:
     name: Build release APK
-    if: github.event_name == 'workflow_dispatch' && inputs.build_apk == 'release'
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.build_apk == 'release' && needs.test.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
