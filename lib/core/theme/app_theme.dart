@@ -270,10 +270,41 @@ class AppTheme {
     );
   }
 
+  /// Keep route changes visually continuous without platform-specific
+  /// slide/zoom effects that can expose an intermediate frame when a route
+  /// is resolving or being built for the first time. Top-level shell tabs
+  /// already use NoTransitionPage; this builder covers ordinary pushed
+  /// routes throughout the app.
   static const _pageTransitionsTheme = PageTransitionsTheme(
     builders: {
-      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: _FulusFadePageTransitionsBuilder(),
+      TargetPlatform.iOS: _FulusFadePageTransitionsBuilder(),
+      TargetPlatform.fuchsia: _FulusFadePageTransitionsBuilder(),
+      TargetPlatform.linux: _FulusFadePageTransitionsBuilder(),
+      TargetPlatform.macOS: _FulusFadePageTransitionsBuilder(),
+      TargetPlatform.windows: _FulusFadePageTransitionsBuilder(),
     },
   );
+}
+
+/// A single short fade is the app-wide transition for ordinary routes.
+/// It avoids platform-specific movement while still giving the user a
+/// clear visual hand-off between screens.
+class _FulusFadePageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FulusFadePageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+    );
+    return FadeTransition(opacity: curved, child: child);
+  }
 }
