@@ -176,10 +176,12 @@ class _FulusGeometryIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.contain,
-      alignment: Alignment.topLeft,
-      child: Icon(icon, color: color),
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.contain,
+        alignment: Alignment.topLeft,
+        child: Icon(icon, color: color),
+      ),
     );
   }
 }
