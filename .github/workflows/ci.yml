@@ -206,7 +206,7 @@ jobs:
   fulus_e2e:
     name: Fulus live sync contract test
     needs: [test, change_scope]
-    if: needs.test.result == 'success' && needs.change_scope.outputs.migration_changed != 'true' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e == true))
+    if: needs.test.result == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e == true))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -295,8 +295,8 @@ jobs:
 
   release_apk:
     name: Build release APK
-    needs: test
-    if: github.event_name == 'workflow_dispatch' && inputs.build_apk == 'release' && needs.test.result == 'success'
+    needs: [test, fulus_multi_device_e2e]
+    if: github.event_name == 'workflow_dispatch' && inputs.build_apk == 'release' && inputs.run_fulus_e2e == true && needs.test.result == 'success' && needs.fulus_multi_device_e2e.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
