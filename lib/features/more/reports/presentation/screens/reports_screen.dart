@@ -368,26 +368,41 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             child: TabBarView(
               controller: _tabs,
               children: [
-                _SalesTab(
-                  future: _salesFuture,
-                  currencySymbol: currencySymbol,
-                  onRetry: _retry,
-                  period: _period,
+                KeyedSubtree(
+                  key: ValueKey('sales-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
+                  child: _SalesTab(
+                    future: _salesFuture,
+                    currencySymbol: currencySymbol,
+                    onRetry: _retry,
+                    period: _period,
+                  ),
                 ),
-                _InventoryTab(future: _inventoryFuture, currencySymbol: currencySymbol, onRetry: _retry),
-                _CustomersTab(
-                  future: _customersFuture,
-                  currencySymbol: currencySymbol,
-                  onRetry: _retry,
+                KeyedSubtree(
+                  key: ValueKey('inventory-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
+                  child: _InventoryTab(future: _inventoryFuture, currencySymbol: currencySymbol, onRetry: _retry),
                 ),
-                _FinanceTab(
-                  future: _financeFuture,
-                  cashFlowFuture: _cashFlowFuture,
-                  currencySymbol: currencySymbol,
-                  onRetry: _retry,
-                  onOpenMoneyHistory: _openMoneyHistory,
+                KeyedSubtree(
+                  key: ValueKey('customers-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
+                  child: _CustomersTab(
+                    future: _customersFuture,
+                    currencySymbol: currencySymbol,
+                    onRetry: _retry,
+                  ),
                 ),
-                _EmployeesTab(future: _employeesFuture, onRetry: _retry),
+                KeyedSubtree(
+                  key: ValueKey('finance-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
+                  child: _FinanceTab(
+                    future: _financeFuture,
+                    cashFlowFuture: _cashFlowFuture,
+                    currencySymbol: currencySymbol,
+                    onRetry: _retry,
+                    onOpenMoneyHistory: _openMoneyHistory,
+                  ),
+                ),
+                KeyedSubtree(
+                  key: ValueKey('employees-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
+                  child: _EmployeesTab(future: _employeesFuture, onRetry: _retry),
+                ),
               ],
             ),
           ),
