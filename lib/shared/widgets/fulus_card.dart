@@ -96,13 +96,10 @@ class FulusStatCard extends StatelessWidget {
                 // The stat-card family owns an icon region; the icon itself
                 // receives whatever size that region provides.
                 aspectRatio: 1.6,
-                child: Align(
+                child: FittedBox(
+                  fit: BoxFit.contain,
                   alignment: Alignment.topLeft,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    alignment: Alignment.topLeft,
-                    child: Icon(icon, color: iconColor ?? dataColor),
-                  ),
+                  child: Icon(icon, color: iconColor ?? dataColor),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
