@@ -52,7 +52,7 @@ class _BulkImportReviewScreenState extends ConsumerState<BulkImportReviewScreen>
             );
           }
           if (!snap.hasData) {
-            return const FulusLoadingIndicator();
+            return const _BulkImportLoadingSkeleton();
           }
           final result = snap.data!;
           return ListView(
@@ -170,4 +170,22 @@ class _ResultStat extends StatelessWidget {
       ],
     );
   }
+}
+class _BulkImportLoadingSkeleton extends StatelessWidget {
+  const _BulkImportLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    children: const [
+      FulusCardSkeleton(),
+      SizedBox(height: AppSpacing.lg),
+      FulusSkeletonBox(width: 150, height: 18),
+      SizedBox(height: AppSpacing.sm),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+      FulusListRowSkeleton(hasLeading: true),
+    ],
+  );
 }
