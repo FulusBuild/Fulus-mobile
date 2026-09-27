@@ -564,7 +564,7 @@ class _PaymentMethodTile extends StatelessWidget {
       onPressed: onTap,
       child: AnimatedContainer(
         duration: fulusMotionDuration(context, AppMotion.fast),
-        constraints: const BoxConstraints(minHeight: 82),
+        constraints: const BoxConstraints(minHeight: 154),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: color,
@@ -576,7 +576,7 @@ class _PaymentMethodTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 64, color: foreground),
-            const Spacer(),
+            const SizedBox(height: AppSpacing.sm),
             Row(children: [
               Expanded(child: Text(label, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))),
               if (selected) Icon(FulusIcons.check, size: AppIconSize.compact, color: foreground),
