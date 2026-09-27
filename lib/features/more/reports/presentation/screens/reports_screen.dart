@@ -435,7 +435,7 @@ class _ReportCompactCard extends StatelessWidget {
                     label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: foreground, fontSize: 12, fontWeight: FontWeight.w800),
+                    style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
