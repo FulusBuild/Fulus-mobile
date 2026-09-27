@@ -11,11 +11,13 @@ class FulusChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.compact = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +40,8 @@ class FulusChip extends StatelessWidget {
           duration: fulusMotionDuration(context, AppMotion.fast),
           curve: AppMotion.curveStandard,
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
+            horizontal: compact ? AppSpacing.md : AppSpacing.lg,
+            vertical: compact ? AppSpacing.xs : AppSpacing.sm,
           ),
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -53,7 +55,7 @@ class FulusChip extends StatelessWidget {
             ),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
+            constraints: BoxConstraints(minHeight: compact ? 36 : AppTouchTarget.minimum),
             child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
