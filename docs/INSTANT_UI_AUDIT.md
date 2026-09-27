@@ -239,3 +239,32 @@ The contract is now the governing rule for future fixes: no speculative global l
 - Location isolation is unchanged: ResolveActiveLocation remains the prerequisite for creating the location-scoped CartCubit.
 - Draft/cart streams still begin only after getOrCreateDraftCart returns, preserving durable-cart correctness.
 - This is a targeted hydration change, not a replacement of the existing cart repository or location architecture.
+
+
+## Verification pass 5 — Money and full-route loading sweep
+
+The Money workspace was re-inspected before changing its financial aggregation path.
+
+Findings:
+- The visible Money structure already paints immediately; balance, summary, and recent activity hydrate independently through shaped skeletons/section states.
+- The real repository is local/Drift-backed. There is no cloud/sync prerequisite in the Money rendering path.
+- `getAvailableBalance()` is still the main data-performance hotspot: it builds the unified transaction feed from 2000-01-01 and therefore loads substantially more data than the first useful Money frame requires.
+- `getSummaryAndTransactions()` similarly performs several independent local reads and aggregation.
+- A direct replacement with approximate/cached financial values would violate the contract. No speculative financial projection or correctness shortcut was introduced.
+- The next Money optimization must be measured and repository-level: preferably a maintained/reactive local projection or targeted aggregate queries, with tests proving exact financial semantics.
+
+A repository-wide FutureBuilder sweep also reconfirmed that secondary routes fall into two different classes:
+1. legitimate action/device/file flows where waiting is inherent to the operation;
+2. local detail/report/history routes where the route/header already paints and only the content hydrates.
+
+The second class remains the focus for selective improvements. A blanket FutureBuilder rewrite is explicitly rejected because it would change behavior without proving a performance benefit.
+
+Current remaining Instant UI work:
+- **Sell:** location resolution is still a safe local prerequisite; continue only if a verified cached/bootstrapped location can be introduced without weakening isolation.
+- **Stock:** same location-resolution question; its header and workspace skeleton already paint while location resolves.
+- **Money:** measured/proven optimization of expensive local aggregation.
+- **Secondary routes:** finish selective first-frame checks on the remaining detail/history/report routes and action-vs-hydration classification.
+- **Navigation-wide verification:** cold/warm navigation, branch switching, offline state, delayed local hydration, and error isolation across all normal routes.
+- **Final CI verification:** no Instant UI completion claim until the final implementation is green.
+
+This pass intentionally makes no speculative financial or location architecture change.
