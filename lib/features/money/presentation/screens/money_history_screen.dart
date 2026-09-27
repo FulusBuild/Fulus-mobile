@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +11,6 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/mock_money_repository.dart';
 import '../../domain/money_history_filter.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
@@ -90,14 +88,6 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
       _typeFilter = type;
       _categoryFilter = null;
     });
-  }
-
-  void _toggleSimulatedError() {
-    final repo = ref.read(moneyRepositoryProvider);
-    if (repo is MockMoneyRepository) {
-      repo.debugSimulateFailure = !repo.debugSimulateFailure;
-    }
-    _refresh();
   }
 
   Future<void> _export(List<MoneyTransaction> items, String currencySymbol, ReportPeriod period) async {
@@ -202,8 +192,6 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
       title: 'Money history',
       applyPadding: false,
       actions: [
-        if (kDebugMode)
-          FulusIconButton(icon: FulusIcons.bugReport, tooltip: 'Simulate error (debug)', onPressed: _toggleSimulatedError),
         FulusIconButton(
           icon: FulusIcons.share,
           tooltip: 'Export',
