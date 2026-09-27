@@ -70,9 +70,6 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
           if (supplier == null) {
             return const FulusEmptyState(icon: Icons.local_shipping_outlined, headline: 'This supplier could not be found.');
           }
-          if (supplier == null) {
-            return const FulusEmptyState(icon: Icons.local_shipping_outlined, headline: 'This supplier could not be found.');
-          }
           return _SupplierProfileBody(supplier: supplier, currencySymbol: currencySymbol, onChanged: _reload);
         },
       ),
