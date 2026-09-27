@@ -109,7 +109,12 @@ class _ReceiptHistoryScreenState extends ConsumerState<ReceiptHistoryScreen> {
       lastDate: now,
       initialDateRange: _dateRange ?? DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
     );
-    if (picked != null && mounted) setState(() => _dateRange = picked);
+    if (picked != null && mounted) {
+      setState(() {
+        _dateRange = picked;
+        _visibleItems = null;
+      });
+    }
   }
 
   void _clearDateRange() => setState(() {
