@@ -211,3 +211,12 @@ The verified problem is:
 The route-transition flash is a separate rendering problem.
 
 No production business logic or sync behavior was changed during this audit.
+
+
+## Implementation pass 2 — Instant UI Contract established
+
+The project now has an explicit engineering contract in `docs/INSTANT_UI_CONTRACT.md`. The contract defines first useful frame, progressive local hydration, navigation immediacy, sync separation, location correctness, state reuse, loading/error rules, and completion criteria.
+
+Pass 2 also removes the remaining Home hero future as a first-useful-frame gate. Home now paints the complete dashboard structure immediately and uses `—` for values whose local data has not hydrated yet; those values replace in place as their local futures complete. This avoids showing a full dashboard skeleton merely because the hero query is still running.
+
+The Money, Sell, and Stock screens already expose their destination structure while their local data is loading. Their remaining work is optimization of the data-bearing hydration path, not hiding the workspace behind a generic spinner.
