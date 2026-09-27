@@ -296,13 +296,19 @@ class _HomeMockupDashboard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // SliverFillRemaining gives this dashboard the remaining viewport height.
-        // Use that space when it is available, while still allowing the cards to
-        // grow beyond it when large text or narrow screens need more room.
+        // Reserve a deliberate breathing space above the persistent bottom
+        // navigation bar so the last card never visually touches the nav.
+        // Keep the reserved space inside the height calculation so the three
+        // dashboard rows shrink slightly rather than being pushed underneath it.
+        const dashboardBottomGap = AppSpacing.md;
         final availableHeight = constraints.maxHeight;
         final minRowHeight = 118.0;
         final rowGap = AppSpacing.sm;
-        final responsiveRowHeight = availableHeight.isFinite && availableHeight > 0
-            ? ((availableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
+        final usableHeight = availableHeight.isFinite && availableHeight > 0
+            ? availableHeight - dashboardBottomGap
+            : availableHeight;
+        final responsiveRowHeight = usableHeight.isFinite && usableHeight > 0
+            ? ((usableHeight - (2 * rowGap)) / 3).clamp(minRowHeight, double.infinity).toDouble()
             : minRowHeight;
 
         return Column(
@@ -317,6 +323,7 @@ class _HomeMockupDashboard extends StatelessWidget {
                 )
               else
                 row,
+            const SizedBox(height: dashboardBottomGap),
           ],
         );
       },
