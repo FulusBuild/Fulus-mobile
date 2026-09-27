@@ -95,7 +95,7 @@ class FulusStatCard extends StatelessWidget {
               Icon(icon, size: 42, color: iconColor ?? dataColor),
               const SizedBox(height: AppSpacing.sm),
             ],
-            Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.mutedOf(context))),
+            Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.mutedOf(context))),
             const SizedBox(height: AppSpacing.xs),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -104,7 +104,7 @@ class FulusStatCard extends StatelessWidget {
                 value,
                 maxLines: 1,
                 style: AppTypography.mono.copyWith(
-                  fontSize: 28,
+                  fontSize: 32,
                   fontWeight: FontWeight.w700,
                   color: dataColor,
                 ),
@@ -117,7 +117,7 @@ class FulusStatCard extends StatelessWidget {
                 children: [
                   Icon(trend == FulusTrend.up ? FulusIcons.arrowUp : FulusIcons.arrowDown, size: 20, color: AppColors.mutedOf(context)),
                   const SizedBox(width: AppSpacing.xs),
-                  Flexible(child: Text(trendLabel!, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(fontSize: 15, color: AppColors.mutedOf(context)))),
+                  Flexible(child: Text(trendLabel!, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(fontSize: 16, color: AppColors.mutedOf(context)))),
                 ],
               ),
             ],
