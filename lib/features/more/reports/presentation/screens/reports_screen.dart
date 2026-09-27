@@ -429,14 +429,12 @@ class _ReportCompactCard extends StatelessWidget {
               child: FulusReportCardColumn(
                 icon: icon,
                 iconColor: foreground,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
-                ],
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ),
