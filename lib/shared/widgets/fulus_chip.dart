@@ -39,7 +39,7 @@ class FulusChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: fulusMotionDuration(context, AppMotion.fast),
           curve: AppMotion.curveStandard,
-          padding: const EdgeInsets.symmetric(
+          padding: EdgeInsets.symmetric(
             horizontal: compact ? AppSpacing.md : AppSpacing.lg,
             vertical: compact ? AppSpacing.xs : AppSpacing.sm,
           ),
