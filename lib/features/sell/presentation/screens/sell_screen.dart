@@ -414,9 +414,10 @@ class _ProductList extends StatelessWidget {
 }
 
 class _ProductRow extends StatelessWidget {
-  const _ProductRow({required this.entry, required this.currency});
+  const _ProductRow({required this.entry, required this.currency, required this.enabled});
   final ProductWithStock entry;
   final String currency;
+  final bool enabled;
   @override
   Widget build(BuildContext context) {
     final product = entry.product;
@@ -424,7 +425,7 @@ class _ProductRow extends StatelessWidget {
     final initial = product.name.trim().isEmpty ? '?' : product.name.trim()[0].toUpperCase();
 
     return FulusPressable(
-      onPressed: out ? null : () => _add(context),
+      onPressed: !enabled || out ? null : () => _add(context),
       semanticsLabel: product.name,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
