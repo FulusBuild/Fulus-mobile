@@ -132,7 +132,7 @@ class _TeamOverview extends StatelessWidget {
               ),
               const Text(
                 'People, access and attendance',
-                style: TextStyle(color: Colors.white70, fontSize: 10),
+                style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
