@@ -226,14 +226,9 @@ class _HomeDashboardHydration extends StatelessWidget {
     return FutureBuilder<HomeHeroState>(
       future: heroFuture,
       builder: (context, heroSnapshot) {
-        if (heroSnapshot.hasError) {
-          return FulusErrorState(
-            message: "Couldn't load today's overview.",
-            reassurance: 'Your business records are still safe on this device.',
-            onRetry: onRetry,
-          );
-        }
-
+        // A single local read must never replace the whole workspace with an
+        // error screen. Failed sections remain empty/unknown and the dashboard
+        // continues to render so the user can still operate locally.
         return FutureBuilder<SecondaryNoticeSelection>(
           future: noticesFuture,
           builder: (context, noticeSnapshot) {
