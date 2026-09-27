@@ -185,6 +185,19 @@ Before changing code, inspect and classify every primary/secondary route for:
 
 Only after this classification should we implement the instant-screen architecture.
 
+## Implementation pass 1
+
+The first safe architecture pass now closes the most direct perceived-performance regressions:
+
+- **IUI-01:** primary bottom-navigation selection is now immediate.
+- **IUI-10:** ordinary imperative route transitions no longer fade the previous route underneath the destination.
+- **IUI-04:** Home no longer withholds the entire redesigned dashboard until activity, notices, balance, and hero futures all complete. Sections can hydrate progressively once the primary hero state exists.
+- **IUI-03:** Sell no longer replaces its workspace with a generic spinner while the local CartCubit is hydrating. It keeps a Sell-shaped skeleton visible.
+- **IUI-02/IUI-06:** location resolution remains a local prerequisite for the data-bearing Sell/Stock bodies; this is intentionally not hidden behind a fake timeout. The next pass should remove this prerequisite from the first useful frame where a safe cached/bootstrapped location value is available.
+- **IUI-05:** Money's local aggregation remains the main performance hotspot and has not been rewritten speculatively. It needs measurement/targeted repository optimization rather than changing financial semantics.
+
+No cloud operation was added to the rendering path. No sync or business behavior was changed.
+
 ## Current conclusion
 
 **The screenshots are consistent with a real architecture/performance regression introduced or exposed by the redesigned presentation layer.**
