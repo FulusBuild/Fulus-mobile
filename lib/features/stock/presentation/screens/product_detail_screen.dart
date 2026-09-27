@@ -25,7 +25,7 @@ class ProductDetailScreen extends ConsumerWidget {
     final locationAsync = ref.watch(currentLocationIdProvider);
 
     return locationAsync.when(
-      loading: () => const FulusScreen(body: FulusLoadingIndicator()),
+      loading: () => const _ProductDetailSkeleton(),
       error: (e, _) => FulusScreen(
         body: FulusErrorState(
           message: "Couldn't load this product.",
@@ -52,7 +52,7 @@ class _ProductDetailBody extends ConsumerWidget {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return productsAsync.when(
-      loading: () => const FulusScreen(body: FulusLoadingIndicator()),
+      loading: () => const _ProductDetailSkeleton(),
       error: (e, _) => FulusScreen(
         body: FulusErrorState(
           message: "Couldn't load this product.",
@@ -265,6 +265,37 @@ class _PriceAndStockCard extends StatelessWidget {
               style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _ProductDetailSkeleton extends StatelessWidget {
+  const _ProductDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = fulusHorizontalInset(context);
+    return FulusScreen(
+      title: 'Product',
+      subtitle: 'Product details and stock activity',
+      applyPadding: false,
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
+        children: const [
+          FulusSkeletonBox(height: 180, borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg))),
+          SizedBox(height: AppSpacing.lg),
+          FulusCardSkeleton(),
+          SizedBox(height: AppSpacing.lg),
+          FulusSkeletonBox(height: 64, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+          SizedBox(height: AppSpacing.xl),
+          FulusSkeletonBox(width: 120, height: 18),
+          SizedBox(height: AppSpacing.sm),
+          FulusListRowSkeleton(),
+          FulusListRowSkeleton(),
+          FulusListRowSkeleton(),
         ],
       ),
     );
