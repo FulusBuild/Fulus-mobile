@@ -160,10 +160,45 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   style: AppTypography.label.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
-                                FulusTextField(
-                                  label: 'Amount',
-                                  controller: _amountController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                Container(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    AppSpacing.md,
+                                    AppSpacing.sm,
+                                    AppSpacing.md,
+                                    AppSpacing.md,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Amount',
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppColors.textSecondaryLight,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.xs),
+                                      TextField(
+                                        controller: _amountController,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: AppTypography.subheading.copyWith(
+                                          color: AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          isDense: true,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          contentPadding: EdgeInsets.zero,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(height: AppSpacing.xs),
                                 Text(
