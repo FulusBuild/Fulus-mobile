@@ -268,3 +268,29 @@ Current remaining Instant UI work:
 - **Final CI verification:** no Instant UI completion claim until the final implementation is green.
 
 This pass intentionally makes no speculative financial or location architecture change.
+
+
+## Implementation pass 6 — semantic refresh continuity
+
+A review of the progressive-refresh changes found one subtle correctness/UX issue: preserving the previous result is correct during an ordinary refresh, but it is misleading when the user changes the query itself.
+
+For Money History, changing search text, type, category, or period now starts a fresh visible-data state. The destination structure remains painted, but the previous query's transactions are not shown underneath the new query while it hydrates. Ordinary pull-to-refresh and app-wide data-refresh signals continue to preserve the current list and show an inline refresh notice.
+
+This establishes the required distinction:
+
+- **same query, refresh:** preserve visible local data and hydrate in place;
+- **new query/filter/period:** keep the route structure, but hydrate the new result rather than displaying semantically stale data.
+
+The change does not alter repository queries, financial semantics, authorization, or location isolation.
+
+## Remaining closure items after pass 6
+
+The audit is not yet declared complete.
+
+1. **Sell/Stock location path:** still requires authoritative `ResolveActiveLocation`; no safe synchronous cached-location source has been proven, so the resolver has not been bypassed.
+2. **Money aggregation:** still requires measured repository-level optimization. Exact financial semantics must be preserved.
+3. **Secondary routes:** remaining detail/history/report screens need selective verification of post-action reload continuity and semantic refresh behavior.
+4. **Runtime verification:** cold start, warm branch switching, offline rendering, delayed local hydration, and isolated local errors still need device/runtime validation.
+5. **CI:** completion requires verification of the final Flutter CI run for the final implementation head.
+
+Vercel deployment status is intentionally not treated as UI correctness or Flutter CI evidence.
