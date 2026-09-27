@@ -220,3 +220,12 @@ The project now has an explicit engineering contract in `docs/INSTANT_UI_CONTRAC
 Pass 2 also removes the remaining Home hero future as a first-useful-frame gate. Home now paints the complete dashboard structure immediately and uses `—` for values whose local data has not hydrated yet; those values replace in place as their local futures complete. This avoids showing a full dashboard skeleton merely because the hero query is still running.
 
 The Money, Sell, and Stock screens already expose their destination structure while their local data is loading. Their remaining work is optimization of the data-bearing hydration path, not hiding the workspace behind a generic spinner.
+
+
+## Verification pass 3 — shell preservation and secondary-route classification
+
+The router was re-checked on the Instant UI branch. Primary Home/Stock/Sell/Money/More routes are `StatefulShellRoute.indexedStack` branches and use `NoTransitionPage`; this confirms the navigation architecture already provides branch preservation and immediate primary route pages. The remaining work is therefore screen initialization/hydration, not replacing the shell architecture.
+
+Secondary FutureBuilder routes were reclassified: report tabs, customer/supplier profiles, transaction/refund detail, employee detail, and similar screens already expose their route/header structure and use shaped loading or section-level states. These should be improved selectively where they unnecessarily replace useful content, rather than through a blanket FutureBuilder rewrite. Action/restore/hardware routes remain legitimate async-operation cases.
+
+The contract is now the governing rule for future fixes: no speculative global loading-framework rewrite; fix only proven critical-path gates and preserve business/location/financial correctness.
