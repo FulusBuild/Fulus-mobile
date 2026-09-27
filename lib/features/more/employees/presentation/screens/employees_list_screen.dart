@@ -124,7 +124,7 @@ class _TeamOverview extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(FulusIcons.staff, color: foreground, size: AppIconSize.base),
+              Icon(FulusIcons.staff, color: foreground, size: 42),
               const Spacer(),
               Text(
                 'Employees  ${employees.length}',
