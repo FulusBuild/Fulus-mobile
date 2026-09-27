@@ -431,7 +431,7 @@ class _MoneyQuickActions extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(action.icon, color: foreground, size: 32),
+                    Icon(action.icon, color: foreground, size: 42),
                     const Spacer(),
                     Text(action.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: muted, fontSize: 18, fontWeight: FontWeight.w700)),
                     FittedBox(
