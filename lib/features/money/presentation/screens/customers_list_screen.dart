@@ -77,7 +77,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
                     customers: customers,
                     outstanding: outstanding,
                     currencySymbol: currencySymbol,
-                    openedFromMore: widget.openedFromMore,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   FulusSearchField(
@@ -88,6 +87,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
                   _CustomerListCard(
                     filtered: filtered,
                     currencySymbol: currencySymbol,
+                    openedFromMore: widget.openedFromMore,
                   ),
                 ],
               );
@@ -113,7 +113,6 @@ class _CustomerOverviewHeader extends StatelessWidget {
     required this.customers,
     required this.outstanding,
     required this.currencySymbol,
-    required this.openedFromMore,
   });
 
   final List<Customer> customers;
@@ -196,6 +195,7 @@ class _CustomerRow extends StatelessWidget {
 
   final Customer customer;
   final String currencySymbol;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
