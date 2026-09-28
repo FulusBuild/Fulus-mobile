@@ -10,7 +10,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -411,7 +410,9 @@ void main() {
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
-        onPushSuccess: (value) => hadOutboundWork = value,
+        onPushSuccess: (value) async {
+          hadOutboundWork = value;
+        },
       );
 
       await triggers.syncNow();
