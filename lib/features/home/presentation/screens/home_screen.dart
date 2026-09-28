@@ -492,7 +492,7 @@ class _HomeMockupDashboard extends StatelessWidget {
               value: canViewMoney && cashError
                   ? '—'
                   : canViewMoney && cashTotal != null
-                      ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true)
+                      ? formatMoney(cashTotal!, symbol: currencySymbol)
                       : '—',
               secondary: 'available',
               onTap: canViewMoney ? () => context.goNamed('money') : null,
@@ -506,7 +506,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         children: [
           Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount?.toString() ?? '—', secondary: 'items', onTap: () => context.goNamed('stock'))),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney && _creditTotal != null ? formatMoney(_creditTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
+          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney && _creditTotal != null ? formatMoney(_creditTotal!, symbol: currencySymbol) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
@@ -572,7 +572,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = error || salesTotal == null
         ? '—'
-        : formatMoney(salesTotal!, symbol: currencySymbol, compact: true);
+        : formatMoney(salesTotal!, symbol: currencySymbol);
     final count = error || salesCount == null
         ? 'Sales data unavailable'
         : '${salesCount!} sale${salesCount == 1 ? '' : 's'} today';
