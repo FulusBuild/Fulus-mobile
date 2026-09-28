@@ -5,6 +5,8 @@ import '../../../lib/core/theme/app_theme.dart';
 import '../../../lib/shared/widgets/fulus_section_header.dart';
 
 void main() {
+  void noop() {}
+
   testWidgets('section header stacks action on narrow screens', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -18,6 +20,7 @@ void main() {
             body: FulusSectionHeader(
               title: 'Recent activity',
               action: 'See all',
+              onActionTap: noop,
             ),
           ),
         ),
