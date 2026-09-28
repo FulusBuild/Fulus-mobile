@@ -56,6 +56,8 @@ void main() {
         executionLease: executionLease,
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
+        hasOutboundWork: () async =>
+            (await db.select(db.syncQueueItems).get()).isNotEmpty,
         connectivity: connectivity,
       );
       await triggers.start();
