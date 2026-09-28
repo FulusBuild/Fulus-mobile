@@ -151,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final profile = ref.watch(_businessProfileProvider).value;
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
-    if (isOwner) return profile?.businessName.trim().isNotEmpty == true ? profile!.businessName.trim() : 'there';
+    if (isOwner) return user?.fullName.trim().isNotEmpty == true ? user!.fullName.trim() : 'there';
     return user.fullName.trim().isNotEmpty == true ? user.fullName.trim() : 'there';
   }
 }
@@ -332,9 +332,37 @@ class _HomeMockupDashboard extends StatelessWidget {
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.blue, icon: FulusIcons.cashBalance, label: 'Total Cash', value: canViewMoney && cashError ? '—' : canViewMoney && cashTotal != null ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'cash position', onTap: canViewMoney ? () => context.goNamed('money') : null)),
+          Expanded(
+            flex: 2,
+            child: _HomeSalesHeroCard(
+              salesTotal: _salesTotal,
+              salesCount: _salesCount,
+              error: heroError,
+              currencySymbol: currencySymbol,
+              onTap: canViewReports
+                  ? () => context.pushNamed(
+                        'moreReportsSalesTransactions',
+                        extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today),
+                      )
+                  : null,
+            ),
+          ),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.green, icon: FulusIcons.sell, label: 'Today’s Sales', value: heroError ? '—' : _salesCount?.toString() ?? '—', secondary: heroError ? 'data unavailable' : _salesTotal == null ? 'waiting for local data' : formatMoney(_salesTotal!, symbol: currencySymbol, compact: true), onTap: canViewReports ? () => context.pushNamed('moreReportsSalesTransactions', extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today)) : null)),
+          Expanded(
+            flex: 1,
+            child: _HomeCompactCard(
+              color: _HomeColors.blue,
+              icon: FulusIcons.cashBalance,
+              label: 'Business Balance',
+              value: canViewMoney && cashError
+                  ? '—'
+                  : canViewMoney && cashTotal != null
+                      ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true)
+                      : '—',
+              secondary: 'available',
+              onTap: canViewMoney ? () => context.goNamed('money') : null,
+            ),
+          ),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
@@ -386,6 +414,88 @@ class _HomeMockupDashboard extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _HomeSalesHeroCard extends StatelessWidget {
+  const _HomeSalesHeroCard({
+    required this.salesTotal,
+    required this.salesCount,
+    required this.error,
+    required this.currencySymbol,
+    required this.onTap,
+  });
+
+  final double? salesTotal;
+  final int? salesCount;
+  final bool error;
+  final String currencySymbol;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = error || salesTotal == null
+        ? '—'
+        : formatMoney(salesTotal!, symbol: currencySymbol, compact: true);
+    final count = error || salesCount == null
+        ? 'Sales data unavailable'
+        : '${salesCount!} sale${salesCount == 1 ? '' : 's'} today';
+
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      label: 'Today’s sales, $value, $count',
+      child: Material(
+        color: _HomeColors.green,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: FulusMetricCardColumn(
+              icon: FulusIcons.sell,
+              iconColor: Colors.white,
+              children: [
+                const Text(
+                  'Today’s Sales',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Text(
+                  count,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
