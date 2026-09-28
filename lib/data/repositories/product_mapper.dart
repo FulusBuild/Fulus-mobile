@@ -57,6 +57,7 @@ extension ProductToCompanion on Product {
       sellingPrice: sellingPrice,
       lowStockThreshold: lowStockThreshold,
       isActive: isActive,
+      photoPath: photoPath,
     );
   }
 }
