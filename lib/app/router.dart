@@ -706,9 +706,8 @@ class _MoreScreen extends ConsumerWidget {
     final canCustomers = isOwner || permissions.contains(Permission.viewMoney);
     final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
     final canReports = isOwner || permissions.contains(Permission.viewReports);
-    final canSettings = isOwner ||
-        permissions.contains(Permission.manageSettings) ||
-        permissions.contains(Permission.manageBackup);
+    final canSettings = isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup);
+    final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
 
     Widget tileGrid(List<Widget> tiles) {
       return LayoutBuilder(
@@ -761,7 +760,7 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.locations,
               label: 'Locations',
               subtitle: 'Manage business locations',
-              onTap: canSettings ? () => context.goNamed('moreSettingsLocations') : null,
+              onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.settings,
@@ -805,13 +804,13 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.sync,
               label: 'Sync',
               subtitle: 'Cloud sync status',
-              onTap: canSettings ? () => context.goNamed('moreSyncDetail') : null,
+              onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.print,
               label: 'Printers',
               subtitle: 'Receipt printing',
-              onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+              onTap: canManageSettings ? () => context.goNamed('moreSettingsPrinters') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.bugReport,
