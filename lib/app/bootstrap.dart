@@ -225,6 +225,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final businessSettingsRepository = BusinessSettingsRepositoryImpl(db: database, businessSettingsApi: businessSettingsApi, authRepository: authRepository, permissionRepository: permissionRepository, executionLease: syncExecutionLease);
   final resolveActiveLocation = ResolveActiveLocation(locationRepository: locationRepository, authRepository: authRepository, businessSettingsRepository: businessSettingsRepository);
 
+  // Warm the authoritative active location while the remaining bootstrap wiring
+  // continues. This does not create a second source of truth: the resolver
+  // still owns location selection and validation, and the screen provider will
+  // read the same persisted session value. The warmup is deliberately skipped
+  // before a local session exists, so a fresh install cannot create a location
+  // merely because bootstrap constructed its dependencies.
+  if (authRepository.currentUser != null) {
+    unawaited(resolveActiveLocation.call().catchError((_) {}));
+  }
+
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository, productRepository: productRepository, customerRepository: customerRepository, executionLease: syncExecutionLease);
   final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository);
   final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage, customerRepository: customerRepository, executionLease: syncExecutionLease);
