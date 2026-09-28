@@ -25,7 +25,8 @@ class ProductSyncHandler implements SyncHandler {
   })  : _productRepository = productRepository,
         _db = db,
         _fulusSyncApi = fulusSyncApi,
-        _fulusConnectionState = fulusConnectionState;
+        _fulusConnectionState = fulusConnectionState,
+        _productImageApi = productImageApi;
 
   final ProductRepository _productRepository;
   final AppDatabase _db;
