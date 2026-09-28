@@ -357,13 +357,25 @@ class ReturnRepositoryImpl implements ReturnRepository {
             );
       }
 
-      // Credit-sale balance adjustment — only when there's actually
-      // something still owed on this specific sale to reduce.
-      if (sale.customerId != null && sale.total > sale.amountPaid) {
-        final saleBalanceDue =
-            double.parse((sale.total - sale.amountPaid).toStringAsFixed(2));
-        final adjustment =
-            row.refundAmount < saleBalanceDue ? row.refundAmount : saleBalanceDue;
+      // Credit-sale balance adjustment. For split payments, the credit
+      // leg is the amount actually extended; total - amountPaid is not
+      // sufficient because amountPaid intentionally excludes the credit leg.
+      // Fall back to the legacy balance-due calculation for older single-method
+      // sales that predate SalePayments.
+      if (sale.customerId != null) {
+        final paymentRows = await (_db.select(_db.salePayments)
+              ..where((p) => p.saleLocalId.equals(sale.localId)))
+            .get();
+        final creditExtended = paymentRows.isNotEmpty
+            ? paymentRows
+                .where((p) => p.method == 'credit')
+                .fold<double>(0, (sum, p) => sum + p.amount)
+            : double.parse(
+                (sale.total - sale.amountPaid).clamp(0, double.infinity).toStringAsFixed(2),
+              );
+        final adjustment = row.refundAmount < creditExtended
+            ? row.refundAmount
+            : creditExtended;
         if (adjustment > 0) {
           await _customerCreditRepository.recordRefundAdjustment(
             customerLocalId: sale.customerId!,
