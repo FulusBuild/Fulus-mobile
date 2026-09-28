@@ -122,8 +122,16 @@ class _ProductDetailBody extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               child: AspectRatio(
                                 aspectRatio: wide ? 3.2 : 2.1,
-                                child: Image.file(
-                                  File(product.photoPath!),
+                                child: (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
+                                  ? Image.network(
+                                      product.photoPath!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        color: AppColors.surfaceAltOf(context),
+                                      ),
+                                    )
+                                  : Image.file(
+                                      File(product.photoPath!),
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => Container(
                                     color: AppColors.surfaceAltOf(context),
