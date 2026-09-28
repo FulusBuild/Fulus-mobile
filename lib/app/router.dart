@@ -229,7 +229,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/stock',
               name: 'stock',
-              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, StockScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, StockScreen()),
               routes: [
                 GoRoute(
                   path: 'product/:productId',
@@ -282,7 +282,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/sell',
               name: 'sell',
-              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, SellScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, SellScreen()),
               routes: [
                 GoRoute(
                   path: 'refund',
@@ -305,7 +305,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/money',
               name: 'money',
-              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, MoneyScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, MoneyScreen()),
               routes: [
                 GoRoute(
                   path: 'history',
@@ -438,7 +438,7 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/more',
               name: 'more',
-              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, _MoreScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, _MoreScreen()),
               routes: [
                 GoRoute(
                   path: 'employees',
