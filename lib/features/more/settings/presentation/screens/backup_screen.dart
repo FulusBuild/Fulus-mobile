@@ -10,6 +10,8 @@ import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/formatting.dart';
 import '../../../../../domain/entities/backup_record.dart';
+import '../../../../../domain/entities/auth_user.dart';
+import '../../../../../domain/entities/permission.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
 class BackupScreen extends ConsumerStatefulWidget {
@@ -61,6 +63,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+    final canManageSettings =
+        user?.role == AuthRole.owner || permissions.contains(Permission.manageSettings);
+
     return FulusScreen(
       title: 'Backup & Restore',
       subtitle: 'Keep a local copy of your business data',
@@ -177,7 +184,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                         icon: FulusIcons.sync,
                         label: 'Sync status',
                         subtitle: 'See pending, completed and attention-needed sync work.',
-                        onTap: () => context.pushNamed('moreSyncDetail'),
+                        onTap: canManageSettings ? () => context.pushNamed('moreSyncDetail') : null,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       FutureBuilder<String>(
