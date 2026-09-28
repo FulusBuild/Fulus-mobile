@@ -42,7 +42,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         FulusIconButton(
           icon: FulusIcons.archive,
           tooltip: 'Archived customers',
-          onPressed: () => context.pushNamed(openedFromMore ? 'moreArchivedCustomers' : 'moneyArchivedCustomers'),
+          onPressed: () => context.pushNamed(widget.openedFromMore ? 'moreArchivedCustomers' : 'moneyArchivedCustomers'),
         ),
       ],
       body: customersAsync.when(
@@ -77,6 +77,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
                     customers: customers,
                     outstanding: outstanding,
                     currencySymbol: currencySymbol,
+                    openedFromMore: widget.openedFromMore,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   FulusSearchField(
@@ -112,11 +113,13 @@ class _CustomerOverviewHeader extends StatelessWidget {
     required this.customers,
     required this.outstanding,
     required this.currencySymbol,
+    required this.openedFromMore,
   });
 
   final List<Customer> customers;
   final double outstanding;
   final String currencySymbol;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +164,7 @@ class _CustomerListCard extends StatelessWidget {
 
   final List<Customer> filtered;
   final String currencySymbol;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +176,7 @@ class _CustomerListCard extends StatelessWidget {
             _CustomerRow(
               customer: filtered[i],
               currencySymbol: currencySymbol,
+              openedFromMore: openedFromMore,
             ),
             if (i < filtered.length - 1) const FulusListDivider(),
           ],
@@ -187,7 +192,7 @@ class _CustomerListCard extends StatelessWidget {
 }
 
 class _CustomerRow extends StatelessWidget {
-  const _CustomerRow({required this.customer, required this.currencySymbol});
+  const _CustomerRow({required this.customer, required this.currencySymbol, required this.openedFromMore});
 
   final Customer customer;
   final String currencySymbol;
