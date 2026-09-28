@@ -60,6 +60,21 @@ class SyncStatus extends Equatable {
 }
 
 
+String cloudBackupLabel(SyncHealthSnapshot health, SyncStatusKind kind) {
+  if (health.recoveryState == 'recovering') return 'Restoring';
+  if (health.recoveryState == 'blocked') return 'Temporarily unavailable';
+  return switch (kind) {
+    SyncStatusKind.disabled => 'Cloud backup off',
+    SyncStatusKind.cloudUnavailable => 'Waiting for Cloud',
+    SyncStatusKind.pending => 'Backup pending',
+    SyncStatusKind.syncing => 'Backing up',
+    SyncStatusKind.attentionNeeded => 'Needs attention',
+    SyncStatusKind.settled => health.lastPushAt != null && health.lastPullAt != null
+        ? 'Up to date'
+        : 'Waiting for first backup',
+  };
+}
+
 class SyncHealthSnapshot extends Equatable {
   const SyncHealthSnapshot({
     this.lastPushAt,
