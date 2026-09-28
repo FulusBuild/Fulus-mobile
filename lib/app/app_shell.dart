@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/design_tokens.dart';
 import '../core/ux/consumer_polish.dart';
+import '../domain/entities/auth_user.dart';
+import '../domain/entities/permission.dart';
 import '../core/theme/device_form_factor.dart';
 import '../core/theme/fulus_icons.dart';
 import '../sync/sync_status.dart';
