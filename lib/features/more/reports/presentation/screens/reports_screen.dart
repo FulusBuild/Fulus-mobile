@@ -815,7 +815,7 @@ class _SalesChartPainter extends CustomPainter {
       final y = chart.bottom - chart.height * (i / 3);
       canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
       final value = maxValue * (i / 3);
-      final label = value == 0 ? '0' : _compact(value);
+      final label = value == 0 ? '0' : formatMoney(value, symbol: currencySymbol);
       final tp = TextPainter(text: TextSpan(text: label, style: textStyle), textDirection: TextDirection.ltr)..layout(maxWidth: left - 6);
       tp.paint(canvas, Offset(left - tp.width - 6, y - tp.height / 2));
     }
@@ -847,12 +847,6 @@ class _SalesChartPainter extends CustomPainter {
       x = x.clamp(chart.left - tp.width / 2, chart.right - tp.width / 2).toDouble();
       tp.paint(canvas, Offset(x, chart.bottom + 7));
     }
-  }
-
-  String _compact(double value) {
-    if (value >= 1000000) return '${currencySymbol}${(value / 1000000).toStringAsFixed(1)}m';
-    if (value >= 1000) return '${currencySymbol}${(value / 1000).toStringAsFixed(0)}k';
-    return '${currencySymbol}${value.toStringAsFixed(0)}';
   }
 
   @override
