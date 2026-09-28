@@ -83,6 +83,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<bool>? _syncCycleRun;
   Future<void>? _followUpRun;
   bool _syncRequestedAfterCycle = false;
+  bool _beforeSyncCycleCompleted = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
@@ -451,7 +452,10 @@ class SyncTriggers with WidgetsBindingObserver {
       }
       try {
         try {
-          await _onBeforeSyncCycle?.call();
+          if (!_beforeSyncCycleCompleted) {
+            await _onBeforeSyncCycle?.call();
+            _beforeSyncCycleCompleted = true;
+          }
           await _performSyncCycle(manual: manual, lease: lease);
           return true;
         } on SyncExecutionLeaseLost {
