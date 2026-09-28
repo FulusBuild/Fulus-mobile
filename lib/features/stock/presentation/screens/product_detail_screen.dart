@@ -130,17 +130,7 @@ class _ProductDetailBody extends ConsumerWidget {
                                         color: AppColors.surfaceAltOf(context),
                                       ),
                                     )
-                                  : (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
-                                      ? Image.network(
-                                          product.photoPath!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Container(
-                                            color: AppColors.surfaceAltOf(context),
-                                            alignment: Alignment.center,
-                                            child: Icon(FulusIcons.stock, color: AppColors.mutedOf(context), size: 40),
-                                          ),
-                                        )
-                                      : Image.file(
+                                  : Image.file(
                                           File(product.photoPath!),
                                           fit: BoxFit.cover,
                                           errorBuilder: (context, error, stackTrace) => Container(
