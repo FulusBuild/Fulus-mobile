@@ -232,7 +232,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // before a local session exists, so a fresh install cannot create a location
   // merely because bootstrap constructed its dependencies.
   if (authRepository.currentUser != null) {
-    unawaited(resolveActiveLocation.call().catchError((_) {}));
+    unawaited(resolveActiveLocation.call().then<void>((_) {}, onError: (_, __) {}));
   }
 
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository, productRepository: productRepository, customerRepository: customerRepository, executionLease: syncExecutionLease);
