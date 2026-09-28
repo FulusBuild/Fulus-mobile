@@ -137,7 +137,7 @@ class ProductRepositoryImpl implements ProductRepository {
     final localId = existing?.localId ?? Ulid().toString();
     await _db.transaction(() async {
       if (existing == null) {
-        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), name: name, sku: sku, barcode: Value(barcode), categoryId: Value(categoryId), supplierId: Value(supplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
+        await _db.into(_db.products).insert(ProductsCompanion.insert(localId: localId, serverId: Value(serverId), name: name, sku: sku, barcode: Value(barcode), categoryId: Value(categoryId), supplierId: Value(supplierId), costPrice: costPrice, sellingPrice: sellingPrice, lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), photoPath: Value(photoPath), createdAt: updatedAt, updatedAt: updatedAt, deletedAt: Value(deletedAt), syncStatus: SyncStatus.settled));
       } else {
         await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(serverId: Value(serverId), name: Value(name), sku: Value(sku), barcode: Value(barcode), categoryId: Value(categoryId), supplierId: Value(supplierId), costPrice: Value(costPrice), sellingPrice: Value(sellingPrice), lowStockThreshold: Value(lowStockThreshold), isActive: Value(isActive), deletedAt: Value(deletedAt), updatedAt: Value(updatedAt), syncStatus: const Value(SyncStatus.settled)));
       }
@@ -181,7 +181,7 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, double? costPrice, double? sellingPrice, int? lowStockThreshold, bool? isActive}) async {
+  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, double? costPrice, double? sellingPrice, int? lowStockThreshold, bool? isActive, String? photoPath}) async {
     if (sellingPrice != null && sellingPrice <= 0) throw ArgumentError.value(sellingPrice, 'sellingPrice', 'must be > 0');
     if (costPrice != null && costPrice < 0) throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
@@ -195,7 +195,7 @@ class ProductRepositoryImpl implements ProductRepository {
       if (duplicate != null) throw ArgumentError.value(barcode, 'barcode', 'already exists');
     }
     await _db.transaction(() async {
-      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(name: name == null ? const Value.absent() : Value(name), sku: sku == null ? const Value.absent() : Value(sku), barcode: barcode == null ? const Value.absent() : Value(barcode), categoryId: categoryId == null ? const Value.absent() : Value(categoryId), supplierId: supplierId == null ? const Value.absent() : Value(supplierId), costPrice: costPrice == null ? const Value.absent() : Value(costPrice), sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice), lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold), isActive: isActive == null ? const Value.absent() : Value(isActive), syncStatus: Value(SyncStatus.pending), updatedAt: Value(DateTime.now())));
+      await (_db.update(_db.products)..where((p) => p.localId.equals(localId))).write(ProductsCompanion(name: name == null ? const Value.absent() : Value(name), sku: sku == null ? const Value.absent() : Value(sku), barcode: barcode == null ? const Value.absent() : Value(barcode), categoryId: categoryId == null ? const Value.absent() : Value(categoryId), supplierId: supplierId == null ? const Value.absent() : Value(supplierId), costPrice: costPrice == null ? const Value.absent() : Value(costPrice), sellingPrice: sellingPrice == null ? const Value.absent() : Value(sellingPrice), lowStockThreshold: lowStockThreshold == null ? const Value.absent() : Value(lowStockThreshold), isActive: isActive == null ? const Value.absent() : Value(isActive), photoPath: photoPath == null ? const Value.absent() : Value(photoPath), syncStatus: Value(SyncStatus.pending), updatedAt: Value(DateTime.now())));
       await _syncQueue.enqueue(SyncTask.updateProduct(localId));
     });
   }
