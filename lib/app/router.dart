@@ -234,12 +234,12 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'add',
                   name: 'stockAddProduct',
-                  builder: (context, state) => const AddEditProductScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const AddEditProductScreen()),
                 ),
                 GoRoute(
                   path: 'edit',
                   name: 'stockEditProduct',
-                  builder: (context, state) => AddEditProductScreen(existingProduct: state.extra as Product?),
+                  pageBuilder: (context, state) => NoTransitionPage(child: AddEditProductScreen(existingProduct: state.extra as Product?)),
                 ),
                 GoRoute(
                   path: 'record',
@@ -250,22 +250,22 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'history',
                   name: 'stockHistory',
-                  builder: (context, state) => StockMovementHistoryScreen(productId: state.extra as String?),
+                  pageBuilder: (context, state) => NoTransitionPage(child: StockMovementHistoryScreen(productId: state.extra as String?)),
                 ),
                 GoRoute(
                   path: 'categories',
                   name: 'stockCategories',
-                  builder: (context, state) => const CategoriesScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const CategoriesScreen()),
                 ),
                 GoRoute(
                   path: 'bulk-import',
                   name: 'stockBulkImport',
-                  builder: (context, state) => const BulkImportScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const BulkImportScreen()),
                   routes: [
                     GoRoute(
                       path: 'review',
                       name: 'stockBulkImportReview',
-                      builder: (context, state) => BulkImportReviewScreen(csvContent: state.extra as String),
+                      pageBuilder: (context, state) => NoTransitionPage(child: BulkImportReviewScreen(csvContent: state.extra as String)),
                     ),
                   ],
                 ),
@@ -283,7 +283,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'refund',
                   name: 'sellRefundSearch',
-                  builder: (context, state) => const RefundSearchScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const RefundSearchScreen()),
                   routes: [
                     GoRoute(
                       path: ':saleId',
@@ -307,7 +307,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'history',
                   name: 'moneyHistory',
-                  builder: (context, state) => const MoneyHistoryScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const MoneyHistoryScreen()),
                 ),
                 GoRoute(
                   path: 'transaction/:id',
@@ -320,22 +320,22 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'add-income',
                   name: 'moneyAddIncome',
-                  builder: (context, state) => const AddIncomeScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const AddIncomeScreen()),
                 ),
                 GoRoute(
                   path: 'add-expense',
                   name: 'moneyAddExpense',
-                  builder: (context, state) => const AddExpenseScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const AddExpenseScreen()),
                 ),
                 GoRoute(
                   path: 'customers',
                   name: 'moneyCustomers',
-                  builder: (context, state) => const CustomersListScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const CustomersListScreen()),
                   routes: [
                     GoRoute(
                       path: 'archived',
                       name: 'moneyArchivedCustomers',
-                      builder: (context, state) => const ArchivedCustomersScreen(),
+                      pageBuilder: (context, state) => NoTransitionPage(child: const ArchivedCustomersScreen()),
                     ),
                     GoRoute(
                       path: ':id',
@@ -374,12 +374,12 @@ final appRouter = GoRouter(
                   // doc comment for why it's a separate route from
                   // `moneyHistory` rather than that screen with a type
                   // filter pre-selected.
-                  builder: (context, state) => const ReceiptHistoryScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const ReceiptHistoryScreen()),
                 ),
                 GoRoute(
                   path: 'suppliers',
                   name: 'moneySuppliers',
-                  builder: (context, state) => const SuppliersListScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const SuppliersListScreen()),
                   routes: [
                     GoRoute(
                       path: ':id',
@@ -408,7 +408,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'daily-closing',
                   name: 'moneyDailyClosingCount',
-                  builder: (context, state) => const DailyClosingCountScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const DailyClosingCountScreen()),
                 ),
                 GoRoute(
                   path: 'daily-closing/summary',
@@ -440,12 +440,12 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'employees',
                   name: 'moreEmployees',
-                  builder: (context, state) => const EmployeesListScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const EmployeesListScreen()),
                   routes: [
                     GoRoute(
                       path: 'deactivated',
                       name: 'moreEmployeesDeactivated',
-                      builder: (context, state) => const DeactivatedEmployeesScreen(),
+                      pageBuilder: (context, state) => NoTransitionPage(child: const DeactivatedEmployeesScreen()),
                     ),
                     GoRoute(
                       path: ':employeeId',
@@ -458,7 +458,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'reports',
                   name: 'moreReports',
-                  builder: (context, state) => const ReportsScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const ReportsScreen()),
                   routes: [
                     GoRoute(
                       path: 'sales',
@@ -477,44 +477,44 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'settings/backup',
                   name: 'moreSettingsBackup',
-                  builder: (context, state) => const BackupScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const BackupScreen()),
                 ),
                 GoRoute(
                   path: 'settings/locations',
                   name: 'moreSettingsLocations',
-                  builder: (context, state) => const ManageLocationsScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const ManageLocationsScreen()),
                 ),
                 GoRoute(
                   path: 'settings',
                   name: 'moreSettings',
-                  builder: (context, state) => const SettingsMainScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const SettingsMainScreen()),
                   routes: [
                     GoRoute(
                       path: 'cloud',
                       name: 'moreSettingsCloud',
-                      builder: (context, state) => const FulusCloudConnectionScreen(),
+                      pageBuilder: (context, state) => NoTransitionPage(child: const FulusCloudConnectionScreen()),
                     ),
                     GoRoute(
                       path: 'printers',
                       name: 'moreSettingsPrinters',
-                      builder: (context, state) => const PrinterPairingScreen(),
+                      pageBuilder: (context, state) => NoTransitionPage(child: const PrinterPairingScreen()),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'sync',
                   name: 'moreSyncDetail',
-                  builder: (context, state) => const SyncDetailScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const SyncDetailScreen()),
                 ),
                 GoRoute(
                   path: 'notifications',
                   name: 'moreNotifications',
-                  builder: (context, state) => const NotificationsScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const NotificationsScreen()),
                 ),
                 GoRoute(
                   path: 'diagnostics',
                   name: 'moreDiagnostics',
-                  builder: (context, state) => const DiagnosticsScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(child: const DiagnosticsScreen()),
                   routes: [
                     GoRoute(
                       path: ':eventId',
