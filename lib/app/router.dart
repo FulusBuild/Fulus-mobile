@@ -145,13 +145,13 @@ import 'providers.dart';
 /// `context.goNamed('home')` rather than a raw path string repeated at
 /// every call site, which is exactly the kind of string duplication
 /// that drifts silently once a path changes in only one place.
-final appRouter = Page<void> _fulusNoTransitionPage(GoRouterState state, Widget child) =>
+Page<void> _fulusNoTransitionPage(GoRouterState state, Widget child) =>
     NoTransitionPage<void>(
       key: state.pageKey,
       child: child,
     );
 
-GoRouter(
+final appRouter = GoRouter(
   initialLocation: '/',
   observers: [CurrentScreenObserver()],
   redirect: (context, state) async {
