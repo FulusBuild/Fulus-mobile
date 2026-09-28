@@ -228,8 +228,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'product/:productId',
                   name: 'stockProductDetail',
-                  builder: (context, state) =>
-                      ProductDetailScreen(productId: state.pathParameters['productId']!),
+                  pageBuilder: (context, state) => NoTransitionPage(child: ProductDetailScreen(productId: state.pathParameters['productId']!)),
                 ),
                 GoRoute(
                   path: 'add',
@@ -244,8 +243,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'record',
                   name: 'stockRecordMovement',
-                  builder: (context, state) =>
-                      RecordStockMovementScreen(preselectedProduct: state.extra as Product?),
+                  pageBuilder: (context, state) => NoTransitionPage(child: RecordStockMovementScreen(preselectedProduct: state.extra as Product?)),
                 ),
                 GoRoute(
                   path: 'history',
@@ -288,8 +286,7 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: ':saleId',
                       name: 'sellRefundConfirm',
-                      builder: (context, state) =>
-                          RefundConfirmScreen(saleId: state.pathParameters['saleId']!),
+                      pageBuilder: (context, state) => NoTransitionPage(child: RefundConfirmScreen(saleId: state.pathParameters['saleId']!)),
                     ),
                   ],
                 ),
@@ -312,10 +309,10 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'transaction/:id',
                   name: 'moneyTransactionDetail',
-                  builder: (context, state) => TransactionDetailScreen(
+                  pageBuilder: (context, state) => NoTransitionPage(child: TransactionDetailScreen(
                     transactionId: state.pathParameters['id']!,
                     preloaded: state.extra is MoneyTransaction ? state.extra as MoneyTransaction : null,
-                  ),
+                  )),
                 ),
                 GoRoute(
                   path: 'add-income',
@@ -340,10 +337,10 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: ':id',
                       name: 'moneyCustomerProfile',
-                      builder: (context, state) => CustomerProfileScreen(
+                      pageBuilder: (context, state) => NoTransitionPage(child: CustomerProfileScreen(
                         customerId: state.pathParameters['id']!,
                         preloaded: state.extra is Customer ? state.extra as Customer : null,
-                      ),
+                      )),
                       routes: [
                         GoRoute(
                           path: 'repay',
@@ -384,10 +381,10 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: ':id',
                       name: 'moneySupplierProfile',
-                      builder: (context, state) => SupplierProfileScreen(
+                      pageBuilder: (context, state) => NoTransitionPage(child: SupplierProfileScreen(
                         supplierId: state.pathParameters['id']!,
                         preloaded: state.extra is Supplier ? state.extra as Supplier : null,
-                      ),
+                      )),
                       routes: [
                         GoRoute(
                           path: 'pay',
@@ -450,8 +447,7 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: ':employeeId',
                       name: 'moreEmployeeDetail',
-                      builder: (context, state) =>
-                          EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!),
+                      pageBuilder: (context, state) => NoTransitionPage(child: EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!)),
                     ),
                   ],
                 ),
@@ -463,14 +459,12 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: 'sales',
                       name: 'moreReportsSalesTransactions',
-                      builder: (context, state) =>
-                          SalesTransactionsScreen(period: state.extra! as ReportPeriod),
+                      pageBuilder: (context, state) => NoTransitionPage(child: SalesTransactionsScreen(period: state.extra! as ReportPeriod)),
                     ),
                     GoRoute(
                       path: 'void/:saleId',
                       name: 'moreReportsVoidSale',
-                      builder: (context, state) =>
-                          VoidSaleScreen(saleId: state.pathParameters['saleId']!),
+                      pageBuilder: (context, state) => NoTransitionPage(child: VoidSaleScreen(saleId: state.pathParameters['saleId']!)),
                     ),
                   ],
                 ),
@@ -519,8 +513,7 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: ':eventId',
                       name: 'moreDiagnosticDetail',
-                      builder: (context, state) =>
-                          DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!),
+                      pageBuilder: (context, state) => NoTransitionPage(child: DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!)),
                     ),
                   ],
                 ),
