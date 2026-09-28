@@ -379,6 +379,11 @@ void main() {
       await triggers.syncNow();
 
       expect(events, ['lease:acquire', 'normalize', 'engine', 'lease:release']);
+      events.clear();
+
+      await triggers.syncNow();
+
+      expect(events, ['lease:acquire', 'engine', 'lease:release']);
       triggers.dispose();
     });
 
