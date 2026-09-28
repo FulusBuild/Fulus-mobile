@@ -540,10 +540,64 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
 
   // ── MoneyRepository ────────────────────────────────────────────────
 
+  /// Computes the all-time balance without materializing the unified
+  /// [MoneyTransaction] feed.
+  ///
+  /// The balance only needs signed amounts. Building the display feed here
+  /// previously also loaded expense categories/customers and performed one
+  /// customer/supplier lookup per repayment/payment, even though none of that
+  /// metadata contributes to the balance. On a business with a long history
+  /// that made the first Money render scale with unrelated display work.
+  Future<double> _getAvailableBalanceFromSources(DateTime end) async {
+    final locationId = await _locationId;
+    final salesFuture = _saleRepository.getSalesForPeriod(
+      locationId: locationId,
+      start: _epoch,
+      end: end,
+    );
+    final expensesFuture = _expenseRepository.getExpensesForPeriod(
+      locationId: locationId,
+      start: _epoch,
+      end: end,
+    );
+    final incomeFuture = _incomeRecordRepository.getIncomeRecordsForPeriod(
+      locationId: locationId,
+      start: _epoch,
+      end: end,
+    );
+    final repaymentsFuture = _customerCreditRepository.getRepaymentsForPeriod(
+      start: _epoch,
+      end: end,
+    );
+    final paymentsFuture = _supplierCreditRepository.getPaymentsForPeriod(
+      start: _epoch,
+      end: end,
+    );
+
+    final (sales, expenses, incomeRecords, repayments, payments) = await (
+      salesFuture,
+      expensesFuture,
+      incomeFuture,
+      repaymentsFuture,
+      paymentsFuture,
+    ).wait;
+
+    final salesIn = sales.fold<double>(0, (sum, sale) => sum + sale.amountPaid);
+    final incomeIn =
+        incomeRecords.fold<double>(0, (sum, income) => sum + income.amount);
+    final repaymentsIn =
+        repayments.fold<double>(0, (sum, repayment) => sum + repayment.amount);
+    final expensesOut =
+        expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
+    final paymentsOut =
+        payments.fold<double>(0, (sum, payment) => sum + payment.amount);
+
+    return salesIn + incomeIn + repaymentsIn - expensesOut - paymentsOut;
+  }
+
   @override
-  Future<double> getAvailableBalance() async {
-    final transactions = await _transactionsForRange(_epoch, DateTime.now());
-    return transactions.fold<double>(0, (sum, t) => sum + t.signedAmount);
+  Future<double> getAvailableBalance() {
+    return _getAvailableBalanceFromSources(DateTime.now());
   }
 
   @override
