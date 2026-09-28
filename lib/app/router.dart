@@ -703,6 +703,7 @@ class _MoreScreen extends ConsumerWidget {
     final user = ref.watch(sessionProvider);
     final isOwner = user?.role == AuthRole.owner;
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+    final canCustomers = isOwner || permissions.contains(Permission.viewMoney);
     final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
     final canReports = isOwner || permissions.contains(Permission.viewReports);
     final canSettings = isOwner ||
@@ -748,7 +749,7 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.customers,
               label: 'Customers',
               subtitle: 'Customers and credit',
-              onTap: () => context.goNamed('moneyCustomers'),
+              onTap: canCustomers ? () => context.goNamed('moneyCustomers') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.staff,
