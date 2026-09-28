@@ -512,7 +512,7 @@ class SyncTriggers with WidgetsBindingObserver {
         (await _syncEngine.db.select(_syncEngine.db.syncQueueItems).get()).isNotEmpty;
     await _syncEngine.runOnce(manual: manual);
     await lease.ensureHeld();
-    await _onPushSuccess?.call();
+    await _onPushSuccess?.call(hadOutboundWork);
     await lease.ensureHeld();
     final pull = _pullFromServer;
     if (pull != null) {
