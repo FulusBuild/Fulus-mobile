@@ -24,13 +24,6 @@ Future<void> main() async {
       final view = WidgetsBinding.instance.platformDispatcher.views.first;
       final logicalSize = view.physicalSize / view.devicePixelRatio;
       final isTablet = logicalSize.shortestSide >= kTabletBreakpoint;
-      if (!isTablet) {
-        await SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-        ]);
-      }
-
       installGlobalErrorCapture(diagnosticLogger);
       unawaited(diagnosticLogger.resolveDeviceContext());
 
@@ -52,6 +45,38 @@ Future<void> main() async {
         UncontrolledProviderScope(
           container: container,
           child: const FulusApp(),
+        ),
+      );
+
+      // Orientation is a platform preference, not a prerequisite for the
+      // local-first first frame. Apply it after runApp so the platform call
+      // cannot extend the startup gate.
+      if (!isTablet) {
+        unawaited(
+          SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+          ]),
+        );
+      }
+
+      // Cloud Sync is deliberately started only after the Flutter tree exists.
+      // Its network/session reconciliation must never hold the first frame.
+      unawaited(
+        container.read(syncTriggersProvider).start().catchError(
+          (Object error, StackTrace stackTrace) {
+            unawaited(
+              diagnosticLogger.captureError(
+                error: error,
+                stackTrace: stackTrace,
+                severity: DiagnosticSeverity.error,
+                category: DiagnosticCategory.synchronization,
+                component: 'SyncTriggers',
+                operation: 'start',
+                title: 'Cloud Sync startup failed',
+              ),
+            );
+          },
         ),
       );
 
