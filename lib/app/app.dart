@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/auth/email_verification_deep_link_handler.dart';
 import '../core/theme/app_theme.dart';
 import 'app_lock_gate.dart';
+import 'restore_restart_gate.dart';
 import 'auto_backup_gate.dart';
 import 'router.dart';
 
@@ -43,8 +44,10 @@ class _FulusAppState extends ConsumerState<FulusApp> {
       routerConfig: appRouter,
       builder: (context, child) => FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
-        child: AutoBackupGate(
-          child: AppLockGate(child: child ?? const SizedBox.shrink()),
+        child: RestoreRestartGate(
+          child: AutoBackupGate(
+            child: AppLockGate(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );

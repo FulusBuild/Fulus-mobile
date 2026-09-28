@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../../app/providers.dart';
+import '../../../../../app/restore_restart_gate.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/formatting.dart';
@@ -34,10 +35,14 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         () => _future = ref.read(backupRepositoryProvider).listBackups(),
       );
 
-  Future<void> _runBusy(Future<void> Function() action) async {
+  Future<void> _runBusy(
+    Future<void> Function() action, {
+    VoidCallback? onSuccess,
+  }) async {
     setState(() => _busy = true);
     try {
       await action();
+      onSuccess?.call();
     } on BackupException catch (e) {
       _showError(e.message);
     } on InvalidBackupFileName catch (e) {
@@ -289,6 +294,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     if (confirmed) {
       await _runBusy(
         () => ref.read(backupRepositoryProvider).restoreBackup(backup.fileName),
+        onSuccess: () => ref.read(restoreRestartStateProvider).requireRestart(),
       );
     }
   }
@@ -321,7 +327,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await ref
           .read(backupRepositoryProvider)
           .restoreBackup(imported.metadata.fileName);
-    });
+    }, onSuccess: () => ref.read(restoreRestartStateProvider).requireRestart());
   }
 }
 
