@@ -568,8 +568,21 @@ class _ProductRow extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         )
-                      : Image.file(
-                          File(product.photoPath!),
+                      : (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
+                          ? Image.network(
+                              product.photoPath!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => Text(
+                                initial,
+                                style: AppTypography.heading.copyWith(
+                                  color: AppColors.primaryOf(context),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            )
+                          : Image.file(
+                              File(product.photoPath!),
                           fit: BoxFit.cover,
                           width: double.infinity,
                           errorBuilder: (_, __, ___) => Text(
