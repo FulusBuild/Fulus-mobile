@@ -1,5 +1,15 @@
 import 'fulus_sync_api.dart';
 
+class FulusCanonicalPreparedChange {
+  const FulusCanonicalPreparedChange({
+    required this.change,
+    required this.response,
+  });
+
+  final FulusSyncChange change;
+  final FulusCanonicalEntityResponse response;
+}
+
 abstract interface class FulusCanonicalEntityFetcher {
   Future<FulusCanonicalEntityResponse> fetchCanonicalEntity({
     required String businessId,
@@ -35,15 +45,37 @@ class FulusCanonicalTypedReconciler {
     required String businessId,
     required String deviceClientId,
   }) async {
-    if (changes.isEmpty) return;
+    final prepared = await prepareChanges(
+      changes,
+      businessId: businessId,
+      deviceClientId: deviceClientId,
+    );
+    await applyPreparedChanges(prepared);
+  }
+
+  Future<List<FulusCanonicalPreparedChange>> prepareChanges(
+    List<FulusSyncChange> changes, {
+    required String businessId,
+    required String deviceClientId,
+  }) async {
+    if (changes.isEmpty) return const [];
     final batchFetcher = _api is FulusCanonicalBatchEntityFetcher
         ? _api as FulusCanonicalBatchEntityFetcher
         : null;
+    final prepared = <FulusCanonicalPreparedChange>[];
+
     if (batchFetcher == null) {
       for (final change in changes) {
-        await reconcile(change, businessId: businessId, deviceClientId: deviceClientId);
+        prepared.add(FulusCanonicalPreparedChange(
+          change: change,
+          response: await fetchCanonical(
+            change,
+            businessId: businessId,
+            deviceClientId: deviceClientId,
+          ),
+        ));
       }
-      return;
+      return prepared;
     }
 
     var start = 0;
@@ -63,7 +95,14 @@ class FulusCanonicalTypedReconciler {
 
       if (!batchable.contains(entityType) || group.length == 1) {
         for (final change in group) {
-          await reconcile(change, businessId: businessId, deviceClientId: deviceClientId);
+          prepared.add(FulusCanonicalPreparedChange(
+            change: change,
+            response: await fetchCanonical(
+              change,
+              businessId: businessId,
+              deviceClientId: deviceClientId,
+            ),
+          ));
         }
       } else {
         for (var offset = 0;
@@ -102,15 +141,32 @@ class FulusCanonicalTypedReconciler {
                 change.entityType + ':' + change.entityId,
               );
             }
-            await applyCanonicalResponse(
+            _validateCanonicalResponse(
               response,
               expectedEntityType: change.entityType,
               expectedEntityId: change.entityId,
             );
+            prepared.add(FulusCanonicalPreparedChange(
+              change: change,
+              response: response,
+            ));
           }
         }
       }
       start = end;
+    }
+    return prepared;
+  }
+
+  Future<void> applyPreparedChanges(
+    List<FulusCanonicalPreparedChange> prepared,
+  ) async {
+    for (final item in prepared) {
+      await applyCanonicalResponse(
+        item.response,
+        expectedEntityType: item.change.entityType,
+        expectedEntityId: item.change.entityId,
+      );
     }
   }
 
