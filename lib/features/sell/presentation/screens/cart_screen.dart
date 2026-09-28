@@ -176,7 +176,6 @@ class _CartLineTile extends StatelessWidget {
       ),
       onDismissed: (_) => _remove(context),
       child: FulusCard(
-        onTap: () => _editDiscount(context),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 390;
@@ -207,6 +206,31 @@ class _CartLineTile extends StatelessWidget {
                           color: item.lineDiscount > 0
                               ? AppColors.primaryOf(context)
                               : AppColors.textSecondaryOf(context),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      FulusPressable(
+                        semanticsLabel: item.lineDiscount > 0
+                            ? 'Edit discount for ${item.description}'
+                            : 'Add discount for ${item.description}',
+                        onPressed: () => _editDiscount(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              FulusIcons.edit,
+                              size: AppIconSize.compact,
+                              color: AppColors.primaryOf(context),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              item.lineDiscount > 0 ? 'Edit discount' : 'Add discount',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.primaryOf(context),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
