@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../domain/entities/location.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
 final _locationsProvider = StreamProvider<List<Location>>((ref) {
-  return ref.watch(locationRepositoryProvider).watchLocations();
+  return ref
+      .watch(locationRepositoryProvider)
+      .watchLocations()
+      .withFulusLoadingTimeout();
 });
 
 class ManageLocationsScreen extends ConsumerWidget {
