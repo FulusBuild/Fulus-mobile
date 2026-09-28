@@ -9,6 +9,7 @@ import 'package:fulus_mobile/data/repositories/return_repository_impl.dart';
 import 'package:fulus_mobile/data/repositories/sale_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/entities/customer.dart';
+import 'package:fulus_mobile/domain/entities/customer_ledger_entry.dart';
 import 'package:fulus_mobile/domain/entities/return_request.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
