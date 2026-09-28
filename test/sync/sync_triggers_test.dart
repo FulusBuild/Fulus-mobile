@@ -449,7 +449,9 @@ void main() {
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
-        onPushSuccess: (value) => hadOutboundWork = value,
+        onPushSuccess: (value) async {
+          hadOutboundWork = value;
+        },
       );
 
       await triggers.syncNow();
