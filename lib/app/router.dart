@@ -345,7 +345,7 @@ final appRouter = GoRouter(
                         GoRoute(
                           path: 'repay',
                           name: 'moneyRecordRepayment',
-                          builder: (context, state) {
+                          pageBuilder: (context, state) => NoTransitionPage(child: (() {
                             final extra = state.extra;
                             if (extra is Customer) return RecordRepaymentScreen(customer: extra);
                             // Defensive fallback — this route is only ever
@@ -357,7 +357,7 @@ final appRouter = GoRouter(
                               title: 'Record repayment',
                               message: "Open the customer's profile first.",
                             );
-                          },
+                          })()),
                         ),
                       ],
                     ),
@@ -389,14 +389,14 @@ final appRouter = GoRouter(
                         GoRoute(
                           path: 'pay',
                           name: 'moneyPaySupplier',
-                          builder: (context, state) {
+                          pageBuilder: (context, state) => NoTransitionPage(child: (() {
                             final extra = state.extra;
                             if (extra is Supplier) return PaySupplierScreen(supplier: extra);
                             return const _MissingContextScreen(
                               title: 'Pay supplier',
                               message: "Open the supplier's profile first.",
                             );
-                          },
+                          })()),
                         ),
                       ],
                     ),
@@ -410,7 +410,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'daily-closing/summary',
                   name: 'moneyDailyClosingSummary',
-                  builder: (context, state) {
+                  pageBuilder: (context, state) => NoTransitionPage(child: (() {
                     final extra = state.extra;
                     if (extra is DailyClosingSummary) return DailyClosingSummaryScreen(summary: extra);
                     // Only reachable with a summary in hand — closing the
@@ -421,7 +421,7 @@ final appRouter = GoRouter(
                       title: 'Day closed',
                       message: 'Close the day from the Money tab first.',
                     );
-                  },
+                  })()),
                 ),
               ],
             ),
