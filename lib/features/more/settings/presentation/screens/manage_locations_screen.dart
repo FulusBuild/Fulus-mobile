@@ -82,6 +82,7 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
             );
           }
           final activeId = activeIdAsync.value;
+          final activeStateReady = activeIdAsync.hasValue;
           return LayoutBuilder(
             builder: (context, constraints) {
               final columns = FulusLayout.columns(constraints.maxWidth, minTileWidth: 260, maxColumns: 3);
@@ -115,7 +116,9 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
                             location: location,
                             isActive: isActive,
                             isSwitching: _switchingLocationId == location.localId,
-                            onTap: isActive || _switchingLocationId != null ? null : () => _setActive(context, ref, location),
+                            onTap: !activeStateReady || isActive || _switchingLocationId != null
+                                ? null
+                                : () => _setActive(context, ref, location),
                           );
                         },
                         childCount: locations.length,
