@@ -11,7 +11,6 @@ import '../core/notifications/notification_service.dart';
 import '../core/onboarding/onboarding_state.dart';
 import '../core/security/app_lock_config.dart';
 import '../core/utils/async_timeout.dart';
-import 'restore_restart_gate.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
