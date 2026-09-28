@@ -6,12 +6,11 @@ import '../../../lib/core/utils/async_timeout.dart';
 
 void main() {
   test('times out when a stream never emits its first event', () async {
-    final stream = const Stream<int>.empty().asyncExpand(
-      (_) => const Stream<int>.empty(),
-    );
+    final controller = StreamController<int>();
+    addTearDown(controller.close);
 
     await expectLater(
-      stream.withFulusLoadingTimeout(
+      controller.stream.withFulusLoadingTimeout(
         timeout: const Duration(milliseconds: 20),
       ),
       emitsError(isA<TimeoutException>()),
