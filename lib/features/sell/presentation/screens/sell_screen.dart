@@ -457,11 +457,71 @@ class _ProductList extends StatelessWidget {
         mainAxisSpacing: AppSpacing.sm,
         childAspectRatio: 0.82,
       ),
-      itemCount: products.length,
-      itemBuilder: (context, index) => _ProductRow(
-        entry: products[index],
-        currency: currency,
-        enabled: cartReady,
+      itemCount: products.length + (q.isEmpty ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (q.isEmpty && index == 0) {
+          return _QuickSaleTile(enabled: cartReady);
+        }
+        final product = products[q.isEmpty ? index - 1 : index];
+        return _ProductRow(
+          entry: product,
+          currency: currency,
+          enabled: cartReady,
+        );
+      },
+    );
+  }
+}
+
+class _QuickSaleTile extends StatelessWidget {
+  const _QuickSaleTile({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return FulusPressable(
+      onPressed: enabled ? () => QuickSaleSheet.show(context) : null,
+      semanticsLabel: 'Quick Sale. Sell something not in the catalogue.',
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.primaryOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: AppElevation.cardOf(context),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(FulusIcons.quickActions, color: Colors.white, size: 28),
+            ),
+            const Spacer(),
+            Text(
+              'Quick Sale',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Sell anything',
+              style: AppTypography.caption.copyWith(
+                color: Colors.white.withValues(alpha: .82),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
