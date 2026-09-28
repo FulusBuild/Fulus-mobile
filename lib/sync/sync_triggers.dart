@@ -403,7 +403,7 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _runIfOnline({bool requireReady = true}) async {
+  Future<bool> _runIfOnline({bool requireReady = true}) async {
     final active = _connectivityRun;
     if (active != null) {
       await active;
@@ -412,7 +412,7 @@ class SyncTriggers with WidgetsBindingObserver {
     final run = _runIfOnlineOnce(requireReady: requireReady);
     _connectivityRun = run;
     try {
-      await run;
+      return await run;
     } finally {
       if (identical(_connectivityRun, run)) {
         _connectivityRun = null;
