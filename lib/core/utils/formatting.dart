@@ -1,5 +1,5 @@
-/// App-wide display formatting — thousands-separated currency, relative
-/// day labels, and 12-hour time.
+/// App-wide display formatting: full thousands-separated currency, relative
+/// day labels, and 12-hour time. Money is never compacted into K/M/B.
 ///
 /// Redesign pass: this is the promotion `money_format.dart` itself
 /// flagged as future work — "Home (`home_screen.dart`) and Reports
