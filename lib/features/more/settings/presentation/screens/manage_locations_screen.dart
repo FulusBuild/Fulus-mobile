@@ -63,7 +63,7 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final locationsAsync = ref.watch(_locationsProvider);
     final activeIdAsync = ref.watch(activeLocationIdProvider);
 
