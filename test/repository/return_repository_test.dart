@@ -215,6 +215,71 @@ void main() {
     });
   });
 
+  test('reverses the actual credit leg for a split-payment return', () async {
+    const customerId = 'customer-credit-split';
+    final now = DateTime(2026, 1, 1);
+    await db.into(db.customers).insert(
+      CustomersCompanion.insert(
+        localId: customerId,
+        name: 'Credit Split Customer',
+        outstandingBalance: const Value(500),
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+
+    final items = [
+      SaleItem(
+        localId: Ulid().toString(),
+        productLocalId: productAId,
+        quantity: 5,
+        unitPrice: 1000,
+        costPriceAtSale: 400,
+      ),
+    ];
+    final sale = await saleRepository.createSale(
+      SaleDraft(
+        items: items,
+        locationId: locationId,
+        customerId: customerId,
+        amountPaid: 4500,
+        paymentMethod: 'split',
+        payments: [
+          SalePayment(localId: Ulid().toString(), method: 'cash', amount: 4500, recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'credit', amount: 500, recordedAt: now),
+        ],
+      ),
+    );
+
+    final customerBefore = await (db.select(db.customers)
+          ..where((c) => c.localId.equals(customerId)))
+        .getSingle();
+    expect(customerBefore.outstandingBalance, 1000);
+
+    final ret = await returnRepository.createReturn(
+      originalSaleLocalId: sale.localId,
+      items: const [ReturnItemRequest(productLocalId: productAId, quantity: 1)],
+      returnReason: 'Credit split return',
+      refundMethod: 'cash',
+      autoApprove: true,
+    );
+    await returnRepository.completeReturn(ret.localId);
+
+    final customerAfter = await (db.select(db.customers)
+          ..where((c) => c.localId.equals(customerId)))
+        .getSingle();
+    expect(customerAfter.outstandingBalance, 500);
+
+    final adjustments = await (db.select(db.customerLedgerEntries)
+          ..where((e) =>
+              e.customerLocalId.equals(customerId) &
+              e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name)))
+        .get();
+    expect(adjustments, hasLength(1));
+    expect(adjustments.single.amount, 500);
+  });
+
   group('createReturn', () {
     test('computes the refund amount from the sale\'s own unit price',
         () async {
