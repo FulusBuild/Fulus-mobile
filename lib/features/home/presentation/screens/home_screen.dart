@@ -148,7 +148,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
   String _displayName(WidgetRef ref) {
-    final profile = ref.watch(_businessProfileProvider).value;
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
     if (isOwner) return user?.fullName.trim().isNotEmpty == true ? user!.fullName.trim() : 'there';
