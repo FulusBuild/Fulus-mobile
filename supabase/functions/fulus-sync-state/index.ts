@@ -248,7 +248,13 @@ Deno.serve(async (req) => {
     if (itemsError || paymentsError) {
       return out({ error: { code: "CANONICAL_READ_FAILED", message: "Unable to read sale aggregate" } }, 500);
     }
-    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", sale, sale_items: items ?? [], sale_payments: payments ?? [], server_authoritative: true, latest_sequence: latestSequence } });
+    const normalizedPayments = (payments ?? []).map((payment) => ({
+      id: payment.id,
+      method: payment.method ?? payment.payment_method,
+      amount: payment.amount,
+      recorded_at: payment.recorded_at ?? payment.created_at,
+    }));
+    return out({ data: { entity_type: entityType, entity_id: entityId, operation: "upsert", sale, sale_items: items ?? [], sale_payments: normalizedPayments, server_authoritative: true, latest_sequence: latestSequence } });
   }
 
   if (entityType === "product") {
