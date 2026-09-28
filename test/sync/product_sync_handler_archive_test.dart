@@ -8,10 +8,12 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
+import 'package:fulus_mobile/data/remote/product_image_api.dart';
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/sync/handlers/product_sync_handler.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
+class MockProductImageApi extends Mock implements ProductImageApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 class MockProductRepository extends Mock implements ProductRepository {}
 
@@ -21,17 +23,20 @@ void main() {
   late MockFulusConnectionState connectionState;
   late MockProductRepository productRepository;
   late ProductSyncHandler handler;
+  late MockProductImageApi productImageApi;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     api = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     productRepository = MockProductRepository();
+    productImageApi = MockProductImageApi();
     handler = ProductSyncHandler(
       productRepository: productRepository,
       db: db,
       fulusSyncApi: api,
       fulusConnectionState: connectionState,
+      productImageApi: productImageApi,
     );
 
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
