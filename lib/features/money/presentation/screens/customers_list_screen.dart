@@ -118,7 +118,6 @@ class _CustomerOverviewHeader extends StatelessWidget {
   final List<Customer> customers;
   final double outstanding;
   final String currencySymbol;
-  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +158,7 @@ class _CustomerListCard extends StatelessWidget {
   const _CustomerListCard({
     required this.filtered,
     required this.currencySymbol,
+    required this.openedFromMore,
   });
 
   final List<Customer> filtered;
@@ -195,6 +195,7 @@ class _CustomerRow extends StatelessWidget {
 
   final Customer customer;
   final String currencySymbol;
+  final bool openedFromMore;
   final bool openedFromMore;
 
   @override
