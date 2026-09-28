@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -107,6 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               _HomeHeader(
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                                 locationName: _activeLocationName(ref),
+                                onSwitchLocation: () => _showLocationSwitcher(context),
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               Text(
@@ -162,6 +165,83 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
+  Future<void> _showLocationSwitcher(BuildContext context) async {
+    final locations = await ref.read(_homeLocationsProvider.future);
+    final activeId = await ref.read(activeLocationIdProvider.future);
+    if (!context.mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surfaceOf(context),
+      builder: (sheetContext) {
+        var switchingId = <String>{};
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> select(Location location) async {
+              if (location.localId == activeId || switchingId.isNotEmpty) return;
+              setSheetState(() => switchingId = {location.localId});
+              try {
+                await ref.read(switchActiveLocationProvider)(location.localId);
+                ref.invalidate(activeLocationIdProvider);
+                ref.read(dataRefreshSignalProvider.notifier).state++;
+                unawaited(ref.read(syncTriggersProvider).refreshAfterContextChange());
+                if (context.mounted) Navigator.of(context).pop();
+                if (mounted) {
+                  showFulusSnackbar(context, message: 'Now viewing ' + location.name + '.');
+                }
+              } catch (error) {
+                if (context.mounted) {
+                  showFulusSnackbar(
+                    context,
+                    message: error is StateError ? error.message : "Couldn't switch locations. Try again.",
+                  );
+                }
+                if (context.mounted) setSheetState(() => switchingId = <String>{});
+              }
+            }
+
+            return SafeArea(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+                children: [
+                  Text(
+                    'Switch location',
+                    style: AppTypography.heading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Choose where you are working now.',
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  for (final location in locations)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: FulusActionTile(
+                        icon: FulusIcons.locations,
+                        label: location.name,
+                        subtitle: location.localId == activeId ? 'Current location' : 'Switch here',
+                        onTap: switchingId.isEmpty ? () => select(location) : null,
+                        trailing: location.localId == activeId
+                            ? const Icon(FulusIcons.check)
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   String _displayName(WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
@@ -171,10 +251,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.businessName, required this.locationName});
+  const _HomeHeader({
+    required this.businessName,
+    required this.locationName,
+    required this.onSwitchLocation,
+  });
 
   final String businessName;
   final String? locationName;
+  final VoidCallback onSwitchLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +302,15 @@ class _HomeHeader extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      tooltip: 'Switch location',
+                      onPressed: onSwitchLocation,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      icon: const Icon(FulusIcons.swap, size: 20, color: _HomeColors.muted),
                     ),
                   ],
                 ),
@@ -394,7 +488,7 @@ class _HomeMockupDashboard extends StatelessWidget {
             child: _HomeCompactCard(
               color: _HomeColors.blue,
               icon: FulusIcons.cashBalance,
-              label: 'Business Balance',
+              label: 'Balance',
               value: canViewMoney && cashError
                   ? '—'
                   : canViewMoney && cashTotal != null
