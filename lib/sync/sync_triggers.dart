@@ -29,6 +29,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function()? onNotReady,
     void Function()? onSyncSuccess,
     Future<void> Function(bool hadOutboundWork)? onPushSuccess,
+    Future<bool> Function()? hasOutboundWork,
     Future<void> Function()? onCursorTooOldRecovery,
     Future<void> Function()? onRecoveryReconciled,
     Future<void> Function(Object error)? onRecoveryFailed,
@@ -47,6 +48,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _onNotReady = onNotReady,
         _onSyncSuccess = onSyncSuccess,
         _onPushSuccess = onPushSuccess,
+        _hasOutboundWork = hasOutboundWork,
         _onCursorTooOldRecovery = onCursorTooOldRecovery,
         _onRecoveryReconciled = onRecoveryReconciled,
         _onRecoveryFailed = onRecoveryFailed,
@@ -63,6 +65,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function()? _onNotReady;
   final void Function()? _onSyncSuccess;
   final Future<void> Function(bool hadOutboundWork)? _onPushSuccess;
+  final Future<bool> Function()? _hasOutboundWork;
   final Future<void> Function()? _onCursorTooOldRecovery;
   final Future<void> Function()? _onRecoveryReconciled;
   final Future<void> Function(Object error)? _onRecoveryFailed;
@@ -508,8 +511,7 @@ class SyncTriggers with WidgetsBindingObserver {
     bool manual = false,
     required SyncExecutionLease lease,
   }) async {
-    final hadOutboundWork =
-        (await _syncEngine.db.select(_syncEngine.db.syncQueueItems).get()).isNotEmpty;
+    final hadOutboundWork = await _hasOutboundWork?.call() ?? false;
     await _syncEngine.runOnce(manual: manual);
     await lease.ensureHeld();
     await _onPushSuccess?.call(hadOutboundWork);
