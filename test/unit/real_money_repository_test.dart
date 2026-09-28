@@ -451,6 +451,15 @@ void main() {
       // 1350 in - 400 out
       expect(balance, 950);
     });
+
+    test('does not load display metadata when calculating balance', () async {
+      await repository.getAvailableBalance();
+
+      verifyNever(() => expenseCategoryRepository.watchExpenseCategories());
+      verifyNever(() => customerRepository.watchCustomers());
+      verifyNever(() => customerRepository.getCustomerById(any()));
+      verifyNever(() => supplierRepository.getSupplierById(any()));
+    });
   });
 
   group('cash drawer', () {
