@@ -86,7 +86,7 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      _HealthCard(health: health),
+                      _HealthCard(health: health, status: statusAsync.value ?? const SyncStatus.settled()),
                       const SizedBox(height: AppSpacing.lg),
                       const _ConflictCard(),
                       const SizedBox(height: AppSpacing.lg),
@@ -385,9 +385,10 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _HealthCard extends StatelessWidget {
-  const _HealthCard({required this.health});
+  const _HealthCard({required this.health, required this.status});
 
   final SyncHealthSnapshot health;
+  final SyncStatus status;
 
   String _when(DateTime? value) {
     if (value == null) return 'Not yet recorded';
@@ -414,13 +415,7 @@ class _HealthCard extends StatelessWidget {
           const FulusListDivider(),
           _HealthLine(
             label: 'Cloud backup',
-            value: health.recoveryState == 'recovering'
-                ? 'Restoring'
-                : health.recoveryState == 'blocked'
-                    ? 'Temporarily unavailable'
-                    : health.lastPushAt != null && health.lastPullAt != null
-                        ? 'Up to date'
-                        : 'Waiting for first backup',
+            value: cloudBackupLabel(health, status.kind),
           ),
         ],
       ),
