@@ -614,6 +614,7 @@ class _ProductRow extends StatelessWidget {
   }
 
   Future<void> _add(BuildContext context) async {
+    final product = entry.product;
     try {
       await context.read<CartCubit>().addProductQuantity(
             product.localId,
@@ -630,7 +631,6 @@ class _ProductRow extends StatelessWidget {
       FulusHaptics.error();
       if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
-  }
   }
 }
 
