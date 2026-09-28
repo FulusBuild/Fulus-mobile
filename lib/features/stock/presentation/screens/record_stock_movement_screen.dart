@@ -255,12 +255,12 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
         final locationAsync = ref.watch(currentLocationIdProvider);
         return locationAsync.when(
           loading: () => const _StockMovementLoadingSkeleton(),
-          error: (e, _) => FulusErrorState(message: "Couldn't load your products.", onRetry: () {}),
+          error: (e, _) => FulusErrorState(message: "Couldn't load your products.", onRetry: () => ref.invalidate(currentLocationIdProvider)),
           data: (locationId) {
             final productsAsync = ref.watch(productsWithStockProvider(locationId));
             return productsAsync.when(
               loading: () => const _StockMovementLoadingSkeleton(),
-              error: (e, _) => FulusErrorState(message: "Couldn't load your products.", onRetry: () {}),
+              error: (e, _) => FulusErrorState(message: "Couldn't load your products.", onRetry: () => ref.invalidate(productsWithStockProvider(locationId))),
               data: (products) {
                 final query = _searchController.text.trim().toLowerCase();
                 final matches = query.isEmpty

@@ -136,10 +136,8 @@ class _FulusWebHomeFixtureState extends State<FulusWebHomeFixture> {
                   },
                 ),
                 const SizedBox(height: 20),
-                FulusSectionHeader(
+                const FulusSectionHeader(
                   title: 'Business overview',
-                  action: 'See all',
-                  onActionTap: () {},
                 ),
                 const FulusStatGrid(
                   cards: [

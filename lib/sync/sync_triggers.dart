@@ -35,6 +35,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function(Object error)? onRecoveryFailed,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Future<void> Function()? onBeforeSyncCycle,
+    Future<void> Function()? onContextChangeReconciled,
     Connectivity? connectivity,
     this.retryInterval = const Duration(seconds: 30),
     Future<void> Function()? onDeviceAuthorizationLost,
@@ -54,6 +55,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
         _onBeforeSyncCycle = onBeforeSyncCycle,
+        _onContextChangeReconciled = onContextChangeReconciled,
         _connectivity = connectivity ?? Connectivity(),
         _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
 
@@ -71,6 +73,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Future<void> Function()? _onBeforeSyncCycle;
+  final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
   final SyncExecutionLease _executionLease;
   final Duration retryInterval;
@@ -174,6 +177,18 @@ class SyncTriggers with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(_runIfOnlineSafely());
     }
+  }
+
+  /// Reconcile cloud-owned projections after a business-context switch.
+  ///
+  /// Switching itself remains local-first and offline-safe. If sync is enabled,
+  /// this starts the normal connectivity-gated cycle; when offline, the regular
+  /// connectivity/lifecycle triggers will retry without making the switch fail.
+  Future<void> refreshAfterContextChange() async {
+    if (!_syncConfig.isEnabled) return;
+    final didRun = await _runIfOnlineSafely();
+    if (!didRun || !_syncConfig.isEnabled) return;
+    await _onContextChangeReconciled?.call();
   }
 
   Future<void> syncNow() async {
@@ -332,6 +347,7 @@ class SyncTriggers with WidgetsBindingObserver {
             if (_started) {
               _onSyncFailure?.call(error, stackTrace);
             }
+            return false;
           }),
         );
       },
@@ -377,26 +393,26 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _runIfOnlineSafely() async {
+  Future<bool> _runIfOnlineSafely() async {
     try {
-      await _runIfOnline();
+      return await _runIfOnline();
     } catch (error, stackTrace) {
       if (_started) {
         _onSyncFailure?.call(error, stackTrace);
       }
+      return false;
     }
   }
 
-  Future<void> _runIfOnline({bool requireReady = true}) async {
+  Future<bool> _runIfOnline({bool requireReady = true}) async {
     final active = _connectivityRun;
     if (active != null) {
-      await active;
-      return;
+      return await active;
     }
     final run = _runIfOnlineOnce(requireReady: requireReady);
     _connectivityRun = run;
     try {
-      await run;
+      return await run;
     } finally {
       if (identical(_connectivityRun, run)) {
         _connectivityRun = null;

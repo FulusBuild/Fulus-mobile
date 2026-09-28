@@ -78,6 +78,55 @@ void main() {
       verifyNever(() => connectivity.checkConnectivity());
     });
 
+    test('refreshAfterContextChange reconciles when sync is enabled and online', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      var hydrated = false;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        onContextChangeReconciled: () async => hydrated = true,
+      );
+
+      await triggers.refreshAfterContextChange();
+
+      expect(hydrated, isTrue);
+      verify(() => connectivity.checkConnectivity()).called(1);
+      verify(() => syncEngine.runOnce(manual: false)).called(1);
+      triggers.dispose();
+    });
+
+    test('refreshAfterContextChange is offline-safe', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.none]);
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      await triggers.refreshAfterContextChange();
+
+      verify(() => connectivity.checkConnectivity()).called(1);
+      verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
+      triggers.dispose();
+    });
+
     test('syncNow() throws instead of silently reaching the network', () async {
       final config = await SyncConfig.load();
       final triggers = SyncTriggers(

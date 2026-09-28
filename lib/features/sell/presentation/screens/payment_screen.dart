@@ -268,17 +268,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           ),
                         ],
                         if (!splitActive && !canComplete) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () {
-                                FulusHaptics.selection();
-                                setState(() => _splitPayment = true);
-                              },
-                              icon: FulusIcons.callSplit.icon,
-                              label: const Text('Split payment'),
-                            ),
+                          const SizedBox(height: AppSpacing.md),
+                          FulusActionTile(
+                            icon: FulusIcons.callSplit,
+                            label: 'Split payment',
+                            subtitle: 'Use more than one payment method',
+                            onTap: () {
+                              FulusHaptics.selection();
+                              setState(() => _splitPayment = true);
+                            },
                           ),
                         ],
                         const SizedBox(height: AppSpacing.xl),
@@ -343,7 +341,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
     }
 
-    final wasFirstPayment = state.payments.isEmpty;
     setState(() => _adding = true);
     try {
       await context.read<CartCubit>().addPayment(_method, amount);
@@ -351,7 +348,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       FulusHaptics.selection();
       if (!context.mounted) return;
       final after = context.read<CartCubit>().state;
-      if (wasFirstPayment && after is CartLoaded && after.remaining <= 0.004) {
+      if (after is CartLoaded && after.remaining <= 0.004) {
         await _completeSale(context);
         return;
       }

@@ -288,6 +288,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       if (previous != null && previous != next) setState(_loadAll);
     });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canViewMoney = user?.role == AuthRole.owner || permissions.contains(Permission.viewMoney);
+    final canManageEmployees = user?.role == AuthRole.owner || permissions.contains(Permission.manageEmployees);
 
     return FulusScreen(
       title: 'Reports',
@@ -387,6 +391,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                     future: _customersFuture,
                     currencySymbol: currencySymbol,
                     onRetry: _retry,
+                    canViewMoney: canViewMoney,
                   ),
                 ),
                 KeyedSubtree(
@@ -396,12 +401,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                     cashFlowFuture: _cashFlowFuture,
                     currencySymbol: currencySymbol,
                     onRetry: _retry,
-                    onOpenMoneyHistory: _openMoneyHistory,
+                    onOpenMoneyHistory: canViewMoney ? _openMoneyHistory : null,
                   ),
                 ),
                 KeyedSubtree(
                   key: ValueKey('employees-${_period.start.microsecondsSinceEpoch}-${_period.end.microsecondsSinceEpoch}'),
-                  child: _EmployeesTab(future: _employeesFuture, onRetry: _retry),
+                  child: _EmployeesTab(future: _employeesFuture, onRetry: _retry, canManageEmployees: canManageEmployees),
                 ),
               ],
             ),
@@ -903,10 +908,11 @@ class _InventoryTab extends StatelessWidget {
 }
 
 class _CustomersTab extends StatelessWidget {
-  const _CustomersTab({required this.future, required this.currencySymbol, required this.onRetry});
+  const _CustomersTab({required this.future, required this.currencySymbol, required this.onRetry, required this.canViewMoney});
   final Future<CustomerReport> future;
   final String currencySymbol;
   final VoidCallback onRetry;
+  final bool canViewMoney;
 
   @override
   Widget build(BuildContext context) {
@@ -917,10 +923,10 @@ class _CustomersTab extends StatelessWidget {
       emptyHeadline: 'Nothing to report yet.',
       emptyBody: 'Customer activity — new customers, credit, and top spenders — will show up here.',
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
-        _StatCard(label: 'Outstanding credit', value: formatMoney(r.totalOutstandingCredit, symbol: currencySymbol), onTap: () => context.pushNamed('moneyCustomers')),
+        _StatCard(label: 'Outstanding credit', value: formatMoney(r.totalOutstandingCredit, symbol: currencySymbol), onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null),
         _StatCard(label: 'New customers', value: '${r.newCustomersThisPeriod}', onTap: () => context.pushNamed('moneyCustomers')),
         for (final c in r.topCustomers.take(5))
-          _StatCard(label: c.customerName, value: formatMoney(c.totalSpend, symbol: currencySymbol), onTap: () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': c.customerId})),
+          _StatCard(label: c.customerName, value: formatMoney(c.totalSpend, symbol: currencySymbol), onTap: canViewMoney ? () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': c.customerId}) : null),
       ]),
     );
   }
@@ -932,7 +938,7 @@ class _FinanceTab extends StatelessWidget {
   final Future<CashFlowReport> cashFlowFuture;
   final String currencySymbol;
   final VoidCallback onRetry;
-  final void Function({MoneyTransactionType? type, String? category}) onOpenMoneyHistory;
+  final void Function({MoneyTransactionType? type, String? category})? onOpenMoneyHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -945,17 +951,17 @@ class _FinanceTab extends StatelessWidget {
       builder: (context, r) {
         final trend = r.profitTrendPercent;
         return _ReportScaffold(insights: r.insights, children: [
-          _StatCard(label: 'Revenue', value: formatMoney(r.totalRevenue, symbol: currencySymbol), onTap: () => onOpenMoneyHistory()),
+          _StatCard(label: 'Revenue', value: formatMoney(r.totalRevenue, symbol: currencySymbol), onTap: onOpenMoneyHistory == null ? null : () => onOpenMoneyHistory!()),
           _StatCard(label: 'Cost of goods sold', value: formatMoney(r.totalCostOfGoodsSold, symbol: currencySymbol)),
           _StatCard(label: 'Gross profit', value: formatMoney(r.grossProfit, symbol: currencySymbol)),
-          _StatCard(label: 'Expenses', value: formatMoney(r.totalExpenses, symbol: currencySymbol), onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense)),
+          _StatCard(label: 'Expenses', value: formatMoney(r.totalExpenses, symbol: currencySymbol), onTap: onOpenMoneyHistory == null ? null : () => onOpenMoneyHistory!(type: MoneyTransactionType.expense)),
           _StatCard(label: 'Net profit', value: formatMoney(r.netProfit, symbol: currencySymbol)),
           if (trend != null) _StatCard(label: 'Vs. last period', value: '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)}%'),
           if (r.expenseBreakdown.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
             Text('Expenses by category', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
             for (final e in r.expenseBreakdown)
-              _StatCard(label: e.category, value: formatMoney(e.total, symbol: currencySymbol), onTap: () => onOpenMoneyHistory(type: MoneyTransactionType.expense, category: e.category)),
+              _StatCard(label: e.category, value: formatMoney(e.total, symbol: currencySymbol), onTap: onOpenMoneyHistory == null ? null : () => onOpenMoneyHistory!(type: MoneyTransactionType.expense, category: e.category)),
           ],
           const SizedBox(height: AppSpacing.sm),
           Text('Cash flow', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
@@ -984,9 +990,10 @@ class _FinanceTab extends StatelessWidget {
 }
 
 class _EmployeesTab extends StatelessWidget {
-  const _EmployeesTab({required this.future, required this.onRetry});
+  const _EmployeesTab({required this.future, required this.onRetry, required this.canManageEmployees});
   final Future<EmployeeReport> future;
   final VoidCallback onRetry;
+  final bool canManageEmployees;
 
   @override
   Widget build(BuildContext context) {
@@ -998,7 +1005,7 @@ class _EmployeesTab extends StatelessWidget {
       emptyBody: 'Attendance and performance for your team will show up here.',
       builder: (context, r) => _ReportScaffold(insights: r.insights, children: [
         for (final p in r.performance)
-          _StatCard(label: p.employeeName, value: '${p.daysPresent} present, ${p.daysAbsent} absent', onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': p.employeeId})),
+          _StatCard(label: p.employeeName, value: '${p.daysPresent} present, ${p.daysAbsent} absent', onTap: canManageEmployees ? () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': p.employeeId}) : null),
       ]),
     );
   }

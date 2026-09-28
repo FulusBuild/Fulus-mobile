@@ -15,7 +15,13 @@ class DeactivatedEmployeesScreen extends ConsumerStatefulWidget {
 }
 
 class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployeesScreen> {
-  late final Stream<List<Employee>> _employeesStream = ref.read(employeeRepositoryProvider).watchEmployees(isActive: false);
+  late Stream<List<Employee>> _employeesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _employeesStream = ref.read(employeeRepositoryProvider).watchEmployees(isActive: false);
+  }
 
   @override
   Widget build(BuildContext context) => FulusScreen(
@@ -38,7 +44,9 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                       return FulusErrorState(
                         message: "Couldn't load deactivated team members.",
                         reassurance: 'No team data was changed — this is only a loading problem.',
-                        onRetry: () => setState(() {}),
+                        onRetry: () => setState(() {
+                          _employeesStream = ref.read(employeeRepositoryProvider).watchEmployees(isActive: false);
+                        }),
                       );
                     }
                     if (!snapshot.hasData) return const _DeactivatedEmployeesLoadingSkeleton();

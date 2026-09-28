@@ -176,7 +176,6 @@ class _CartLineTile extends StatelessWidget {
       ),
       onDismissed: (_) => _remove(context),
       child: FulusCard(
-        onTap: () => _editDiscount(context),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 390;
@@ -209,6 +208,31 @@ class _CartLineTile extends StatelessWidget {
                               : AppColors.textSecondaryOf(context),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.xs),
+                      FulusPressable(
+                        semanticsLabel: item.lineDiscount > 0
+                            ? 'Edit discount for ${item.description}'
+                            : 'Add discount for ${item.description}',
+                        onPressed: () => _editDiscount(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              FulusIcons.edit,
+                              size: AppIconSize.compact,
+                              color: AppColors.primaryOf(context),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              item.lineDiscount > 0 ? 'Edit discount' : 'Add discount',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.primaryOf(context),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -217,7 +241,7 @@ class _CartLineTile extends StatelessWidget {
                   _QuantityStepper(item: item, unit: unit),
                   const SizedBox(width: AppSpacing.sm),
                 ] else
-                  _CompactQuantity(item: item, unit: unit),
+                  _CompactQuantityStepper(item: item, unit: unit),
                 SizedBox(
                   width: compact ? 76 : 92,
                   child: Text(
@@ -266,29 +290,83 @@ class _CartLineTile extends StatelessWidget {
   }
 }
 
-class _CompactQuantity extends StatelessWidget {
-  const _CompactQuantity({required this.item, this.unit});
+class _CompactQuantityStepper extends StatelessWidget {
+  const _CompactQuantityStepper({required this.item, this.unit});
+
   final DraftCartItem item;
   final String? unit;
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<CartCubit>();
     return Container(
-      constraints: const BoxConstraints(minWidth: 44),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 4),
+      height: AppTouchTarget.minimum,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
         color: AppColors.surfaceAltOf(context),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: Text(
-        unit == null ? '×${item.quantity}' : '×${item.quantity} $unit',
-        textAlign: TextAlign.center,
-        style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StepButton(icon: FulusIcons.remove, semanticsLabel: 'Decrease ${item.description}', onTap: () => cubit.decrementItem(item)),
+          FulusPressable(
+            semanticsLabel: 'Edit quantity for ${item.description}',
+            onPressed: () => _editQuantity(context, cubit),
+            child: SizedBox(
+              height: AppTouchTarget.minimum,
+              width: 42,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${item.quantity}', style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context))),
+                  if (unit != null) Text(unit!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
+                ],
+              ),
+            ),
+          ),
+          _StepButton(icon: FulusIcons.add, semanticsLabel: 'Increase ${item.description}', onTap: () => _increment(context, cubit)),
+        ],
       ),
     );
   }
-}
 
+  Future<void> _increment(BuildContext context, CartCubit cubit) async {
+    try {
+      await cubit.incrementItem(item);
+      FulusHaptics.selection();
+    } on StateError catch (e) {
+      FulusHaptics.error();
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
+    }
+  }
+
+  Future<void> _editQuantity(BuildContext context, CartCubit cubit) async {
+    final controller = TextEditingController(text: '${item.quantity}');
+    final result = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Quantity'),
+        scrollable: true,
+        content: FulusTextField(label: 'Quantity', controller: controller, keyboardType: TextInputType.number),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FulusButton(label: 'Update', onPressed: () => Navigator.of(dialogContext).pop(int.tryParse(controller.text.trim()))),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || !context.mounted) return;
+    try {
+      await cubit.setItemQuantity(item, result);
+      FulusHaptics.selection();
+    } on StateError catch (e) {
+      FulusHaptics.error();
+      if (context.mounted) showFulusSnackbar(context, message: e.message);
+    }
+  }
+}
 class _QuantityStepper extends StatelessWidget {
   const _QuantityStepper({required this.item, this.unit});
 

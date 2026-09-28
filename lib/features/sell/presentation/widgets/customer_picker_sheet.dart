@@ -28,8 +28,13 @@ class CustomerPickerSheet extends ConsumerStatefulWidget {
 }
 
 class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
-  late final Stream<List<Customer>> _customersStream =
-      ref.read(customerRepositoryProvider).watchCustomers();
+  late Stream<List<Customer>> _customersStream;
+  @override
+  void initState() {
+    super.initState();
+    _customersStream = ref.read(customerRepositoryProvider).watchCustomers();
+  }
+
   final _searchController = TextEditingController();
   String _query = '';
 
@@ -74,7 +79,9 @@ class _CustomerPickerSheetState extends ConsumerState<CustomerPickerSheet> {
                   return FulusErrorState(
                     message: "Couldn't load customers.",
                     reassurance: 'No customer data was changed — this is only a loading problem.',
-                    onRetry: () => setState(() {}),
+                    onRetry: () => setState(() {
+                      _customersStream = ref.read(customerRepositoryProvider).watchCustomers();
+                    }),
                   );
                 }
                 if (!snapshot.hasData) {

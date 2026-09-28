@@ -9,9 +9,13 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/report.dart';
+import '../../../../domain/entities/location.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
+
+final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
+    ref.watch(locationRepositoryProvider).watchLocations());
 
 /// Owner/manager workspace home. Data and permissions remain repository-backed;
 /// this screen only changes the presentation hierarchy to match the reference UI.
@@ -102,6 +106,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: [
                               _HomeHeader(
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
+                                locationName: _activeLocationName(ref),
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               Text(
@@ -147,6 +152,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
     );
   }
+  String? _activeLocationName(WidgetRef ref) {
+    final activeId = ref.watch(activeLocationIdProvider).value;
+    final locations = ref.watch(_homeLocationsProvider).value;
+    if (activeId == null || locations == null) return null;
+    for (final location in locations) {
+      if (location.localId == activeId) return location.name;
+    }
+    return null;
+  }
+
   String _displayName(WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
@@ -156,9 +171,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.businessName});
+  const _HomeHeader({required this.businessName, required this.locationName});
 
   final String businessName;
+  final String? locationName;
 
   @override
   Widget build(BuildContext context) {
@@ -171,15 +187,41 @@ class _HomeHeader extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Text(
-            businessName.isEmpty ? 'Fulus' : businessName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                businessName.isEmpty ? 'Fulus' : businessName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (locationName != null && locationName!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(FulusIcons.locations, size: 16, color: _HomeColors.muted),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        locationName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _HomeColors.muted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -591,15 +633,33 @@ class _HomeSellCard extends StatelessWidget {
         child: InkWell(
           onTap: () => context.goNamed('sell'),
           borderRadius: BorderRadius.circular(AppRadius.md),
-          child: const Center(
-            child: Text(
-              'Sell',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 90,
-                fontWeight: FontWeight.w800,
-              ),
+          child: const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: FulusMetricCardColumn(
+              icon: FulusIcons.sell,
+              iconColor: Colors.white,
+              children: [
+                Text(
+                  'Sell',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Start a sale',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

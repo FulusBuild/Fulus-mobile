@@ -145,15 +145,25 @@ import 'providers.dart';
 /// `context.goNamed('home')` rather than a raw path string repeated at
 /// every call site, which is exactly the kind of string duplication
 /// that drifts silently once a path changes in only one place.
+Page<void> _fulusNoTransitionPage(GoRouterState state, Widget child) =>
+    NoTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+    );
+
 final appRouter = GoRouter(
   initialLocation: '/',
   observers: [CurrentScreenObserver()],
   redirect: (context, state) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final user = container.read(sessionProvider);
-    if (user == null || user.role == AuthRole.owner) return null;
+    if (user == null) return null;
 
     final location = state.matchedLocation;
+    if (location.startsWith('/more/settings/cloud')) {
+      return user.role == AuthRole.owner ? null : '/';
+    }
+    if (user.role == AuthRole.owner) return null;
     final requiredPermissions = location.startsWith('/money')
         ? {Permission.viewMoney}
         : location.startsWith('/more')
@@ -223,49 +233,47 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/stock',
               name: 'stock',
-              pageBuilder: (context, state) => const NoTransitionPage(child: StockScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, StockScreen()),
               routes: [
                 GoRoute(
                   path: 'product/:productId',
                   name: 'stockProductDetail',
-                  builder: (context, state) =>
-                      ProductDetailScreen(productId: state.pathParameters['productId']!),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, ProductDetailScreen(productId: state.pathParameters['productId']!)),
                 ),
                 GoRoute(
                   path: 'add',
                   name: 'stockAddProduct',
-                  builder: (context, state) => const AddEditProductScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const AddEditProductScreen()),
                 ),
                 GoRoute(
                   path: 'edit',
                   name: 'stockEditProduct',
-                  builder: (context, state) => AddEditProductScreen(existingProduct: state.extra as Product?),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, AddEditProductScreen(existingProduct: state.extra as Product?)),
                 ),
                 GoRoute(
                   path: 'record',
                   name: 'stockRecordMovement',
-                  builder: (context, state) =>
-                      RecordStockMovementScreen(preselectedProduct: state.extra as Product?),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, RecordStockMovementScreen(preselectedProduct: state.extra as Product?)),
                 ),
                 GoRoute(
                   path: 'history',
                   name: 'stockHistory',
-                  builder: (context, state) => StockMovementHistoryScreen(productId: state.extra as String?),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, StockMovementHistoryScreen(productId: state.extra as String?)),
                 ),
                 GoRoute(
                   path: 'categories',
                   name: 'stockCategories',
-                  builder: (context, state) => const CategoriesScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const CategoriesScreen()),
                 ),
                 GoRoute(
                   path: 'bulk-import',
                   name: 'stockBulkImport',
-                  builder: (context, state) => const BulkImportScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const BulkImportScreen()),
                   routes: [
                     GoRoute(
                       path: 'review',
                       name: 'stockBulkImportReview',
-                      builder: (context, state) => BulkImportReviewScreen(csvContent: state.extra as String),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, BulkImportReviewScreen(csvContent: state.extra as String)),
                     ),
                   ],
                 ),
@@ -278,18 +286,17 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/sell',
               name: 'sell',
-              pageBuilder: (context, state) => const NoTransitionPage(child: SellScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, SellScreen()),
               routes: [
                 GoRoute(
                   path: 'refund',
                   name: 'sellRefundSearch',
-                  builder: (context, state) => const RefundSearchScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const RefundSearchScreen()),
                   routes: [
                     GoRoute(
                       path: ':saleId',
                       name: 'sellRefundConfirm',
-                      builder: (context, state) =>
-                          RefundConfirmScreen(saleId: state.pathParameters['saleId']!),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, RefundConfirmScreen(saleId: state.pathParameters['saleId']!)),
                     ),
                   ],
                 ),
@@ -302,53 +309,53 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/money',
               name: 'money',
-              pageBuilder: (context, state) => const NoTransitionPage(child: MoneyScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, MoneyScreen()),
               routes: [
                 GoRoute(
                   path: 'history',
                   name: 'moneyHistory',
-                  builder: (context, state) => const MoneyHistoryScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const MoneyHistoryScreen()),
                 ),
                 GoRoute(
                   path: 'transaction/:id',
                   name: 'moneyTransactionDetail',
-                  builder: (context, state) => TransactionDetailScreen(
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, TransactionDetailScreen(
                     transactionId: state.pathParameters['id']!,
                     preloaded: state.extra is MoneyTransaction ? state.extra as MoneyTransaction : null,
-                  ),
+                  )),
                 ),
                 GoRoute(
                   path: 'add-income',
                   name: 'moneyAddIncome',
-                  builder: (context, state) => const AddIncomeScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const AddIncomeScreen()),
                 ),
                 GoRoute(
                   path: 'add-expense',
                   name: 'moneyAddExpense',
-                  builder: (context, state) => const AddExpenseScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const AddExpenseScreen()),
                 ),
                 GoRoute(
                   path: 'customers',
                   name: 'moneyCustomers',
-                  builder: (context, state) => const CustomersListScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const CustomersListScreen()),
                   routes: [
                     GoRoute(
                       path: 'archived',
                       name: 'moneyArchivedCustomers',
-                      builder: (context, state) => const ArchivedCustomersScreen(),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ArchivedCustomersScreen()),
                     ),
                     GoRoute(
                       path: ':id',
                       name: 'moneyCustomerProfile',
-                      builder: (context, state) => CustomerProfileScreen(
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, CustomerProfileScreen(
                         customerId: state.pathParameters['id']!,
                         preloaded: state.extra is Customer ? state.extra as Customer : null,
-                      ),
+                      )),
                       routes: [
                         GoRoute(
                           path: 'repay',
                           name: 'moneyRecordRepayment',
-                          builder: (context, state) {
+                          pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
                             final extra = state.extra;
                             if (extra is Customer) return RecordRepaymentScreen(customer: extra);
                             // Defensive fallback — this route is only ever
@@ -360,7 +367,7 @@ final appRouter = GoRouter(
                               title: 'Record repayment',
                               message: "Open the customer's profile first.",
                             );
-                          },
+                          })()),
                         ),
                       ],
                     ),
@@ -374,32 +381,32 @@ final appRouter = GoRouter(
                   // doc comment for why it's a separate route from
                   // `moneyHistory` rather than that screen with a type
                   // filter pre-selected.
-                  builder: (context, state) => const ReceiptHistoryScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ReceiptHistoryScreen()),
                 ),
                 GoRoute(
                   path: 'suppliers',
                   name: 'moneySuppliers',
-                  builder: (context, state) => const SuppliersListScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const SuppliersListScreen()),
                   routes: [
                     GoRoute(
                       path: ':id',
                       name: 'moneySupplierProfile',
-                      builder: (context, state) => SupplierProfileScreen(
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, SupplierProfileScreen(
                         supplierId: state.pathParameters['id']!,
                         preloaded: state.extra is Supplier ? state.extra as Supplier : null,
-                      ),
+                      )),
                       routes: [
                         GoRoute(
                           path: 'pay',
                           name: 'moneyPaySupplier',
-                          builder: (context, state) {
+                          pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
                             final extra = state.extra;
                             if (extra is Supplier) return PaySupplierScreen(supplier: extra);
                             return const _MissingContextScreen(
                               title: 'Pay supplier',
                               message: "Open the supplier's profile first.",
                             );
-                          },
+                          })()),
                         ),
                       ],
                     ),
@@ -408,12 +415,12 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'daily-closing',
                   name: 'moneyDailyClosingCount',
-                  builder: (context, state) => const DailyClosingCountScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DailyClosingCountScreen()),
                 ),
                 GoRoute(
                   path: 'daily-closing/summary',
                   name: 'moneyDailyClosingSummary',
-                  builder: (context, state) {
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
                     final extra = state.extra;
                     if (extra is DailyClosingSummary) return DailyClosingSummaryScreen(summary: extra);
                     // Only reachable with a summary in hand — closing the
@@ -424,7 +431,7 @@ final appRouter = GoRouter(
                       title: 'Day closed',
                       message: 'Close the day from the Money tab first.',
                     );
-                  },
+                  })()),
                 ),
               ],
             ),
@@ -435,92 +442,88 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/more',
               name: 'more',
-              pageBuilder: (context, state) => const NoTransitionPage(child: _MoreScreen()),
+              pageBuilder: (context, state) => _fulusNoTransitionPage(state, _MoreScreen()),
               routes: [
                 GoRoute(
                   path: 'employees',
                   name: 'moreEmployees',
-                  builder: (context, state) => const EmployeesListScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const EmployeesListScreen()),
                   routes: [
                     GoRoute(
                       path: 'deactivated',
                       name: 'moreEmployeesDeactivated',
-                      builder: (context, state) => const DeactivatedEmployeesScreen(),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DeactivatedEmployeesScreen()),
                     ),
                     GoRoute(
                       path: ':employeeId',
                       name: 'moreEmployeeDetail',
-                      builder: (context, state) =>
-                          EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!)),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'reports',
                   name: 'moreReports',
-                  builder: (context, state) => const ReportsScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ReportsScreen()),
                   routes: [
                     GoRoute(
                       path: 'sales',
                       name: 'moreReportsSalesTransactions',
-                      builder: (context, state) =>
-                          SalesTransactionsScreen(period: state.extra! as ReportPeriod),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, SalesTransactionsScreen(period: state.extra! as ReportPeriod)),
                     ),
                     GoRoute(
                       path: 'void/:saleId',
                       name: 'moreReportsVoidSale',
-                      builder: (context, state) =>
-                          VoidSaleScreen(saleId: state.pathParameters['saleId']!),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, VoidSaleScreen(saleId: state.pathParameters['saleId']!)),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'settings/backup',
                   name: 'moreSettingsBackup',
-                  builder: (context, state) => const BackupScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const BackupScreen()),
                 ),
                 GoRoute(
                   path: 'settings/locations',
                   name: 'moreSettingsLocations',
-                  builder: (context, state) => const ManageLocationsScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ManageLocationsScreen()),
                 ),
                 GoRoute(
                   path: 'settings',
                   name: 'moreSettings',
-                  builder: (context, state) => const SettingsMainScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const SettingsMainScreen()),
                   routes: [
                     GoRoute(
                       path: 'cloud',
                       name: 'moreSettingsCloud',
-                      builder: (context, state) => const FulusCloudConnectionScreen(),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const FulusCloudConnectionScreen()),
                     ),
                     GoRoute(
                       path: 'printers',
                       name: 'moreSettingsPrinters',
-                      builder: (context, state) => const PrinterPairingScreen(),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const PrinterPairingScreen()),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'sync',
                   name: 'moreSyncDetail',
-                  builder: (context, state) => const SyncDetailScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const SyncDetailScreen()),
                 ),
                 GoRoute(
                   path: 'notifications',
                   name: 'moreNotifications',
-                  builder: (context, state) => const NotificationsScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const NotificationsScreen()),
                 ),
                 GoRoute(
                   path: 'diagnostics',
                   name: 'moreDiagnostics',
-                  builder: (context, state) => const DiagnosticsScreen(),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DiagnosticsScreen()),
                   routes: [
                     GoRoute(
                       path: ':eventId',
                       name: 'moreDiagnosticDetail',
-                      builder: (context, state) =>
-                          DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!)),
                     ),
                   ],
                 ),
@@ -549,6 +552,10 @@ Set<Permission> _permissionsForMoreRoute(String location) {
   if (location.startsWith('/more/employees')) return {Permission.manageEmployees};
   if (location.startsWith('/more/reports')) return {Permission.viewReports};
   if (location.startsWith('/more/settings/backup')) return {Permission.manageBackup};
+  // Fulus Cloud is owner-only today; there is no permission that grants
+  // cloud connection management to non-owners, so do not let a direct/deep
+  // link bypass the owner-only UI gate below SettingsMainScreen.
+  if (location.startsWith('/more/settings/cloud')) return {Permission.manageSettings};
   if (location == '/more/settings') {
     // The settings hub itself, not any of its subroutes — reachable
     // with either the general manageSettings grant or, on its own,
@@ -704,11 +711,11 @@ class _MoreScreen extends ConsumerWidget {
     final user = ref.watch(sessionProvider);
     final isOwner = user?.role == AuthRole.owner;
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+    final canCustomers = isOwner || permissions.contains(Permission.viewMoney);
     final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
     final canReports = isOwner || permissions.contains(Permission.viewReports);
-    final canSettings = isOwner ||
-        permissions.contains(Permission.manageSettings) ||
-        permissions.contains(Permission.manageBackup);
+    final canSettings = isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup);
+    final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
 
     Widget tileGrid(List<Widget> tiles) {
       return LayoutBuilder(
@@ -749,7 +756,7 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.customers,
               label: 'Customers',
               subtitle: 'Customers and credit',
-              onTap: () => context.goNamed('moneyCustomers'),
+              onTap: canCustomers ? () => context.goNamed('moneyCustomers') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.staff,
@@ -761,7 +768,7 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.locations,
               label: 'Locations',
               subtitle: 'Manage business locations',
-              onTap: canSettings ? () => context.goNamed('moreSettingsLocations') : null,
+              onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.settings,
@@ -805,13 +812,13 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.sync,
               label: 'Sync',
               subtitle: 'Cloud sync status',
-              onTap: canSettings ? () => context.goNamed('moreSyncDetail') : null,
+              onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.print,
               label: 'Printers',
               subtitle: 'Receipt printing',
-              onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+              onTap: canManageSettings ? () => context.goNamed('moreSettingsPrinters') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.bugReport,

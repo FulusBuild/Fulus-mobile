@@ -28,9 +28,12 @@ void showFulusSnackbar(
       persist: false,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
-      action: actionLabel == null
+      // Never render a tappable-looking action without a real callback.
+      // A missing callback is a caller bug, but silently showing a dead action
+      // is worse UX than omitting the affordance.
+      action: actionLabel == null || onAction == null
           ? null
-          : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}, textColor: AppColors.primary300),
+          : SnackBarAction(label: actionLabel, onPressed: onAction, textColor: AppColors.primary300),
     ),
   );
 }

@@ -77,13 +77,11 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
       return;
     }
 
-    // Payment replaced the Cart page with this success page, so there are two
-    // Navigator entries between this screen and Sell. Return to the actual
-    // selling workspace rather than showing a now-empty cart and asking the
-    // cashier to press "Back to Sell" themselves.
+    // Payment replaced the Cart page with this success page, so this success
+    // page sits directly above the Sell workspace. One pop returns the
+    // cashier to the actual selling workspace without exposing an empty Cart.
     if (!context.mounted) return;
     final navigator = Navigator.of(context);
-    if (navigator.canPop()) navigator.pop();
     if (navigator.canPop()) navigator.pop();
   }
 

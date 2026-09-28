@@ -577,6 +577,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       }
     },
     onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
+    // The normal cursor pull reconciles changes since the last cursor. A
+    // location switch also needs the active location's current stock snapshot
+    // when that location has not previously been hydrated on this device.
+    // Reuse the existing product endpoint/repository path for that targeted
+    // hydration instead of inventing a second sync mechanism.
+    onContextChangeReconciled: () async {
+      if (!syncConfig.isEnabled) return;
+      await productRepository.syncFromServer();
+    },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
       syncTriggers.scheduleReadinessRecovery();

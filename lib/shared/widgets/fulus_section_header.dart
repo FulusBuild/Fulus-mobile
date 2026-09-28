@@ -27,7 +27,8 @@ class FulusSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = AppColors.primaryOf(context);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final stack = action != null && (MediaQuery.sizeOf(context).width < 360 || textScale > 1.15);
+    final hasAction = action != null && onActionTap != null;
+    final stack = hasAction && (MediaQuery.sizeOf(context).width < 360 || textScale > 1.15);
 
     final titleBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,7 +57,7 @@ class FulusSectionHeader extends StatelessWidget {
       ],
     );
 
-    final actionButton = action == null
+    final actionButton = !hasAction
         ? null
         : TextButton(
             onPressed: onActionTap,

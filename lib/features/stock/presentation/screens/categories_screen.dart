@@ -15,8 +15,13 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
-  late final Stream<List<Category>> _categoriesStream =
-      ref.read(categoryRepositoryProvider).watchCategories();
+  late Stream<List<Category>> _categoriesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _categoriesStream = ref.read(categoryRepositoryProvider).watchCategories();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +35,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             return FulusErrorState(
               message: "Couldn't load categories.",
               reassurance: 'Your products are still safe on this device.',
-              onRetry: () => setState(() {}),
+              onRetry: () => setState(() {
+                _categoriesStream = ref.read(categoryRepositoryProvider).watchCategories();
+              }),
             );
           }
           if (!snapshot.hasData) return const _CategoriesLoadingSkeleton();
