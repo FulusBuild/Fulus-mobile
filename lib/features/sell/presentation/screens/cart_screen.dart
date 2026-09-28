@@ -309,9 +309,9 @@ class _CompactQuantityStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _StepButton(icon: FulusIcons.remove, semanticsLabel: 'Decrease \${item.description}', onTap: () => cubit.decrementItem(item)),
+          _StepButton(icon: FulusIcons.remove, semanticsLabel: 'Decrease ${item.description}', onTap: () => cubit.decrementItem(item)),
           FulusPressable(
-            semanticsLabel: 'Edit quantity for \${item.description}',
+            semanticsLabel: 'Edit quantity for ${item.description}',
             onPressed: () => _editQuantity(context, cubit),
             child: SizedBox(
               height: AppTouchTarget.minimum,
@@ -320,13 +320,13 @@ class _CompactQuantityStepper extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('\${item.quantity}', style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context))),
+                  Text('${item.quantity}', style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context))),
                   if (unit != null) Text(unit!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                 ],
               ),
             ),
           ),
-          _StepButton(icon: FulusIcons.add, semanticsLabel: 'Increase \${item.description}', onTap: () => _increment(context, cubit)),
+          _StepButton(icon: FulusIcons.add, semanticsLabel: 'Increase ${item.description}', onTap: () => _increment(context, cubit)),
         ],
       ),
     );
@@ -343,7 +343,7 @@ class _CompactQuantityStepper extends StatelessWidget {
   }
 
   Future<void> _editQuantity(BuildContext context, CartCubit cubit) async {
-    final controller = TextEditingController(text: '\${item.quantity}');
+    final controller = TextEditingController(text: '${item.quantity}');
     final result = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -367,29 +367,6 @@ class _CompactQuantityStepper extends StatelessWidget {
     }
   }
 }
-class _CompactQuantity extends StatelessWidget {
-  const _CompactQuantity({required this.item, this.unit});
-  final DraftCartItem item;
-  final String? unit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 44),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAltOf(context),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        unit == null ? '×${item.quantity}' : '×${item.quantity} $unit',
-        textAlign: TextAlign.center,
-        style: AppTypography.label.copyWith(color: AppColors.textPrimaryOf(context)),
-      ),
-    );
-  }
-}
-
 class _QuantityStepper extends StatelessWidget {
   const _QuantityStepper({required this.item, this.unit});
 
