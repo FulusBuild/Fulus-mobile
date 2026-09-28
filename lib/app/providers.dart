@@ -92,11 +92,6 @@ import '../sync/sync_triggers.dart';
 /// UnimplementedError at the exact provider that's missing its override —
 /// not a silent null or a real-looking placeholder object that would let
 /// a wiring mistake pass unnoticed until much further downstream.
-final restoreRestartStateProvider =
-    ChangeNotifierProvider<RestoreRestartState>((ref) {
-  return RestoreRestartState();
-});
-
 final databaseProvider = Provider<AppDatabase>((ref) {
   throw UnimplementedError(
     'databaseProvider must be overridden in bootstrap.dart — this is a DI '
