@@ -86,7 +86,7 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      _HealthCard(health: health),
+                      _HealthCard(health: health, status: statusAsync.valueOrNull ?? const SyncStatus.settled()),
                       const SizedBox(height: AppSpacing.lg),
                       const _ConflictCard(),
                       const SizedBox(height: AppSpacing.lg),
