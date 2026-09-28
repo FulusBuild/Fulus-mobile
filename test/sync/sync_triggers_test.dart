@@ -88,16 +88,19 @@ void main() {
       when(() => syncEngine.runOnce(manual: any(named: 'manual')))
           .thenAnswer((_) async {});
 
+      var hydrated = false;
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
         syncConfig: config,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
+        onContextChangeReconciled: () async => hydrated = true,
       );
 
       await triggers.refreshAfterContextChange();
 
+      expect(hydrated, isTrue);
       verify(() => connectivity.checkConnectivity()).called(1);
       verify(() => syncEngine.runOnce(manual: false)).called(1);
       triggers.dispose();
