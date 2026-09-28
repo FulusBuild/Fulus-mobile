@@ -255,6 +255,10 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rawStatus = ref.watch(_shellSyncStatusProvider).value;
     final connection = ref.watch(fulusConnectionStateProvider);
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
+    final canOpenSync =
+        user?.role == AuthRole.owner || permissions.contains(Permission.manageSettings);
     if (rawStatus == null) return const SizedBox.shrink();
     final status = rawStatus.kind == SyncStatusKind.disabled || connection.isSyncReady
         ? rawStatus
@@ -268,8 +272,8 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
       SyncStatusKind.attentionNeeded => (FulusIcons.warning, AppColors.warningOf(context), status.attentionCount),
     };
     return Semantics(
-      button: true,
-      label: 'Sync status',
+      button: canOpenSync,
+      label: canOpenSync ? 'Sync status' : 'Sync status unavailable',
       child: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.md, top: AppSpacing.xs),
         child: Material(
@@ -282,7 +286,7 @@ class FulusSyncStatusIndicator extends ConsumerWidget {
           shadowColor: Colors.black.withValues(alpha: .10),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            onTap: () => context.pushNamed('moreSyncDetail'),
+            onTap: canOpenSync ? () => context.pushNamed('moreSyncDetail') : null,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               child: Padding(
