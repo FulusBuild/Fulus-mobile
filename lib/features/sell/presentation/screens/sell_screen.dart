@@ -614,66 +614,23 @@ class _ProductRow extends StatelessWidget {
   }
 
   Future<void> _add(BuildContext context) async {
-    final product = entry.product;
-    final controller = TextEditingController(text: '1');
-    final quantity = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Add ${product.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FulusTextField(
-              label: 'Quantity',
-              controller: controller,
-              keyboardType: TextInputType.number,
-            ),
-            if (product.tracksStock)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
-                child: Text(
-                  '${entry.currentStock} available',
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textSecondaryOf(dialogContext),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FulusButton(
-            label: 'Add to cart',
-            onPressed: () => Navigator.of(dialogContext).pop(
-              int.tryParse(controller.text.trim()),
-            ),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-
-    if (quantity == null || !context.mounted) return;
     try {
       await context.read<CartCubit>().addProductQuantity(
             product.localId,
-            quantity,
+            1,
           );
       FulusHaptics.selection();
       if (context.mounted) {
         showFulusSnackbar(
           context,
-          message: '${quantity} × ${product.name} added to the cart.',
+          message: '1 × ${product.name} added to the cart.',
         );
       }
     } on StateError catch (e) {
       FulusHaptics.error();
       if (context.mounted) showFulusSnackbar(context, message: e.message);
     }
+  }
   }
 }
 
