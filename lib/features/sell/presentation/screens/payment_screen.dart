@@ -268,17 +268,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           ),
                         ],
                         if (!splitActive && !canComplete) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () {
-                                FulusHaptics.selection();
-                                setState(() => _splitPayment = true);
-                              },
-                              icon: FulusIcons.callSplit.icon,
-                              label: const Text('Split payment'),
-                            ),
+                          const SizedBox(height: AppSpacing.md),
+                          FulusActionTile(
+                            icon: FulusIcons.callSplit,
+                            label: 'Split payment',
+                            subtitle: 'Use more than one payment method',
+                            onTap: () {
+                              FulusHaptics.selection();
+                              setState(() => _splitPayment = true);
+                            },
                           ),
                         ],
                         const SizedBox(height: AppSpacing.xl),
