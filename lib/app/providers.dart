@@ -10,6 +10,7 @@ import '../core/export/export_service.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/onboarding/onboarding_state.dart';
 import '../core/security/app_lock_config.dart';
+import '../core/utils/async_timeout.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
@@ -349,7 +350,10 @@ final resolveActiveLocationProvider = Provider<ResolveActiveLocation>((ref) {
 /// back would be wasted work for a value that essentially never changes
 /// mid-session.
 final activeLocationIdProvider = FutureProvider<String>((ref) {
-  return ref.watch(resolveActiveLocationProvider).call();
+  return ref
+      .watch(resolveActiveLocationProvider)
+      .call()
+      .withFulusLoadingTimeout();
 });
 
 /// Validated location-context switcher. Kept app-scoped so rapid user
