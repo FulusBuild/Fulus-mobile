@@ -157,9 +157,13 @@ final appRouter = GoRouter(
   redirect: (context, state) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final user = container.read(sessionProvider);
-    if (user == null || user.role == AuthRole.owner) return null;
+    if (user == null) return null;
 
     final location = state.matchedLocation;
+    if (location.startsWith('/more/settings/cloud')) {
+      return user.role == AuthRole.owner ? null : '/';
+    }
+    if (user.role == AuthRole.owner) return null;
     final requiredPermissions = location.startsWith('/money')
         ? {Permission.viewMoney}
         : location.startsWith('/more')
