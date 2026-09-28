@@ -35,6 +35,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function(Object error)? onRecoveryFailed,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
     Future<void> Function()? onBeforeSyncCycle,
+    Future<void> Function()? onContextChangeReconciled,
     Connectivity? connectivity,
     this.retryInterval = const Duration(seconds: 30),
     Future<void> Function()? onDeviceAuthorizationLost,
@@ -54,6 +55,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
         _onBeforeSyncCycle = onBeforeSyncCycle,
+        _onContextChangeReconciled = onContextChangeReconciled,
         _connectivity = connectivity ?? Connectivity(),
         _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
 
@@ -71,6 +73,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Future<void> Function()? _onBeforeSyncCycle;
+  final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
   final SyncExecutionLease _executionLease;
   final Duration retryInterval;
@@ -184,6 +187,8 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void> refreshAfterContextChange() async {
     if (!_syncConfig.isEnabled) return;
     await _runIfOnlineSafely();
+    if (!_syncConfig.isEnabled) return;
+    await _onContextChangeReconciled?.call();
   }
 
   Future<void> syncNow() async {
