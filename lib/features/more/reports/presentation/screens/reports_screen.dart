@@ -98,8 +98,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     final user = ref.read(sessionProvider);
     final permissions = ref.read(sessionPermissionsProvider).value ?? const {};
     final canViewAllSales = user?.role == AuthRole.owner || permissions.contains(Permission.viewDashboardStats);
-    final canViewMoney = user?.role == AuthRole.owner || permissions.contains(Permission.viewMoney);
-    final canManageEmployees = user?.role == AuthRole.owner || permissions.contains(Permission.manageEmployees);
     final locationFuture = ref.read(activeLocationIdProvider.future);
     _salesFuture = locationFuture.then((locationId) => repo.getSalesReport(
           period,
@@ -290,6 +288,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
       if (previous != null && previous != next) setState(_loadAll);
     });
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canViewMoney = user?.role == AuthRole.owner || permissions.contains(Permission.viewMoney);
+    final canManageEmployees = user?.role == AuthRole.owner || permissions.contains(Permission.manageEmployees);
 
     return FulusScreen(
       title: 'Reports',
