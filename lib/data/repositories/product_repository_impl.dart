@@ -94,8 +94,19 @@ class ProductRepositoryImpl implements ProductRepository {
       final response = await _productsApi.listProducts(page: page);
       totalPages = response.totalPages;
       for (final item in response.items) {
-        await _db.into(_db.products).insertOnConflictUpdate(item.toDriftCompanion());
-        if (location != null) await _db.into(_db.productStockLevels).insertOnConflictUpdate(item.toStockLevelCompanion(locationLocalId: location.localId));
+        final categoryLocalId = await _resolveCategoryLocalId(item.categoryId);
+        final supplierLocalId = await _resolveSupplierLocalId(item.supplierId);
+        await _db.into(_db.products).insertOnConflictUpdate(
+          item.toDriftCompanion().copyWith(
+            categoryId: Value(categoryLocalId),
+            supplierId: Value(supplierLocalId),
+          ),
+        );
+        if (location != null) {
+          await _db.into(_db.productStockLevels).insertOnConflictUpdate(
+            item.toStockLevelCompanion(locationLocalId: location.localId),
+          );
+        }
       }
       page++;
     } while (page <= totalPages);
