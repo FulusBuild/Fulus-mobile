@@ -548,6 +548,10 @@ Set<Permission> _permissionsForMoreRoute(String location) {
   if (location.startsWith('/more/employees')) return {Permission.manageEmployees};
   if (location.startsWith('/more/reports')) return {Permission.viewReports};
   if (location.startsWith('/more/settings/backup')) return {Permission.manageBackup};
+  // Fulus Cloud is owner-only today; there is no permission that grants
+  // cloud connection management to non-owners, so do not let a direct/deep
+  // link bypass the owner-only UI gate below SettingsMainScreen.
+  if (location.startsWith('/more/settings/cloud')) return {Permission.manageSettings};
   if (location == '/more/settings') {
     // The settings hub itself, not any of its subroutes — reachable
     // with either the general manageSettings grant or, on its own,
