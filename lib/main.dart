@@ -21,12 +21,6 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      // WorkManager is the OS-level safety net for Cloud Sync when Android
-      // suspends or terminates the Flutter process. Foreground SyncTriggers
-      // remains responsible for responsive sync while the app is running.
-      final backgroundSyncScheduler = FulusBackgroundSyncScheduler();
-      await backgroundSyncScheduler.initialize();
-
       final view = WidgetsBinding.instance.platformDispatcher.views.first;
       final logicalSize = view.physicalSize / view.devicePixelRatio;
       final isTablet = logicalSize.shortestSide >= kTabletBreakpoint;
@@ -54,36 +48,59 @@ Future<void> main() async {
       );
       diagnosticUploader.start();
 
-      final syncConfig = container.read(syncConfigProvider);
-      // Reconcile the persisted setting with the OS scheduler on every app
-      // launch, then keep WorkManager aligned with runtime toggle changes.
-      await backgroundSyncScheduler.setEnabled(syncConfig.isEnabled);
-      syncConfig.addListener(() {
-        unawaited(
-          backgroundSyncScheduler
-              .setEnabled(syncConfig.isEnabled)
-              .catchError((error, stackTrace) {
-            unawaited(
-              diagnosticLogger.captureError(
-                error: error,
-                stackTrace: stackTrace,
-                severity: DiagnosticSeverity.warning,
-                category: DiagnosticCategory.synchronization,
-                component: 'WorkManager',
-                operation: 'schedule',
-                title: 'Background Cloud Sync scheduling failed',
-              ),
-            );
-          }),
-        );
-      });
-
       runApp(
         UncontrolledProviderScope(
           container: container,
           child: const FulusApp(),
         ),
       );
+
+      // WorkManager is the OS-level safety net for Cloud Sync when Android
+      // suspends or terminates the Flutter process. It is deliberately
+      // initialized after the first Flutter frame: scheduler registration is
+      // infrastructure, not a prerequisite for rendering the local-first
+      // workspace. A scheduler failure must never prevent the app from
+      // becoming interactive.
+      final backgroundSyncScheduler = FulusBackgroundSyncScheduler();
+      unawaited(() async {
+        try {
+          await backgroundSyncScheduler.initialize();
+
+          final syncConfig = container.read(syncConfigProvider);
+          await backgroundSyncScheduler.setEnabled(syncConfig.isEnabled);
+          syncConfig.addListener(() {
+            unawaited(
+              backgroundSyncScheduler
+                  .setEnabled(syncConfig.isEnabled)
+                  .catchError((error, stackTrace) {
+                unawaited(
+                  diagnosticLogger.captureError(
+                    error: error,
+                    stackTrace: stackTrace,
+                    severity: DiagnosticSeverity.warning,
+                    category: DiagnosticCategory.synchronization,
+                    component: 'WorkManager',
+                    operation: 'schedule',
+                    title: 'Background Cloud Sync scheduling failed',
+                  ),
+                );
+              }),
+            );
+          });
+        } catch (error, stackTrace) {
+          unawaited(
+            diagnosticLogger.captureError(
+              error: error,
+              stackTrace: stackTrace,
+              severity: DiagnosticSeverity.warning,
+              category: DiagnosticCategory.synchronization,
+              component: 'WorkManager',
+              operation: 'initialize',
+              title: 'Background Cloud Sync scheduler initialization failed',
+            ),
+          );
+        }
+      }());
     },
     (error, stack) {
       unawaited(
