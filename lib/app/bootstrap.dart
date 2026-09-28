@@ -123,14 +123,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final secureStorage = SecureStorage();
   final sharedPreferencesFuture = SharedPreferences.getInstance();
 
-  // SharedPreferences is the common local dependency for SyncConfig and
-  // onboarding state. Resolve it once and construct both synchronously from
-  // the same in-memory store instead of performing three sequential async
-  // bootstrap calls for the same dependency.
-  final syncPreferences = await sharedPreferencesFuture;
-  final syncConfig = SyncConfig(preferences: syncPreferences);
-  final onboardingState = OnboardingState(preferences: syncPreferences);
-
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
   apiClient = ApiClient(
@@ -160,6 +152,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final restoreSessionFuture = authRepository.restoreSession();
   cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   await restoreSessionFuture;
+
+  // SharedPreferences and local session restoration are independent. Start
+  // both as early as possible, then wait for the slower one before wiring the
+  // providers that depend on the preferences instance.
+  final syncPreferences = await sharedPreferencesFuture;
+  final syncConfig = SyncConfig(preferences: syncPreferences);
+  final onboardingState = OnboardingState(preferences: syncPreferences);
+
   final approvalPinRepository = ApprovalPinRepositoryImpl(authApi: authApi, secureStorage: secureStorage, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository);
 
   final salesApi = SalesApi(apiClient);
