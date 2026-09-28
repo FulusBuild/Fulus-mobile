@@ -186,8 +186,8 @@ class SyncTriggers with WidgetsBindingObserver {
   /// connectivity/lifecycle triggers will retry without making the switch fail.
   Future<void> refreshAfterContextChange() async {
     if (!_syncConfig.isEnabled) return;
-    await _runIfOnlineSafely();
-    if (!_syncConfig.isEnabled) return;
+    final didRun = await _runIfOnlineSafely();
+    if (!didRun || !_syncConfig.isEnabled) return;
     await _onContextChangeReconciled?.call();
   }
 
@@ -392,13 +392,14 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _runIfOnlineSafely() async {
+  Future<bool> _runIfOnlineSafely() async {
     try {
-      await _runIfOnline();
+      return await _runIfOnline();
     } catch (error, stackTrace) {
       if (_started) {
         _onSyncFailure?.call(error, stackTrace);
       }
+      return false;
     }
   }
 
