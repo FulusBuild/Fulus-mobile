@@ -10,6 +10,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MockSyncEngine extends Mock implements SyncEngine {}
@@ -22,6 +25,7 @@ void main() {
   late MockConnectivity connectivity;
   late MockSyncStatusNotifier syncStatusNotifier;
   late MockSyncExecutionLease executionLease;
+  late AppDatabase db;
 
   setUp(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +34,8 @@ void main() {
     connectivity = MockConnectivity();
     syncStatusNotifier = MockSyncStatusNotifier();
     executionLease = MockSyncExecutionLease();
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    when(() => syncEngine.db).thenReturn(db);
     when(() => executionLease.acquire()).thenAnswer((_) async => true);
     when(() => executionLease.release()).thenAnswer((_) async {});
     when(() => executionLease.ensureHeld()).thenAnswer((_) async {});
@@ -37,6 +43,10 @@ void main() {
         .thenAnswer((_) async {});
     when(() => connectivity.onConnectivityChanged)
         .thenAnswer((_) => const Stream.empty());
+  });
+
+  tearDown(() async {
+    await db.close();
   });
 
   group('sync disabled', () {
@@ -384,6 +394,66 @@ void main() {
       await triggers.syncNow();
 
       expect(events, ['lease:acquire', 'engine', 'lease:release']);
+      triggers.dispose();
+    });
+
+    test('empty sync cycles do not report outbound push work', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {});
+
+      bool? hadOutboundWork;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        onPushSuccess: (value) => hadOutboundWork = value,
+      );
+
+      await triggers.syncNow();
+
+      expect(hadOutboundWork, isFalse);
+      triggers.dispose();
+    });
+
+    test('sync cycles with durable queued work report outbound push work', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      await db.into(db.syncQueueItems).insert(
+        SyncQueueItemsCompanion.insert(
+          id: 'queued-push',
+          entityType: 'sale',
+          entityLocalId: 'sale-1',
+          operation: 'create',
+          priority: 1,
+          enqueuedAt: DateTime(2026, 9, 28),
+        ),
+      );
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {
+        await (db.delete(db.syncQueueItems)
+              ..where((q) => q.id.equals('queued-push')))
+            .go();
+      });
+
+      bool? hadOutboundWork;
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+        onPushSuccess: (value) => hadOutboundWork = value,
+      );
+
+      await triggers.syncNow();
+
+      expect(hadOutboundWork, isTrue);
       triggers.dispose();
     });
 
