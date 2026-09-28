@@ -87,6 +87,7 @@ class ProductSyncHandler implements SyncHandler {
       'selling_price': product.sellingPrice,
       'low_stock_threshold': product.lowStockThreshold,
       'is_active': product.isActive,
+      if (product.photoPath != null) 'photo_path': product.photoPath,
       'initial_stock': stock?.currentStock ?? 0,
       // The server seeds this exact location atomically with product creation.
       // Otherwise the next pull can legitimately overwrite local-first stock to 0.
