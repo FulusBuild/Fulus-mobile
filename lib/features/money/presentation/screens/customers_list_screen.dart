@@ -12,7 +12,9 @@ import '../widgets/customer_form_sheet.dart';
 /// Customers live inside Money. Presentation is deliberately lightweight and
 /// repository-backed so the credit book remains the source of truth.
 class CustomersListScreen extends ConsumerStatefulWidget {
-  const CustomersListScreen({super.key});
+  const CustomersListScreen({super.key, this.openedFromMore = false});
+
+  final bool openedFromMore;
 
   @override
   ConsumerState<CustomersListScreen> createState() => _CustomersListScreenState();
@@ -40,7 +42,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         FulusIconButton(
           icon: FulusIcons.archive,
           tooltip: 'Archived customers',
-          onPressed: () => context.pushNamed('moneyArchivedCustomers'),
+          onPressed: () => context.pushNamed(openedFromMore ? 'moreArchivedCustomers' : 'moneyArchivedCustomers'),
         ),
       ],
       body: customersAsync.when(
@@ -217,7 +219,7 @@ class _CustomerRow extends StatelessWidget {
           Text(outstanding > 0 ? 'Outstanding' : 'Settled', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
         ],
       ),
-      onTap: () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': customer.localId}, extra: customer),
+      onTap: () => context.pushNamed(openedFromMore ? 'moreCustomerProfile' : 'moneyCustomerProfile', pathParameters: {'id': customer.localId}, extra: customer),
     );
   }
 }
