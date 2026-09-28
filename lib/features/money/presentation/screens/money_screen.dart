@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
@@ -42,7 +43,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     final canViewAllSales = user?.role == AuthRole.owner ||
         permissions.contains(Permission.viewDashboardStats);
 
-    _balanceFuture = repo.getAvailableBalance();
+    _balanceFuture = repo.getAvailableBalance().withFulusLoadingTimeout();
     // Keep the first useful frame independent: recent activity can hydrate
     // as soon as its transaction read completes, without waiting for the
     // summary aggregation. Both reads start together and preserve the same
@@ -51,12 +52,12 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
       period,
       currentAuthUserId: currentAuthUserId,
       canViewAllSales: canViewAllSales,
-    );
+    ).withFulusLoadingTimeout();
     _transactionsFuture = repo.getTransactions(
       period,
       currentAuthUserId: currentAuthUserId,
       canViewAllSales: canViewAllSales,
-    );
+    ).withFulusLoadingTimeout();
   }
 
   Future<void> _refresh() async {
