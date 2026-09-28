@@ -633,15 +633,33 @@ class _HomeSellCard extends StatelessWidget {
         child: InkWell(
           onTap: () => context.goNamed('sell'),
           borderRadius: BorderRadius.circular(AppRadius.md),
-          child: const Center(
-            child: Text(
-              'Sell',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 90,
-                fontWeight: FontWeight.w800,
-              ),
+          child: const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: FulusMetricCardColumn(
+              icon: FulusIcons.sell,
+              iconColor: Colors.white,
+              children: [
+                Text(
+                  'Sell',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Start a sale',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
