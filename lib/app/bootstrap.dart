@@ -179,11 +179,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  // Repair queue ordering from older builds before automatic startup
-  // reconciliation can drain the outbox. This is metadata-only and safe on
-  // every app launch.
-  await syncQueue.normalizeDependencyPriorities();
-
   late final SyncTriggers syncTriggers;
 
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
