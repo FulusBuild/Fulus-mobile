@@ -52,30 +52,21 @@ class ProductSyncHandler implements SyncHandler {
     final row = await _requireProductRow(localId);
     final product = row.toDomain();
     final businessId = _fulusConnectionState.selectedBusinessId;
-    var photoPath = product.photoPath;
-    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
-      try {
-        photoPath = await _productImageApi.upload(
-          file: File(photoPath),
-          businessId: businessId!,
-          productLocalId: localId,
-        );
-        await _productRepository.setLocalOverrides(
-          productLocalId: localId,
-          photoPath: photoPath,
-        );
-      } on StateError {
-        photoPath = null;
-        await _productRepository.setLocalOverrides(
-          productLocalId: localId,
-          photoPath: null,
-        );
-      }
-    }
-
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
+    }
+    var photoPath = product.photoPath;
+    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+      photoPath = await _productImageApi.upload(
+        file: File(photoPath),
+        businessId: businessId,
+        productLocalId: localId,
+      );
+      await _productRepository.setLocalOverrides(
+        productLocalId: localId,
+        photoPath: photoPath,
+      );
     }
 
     // Product creation carries one initial stock/location pair. If stock was
@@ -167,29 +158,20 @@ class ProductSyncHandler implements SyncHandler {
     }
     final businessId = _fulusConnectionState.selectedBusinessId;
     final device = _fulusConnectionState.registeredDevice;
-    var photoPath = product.photoPath;
-    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
-      try {
-        photoPath = await _productImageApi.upload(
-          file: File(photoPath),
-          businessId: businessId!,
-          productLocalId: localId,
-        );
-        await _productRepository.setLocalOverrides(
-          productLocalId: localId,
-          photoPath: photoPath,
-        );
-      } on StateError {
-        photoPath = null;
-        await _productRepository.setLocalOverrides(
-          productLocalId: localId,
-          photoPath: null,
-        );
-      }
-    }
-
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
+    }
+    var photoPath = product.photoPath;
+    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+      photoPath = await _productImageApi.upload(
+        file: File(photoPath),
+        businessId: businessId,
+        productLocalId: localId,
+      );
+      await _productRepository.setLocalOverrides(
+        productLocalId: localId,
+        photoPath: photoPath,
+      );
     }
 
     if (product.deletedAt != null) {
