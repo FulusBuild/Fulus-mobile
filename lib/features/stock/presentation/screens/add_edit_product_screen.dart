@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../data/remote/product_image_api.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../../../shared/screens/barcode_scan_screen.dart';
@@ -147,6 +148,13 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           unit: _unitController.text.trim().isEmpty ? 'piece' : _unitController.text.trim(),
           photoPath: _photoPath,
         );
+        final uploadedPhotoPath = await _uploadPhotoIfNeeded(existing.localId);
+        if (uploadedPhotoPath != null) {
+          await productRepo.updateProduct(
+            localId: existing.localId,
+            photoPath: uploadedPhotoPath,
+          );
+        }
       } else {
         final sku = await _generateSku(name);
         final created = await productRepo.createProduct(
@@ -169,6 +177,13 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           unit: _unitController.text.trim().isEmpty ? 'piece' : _unitController.text.trim(),
           photoPath: _photoPath,
         );
+        final uploadedPhotoPath = await _uploadPhotoIfNeeded(created.localId);
+        if (uploadedPhotoPath != null) {
+          await productRepo.updateProduct(
+            localId: created.localId,
+            photoPath: uploadedPhotoPath,
+          );
+        }
       }
 
       // See dataRefreshSignalProvider's own doc comment in
@@ -214,6 +229,35 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
       setState(() => _bannerMessage = "Couldn't save this product. Try again.");
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<String?> _uploadPhotoIfNeeded(String productLocalId) async {
+    final path = _photoPath;
+    if (path == null || path.startsWith('http://') || path.startsWith('https://')) {
+      return null;
+    }
+    final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
+    if (businessId == null) return null;
+
+    try {
+      final remoteUrl = await ProductImageApi(ref.read(apiClientProvider)).upload(
+        file: File(path),
+        businessId: businessId,
+        productLocalId: productLocalId,
+      );
+      if (mounted) {
+        setState(() => _photoPath = remoteUrl);
+      }
+      return remoteUrl;
+    } catch (_) {
+      if (mounted) {
+        showFulusSnackbar(
+          context,
+          message: 'Product saved. The photo is still on this device and could not reach Fulus Cloud.',
+        );
+      }
+      return null;
     }
   }
 
@@ -293,7 +337,9 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                 if (_photoPath != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(File(_photoPath!), width: 64, height: 64, fit: BoxFit.cover),
+                    child: _photoPath!.startsWith('http://') || _photoPath!.startsWith('https://')
+                        ? Image.network(_photoPath!, width: 64, height: 64, fit: BoxFit.cover)
+                        : Image.file(File(_photoPath!), width: 64, height: 64, fit: BoxFit.cover),
                   )
                 else
                   Container(
