@@ -15,7 +15,7 @@ void main() {
     });
 
     test('supports custom symbols and explicit signs', () {
-      expect(formatMoney(1000000, symbol: '\$'), '\$1,000,000.00');
+      expect(formatMoney(1000000, symbol: 'USD'), 'USD1,000,000.00');
       expect(formatMoney(1250, showSign: true), '+₦1,250.00');
     });
   });
