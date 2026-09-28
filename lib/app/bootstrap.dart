@@ -121,12 +121,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   diagnosticLogger.attachStore(DriftDiagnosticStore(database));
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
+  final sharedPreferencesFuture = SharedPreferences.getInstance();
 
   // SharedPreferences is the common local dependency for SyncConfig and
   // onboarding state. Resolve it once and construct both synchronously from
   // the same in-memory store instead of performing three sequential async
   // bootstrap calls for the same dependency.
-  final syncPreferences = await SharedPreferences.getInstance();
+  final syncPreferences = await sharedPreferencesFuture;
   final syncConfig = SyncConfig(preferences: syncPreferences);
   final onboardingState = OnboardingState(preferences: syncPreferences);
 
@@ -153,13 +154,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   apiClient.setOnSessionExpired(() async {
     fulusConnectionState.markSessionExpired();
   });
-  final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
-
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
-  await authRepository.restoreSession();
+  final restoreSessionFuture = authRepository.restoreSession();
   cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  await restoreSessionFuture;
   final approvalPinRepository = ApprovalPinRepositoryImpl(authApi: authApi, secureStorage: secureStorage, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository);
 
   final salesApi = SalesApi(apiClient);
@@ -466,6 +466,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       throw StateError('No active business is available for Cloud Sync.');
     }
     final package = await PackageInfo.fromPlatform();
+    final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
     await fulusConnectionState.registerDevice(
       deviceClientId: deviceClientId,
       deviceName: 'Fulus Mobile',
@@ -589,25 +590,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  // Sync is a background concern. A persisted cloud-sync session must never
-  // hold the app's bootstrap gate hostage to network/auth/reconciliation
-  // work. The trigger object is fully wired before this call and owns its
-  // own retries when startup readiness is not yet available.
-  unawaited(
-    syncTriggers.start().catchError((Object error, StackTrace stackTrace) {
-      unawaited(
-        diagnosticLogger.captureError(
-          error: error,
-          stackTrace: stackTrace,
-          severity: DiagnosticSeverity.error,
-          category: DiagnosticCategory.synchronization,
-          component: 'SyncTriggers',
-          operation: 'start',
-          title: 'Cloud Sync startup failed',
-        ),
-      );
-    }),
-  );
+  // Sync starts after runApp(). The trigger is fully wired here, but
+  // network/session reconciliation is deliberately outside the first-frame
+  // startup path. Queue notifications remain connected immediately so any
+  // local mutation after the first frame can wake the sync runtime.
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
   final printerRepository = PrinterRepositoryImpl(db: database);
