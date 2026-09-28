@@ -1,4 +1,5 @@
-/// Thousands-separated currency formatting. No `intl` dependency added
+/// Thousands-separated currency formatting. Money is never compacted into K/M/B.
+/// No `intl` dependency added
 /// — per this codebase's own "avoid new dependencies unless genuinely
 /// necessary" stance (see `csv_export_service.dart`'s equivalent
 /// choice) — this is a few lines of real formatting logic, not
