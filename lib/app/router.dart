@@ -706,52 +706,26 @@ class _MoreScreen extends ConsumerWidget {
     final permissions = ref.watch(sessionPermissionsProvider).value ?? const {};
     final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
     final canReports = isOwner || permissions.contains(Permission.viewReports);
-    final canSettings = isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup);
+    final canSettings = isOwner ||
+        permissions.contains(Permission.manageSettings) ||
+        permissions.contains(Permission.manageBackup);
 
-    final rows = <Widget>[
-      _MoreRow(
-        icon: FulusIcons.settings,
-        title: 'Business Settings',
-        subtitle: 'Profile, location, tax and business preferences',
-        onTap: canSettings ? () => context.goNamed('moreSettings') : null,
-      ),
-      _MoreRow(
-        icon: FulusIcons.print,
-        title: 'Printers',
-        subtitle: 'Bluetooth & thermal printers',
-        onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
-      ),
-      _MoreRow(
-        icon: FulusIcons.cloudDone,
-        title: 'Backup & Sync',
-        subtitle: 'Cloud backup and sync status',
-        onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
-      ),
-      _MoreRow(
-        icon: FulusIcons.staff,
-        title: 'Employees & Permissions',
-        subtitle: 'Roles and access control',
-        onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
-      ),
-      _MoreRow(
-        icon: FulusIcons.reports,
-        title: 'Reports',
-        subtitle: 'Sales, stock and business insights',
-        onTap: canReports ? () => context.goNamed('moreReports') : null,
-      ),
-      _MoreRow(
-        icon: FulusIcons.notifications,
-        title: 'Alerts',
-        subtitle: 'Notifications and attention items',
-        onTap: () => context.goNamed('moreNotifications'),
-      ),
-      _MoreRow(
-        icon: FulusIcons.bugReport,
-        title: 'Diagnostics',
-        subtitle: 'Check app health and troubleshoot issues',
-        onTap: () => context.goNamed('moreDiagnostics'),
-      ),
-    ];
+    Widget tileGrid(List<Widget> tiles) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 640 ? 3 : 2;
+          final width = (constraints.maxWidth - (AppSpacing.sm * (columns - 1))) / columns;
+          return Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final tile in tiles)
+                SizedBox(width: width, child: tile),
+            ],
+          );
+        },
+      );
+    }
 
     return FulusScreen(
       title: 'More',
@@ -766,74 +740,88 @@ class _MoreScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: [
-          FulusCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (var i = 0; i < rows.length; i++) ...[
-                  rows[i],
-                  if (i < rows.length - 1) const FulusListDivider(indented: false),
-                ],
-              ],
+          const FulusSectionHeader(
+            title: 'Manage',
+            subtitle: 'People and places in your business',
+          ),
+          tileGrid([
+            FulusActionTile(
+              icon: FulusIcons.customers,
+              label: 'Customers',
+              subtitle: 'Customers and credit',
+              onTap: () => context.goNamed('moneyCustomers'),
             ),
+            FulusActionTile(
+              icon: FulusIcons.staff,
+              label: 'Employees',
+              subtitle: 'Roles and access',
+              onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
+            ),
+            FulusActionTile(
+              icon: FulusIcons.locations,
+              label: 'Locations',
+              subtitle: 'Manage business locations',
+              onTap: canSettings ? () => context.goNamed('moreSettingsLocations') : null,
+            ),
+            FulusActionTile(
+              icon: FulusIcons.settings,
+              label: 'Business Settings',
+              subtitle: 'Business details and preferences',
+              onTap: canSettings ? () => context.goNamed('moreSettings') : null,
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.lg),
+          const FulusSectionHeader(
+            title: 'Understand',
+            subtitle: 'See what your business is doing',
           ),
+          tileGrid([
+            FulusActionTile(
+              icon: FulusIcons.reports,
+              label: 'Reports',
+              subtitle: 'Sales, stock and insights',
+              onTap: canReports ? () => context.goNamed('moreReports') : null,
+            ),
+            FulusActionTile(
+              icon: FulusIcons.notifications,
+              label: 'Alerts',
+              subtitle: 'Things that need attention',
+              onTap: () => context.goNamed('moreNotifications'),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.lg),
+          const FulusSectionHeader(
+            title: 'Business Tools',
+            subtitle: 'Backup, cloud and devices',
+          ),
+          tileGrid([
+            FulusActionTile(
+              icon: FulusIcons.backup,
+              label: 'Backup',
+              subtitle: 'Back up and restore data',
+              onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
+            ),
+            FulusActionTile(
+              icon: FulusIcons.sync,
+              label: 'Sync',
+              subtitle: 'Cloud sync status',
+              onTap: canSettings ? () => context.goNamed('moreSyncDetail') : null,
+            ),
+            FulusActionTile(
+              icon: FulusIcons.print,
+              label: 'Printers',
+              subtitle: 'Receipt printing',
+              onTap: canSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+            ),
+            FulusActionTile(
+              icon: FulusIcons.bugReport,
+              label: 'Diagnostics',
+              subtitle: 'Check app health',
+              onTap: () => context.goNamed('moreDiagnostics'),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.xxl),
         ],
-      ),
-    );
-  }
-}
-
-class _MoreRow extends StatelessWidget {
-  const _MoreRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: onTap != null,
-      enabled: onTap != null,
-      label: '$title. $subtitle',
-      child: FulusListRow(
-        leading: Container(
-          width: FulusListRow.leadingSize,
-          height: FulusListRow.leadingSize,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceAltOf(context),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            color: onTap == null ? AppColors.textSecondaryOf(context) : AppColors.primaryOf(context),
-            size: AppIconSize.compact,
-          ),
-        ),
-        title: Text(
-          title,
-          style: AppTypography.body.copyWith(
-            color: AppColors.textPrimaryOf(context),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: AppTypography.caption.copyWith(
-            color: AppColors.textSecondaryOf(context),
-          ),
-        ),
-        trailing: onTap == null
-            ? Icon(FulusIcons.lock, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact)
-            : Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
-        onTap: onTap,
       ),
     );
   }
