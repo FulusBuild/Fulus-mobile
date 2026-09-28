@@ -20,6 +20,13 @@ const _paymentMethods = <_PaymentMethodOption>[
   (key: 'credit', label: 'Credit'),
 ];
 
+@visibleForTesting
+bool isPaymentSplitActive({
+  required bool explicitlySplit,
+  required int paymentCount,
+  required double remaining,
+}) => explicitlySplit || (paymentCount > 0 && remaining > 0.004);
+
 IconData _iconForMethod(String key) => switch (key) {
       'cash' => FulusIcons.cash,
       'mobile_money' => FulusIcons.accountBalance,
@@ -67,7 +74,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         final creditEnabled = cartState.customer != null;
         final canComplete = cartState.items.isNotEmpty && cartState.remaining.abs() <= 0.004;
         final enteredAmount = double.tryParse(_amountController.text.trim());
-        final splitActive = _splitPayment || cartState.payments.isNotEmpty;
+        final splitActive = isPaymentSplitActive(
+          explicitlySplit: _splitPayment,
+          paymentCount: cartState.payments.length,
+          remaining: cartState.remaining,
+        );
         final oneTap = !canComplete &&
             !splitActive &&
             _method != 'credit' &&
