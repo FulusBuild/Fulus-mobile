@@ -14,7 +14,7 @@ class FulusSyncCoordinator {
     Future<bool> Function(FulusSyncChange change)? shouldApplyChange,
     Future<void> Function(Future<void> Function() action)? withApplyTransaction,
     Future<Object> Function(List<FulusSyncChange> changes)? prepareChanges,
-    Future<void> Function(Object preparedChanges)? applyPreparedChanges,
+    Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? applyPreparedChanges,
     Future<bool> Function(String businessId, int cursor)? persistCursor,
   })  : _api = api,
         _preferences = preferences,
@@ -33,7 +33,7 @@ class FulusSyncCoordinator {
   final Future<bool> Function(FulusSyncChange change)? _shouldApplyChange;
   final Future<void> Function(Future<void> Function() action)? _withApplyTransaction;
   final Future<Object> Function(List<FulusSyncChange> changes)? _prepareChanges;
-  final Future<void> Function(Object preparedChanges)? _applyPreparedChanges;
+  final Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? _applyPreparedChanges;
   final Future<bool> Function(String businessId, int cursor)? _persistCursorOverride;
 
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
@@ -117,7 +117,7 @@ class FulusSyncCoordinator {
               if (shouldApply) applicable.add(change);
             }
             if (applicable.isNotEmpty) {
-              await applyPreparedChanges(prepared);
+              await applyPreparedChanges(prepared, applicable);
             }
           };
           if (withApplyTransaction != null) {
