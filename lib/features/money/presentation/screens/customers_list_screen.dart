@@ -196,7 +196,6 @@ class _CustomerRow extends StatelessWidget {
   final Customer customer;
   final String currencySymbol;
   final bool openedFromMore;
-  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
