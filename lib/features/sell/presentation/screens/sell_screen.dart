@@ -607,7 +607,7 @@ class _ProductRow extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              currency + product.sellingPrice.toStringAsFixed(2),
+              formatMoney(product.sellingPrice, symbol: currency),
               style: AppTypography.body.copyWith(
                 color: AppColors.primaryOf(context),
                 fontWeight: FontWeight.w600,
@@ -677,7 +677,7 @@ class _CartSummaryBar extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Text(state.itemCount.toString() + ' items', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             const Spacer(),
-            Text(state.currencySymbol + state.total.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            Text(formatMoney(state.total, symbol: state.currencySymbol), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
             const SizedBox(width: AppSpacing.sm),
             const Text('View Cart', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             const SizedBox(width: AppSpacing.md),
