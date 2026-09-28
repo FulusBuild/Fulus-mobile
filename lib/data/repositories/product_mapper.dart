@@ -115,7 +115,7 @@ extension ProductResponseDtoToCompanion on ProductResponseDto {
       createdAt: now,
       updatedAt: now,
       syncStatus: SyncStatus.settled,
-      photoPath: Value(photoPath),
+      photoPath: photoPath == null ? const Value.absent() : Value(photoPath),
       deletedAt: const Value(null),
     );
   }
