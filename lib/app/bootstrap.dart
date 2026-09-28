@@ -121,9 +121,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   diagnosticLogger.attachStore(DriftDiagnosticStore(database));
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
-  final syncConfig = await SyncConfig.load();
+
+  // SharedPreferences is the common local dependency for SyncConfig and
+  // onboarding state. Resolve it once and construct both synchronously from
+  // the same in-memory store instead of performing three sequential async
+  // bootstrap calls for the same dependency.
   final syncPreferences = await SharedPreferences.getInstance();
-  final onboardingState = await OnboardingState.load();
+  final syncConfig = SyncConfig(preferences: syncPreferences);
+  final onboardingState = OnboardingState(preferences: syncPreferences);
+
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
   apiClient = ApiClient(
