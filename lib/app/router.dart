@@ -644,6 +644,10 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       future: _businessConfiguredFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
+          // Business configuration is a security/routing invariant, not
+          // optional hydration. Never expose the business shell while this
+          // local check is unresolved: an interrupted owner setup must
+          // resume OwnerSetupScreen before any business route is built.
           return const FulusScreen(body: FulusLoadingIndicator());
         }
         // Resolved through resolvePostSignInStage

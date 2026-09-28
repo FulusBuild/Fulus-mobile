@@ -36,4 +36,12 @@ begin
   ) then
     raise exception 'diagnostic_events client-deny RLS policy is missing';
   end if;
+
+  -- The service-role Edge Function passes the verified user explicitly.
+  -- The return RPC must bind that actor before calling has_permission(),
+  -- otherwise auth.uid() resolves to the service actor and every legitimate
+  -- return sync is rejected with 42501.
+  if position('set_config(''request.jwt.claim.sub'',target_user_id::text,true)' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
+    raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
+  end if;
 end $$;

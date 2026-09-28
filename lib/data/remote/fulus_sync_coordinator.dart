@@ -13,6 +13,8 @@ class FulusSyncCoordinator {
     Future<void> Function(List<FulusSyncChange> changes)? applyChanges,
     Future<bool> Function(FulusSyncChange change)? shouldApplyChange,
     Future<void> Function(Future<void> Function() action)? withApplyTransaction,
+    Future<Object> Function(List<FulusSyncChange> changes)? prepareChanges,
+    Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? applyPreparedChanges,
     Future<bool> Function(String businessId, int cursor)? persistCursor,
   })  : _api = api,
         _preferences = preferences,
@@ -20,6 +22,8 @@ class FulusSyncCoordinator {
         _applyChanges = applyChanges,
         _shouldApplyChange = shouldApplyChange,
         _withApplyTransaction = withApplyTransaction,
+        _prepareChanges = prepareChanges,
+        _applyPreparedChanges = applyPreparedChanges,
         _persistCursorOverride = persistCursor;
 
   final FulusSyncApi _api;
@@ -28,6 +32,8 @@ class FulusSyncCoordinator {
   final Future<void> Function(List<FulusSyncChange> changes)? _applyChanges;
   final Future<bool> Function(FulusSyncChange change)? _shouldApplyChange;
   final Future<void> Function(Future<void> Function() action)? _withApplyTransaction;
+  final Future<Object> Function(List<FulusSyncChange> changes)? _prepareChanges;
+  final Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? _applyPreparedChanges;
   final Future<bool> Function(String businessId, int cursor)? _persistCursorOverride;
 
   static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
@@ -87,35 +93,66 @@ class FulusSyncCoordinator {
           }
           previousSequence = change.sequence;
         }
-        final applyPage = () async {
-          final applicable = <FulusSyncChange>[];
-          for (final change in unapplied) {
-            final shouldApply = _shouldApplyChange == null
-                ? true
-                : await _shouldApplyChange(change);
-            if (shouldApply) applicable.add(change);
-          }
-          final applyChanges = _applyChanges;
-          if (applyChanges != null && applicable.isNotEmpty) {
-            await applyChanges(applicable);
-          } else {
-            for (final change in applicable) {
-              // Apply first, persist cursor second. Replaying a successfully applied
-              // change after a crash is safe because reconciliation is idempotent.
-              await _applyChange(change);
-            }
-          }
-        };
+        final prepareChanges = _prepareChanges;
+        final applyPreparedChanges = _applyPreparedChanges;
         final withApplyTransaction = _withApplyTransaction;
-        if (withApplyTransaction != null) {
-          // Keep the eligibility check and local reconciliation in one Drift
-          // transaction. Drift starts native SQLite transactions as write
-          // transactions, so another runtime cannot commit a local write between
-          // the eligibility check and canonical reconciliation. Its write waits
-          // for this short transaction instead of being allowed to interleave.
-          await withApplyTransaction(applyPage);
+
+        if (prepareChanges != null || applyPreparedChanges != null) {
+          if (prepareChanges == null || applyPreparedChanges == null) {
+            throw StateError(
+              'Prepared sync application requires both preparation and apply callbacks.',
+            );
+          }
+
+          // Remote canonical reads must complete before the local write
+          // transaction starts. Otherwise a slow network request keeps SQLite's
+          // writer transaction open and blocks foreground local reads.
+          final prepared = await prepareChanges(unapplied);
+          final applyPreparedPage = () async {
+            final applicable = <FulusSyncChange>[];
+            for (final change in unapplied) {
+              final shouldApply = _shouldApplyChange == null
+                  ? true
+                  : await _shouldApplyChange(change);
+              if (shouldApply) applicable.add(change);
+            }
+            if (applicable.isNotEmpty) {
+              await applyPreparedChanges(prepared, applicable);
+            }
+          };
+          if (withApplyTransaction != null) {
+            // The transaction now contains only the final eligibility check and
+            // local writes. This preserves OCC/lease fencing without holding the
+            // SQLite writer lock across network I/O.
+            await withApplyTransaction(applyPreparedPage);
+          } else {
+            await applyPreparedPage();
+          }
         } else {
-          await applyPage();
+          final applyPage = () async {
+            final applicable = <FulusSyncChange>[];
+            for (final change in unapplied) {
+              final shouldApply = _shouldApplyChange == null
+                  ? true
+                  : await _shouldApplyChange(change);
+              if (shouldApply) applicable.add(change);
+            }
+            final applyChanges = _applyChanges;
+            if (applyChanges != null && applicable.isNotEmpty) {
+              await applyChanges(applicable);
+            } else {
+              for (final change in applicable) {
+                // Apply first, persist cursor second. Replaying a successfully applied
+                // change after a crash is safe because reconciliation is idempotent.
+                await _applyChange(change);
+              }
+            }
+          };
+          if (withApplyTransaction != null) {
+            await withApplyTransaction(applyPage);
+          } else {
+            await applyPage();
+          }
         }
         // A change intentionally held behind a pending local mutation is still
         // acknowledged in the feed. Its authoritative state is recovered by

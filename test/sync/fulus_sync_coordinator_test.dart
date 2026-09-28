@@ -414,4 +414,68 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
   });
 
+  test('prepares remote changes before opening the local apply transaction', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer(
+      (_) async => FulusSyncPullResponse(
+        changes: [
+          FulusSyncChange(
+            sequence: 1,
+            entityType: 'customer',
+            entityId: 'c1',
+            operation: 'upsert',
+            payload: const {},
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+        ],
+        cursor: 0,
+        nextCursor: 1,
+        hasMore: false,
+      ),
+    );
+
+    final events = <String>[];
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      preferences: preferences,
+      applyChange: (_) async {},
+      shouldApplyChange: (_) async {
+        events.add('eligibility');
+        return true;
+      },
+      prepareChanges: (changes) async {
+        events.add('prepare:start');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        events.add('prepare:end');
+        return changes;
+      },
+      applyPreparedChanges: (prepared, applicable) async {
+        events.add('apply:' + (prepared as List<FulusSyncChange>).length.toString() + ':' + applicable.length.toString());
+      },
+      withApplyTransaction: (action) async {
+        events.add('transaction:start');
+        await action();
+        events.add('transaction:end');
+      },
+    );
+
+    await coordinator.pullAndApply(businessId: 'b1');
+
+    expect(
+      events,
+      [
+        'prepare:start',
+        'prepare:end',
+        'transaction:start',
+        'eligibility',
+        'apply:1:1',
+        'transaction:end',
+      ],
+    );
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
+  });
+
+
 }

@@ -352,6 +352,41 @@ void main() {
       verify(() => syncStatusNotifier.checkForStuckSyncAndNotify()).called(1);
     });
 
+    test('runs the pre-sync hook only after acquiring the durable lease', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final events = <String>[];
+      when(() => executionLease.acquire()).thenAnswer((_) async {
+        events.add('lease:acquire');
+        return true;
+      });
+      when(() => executionLease.release()).thenAnswer((_) async {
+        events.add('lease:release');
+      });
+      when(() => syncEngine.runOnce(manual: true)).thenAnswer((_) async {
+        events.add('engine');
+      });
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        onBeforeSyncCycle: () async => events.add('normalize'),
+        connectivity: connectivity,
+      );
+
+      await triggers.syncNow();
+
+      expect(events, ['lease:acquire', 'normalize', 'engine', 'lease:release']);
+      events.clear();
+
+      await triggers.syncNow();
+
+      expect(events, ['lease:acquire', 'engine', 'lease:release']);
+      triggers.dispose();
+    });
+
     test('syncNow() runs the engine and then checks for a stuck sync', () async {
       SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
       final config = await SyncConfig.load();

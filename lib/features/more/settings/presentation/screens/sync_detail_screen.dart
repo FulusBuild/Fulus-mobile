@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/providers.dart';
 import '../../../../../data/local/database/database.dart';
 import '../../../../../core/theme/design_tokens.dart';
+import '../../../../../core/utils/async_timeout.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../../sync/sync_status.dart';
 import '../../../../../sync/sync_user_message.dart';
@@ -23,7 +24,6 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
     if (_syncingNow) return;
     setState(() => _syncingNow = true);
     try {
-      await ref.read(syncQueueProvider).normalizeDependencyPriorities();
       await ref.read(syncTriggersProvider).syncNow();
       if (!mounted) return;
       ref.invalidate(_syncDetailStatusProvider);
@@ -130,7 +130,10 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
 }
 
 final _syncDetailStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
-  return ref.watch(syncStatusNotifierProvider).watch();
+  return ref
+      .watch(syncStatusNotifierProvider)
+      .watch()
+      .withFulusLoadingTimeout();
 });
 
 final _unresolvedConflictsProvider =

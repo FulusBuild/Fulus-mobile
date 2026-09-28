@@ -70,9 +70,9 @@ class FulusSaleCanonicalReconciler {
   SaleCanonicalPayment _mapPayment(Map<String, dynamic> row) {
     return SaleCanonicalPayment(
       serverId: _string(row['id']),
-      method: _string(row['method']),
+      method: _string(row['method'] ?? row['payment_method']),
       amount: _number(row['amount']),
-      recordedAt: _date(row['recorded_at']),
+      recordedAt: _date(row['recorded_at'] ?? row['created_at']),
     );
   }
 

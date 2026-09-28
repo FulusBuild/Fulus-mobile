@@ -33,6 +33,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function()? onRecoveryReconciled,
     Future<void> Function(Object error)? onRecoveryFailed,
     void Function(Object error, StackTrace stackTrace)? onSyncFailure,
+    Future<void> Function()? onBeforeSyncCycle,
     Connectivity? connectivity,
     this.retryInterval = const Duration(seconds: 30),
     Future<void> Function()? onDeviceAuthorizationLost,
@@ -50,6 +51,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _onRecoveryReconciled = onRecoveryReconciled,
         _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
+        _onBeforeSyncCycle = onBeforeSyncCycle,
         _connectivity = connectivity ?? Connectivity(),
         _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
 
@@ -65,6 +67,7 @@ class SyncTriggers with WidgetsBindingObserver {
   final Future<void> Function()? _onRecoveryReconciled;
   final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
+  final Future<void> Function()? _onBeforeSyncCycle;
   final Connectivity _connectivity;
   final SyncExecutionLease _executionLease;
   final Duration retryInterval;
@@ -80,6 +83,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<bool>? _syncCycleRun;
   Future<void>? _followUpRun;
   bool _syncRequestedAfterCycle = false;
+  bool _beforeSyncCycleCompleted = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
@@ -448,6 +452,10 @@ class SyncTriggers with WidgetsBindingObserver {
       }
       try {
         try {
+          if (!_beforeSyncCycleCompleted) {
+            await _onBeforeSyncCycle?.call();
+            _beforeSyncCycleCompleted = true;
+          }
           await _performSyncCycle(manual: manual, lease: lease);
           return true;
         } on SyncExecutionLeaseLost {

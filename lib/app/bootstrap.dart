@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
 import '../core/config/supabase_config.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
-import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../core/diagnostics/storage/drift_diagnostic_store.dart';
 import '../core/errors/failure.dart';
 import '../core/export/export_service.dart';
@@ -121,9 +120,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   diagnosticLogger.attachStore(DriftDiagnosticStore(database));
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
-  final syncConfig = await SyncConfig.load();
-  final syncPreferences = await SharedPreferences.getInstance();
-  final onboardingState = await OnboardingState.load();
+  final sharedPreferencesFuture = SharedPreferences.getInstance();
+
   const baseUrl = EnvConfig.apiBaseUrl;
   late final ApiClient apiClient;
   apiClient = ApiClient(
@@ -147,13 +145,20 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   apiClient.setOnSessionExpired(() async {
     fulusConnectionState.markSessionExpired();
   });
-  final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
-
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
-  await authRepository.restoreSession();
+  final restoreSessionFuture = authRepository.restoreSession();
   cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
+  await restoreSessionFuture;
+
+  // SharedPreferences and local session restoration are independent. Start
+  // both as early as possible, then wait for the slower one before wiring the
+  // providers that depend on the preferences instance.
+  final syncPreferences = await sharedPreferencesFuture;
+  final syncConfig = SyncConfig(preferences: syncPreferences);
+  final onboardingState = OnboardingState(preferences: syncPreferences);
+
   final approvalPinRepository = ApprovalPinRepositoryImpl(authApi: authApi, secureStorage: secureStorage, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository);
 
   final salesApi = SalesApi(apiClient);
@@ -178,11 +183,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
           : syncPreferences.getInt('fulus_sync_cursor_$businessId');
     },
   );
-
-  // Repair queue ordering from older builds before automatic startup
-  // reconciliation can drain the outbox. This is metadata-only and safe on
-  // every app launch.
-  await syncQueue.normalizeDependencyPriorities();
 
   late final SyncTriggers syncTriggers;
 
@@ -289,6 +289,33 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         businessId: businessId,
         deviceClientId: registeredDevice.deviceClientId,
       );
+    },
+    prepareChanges: (changes) async {
+      final businessId = fulusConnectionState.selectedBusinessId;
+      if (businessId == null) {
+        throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
+      }
+      final registeredDevice = fulusConnectionState.registeredDevice;
+      if (registeredDevice == null || !fulusConnectionState.isDeviceAuthorized) {
+        throw StateError('Fulus Cloud device registration is not ready.');
+      }
+      return canonicalReconciler.prepareChanges(
+        changes,
+        businessId: businessId,
+        deviceClientId: registeredDevice.deviceClientId,
+      );
+    },
+    applyPreparedChanges: (prepared, applicable) async {
+      final preparedChanges =
+          (prepared as List<FulusCanonicalPreparedChange>)
+              .where((item) => applicable.any(
+                    (change) =>
+                        change.sequence == item.change.sequence &&
+                        change.entityType == item.change.entityType &&
+                        change.entityId == item.change.entityId,
+                  ))
+              .toList(growable: false);
+      await canonicalReconciler.applyPreparedChanges(preparedChanges);
     },
     shouldApplyChange: (change) async {
       return !(await syncQueue.hasPendingMutationForServerEntity(
@@ -438,6 +465,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       throw StateError('No active business is available for Cloud Sync.');
     }
     final package = await PackageInfo.fromPlatform();
+    final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
     await fulusConnectionState.registerDevice(
       deviceClientId: deviceClientId,
       deviceName: 'Fulus Mobile',
@@ -561,25 +589,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  // Sync is a background concern. A persisted cloud-sync session must never
-  // hold the app's bootstrap gate hostage to network/auth/reconciliation
-  // work. The trigger object is fully wired before this call and owns its
-  // own retries when startup readiness is not yet available.
-  unawaited(
-    syncTriggers.start().catchError((Object error, StackTrace stackTrace) {
-      unawaited(
-        diagnosticLogger.captureError(
-          error: error,
-          stackTrace: stackTrace,
-          severity: DiagnosticSeverity.error,
-          category: DiagnosticCategory.synchronization,
-          component: 'SyncTriggers',
-          operation: 'start',
-          title: 'Cloud Sync startup failed',
-        ),
-      );
-    }),
-  );
+  // Sync starts after runApp(). The trigger is fully wired here, but
+  // network/session reconciliation is deliberately outside the first-frame
+  // startup path. Queue notifications remain connected immediately so any
+  // local mutation after the first frame can wake the sync runtime.
   syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
 
   final printerRepository = PrinterRepositoryImpl(db: database);

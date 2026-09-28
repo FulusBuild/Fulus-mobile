@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart'; // for StateProvider.autoDispose
 
 import '../../../app/providers.dart';
+import '../../../core/utils/async_timeout.dart';
 import '../../../domain/entities/category.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/stock_movement.dart';
@@ -42,16 +43,25 @@ final currentLocationIdProvider = activeLocationIdProvider;
 /// can watch this directly without re-deriving it.
 final productsWithStockProvider =
     StreamProvider.autoDispose.family<List<ProductWithStock>, String>((ref, locationId) {
-  return ref.watch(productRepositoryProvider).watchProducts(locationId: locationId);
+  return ref
+      .watch(productRepositoryProvider)
+      .watchProducts(locationId: locationId)
+      .withFulusLoadingTimeout();
 });
 
 final lowStockProductsProvider =
     StreamProvider.autoDispose.family<List<ProductWithStock>, String>((ref, locationId) {
-  return ref.watch(productRepositoryProvider).watchLowStockProducts(locationId: locationId);
+  return ref
+      .watch(productRepositoryProvider)
+      .watchLowStockProducts(locationId: locationId)
+      .withFulusLoadingTimeout();
 });
 
 final categoriesProvider = StreamProvider.autoDispose<List<Category>>((ref) {
-  return ref.watch(categoryRepositoryProvider).watchCategories();
+  return ref
+      .watch(categoryRepositoryProvider)
+      .watchCategories()
+      .withFulusLoadingTimeout();
 });
 
 /// Volume 6: "A supplier is a name, a phone number, and an optional
@@ -60,7 +70,10 @@ final categoriesProvider = StreamProvider.autoDispose<List<Category>>((ref) {
 /// screen (edit/delete, the ledger referenced in Volume 8) is out of
 /// scope for Stock specifically.
 final suppliersProvider = StreamProvider.autoDispose<List<Supplier>>((ref) {
-  return ref.watch(supplierRepositoryProvider).watchSuppliers();
+  return ref
+      .watch(supplierRepositoryProvider)
+      .watchSuppliers()
+      .withFulusLoadingTimeout();
 });
 
 /// Every movement at the current location — Stock In/Out/Adjustment
@@ -74,7 +87,10 @@ final suppliersProvider = StreamProvider.autoDispose<List<Supplier>>((ref) {
 /// feature that doesn't exist yet.
 final stockMovementsProvider =
     StreamProvider.autoDispose.family<List<StockMovement>, String>((ref, locationId) {
-  return ref.watch(stockMovementRepositoryProvider).watchMovementsForLocation(locationId);
+  return ref
+      .watch(stockMovementRepositoryProvider)
+      .watchMovementsForLocation(locationId)
+      .withFulusLoadingTimeout();
 });
 
 /// Sort options for the product list — 5.13-style short list, not a

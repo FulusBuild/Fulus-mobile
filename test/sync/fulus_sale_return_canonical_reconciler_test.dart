@@ -90,7 +90,7 @@ void main() {
           },
         ],
         'sale_payments': [
-          {'id': 'payment-1', 'method': 'cash', 'amount': 1000, 'recorded_at': '2026-09-15T10:00:00Z'},
+          {'id': 'payment-1', 'payment_method': 'cash', 'amount': 1000, 'created_at': '2026-09-15T10:00:00Z'},
         ],
       },
     });
