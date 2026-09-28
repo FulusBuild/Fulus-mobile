@@ -479,61 +479,6 @@ final appRouter = GoRouter(
                   ],
                 ),
                 GoRoute(
-                  path: 'customers',
-                  name: 'moreCustomers',
-                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const CustomersListScreen()),
-                  routes: [
-                    GoRoute(
-                      path: ':id',
-                      name: 'moreCustomerProfile',
-                      pageBuilder: (context, state) => _fulusNoTransitionPage(
-                        state,
-                        CustomerProfileScreen(
-                          customerId: state.pathParameters['id']!,
-                          preloaded: state.extra is Customer ? state.extra as Customer : null,
-                          openedFromMore: true,
-                        ),
-                      ),
-                      routes: [
-                        GoRoute(
-                          path: 'repay',
-                          name: 'moreRecordRepayment',
-                          pageBuilder: (context, state) => _fulusNoTransitionPage(
-                            state,
-                            (() {
-                              final extra = state.extra;
-                              if (extra is Customer) return RecordRepaymentScreen(customer: extra);
-                              return const _MissingContextScreen(
-                                title: 'Record repayment',
-                                message: "Open the customer's profile first.",
-                              );
-                            })(),
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'transaction/:transactionId',
-                          name: 'moreCustomerTransactionDetail',
-                          pageBuilder: (context, state) => _fulusNoTransitionPage(
-                            state,
-                            TransactionDetailScreen(
-                              transactionId: state.pathParameters['transactionId']!,
-                              preloaded: state.extra is MoneyTransaction ? state.extra as MoneyTransaction : null,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                GoRoute(
-                  path: 'printers',
-                  name: 'morePrinters',
-                  pageBuilder: (context, state) => _fulusNoTransitionPage(
-                    state,
-                    const PrinterPairingScreen(),
-                  ),
-                ),
-                GoRoute(
                   path: 'settings/backup',
                   name: 'moreSettingsBackup',
                   pageBuilder: (context, state) => _fulusNoTransitionPage(state, const BackupScreen()),
