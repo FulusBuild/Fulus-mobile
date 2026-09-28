@@ -566,7 +566,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusConnectionState.markSyncError(error);
     },
     hasOutboundWork: () async =>
-        (await db.select(db.syncQueueItems).get()).isNotEmpty,
+        (await database.select(database.syncQueueItems).get()).isNotEmpty,
     onPushSuccess: (hadOutboundWork) async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
