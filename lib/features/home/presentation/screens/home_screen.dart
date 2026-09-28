@@ -154,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
   String? _activeLocationName(WidgetRef ref) {
     final activeId = ref.watch(activeLocationIdProvider).value;
-    final locations = ref.watch(_homeLocationsProvider).valueOrNull;
+    final locations = ref.watch(_homeLocationsProvider).value;
     if (activeId == null || locations == null) return null;
     for (final location in locations) {
       if (location.localId == activeId) return location.name;
