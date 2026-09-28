@@ -38,6 +38,7 @@ import '../data/remote/fulus_sale_canonical_reconciler.dart';
 import '../data/remote/fulus_staff_access_api.dart';
 import '../data/remote/fulus_stock_movement_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_api.dart';
+import '../data/remote/product_image_api.dart';
 import '../data/remote/fulus_supplier_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_coordinator.dart';
 import '../data/remote/endpoints/auth_api.dart';
@@ -168,6 +169,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final incomeApi = IncomeApi(apiClient);
   final stockMovementsApi = StockMovementsApi(apiClient);
   final productsApi = ProductsApi(apiClient);
+  final productImageApi = ProductImageApi(apiClient);
   final categoriesApi = CategoriesApi(apiClient);
   final suppliersApi = SuppliersApi(apiClient);
   final returnsApi = ReturnsApi(apiClient);
@@ -247,7 +249,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseSyncHandler = ExpenseSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, expenseRepository: expenseRepository, executionLease: syncExecutionLease);
   final incomeSyncHandler = IncomeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, incomeRecordRepository: incomeRecordRepository, locationRepository: locationRepository);
   final stockMovementSyncHandler = StockMovementSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, stockMovementRepository: stockMovementRepository, productRepository: productRepository);
-  final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
+  final productSyncHandler = ProductSyncHandler(db: database, productRepository: productRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, productImageApi: productImageApi);
 
   final canonicalReconciler = FulusCanonicalTypedReconciler(
     api: fulusSyncApi,
