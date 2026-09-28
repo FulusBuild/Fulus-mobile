@@ -145,7 +145,13 @@ import 'providers.dart';
 /// `context.goNamed('home')` rather than a raw path string repeated at
 /// every call site, which is exactly the kind of string duplication
 /// that drifts silently once a path changes in only one place.
-final appRouter = GoRouter(
+final appRouter = Page<void> _fulusNoTransitionPage(GoRouterState state, Widget child) =>
+    NoTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+    );
+
+GoRouter(
   initialLocation: '/',
   observers: [CurrentScreenObserver()],
   redirect: (context, state) async {
@@ -223,47 +229,47 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/stock',
               name: 'stock',
-              pageBuilder: (context, state) => const NoTransitionPage(child: StockScreen()),
+              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, StockScreen()),
               routes: [
                 GoRoute(
                   path: 'product/:productId',
                   name: 'stockProductDetail',
-                  pageBuilder: (context, state) => NoTransitionPage(child: ProductDetailScreen(productId: state.pathParameters['productId']!)),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, ProductDetailScreen(productId: state.pathParameters['productId']!)),
                 ),
                 GoRoute(
                   path: 'add',
                   name: 'stockAddProduct',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const AddEditProductScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const AddEditProductScreen()),
                 ),
                 GoRoute(
                   path: 'edit',
                   name: 'stockEditProduct',
-                  pageBuilder: (context, state) => NoTransitionPage(child: AddEditProductScreen(existingProduct: state.extra as Product?)),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, AddEditProductScreen(existingProduct: state.extra as Product?)),
                 ),
                 GoRoute(
                   path: 'record',
                   name: 'stockRecordMovement',
-                  pageBuilder: (context, state) => NoTransitionPage(child: RecordStockMovementScreen(preselectedProduct: state.extra as Product?)),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, RecordStockMovementScreen(preselectedProduct: state.extra as Product?)),
                 ),
                 GoRoute(
                   path: 'history',
                   name: 'stockHistory',
-                  pageBuilder: (context, state) => NoTransitionPage(child: StockMovementHistoryScreen(productId: state.extra as String?)),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, StockMovementHistoryScreen(productId: state.extra as String?)),
                 ),
                 GoRoute(
                   path: 'categories',
                   name: 'stockCategories',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const CategoriesScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const CategoriesScreen()),
                 ),
                 GoRoute(
                   path: 'bulk-import',
                   name: 'stockBulkImport',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const BulkImportScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const BulkImportScreen()),
                   routes: [
                     GoRoute(
                       path: 'review',
                       name: 'stockBulkImportReview',
-                      pageBuilder: (context, state) => NoTransitionPage(child: BulkImportReviewScreen(csvContent: state.extra as String)),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, BulkImportReviewScreen(csvContent: state.extra as String)),
                     ),
                   ],
                 ),
@@ -276,17 +282,17 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/sell',
               name: 'sell',
-              pageBuilder: (context, state) => const NoTransitionPage(child: SellScreen()),
+              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, SellScreen()),
               routes: [
                 GoRoute(
                   path: 'refund',
                   name: 'sellRefundSearch',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const RefundSearchScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const RefundSearchScreen()),
                   routes: [
                     GoRoute(
                       path: ':saleId',
                       name: 'sellRefundConfirm',
-                      pageBuilder: (context, state) => NoTransitionPage(child: RefundConfirmScreen(saleId: state.pathParameters['saleId']!)),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, RefundConfirmScreen(saleId: state.pathParameters['saleId']!)),
                     ),
                   ],
                 ),
@@ -299,17 +305,17 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/money',
               name: 'money',
-              pageBuilder: (context, state) => const NoTransitionPage(child: MoneyScreen()),
+              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, MoneyScreen()),
               routes: [
                 GoRoute(
                   path: 'history',
                   name: 'moneyHistory',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const MoneyHistoryScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const MoneyHistoryScreen()),
                 ),
                 GoRoute(
                   path: 'transaction/:id',
                   name: 'moneyTransactionDetail',
-                  pageBuilder: (context, state) => NoTransitionPage(child: TransactionDetailScreen(
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, TransactionDetailScreen(
                     transactionId: state.pathParameters['id']!,
                     preloaded: state.extra is MoneyTransaction ? state.extra as MoneyTransaction : null,
                   )),
@@ -317,27 +323,27 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'add-income',
                   name: 'moneyAddIncome',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const AddIncomeScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const AddIncomeScreen()),
                 ),
                 GoRoute(
                   path: 'add-expense',
                   name: 'moneyAddExpense',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const AddExpenseScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const AddExpenseScreen()),
                 ),
                 GoRoute(
                   path: 'customers',
                   name: 'moneyCustomers',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const CustomersListScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const CustomersListScreen()),
                   routes: [
                     GoRoute(
                       path: 'archived',
                       name: 'moneyArchivedCustomers',
-                      pageBuilder: (context, state) => NoTransitionPage(child: const ArchivedCustomersScreen()),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ArchivedCustomersScreen()),
                     ),
                     GoRoute(
                       path: ':id',
                       name: 'moneyCustomerProfile',
-                      pageBuilder: (context, state) => NoTransitionPage(child: CustomerProfileScreen(
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, CustomerProfileScreen(
                         customerId: state.pathParameters['id']!,
                         preloaded: state.extra is Customer ? state.extra as Customer : null,
                       )),
@@ -345,7 +351,7 @@ final appRouter = GoRouter(
                         GoRoute(
                           path: 'repay',
                           name: 'moneyRecordRepayment',
-                          pageBuilder: (context, state) => NoTransitionPage(child: (() {
+                          pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
                             final extra = state.extra;
                             if (extra is Customer) return RecordRepaymentScreen(customer: extra);
                             // Defensive fallback — this route is only ever
@@ -371,17 +377,17 @@ final appRouter = GoRouter(
                   // doc comment for why it's a separate route from
                   // `moneyHistory` rather than that screen with a type
                   // filter pre-selected.
-                  pageBuilder: (context, state) => NoTransitionPage(child: const ReceiptHistoryScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ReceiptHistoryScreen()),
                 ),
                 GoRoute(
                   path: 'suppliers',
                   name: 'moneySuppliers',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const SuppliersListScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const SuppliersListScreen()),
                   routes: [
                     GoRoute(
                       path: ':id',
                       name: 'moneySupplierProfile',
-                      pageBuilder: (context, state) => NoTransitionPage(child: SupplierProfileScreen(
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, SupplierProfileScreen(
                         supplierId: state.pathParameters['id']!,
                         preloaded: state.extra is Supplier ? state.extra as Supplier : null,
                       )),
@@ -389,7 +395,7 @@ final appRouter = GoRouter(
                         GoRoute(
                           path: 'pay',
                           name: 'moneyPaySupplier',
-                          pageBuilder: (context, state) => NoTransitionPage(child: (() {
+                          pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
                             final extra = state.extra;
                             if (extra is Supplier) return PaySupplierScreen(supplier: extra);
                             return const _MissingContextScreen(
@@ -405,12 +411,12 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'daily-closing',
                   name: 'moneyDailyClosingCount',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const DailyClosingCountScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DailyClosingCountScreen()),
                 ),
                 GoRoute(
                   path: 'daily-closing/summary',
                   name: 'moneyDailyClosingSummary',
-                  pageBuilder: (context, state) => NoTransitionPage(child: (() {
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
                     final extra = state.extra;
                     if (extra is DailyClosingSummary) return DailyClosingSummaryScreen(summary: extra);
                     // Only reachable with a summary in hand — closing the
@@ -432,88 +438,88 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/more',
               name: 'more',
-              pageBuilder: (context, state) => const NoTransitionPage(child: _MoreScreen()),
+              pageBuilder: (context, state) => const _fulusNoTransitionPage(state, _MoreScreen()),
               routes: [
                 GoRoute(
                   path: 'employees',
                   name: 'moreEmployees',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const EmployeesListScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const EmployeesListScreen()),
                   routes: [
                     GoRoute(
                       path: 'deactivated',
                       name: 'moreEmployeesDeactivated',
-                      pageBuilder: (context, state) => NoTransitionPage(child: const DeactivatedEmployeesScreen()),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DeactivatedEmployeesScreen()),
                     ),
                     GoRoute(
                       path: ':employeeId',
                       name: 'moreEmployeeDetail',
-                      pageBuilder: (context, state) => NoTransitionPage(child: EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!)),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, EmployeeDetailScreen(employeeId: state.pathParameters['employeeId']!)),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'reports',
                   name: 'moreReports',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const ReportsScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ReportsScreen()),
                   routes: [
                     GoRoute(
                       path: 'sales',
                       name: 'moreReportsSalesTransactions',
-                      pageBuilder: (context, state) => NoTransitionPage(child: SalesTransactionsScreen(period: state.extra! as ReportPeriod)),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, SalesTransactionsScreen(period: state.extra! as ReportPeriod)),
                     ),
                     GoRoute(
                       path: 'void/:saleId',
                       name: 'moreReportsVoidSale',
-                      pageBuilder: (context, state) => NoTransitionPage(child: VoidSaleScreen(saleId: state.pathParameters['saleId']!)),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, VoidSaleScreen(saleId: state.pathParameters['saleId']!)),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'settings/backup',
                   name: 'moreSettingsBackup',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const BackupScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const BackupScreen()),
                 ),
                 GoRoute(
                   path: 'settings/locations',
                   name: 'moreSettingsLocations',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const ManageLocationsScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ManageLocationsScreen()),
                 ),
                 GoRoute(
                   path: 'settings',
                   name: 'moreSettings',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const SettingsMainScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const SettingsMainScreen()),
                   routes: [
                     GoRoute(
                       path: 'cloud',
                       name: 'moreSettingsCloud',
-                      pageBuilder: (context, state) => NoTransitionPage(child: const FulusCloudConnectionScreen()),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const FulusCloudConnectionScreen()),
                     ),
                     GoRoute(
                       path: 'printers',
                       name: 'moreSettingsPrinters',
-                      pageBuilder: (context, state) => NoTransitionPage(child: const PrinterPairingScreen()),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, const PrinterPairingScreen()),
                     ),
                   ],
                 ),
                 GoRoute(
                   path: 'sync',
                   name: 'moreSyncDetail',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const SyncDetailScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const SyncDetailScreen()),
                 ),
                 GoRoute(
                   path: 'notifications',
                   name: 'moreNotifications',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const NotificationsScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const NotificationsScreen()),
                 ),
                 GoRoute(
                   path: 'diagnostics',
                   name: 'moreDiagnostics',
-                  pageBuilder: (context, state) => NoTransitionPage(child: const DiagnosticsScreen()),
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(state, const DiagnosticsScreen()),
                   routes: [
                     GoRoute(
                       path: ':eventId',
                       name: 'moreDiagnosticDetail',
-                      pageBuilder: (context, state) => NoTransitionPage(child: DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!)),
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(state, DiagnosticDetailScreen(eventId: state.pathParameters['eventId']!)),
                     ),
                   ],
                 ),
