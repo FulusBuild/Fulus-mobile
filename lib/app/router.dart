@@ -682,7 +682,7 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
             return FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true);
         }
       },
-    );;
+    );
   }
 }
 
