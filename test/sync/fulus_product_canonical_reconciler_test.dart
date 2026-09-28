@@ -34,6 +34,7 @@ void main() {
           sellingPrice: any(named: 'sellingPrice'),
           lowStockThreshold: any(named: 'lowStockThreshold'),
           isActive: any(named: 'isActive'),
+          photoPath: any(named: 'photoPath'),
           updatedAt: any(named: 'updatedAt'),
           deletedAt: any(named: 'deletedAt'),
           stockLevels: any(named: 'stockLevels'),
@@ -61,6 +62,7 @@ void main() {
           'is_active': true,
           'updated_at': '2026-09-15T12:00:00Z',
           'deleted_at': null,
+          'photo_path': 'https://bejcuvoxemwomcatgyxz.supabase.co/storage/v1/object/public/product-images/business/product-1/photo.jpg',
         },
         'stock_levels': [
           {
@@ -85,6 +87,7 @@ void main() {
           sellingPrice: 1500,
           lowStockThreshold: 5,
           isActive: true,
+          photoPath: 'https://bejcuvoxemwomcatgyxz.supabase.co/storage/v1/object/public/product-images/business/product-1/photo.jpg',
           updatedAt: DateTime.parse('2026-09-15T12:00:00Z'),
           deletedAt: null,
           stockLevels: any(named: 'stockLevels'),
