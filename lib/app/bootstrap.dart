@@ -565,10 +565,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       }
       fulusConnectionState.markSyncError(error);
     },
-    onPushSuccess: () async {
+    hasOutboundWork: () async =>
+        (await database.select(database.syncQueueItems).get()).isNotEmpty,
+    onPushSuccess: (hadOutboundWork) async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
-        await syncStatusNotifier.recordPushSuccess(businessId);
+        await syncStatusNotifier.recordPushSuccess(
+          businessId,
+          hadOutboundWork: hadOutboundWork,
+        );
       }
     },
     onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),

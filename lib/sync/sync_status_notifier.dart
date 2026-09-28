@@ -135,7 +135,11 @@ class SyncStatusNotifier {
   /// continue; treating that normal return as a push success would make the
   /// UI report a backup that did not finish and can also make stale-cursor
   /// recovery appear mysteriously blocked by the same queued work.
-  Future<void> recordPushSuccess(String businessId) async {
+  Future<void> recordPushSuccess(
+    String businessId, {
+    required bool hadOutboundWork,
+  }) async {
+    if (!hadOutboundWork) return;
     final pending = await _db.select(_db.syncQueueItems).get();
     if (pending.isNotEmpty) return;
     await _preferences.setString(
