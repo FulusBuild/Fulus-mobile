@@ -644,17 +644,11 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
       future: _businessConfiguredFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          // The business-configured check is local Drift state, but it is
-          // still an async read. Do not turn that read into a full-screen
-          // splash: the authenticated workspace is already safe to render
-          // and all primary screens hydrate their own local data. If this is
-          // the rare interrupted-business-setup case, the completed local
-          // check below immediately replaces the shell with OwnerSetupScreen.
-          _warmShellData();
-          return FulusAppShell(
-            navigationShell: widget.navigationShell,
-            showMoneyTab: true,
-          );
+          // Business configuration is a security/routing invariant, not
+          // optional hydration. Never expose the business shell while this
+          // local check is unresolved: an interrupted owner setup must
+          // resume OwnerSetupScreen before any business route is built.
+          return const FulusScreen(body: FulusLoadingIndicator());
         }
         // Resolved through resolvePostSignInStage
         // (core/onboarding/onboarding_routing.dart) rather than the two
@@ -688,7 +682,7 @@ class _ShellGateState extends ConsumerState<_ShellGate> {
             return FulusAppShell(navigationShell: widget.navigationShell, showMoneyTab: true);
         }
       },
-    );
+    );;
   }
 }
 
