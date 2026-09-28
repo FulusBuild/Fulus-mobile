@@ -12,6 +12,7 @@ import 'package:fulus_mobile/domain/entities/customer.dart';
 import 'package:fulus_mobile/domain/entities/customer_ledger_entry.dart';
 import 'package:fulus_mobile/domain/entities/return_request.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
+import 'package:fulus_mobile/domain/entities/sale_payment.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
