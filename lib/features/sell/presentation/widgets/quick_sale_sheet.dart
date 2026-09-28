@@ -70,12 +70,13 @@ class _QuickSaleSheetState extends State<QuickSaleSheet> {
           },
         ),
         const SizedBox(height: AppSpacing.lg),
-        FulusButton(label: 'Add to Cart', loading: _saving, onPressed: _submit),
+        FulusButton(label: 'Add to Cart', loading: _saving, onPressed: _saving ? null : _submit),
       ],
     );
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
     final name = _nameController.text.trim();
     final price = double.tryParse(_priceController.text.trim());
     final nameError = name.isEmpty ? 'Enter what you\'re selling.' : null;
