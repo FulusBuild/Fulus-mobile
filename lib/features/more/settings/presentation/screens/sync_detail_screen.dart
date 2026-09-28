@@ -24,7 +24,6 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
     if (_syncingNow) return;
     setState(() => _syncingNow = true);
     try {
-      await ref.read(syncQueueProvider).normalizeDependencyPriorities();
       await ref.read(syncTriggersProvider).syncNow();
       if (!mounted) return;
       ref.invalidate(_syncDetailStatusProvider);
