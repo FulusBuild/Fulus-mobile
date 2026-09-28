@@ -10,8 +10,7 @@
 /// task isn't touching. This formatter is Money-feature-local; a
 /// future pass could promote it to `core/utils` for those two screens
 /// to share.
-String formatMoney(double amount, {String symbol = '₦', bool showSign = false, bool compact = false}) {
-  if (compact) return _formatCompactMoney(amount, symbol: symbol, showSign: showSign);
+String formatMoney(double amount, {String symbol = '₦', bool showSign = false}) {
   final isNegative = amount < 0;
   final fixed = amount.abs().toStringAsFixed(2);
   final parts = fixed.split('.');
@@ -26,20 +25,6 @@ String formatMoney(double amount, {String symbol = '₦', bool showSign = false,
 
   final sign = isNegative ? '-' : (showSign ? '+' : '');
   return '$sign$symbol${buffer.toString()}.$decimalPart';
-}
-
-String _formatCompactMoney(double amount, {String symbol = '₦', bool showSign = false}) {
-  final isNegative = amount < 0;
-  final abs = amount.abs();
-  final sign = isNegative ? '-' : (showSign ? '+' : '');
-  final value = abs >= 1000000000
-      ? '${(abs / 1000000000).toStringAsFixed(abs >= 10000000000 ? 0 : 1)}B'
-      : abs >= 1000000
-          ? '${(abs / 1000000).toStringAsFixed(abs >= 10000000 ? 0 : 1)}M'
-          : abs >= 1000
-              ? '${(abs / 1000).toStringAsFixed(abs >= 10000 ? 0 : 1)}K'
-              : abs.toStringAsFixed(0);
-  return '$sign$symbol$value';
 }
 
 /// Compact "today / yesterday / 12 Mar" style date label for a
