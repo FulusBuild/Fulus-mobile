@@ -25,7 +25,7 @@ extension ProductToCompanion on Product {
       supplierId: Value(supplierId),
       lowStockThreshold: Value(lowStockThreshold),
       isActive: Value(isActive),
-      photoPath: Value(photoPath),
+      photoPath: photoPath == null ? const Value.absent() : Value(photoPath),
       deletedAt: const Value(null),
     );
   }
