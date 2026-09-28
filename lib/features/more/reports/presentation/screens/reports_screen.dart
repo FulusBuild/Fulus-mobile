@@ -389,6 +389,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                     future: _customersFuture,
                     currencySymbol: currencySymbol,
                     onRetry: _retry,
+                    canViewMoney: canViewMoney,
                   ),
                 ),
                 KeyedSubtree(
