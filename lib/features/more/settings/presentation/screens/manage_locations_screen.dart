@@ -14,10 +14,19 @@ final _locationsProvider = StreamProvider<List<Location>>((ref) {
       .withFulusLoadingTimeout();
 });
 
-class ManageLocationsScreen extends ConsumerWidget {
+class ManageLocationsScreen extends ConsumerStatefulWidget {
   const ManageLocationsScreen({super.key});
 
+  @override
+  ConsumerState<ManageLocationsScreen> createState() => _ManageLocationsScreenState();
+}
+
+class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
+  String? _switchingLocationId;
+
   Future<void> _setActive(BuildContext context, WidgetRef ref, Location location) async {
+    if (_switchingLocationId != null) return;
+    setState(() => _switchingLocationId = location.localId);
     try {
       await ref.read(switchActiveLocationProvider)(location.localId);
       // Rebuild every location-aware consumer from the new durable context.
@@ -28,6 +37,8 @@ class ManageLocationsScreen extends ConsumerWidget {
       if (context.mounted) {
         showFulusSnackbar(context, message: error is StateError ? error.message : "Couldn't switch locations. Try again.");
       }
+    } finally {
+      if (mounted) setState(() => _switchingLocationId = null);
     }
   }
 
@@ -76,7 +87,7 @@ class ManageLocationsScreen extends ConsumerWidget {
                   icon: FulusIcons.add,
                   label: 'Add location',
                   subtitle: 'Create another place for this business',
-                  onTap: () => _addLocation(context, ref),
+                  onTap: _switchingLocationId == null ? () => _addLocation(context, ref) : null,
                 ),
               );
               return CustomScrollView(
@@ -98,7 +109,8 @@ class ManageLocationsScreen extends ConsumerWidget {
                           return _LocationCard(
                             location: location,
                             isActive: isActive,
-                            onTap: isActive ? null : () => _setActive(context, ref, location),
+                            isSwitching: _switchingLocationId == location.localId,
+                            onTap: isActive || _switchingLocationId != null ? null : () => _setActive(context, ref, location),
                           );
                         },
                         childCount: locations.length,
@@ -121,9 +133,15 @@ class ManageLocationsScreen extends ConsumerWidget {
 }
 
 class _LocationCard extends StatelessWidget {
-  const _LocationCard({required this.location, required this.isActive, required this.onTap});
+  const _LocationCard({
+    required this.location,
+    required this.isActive,
+    required this.isSwitching,
+    required this.onTap,
+  });
   final Location location;
   final bool isActive;
+  final bool isSwitching;
   final VoidCallback? onTap;
 
   @override
@@ -154,7 +172,9 @@ class _LocationCard extends StatelessWidget {
               children: [
                 Text(location.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
                 const SizedBox(height: AppSpacing.xs),
-                if (isActive)
+                if (isSwitching)
+                  const FulusStatusPill(label: 'Switching…', icon: FulusIcons.sync)
+                else if (isActive)
                   const FulusStatusPill(label: 'Active', icon: FulusIcons.check)
                 else
                   Text('Tap to switch here', style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context))),
@@ -162,7 +182,23 @@ class _LocationCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Icon(isActive ? FulusIcons.check : FulusIcons.chevronRight, color: isActive ? primary : AppColors.mutedOf(context)),
+          if (isSwitching)
+            SizedBox(
+              width: AppTouchTarget.minimum,
+              height: AppTouchTarget.minimum,
+              child: Center(
+                child: SizedBox(
+                  width: AppIconSize.dense,
+                  height: AppIconSize.dense,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                ),
+              ),
+            )
+          else
+            Icon(
+              isActive ? FulusIcons.check : FulusIcons.chevronRight,
+              color: isActive ? primary : AppColors.mutedOf(context),
+            ),
         ],
       ),
     );
