@@ -581,19 +581,7 @@ class _ProductRow extends StatelessWidget {
                                 ),
                               ),
                             )
-                          : (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
-                              ? Image.network(
-                                  product.photoPath!,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  errorBuilder: (_, __, ___) => Text(
-                                    initial,
-                                    style: AppTypography.heading.copyWith(
-                                      color: AppColors.primaryOf(context),
-                                    ),
-                                  ),
-                                )
-                              : Image.file(
+                          : Image.file(
                                   File(product.photoPath!),
                                   fit: BoxFit.cover,
                                   width: double.infinity,
