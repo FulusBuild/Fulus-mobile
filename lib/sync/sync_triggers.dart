@@ -347,6 +347,7 @@ class SyncTriggers with WidgetsBindingObserver {
             if (_started) {
               _onSyncFailure?.call(error, stackTrace);
             }
+            return false;
           }),
         );
       },
@@ -406,8 +407,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<bool> _runIfOnline({bool requireReady = true}) async {
     final active = _connectivityRun;
     if (active != null) {
-      await active;
-      return;
+      return await active;
     }
     final run = _runIfOnlineOnce(requireReady: requireReady);
     _connectivityRun = run;
