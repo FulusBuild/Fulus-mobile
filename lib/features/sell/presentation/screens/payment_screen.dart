@@ -67,7 +67,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         final creditEnabled = cartState.customer != null;
         final canComplete = cartState.items.isNotEmpty && cartState.remaining.abs() <= 0.004;
         final enteredAmount = double.tryParse(_amountController.text.trim());
-        final splitActive = _splitPayment || cartState.payments.isNotEmpty;
+        final splitActive = _splitPayment || (cartState.payments.isNotEmpty && cartState.remaining > 0.004);
         final oneTap = !canComplete &&
             !splitActive &&
             _method != 'credit' &&
