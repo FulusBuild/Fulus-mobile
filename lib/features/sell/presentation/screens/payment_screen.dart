@@ -341,7 +341,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
     }
 
-    final wasFirstPayment = state.payments.isEmpty;
     setState(() => _adding = true);
     try {
       await context.read<CartCubit>().addPayment(_method, amount);
@@ -349,7 +348,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       FulusHaptics.selection();
       if (!context.mounted) return;
       final after = context.read<CartCubit>().state;
-      if (wasFirstPayment && after is CartLoaded && after.remaining <= 0.004) {
+      if (after is CartLoaded && after.remaining <= 0.004) {
         await _completeSale(context);
         return;
       }
