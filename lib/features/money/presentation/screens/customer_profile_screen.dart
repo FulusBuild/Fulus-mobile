@@ -15,10 +15,11 @@ import '../widgets/customer_form_sheet.dart';
 /// Customer profile remains repository-backed and reactive. This pass only
 /// refines its workspace presentation and responsive layout.
 class CustomerProfileScreen extends ConsumerStatefulWidget {
-  const CustomerProfileScreen({super.key, required this.customerId, this.preloaded});
+  const CustomerProfileScreen({super.key, required this.customerId, this.preloaded, this.openedFromMore = false});
 
   final String customerId;
   final Customer? preloaded;
+  final bool openedFromMore;
 
   @override
   ConsumerState<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
@@ -71,7 +72,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           if (customer == null) {
             return const FulusEmptyState(icon: Icons.person_off_outlined, headline: 'This customer could not be found.');
           }
-          return _ProfileBody(customer: customer, currencySymbol: currencySymbol, onChanged: _reload);
+          return _ProfileBody(customer: customer, currencySymbol: currencySymbol, onChanged: _reload, openedFromMore: widget.openedFromMore);
         },
       ),
     );
@@ -79,11 +80,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 }
 
 class _ProfileBody extends ConsumerWidget {
-  const _ProfileBody({required this.customer, required this.currencySymbol, required this.onChanged});
+  const _ProfileBody({required this.customer, required this.currencySymbol, required this.onChanged, required this.openedFromMore});
 
   final Customer customer;
   final String currencySymbol;
   final VoidCallback onChanged;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -195,7 +197,7 @@ class _ProfileBody extends ConsumerWidget {
                             subtitle: 'Record money received from this customer.',
                             onTap: () async {
                               final result = await context.pushNamed<bool>(
-                                'moneyRecordRepayment',
+                                openedFromMore ? 'moreRecordRepayment' : 'moneyRecordRepayment',
                                 pathParameters: {'id': customer.localId},
                                 extra: customer,
                               );
@@ -244,7 +246,13 @@ class _ProfileBody extends ConsumerWidget {
                 _PurchaseHistoryRow(
                   transaction: transactions[i],
                   currencySymbol: currencySymbol,
-                  onTap: () => context.pushNamed('moneyTransactionDetail', pathParameters: {'id': transactions[i].id}, extra: transactions[i]),
+                  onTap: () => context.pushNamed(
+                    openedFromMore ? 'moreCustomerTransactionDetail' : 'moneyTransactionDetail',
+                    pathParameters: openedFromMore
+                        ? {'id': customer.localId, 'transactionId': transactions[i].id}
+                        : {'id': transactions[i].id},
+                    extra: transactions[i],
+                  ),
                 ),
               ],
             ],
