@@ -176,6 +176,16 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
+  /// Reconcile cloud-owned projections after a business-context switch.
+  ///
+  /// Switching itself remains local-first and offline-safe. If sync is enabled,
+  /// this starts the normal connectivity-gated cycle; when offline, the regular
+  /// connectivity/lifecycle triggers will retry without making the switch fail.
+  Future<void> refreshAfterContextChange() async {
+    if (!_syncConfig.isEnabled) return;
+    await _runIfOnlineSafely();
+  }
+
   Future<void> syncNow() async {
     if (!_syncConfig.isEnabled) {
       throw StateError(
