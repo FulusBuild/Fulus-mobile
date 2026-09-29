@@ -40,12 +40,17 @@ class FulusCard extends StatelessWidget {
           type: MaterialType.transparency,
           borderRadius: radius,
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
+          child: DefaultTextStyle.merge(
+            style: AppTypography.body.copyWith(
+              color: AppColors.textPrimaryOf(context),
+            ),
+            child: InkWell(
             onTap: onTap,
             borderRadius: radius,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
               child: Padding(padding: padding, child: child),
+            ),
             ),
           ),
         ),
