@@ -68,13 +68,32 @@ class ResolveActiveLocation {
   static const _fallbackName = 'Main Location';
 
   Future<String> call() async {
+    final currentUser = _authRepository.currentUser;
+    final assignedLocationId = await _authRepository.getAssignedLocationId();
+
+    // Non-owner identities are location-scoped. Never fall back to the
+    // business default when an employee's assigned location is missing:
+    // that would silently move their transactions into another location.
+    if (currentUser != null && currentUser.role != AuthRole.owner) {
+      if (assignedLocationId == null || assignedLocationId.isEmpty) {
+        throw StateError('This employee is not assigned to an active location.');
+      }
+      final assignedLocation = await _locationRepository.getLocationById(assignedLocationId);
+      if (assignedLocation == null) {
+        throw StateError('This employee\'s assigned location is unavailable.');
+      }
+      final storedId = await _authRepository.getActiveLocationId();
+      if (storedId != assignedLocationId) {
+        await _authRepository.setActiveLocationId(assignedLocationId);
+      }
+      return assignedLocationId;
+    }
+
     final storedId = await _authRepository.getActiveLocationId();
     if (storedId != null) {
       final stillExists = await _locationRepository.getLocationById(storedId);
       if (stillExists != null) return storedId;
-      // Fall through: the session pointed at a location that's gone
-      // (soft-deleted since, or a stale id from restored backup data on
-      // a different device's ledger) — re-resolve from scratch below.
+      // Fall through: the owner session pointed at a location that's gone.
     }
 
     final businessProfile = await _businessSettingsRepository.watchSettings().first;
