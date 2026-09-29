@@ -42,7 +42,9 @@ class FulusCard extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: DefaultTextStyle.merge(
             style: AppTypography.body.copyWith(
-              color: AppColors.textPrimaryOf(context),
+              color: AppColors.isDark(context)
+                  ? AppColors.darkTextPrimary
+                  : AppColors.textPrimaryLight,
             ),
             child: InkWell(
             onTap: onTap,
