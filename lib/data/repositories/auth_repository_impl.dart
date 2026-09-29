@@ -521,6 +521,21 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<String?> getAssignedLocationId() async {
+    final user = _currentUser;
+    if (user == null || user.role == AuthRole.owner) return null;
+    final employee = await (_db.select(_db.employees)
+          ..where(
+            (e) =>
+                e.authUserId.equals(user.id) &
+                e.isActive.equals(true) &
+                e.deletedAt.isNull(),
+          ))
+        .getSingleOrNull();
+    return employee?.locationId;
+  }
+
+  @override
   Future<String?> getActiveLocationId() async {
     final session = await (_db.select(_db.sessions)
           ..where((s) => s.id.equals('current')))
