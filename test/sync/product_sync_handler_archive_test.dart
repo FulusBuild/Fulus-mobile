@@ -20,6 +20,9 @@ class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 class MockProductRepository extends Mock implements ProductRepository {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(File('fulus-test-product-image.jpg'));
+  });
   late AppDatabase db;
   late MockFulusSyncApi api;
   late MockFulusConnectionState connectionState;
