@@ -393,21 +393,180 @@ as $$
   );
 $$;
 
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer) from public,anon,authenticated;
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid) from public,anon,authenticated,service_role;
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) from public,anon,authenticated;
-grant execute on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) to service_role;
+create or replace function public.is_business_admin_for_user(
+  target_business_id uuid,
+  target_user_id uuid
+) returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = target_user_id
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  );
+$;
 
-revoke all on function public.claim_staff_invite(text) from public,anon,authenticated;
-revoke all on function public.claim_staff_invite(text,uuid) from public,anon,authenticated,service_role;
-grant execute on function public.claim_staff_invite(text,uuid) to service_role;
+create or replace function public.set_member_status(
+  target_business_id uuid,
+  target_membership_id uuid,
+  target_status text,
+  target_user_id uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  target_member_user uuid;
+begin
+  if not public.is_business_admin_for_user(target_business_id, target_user_id) then
+    raise exception using errcode='42501',
+      message='Only an owner or admin may change membership status';
+  end if;
+  if target_status not in ('active', 'suspended', 'removed') then
+    raise exception using errcode='22023', message='Invalid membership status';
+  end if;
 
-revoke all on function public.set_member_permission_overrides(uuid,uuid,text[],uuid)
-  from public,anon,authenticated;
-grant execute on function public.set_member_permission_overrides(uuid,uuid,text[],uuid)
-  to service_role;
+  select user_id into target_member_user
+  from public.business_memberships
+  where id = target_membership_id
+    and business_id = target_business_id;
 
-revoke all on function public.has_permission(uuid,text)
+  if target_member_user is null then
+    return false;
+  end if;
+
+  update public.business_memberships
+  set status = target_status,
+      updated_at = now()
+  where id = target_membership_id
+    and business_id = target_business_id;
+
+  if target_status <> 'active' then
+    update public.devices
+    set status = 'revoked', updated_at = now()
+    where business_id = target_business_id
+      and registered_by = target_member_user
+      and status = 'active';
+  end if;
+
+  return true;
+end;
+$;
+
+create or replace function public.change_member_role(
+  target_business_id uuid,
+  target_membership_id uuid,
+  target_role_id uuid,
+  target_user_id uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  target_member_user uuid;
+  target_role_name text;
+begin
+  if not public.is_business_admin_for_user(target_business_id, target_user_id) then
+    raise exception using errcode='42501',
+      message='Only an owner or admin may change member roles';
+  end if;
+
+  select name into target_role_name
+  from public.roles
+  where id = target_role_id
+    and business_id = target_business_id;
+
+  if target_role_name is null or target_role_name = 'owner' then
+    raise exception using errcode='22023', message='Invalid target role';
+  end if;
+
+  select user_id into target_member_user
+  from public.business_memberships
+  where id = target_membership_id
+    and business_id = target_business_id;
+
+  if target_member_user is null then
+    return false;
+  end if;
+
+  update public.business_memberships
+  set role_id = target_role_id,
+      permissions_overridden = false,
+      updated_at = now()
+  where id = target_membership_id;
+
+  delete from public.business_member_permissions
+  where business_id = target_business_id
+    and user_id = target_member_user;
+
+  return true;
+end;
+$;
+
+create or replace function public.set_role_permission(
+  target_business_id uuid,
+  target_role_id uuid,
+  target_permission_id uuid,
+  enabled boolean,
+  target_actor_user_id uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if not exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles actor_role on actor_role.id = bm.role_id
+    join public.role_permissions actor_rp on actor_rp.role_id = actor_role.id
+    where bm.business_id = target_business_id
+      and bm.user_id = target_actor_user_id
+      and bm.status = 'active'
+      and actor_role.name = 'owner'
+      and exists (
+        select 1
+        from public.roles target_role
+        where target_role.id = target_role_id
+          and target_role.business_id = target_business_id
+      )
+      and actor_rp.permission_id = target_permission_id
+  ) then
+    raise exception using errcode='42501',
+      message='Permission change is not allowed';
+  end if;
+
+  if enabled then
+    insert into public.role_permissions(role_id, permission_id)
+    values (target_role_id, target_permission_id)
+    on conflict do nothing;
+  else
+    delete from public.role_permissions
+    where role_id = target_role_id
+      and permission_id = target_permission_id;
+  end if;
+
+  return true;
+end;
+$;
+
+revoke all on function public.is_business_admin_for_user(uuid,uuid)
   from public,anon,authenticated,service_role;
-grant execute on function public.has_permission(uuid,text)
-  to authenticated, service_role;
+revoke all on function public.set_member_status(uuid,uuid,text,uuid)
+  from public,anon,authenticated;
+grant execute on function public.set_member_status(uuid,uuid,text,uuid) to service_role;
+revoke all on function public.change_member_role(uuid,uuid,uuid,uuid)
+  from public,anon,authenticated;
+grant execute on function public.change_member_role(uuid,uuid,uuid,uuid) to service_role;
+revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
+  from public,anon,authenticated;
+grant execute on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid) to service_role;
