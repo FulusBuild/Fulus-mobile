@@ -204,6 +204,7 @@ Deno.serve(async (req: Request) => {
       const permissionCodes = Array.isArray(body.permission_codes)
         ? body.permission_codes.filter((value): value is string => typeof value === "string")
         : null;
+      const locationId = typeof body.location_id === "string" ? body.location_id.trim() : null;
 
       if (!requestedRole || requestedRole === "owner") {
         return json({ error: { code: "INVALID_REQUEST", message: "A non-owner staff role is required" } }, 400);
@@ -233,6 +234,7 @@ Deno.serve(async (req: Request) => {
         target_expires_hours: Number(body.expires_hours ?? 24),
         target_actor_user_id: userData.user.id,
         target_permission_codes: permissionCodes,
+        target_location_id: locationId || null,
       }));
       break;
     }
