@@ -15,6 +15,7 @@ class FulusStaffAccessApi {
     required String roleName,
     required String email,
     required List<String> permissionCodes,
+    String? locationId,
     int expiresHours = 24,
   }) async {
     final response = await _call({
@@ -23,6 +24,7 @@ class FulusStaffAccessApi {
       'role_name': roleName,
       'email': email,
       'permission_codes': permissionCodes,
+      if (locationId != null) 'location_id': locationId,
       'expires_hours': expiresHours,
     });
     return StaffInvite.fromJson(Map<String, dynamic>.from(response['data'] as Map));
