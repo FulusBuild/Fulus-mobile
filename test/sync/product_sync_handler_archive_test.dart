@@ -58,6 +58,10 @@ void main() {
           serverId: any(named: 'serverId'),
           operationId: any(named: 'operationId'),
         )).thenAnswer((_) async {});
+    when(() => productRepository.setLocalOverrides(
+          productLocalId: any(named: 'productLocalId'),
+          photoPath: any(named: 'photoPath'),
+        )).thenAnswer((_) async {});
   });
 
   tearDown(() async => db.close());
