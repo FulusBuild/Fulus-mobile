@@ -84,7 +84,7 @@ void main() {
     await repository.setPermissions(
       userId: 'employee',
       permissions: {Permission.manageBackup, Permission.manageStock},
-      grantedBy: 'manager',
+      grantedBy: 'owner',
     );
 
     // The manager cannot grant manageBackup, but preserving an existing
@@ -109,12 +109,6 @@ void main() {
       permissions: {Permission.manageEmployees, Permission.viewReports, Permission.manageStock},
       grantedBy: 'owner',
     );
-    await repository.setPermissions(
-      userId: 'manager',
-      permissions: {Permission.manageEmployees},
-      grantedBy: 'manager',
-    );
-
     await expectLater(
       repository.setPermissions(
         userId: 'manager',
