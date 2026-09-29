@@ -89,8 +89,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF061B3A),
-      body: SafeArea(
-        child: RefreshIndicator(
+      body: DefaultTextStyle.merge(
+        style: AppTypography.body.copyWith(color: Colors.white),
+        child: SafeArea(
+          child: RefreshIndicator(
           onRefresh: _refresh,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -237,6 +239,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                 ),
               );
             },
+          ),
           ),
         ),
       ),
