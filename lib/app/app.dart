@@ -9,6 +9,7 @@ import '../domain/entities/auth_user.dart';
 import 'app_lock_gate.dart';
 import 'restore_restart_gate.dart';
 import 'auto_backup_gate.dart';
+import 'providers.dart';
 import 'router.dart';
 
 class FulusApp extends ConsumerStatefulWidget {
