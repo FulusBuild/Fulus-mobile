@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fulus_mobile/core/theme/app_theme.dart';
+import 'package:fulus_mobile/core/theme/design_tokens.dart';
 import 'package:fulus_mobile/shared/widgets/fulus_card.dart';
 import 'package:fulus_mobile/shared/widgets/fulus_screen.dart';
 
