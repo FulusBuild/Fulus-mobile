@@ -1,7 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
+import '../../core/errors/failure.dart';
 import '../../domain/entities/employee.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/permission_repository.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../../domain/usecases/employee_engine.dart';
 import '../local/database/database.dart';
@@ -15,17 +18,37 @@ import 'employee_mapper.dart';
 class EmployeeRepositoryImpl implements EmployeeRepository {
   EmployeeRepositoryImpl({
     required AppDatabase db,
+    required AuthRepository authRepository,
+    required PermissionRepository permissionRepository,
     EmployeeEngine engine = const EmployeeEngine(),
   })  : _db = db,
+        _authRepository = authRepository,
+        _permissionRepository = permissionRepository,
         _engine = engine;
 
   final AppDatabase _db;
+  final AuthRepository _authRepository;
+  final PermissionRepository _permissionRepository;
   final EmployeeEngine _engine;
+
+  Future<void> _requireManageEmployees() async {
+    final user = _authRepository.currentUser;
+    final allowed = user != null &&
+        await _permissionRepository.hasPermission(
+          userId: user.id,
+          role: user.role,
+          permission: Permission.manageEmployees,
+        );
+    if (!allowed) {
+      throw const AuthFailure.forbidden();
+    }
+  }
 
   // ── Roster ──────────────────────────────────────────────────────────────
 
   @override
   Future<Employee> createEmployee(EmployeeDraft draft) async {
+    await _requireManageEmployees();
     _engine.validateDraft(draft);
     final now = DateTime.now();
     final entity = draft.toEntity(id: Ulid().toString(), now: now);
@@ -35,6 +58,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<Employee> updateEmployee(String id, EmployeeDraft draft) async {
+    await _requireManageEmployees();
     _engine.validateDraft(draft);
     final existing = await getEmployeeById(id);
     if (existing == null) {
@@ -58,6 +82,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<void> deactivateEmployee(String id) async {
+    await _requireManageEmployees();
     final now = DateTime.now();
     await _db.transaction(() async {
       final row = await (_db.select(
@@ -91,6 +116,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   /// record and, symmetrically, sign-in access for a linked account.
   @override
   Future<void> reactivateEmployee(String id) async {
+    await _requireManageEmployees();
     final now = DateTime.now();
     await _db.transaction(() async {
       final row = await (_db.select(
