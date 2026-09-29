@@ -440,8 +440,6 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
     final acting = ref.read(sessionProvider); if (acting == null) return;
     setState(() { _saving = true; _error = null; });
     try {
-      await ref.read(permissionRepositoryProvider).setPermissions(userId: widget.authUserId, permissions: _editing, grantedBy: acting.id);
-
       final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
       if (businessId != null && _isCloudUserId(widget.authUserId)) {
         await ref.read(fulusStaffAccessApiProvider).setMemberPermissions(
@@ -451,6 +449,7 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
             );
       }
 
+      await ref.read(permissionRepositoryProvider).setPermissions(userId: widget.authUserId, permissions: _editing, grantedBy: acting.id);
       if (!mounted) return;
       ref.invalidate(sessionPermissionsProvider);
       setState(() { _saving = false; _load(); });
