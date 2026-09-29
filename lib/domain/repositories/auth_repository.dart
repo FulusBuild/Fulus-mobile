@@ -190,6 +190,8 @@ abstract class AuthRepository {
   /// (domain/usecases/active_location_resolver.dart), which is the only
   /// intended caller of this getter. Everything else in the app should
   /// go through that resolver, not this method directly.
+  Future<String?> getAssignedLocationId();
+
   Future<String?> getActiveLocationId();
 
   /// Persists [locationId] as this device's active session location —
