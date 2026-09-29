@@ -7,6 +7,14 @@ const json = (body: unknown, status = 200) =>
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+const sha256Hex = async (value: string) => {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+};
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
 
@@ -52,13 +60,111 @@ Deno.serve(async (req: Request) => {
       target_token: token,
       target_user_id: userData.user.id,
     });
-    if (error) {
+    if (!error) return json({ data, server_authoritative: true });
+
+    // Claiming is intentionally idempotent for the same account. This makes
+    // a partially completed first-device restore recoverable without asking
+    // the owner to issue a second invitation.
+    if (error.message !== "Invite already claimed") {
       return json(
         { error: { code: "STAFF_ACCESS_FAILED", message: error.message } },
         error.code === "42501" ? 403 : 400,
       );
     }
-    return json({ data, server_authoritative: true });
+
+    const tokenHash = await sha256Hex(token);
+    const { data: invite, error: inviteError } = await admin
+      .from("staff_invites")
+      .select("business_id,role_id,invited_email,claimed_by,expires_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+
+    if (inviteError || !invite || invite.claimed_by !== userData.user.id) {
+      return json(
+        { error: { code: "STAFF_ACCESS_FAILED", message: "Invite already claimed" } },
+        409,
+      );
+    }
+
+    if (invite.invited_email &&
+        invite.invited_email.toLowerCase() !== (userData.user.email ?? "").toLowerCase()) {
+      return json(
+        { error: { code: "FORBIDDEN", message: "Invite email does not match the signed-in account" } },
+        403,
+      );
+    }
+
+    const { data: member, error: memberError } = await admin
+      .from("business_memberships")
+      .select("id,user_id,role_id,status,permissions_overridden")
+      .eq("business_id", invite.business_id)
+      .eq("user_id", userData.user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (memberError || !member) {
+      return json(
+        { error: { code: "STAFF_ACCESS_FAILED", message: "Claimed membership could not be recovered" } },
+        500,
+      );
+    }
+
+    const { data: role } = await admin
+      .from("roles")
+      .select("name")
+      .eq("id", member.role_id)
+      .eq("business_id", invite.business_id)
+      .maybeSingle();
+
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    const { data: locationMemberships } = await admin
+      .from("location_memberships")
+      .select("location_id")
+      .eq("business_id", invite.business_id)
+      .eq("user_id", userData.user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    let permissionCodes: string[] = [];
+    if (member.permissions_overridden) {
+      const { data: rows } = await admin
+        .from("business_member_permissions")
+        .select("permissions(code)")
+        .eq("business_id", invite.business_id)
+        .eq("user_id", userData.user.id);
+      permissionCodes = (rows ?? [])
+        .map((row) => (row.permissions as { code?: string } | null)?.code)
+        .filter((code): code is string => typeof code === "string");
+    } else {
+      const { data: rows } = await admin
+        .from("role_permissions")
+        .select("permissions(code)")
+        .eq("role_id", member.role_id);
+      permissionCodes = (rows ?? [])
+        .map((row) => (row.permissions as { code?: string } | null)?.code)
+        .filter((code): code is string => typeof code === "string");
+    }
+
+    return json({
+      data: {
+        business_id: invite.business_id,
+        membership_id: member.id,
+        user_id: userData.user.id,
+        role_id: member.role_id,
+        role_name: role?.name ?? "cashier",
+        full_name: profile?.full_name ?? "",
+        email: userData.user.email ?? "",
+        location_id: locationMemberships?.[0]?.location_id ?? null,
+        permission_codes: permissionCodes,
+      },
+      server_authoritative: true,
+    });
   }
 
   const businessId = typeof body.business_id === "string" ? body.business_id : null;
