@@ -11,7 +11,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../data/remote/cloud_restore_api.dart';
+import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../data/remote/cross_device_employee_restore.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../shared/widgets/widgets.dart';
