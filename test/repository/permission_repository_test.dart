@@ -53,13 +53,14 @@ void main() {
   });
 
   test('manager cannot add a permission they do not hold', () async {
+    await _insertUser(db, id: 'owner', name: 'Owner', role: AuthRole.owner);
     await _insertUser(db, id: 'manager', name: 'Manager', role: AuthRole.manager);
-    await _insertUser(db, id: 'employee', name: 'Employee', role: AuthRole.employee);
     await repository.setPermissions(
       userId: 'manager',
       permissions: {Permission.manageEmployees, Permission.viewReports, Permission.manageStock},
-      grantedBy: 'manager',
+      grantedBy: 'owner',
     );
+    await _insertUser(db, id: 'employee', name: 'Employee', role: AuthRole.employee);
 
     await expectLater(
       repository.setPermissions(
@@ -72,13 +73,14 @@ void main() {
   });
 
   test('manager may preserve a target permission they do not hold', () async {
+    await _insertUser(db, id: 'owner', name: 'Owner', role: AuthRole.owner);
     await _insertUser(db, id: 'manager', name: 'Manager', role: AuthRole.manager);
-    await _insertUser(db, id: 'employee', name: 'Employee', role: AuthRole.employee);
     await repository.setPermissions(
       userId: 'manager',
       permissions: {Permission.manageEmployees, Permission.viewReports, Permission.manageStock},
-      grantedBy: 'manager',
+      grantedBy: 'owner',
     );
+    await _insertUser(db, id: 'employee', name: 'Employee', role: AuthRole.employee);
     await repository.setPermissions(
       userId: 'employee',
       permissions: {Permission.manageBackup, Permission.manageStock},
@@ -100,7 +102,13 @@ void main() {
   });
 
   test('manager cannot edit their own permissions', () async {
+    await _insertUser(db, id: 'owner', name: 'Owner', role: AuthRole.owner);
     await _insertUser(db, id: 'manager', name: 'Manager', role: AuthRole.manager);
+    await repository.setPermissions(
+      userId: 'manager',
+      permissions: {Permission.manageEmployees, Permission.viewReports, Permission.manageStock},
+      grantedBy: 'owner',
+    );
     await repository.setPermissions(
       userId: 'manager',
       permissions: {Permission.manageEmployees},
