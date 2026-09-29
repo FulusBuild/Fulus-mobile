@@ -43,17 +43,18 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as '
   select exists (
     select 1
     from public.business_memberships bm
     join public.roles r on r.id = bm.role_id
     where bm.business_id = target_business_id
       and bm.user_id = target_user_id
-      and bm.status = 'active'
-      and r.name in ('owner', 'admin')
+      and bm.status = ''active''
+      and r.name in (''owner'', ''admin'')
   );
-$;
+';
+
 create or replace function public.create_staff_invite(
   target_business_id uuid,
   target_role_id uuid,
