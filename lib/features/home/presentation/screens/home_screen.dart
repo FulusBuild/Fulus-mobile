@@ -589,9 +589,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: FulusMetricCardColumn(
-              icon: FulusIcons.sell,
-              iconColor: Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Today’s Sales',
@@ -603,6 +602,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -616,6 +616,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   count,
                   maxLines: 1,
