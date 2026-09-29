@@ -7,6 +7,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'fulus_account_screen.dart';
 import 'owner_setup_screen.dart';
+import 'employee_join_business_screen.dart';
 
 /// First-launch entry point for a device with no local owner/business yet.
 ///
@@ -70,6 +71,17 @@ class GetStartedScreen extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(context).push<void>(
                         MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusActionTile(
+                    label: 'Join as an employee',
+                    subtitle: 'Use an invitation from your business owner on this phone.',
+                    icon: Icons.badge_rounded,
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const EmployeeJoinBusinessScreen()),
                       );
                     },
                   ),
