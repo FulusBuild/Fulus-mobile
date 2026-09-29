@@ -115,6 +115,20 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
     }
 
     final user = ref.read(sessionProvider);
+    final canManageStock = user?.role == AuthRole.owner ||
+        (user != null &&
+            await ref.read(permissionRepositoryProvider).hasPermission(
+              userId: user.id,
+              role: user.role,
+              permission: Permission.manageStock,
+            ));
+    if (!canManageStock) {
+      if (mounted) {
+        setState(() => _bannerMessage = 'You do not have permission to manage stock.');
+      }
+      return;
+    }
+
     final requiresApprovalForType =
         _type == StockMovementType.stockOut || _type == StockMovementType.adjustment;
     final needsApproval = user != null &&
