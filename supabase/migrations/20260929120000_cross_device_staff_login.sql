@@ -417,7 +417,7 @@ create or replace function public.set_member_status(
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $fn0$
 declare
   target_member_user uuid;
 begin
@@ -462,8 +462,7 @@ begin
 
   return true;
 end;
-$;
-
+$fn0$;
 create or replace function public.change_member_role(
   target_business_id uuid,
   target_membership_id uuid,
@@ -473,12 +472,20 @@ create or replace function public.change_member_role(
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $fn1$
 declare
   target_member_user uuid;
   target_role_name text;
 begin
-  if not public.is_business_admin_for_user(target_business_id, target_user_id) then
+  if not exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = target_user_id
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  ) then
     raise exception using errcode='42501',
       message='Only an owner or admin may change member roles';
   end if;
@@ -513,8 +520,7 @@ begin
 
   return true;
 end;
-$;
-
+$fn1$;
 create or replace function public.set_role_permission(
   target_business_id uuid,
   target_role_id uuid,
@@ -525,7 +531,7 @@ create or replace function public.set_role_permission(
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $fn2$
 begin
   if not exists (
     select 1
@@ -568,8 +574,6 @@ begin
 end;
 $;
 
-revoke all on function public.is_business_admin_for_user(uuid,uuid)
-  from public,anon,authenticated,service_role;
 revoke all on function public.set_member_status(uuid,uuid,text,uuid)
   from public,anon,authenticated;
 grant execute on function public.set_member_status(uuid,uuid,text,uuid) to service_role;
