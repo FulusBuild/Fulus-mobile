@@ -166,9 +166,11 @@ final appRouter = GoRouter(
     if (user.role == AuthRole.owner) return null;
     final requiredPermissions = location.startsWith('/money')
         ? {Permission.viewMoney}
-        : location.startsWith('/more')
-            ? _permissionsForMoreRoute(location)
-            : const <Permission>{};
+        : location.startsWith('/stock')
+            ? _permissionsForStockRoute(location)
+            : location.startsWith('/more')
+                ? _permissionsForMoreRoute(location)
+                : const <Permission>{};
     if (requiredPermissions.isEmpty) return null;
 
     // Reuse the app-scoped permission provider instead of performing a
@@ -611,6 +613,19 @@ final appRouter = GoRouter(
 /// through to the empty set deliberately — they're informational, not
 /// business-sensitive, the same reasoning FulusAppShell's own doc
 /// comment gives for why More stays visible to every role now.
+Set<Permission> _permissionsForStockRoute(String location) {
+  if (location.startsWith('/stock/add') ||
+      location.startsWith('/stock/edit') ||
+      location.startsWith('/stock/record') ||
+      location.startsWith('/stock/categories') ||
+      location.startsWith('/stock/bulk-import')) {
+    return {Permission.manageStock};
+  }
+  // Viewing the catalog, product details, and stock history remains available
+  // to signed-in employees; manageStock is the write/configuration boundary.
+  return const <Permission>{};
+}
+
 Set<Permission> _permissionsForMoreRoute(String location) {
   if (location.startsWith('/more/customers')) return {Permission.viewMoney};
   if (location.startsWith('/more/printers')) return {Permission.manageSettings};
