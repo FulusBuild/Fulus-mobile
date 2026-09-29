@@ -604,7 +604,6 @@ revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid) f
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) from public,anon,authenticated;
 grant execute on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) to service_role;
 
-revoke all on function public.claim_staff_invite(text) from public,anon,authenticated;
 revoke all on function public.claim_staff_invite(text,uuid) from public,anon,authenticated,service_role;
 grant execute on function public.claim_staff_invite(text,uuid) to service_role;
 
