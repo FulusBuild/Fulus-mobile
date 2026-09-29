@@ -170,8 +170,9 @@ class FulusConnectionState extends ChangeNotifier {
   }
 
   Future<StaffInvite> createStaffInvite({
-    required String roleId,
-    String? email,
+    required String roleName,
+    required String email,
+    required List<String> permissionCodes,
     int expiresHours = 24,
   }) async {
     final api = _staffAccessApi;
@@ -181,8 +182,9 @@ class FulusConnectionState extends ChangeNotifier {
     }
     return api.createInvite(
       businessId: businessId,
-      roleId: roleId,
+      roleName: roleName,
       email: email,
+      permissionCodes: permissionCodes,
       expiresHours: expiresHours,
     );
   }
