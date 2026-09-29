@@ -114,7 +114,13 @@ class AppColors {
     }
     return inherited.computeLuminance() > 0.5 ? darkTextSecondary : textSecondaryLight;
   }
-  static Color mutedOf(BuildContext context) => isDark(context) ? darkMuted : mutedLight;
+  static Color mutedOf(BuildContext context) {
+    final inherited = DefaultTextStyle.of(context).style.color;
+    if (inherited == null) return isDark(context) ? darkMuted : mutedLight;
+    return inherited.computeLuminance() > 0.5
+        ? darkMuted
+        : mutedLight;
+  }
   static Color selectedTintOf(BuildContext context) => isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
 
   /// Returns a foreground that meets normal-text contrast against a colored
