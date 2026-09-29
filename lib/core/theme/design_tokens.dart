@@ -103,8 +103,14 @@ class AppColors {
   static Color surfaceVariantOf(BuildContext context) => surfaceAltOf(context);
   static Color borderOf(BuildContext context) => isDark(context) ? borderDark : borderLight;
   static Color dividerOf(BuildContext context) => borderOf(context);
-  static Color textPrimaryOf(BuildContext context) => isDark(context) ? darkTextPrimary : textPrimaryLight;
-  static Color textSecondaryOf(BuildContext context) => isDark(context) ? darkTextSecondary : textSecondaryLight;
+  static Color textPrimaryOf(BuildContext context) {
+    final inherited = DefaultTextStyle.of(context).style.color;
+    return inherited ?? (isDark(context) ? darkTextPrimary : textPrimaryLight);
+  }
+  static Color textSecondaryOf(BuildContext context) {
+    final inherited = DefaultTextStyle.of(context).style.color;
+    return inherited ?? (isDark(context) ? darkTextSecondary : textSecondaryLight);
+  }
   static Color mutedOf(BuildContext context) => isDark(context) ? darkMuted : mutedLight;
   static Color selectedTintOf(BuildContext context) => isDark(context) ? darkPrimary.withValues(alpha: AppOpacity.badgeTintDark) : primary50;
 
