@@ -28,8 +28,12 @@ class FulusStaffAccessApi {
     return StaffInvite.fromJson(Map<String, dynamic>.from(response['data'] as Map));
   }
 
-  Future<StaffClaim> claimInvite(String token) async {
-    final response = await _call({'action': 'claim_invite', 'token': token});
+  Future<StaffClaim> claimInvite(String token, {String? fullName}) async {
+    final response = await _call({
+      'action': 'claim_invite',
+      'token': token,
+      if (fullName != null && fullName.trim().isNotEmpty) 'full_name': fullName.trim(),
+    });
     return StaffClaim.fromJson(Map<String, dynamic>.from(response['data'] as Map));
   }
 
