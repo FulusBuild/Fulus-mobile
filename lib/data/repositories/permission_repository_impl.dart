@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/permission.dart';
 import '../../domain/repositories/permission_repository.dart';
@@ -40,6 +41,46 @@ class PermissionRepositoryImpl implements PermissionRepository {
     required Set<Permission> permissions,
     required String grantedBy,
   }) async {
+    final actor = await (_db.select(_db.users)
+          ..where((u) => u.localId.equals(grantedBy)))
+        .getSingleOrNull();
+    if (actor == null || !actor.isActive) {
+      throw const AuthFailure.forbidden();
+    }
+
+    if (actor.role != AuthRole.owner) {
+      // A non-owner may manage other people only if they themselves hold
+      // manageEmployees. Never allow self-editing: removing that grant from
+      // the active account would immediately lock the manager out of the
+      // very control surface needed to recover it.
+      if (userId == grantedBy) {
+        throw const AuthFailure.forbidden();
+      }
+
+      final actorRows = await (_db.select(_db.userPermissions)
+            ..where((p) => p.userId.equals(grantedBy)))
+          .get();
+      final actorPermissions = actorRows.map((row) => row.permission).toSet();
+      if (!actorPermissions.contains(Permission.manageEmployees)) {
+        throw const AuthFailure.forbidden();
+      }
+
+      final existingRows = await (_db.select(_db.userPermissions)
+            ..where((p) => p.userId.equals(userId)))
+          .get();
+      final existing = existingRows.map((row) => row.permission).toSet();
+
+      // A manager may only change grants they themselves hold. Permissions
+      // they do not hold may remain on the target, but cannot be added or
+      // removed by this actor.
+      final changed = existing.difference(permissions).union(
+        permissions.difference(existing),
+      );
+      if (!actorPermissions.containsAll(changed)) {
+        throw const AuthFailure.forbidden();
+      }
+    }
+
     final now = DateTime.now();
     await _db.transaction(() async {
       // Full replace, not incremental — matches this method's own doc
