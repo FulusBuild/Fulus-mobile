@@ -441,12 +441,207 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
     setState(() { _saving = true; _error = null; });
     try {
       await ref.read(permissionRepositoryProvider).setPermissions(userId: widget.authUserId, permissions: _editing, grantedBy: acting.id);
+
+      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
+      if (businessId != null && _isCloudUserId(widget.authUserId)) {
+        await ref.read(fulusStaffAccessApiProvider).setMemberPermissions(
+              businessId: businessId,
+              userId: widget.authUserId,
+              permissionCodes: _cloudPermissionCodes(_editing),
+            );
+      }
+
       if (!mounted) return;
       ref.invalidate(sessionPermissionsProvider);
       setState(() { _saving = false; _load(); });
       showFulusSnackbar(context, message: 'Permissions updated.');
     } on Failure catch (f) { if (mounted) setState(() { _saving = false; _error = f.message; }); }
   }
+  bool _isCloudUserId(String value) {
+    return RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(future: _future, builder: (context, snapshot) {
+    if (!snapshot.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.lg), child: Center(child: CircularProgressIndicator()));
+    final stored = snapshot.data!; final dirty = !setEquals(stored, _editing);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (_error != null) Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
+      PermissionEditor(selected: _editing, grantableBy: widget.grantableBy, onChanged: (next) => setState(() => _editing = next)),
+      if (dirty) ...[const SizedBox(height: AppSpacing.sm), Row(children: [Expanded(child: FulusButton(variant: FulusButtonVariant.secondary, onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)), label: 'Cancel')), const SizedBox(width: AppSpacing.sm), Expanded(child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save))])],
+    ]);
+  });
+}
+
+class _EmployeeRelatedLoadingCard extends StatelessWidget {
+  const _EmployeeRelatedLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const FulusCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FulusSkeletonBox(height: 18, width: 140),
+          SizedBox(height: AppSpacing.md),
+          FulusSkeletonBox(height: 52),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttendanceStat extends StatelessWidget {
+  const _AttendanceStat({required this.label, required this.value, required this.color});
+  final String label; final int value; final Color color;
+  @override
+  Widget build(BuildContext context) => Column(children: [Text('$value', style: AppTypography.display.copyWith(color: color)), const SizedBox(height: AppSpacing.xs), Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)))]);
+}
+
+class _LeaveGroupLabel extends StatelessWidget {
+  const _LeaveGroupLabel({required this.label}); final String label;
+  @override
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm, top: AppSpacing.xs), child: Text(label, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w700)));
+}
+
+class _LeaveRequestTile extends ConsumerWidget {
+  const _LeaveRequestTile({required this.leave, required this.onChanged});
+  final LeaveRequest leave; final VoidCallback onChanged;
+  String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (label, color) = switch (leave.status) { LeaveStatus.pending => ('Pending', AppColors.warningOf(context)), LeaveStatus.approved => ('Approved', AppColors.primaryOf(context)), LeaveStatus.denied => ('Denied', AppColors.errorOf(context)) };
+    return Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: FulusCard(child: LayoutBuilder(builder: (context, constraints) {
+      final compact = constraints.maxWidth < 440;
+      final status = Container(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2), decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.md)), child: Text(label, style: AppTypography.caption.copyWith(color: color, fontWeight: FontWeight.w600)));
+      final dates = Text('${_fmt(leave.startDate)} – ${_fmt(leave.endDate)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600));
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          compact
+              ? Row(children: [Expanded(child: dates), const SizedBox(width: AppSpacing.sm), status])
+              : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [dates, status]),
+          if (leave.reason != null && leave.reason!.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(leave.reason!, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+          ],
+          if (leave.status == LeaveStatus.pending) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(children: [
+              Expanded(child: FulusButton(label: 'Deny', variant: FulusButtonVariant.secondary, onPressed: () => _decide(context, ref, LeaveStatus.denied))),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: FulusButton(label: 'Approve', onPressed: () => _decide(context, ref, LeaveStatus.approved))),
+            ]),
+          ],
+        ],
+      );
+    })));
+  }
+  Future<void> _decide(BuildContext context, WidgetRef ref, LeaveStatus status) async {
+    final decidedBy = ref.read(authRepositoryProvider).currentUser?.id; if (decidedBy == null) return;
+    try { await ref.read(employeeRepositoryProvider).decideLeaveRequest(leaveId: leave.id, status: status, decidedBy: decidedBy); onChanged(); }
+    on Failure catch (f) { if (context.mounted) showFulusSnackbar(context, message: f.message); }
+    on Object catch (_) { if (context.mounted) showFulusSnackbar(context, message: "That request isn't available anymore."); onChanged(); }
+  }
+}
+
+class _AccessAction extends ConsumerWidget {
+  const _AccessAction({required this.employee}); final Employee employee;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Column(children: [SizedBox(width: double.infinity, child: FulusButton(label: employee.isActive ? 'Deactivate this team member' : 'Reactivate this team member', variant: employee.isActive ? FulusButtonVariant.destructive : FulusButtonVariant.secondary, onPressed: () => employee.isActive ? _deactivate(context, ref) : _reactivate(context, ref))), const SizedBox(height: AppSpacing.sm), Text(employee.isActive ? "They'll no longer be able to sign in, and will disappear from the active roster. Their history is kept, and this can be undone at any time." : "They'll be restored to the active roster and, if they had a login, able to sign in again.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)), textAlign: TextAlign.center)]);
+  Future<void> _deactivate(BuildContext context, WidgetRef ref) async { final confirmed = await showFulusConfirmDialog(context, title: 'Deactivate ${employee.fullName}?', message: '${employee.fullName} will immediately lose access to sign in on this device. You can reactivate them any time.', confirmLabel: 'Deactivate'); if (!confirmed || !context.mounted) return; try { await ref.read(employeeRepositoryProvider).deactivateEmployee(employee.id); if (context.mounted) { showFulusSnackbar(context, message: '${employee.fullName} was deactivated.'); context.pop(); } } catch (_) { if (context.mounted) showFulusSnackbar(context, message: "Couldn't deactivate ${employee.fullName}. Try again."); } }
+  Future<void> _reactivate(BuildContext context, WidgetRef ref) async { try { await ref.read(employeeRepositoryProvider).reactivateEmployee(employee.id); if (context.mounted) { showFulusSnackbar(context, message: '${employee.fullName} was reactivated.'); context.pop(); } } catch (_) { if (context.mounted) showFulusSnackbar(context, message: "Couldn't reactivate ${employee.fullName}. Try again."); } }
+}
+
+class _SetOwnPinSheet extends ConsumerStatefulWidget {
+  const _SetOwnPinSheet();
+  @override ConsumerState<_SetOwnPinSheet> createState() => _SetOwnPinSheetState();
+}
+class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
+  final _pinController = TextEditingController(); final _confirmController = TextEditingController(); Map<String, String> _errors = {}; bool _submitting = false;
+  @override void dispose() { _pinController.dispose(); _confirmController.dispose(); super.dispose(); }
+  Future<void> _submit() async { final pin = _pinController.text.trim(); final errors = <String, String>{}; if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.'; if (_confirmController.text.trim() != pin) errors['confirm'] = "PINs don't match."; if (errors.isNotEmpty) { setState(() => _errors = errors); return; } setState(() { _submitting = true; _errors = {}; }); try { await ref.read(authRepositoryProvider).setOwnLoginPin(pin: pin); final updated = ref.read(sessionProvider); if (updated != null) ref.read(sessionProvider.notifier).state = AuthUser(id: updated.id, username: updated.username, email: updated.email, fullName: updated.fullName, role: updated.role, isActive: updated.isActive, hasLoginPin: true); if (mounted) Navigator.of(context).pop(true); } on Failure catch (f) { if (mounted) setState(() { _submitting = false; _errors = {'form': f.message}; }); } }
+  @override Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Set your own PIN first', style: AppTypography.heading), const SizedBox(height: AppSpacing.xs), Text("You'll use this to switch back to your own account once someone else has one on this device.", style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))), const SizedBox(height: AppSpacing.lg), if (_errors['form'] != null) Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), FulusTextField(label: 'Your PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['pin'], helperText: 'At least 4 digits.'), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['confirm']), const SizedBox(height: AppSpacing.lg), SizedBox(width: double.infinity, child: FulusButton(label: 'Save PIN', loading: _submitting, onPressed: _submitting ? null : _submit))])));
+}
+
+class _SetUpLoginSheet extends ConsumerStatefulWidget {
+  const _SetUpLoginSheet({required this.employee, required this.grantableBy});
+  final Employee employee; final Set<Permission> grantableBy;
+  @override ConsumerState<_SetUpLoginSheet> createState() => _SetUpLoginSheetState();
+}
+class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
+  final _pinController = TextEditingController(); final _confirmController = TextEditingController(); Map<String, String> _errors = {}; bool _submitting = false; AuthRolePreset _preset = AuthRolePreset.cashier; Set<Permission> _permissions = {}; bool _permissionsCustomized = false;
+  @override void initState() { super.initState(); _permissions = _defaultsWithinGrant(AuthRole.cashier); }
+  Set<Permission> _defaultsWithinGrant(AuthRole role) => Permission.defaultsForRole(role).intersection(widget.grantableBy);
+  @override void dispose() { _pinController.dispose(); _confirmController.dispose(); super.dispose(); }
+  void _onPresetChanged(AuthRolePreset preset) { setState(() { _preset = preset; if (!_permissionsCustomized) _permissions = _defaultsWithinGrant(preset.role); }); }
+  Future<void> _submit() async { final pin = _pinController.text.trim(); final errors = <String, String>{}; if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.'; if (_confirmController.text.trim() != pin) errors['confirm'] = "PINs don't match."; if (errors.isNotEmpty) { setState(() => _errors = errors); return; } setState(() { _submitting = true; _errors = {}; }); try { final acting = ref.read(sessionProvider); final created = await ref.read(authRepositoryProvider).createEmployeeAccount(employeeId: widget.employee.id, pin: pin, role: _preset.role); if (acting != null) await ref.read(permissionRepositoryProvider).setPermissions(userId: created.id, permissions: _permissions, grantedBy: acting.id); if (mounted) Navigator.of(context).pop(pin); } on Failure catch (f) { if (mounted) setState(() { _submitting = false; _errors = {'form': f.message}; }); } }
+  @override Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Set up login for ${widget.employee.fullName}', style: AppTypography.heading), const SizedBox(height: AppSpacing.xs), Text("They'll use this PIN to switch to their own account on this device.", style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))), const SizedBox(height: AppSpacing.lg), if (_errors['form'] != null) Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), FulusTextField(label: 'PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['pin'], helperText: 'At least 4 digits.'), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['confirm']), const SizedBox(height: AppSpacing.lg), Text('Role', style: AppTypography.subheading), const SizedBox(height: AppSpacing.xs), RolePresetSelector(selected: _preset, onChanged: _onPresetChanged), const SizedBox(height: AppSpacing.md), Text('Permissions', style: AppTypography.subheading), Text('Starts from the role above — adjust anything before creating the login.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))), PermissionEditor(selected: _permissions, grantableBy: widget.grantableBy, onChanged: (next) => setState(() { _permissions = next; _permissionsCustomized = true; })), const SizedBox(height: AppSpacing.lg), SizedBox(width: double.infinity, child: FulusButton(label: 'Create login', loading: _submitting, onPressed: _submitting ? null : _submit))])));
+}
+
+class _EmployeeDetailSkeleton extends StatelessWidget {
+  const _EmployeeDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xxl),
+      children: const [
+        FulusCardSkeleton(),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 18, width: 120),
+        SizedBox(height: AppSpacing.sm),
+        FulusSkeletonBox(height: 84, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 18, width: 150),
+        SizedBox(height: AppSpacing.sm),
+        FulusSkeletonBox(height: 100, borderRadius: BorderRadius.all(Radius.circular(AppRadius.md))),
+        SizedBox(height: AppSpacing.lg),
+        FulusSkeletonBox(height: 18, width: 120),
+        SizedBox(height: AppSpacing.sm),
+        FulusListRowSkeleton(hasLeading: false),
+        FulusListRowSkeleton(hasLeading: false),
+        FulusListRowSkeleton(hasLeading: false),
+      ],
+    );
+  }
+}
+).hasMatch(value);
+  }
+
+  List<String> _cloudPermissionCodes(Set<Permission> permissions) {
+    final codes = <String>{
+      'business.read',
+      'locations.read',
+      'catalog.read',
+      'inventory.read',
+      'sales.read',
+      'sales.create',
+      'customers.read',
+      'credit.manage',
+      'cash.read',
+    };
+    for (final permission in permissions) {
+      switch (permission) {
+        case Permission.viewMoney:
+          codes.addAll({'cash.read', 'finance.read', 'sales.read', 'customers.read'});
+        case Permission.viewDashboardStats:
+          codes.add('business.read');
+        case Permission.approveWithoutSupervisor:
+          codes.addAll({'returns.approve', 'sales.void'});
+        case Permission.manageStock:
+          codes.addAll({'catalog.manage', 'inventory.adjust', 'inventory.transfer'});
+        case Permission.viewReports:
+          codes.add('reports.read');
+        case Permission.manageEmployees:
+          codes.add('employees.manage');
+        case Permission.manageSettings:
+          codes.addAll({'business.manage', 'locations.manage'});
+        case Permission.manageBackup:
+          codes.add('business.manage');
+        case Permission.viewAuditLog:
+          codes.add('audit.read');
+      }
+    }
+    return codes.toList()..sort();
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<Set<Permission>>(future: _future, builder: (context, snapshot) {
     if (!snapshot.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.lg), child: Center(child: CircularProgressIndicator()));
