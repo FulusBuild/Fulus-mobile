@@ -1,3 +1,4 @@
+import '../entities/auth_user.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/business_settings_repository.dart';
 import '../repositories/location_repository.dart';
