@@ -212,6 +212,8 @@ class CrossDeviceEmployeeRestore {
         case 'business.manage':
         case 'locations.manage':
           result.add(Permission.manageSettings);
+        case 'backup.manage':
+          result.add(Permission.manageBackup);
         case 'business.read':
           result.add(Permission.viewDashboardStats);
         case 'cash.manage':
