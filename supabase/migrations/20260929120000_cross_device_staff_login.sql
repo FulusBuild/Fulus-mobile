@@ -408,26 +408,6 @@ as $$
   );
 $$;
 
-create or replace function public.is_business_admin_for_user(
-  target_business_id uuid,
-  target_user_id uuid
-) returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $
-  select exists (
-    select 1
-    from public.business_memberships bm
-    join public.roles r on r.id = bm.role_id
-    where bm.business_id = target_business_id
-      and bm.user_id = target_user_id
-      and bm.status = 'active'
-      and r.name in ('owner', 'admin')
-  );
-$;
-
 create or replace function public.set_member_status(
   target_business_id uuid,
   target_membership_id uuid,
@@ -441,7 +421,15 @@ as $
 declare
   target_member_user uuid;
 begin
-  if not public.is_business_admin_for_user(target_business_id, target_user_id) then
+  if not exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = target_user_id
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  ) then
     raise exception using errcode='42501',
       message='Only an owner or admin may change membership status';
   end if;
