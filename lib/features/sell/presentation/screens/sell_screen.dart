@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/screens/barcode_scan_screen.dart';
