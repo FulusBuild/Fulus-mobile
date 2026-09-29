@@ -92,6 +92,20 @@ class CrossDeviceEmployeeRestore {
           onProgress: onProgress,
         );
 
+        // The generic cloud restore imports staff identities so historical
+        // cashier attribution remains valid. On an employee-only device,
+        // those identities must remain historical/inactive rather than
+        // becoming selectable accounts. Never delete them: sales and other
+        // business rows may still reference their local IDs.
+        await _db.customStatement(
+          '''
+          UPDATE users
+          SET is_active = 0, updated_at = ?
+          WHERE local_id <> ?
+          ''',
+          [now.millisecondsSinceEpoch, claim.userId],
+        );
+
         await _db.delete(_db.businessSettings).go();
         await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
 
