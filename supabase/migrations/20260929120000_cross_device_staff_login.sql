@@ -35,6 +35,26 @@ create policy business_member_permissions_admin_manage
   using (public.is_business_admin(business_id))
   with check (public.is_business_admin(business_id));
 
+create or replace function public.is_business_admin_for_user(
+  target_business_id uuid,
+  target_user_id uuid
+) returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = target_user_id
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  );
+$;
+
 create or replace function public.create_staff_invite(
   target_business_id uuid,
   target_role_id uuid,
