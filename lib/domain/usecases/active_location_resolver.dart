@@ -70,12 +70,14 @@ class ResolveActiveLocation {
 
   Future<String> call() async {
     final currentUser = _authRepository.currentUser;
-    final assignedLocationId = await _authRepository.getAssignedLocationId();
 
     // Non-owner identities are location-scoped. Never fall back to the
     // business default when an employee's assigned location is missing:
     // that would silently move their transactions into another location.
+    // Read the assignment only for an employee session. This also keeps the
+    // owner/default-location path independent of employee-only auth state.
     if (currentUser != null && currentUser.role != AuthRole.owner) {
+      final assignedLocationId = await _authRepository.getAssignedLocationId();
       if (assignedLocationId == null || assignedLocationId.isEmpty) {
         throw StateError('This employee is not assigned to an active location.');
       }
