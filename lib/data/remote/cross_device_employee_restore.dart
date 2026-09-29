@@ -58,17 +58,6 @@ class CrossDeviceEmployeeRestore {
         // Sales and cash-drawer rows reference Users.localId. Seed the
         // claimed cloud identity before importing business rows so its
         // historical activity can satisfy the local foreign key.
-        onProgress?.call('Restoring business data…');
-        final result = await CloudRestoreImporter(_db).importSnapshot(
-          snapshot,
-          ownerCloudUserId: claim.userId,
-          transactional: false,
-          onProgress: onProgress,
-        );
-
-        await _db.delete(_db.businessSettings).go();
-        await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
-
         await _db.customStatement(
           '''
           INSERT INTO users(
@@ -94,6 +83,16 @@ class CrossDeviceEmployeeRestore {
             now.millisecondsSinceEpoch,
           ],
         );
+        onProgress?.call('Restoring business data…');
+        final result = await CloudRestoreImporter(_db).importSnapshot(
+          snapshot,
+          ownerCloudUserId: claim.userId,
+          transactional: false,
+          onProgress: onProgress,
+        );
+
+        await _db.delete(_db.businessSettings).go();
+        await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
 
         await _db.customStatement(
           '''
