@@ -418,6 +418,12 @@ as $$
   );
 $$;
 
+-- Production may also contain the legacy lower-level staff RPC overloads with
+-- different input-parameter names. Drop exact signatures before replacement.
+drop function if exists public.set_member_status(uuid, uuid, text, uuid);
+drop function if exists public.change_member_role(uuid, uuid, uuid, uuid);
+drop function if exists public.set_role_permission(uuid, uuid, uuid, boolean, uuid);
+
 create or replace function public.set_member_status(
   target_business_id uuid,
   target_membership_id uuid,
