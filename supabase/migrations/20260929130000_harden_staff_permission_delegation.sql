@@ -290,8 +290,6 @@ begin
 end;
 $$;
 
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer)
-  from public,anon,authenticated;
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid)
   from public,anon,authenticated,service_role;
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[])
