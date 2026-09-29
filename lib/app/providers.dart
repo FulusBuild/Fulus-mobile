@@ -350,6 +350,10 @@ final resolveActiveLocationProvider = Provider<ResolveActiveLocation>((ref) {
 /// back would be wasted work for a value that essentially never changes
 /// mid-session.
 final activeLocationIdProvider = FutureProvider<String>((ref) {
+  // Location context belongs to the signed-in identity. Watching the
+  // session prevents a cached location from the previous account surviving
+  // an account switch/sign-up on the same device.
+  ref.watch(sessionProvider);
   return ref
       .watch(resolveActiveLocationProvider)
       .call()
