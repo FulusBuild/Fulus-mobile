@@ -663,8 +663,58 @@ class _AccessAction extends ConsumerWidget {
   const _AccessAction({required this.employee}); final Employee employee;
   @override
   Widget build(BuildContext context, WidgetRef ref) => Column(children: [SizedBox(width: double.infinity, child: FulusButton(label: employee.isActive ? 'Deactivate this team member' : 'Reactivate this team member', variant: employee.isActive ? FulusButtonVariant.destructive : FulusButtonVariant.secondary, onPressed: () => employee.isActive ? _deactivate(context, ref) : _reactivate(context, ref))), const SizedBox(height: AppSpacing.sm), Text(employee.isActive ? "They'll no longer be able to sign in, and will disappear from the active roster. Their history is kept, and this can be undone at any time." : "They'll be restored to the active roster and, if they had a login, able to sign in again.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)), textAlign: TextAlign.center)]);
-  Future<void> _deactivate(BuildContext context, WidgetRef ref) async { final confirmed = await showFulusConfirmDialog(context, title: 'Deactivate ${employee.fullName}?', message: '${employee.fullName} will immediately lose access to sign in on this device. You can reactivate them any time.', confirmLabel: 'Deactivate'); if (!confirmed || !context.mounted) return; try { await ref.read(employeeRepositoryProvider).deactivateEmployee(employee.id); if (context.mounted) { showFulusSnackbar(context, message: '${employee.fullName} was deactivated.'); context.pop(); } } catch (_) { if (context.mounted) showFulusSnackbar(context, message: "Couldn't deactivate ${employee.fullName}. Try again."); } }
-  Future<void> _reactivate(BuildContext context, WidgetRef ref) async { try { await ref.read(employeeRepositoryProvider).reactivateEmployee(employee.id); if (context.mounted) { showFulusSnackbar(context, message: '${employee.fullName} was reactivated.'); context.pop(); } } catch (_) { if (context.mounted) showFulusSnackbar(context, message: "Couldn't reactivate ${employee.fullName}. Try again."); } }
+  Future<void> _deactivate(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showFulusConfirmDialog(
+      context,
+      title: 'Deactivate ${employee.fullName}?',
+      message: '${employee.fullName} will immediately lose access to sign in on this device. You can reactivate them any time.',
+      confirmLabel: 'Deactivate',
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      final authUserId = employee.authUserId;
+      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
+      if (authUserId != null && businessId != null) {
+        await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
+              businessId: businessId,
+              userId: authUserId,
+              status: 'suspended',
+            );
+      }
+      await ref.read(employeeRepositoryProvider).deactivateEmployee(employee.id);
+      if (context.mounted) {
+        showFulusSnackbar(context, message: '${employee.fullName} was deactivated.');
+        context.pop();
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't deactivate ${employee.fullName}. Try again.");
+      }
+    }
+  }
+
+  Future<void> _reactivate(BuildContext context, WidgetRef ref) async {
+    try {
+      final authUserId = employee.authUserId;
+      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
+      if (authUserId != null && businessId != null) {
+        await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
+              businessId: businessId,
+              userId: authUserId,
+              status: 'active',
+            );
+      }
+      await ref.read(employeeRepositoryProvider).reactivateEmployee(employee.id);
+      if (context.mounted) {
+        showFulusSnackbar(context, message: '${employee.fullName} was reactivated.');
+        context.pop();
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showFulusSnackbar(context, message: "Couldn't reactivate ${employee.fullName}. Try again.");
+      }
+    }
+  }
 }
 
 class _SetOwnPinSheet extends ConsumerStatefulWidget {
