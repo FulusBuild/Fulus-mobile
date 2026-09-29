@@ -570,3 +570,22 @@ grant execute on function public.change_member_role(uuid,uuid,uuid,uuid) to serv
 revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
   from public,anon,authenticated;
 grant execute on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid) to service_role;
+
+revoke all on function public.create_staff_invite(uuid,uuid,text,integer) from public,anon,authenticated;
+revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid) from public,anon,authenticated,service_role;
+revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) from public,anon,authenticated;
+grant execute on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) to service_role;
+
+revoke all on function public.claim_staff_invite(text) from public,anon,authenticated;
+revoke all on function public.claim_staff_invite(text,uuid) from public,anon,authenticated,service_role;
+grant execute on function public.claim_staff_invite(text,uuid) to service_role;
+
+revoke all on function public.set_member_permission_overrides(uuid,uuid,text[],uuid)
+  from public,anon,authenticated;
+grant execute on function public.set_member_permission_overrides(uuid,uuid,text[],uuid)
+  to service_role;
+
+revoke all on function public.has_permission(uuid,text)
+  from public,anon,authenticated,service_role;
+grant execute on function public.has_permission(uuid,text)
+  to authenticated, service_role;
