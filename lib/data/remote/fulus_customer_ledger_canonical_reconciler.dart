@@ -33,7 +33,10 @@ class FulusCustomerLedgerCanonicalReconciler {
       paymentMethod: _nullableString(row['payment_method']),
       note: _nullableString(row['note']),
       createdAt: _date(row['created_at']),
-      updatedAt: _date(row['updated_at']),
+      // customer_ledger_entries has no updated_at column. Its canonical
+      // wire row therefore legitimately contains only created_at; use that
+      // immutable ledger timestamp as the local updatedAt value as well.
+      updatedAt: _date(row['updated_at'] ?? row['created_at']),
     );
   }
 

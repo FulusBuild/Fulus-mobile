@@ -234,6 +234,12 @@ class ProductListResponseDto {
   final int pageSize;
   final int totalPages;
 
-  factory ProductListResponseDto.fromJson(Map<String, dynamic> json) =>
-      _$ProductListResponseDtoFromJson(json);
+  factory ProductListResponseDto.fromJson(Map<String, dynamic> json) {
+    // Some deployed inventory responses encode an empty collection as null.
+    // Normalize that wire representation at the DTO boundary so generated
+    // json_serializable code never attempts to cast null to List<dynamic>.
+    final normalized = <String, dynamic>{...json};
+    if (normalized['items'] == null) normalized['items'] = const <dynamic>[];
+    return _$ProductListResponseDtoFromJson(normalized);
+  }
 }

@@ -86,7 +86,6 @@ void main() {
             'payment_method': null,
             'note': 'Return credit reversal',
             'created_at': '2026-09-23T20:00:00Z',
-            'updated_at': '2026-09-23T20:00:00Z',
           },
         },
       ),
@@ -95,5 +94,32 @@ void main() {
     expect(repository.serverId, 'ledger-1');
     expect(repository.entryType, CustomerLedgerEntryType.refundAdjustment);
     expect(repository.amount, 25);
+  });
+
+  test('uses created_at when canonical customer ledger has no updated_at', () async {
+    final repository = _FakeCustomerCreditRepository();
+    final reconciler =
+        FulusCustomerLedgerCanonicalReconciler(repository: repository);
+
+    await reconciler.apply(
+      const FulusCanonicalEntityResponse(
+        data: {
+          'entity_type': 'customer_ledger',
+          'entity_id': 'ledger-2',
+          'operation': 'upsert',
+          'row': {
+            'id': 'ledger-2',
+            'customer_id': 'customer-1',
+            'entry_type': 'repayment',
+            'amount': 10,
+            'created_at': '2026-09-24T08:00:00Z',
+          },
+        },
+      ),
+    );
+
+    expect(repository.serverId, 'ledger-2');
+    expect(repository.entryType, CustomerLedgerEntryType.repayment);
+    expect(repository.amount, 10);
   });
 }

@@ -79,6 +79,22 @@ void main() {
     await db.close();
   });
 
+  group('wire contract', () {
+    test('normalizes a null product items collection to an empty list', () {
+      final response = ProductListResponseDto.fromJson({
+        'items': null,
+        'total': 0,
+        'page': 1,
+        'page_size': 200,
+        'total_pages': 0,
+      });
+
+      expect(response.items, isEmpty);
+      expect(response.total, 0);
+      expect(response.totalPages, 0);
+    });
+  });
+
   group('syncFromServer', () {
     test('writes catalog fields even with no local Location yet', () async {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
