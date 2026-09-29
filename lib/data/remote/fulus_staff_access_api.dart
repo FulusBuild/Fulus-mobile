@@ -53,6 +53,20 @@ class FulusStaffAccessApi {
     return response['data'] == true;
   }
 
+  Future<bool> setMemberStatusByUser({
+    required String businessId,
+    required String userId,
+    required String status,
+  }) async {
+    final response = await _call({
+      'action': 'set_member_status_by_user',
+      'business_id': businessId,
+      'user_id': userId,
+      'status': status,
+    });
+    return response['data'] == true;
+  }
+
   Future<bool> setMemberStatus({
     required String businessId,
     required String membershipId,
