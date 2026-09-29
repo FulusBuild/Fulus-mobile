@@ -44,12 +44,14 @@ Future<void> _insertRosterEmployee(
   AppDatabase db, {
   required String id,
   required String fullName,
+  String? locationId,
 }) async {
   final now = DateTime.now();
   await db.into(db.employees).insert(
         EmployeesCompanion.insert(
           id: id,
           fullName: fullName,
+          locationId: Value(locationId),
           createdAt: now,
           updatedAt: now,
         ),
@@ -261,6 +263,26 @@ void main() {
       expect(identities.map((u) => u.id), contains(owner.id));
       expect(identities.map((u) => u.id), isNot(contains(coOwner.id)));
     });
+  });
+
+  test('employee identity switch uses the employee assigned location instead of the outgoing session location', () async {
+    await repository.createFirstOwner(fullName: 'Chidinma Okafor');
+    await repository.setOwnLoginPin(pin: '1111');
+    await _insertRosterEmployee(
+      db,
+      id: 'emp-location',
+      fullName: 'Tunde Bakare',
+      locationId: 'location-a',
+    );
+    final employee = await repository.createEmployeeAccount(
+      employeeId: 'emp-location',
+      pin: '3333',
+    );
+    await repository.setActiveLocationId('location-b');
+
+    await repository.switchLocalUser(userId: employee.id, pin: '3333');
+
+    expect(await repository.getActiveLocationId(), 'location-a');
   });
 
   group('switchLocalUser', () {
