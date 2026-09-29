@@ -303,6 +303,7 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
             roleName: roleName,
             email: email,
             permissionCodes: permissionCodes,
+            locationId: widget.employee.locationId,
           );
 
       if (!mounted) return;
