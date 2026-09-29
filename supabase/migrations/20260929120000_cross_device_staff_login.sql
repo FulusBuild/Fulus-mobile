@@ -147,7 +147,7 @@ create or replace function public.claim_staff_invite(
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $claim$
 declare
   invite public.staff_invites;
   membership public.business_memberships;
@@ -310,7 +310,7 @@ begin
       )
   );
 end;
-$;
+$claim$;
 create or replace function public.set_member_permission_overrides(
   target_business_id uuid,
   target_user_id uuid,
