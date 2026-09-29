@@ -3,6 +3,7 @@ import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
 import '../../domain/entities/employee.dart';
+import '../../domain/entities/permission.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/permission_repository.dart';
 import '../../domain/repositories/employee_repository.dart';
