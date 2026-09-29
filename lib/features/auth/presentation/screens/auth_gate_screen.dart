@@ -50,6 +50,12 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
       _startupFailure('BUSINESS_CHECK', error);
     }
 
+    // A cross-device employee installation legitimately has no local Owner
+    // row. It still has a real local identity and must land on the identity
+    // picker rather than being treated as a fresh owner install.
+    final hasAnyLocalIdentity = (await ref.read(databaseProvider).select(ref.read(databaseProvider).users).get()).isNotEmpty;
+    final hasAnySignInIdentity = hasOwnerAccount || hasAnyLocalIdentity;
+
     // Durable-backup discovery is best-effort. It is useful for detecting
     // a backup that survived an uninstall, but it must never prevent a
     // fresh install from reaching onboarding. The native MediaStore call
@@ -73,7 +79,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
     }
 
     final stage = resolveAuthGateStage(
-      hasOwnerAccount: hasOwnerAccount,
+      hasOwnerAccount: hasAnySignInIdentity,
       businessConfigured: businessConfigured,
       hasDetectedBackup: hasDetectedBackup,
     );
@@ -90,7 +96,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
         _startupFailure('ONBOARDING_STATE', error);
       }
     }
-    return (hasOwnerAccount, businessConfigured, hasDetectedBackup);
+    return (hasAnySignInIdentity, businessConfigured, hasDetectedBackup);
   }
 
   @override

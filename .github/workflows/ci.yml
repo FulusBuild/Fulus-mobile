@@ -49,6 +49,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   migration-lint:
@@ -159,7 +160,19 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
       - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        shell: bash
+        run: |
+          set +e
+          output="$(dart run build_runner build --delete-conflicting-outputs --low-resources-mode 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ] && [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh pr comment "$PR_URL" --body "Build runner failure on ${{ github.sha }}:\n\n```text\n$output\n```"
+          fi
+          exit "$status"
 
   analyze:
     name: Static analysis
