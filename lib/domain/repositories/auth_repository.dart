@@ -190,7 +190,9 @@ abstract class AuthRepository {
   /// (domain/usecases/active_location_resolver.dart), which is the only
   /// intended caller of this getter. Everything else in the app should
   /// go through that resolver, not this method directly.
-  Future<String?> getAssignedLocationId();
+  /// Returns the roster-assigned location for the current employee. Owner sessions return null.
+  /// Implementations that do not persist employee-location linkage can safely use the default.
+  Future<String?> getAssignedLocationId() async => null;
 
   Future<String?> getActiveLocationId();
 
