@@ -1,3 +1,5 @@
+import '../../core/errors/failure.dart';
+import '../entities/auth_user.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/location_repository.dart';
 
@@ -21,6 +23,10 @@ class SwitchActiveLocation {
   Future<String> call(String locationId) {
     final request = (_pending ?? Future<void>.value()).then((_) async {
       final requested = locationId.trim();
+      final currentUser = _authRepository.currentUser;
+      if (currentUser == null || currentUser.role != AuthRole.owner) {
+        throw const AuthFailure.forbidden();
+      }
       if (requested.isEmpty) {
         throw ArgumentError.value(locationId, 'locationId', 'must not be empty');
       }
