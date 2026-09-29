@@ -572,7 +572,7 @@ begin
 
   return true;
 end;
-$;
+$fn2$;
 
 revoke all on function public.set_member_status(uuid,uuid,text,uuid)
   from public,anon,authenticated;
