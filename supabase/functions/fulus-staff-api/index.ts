@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
     const tokenHash = await sha256Hex(token);
     const { data: invite, error: inviteError } = await admin
       .from("staff_invites")
-      .select("business_id,role_id,invited_email,claimed_by,expires_at")
+      .select("business_id,role_id,invited_email,claimed_by,expires_at,location_id")
       .eq("token_hash", tokenHash)
       .maybeSingle();
 
@@ -122,14 +122,16 @@ Deno.serve(async (req: Request) => {
       .eq("id", userData.user.id)
       .maybeSingle();
 
-    const { data: locationMemberships } = await admin
-      .from("location_memberships")
-      .select("location_id")
-      .eq("business_id", invite.business_id)
-      .eq("user_id", userData.user.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: true })
-      .limit(1);
+    const { data: locationMemberships } = invite.location_id
+      ? { data: [{ location_id: invite.location_id }] }
+      : await admin
+          .from("location_memberships")
+          .select("location_id")
+          .eq("business_id", invite.business_id)
+          .eq("user_id", userData.user.id)
+          .eq("status", "active")
+          .order("created_at", { ascending: true })
+          .limit(1);
 
     let permissionCodes: string[] = [];
     if (member.permissions_overridden) {
