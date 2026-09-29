@@ -433,12 +433,29 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
   Set<Permission> _editing = {};
   bool _saving = false;
   String? _error;
+
   @override
-  void initState() { super.initState(); _load(); }
-  void _load() { _future = ref.read(permissionRepositoryProvider).getPermissions(widget.authUserId).then((stored) { _editing = Set<Permission>.of(stored); return stored; }); }
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _future = ref.read(permissionRepositoryProvider).getPermissions(widget.authUserId).then((stored) {
+      _editing = Set<Permission>.of(stored);
+      return stored;
+    });
+  }
+
   Future<void> _save() async {
-    final acting = ref.read(sessionProvider); if (acting == null) return;
-    setState(() { _saving = true; _error = null; });
+    final acting = ref.read(sessionProvider);
+    if (acting == null) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
     try {
       final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
       if (businessId != null && _isCloudUserId(widget.authUserId)) {
@@ -449,23 +466,145 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
             );
       }
 
-      await ref.read(permissionRepositoryProvider).setPermissions(userId: widget.authUserId, permissions: _editing, grantedBy: acting.id);
+      await ref.read(permissionRepositoryProvider).setPermissions(
+            userId: widget.authUserId,
+            permissions: _editing,
+            grantedBy: acting.id,
+          );
+
       if (!mounted) return;
       ref.invalidate(sessionPermissionsProvider);
-      setState(() { _saving = false; _load(); });
+      setState(() {
+        _saving = false;
+        _load();
+      });
       showFulusSnackbar(context, message: 'Permissions updated.');
-    } on Failure catch (f) { if (mounted) setState(() { _saving = false; _error = f.message; }); }
+    } on Failure catch (failure) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = failure.message;
+        });
+      }
+    }
   }
+
   bool _isCloudUserId(String value) {
-    return RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(future: _future, builder: (context, snapshot) {
-    if (!snapshot.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.lg), child: Center(child: CircularProgressIndicator()));
-    final stored = snapshot.data!; final dirty = !setEquals(stored, _editing);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (_error != null) Text(_error!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))),
-      PermissionEditor(selected: _editing, grantableBy: widget.grantableBy, onChanged: (next) => setState(() => _editing = next)),
-      if (dirty) ...[const SizedBox(height: AppSpacing.sm), Row(children: [Expanded(child: FulusButton(variant: FulusButtonVariant.secondary, onPressed: _saving ? null : () => setState(() => _editing = Set<Permission>.of(stored)), label: 'Cancel')), const SizedBox(width: AppSpacing.sm), Expanded(child: FulusButton(label: 'Save changes', loading: _saving, onPressed: _saving ? null : _save))])],
-    ]);
-  });
+    if (value.length != 36) return false;
+    const hyphens = <int>[8, 13, 18, 23];
+    for (var i = 0; i < value.length; i++) {
+      if (hyphens.contains(i)) {
+        if (value.codeUnitAt(i) != 45) return false;
+      } else {
+        final code = value.codeUnitAt(i);
+        final isDigit = code >= 48 && code <= 57;
+        final isLower = code >= 97 && code <= 102;
+        final isUpper = code >= 65 && code <= 70;
+        if (!isDigit && !isLower && !isUpper) return false;
+      }
+    }
+    return true;
+  }
+
+  List<String> _cloudPermissionCodes(Set<Permission> permissions) {
+    final codes = <String>{
+      'business.read',
+      'locations.read',
+      'catalog.read',
+      'inventory.read',
+      'sales.read',
+      'sales.create',
+      'customers.read',
+      'credit.manage',
+      'cash.read',
+    };
+
+    for (final permission in permissions) {
+      switch (permission) {
+        case Permission.viewMoney:
+          codes.addAll({'cash.read', 'finance.read', 'sales.read', 'customers.read'});
+        case Permission.viewDashboardStats:
+          codes.add('business.read');
+        case Permission.approveWithoutSupervisor:
+          codes.addAll({'returns.approve', 'sales.void'});
+        case Permission.manageStock:
+          codes.addAll({'catalog.manage', 'inventory.adjust', 'inventory.transfer'});
+        case Permission.viewReports:
+          codes.add('reports.read');
+        case Permission.manageEmployees:
+          codes.add('employees.manage');
+        case Permission.manageSettings:
+          codes.addAll({'business.manage', 'locations.manage'});
+        case Permission.manageBackup:
+          codes.add('business.manage');
+        case Permission.viewAuditLog:
+          codes.add('audit.read');
+      }
+    }
+
+    return codes.toList()..sort();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Set<Permission>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final stored = snapshot.data!;
+        final dirty = !setEquals(stored, _editing);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_error != null)
+              Text(
+                _error!,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.errorOf(context),
+                ),
+              ),
+            PermissionEditor(
+              selected: _editing,
+              grantableBy: widget.grantableBy,
+              onChanged: (next) => setState(() => _editing = next),
+            ),
+            if (dirty)
+              ...[
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FulusButton(
+                        variant: FulusButtonVariant.secondary,
+                        onPressed: _saving
+                            ? null
+                            : () => setState(() => _editing = Set<Permission>.of(stored)),
+                        label: 'Cancel',
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: FulusButton(
+                        label: 'Save changes',
+                        loading: _saving,
+                        onPressed: _saving ? null : _save,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _EmployeeRelatedLoadingCard extends StatelessWidget {
