@@ -140,9 +140,45 @@ class _EmployeeDetailBody extends ConsumerWidget {
         _ProfileHeader(employee: employee),
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Device login'),
-        FulusCard(child: employee.authUserId != null
-            ? Row(children: [Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context)), const SizedBox(width: AppSpacing.sm), Expanded(child: Text('Login active — they can sign in on this device.', style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context))))])
-            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('No login set up yet — they can\'t sign in until one is created.', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))), const SizedBox(height: AppSpacing.md), SizedBox(width: double.infinity, child: FulusButton(label: 'Set up login', onPressed: () => _openSetUpLoginSheet(context, ref, grantableBy)))])),
+        FulusCard(
+          child: employee.authUserId != null
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context)),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Login active — they can sign in on this device.',
+                            style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _InviteToAnotherPhoneAction(employee: employee),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No login set up yet — they can\'t sign in until one is created.',
+                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FulusButton(
+                        label: 'Set up login',
+                        onPressed: () => _openSetUpLoginSheet(context, ref, grantableBy),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
         if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
@@ -216,6 +252,140 @@ class _EmployeeDetailBody extends ConsumerWidget {
       content: Text('Share the PIN you set with ${employee.fullName} so they can switch to their own account on this device — they\'ll find their name in the "who\'s this?" list.\n\nPIN: $createdPin'),
       actions: [TextButton(onPressed: () => Clipboard.setData(ClipboardData(text: createdPin)), child: const Text('Copy PIN')), FilledButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Done'))],
     ));
+  }
+}
+
+class _InviteToAnotherPhoneAction extends ConsumerStatefulWidget {
+  const _InviteToAnotherPhoneAction({required this.employee});
+
+  final Employee employee;
+
+  @override
+  ConsumerState<_InviteToAnotherPhoneAction> createState() => _InviteToAnotherPhoneActionState();
+}
+
+class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPhoneAction> {
+  bool _busy = false;
+
+  Future<void> _invite() async {
+    final email = widget.employee.email?.trim().toLowerCase();
+    if (email == null || email.isEmpty) {
+      showFulusSnackbar(
+        context,
+        message: 'Add an email address to this employee before inviting them to another phone.',
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final authUserId = widget.employee.authUserId;
+      if (authUserId == null) throw StateError('This employee has no login account.');
+
+      final db = ref.read(databaseProvider);
+      final user = await (db.select(db.users)
+            ..where((row) => row.localId.equals(authUserId)))
+          .getSingleOrNull();
+      if (user == null) throw StateError('The employee login is missing locally.');
+
+      final roleName = switch (user.role) {
+        AuthRole.manager => 'manager',
+        AuthRole.cashier => 'cashier',
+        AuthRole.employee => 'cashier',
+        AuthRole.owner => throw StateError('Owners cannot be invited as staff.'),
+      };
+
+      final localPermissions =
+          await ref.read(permissionRepositoryProvider).getPermissions(authUserId);
+      final permissionCodes = _cloudPermissionCodes(localPermissions);
+
+      final invite = await ref.read(fulusConnectionStateProvider).createStaffInvite(
+            roleName: roleName,
+            email: email,
+            permissionCodes: permissionCodes,
+          );
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Invite ready'),
+          content: SelectableText(
+            'Share this invitation code with ' +
+                widget.employee.fullName +
+                '. They should use the same email address:\n\n' +
+                invite.token,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Clipboard.setData(ClipboardData(text: invite.token)),
+              child: const Text('Copy code'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+    } on Failure catch (failure) {
+      if (mounted) showFulusSnackbar(context, message: failure.message);
+    } catch (error) {
+      if (mounted) showFulusSnackbar(context, message: error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  List<String> _cloudPermissionCodes(Set<Permission> permissions) {
+    final codes = <String>{
+      'business.read',
+      'locations.read',
+      'catalog.read',
+      'inventory.read',
+      'sales.read',
+      'sales.create',
+      'customers.read',
+      'credit.manage',
+      'cash.read',
+    };
+
+    for (final permission in permissions) {
+      switch (permission) {
+        case Permission.viewMoney:
+          codes.addAll({'cash.read', 'finance.read', 'sales.read', 'customers.read'});
+        case Permission.viewDashboardStats:
+          codes.add('business.read');
+        case Permission.approveWithoutSupervisor:
+          codes.addAll({'returns.approve', 'sales.void'});
+        case Permission.manageStock:
+          codes.addAll({'catalog.manage', 'inventory.adjust', 'inventory.transfer'});
+        case Permission.viewReports:
+          codes.add('reports.read');
+        case Permission.manageEmployees:
+          codes.add('employees.manage');
+        case Permission.manageSettings:
+          codes.addAll({'business.manage', 'locations.manage'});
+        case Permission.manageBackup:
+          codes.add('business.manage');
+        case Permission.viewAuditLog:
+          codes.add('audit.read');
+      }
+    }
+    return codes.toList()..sort();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FulusButton(
+        label: _busy ? 'Preparing invitation…' : 'Set up on another phone',
+        loading: _busy,
+        onPressed: _busy ? null : _invite,
+        icon: Icons.phone_android_rounded,
+      ),
+    );
   }
 }
 
