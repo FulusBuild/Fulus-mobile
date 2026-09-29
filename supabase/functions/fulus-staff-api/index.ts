@@ -38,6 +38,16 @@ Deno.serve(async (req: Request) => {
       return json({ error: { code: "INVALID_REQUEST", message: "Invite token is required" } }, 400);
     }
 
+    const displayName = typeof body.full_name === "string" ? body.full_name.trim() : "";
+    if (displayName) {
+      const { error: profileError } = await admin
+        .from("profiles")
+        .upsert({ id: userData.user.id, full_name: displayName }, { onConflict: "id" });
+      if (profileError) {
+        return json({ error: { code: "PROFILE_UPDATE_FAILED", message: "Unable to save the employee name" } }, 500);
+      }
+    }
+
     const { data, error } = await admin.rpc("claim_staff_invite", {
       target_token: token,
       target_user_id: userData.user.id,
