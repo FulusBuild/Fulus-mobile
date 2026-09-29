@@ -35,26 +35,6 @@ create policy business_member_permissions_admin_manage
   using (public.is_business_admin(business_id))
   with check (public.is_business_admin(business_id));
 
-create or replace function public.is_business_admin_for_user(
-  target_business_id uuid,
-  target_user_id uuid
-) returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as '
-  select exists (
-    select 1
-    from public.business_memberships bm
-    join public.roles r on r.id = bm.role_id
-    where bm.business_id = target_business_id
-      and bm.user_id = target_user_id
-      and bm.status = ''active''
-      and r.name in (''owner'', ''admin'')
-  );
-';
-
 create or replace function public.create_staff_invite(
   target_business_id uuid,
   target_role_id uuid,
@@ -73,7 +53,15 @@ declare
   normalized_email text := nullif(lower(trim(target_email)), '');
   actor uuid := coalesce(target_actor_user_id, auth.uid());
 begin
-  if actor is null or not public.is_business_admin_for_user(target_business_id, actor) then
+  if actor is null or not exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = actor
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  ) then
     raise exception using errcode='42501',
       message='Only an owner or admin may create staff invites';
   end if;
@@ -325,7 +313,15 @@ declare
   actor uuid := coalesce(target_actor_user_id, auth.uid());
   membership_id uuid;
 begin
-  if actor is null or not public.is_business_admin_for_user(target_business_id, actor) then
+  if actor is null or not exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = actor
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  ) then
     raise exception using errcode='42501',
       message='Only an owner or admin may change staff permissions';
   end if;
