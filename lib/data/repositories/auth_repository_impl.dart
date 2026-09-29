@@ -182,7 +182,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<List<AuthUser>> listLocalIdentities() async {
-    final rows = await _db.select(_db.users).get();
+    // The identity picker is an active-login surface. Deactivated employees
+    // remain in the Users table for audit/history, but must not appear as
+    // selectable identities; switchLocalUser still keeps its own isActive
+    // check as the final authorization backstop.
+    final rows = await (_db.select(_db.users)
+          ..where((u) => u.isActive.equals(true)))
+        .get();
     return rows.map(_toAuthUser).toList();
   }
 
