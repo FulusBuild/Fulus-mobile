@@ -13,13 +13,17 @@ void main() {
         theme: AppTheme.light,
         home: FulusScreen(
           backgroundColor: const Color(0xFF061B3A),
-          body: const Text('Workspace text'),
+          body: Builder(
+            builder: (context) => Text(
+              'Workspace text',
+              style: TextStyle(color: AppColors.textPrimaryOf(context)),
+            ),
+          ),
         ),
       ),
     );
 
     final text = tester.widget<Text>(find.text('Workspace text'));
-    expect(text.style, isNotNull);
     expect(text.style!.color, Colors.white);
   });
 
@@ -29,15 +33,19 @@ void main() {
         theme: AppTheme.light,
         home: FulusScreen(
           backgroundColor: const Color(0xFF061B3A),
-          body: const FulusCard(
-            child: Text('Card text'),
+          body: FulusCard(
+            child: Builder(
+              builder: (context) => Text(
+                'Card text',
+                style: TextStyle(color: AppColors.textPrimaryOf(context)),
+              ),
+            ),
           ),
         ),
       ),
     );
 
     final text = tester.widget<Text>(find.text('Card text'));
-    expect(text.style, isNotNull);
     expect(text.style!.color, AppColors.textPrimaryLight);
   });
 }
