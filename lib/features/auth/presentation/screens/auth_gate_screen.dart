@@ -96,7 +96,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
         _startupFailure('ONBOARDING_STATE', error);
       }
     }
-    return (hasOwnerAccount, businessConfigured, hasDetectedBackup);
+    return (hasAnySignInIdentity, businessConfigured, hasDetectedBackup);
   }
 
   @override
