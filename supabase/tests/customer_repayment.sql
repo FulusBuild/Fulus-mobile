@@ -101,6 +101,10 @@ join public.devices d
 where u.email = 'repayment-regression@example.test';
 
 -- Exercise the same authenticated-user claim binding used by the service wrapper.
+-- SET ROLE changes the effective database role, so explicitly grant the
+-- temporary fixture table to service_role before switching roles.
+grant select on _repayment_test_ids to service_role;
+
 set local role service_role;
 select set_config(
   'request.jwt.claim.sub',
