@@ -168,6 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             noticesFuture: _noticesFuture,
                             cashFuture: _cashFuture,
                             currencySymbol: currencySymbol,
+                            canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
                             canViewReports: widget.isOwner || widget.canViewReports,
                             onRetry: _refresh,
@@ -365,6 +366,7 @@ class _HomeDashboardHydration extends StatefulWidget {
     required this.noticesFuture,
     required this.cashFuture,
     required this.currencySymbol,
+    required this.canViewDashboardStats,
     required this.canViewMoney,
     required this.canViewReports,
     required this.onRetry,
@@ -374,6 +376,7 @@ class _HomeDashboardHydration extends StatefulWidget {
   final Future<SecondaryNoticeSelection> noticesFuture;
   final Future<double> cashFuture;
   final String currencySymbol;
+  final bool canViewDashboardStats;
   final bool canViewMoney;
   final bool canViewReports;
   final VoidCallback onRetry;
@@ -452,6 +455,7 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
       cashError: _cashError,
       cashTotal: _cashTotal,
       currencySymbol: widget.currencySymbol,
+      canViewDashboardStats: widget.canViewDashboardStats,
       canViewMoney: widget.canViewMoney,
       canViewReports: widget.canViewReports,
     );
@@ -467,6 +471,7 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.heroError,
     required this.cashError,
     required this.currencySymbol,
+    required this.canViewDashboardStats,
     required this.canViewMoney,
     required this.canViewReports,
   });
@@ -477,6 +482,7 @@ class _HomeMockupDashboard extends StatelessWidget {
   final bool cashError;
   final double? cashTotal;
   final String currencySymbol;
+  final bool canViewDashboardStats;
   final bool canViewMoney;
   final bool canViewReports;
 
@@ -499,12 +505,14 @@ class _HomeMockupDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = <Widget>[
+    final rows = <Widget>[];
+
+    rows.add(
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: 2,
+            flex: canViewMoney ? 2 : 1,
             child: _HomeSalesHeroCard(
               salesTotal: _salesTotal,
               salesCount: _salesCount,
@@ -518,43 +526,76 @@ class _HomeMockupDashboard extends StatelessWidget {
                   : null,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            flex: 1,
-            child: _HomeCompactCard(
-              color: _HomeColors.blue,
-              icon: FulusIcons.cashBalance,
-              label: 'Balance',
-              value: canViewMoney && cashError
-                  ? '—'
-                  : canViewMoney && cashTotal != null
-                      ? formatMoney(cashTotal!, symbol: currencySymbol)
-                      : '—',
-              secondary: 'available',
-              onTap: canViewMoney ? () => context.goNamed('money') : null,
+          if (canViewMoney) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              flex: 1,
+              child: _HomeCompactCard(
+                color: _HomeColors.blue,
+                icon: FulusIcons.cashBalance,
+                label: 'Business Balance',
+                value: cashError
+                    ? '—'
+                    : cashTotal != null
+                        ? formatMoney(cashTotal!, symbol: currencySymbol)
+                        : '—',
+                secondary: 'available',
+                onTap: () => context.goNamed('money'),
+              ),
             ),
-          ),
+          ],
         ],
       ),
-      const SizedBox(height: AppSpacing.sm),
+    );
+
+    if (canViewDashboardStats) {
+      rows.add(const SizedBox(height: AppSpacing.sm));
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _HomeCompactCard(
+                color: _HomeColors.orange,
+                icon: FulusIcons.stock,
+                label: 'Low Stock',
+                value: _lowStockCount?.toString() ?? '—',
+                secondary: 'items',
+                onTap: () => context.goNamed('stock'),
+              ),
+            ),
+            if (canViewMoney) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _HomeCompactCard(
+                  color: _HomeColors.purple,
+                  icon: FulusIcons.customers,
+                  label: 'Customer Credit',
+                  value: _creditTotal != null
+                      ? formatMoney(_creditTotal!, symbol: currencySymbol)
+                      : '—',
+                  secondary: 'outstanding',
+                  onTap: () => context.pushNamed('moneyCustomers'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    rows.add(const SizedBox(height: AppSpacing.sm));
+    rows.add(
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount?.toString() ?? '—', secondary: 'items', onTap: () => context.goNamed('stock'))),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney && _creditTotal != null ? formatMoney(_creditTotal!, symbol: currencySymbol) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
-        ],
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
-          const SizedBox(width: AppSpacing.sm),
+          if (canViewReports)
+            Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
+          if (canViewReports) const SizedBox(width: AppSpacing.sm),
           const Expanded(child: _HomeSellCard()),
         ],
       ),
-    ];
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
