@@ -245,6 +245,22 @@ void main() {
 
       expect(identities.map((u) => u.id), containsAll([owner.id, coOwner.id]));
     });
+
+    test('excludes deactivated identities from the switcher list', () async {
+      final owner = await repository.createFirstOwner(fullName: 'Chidinma Okafor');
+      await repository.setOwnLoginPin(pin: '1111');
+      final coOwner =
+          await repository.createAdditionalOwner(fullName: 'Ngozi Eze', pin: '2222');
+
+      await (db.update(db.users)..where((u) => u.localId.equals(coOwner.id))).write(
+        const UsersCompanion(isActive: Value(false)),
+      );
+
+      final identities = await repository.listLocalIdentities();
+
+      expect(identities.map((u) => u.id), contains(owner.id));
+      expect(identities.map((u) => u.id), isNot(contains(coOwner.id)));
+    });
   });
 
   group('switchLocalUser', () {
