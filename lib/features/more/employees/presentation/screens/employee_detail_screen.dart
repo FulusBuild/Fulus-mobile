@@ -357,7 +357,7 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
         case Permission.manageSettings:
           codes.addAll({'business.manage', 'locations.manage'});
         case Permission.manageBackup:
-          codes.add('business.manage');
+          codes.add('backup.manage');
         case Permission.viewAuditLog:
           codes.add('audit.read');
       }
