@@ -182,7 +182,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<List<AuthUser>> listLocalIdentities() async {
-    final rows = await _db.select(_db.users).get();
+    // The identity picker is an active-login surface. Deactivated employees
+    // remain in the Users table for audit/history, but must not appear as
+    // selectable identities; switchLocalUser still keeps its own isActive
+    // check as the final authorization backstop.
+    final rows = await (_db.select(_db.users)
+          ..where((u) => u.isActive.equals(true)))
+        .get();
     return rows.map(_toAuthUser).toList();
   }
 
@@ -557,12 +563,30 @@ class AuthRepositoryImpl implements AuthRepository {
       final outgoing = await (_db.select(_db.sessions)
             ..where((s) => s.id.equals('current')))
           .getSingleOrNull();
+
+      String? activeLocationId = outgoing?.activeLocationId;
+      if (user.role != AuthRole.owner) {
+        // Employee location is assigned on the roster, not inherited from
+        // whoever used the shared device immediately before them. Carrying
+        // the outgoing session's location across an identity switch can put
+        // an employee into another employee/owner's location context.
+        final employee = await (_db.select(_db.employees)
+              ..where(
+                (e) =>
+                    e.authUserId.equals(user.id) &
+                    e.isActive.equals(true) &
+                    e.deletedAt.isNull(),
+              ))
+            .getSingleOrNull();
+        activeLocationId = employee?.locationId;
+      }
+
       await (_db.delete(_db.sessions)..where((s) => s.id.equals('current'))).go();
       await _db.into(_db.sessions).insert(
             SessionsCompanion.insert(
               id: 'current',
               userId: user.id,
-              activeLocationId: Value(outgoing?.activeLocationId),
+              activeLocationId: Value(activeLocationId),
             ),
           );
     });

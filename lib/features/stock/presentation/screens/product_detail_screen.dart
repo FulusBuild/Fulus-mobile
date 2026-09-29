@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
+import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/category.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
@@ -50,6 +53,11 @@ class _ProductDetailBody extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     final movementsAsync = ref.watch(stockMovementsProvider(locationId));
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManageStock =
+        user?.role == AuthRole.owner ||
+        permissions.contains(Permission.manageStock);
 
     return productsAsync.when(
       loading: () => const _ProductDetailSkeleton(),
@@ -98,11 +106,12 @@ class _ProductDetailBody extends ConsumerWidget {
           title: product.name,
           subtitle: 'Product details and stock activity',
           actions: [
-            FulusIconButton(
-              icon: FulusIcons.edit,
-              tooltip: 'Edit product',
-              onPressed: () => context.pushNamed('stockEditProduct', extra: product),
-            ),
+            if (canManageStock)
+              FulusIconButton(
+                icon: FulusIcons.edit,
+                tooltip: 'Edit product',
+                onPressed: () => context.pushNamed('stockEditProduct', extra: product),
+              ),
           ],
           body: LayoutBuilder(
             builder: (context, constraints) {
@@ -122,15 +131,23 @@ class _ProductDetailBody extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               child: AspectRatio(
                                 aspectRatio: wide ? 3.2 : 2.1,
-                                child: Image.file(
-                                  File(product.photoPath!),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    color: AppColors.surfaceAltOf(context),
-                                    alignment: Alignment.center,
-                                    child: Icon(FulusIcons.stock, color: AppColors.mutedOf(context), size: 40),
-                                  ),
-                                ),
+                                child: (product.photoPath!.startsWith('http://') || product.photoPath!.startsWith('https://'))
+                                  ? Image.network(
+                                      product.photoPath!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        color: AppColors.surfaceAltOf(context),
+                                      ),
+                                    )
+                                  : Image.file(
+                                          File(product.photoPath!),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            color: AppColors.surfaceAltOf(context),
+                                            alignment: Alignment.center,
+                                            child: Icon(FulusIcons.stock, color: AppColors.mutedOf(context), size: 40),
+                                          ),
+                                        ),
                               ),
                             ),
                             const SizedBox(height: AppSpacing.lg),

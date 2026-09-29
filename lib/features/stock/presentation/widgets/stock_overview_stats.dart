@@ -28,7 +28,7 @@ class StockOverviewStats extends StatelessWidget {
       cards: [
         FulusStatCard(
           label: 'Stock value',
-          value: formatMoney(value, compact: true),
+          value: formatMoney(value),
           icon: FulusIcons.cash,
         ),
         FulusStatCard(

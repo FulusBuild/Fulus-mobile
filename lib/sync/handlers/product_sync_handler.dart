@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
+import '../../data/remote/product_image_api.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../data/repositories/product_mapper.dart';
 import '../../domain/repositories/product_repository.dart';
@@ -18,15 +21,18 @@ class ProductSyncHandler implements SyncHandler {
     required AppDatabase db,
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
+    required ProductImageApi productImageApi,
   })  : _productRepository = productRepository,
         _db = db,
         _fulusSyncApi = fulusSyncApi,
-        _fulusConnectionState = fulusConnectionState;
+        _fulusConnectionState = fulusConnectionState,
+        _productImageApi = productImageApi;
 
   final ProductRepository _productRepository;
   final AppDatabase _db;
   final FulusSyncApi _fulusSyncApi;
   final FulusConnectionState _fulusConnectionState;
+  final ProductImageApi _productImageApi;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -49,6 +55,18 @@ class ProductSyncHandler implements SyncHandler {
     final device = _fulusConnectionState.registeredDevice;
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
+    }
+    var photoPath = product.photoPath;
+    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+      photoPath = await _productImageApi.upload(
+        file: File(photoPath),
+        businessId: businessId,
+        productLocalId: localId,
+      );
+      await _productRepository.setLocalOverrides(
+        productLocalId: localId,
+        photoPath: photoPath,
+      );
     }
 
     // Product creation carries one initial stock/location pair. If stock was
@@ -87,6 +105,7 @@ class ProductSyncHandler implements SyncHandler {
       'selling_price': product.sellingPrice,
       'low_stock_threshold': product.lowStockThreshold,
       'is_active': product.isActive,
+      if (photoPath != null) 'photo_path': photoPath,
       'initial_stock': stock?.currentStock ?? 0,
       // The server seeds this exact location atomically with product creation.
       // Otherwise the next pull can legitimately overwrite local-first stock to 0.
@@ -142,6 +161,18 @@ class ProductSyncHandler implements SyncHandler {
     if (businessId == null || device == null || device.status != 'active') {
       throw StateError('Fulus cloud authorization is required for product sync.');
     }
+    var photoPath = product.photoPath;
+    if (photoPath != null && !photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+      photoPath = await _productImageApi.upload(
+        file: File(photoPath),
+        businessId: businessId,
+        productLocalId: localId,
+      );
+      await _productRepository.setLocalOverrides(
+        productLocalId: localId,
+        photoPath: photoPath,
+      );
+    }
 
     if (product.deletedAt != null) {
       final result = await _fulusSyncApi.submitOperation(
@@ -173,6 +204,7 @@ class ProductSyncHandler implements SyncHandler {
     final payload = <String, dynamic>{
       'server_id': serverId,
       ...product.toUpdateDto().toJson(),
+      'photo_path': photoPath,
       'category_id': categoryId,
       'supplier_id': supplierId,
       if (baseCursor != null) 'base_cursor': baseCursor,

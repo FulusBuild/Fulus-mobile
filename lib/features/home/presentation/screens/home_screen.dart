@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +15,7 @@ import '../../../../domain/entities/location.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
+import '../../../auth/presentation/screens/identity_picker_screen.dart';
 
 final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
     ref.watch(locationRepositoryProvider).watchLocations());
@@ -59,10 +62,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           isOwner: showBusinessWide,
           locationId: locationId,
         ));
-    _noticesFuture = locationFuture.then((locationId) => repo.getSecondaryNotices(
-          locationId: locationId,
-          max: 3,
-        ));
+    _noticesFuture = showBusinessWide
+        ? locationFuture.then((locationId) => repo.getSecondaryNotices(
+              locationId: locationId,
+              max: 3,
+            ))
+        : Future.value(
+            const SecondaryNoticeSelection(
+              shown: <SecondaryNotice>[],
+              overflowCount: 0,
+            ),
+          );
     _cashFuture = (widget.isOwner || widget.canViewMoney)
         ? ref.read(moneyRepositoryProvider).getAvailableBalance()
         : Future.value(0);
@@ -71,6 +81,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _refresh() async {
     setState(_load);
     await Future.wait([_heroFuture, _noticesFuture, _cashFuture]);
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentAuthUserId != widget.currentAuthUserId ||
+        oldWidget.isOwner != widget.isOwner ||
+        oldWidget.canViewDashboardStats != widget.canViewDashboardStats ||
+        oldWidget.canViewMoney != widget.canViewMoney ||
+        oldWidget.canViewReports != widget.canViewReports) {
+      // StatefulShellRoute keeps Home alive across identity changes. Reload
+      // all user-sensitive futures so a newly selected employee cannot
+      // inherit the previous employee's dashboard data.
+      _load();
+    }
   }
 
   @override
@@ -107,6 +132,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               _HomeHeader(
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                                 locationName: _activeLocationName(ref),
+                                onSwitchLocation: widget.isOwner ? () => _showLocationSwitcher(context) : null,
+                                onSwitchAccount: () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute(
+                                    builder: (_) => const IdentityPickerScreen(),
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               Text(
@@ -137,6 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             noticesFuture: _noticesFuture,
                             cashFuture: _cashFuture,
                             currencySymbol: currencySymbol,
+                            canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
                             canViewReports: widget.isOwner || widget.canViewReports,
                             onRetry: _refresh,
@@ -162,6 +194,83 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
+  Future<void> _showLocationSwitcher(BuildContext context) async {
+    final locations = await ref.read(_homeLocationsProvider.future);
+    final activeId = await ref.read(activeLocationIdProvider.future);
+    if (!context.mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surfaceOf(context),
+      builder: (sheetContext) {
+        var switchingId = <String>{};
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> select(Location location) async {
+              if (location.localId == activeId || switchingId.isNotEmpty) return;
+              setSheetState(() => switchingId = {location.localId});
+              try {
+                await ref.read(switchActiveLocationProvider)(location.localId);
+                ref.invalidate(activeLocationIdProvider);
+                ref.read(dataRefreshSignalProvider.notifier).state++;
+                unawaited(ref.read(syncTriggersProvider).refreshAfterContextChange());
+                if (context.mounted) Navigator.of(context).pop();
+                if (mounted) {
+                  showFulusSnackbar(context, message: 'Now viewing ' + location.name + '.');
+                }
+              } catch (error) {
+                if (context.mounted) {
+                  showFulusSnackbar(
+                    context,
+                    message: error is StateError ? error.message : "Couldn't switch locations. Try again.",
+                  );
+                }
+                if (context.mounted) setSheetState(() => switchingId = <String>{});
+              }
+            }
+
+            return SafeArea(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+                children: [
+                  Text(
+                    'Switch location',
+                    style: AppTypography.heading.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Choose where you are working now.',
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  for (final location in locations)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: FulusActionTile(
+                        icon: FulusIcons.locations,
+                        label: location.name,
+                        subtitle: location.localId == activeId ? 'Current location' : 'Switch here',
+                        onTap: switchingId.isEmpty ? () => select(location) : null,
+                        trailing: location.localId == activeId
+                            ? const Icon(FulusIcons.check)
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   String _displayName(WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
@@ -171,10 +280,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.businessName, required this.locationName});
+  const _HomeHeader({
+    required this.businessName,
+    required this.locationName,
+    required this.onSwitchLocation,
+    required this.onSwitchAccount,
+  });
 
   final String businessName;
   final String? locationName;
+  final VoidCallback? onSwitchLocation;
+  final VoidCallback onSwitchAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -218,11 +334,27 @@ class _HomeHeader extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 2),
+                    if (onSwitchLocation != null)
+                      IconButton(
+                        tooltip: 'Switch location',
+                        onPressed: onSwitchLocation,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.all(AppSpacing.xs),
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        icon: const Icon(FulusIcons.swap, size: 20, color: _HomeColors.muted),
+                      ),
                   ],
                 ),
               ],
             ],
           ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        FulusIconButton(
+          icon: FulusIcons.switchAccount,
+          tooltip: 'Switch employee',
+          onPressed: onSwitchAccount,
         ),
       ],
     );
@@ -235,6 +367,7 @@ class _HomeDashboardHydration extends StatefulWidget {
     required this.noticesFuture,
     required this.cashFuture,
     required this.currencySymbol,
+    required this.canViewDashboardStats,
     required this.canViewMoney,
     required this.canViewReports,
     required this.onRetry,
@@ -244,6 +377,7 @@ class _HomeDashboardHydration extends StatefulWidget {
   final Future<SecondaryNoticeSelection> noticesFuture;
   final Future<double> cashFuture;
   final String currencySymbol;
+  final bool canViewDashboardStats;
   final bool canViewMoney;
   final bool canViewReports;
   final VoidCallback onRetry;
@@ -322,6 +456,7 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
       cashError: _cashError,
       cashTotal: _cashTotal,
       currencySymbol: widget.currencySymbol,
+      canViewDashboardStats: widget.canViewDashboardStats,
       canViewMoney: widget.canViewMoney,
       canViewReports: widget.canViewReports,
     );
@@ -337,6 +472,7 @@ class _HomeMockupDashboard extends StatelessWidget {
     required this.heroError,
     required this.cashError,
     required this.currencySymbol,
+    required this.canViewDashboardStats,
     required this.canViewMoney,
     required this.canViewReports,
   });
@@ -347,6 +483,7 @@ class _HomeMockupDashboard extends StatelessWidget {
   final bool cashError;
   final double? cashTotal;
   final String currencySymbol;
+  final bool canViewDashboardStats;
   final bool canViewMoney;
   final bool canViewReports;
 
@@ -369,12 +506,14 @@ class _HomeMockupDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = <Widget>[
+    final rows = <Widget>[];
+
+    rows.add(
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: 2,
+            flex: canViewMoney ? 2 : 1,
             child: _HomeSalesHeroCard(
               salesTotal: _salesTotal,
               salesCount: _salesCount,
@@ -388,43 +527,76 @@ class _HomeMockupDashboard extends StatelessWidget {
                   : null,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            flex: 1,
-            child: _HomeCompactCard(
-              color: _HomeColors.blue,
-              icon: FulusIcons.cashBalance,
-              label: 'Business Balance',
-              value: canViewMoney && cashError
-                  ? '—'
-                  : canViewMoney && cashTotal != null
-                      ? formatMoney(cashTotal!, symbol: currencySymbol, compact: true)
-                      : '—',
-              secondary: 'available',
-              onTap: canViewMoney ? () => context.goNamed('money') : null,
+          if (canViewMoney) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              flex: 1,
+              child: _HomeCompactCard(
+                color: _HomeColors.blue,
+                icon: FulusIcons.cashBalance,
+                label: 'Business Balance',
+                value: cashError
+                    ? '—'
+                    : cashTotal != null
+                        ? formatMoney(cashTotal!, symbol: currencySymbol)
+                        : '—',
+                secondary: 'available',
+                onTap: () => context.goNamed('money'),
+              ),
             ),
-          ),
+          ],
         ],
       ),
-      const SizedBox(height: AppSpacing.sm),
+    );
+
+    if (canViewDashboardStats) {
+      rows.add(const SizedBox(height: AppSpacing.sm));
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _HomeCompactCard(
+                color: _HomeColors.orange,
+                icon: FulusIcons.stock,
+                label: 'Low Stock',
+                value: _lowStockCount?.toString() ?? '—',
+                secondary: 'items',
+                onTap: () => context.goNamed('stock'),
+              ),
+            ),
+            if (canViewMoney) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _HomeCompactCard(
+                  color: _HomeColors.purple,
+                  icon: FulusIcons.customers,
+                  label: 'Customer Credit',
+                  value: _creditTotal != null
+                      ? formatMoney(_creditTotal!, symbol: currencySymbol)
+                      : '—',
+                  secondary: 'outstanding',
+                  onTap: () => context.pushNamed('moneyCustomers'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    rows.add(const SizedBox(height: AppSpacing.sm));
+    rows.add(
       Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _HomeCompactCard(color: _HomeColors.orange, icon: FulusIcons.stock, label: 'Low Stock', value: _lowStockCount?.toString() ?? '—', secondary: 'items', onTap: () => context.goNamed('stock'))),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _HomeCompactCard(color: _HomeColors.purple, icon: FulusIcons.customers, label: 'Customer Credit', value: canViewMoney && _creditTotal != null ? formatMoney(_creditTotal!, symbol: currencySymbol, compact: true) : '—', secondary: 'outstanding', onTap: canViewMoney ? () => context.pushNamed('moneyCustomers') : null)),
-        ],
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
-          const SizedBox(width: AppSpacing.sm),
+          if (canViewReports)
+            Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
+          if (canViewReports) const SizedBox(width: AppSpacing.sm),
           const Expanded(child: _HomeSellCard()),
         ],
       ),
-    ];
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -478,7 +650,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = error || salesTotal == null
         ? '—'
-        : formatMoney(salesTotal!, symbol: currencySymbol, compact: true);
+        : formatMoney(salesTotal!, symbol: currencySymbol);
     final count = error || salesCount == null
         ? 'Sales data unavailable'
         : '${salesCount!} sale${salesCount == 1 ? '' : 's'} today';
@@ -495,9 +667,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: FulusMetricCardColumn(
-              icon: FulusIcons.sell,
-              iconColor: Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Today’s Sales',
@@ -509,6 +680,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -522,6 +694,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   count,
                   maxLines: 1,

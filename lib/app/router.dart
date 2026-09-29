@@ -166,9 +166,11 @@ final appRouter = GoRouter(
     if (user.role == AuthRole.owner) return null;
     final requiredPermissions = location.startsWith('/money')
         ? {Permission.viewMoney}
-        : location.startsWith('/more')
-            ? _permissionsForMoreRoute(location)
-            : const <Permission>{};
+        : location.startsWith('/stock')
+            ? _permissionsForStockRoute(location)
+            : location.startsWith('/more')
+                ? _permissionsForMoreRoute(location)
+                : const <Permission>{};
     if (requiredPermissions.isEmpty) return null;
 
     // Reuse the app-scoped permission provider instead of performing a
@@ -484,6 +486,69 @@ final appRouter = GoRouter(
                   pageBuilder: (context, state) => _fulusNoTransitionPage(state, const BackupScreen()),
                 ),
                 GoRoute(
+                  path: 'customers',
+                  name: 'moreCustomers',
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(
+                    state,
+                    const CustomersListScreen(openedFromMore: true),
+                  ),
+                  routes: [
+                    GoRoute(
+                      path: 'archived',
+                      name: 'moreArchivedCustomers',
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(
+                        state,
+                        const ArchivedCustomersScreen(openedFromMore: true),
+                      ),
+                    ),
+                    GoRoute(
+                      path: ':id',
+                      name: 'moreCustomerProfile',
+                      pageBuilder: (context, state) => _fulusNoTransitionPage(
+                        state,
+                        CustomerProfileScreen(
+                          customerId: state.pathParameters['id']!,
+                          preloaded: state.extra is Customer ? state.extra as Customer : null,
+                          openedFromMore: true,
+                        ),
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: 'repay',
+                          name: 'moreRecordRepayment',
+                          pageBuilder: (context, state) => _fulusNoTransitionPage(state, (() {
+                            final extra = state.extra;
+                            if (extra is Customer) return RecordRepaymentScreen(customer: extra);
+                            return const _MissingContextScreen(
+                              title: 'Record repayment',
+                              message: "Open the customer's profile first.",
+                            );
+                          })()),
+                        ),
+                        GoRoute(
+                          path: 'transaction/:transactionId',
+                          name: 'moreCustomerTransactionDetail',
+                          pageBuilder: (context, state) => _fulusNoTransitionPage(
+                            state,
+                            TransactionDetailScreen(
+                              transactionId: state.pathParameters['transactionId']!,
+                              preloaded: state.extra is MoneyTransaction ? state.extra as MoneyTransaction : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                GoRoute(
+                  path: 'printers',
+                  name: 'morePrinters',
+                  pageBuilder: (context, state) => _fulusNoTransitionPage(
+                    state,
+                    const PrinterPairingScreen(),
+                  ),
+                ),
+                GoRoute(
                   path: 'settings/locations',
                   name: 'moreSettingsLocations',
                   pageBuilder: (context, state) => _fulusNoTransitionPage(state, const ManageLocationsScreen()),
@@ -548,7 +613,22 @@ final appRouter = GoRouter(
 /// through to the empty set deliberately — they're informational, not
 /// business-sensitive, the same reasoning FulusAppShell's own doc
 /// comment gives for why More stays visible to every role now.
+Set<Permission> _permissionsForStockRoute(String location) {
+  if (location.startsWith('/stock/add') ||
+      location.startsWith('/stock/edit') ||
+      location.startsWith('/stock/record') ||
+      location.startsWith('/stock/categories') ||
+      location.startsWith('/stock/bulk-import')) {
+    return {Permission.manageStock};
+  }
+  // Viewing the catalog, product details, and stock history remains available
+  // to signed-in employees; manageStock is the write/configuration boundary.
+  return const <Permission>{};
+}
+
 Set<Permission> _permissionsForMoreRoute(String location) {
+  if (location.startsWith('/more/customers')) return {Permission.viewMoney};
+  if (location.startsWith('/more/printers')) return {Permission.manageSettings};
   if (location.startsWith('/more/employees')) return {Permission.manageEmployees};
   if (location.startsWith('/more/reports')) return {Permission.viewReports};
   if (location.startsWith('/more/settings/backup')) return {Permission.manageBackup};
@@ -756,7 +836,7 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.customers,
               label: 'Customers',
               subtitle: 'Customers and credit',
-              onTap: canCustomers ? () => context.goNamed('moneyCustomers') : null,
+              onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.staff,
@@ -818,7 +898,7 @@ class _MoreScreen extends ConsumerWidget {
               icon: FulusIcons.print,
               label: 'Printers',
               subtitle: 'Receipt printing',
-              onTap: canManageSettings ? () => context.goNamed('moreSettingsPrinters') : null,
+              onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
             ),
             FulusActionTile(
               icon: FulusIcons.bugReport,

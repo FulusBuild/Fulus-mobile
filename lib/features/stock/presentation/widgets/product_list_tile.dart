@@ -100,8 +100,19 @@ class _Thumbnail extends StatelessWidget {
         alignment: Alignment.center,
         child: photoPath == null
             ? Text(initial, style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)))
-            : Image.file(
-                File(photoPath!),
+            : (photoPath!.startsWith('http://') || photoPath!.startsWith('https://'))
+                ? Image.network(
+                    photoPath!,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Text(
+                      initial,
+                      style: AppTypography.buttonLabel.copyWith(color: AppColors.primaryOf(context)),
+                    ),
+                  )
+                : Image.file(
+                    File(photoPath!),
                 width: double.infinity,
                 height: double.infinity,
                 fit: BoxFit.cover,

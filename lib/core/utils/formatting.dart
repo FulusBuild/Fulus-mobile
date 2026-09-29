@@ -1,5 +1,5 @@
-/// App-wide display formatting — thousands-separated currency, relative
-/// day labels, and 12-hour time.
+/// App-wide display formatting: full thousands-separated currency, relative
+/// day labels, and 12-hour time. Money is never compacted into K/M/B.
 ///
 /// Redesign pass: this is the promotion `money_format.dart` itself
 /// flagged as future work — "Home (`home_screen.dart`) and Reports
@@ -17,8 +17,7 @@
 /// this is the shared copy every *other* feature now converges on.
 library;
 
-String formatMoney(double amount, {String symbol = '₦', bool showSign = false, bool compact = false}) {
-  if (compact) return _formatCompactMoney(amount, symbol: symbol, showSign: showSign);
+String formatMoney(double amount, {String symbol = '₦', bool showSign = false}) {
   final isNegative = amount < 0;
   final fixed = amount.abs().toStringAsFixed(2);
   final parts = fixed.split('.');
@@ -33,26 +32,6 @@ String formatMoney(double amount, {String symbol = '₦', bool showSign = false,
 
   final sign = isNegative ? '-' : (showSign ? '+' : '');
   return '$sign$symbol${buffer.toString()}.$decimalPart';
-}
-
-/// A short "₦44.0M" / "₦850.5K" form for tight spaces (stat tiles,
-/// compact hero numbers) — never used where the exact figure matters
-/// (receipts, transaction rows), only for glanceable summaries.
-String _formatCompactMoney(double amount, {String symbol = '₦', bool showSign = false}) {
-  final isNegative = amount < 0;
-  final abs = amount.abs();
-  final sign = isNegative ? '-' : (showSign ? '+' : '');
-  String value;
-  if (abs >= 1000000000) {
-    value = '${(abs / 1000000000).toStringAsFixed(abs >= 10000000000 ? 0 : 1)}B';
-  } else if (abs >= 1000000) {
-    value = '${(abs / 1000000).toStringAsFixed(abs >= 10000000 ? 0 : 1)}M';
-  } else if (abs >= 1000) {
-    value = '${(abs / 1000).toStringAsFixed(abs >= 10000 ? 0 : 1)}K';
-  } else {
-    value = abs.toStringAsFixed(0);
-  }
-  return '$sign$symbol$value';
 }
 
 /// Compact "today / yesterday / 12 Mar" style date label for a

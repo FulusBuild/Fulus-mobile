@@ -22,6 +22,7 @@ abstract class ProductRepository {
     double? sellingPrice,
     int? lowStockThreshold,
     bool? isActive,
+    String? photoPath,
   });
   Future<void> archiveProduct(String localId);
   Future<void> markSynced({required String localId, required String serverId, String? operationId});
@@ -43,6 +44,7 @@ abstract class ProductRepository {
     required double sellingPrice,
     required int lowStockThreshold,
     required bool isActive,
+    String? photoPath,
     required DateTime updatedAt,
     DateTime? deletedAt,
     required List<ProductStockSnapshot> stockLevels,

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/core/errors/failure.dart';
 import 'package:fulus_mobile/domain/entities/location.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
@@ -26,6 +28,15 @@ void main() {
   setUp(() {
     locationRepository = MockLocationRepository();
     authRepository = MockAuthRepository();
+    when(() => authRepository.currentUser).thenReturn(
+      const AuthUser(
+        id: 'owner',
+        fullName: 'Owner',
+        role: AuthRole.owner,
+        isActive: true,
+        hasLoginPin: true,
+      ),
+    );
     when(() => authRepository.getActiveLocationId()).thenAnswer((_) async => 'loc-a');
     when(() => authRepository.setActiveLocationId(any())).thenAnswer((_) async {});
   });
@@ -172,4 +183,28 @@ void main() {
 
     verifyNever(() => authRepository.setActiveLocationId('loc-a'));
   });
+  test('rejects location switching for an employee identity', () async {
+    when(() => authRepository.currentUser).thenReturn(
+      const AuthUser(
+        id: 'employee',
+        fullName: 'Employee',
+        role: AuthRole.employee,
+        isActive: true,
+        hasLoginPin: true,
+      ),
+    );
+
+    final switcher = SwitchActiveLocation(
+      locationRepository: locationRepository,
+      authRepository: authRepository,
+    );
+
+    await expectLater(
+      switcher('loc-b'),
+      throwsA(isA<AuthFailure>()),
+    );
+    verifyNever(() => locationRepository.getLocationById('loc-b'));
+    verifyNever(() => authRepository.setActiveLocationId('loc-b'));
+  });
+
 }

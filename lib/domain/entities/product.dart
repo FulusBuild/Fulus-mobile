@@ -55,6 +55,7 @@ class ProductDraft {
     this.supplierId,
     this.lowStockThreshold = 10,
     this.initialStock = 0,
+    this.photoPath,
   });
 
   final String name;
@@ -67,6 +68,7 @@ class ProductDraft {
   final String? supplierId;
   final int lowStockThreshold;
   final int initialStock;
+  final String? photoPath;
 
   Product toProductEntity({required String localId}) {
     final now = DateTime.now();
@@ -83,6 +85,7 @@ class ProductDraft {
       isActive: true,
       createdAt: now,
       updatedAt: now,
+      photoPath: photoPath,
     );
   }
 }
@@ -99,6 +102,7 @@ class ProductCreateDto {
     this.supplierId,
     this.lowStockThreshold = 10,
     this.initialStock = 0,
+    this.photoPath,
   });
 
   final String name;
@@ -110,6 +114,7 @@ class ProductCreateDto {
   final double sellingPrice;
   final int lowStockThreshold;
   final int initialStock;
+  final String? photoPath;
 
   Map<String, dynamic> toJson() => _$ProductCreateDtoToJson(this);
 }
@@ -126,6 +131,7 @@ class ProductUpdateDto {
     this.sellingPrice,
     this.lowStockThreshold,
     this.isActive,
+    this.photoPath,
   });
 
   final String? name;
@@ -137,6 +143,7 @@ class ProductUpdateDto {
   final double? sellingPrice;
   final int? lowStockThreshold;
   final bool? isActive;
+  final String? photoPath;
 
   Map<String, dynamic> toJson() => _$ProductUpdateDtoToJson(this);
 }
@@ -167,6 +174,7 @@ class ProductResponseDto {
     required this.isActive,
     required this.isLowStock,
     required this.stockValue,
+    this.photoPath,
   });
 
   final String id;
@@ -182,6 +190,7 @@ class ProductResponseDto {
   final bool isActive;
   final bool isLowStock;
   final double stockValue;
+  final String? photoPath;
 
   factory ProductResponseDto.fromJson(Map<String, dynamic> json) =>
       _$ProductResponseDtoFromJson(json);
@@ -204,6 +213,7 @@ class ProductResponseDto {
       isActive: isActive,
       createdAt: now,
       updatedAt: now,
+      photoPath: photoPath,
     );
   }
 }

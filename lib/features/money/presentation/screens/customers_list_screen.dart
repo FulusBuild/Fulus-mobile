@@ -12,7 +12,9 @@ import '../widgets/customer_form_sheet.dart';
 /// Customers live inside Money. Presentation is deliberately lightweight and
 /// repository-backed so the credit book remains the source of truth.
 class CustomersListScreen extends ConsumerStatefulWidget {
-  const CustomersListScreen({super.key});
+  const CustomersListScreen({super.key, this.openedFromMore = false});
+
+  final bool openedFromMore;
 
   @override
   ConsumerState<CustomersListScreen> createState() => _CustomersListScreenState();
@@ -40,7 +42,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         FulusIconButton(
           icon: FulusIcons.archive,
           tooltip: 'Archived customers',
-          onPressed: () => context.pushNamed('moneyArchivedCustomers'),
+          onPressed: () => context.pushNamed(widget.openedFromMore ? 'moreArchivedCustomers' : 'moneyArchivedCustomers'),
         ),
       ],
       body: customersAsync.when(
@@ -85,6 +87,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
                   _CustomerListCard(
                     filtered: filtered,
                     currencySymbol: currencySymbol,
+                    openedFromMore: widget.openedFromMore,
                   ),
                 ],
               );
@@ -155,10 +158,12 @@ class _CustomerListCard extends StatelessWidget {
   const _CustomerListCard({
     required this.filtered,
     required this.currencySymbol,
+    required this.openedFromMore,
   });
 
   final List<Customer> filtered;
   final String currencySymbol;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +175,7 @@ class _CustomerListCard extends StatelessWidget {
             _CustomerRow(
               customer: filtered[i],
               currencySymbol: currencySymbol,
+              openedFromMore: openedFromMore,
             ),
             if (i < filtered.length - 1) const FulusListDivider(),
           ],
@@ -185,10 +191,11 @@ class _CustomerListCard extends StatelessWidget {
 }
 
 class _CustomerRow extends StatelessWidget {
-  const _CustomerRow({required this.customer, required this.currencySymbol});
+  const _CustomerRow({required this.customer, required this.currencySymbol, required this.openedFromMore});
 
   final Customer customer;
   final String currencySymbol;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +224,7 @@ class _CustomerRow extends StatelessWidget {
           Text(outstanding > 0 ? 'Outstanding' : 'Settled', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
         ],
       ),
-      onTap: () => context.pushNamed('moneyCustomerProfile', pathParameters: {'id': customer.localId}, extra: customer),
+      onTap: () => context.pushNamed(openedFromMore ? 'moreCustomerProfile' : 'moneyCustomerProfile', pathParameters: {'id': customer.localId}, extra: customer),
     );
   }
 }

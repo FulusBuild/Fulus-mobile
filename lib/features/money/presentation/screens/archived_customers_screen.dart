@@ -15,7 +15,9 @@ import '../utils/money_format.dart';
 /// CustomerProfileScreen every active customer uses, where restoring
 /// actually happens; this screen is a list, not its own action.
 class ArchivedCustomersScreen extends ConsumerWidget {
-  const ArchivedCustomersScreen({super.key});
+  const ArchivedCustomersScreen({super.key, this.openedFromMore = false});
+
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -106,6 +108,7 @@ class ArchivedCustomersScreen extends ConsumerWidget {
                             _ArchivedCustomerRow(
                               customer: customers[index],
                               currencySymbol: currencySymbol,
+                              openedFromMore: openedFromMore,
                             ),
                           ],
                         ],
@@ -122,10 +125,11 @@ class ArchivedCustomersScreen extends ConsumerWidget {
 }
 
 class _ArchivedCustomerRow extends StatelessWidget {
-  const _ArchivedCustomerRow({required this.customer, required this.currencySymbol});
+  const _ArchivedCustomerRow({required this.customer, required this.currencySymbol, required this.openedFromMore});
 
   final Customer customer;
   final String currencySymbol;
+  final bool openedFromMore;
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +158,7 @@ class _ArchivedCustomerRow extends StatelessWidget {
         ],
       ),
       onTap: () => context.pushNamed(
-        'moneyCustomerProfile',
+        openedFromMore ? 'moreCustomerProfile' : 'moneyCustomerProfile',
         pathParameters: {'id': customer.localId},
         extra: customer,
       ),

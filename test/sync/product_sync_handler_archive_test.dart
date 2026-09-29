@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,30 +10,38 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
+import 'package:fulus_mobile/data/remote/product_image_api.dart';
 import 'package:fulus_mobile/domain/repositories/product_repository.dart';
 import 'package:fulus_mobile/sync/handlers/product_sync_handler.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
+class MockProductImageApi extends Mock implements ProductImageApi {}
 class MockFulusConnectionState extends Mock implements FulusConnectionState {}
 class MockProductRepository extends Mock implements ProductRepository {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(File('fulus-test-product-image.jpg'));
+  });
   late AppDatabase db;
   late MockFulusSyncApi api;
   late MockFulusConnectionState connectionState;
   late MockProductRepository productRepository;
   late ProductSyncHandler handler;
+  late MockProductImageApi productImageApi;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     api = MockFulusSyncApi();
     connectionState = MockFulusConnectionState();
     productRepository = MockProductRepository();
+    productImageApi = MockProductImageApi();
     handler = ProductSyncHandler(
       productRepository: productRepository,
       db: db,
       fulusSyncApi: api,
       fulusConnectionState: connectionState,
+      productImageApi: productImageApi,
     );
 
     when(() => connectionState.selectedBusinessId).thenReturn('business-1');
@@ -47,6 +57,10 @@ void main() {
           localId: any(named: 'localId'),
           serverId: any(named: 'serverId'),
           operationId: any(named: 'operationId'),
+        )).thenAnswer((_) async {});
+    when(() => productRepository.setLocalOverrides(
+          productLocalId: any(named: 'productLocalId'),
+          photoPath: any(named: 'photoPath'),
         )).thenAnswer((_) async {});
   });
 
@@ -121,6 +135,85 @@ void main() {
             'base_cursor': 11,
           },
         )).called(1);
+  });
+
+  test('uploads a local product image before create sync and persists its cloud URL', () async {
+    final now = DateTime(2026, 9, 28);
+    final image = File(
+      '${Directory.systemTemp.path}/fulus-product-image-${now.microsecondsSinceEpoch}.jpg',
+    );
+    await image.writeAsBytes(<int>[1, 2, 3, 4]);
+    addTearDown(() async {
+      if (await image.exists()) await image.delete();
+    });
+
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'p-image-create',
+        name: 'Product with image',
+        sku: 'IMAGE-1',
+        costPrice: 10,
+        sellingPrice: 20,
+        photoPath: Value(image.path),
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'queue-product-image-create',
+        entityType: 'product',
+        entityLocalId: 'p-image-create',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: now,
+      ),
+    );
+
+    when(() => productImageApi.upload(
+          file: any(named: 'file'),
+          businessId: any(named: 'businessId'),
+          productLocalId: any(named: 'productLocalId'),
+        )).thenAnswer(
+      (_) async => 'https://example.supabase.co/storage/v1/object/public/product-images/business-1/p-image-create/image.jpg',
+    );
+    when(() => api.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer(
+      (_) async => {
+        'data': {
+          'entity_id': 'server-image-product',
+          'sync_sequence': 21,
+        },
+      },
+    );
+
+    final item = await db.select(db.syncQueueItems).getSingle();
+    await handler.sync(item);
+
+    verify(() => productImageApi.upload(
+          file: any(named: 'file'),
+          businessId: 'business-1',
+          productLocalId: 'p-image-create',
+        )).called(1);
+
+    final operation = verify(() => api.submitOperation(
+      businessId: 'business-1',
+      operationType: 'product.create',
+      operationId: 'queue-product-image-create',
+      deviceClientId: 'device-client-1',
+      payload: captureAny(named: 'payload'),
+    )).captured.single as Map<String, dynamic>;
+    expect(
+      operation['photo_path'],
+      'https://example.supabase.co/storage/v1/object/public/product-images/business-1/p-image-create/image.jpg',
+    );
   });
 
   test('archives an already-synced product through catalog.delete', () async {
