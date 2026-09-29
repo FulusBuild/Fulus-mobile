@@ -125,10 +125,7 @@ begin
 end;
 $$;
 
--- The legacy signatures were intentionally service-role-only. Remove their
--- executable privilege so there is exactly one current create-invite contract.
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer)
-  from public,anon,authenticated,service_role;
+-- The legacy 5-argument contract remains service-role-only; the 4-argument legacy overload is not present in every production history.
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid)
   from public,anon,authenticated,service_role;
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[])
