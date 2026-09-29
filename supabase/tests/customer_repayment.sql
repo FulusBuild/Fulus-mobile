@@ -101,7 +101,7 @@ join public.devices d
 where u.email = 'repayment-regression@example.test';
 
 -- Exercise the same authenticated-user claim binding used by the service wrapper.
-set local role authenticated;
+set local role service_role;
 select set_config(
   'request.jwt.claim.sub',
   (select user_id::text from _repayment_test_ids),
