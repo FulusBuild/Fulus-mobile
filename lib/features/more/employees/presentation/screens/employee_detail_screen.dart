@@ -338,17 +338,7 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
   }
 
   List<String> _cloudPermissionCodes(Set<Permission> permissions) {
-    final codes = <String>{
-      'business.read',
-      'locations.read',
-      'catalog.read',
-      'inventory.read',
-      'sales.read',
-      'sales.create',
-      'customers.read',
-      'credit.manage',
-      'cash.read',
-    };
+    final codes = <String>{};
 
     for (final permission in permissions) {
       switch (permission) {
@@ -506,17 +496,7 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
   }
 
   List<String> _cloudPermissionCodes(Set<Permission> permissions) {
-    final codes = <String>{
-      'business.read',
-      'locations.read',
-      'catalog.read',
-      'inventory.read',
-      'sales.read',
-      'sales.create',
-      'customers.read',
-      'credit.manage',
-      'cash.read',
-    };
+    final codes = <String>{};
 
     for (final permission in permissions) {
       switch (permission) {
