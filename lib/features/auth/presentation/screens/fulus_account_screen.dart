@@ -275,6 +275,13 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       );
     }
 
+    // A fresh account must have a real local location before any
+    // location-scoped workspace (Sell/Stock/Money) is opened. Resolve it
+    // immediately after the business exists, then invalidate the cached
+    // provider so a previously-read location cannot survive account setup.
+    await ref.read(resolveActiveLocationProvider).call();
+    ref.invalidate(activeLocationIdProvider);
+
     // Server provisioning is an ensure operation: a retry after a
     // successful cloud transaction returns the existing business instead of
     // treating the already-linked account as a failure.

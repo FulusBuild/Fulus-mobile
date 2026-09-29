@@ -80,11 +80,11 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
       if (_needsBusiness) {
         await ref.read(businessSettingsRepositoryProvider).createBusiness(businessName: businessName, category: BusinessCategory.retailShop, currencySymbol: '₦');
         if (!mounted) return;
-        try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
+        await ref.read(resolveActiveLocationProvider).call();
         if (!mounted) return;
         try { await ref.read(onboardingStateProvider).armFirstRun(); } catch (_) {}
       } else {
-        try { await ref.read(resolveActiveLocationProvider).call(); } catch (_) {}
+        await ref.read(resolveActiveLocationProvider).call();
       }
       if (!mounted) return;
       Navigator.of(context).pop();

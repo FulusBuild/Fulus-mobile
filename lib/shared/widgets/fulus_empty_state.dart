@@ -52,7 +52,10 @@ class FulusEmptyState extends StatelessWidget {
             Text(
               headline,
               textAlign: TextAlign.center,
-              style: AppTypography.heading.copyWith(color: headlineColor ?? AppColors.textPrimaryOf(context), fontWeight: FontWeight.w700),
+              style: AppTypography.heading.copyWith(
+                color: headlineColor ?? AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             if (body != null) ...[
               const SizedBox(height: AppSpacing.sm),

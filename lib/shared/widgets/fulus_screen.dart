@@ -54,7 +54,13 @@ class FulusScreen extends StatelessWidget {
             padding.bottom,
           )
         : padding;
-    final content = applyPadding ? Padding(padding: adaptivePadding, child: body) : body;
+    final scaffoldBackground = backgroundColor ?? AppColors.backgroundOf(context);
+    final darkSurface = scaffoldBackground.computeLuminance() < 0.25;
+    final contentForeground = darkSurface ? Colors.white : AppColors.textPrimaryOf(context);
+    final content = DefaultTextStyle.merge(
+      style: AppTypography.body.copyWith(color: contentForeground),
+      child: applyPadding ? Padding(padding: adaptivePadding, child: body) : body,
+    );
 
     return Scaffold(
       backgroundColor: backgroundColor ?? AppColors.backgroundOf(context),
