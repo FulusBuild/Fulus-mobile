@@ -256,7 +256,7 @@ Deno.serve(async (req: Request) => {
       break;
     }
 
-    case "set_member_status":
+    case "set_member_status": {
       ({ data, error } = await admin.rpc("set_member_status", {
         target_business_id: businessId,
         target_membership_id: body.membership_id,
@@ -264,6 +264,30 @@ Deno.serve(async (req: Request) => {
         target_user_id: userData.user.id,
       }));
       break;
+    }
+
+    case "set_member_status_by_user": {
+      const targetUserId = typeof body.user_id === "string" ? body.user_id : "";
+      const { data: targetMembership, error: targetMembershipError } = await admin
+        .from("business_memberships")
+        .select("id")
+        .eq("business_id", businessId)
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      if (targetMembershipError) {
+        return json({ error: { code: "STAFF_ACCESS_FAILED", message: "Unable to resolve staff membership" } }, 500);
+      }
+      if (!targetMembership) {
+        return json({ error: { code: "INVALID_REQUEST", message: "Active staff membership not found" } }, 404);
+      }
+      ({ data, error } = await admin.rpc("set_member_status", {
+        target_business_id: businessId,
+        target_membership_id: targetMembership.id,
+        target_status: body.status,
+        target_user_id: userData.user.id,
+      }));
+      break;
+    }
 
     case "change_member_role":
       ({ data, error } = await admin.rpc("change_member_role", {
