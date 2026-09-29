@@ -132,7 +132,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               _HomeHeader(
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                                 locationName: _activeLocationName(ref),
-                                onSwitchLocation: () => _showLocationSwitcher(context),
+                                onSwitchLocation: widget.isOwner ? () => _showLocationSwitcher(context) : null,
                                 onSwitchAccount: () => Navigator.of(context).push<void>(
                                   MaterialPageRoute(
                                     builder: (_) => const IdentityPickerScreen(),
@@ -289,7 +289,7 @@ class _HomeHeader extends StatelessWidget {
 
   final String businessName;
   final String? locationName;
-  final VoidCallback onSwitchLocation;
+  final VoidCallback? onSwitchLocation;
   final VoidCallback onSwitchAccount;
 
   @override
@@ -335,14 +335,15 @@ class _HomeHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 2),
-                    IconButton(
-                      tooltip: 'Switch location',
-                      onPressed: onSwitchLocation,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                      icon: const Icon(FulusIcons.swap, size: 20, color: _HomeColors.muted),
-                    ),
+                    if (onSwitchLocation != null)
+                      IconButton(
+                        tooltip: 'Switch location',
+                        onPressed: onSwitchLocation,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.all(AppSpacing.xs),
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        icon: const Icon(FulusIcons.swap, size: 20, color: _HomeColors.muted),
+                      ),
                   ],
                 ),
               ],
