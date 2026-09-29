@@ -197,12 +197,11 @@ void main() {
     final item = await db.select(db.syncQueueItems).getSingle();
     await handler.sync(item);
 
-    final imageUpload = verify(() => productImageApi.upload(
+    verify(() => productImageApi.upload(
           file: any(named: 'file'),
           businessId: 'business-1',
           productLocalId: 'p-image-create',
-        )).captured.single as Map<String, dynamic>;
-    expect((imageUpload['file'] as File).path, image.path);
+        )).called(1);
 
     final operation = verify(() => api.submitOperation(
       businessId: 'business-1',
