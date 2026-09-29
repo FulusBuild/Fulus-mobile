@@ -35,6 +35,11 @@ create policy business_member_permissions_admin_manage
   using (public.is_business_admin(business_id))
   with check (public.is_business_admin(business_id));
 
+-- The production database may already contain this 6-argument legacy overload
+-- under an older input-parameter name. CREATE OR REPLACE cannot rename input
+-- parameters, so remove that exact overload before installing the authoritative definition.
+drop function if exists public.create_staff_invite(uuid, uuid, text, integer, uuid, text[]);
+
 create or replace function public.create_staff_invite(
   target_business_id uuid,
   target_role_id uuid,
