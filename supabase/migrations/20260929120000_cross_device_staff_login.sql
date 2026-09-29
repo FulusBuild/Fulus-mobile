@@ -548,18 +548,24 @@ begin
     select 1
     from public.business_memberships bm
     join public.roles actor_role on actor_role.id = bm.role_id
-    join public.role_permissions actor_rp on actor_rp.role_id = actor_role.id
     where bm.business_id = target_business_id
       and bm.user_id = target_actor_user_id
       and bm.status = 'active'
-      and actor_role.name = 'owner'
+      and (
+        actor_role.name = 'owner'
+        or exists (
+          select 1
+          from public.role_permissions actor_rp
+          where actor_rp.role_id = actor_role.id
+            and actor_rp.permission_id = target_permission_id
+        )
+      )
       and exists (
         select 1
         from public.roles target_role
         where target_role.id = target_role_id
           and target_role.business_id = target_business_id
       )
-      and actor_rp.permission_id = target_permission_id
   ) then
     raise exception using errcode='42501',
       message='Permission change is not allowed';
