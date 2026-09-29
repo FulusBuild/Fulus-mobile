@@ -15,6 +15,7 @@ import '../../../../domain/entities/location.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
+import '../../../auth/presentation/screens/identity_picker_screen.dart';
 
 final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
     ref.watch(locationRepositoryProvider).watchLocations());
@@ -61,10 +62,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           isOwner: showBusinessWide,
           locationId: locationId,
         ));
-    _noticesFuture = locationFuture.then((locationId) => repo.getSecondaryNotices(
-          locationId: locationId,
-          max: 3,
-        ));
+    _noticesFuture = showBusinessWide
+        ? locationFuture.then((locationId) => repo.getSecondaryNotices(
+              locationId: locationId,
+              max: 3,
+            ))
+        : Future.value(
+            const SecondaryNoticeSelection(
+              shown: <SecondaryNotice>[],
+              overflowCount: 0,
+            ),
+          );
     _cashFuture = (widget.isOwner || widget.canViewMoney)
         ? ref.read(moneyRepositoryProvider).getAvailableBalance()
         : Future.value(0);
@@ -73,6 +81,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _refresh() async {
     setState(_load);
     await Future.wait([_heroFuture, _noticesFuture, _cashFuture]);
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentAuthUserId != widget.currentAuthUserId ||
+        oldWidget.isOwner != widget.isOwner ||
+        oldWidget.canViewDashboardStats != widget.canViewDashboardStats ||
+        oldWidget.canViewMoney != widget.canViewMoney ||
+        oldWidget.canViewReports != widget.canViewReports) {
+      // StatefulShellRoute keeps Home alive across identity changes. Reload
+      // all user-sensitive futures so a newly selected employee cannot
+      // inherit the previous employee's dashboard data.
+      _load();
+    }
   }
 
   @override
@@ -110,6 +133,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                                 locationName: _activeLocationName(ref),
                                 onSwitchLocation: () => _showLocationSwitcher(context),
+                                onSwitchAccount: () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute(
+                                    builder: (_) => const IdentityPickerScreen(),
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               Text(
@@ -255,11 +283,13 @@ class _HomeHeader extends StatelessWidget {
     required this.businessName,
     required this.locationName,
     required this.onSwitchLocation,
+    required this.onSwitchAccount,
   });
 
   final String businessName;
   final String? locationName;
   final VoidCallback onSwitchLocation;
+  final VoidCallback onSwitchAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -317,6 +347,12 @@ class _HomeHeader extends StatelessWidget {
               ],
             ],
           ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        FulusIconButton(
+          icon: FulusIcons.switchAccount,
+          tooltip: 'Switch employee',
+          onPressed: onSwitchAccount,
         ),
       ],
     );
