@@ -133,6 +133,11 @@ begin
 end;
 $$;
 
+-- The production database may already contain this 2-argument legacy overload
+-- under an older input-parameter name. CREATE OR REPLACE cannot rename input
+-- parameters, so remove that exact overload before installing the authoritative definition.
+drop function if exists public.claim_staff_invite(text, uuid);
+
 create or replace function public.claim_staff_invite(
   target_token text,
   target_user_id uuid
