@@ -43,7 +43,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $body$
+as $
   select exists (
     select 1
     from public.business_memberships bm
@@ -54,7 +54,6 @@ as $body$
       and r.name in ('owner', 'admin')
   );
 $;
-
 create or replace function public.create_staff_invite(
   target_business_id uuid,
   target_role_id uuid,
@@ -310,7 +309,7 @@ begin
       )
   );
 end;
-$body$;
+$;
 create or replace function public.set_member_permission_overrides(
   target_business_id uuid,
   target_user_id uuid,
