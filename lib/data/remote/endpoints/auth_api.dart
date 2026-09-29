@@ -62,6 +62,19 @@ class AuthApi {
           code: 'email_exists',
         );
       }
+
+      // Signup is a cloud-auth operation, not a sync operation. Do not let
+      // an Auth 5xx fall through ApiClient.mapError() as NetworkFailure,
+      // because the account-creation screen would then incorrectly describe
+      // the problem as unavailable cloud backup.
+      final status = e.response?.statusCode;
+      if (status != null && status >= 500) {
+        throw const BusinessRuleFailure(
+          'Account creation is temporarily unavailable. Please try again in a moment.',
+          code: 'AUTH_SIGNUP_UNAVAILABLE',
+        );
+      }
+
       throw _client.mapError(e);
     }
   }
