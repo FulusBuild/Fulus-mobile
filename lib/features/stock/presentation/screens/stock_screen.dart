@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/category.dart';
+import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
@@ -27,6 +30,12 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   @override
   Widget build(BuildContext context) {
     final locationAsync = ref.watch(currentLocationIdProvider);
+    final user = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManageStock =
+        user?.role == AuthRole.owner ||
+        permissions.contains(Permission.manageStock);
+
     return FulusScreen(
       title: 'Stock',
       subtitle: 'See what you have and record stock changes',
@@ -34,16 +43,18 @@ class _StockScreenState extends ConsumerState<StockScreen> {
       headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       actions: [
-        FulusIconButton(
-          icon: FulusIcons.add,
-          tooltip: 'Add product',
-          onPressed: () => context.pushNamed('stockAddProduct'),
-        ),
-        FulusIconButton(
-          icon: FulusIcons.more,
-          tooltip: 'More stock options',
-          onPressed: () => _showStockActions(context),
-        ),
+        if (canManageStock)
+          FulusIconButton(
+            icon: FulusIcons.add,
+            tooltip: 'Add product',
+            onPressed: () => context.pushNamed('stockAddProduct'),
+          ),
+        if (canManageStock)
+          FulusIconButton(
+            icon: FulusIcons.more,
+            tooltip: 'More stock options',
+            onPressed: () => _showStockActions(context),
+          ),
       ],
       floatingActionButton: null,
       body: locationAsync.when(
