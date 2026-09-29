@@ -600,7 +600,6 @@ revoke all on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid)
   from public,anon,authenticated;
 grant execute on function public.set_role_permission(uuid,uuid,uuid,boolean,uuid) to service_role;
 
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer) from public,anon,authenticated;
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid) from public,anon,authenticated,service_role;
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) from public,anon,authenticated;
 grant execute on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[]) to service_role;
