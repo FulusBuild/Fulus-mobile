@@ -754,6 +754,12 @@ class _AccessAction extends ConsumerWidget {
           }
         }
       }
+      if (businessId != null && email != null && email.isNotEmpty) {
+        await ref.read(fulusStaffAccessApiProvider).revokePendingInvitesByEmail(
+              businessId: businessId,
+              email: email,
+            );
+      }
       await ref.read(employeeRepositoryProvider).deactivateEmployee(employee.id);
       if (context.mounted) {
         showFulusSnackbar(context, message: '${employee.fullName} was deactivated.');
