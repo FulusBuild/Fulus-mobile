@@ -8,17 +8,19 @@ import '../tables.dart';
 // (database.dart), not from a part file of this one. See
 // INTEGRATION.md for the exact two-line addition database.dart needs.
 
-/// Stage 11's tables. Deliberately NOT using tables.dart's
-/// `SyncableColumns` mixin (localId/serverId/syncStatus/deletedAt) —
-/// the Implementation Bible is explicit that "Employees do NOT require
-/// synchronization," so a serverId/syncStatus pair that could never
-/// meaningfully change would only misstate what this data actually
-/// does. Soft-delete is kept (matches backend Employee.is_deleted/
-/// deleted_at) since that's a real product rule independent of sync;
-/// everything sync-shaped is left out.
+/// Employee roster is business data and therefore participates in the same
+/// durable sync model as customers and catalog data. Authentication/access
+/// remains separate and authoritative in business_memberships/roles.
 @DataClassName('EmployeeRow')
 class Employees extends Table {
-  TextColumn get id => text()();
+  /// Keep the physical SQLite column named `id` so existing attendance/leave
+  /// foreign keys remain stable, while exposing it as the shared sync model's
+  /// local identity.
+  TextColumn get localId => text().named('id')();
+  TextColumn get serverId => text().nullable()();
+  TextColumn get membershipId => text().nullable()();
+  TextColumn get cloudUserId => text().nullable()();
+  TextColumn get syncStatus => textEnum<SyncStatus>().withDefault(const Constant(SyncStatus.pending))();
 
   /// Nullable link into Users — see domain/entities/employee.dart's
   /// class doc for why this is optional (a roster row can exist for
@@ -48,7 +50,7 @@ class Employees extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {localId};
 }
 
 enum AttendanceStatusValue { present, absent, late }
