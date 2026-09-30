@@ -320,12 +320,32 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
     setState(() => _busy = true);
     try {
       final permissions = await _permissionsForEmployee();
+      final localLocationId = widget.employee.locationId;
+      final localLocation = localLocationId == null
+          ? null
+          : await ref.read(locationRepositoryProvider).getLocationById(localLocationId);
+      final cloudLocationId = localLocation?.serverId;
+      if (localLocationId != null && (cloudLocationId == null || cloudLocationId.isEmpty)) {
+        throw StateError('This location is still being backed up. Try again in a moment.');
+      }
       final invite = await ref.read(fulusConnectionStateProvider).createStaffInvite(
             roleName: _cloudRole(widget.employee.role),
             email: email,
             invitedName: widget.employee.fullName,
             permissionCodes: _cloudPermissionCodes(permissions),
-            locationId: widget.employee.locationId,
+            locationId: cloudLocationId,
+            employeeClientReference: widget.employee.id,
+            employee: {
+              'full_name': widget.employee.fullName,
+              'role': widget.employee.role,
+              'phone': widget.employee.phone,
+              'email': email,
+              'department': widget.employee.department,
+              'position': widget.employee.position,
+              'salary': widget.employee.salary,
+              'date_hired': widget.employee.dateHired?.toIso8601String(),
+              'location_id': cloudLocationId,
+            },
           );
 
       if (!mounted) return;
