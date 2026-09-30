@@ -248,6 +248,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   @override
   Future<void> reconcileServerState({
     required String serverId,
+    String? clientReference,
     required String? membershipId,
     required String? cloudUserId,
     required String fullName,
@@ -263,9 +264,14 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required DateTime updatedAt,
     required DateTime createdAt,
   }) async {
-    final existing = await (_db.select(_db.employees)
+    final existingByServer = await (_db.select(_db.employees)
           ..where((e) => e.serverId.equals(serverId)))
         .getSingleOrNull();
+    final existing = existingByServer ?? (clientReference == null || clientReference.isEmpty
+        ? null
+        : await (_db.select(_db.employees)
+              ..where((e) => e.localId.equals(clientReference)))
+            .getSingleOrNull());
     final localId = existing?.localId ?? Ulid().toString();
     await _db.transaction(() async {
       if (existing == null) {
