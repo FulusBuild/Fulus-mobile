@@ -106,6 +106,14 @@ Deno.serve(async (req) => {
     return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
   }
   const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
+  const [{ data: canReadEmployees }, { data: canManageEmployees }] = await Promise.all([
+    db.rpc("user_has_permission", { target_business_id: businessId, target_user_id: userId, target_permission: "employees.read" }),
+    db.rpc("user_has_permission", { target_business_id: businessId, target_user_id: userId, target_permission: "employees.manage" }),
+  ]);
+  if (canReadEmployees == null || canManageEmployees == null) {
+    return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
+  }
+  const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
 
   const { data: locationRows, error: locationMembershipError } = await db
     .from("location_memberships")
@@ -201,7 +209,7 @@ Deno.serve(async (req) => {
     }
 
     const unauthorized = (rows ?? []).some((row) => {
-      if (entityType === "employee") return !hasLocationAccess(entityType, String(row.id), row, new Map(), new Map());
+      if (entityType === "employee") return isBusinessAdmin || (canReadRoster && (row.location_id == null || accessibleLocationIds.has(String(row.location_id)))) || row.auth_user_id === userId;
       if (entityType === "location") return !assertLocationAccess(row.id);
       if (locationScopedEntityTypes.has(entityType)) return !assertLocationAccess(row.location_id);
       return false;
@@ -334,7 +342,7 @@ Deno.serve(async (req) => {
     return out({ error: { code: "CANONICAL_READ_FAILED", message: `Unable to read ${entityType}` } }, 500);
   }
   if (row) {
-    if (entityType === "employee" && !hasLocationAccess(entityType, String(row.id), row, new Map(), new Map())) {
+    if (entityType === "employee" && !(isBusinessAdmin || (canReadRoster && (row.location_id == null || accessibleLocationIds.has(String(row.location_id)))) || row.auth_user_id === userId)) {
       return out({ error: { code: "FORBIDDEN", message: "Employee is outside the user's access" } }, 403);
     }
     if (entityType === "location" && !assertLocationAccess(row.id)) {
