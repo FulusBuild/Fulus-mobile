@@ -64,6 +64,62 @@ void main() {
     expect(rows.single.syncStatus, SyncStatus.settled);
   });
 
+  test('reconcileServerState projects authoritative activation to the linked local login', () async {
+    final now = DateTime.utc(2026, 9, 30, 10);
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'cloud-user-1',
+        fullName: 'Amina Yusuf',
+        role: AuthRole.cashier,
+        isActive: const Value(true),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await repository.reconcileServerState(
+      serverId: 'employee-server-1',
+      membershipId: 'membership-1',
+      cloudUserId: 'cloud-user-1',
+      fullName: 'Amina Yusuf',
+      role: 'Cashier',
+      department: null,
+      position: null,
+      salary: null,
+      phone: null,
+      email: 'amina@example.com',
+      dateHired: null,
+      locationId: null,
+      isActive: false,
+      updatedAt: DateTime.utc(2026, 9, 30, 11),
+      createdAt: now,
+    );
+
+    var user = await (db.select(db.users)..where((u) => u.localId.equals('cloud-user-1'))).getSingle();
+    expect(user.isActive, isFalse);
+
+    await repository.reconcileServerState(
+      serverId: 'employee-server-1',
+      membershipId: 'membership-1',
+      cloudUserId: 'cloud-user-1',
+      fullName: 'Amina Yusuf',
+      role: 'Cashier',
+      department: null,
+      position: null,
+      salary: null,
+      phone: null,
+      email: 'amina@example.com',
+      dateHired: null,
+      locationId: null,
+      isActive: true,
+      updatedAt: DateTime.utc(2026, 9, 30, 12),
+      createdAt: now,
+    );
+
+    user = await (db.select(db.users)..where((u) => u.localId.equals('cloud-user-1'))).getSingle();
+    expect(user.isActive, isTrue);
+  });
+
   test('reconcileServerState updates the same local row instead of duplicating it', () async {
     final createdAt = DateTime.utc(2026, 9, 30, 10);
     final firstUpdatedAt = DateTime.utc(2026, 9, 30, 11);
