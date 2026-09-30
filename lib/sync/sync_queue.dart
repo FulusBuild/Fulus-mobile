@@ -374,6 +374,12 @@ class SyncQueue {
             ?.serverId
             ?.isNotEmpty ==
             true;
+      case 'employee':
+        return (await (_db.select(_db.employees)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty == true;
       case 'customer':
         return (await (_db.select(_db.customers)
                   ..where((r) => r.localId.equals(localId)))
