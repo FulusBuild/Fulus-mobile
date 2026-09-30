@@ -139,45 +139,67 @@ class _EmployeeDetailBody extends ConsumerWidget {
       final content = <Widget>[
         _ProfileHeader(employee: employee),
         const SizedBox(height: AppSpacing.lg),
-        FulusSectionHeader(title: 'Device login'),
+        FulusSectionHeader(title: 'Fulus access'),
         FulusCard(
-          child: employee.authUserId != null
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    employee.email == null || employee.email!.trim().isEmpty
+                        ? Icons.mail_outline_rounded
+                        : Icons.check_circle_outline,
+                    color: employee.email == null || employee.email!.trim().isEmpty
+                        ? AppColors.warningOf(context)
+                        : AppColors.primaryOf(context),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.check_circle_outline, color: AppColors.primaryOf(context)),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            'Login active — they can sign in on this device.',
-                            style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+                        Text(
+                          employee.email == null || employee.email!.trim().isEmpty
+                              ? 'Add a login email'
+                              : 'Ready for phone setup',
+                          style: AppTypography.subheading.copyWith(
+                            color: AppColors.textPrimaryOf(context),
                           ),
                         ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          employee.email == null || employee.email!.trim().isEmpty
+                              ? 'Add their email from the Employees list before sending an invitation.'
+                              : employee.authUserId != null
+                                  ? 'Their Fulus account is already linked on this device.'
+                                  : 'Their email, role and access are ready. Share the invite when they are ready to join.',
+                          style: AppTypography.body.copyWith(
+                            color: AppColors.textSecondaryOf(context),
+                          ),
+                        ),
+                        if (employee.email != null && employee.email!.trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            employee.email!,
+                            style: AppTypography.body.copyWith(
+                              color: AppColors.textPrimaryOf(context),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    _InviteToAnotherPhoneAction(employee: employee),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'No login set up yet — they can\'t sign in until one is created.',
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FulusButton(
-                        label: 'Set up login',
-                        onPressed: () => _openSetUpLoginSheet(context, ref, grantableBy),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              if (employee.email != null && employee.email!.trim().isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                _InviteToAnotherPhoneAction(employee: employee),
+              ],
+            ],
+          ),
         ),
         if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
         const SizedBox(height: AppSpacing.lg),
@@ -272,37 +294,19 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
     if (email == null || email.isEmpty) {
       showFulusSnackbar(
         context,
-        message: 'Add an email address to this employee before inviting them to another phone.',
+        message: 'Add their login email from the Employees list first.',
       );
       return;
     }
 
     setState(() => _busy = true);
     try {
-      final authUserId = widget.employee.authUserId;
-      if (authUserId == null) throw StateError('This employee has no login account.');
-
-      final db = ref.read(databaseProvider);
-      final user = await (db.select(db.users)
-            ..where((row) => row.localId.equals(authUserId)))
-          .getSingleOrNull();
-      if (user == null) throw StateError('The employee login is missing locally.');
-
-      final roleName = switch (user.role) {
-        AuthRole.manager => 'manager',
-        AuthRole.cashier => 'cashier',
-        AuthRole.employee => 'cashier',
-        AuthRole.owner => throw StateError('Owners cannot be invited as staff.'),
-      };
-
-      final localPermissions =
-          await ref.read(permissionRepositoryProvider).getPermissions(authUserId);
-      final permissionCodes = _cloudPermissionCodes(localPermissions);
-
+      final permissions = await _permissionsForEmployee();
       final invite = await ref.read(fulusConnectionStateProvider).createStaffInvite(
-            roleName: roleName,
+            roleName: _cloudRole(widget.employee.role),
             email: email,
-            permissionCodes: permissionCodes,
+            invitedName: widget.employee.fullName,
+            permissionCodes: _cloudPermissionCodes(permissions),
             locationId: widget.employee.locationId,
           );
 
@@ -312,10 +316,10 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
         builder: (dialogContext) => AlertDialog(
           title: const Text('Invite ready'),
           content: SelectableText(
-            'Share this invitation code with ' +
-                widget.employee.fullName +
-                '. They should use the same email address:\n\n' +
-                invite.token,
+            'Share this invitation with ${widget.employee.fullName}.\n\n'
+            'Email: $email\n'
+            'Invitation code: ${invite.token}\n\n'
+            'They only need to open Fulus, tap “Join as employee”, and enter the code.',
           ),
           actions: [
             TextButton(
@@ -331,16 +335,48 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
       );
     } on Failure catch (failure) {
       if (mounted) showFulusSnackbar(context, message: failure.message);
-    } catch (error) {
-      if (mounted) showFulusSnackbar(context, message: error.toString());
+    } catch (_) {
+      if (mounted) showFulusSnackbar(context, message: "Couldn't create the invitation. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  Future<Set<Permission>> _permissionsForEmployee() async {
+    final authUserId = widget.employee.authUserId;
+    if (authUserId != null) {
+      return ref.read(permissionRepositoryProvider).getPermissions(authUserId);
+    }
+
+    return Permission.defaultsForRole(_localRole(widget.employee.role));
+  }
+
+  AuthRole _localRole(String? role) {
+    switch ((role ?? '').trim().toLowerCase()) {
+      case 'manager':
+      case 'admin':
+        return AuthRole.manager;
+      case 'cashier':
+        return AuthRole.cashier;
+      default:
+        return AuthRole.employee;
+    }
+  }
+
+  String _cloudRole(String? role) {
+    switch ((role ?? '').trim().toLowerCase()) {
+      case 'manager':
+      case 'admin':
+        return 'manager';
+      case 'cashier':
+        return 'cashier';
+      default:
+        return 'employee';
+    }
+  }
+
   List<String> _cloudPermissionCodes(Set<Permission> permissions) {
     final codes = <String>{};
-
     for (final permission in permissions) {
       switch (permission) {
         case Permission.viewMoney:
@@ -371,10 +407,10 @@ class _InviteToAnotherPhoneActionState extends ConsumerState<_InviteToAnotherPho
     return SizedBox(
       width: double.infinity,
       child: FulusButton(
-        label: _busy ? 'Preparing invitation…' : 'Set up on another phone',
+        label: _busy ? 'Preparing invitation…' : 'Share invite',
         loading: _busy,
         onPressed: _busy ? null : _invite,
-        icon: Icons.phone_android_rounded,
+        icon: Icons.ios_share_rounded,
       ),
     );
   }
