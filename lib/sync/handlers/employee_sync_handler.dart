@@ -1,6 +1,7 @@
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/employee_repository.dart';
+import '../../domain/repositories/location_repository.dart';
 import '../../data/local/database/database.dart';
 import '../sync_handler.dart';
 
@@ -9,6 +10,7 @@ class EmployeeSyncHandler implements SyncHandler {
     required FulusSyncApi fulusSyncApi,
     required FulusConnectionState fulusConnectionState,
     required EmployeeRepository employeeRepository,
+    required LocationRepository locationRepository,
   })  : _api = fulusSyncApi,
         _connection = fulusConnectionState,
         _repository = employeeRepository;
@@ -16,6 +18,7 @@ class EmployeeSyncHandler implements SyncHandler {
   final FulusSyncApi _api;
   final FulusConnectionState _connection;
   final EmployeeRepository _repository;
+  final LocationRepository _locationRepository;
 
   @override
   Future<void> sync(SyncQueueItem item) async {
@@ -30,6 +33,15 @@ class EmployeeSyncHandler implements SyncHandler {
       throw StateError('Fulus Cloud device authorization is required for employee sync.');
     }
     final isUpdate = item.operation == 'update';
+    String? cloudLocationId;
+    if (employee.locationId != null) {
+      final location = await _locationRepository.getLocationById(employee.locationId!);
+      if (location == null) throw StateError('Employee location is no longer available on this device.');
+      cloudLocationId = location.serverId;
+      if (cloudLocationId == null || cloudLocationId.isEmpty) {
+        throw StateError('Employee location has not finished syncing yet.');
+      }
+    }
     if (isUpdate && (employee.serverId == null || employee.serverId!.isEmpty)) {
       throw StateError('Cannot sync employee update before its create has synced.');
     }
@@ -44,7 +56,7 @@ class EmployeeSyncHandler implements SyncHandler {
         'full_name': employee.fullName, 'role': employee.role, 'department': employee.department,
         'position': employee.position, 'salary': employee.salary, 'phone': employee.phone,
         'email': employee.email, 'date_hired': employee.dateHired?.toIso8601String(),
-        'location_id': employee.locationId, 'is_active': employee.isActive,
+        'location_id': cloudLocationId, 'is_active': employee.isActive,
         if (isUpdate) 'server_id': employee.serverId,
         if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
       },
