@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/cloud_restore_importer.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
 
 void main() {
   late AppDatabase db;
@@ -91,6 +92,99 @@ void main() {
     expect(employees.single.authUserId, 'staff-1');
     expect(employees.single.role, 'manager');
     expect(permissions.map((row) => row.permission.name), containsAll(<String>['viewReports', 'manageEmployees']));
+  });
+
+  test('restores the cloud employee roster without duplicating claimed staff', () async {
+    final snapshot = <String, dynamic>{
+      'version': 7,
+      'business_memberships': [
+        {
+          'id': 'membership-staff',
+          'user_id': 'staff-1',
+          'role_id': 'role-cashier',
+          'status': 'active',
+          'created_at': '2026-09-01T00:00:00Z',
+          'updated_at': '2026-09-01T00:00:00Z',
+        },
+      ],
+      'profiles': [
+        {'id': 'staff-1', 'full_name': 'Amina Yusuf', 'email': 'amina@example.com'},
+      ],
+      'roles': [
+        {'id': 'role-cashier', 'name': 'cashier'},
+      ],
+      'permissions': [],
+      'role_permissions': [],
+      'location_memberships': [],
+      'locations': [
+        {'id': 'location-1', 'name': 'Main'},
+      ],
+      'employees': [
+        {
+          'id': 'employee-server-1',
+          'client_reference': 'employee-local-1',
+          'membership_id': 'membership-staff',
+          'auth_user_id': 'staff-1',
+          'full_name': 'Amina Yusuf',
+          'role': 'cashier',
+          'department': 'Sales',
+          'position': 'Cashier',
+          'salary': 85000,
+          'email': 'amina@example.com',
+          'location_id': 'location-1',
+          'is_active': true,
+          'created_at': '2026-09-01T00:00:00Z',
+          'updated_at': '2026-09-01T00:00:00Z',
+        },
+        {
+          'id': 'employee-server-2',
+          'client_reference': 'employee-local-2',
+          'membership_id': null,
+          'auth_user_id': null,
+          'full_name': 'Unclaimed worker',
+          'role': 'employee',
+          'is_active': true,
+          'created_at': '2026-09-02T00:00:00Z',
+          'updated_at': '2026-09-02T00:00:00Z',
+        },
+      ],
+      'categories': [],
+      'suppliers': [],
+      'customers': [],
+      'products': [],
+      'sales': [],
+      'sale_items': [],
+      'sale_payments': [],
+      'product_stock_levels': [],
+      'customer_ledger_entries': [],
+      'inventory_movements': [],
+      'expense_categories': [],
+      'expenses': [],
+      'income_records': [],
+      'returns': [],
+      'return_items': [],
+      'tax_remittances': [],
+      'cash_drawer_shifts': [],
+      'audit_events': [],
+    };
+
+    final result = await CloudRestoreImporter(db).importSnapshot(
+      snapshot,
+      ownerCloudUserId: 'owner-1',
+    );
+
+    expect(result.importedCounts['employees'], 2);
+    final employees = await db.select(db.employees).get();
+    expect(employees, hasLength(2));
+    expect(employees.map((row) => row.serverId), containsAll(<String>[
+      'employee-server-1',
+      'employee-server-2',
+    ]));
+    final claimed = employees.singleWhere((row) => row.serverId == 'employee-server-1');
+    expect(claimed.localId, 'employee-server-1');
+    expect(claimed.authUserId, 'staff-1');
+    expect(claimed.department, 'Sales');
+    expect(claimed.syncStatus, SyncStatus.settled);
   });
 
   test('restores cashier users before sales with cashier foreign keys', () async {
