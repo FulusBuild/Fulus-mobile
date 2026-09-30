@@ -65,6 +65,18 @@ class FulusStaffAccessApi {
     return response['data'] == true;
   }
 
+  Future<bool> revokePendingInvitesByEmail({
+    required String businessId,
+    required String email,
+  }) async {
+    final response = await _call({
+      'action': 'revoke_pending_invites_by_email',
+      'business_id': businessId,
+      'email': email.trim().toLowerCase(),
+    });
+    return response['data'] == true;
+  }
+
   Future<bool> setMemberStatusByEmail({
     required String businessId,
     required String email,
