@@ -209,7 +209,7 @@ void main() {
       expect(account.fullName, 'Tunde Bakare');
 
       final employeeRow =
-          await (db.select(db.employees)..where((e) => e.id.equals('emp-1'))).getSingle();
+          await (db.select(db.employees)..where((e) => e.localId.equals('emp-1'))).getSingle();
       expect(employeeRow.authUserId, account.id);
     });
 
