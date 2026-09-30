@@ -6,9 +6,11 @@ import '../entities/employee.dart';
 /// split into three repositories for what is, product-wise, one
 /// cohesive concern.
 ///
-/// Fully local, fully offline — per the Implementation Bible ("Employees
-/// do NOT require synchronization") every method here works with no
-/// connectivity, always, forever, not just "for now."
+/// The roster is a cloud-synchronized business entity and remains fully
+/// usable offline. Local Drift state is the working projection; durable
+/// outbox writes and canonical reconciliation keep employee data converged
+/// across devices. Attendance and leave remain local projections until their
+/// own synchronization contracts are introduced.
 abstract class EmployeeRepository {
   // ── Roster ──────────────────────────────────────────────────────────────
 
