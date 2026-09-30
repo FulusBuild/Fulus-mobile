@@ -609,3 +609,84 @@ $claim$;
 revoke all on function public.claim_staff_invite(text,uuid)
   from public,anon,authenticated,service_role;
 grant execute on function public.claim_staff_invite(text,uuid) to service_role;
+
+-- Membership activation is the authoritative access state. Keep the local/HR
+-- employee projection aligned whenever an owner changes access through the
+-- staff-access surface rather than through the roster editor.
+drop function if exists public.set_member_status(uuid,uuid,text,uuid);
+
+create or replace function public.set_member_status(
+  target_business_id uuid,
+  target_membership_id uuid,
+  target_status text,
+  target_user_id uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $fn$
+declare
+  target_member_user uuid;
+  employee_row public.employees;
+begin
+  if not exists (
+    select 1
+    from public.business_memberships bm
+    join public.roles r on r.id = bm.role_id
+    where bm.business_id = target_business_id
+      and bm.user_id = target_user_id
+      and bm.status = 'active'
+      and r.name in ('owner', 'admin')
+  ) then
+    raise exception using errcode='42501',
+      message='Only an owner or admin may change membership status';
+  end if;
+  if target_status not in ('active', 'suspended', 'removed') then
+    raise exception using errcode='22023', message='Invalid membership status';
+  end if;
+
+  select user_id into target_member_user
+  from public.business_memberships
+  where id = target_membership_id
+    and business_id = target_business_id;
+
+  if target_member_user is null then return false; end if;
+
+  update public.business_memberships
+  set status = target_status, updated_at = now()
+  where id = target_membership_id and business_id = target_business_id;
+
+  select * into employee_row
+  from public.employees
+  where membership_id = target_membership_id
+    and business_id = target_business_id
+  for update;
+
+  if employee_row.id is not null then
+    update public.employees
+    set is_active = target_status = 'active',
+        deleted_at = case when target_status = 'active' then null else coalesce(deleted_at, now()) end,
+        updated_at = now()
+    where id = employee_row.id
+    returning * into employee_row;
+
+    perform public._fulus_append_change(
+      target_business_id, 'employee', employee_row.id, 'upsert', to_jsonb(employee_row)
+    );
+  end if;
+
+  if target_status <> 'active' then
+    update public.devices
+    set status = 'revoked', updated_at = now()
+    where business_id = target_business_id
+      and registered_by = target_member_user
+      and status = 'active';
+  end if;
+
+  return true;
+end;
+$fn$;
+
+revoke all on function public.set_member_status(uuid,uuid,text,uuid)
+  from public,anon,authenticated;
+grant execute on function public.set_member_status(uuid,uuid,text,uuid) to service_role;
