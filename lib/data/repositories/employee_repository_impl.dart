@@ -10,6 +10,7 @@ import '../../domain/repositories/employee_repository.dart';
 import '../../domain/usecases/employee_engine.dart';
 import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import 'employee_mapper.dart';
 
 /// Every write here runs [EmployeeEngine]'s validation FIRST — see that
