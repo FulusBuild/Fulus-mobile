@@ -109,31 +109,55 @@ class CrossDeviceEmployeeRestore {
         await _db.delete(_db.businessSettings).go();
         await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
 
+        final employee = claim.employee;
+        final dateHired = employee?['date_hired'] == null
+            ? null
+            : DateTime.tryParse(employee!['date_hired'].toString())?.millisecondsSinceEpoch;
         await _db.customStatement(
           '''
           INSERT INTO employees(
-            id, auth_user_id, full_name, role, department, position, salary,
+            id, server_id, membership_id, cloud_user_id, sync_status,
+            auth_user_id, full_name, role, department, position, salary,
             phone, email, date_hired, location_id, is_active,
             created_at, updated_at, deleted_at
           )
-          VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, NULL, ?, 1, ?, ?, NULL)
+          VALUES (?, ?, ?, ?, 'settled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)
           ON CONFLICT(id) DO UPDATE SET
+            server_id = excluded.server_id,
+            membership_id = excluded.membership_id,
+            cloud_user_id = excluded.cloud_user_id,
+            sync_status = excluded.sync_status,
             auth_user_id = excluded.auth_user_id,
             full_name = excluded.full_name,
             role = excluded.role,
+            department = excluded.department,
+            position = excluded.position,
+            salary = excluded.salary,
+            phone = excluded.phone,
             email = excluded.email,
+            date_hired = excluded.date_hired,
             location_id = excluded.location_id,
             is_active = 1,
             deleted_at = NULL,
             updated_at = excluded.updated_at
           ''',
           [
+            claim.employeeId ?? claim.membershipId,
+            claim.employeeId,
             claim.membershipId,
             claim.userId,
-            fullName,
-            claim.roleName,
-            claim.email,
-            claim.locationId,
+            claim.userId,
+            employee?['full_name']?.toString().trim().isNotEmpty == true
+                ? employee!['full_name'].toString()
+                : fullName,
+            employee?['role']?.toString() ?? claim.roleName,
+            employee?['department'],
+            employee?['position'],
+            employee?['salary'],
+            employee?['phone'],
+            employee?['email'] ?? claim.email,
+            dateHired,
+            employee?['location_id'] ?? claim.locationId,
             now.millisecondsSinceEpoch,
             now.millisecondsSinceEpoch,
           ],

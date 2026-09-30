@@ -26,6 +26,14 @@ class SyncTask {
         entityType: 'sale', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.salesAndPayments,
       );
+  factory SyncTask.createEmployee(String localId) => SyncTask(
+        entityType: 'employee', entityLocalId: localId, operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+  factory SyncTask.updateEmployee(String localId) => SyncTask(
+        entityType: 'employee', entityLocalId: localId, operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
   factory SyncTask.updateCustomer(String localId) => SyncTask(
         entityType: 'customer', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
@@ -148,7 +156,7 @@ class SyncQueue {
   Future<void> normalizeDependencyPriorities() async {
     await _db.transaction(() async {
       const dependencyTypes = [
-        'customer', 'category', 'supplier', 'location', 'expense_category',
+        'customer', 'employee', 'category', 'supplier', 'location', 'expense_category',
         'product', 'stock_movement', 'expense', 'income_record',
       ];
       await (_db.update(_db.syncQueueItems)
@@ -208,6 +216,11 @@ class SyncQueue {
       }
     }
 
+    Future<List<String>> idsForEmployees() async =>
+        (await _db.select(_db.employees).get())
+            .where((row) => row.serverId == null)
+            .map((row) => row.localId)
+            .toList();
     Future<List<String>> idsForLocations() async => (await _db.select(_db.locations).get())
         .where((row) => row.serverId == null && row.deletedAt == null)
         .map((row) => row.localId)
@@ -273,6 +286,7 @@ class SyncQueue {
             .map((row) => row.localId)
             .toList();
 
+    await add(idsForEmployees, SyncTask.createEmployee);
     await add(idsForLocations, SyncTask.createLocation);
     await add(idsForCategories, SyncTask.createCategory);
     await add(idsForSuppliers, SyncTask.createSupplier);
@@ -366,6 +380,12 @@ class SyncQueue {
             ?.serverId
             ?.isNotEmpty ==
             true;
+      case 'employee':
+        return (await (_db.select(_db.employees)
+                  ..where((r) => r.localId.equals(localId)))
+              .getSingleOrNull())
+            ?.serverId
+            ?.isNotEmpty == true;
       case 'customer':
         return (await (_db.select(_db.customers)
                   ..where((r) => r.localId.equals(localId)))

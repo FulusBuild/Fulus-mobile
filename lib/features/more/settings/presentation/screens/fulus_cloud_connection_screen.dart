@@ -262,7 +262,7 @@ class _FulusCloudConnectionScreenState
       if (mounted) {
         showFulusSnackbar(
           context,
-          message: 'Fulus Cloud is connected again. Pending changes will resume syncing automatically.',
+          message: 'Backup is active again. Pending changes will resume automatically.',
         );
         setState(() {});
       }
@@ -378,7 +378,7 @@ class _FulusCloudConnectionScreenState
       if (!mounted) return;
       showFulusSnackbar(
         context,
-        message: 'Fulus Cloud is connected again. Pending changes will resume syncing automatically.',
+        message: 'Backup is active again. Pending changes will resume automatically.',
       );
       setState(() {});
     } on Failure catch (failure) {
@@ -425,9 +425,9 @@ class _FulusCloudConnectionScreenState
     final isWide = MediaQuery.sizeOf(context).width >= 700;
 
     return FulusScreen(
-      title: 'Account & Backup',
+      title: 'Automatic backup & sync',
       subtitle: connected
-          ? 'Your business backup and cloud connection'
+          ? 'Your business stays backed up and up to date automatically'
           : 'Protect this business without changing your local data',
       body: ListView(
         padding: EdgeInsets.only(bottom: AppSpacing.xxl),
@@ -465,9 +465,9 @@ class _FulusCloudConnectionScreenState
                             children: [
                               Text(
                                 connected
-                                    ? 'Fulus Cloud'
+                                    ? 'Backup is on'
                                     : cloudSessionActive
-                                        ? 'Fulus Cloud is reconnecting'
+                                        ? 'Backup is reconnecting'
                                         : 'Back up your business',
                                 style: AppTypography.heading.copyWith(
                                   color: AppColors.textPrimaryOf(context),
@@ -523,8 +523,8 @@ class _FulusCloudConnectionScreenState
                   const SizedBox(height: AppSpacing.lg),
                   if (needsReauthentication) ...[
                     FulusSectionHeader(
-                      title: 'Reconnect Fulus Cloud',
-                      subtitle: 'Your business is still connected, but the cloud session needs to be restored',
+                      title: 'Restore automatic backup',
+                      subtitle: 'Your business is still available, but automatic backup needs to be restored',
                     ),
                     FulusCard(
                       child: Column(
@@ -568,7 +568,7 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (connected) ...[
                     FulusSectionHeader(
-                      title: 'Account & Backup',
+                      title: 'Automatic backup & sync',
                       subtitle: 'Cloud backup for this business',
                     ),
                     FulusCard(
@@ -577,8 +577,8 @@ class _FulusCloudConnectionScreenState
                         children: [
                           FulusListRow(
                             leading: const Icon(Icons.cloud_done_outlined),
-                            title: const Text('Fulus Cloud'),
-                            subtitle: const Text('Connected and syncing when online'),
+                            title: const Text('Automatic backup'),
+                            subtitle: const Text('Backed up automatically when online'),
                             trailing: const Icon(Icons.check_circle_outline),
                           ),
                           const FulusListDivider(),
@@ -598,8 +598,8 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (cloudSyncEnabled && connection.isSessionAuthenticated) ...[
                     FulusSectionHeader(
-                      title: 'Fulus Cloud needs to reconnect',
-                      subtitle: 'Your account is still signed in, but this device is not ready to sync',
+                      title: 'Automatic backup needs attention',
+                      subtitle: 'Your account is still signed in, but automatic backup is not ready yet',
                     ),
                     FulusCard(
                       child: Column(
@@ -629,8 +629,8 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (cloudSessionRestoring) ...[
                     FulusSectionHeader(
-                      title: 'Fulus Cloud is reconnecting',
-                      subtitle: 'Your business stays available while cloud backup restores automatically',
+                      title: 'Automatic backup is reconnecting',
+                      subtitle: 'Your business stays available while backup restores automatically',
                     ),
                     FulusCard(
                       child: Text(
@@ -642,7 +642,7 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (connected) ...[
                     FulusSectionHeader(
-                      title: 'Account & Backup',
+                      title: 'Automatic backup & sync',
                       subtitle: 'Cloud backup for this business',
                     ),
                     FulusCard(
@@ -651,8 +651,8 @@ class _FulusCloudConnectionScreenState
                         children: [
                           FulusListRow(
                             leading: const Icon(Icons.cloud_done_outlined),
-                            title: const Text('Fulus Cloud'),
-                            subtitle: const Text('Connected and syncing when online'),
+                            title: const Text('Automatic backup'),
+                            subtitle: const Text('Backed up automatically when online'),
                             trailing: const Icon(Icons.check_circle_outline),
                           ),
                           const FulusListDivider(),
@@ -672,8 +672,8 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else ...[
                     FulusSectionHeader(
-                      title: 'Fulus Cloud',
-                      subtitle: 'Create your account and connect this business',
+                      title: 'Automatic backup',
+                      subtitle: 'Create your account and protect this business',
                     ),
                     FulusCard(
                       child: Column(

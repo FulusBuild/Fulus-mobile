@@ -65,6 +65,14 @@ Deno.serve(async req => {
     if (roleError || !roleMembership) return out({ error: { code: "MEMBERSHIP_ROLE_LOOKUP_FAILED", message: "Unable to resolve business role" } }, 500);
     const role = Array.isArray(roleMembership.roles) ? roleMembership.roles[0] : roleMembership.roles;
     const isBusinessAdmin = role?.name === "owner" || role?.name === "admin";
+    const [{ data: canReadEmployees }, { data: canManageEmployees }] = await Promise.all([
+      serviceDb.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: "employees.read" }),
+      serviceDb.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: "employees.manage" }),
+    ]);
+    if (canReadEmployees == null || canManageEmployees == null) {
+      return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
+    }
+    const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
     const { data: locationRows, error: locationError } = await serviceDb
       .from("location_memberships")
       .select("location_id")
@@ -91,10 +99,20 @@ Deno.serve(async req => {
       "location",
       "stock_movement",
       "return",
+      "employee",
     ]);
     const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
       if (entityType === "location") {
         return accessibleLocationIds.has(entityId);
+      }
+      if (entityType === "employee") {
+        if (!canReadRoster) {
+          const row = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+          return row?.auth_user_id === uid;
+        }
+        const row = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+        const locationId = row?.location_id;
+        return locationId == null || accessibleLocationIds.has(String(locationId));
       }
       if (!payload || typeof payload !== "object") return false;
       const row = payload as Record<string, unknown>;
@@ -376,7 +394,7 @@ Deno.serve(async req => {
   if (!d || d.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Device is not registered or active" } }, 403);
 
   let data: any, error: any;
-  if (action === "customer_update" || action === "expense_update" || action === "expense_category_create") {
+  if (action === "employee_create" || action === "employee_update" || action === "customer_update" || action === "expense_update" || action === "expense_category_create") {
     const rawPayload = b.payload && typeof b.payload === "object" ? b.payload as Record<string, unknown> : {};
     const hashBytes = await crypto.subtle.digest(
       "SHA-256",
@@ -390,7 +408,30 @@ Deno.serve(async req => {
       .map(x => x.toString(16).padStart(2, "0"))
       .join("");
 
-    if (action === "customer_update") {
+    if (action === "employee_create" || action === "employee_update") {
+      const isCreate = action === "employee_create";
+      ({ data, error } = await serviceDb.rpc("fulus_api_mutate_employee", {
+        target_business_id: bid,
+        target_user_id: uid,
+        target_device_id: d.id,
+        target_operation_id: oid,
+        target_operation: isCreate ? "create" : "update",
+        target_employee_id: typeof rawPayload.server_id === "string" ? rawPayload.server_id : null,
+        target_client_reference: typeof rawPayload.client_reference === "string" ? rawPayload.client_reference : null,
+        target_full_name: typeof rawPayload.full_name === "string" ? rawPayload.full_name : "",
+        target_role: typeof rawPayload.role === "string" ? rawPayload.role : null,
+        target_department: typeof rawPayload.department === "string" ? rawPayload.department : null,
+        target_position: typeof rawPayload.position === "string" ? rawPayload.position : null,
+        target_salary: rawPayload.salary == null ? null : Number(rawPayload.salary),
+        target_phone: typeof rawPayload.phone === "string" ? rawPayload.phone : null,
+        target_email: typeof rawPayload.email === "string" ? rawPayload.email : null,
+        target_date_hired: typeof rawPayload.date_hired === "string" ? rawPayload.date_hired : null,
+        target_location_id: typeof rawPayload.location_id === "string" ? rawPayload.location_id : null,
+        target_is_active: rawPayload.is_active !== false,
+        target_base_cursor: typeof rawPayload.base_cursor === "number" ? Math.trunc(rawPayload.base_cursor) : null,
+        target_request_hash: requestHash,
+      }));
+    } else if (action === "customer_update") {
       const customerId = typeof rawPayload.server_id === "string" ? rawPayload.server_id : null;
       if (!customerId) return out({ error: { code: "INVALID_CUSTOMER_UPDATE", message: "server_id is required" } }, 400);
       ({ data, error } = await serviceDb.rpc("fulus_api_update_customer", {

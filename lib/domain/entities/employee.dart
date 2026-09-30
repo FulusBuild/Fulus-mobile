@@ -26,6 +26,9 @@
 class Employee {
   const Employee({
     required this.id,
+    this.serverId,
+    this.membershipId,
+    this.cloudUserId,
     this.authUserId,
     required this.fullName,
     this.role,
@@ -43,7 +46,13 @@ class Employee {
 
   final String id;
 
-  /// Links to the Stage 2 local auth account, if this employee also has
+  /// Stable cloud roster identity. Local [id] remains stable for attendance
+  /// and leave foreign keys; this value is the cross-device identity.
+  final String? serverId;
+  final String? membershipId;
+  final String? cloudUserId;
+
+  /// Links to the local auth account, if this employee also has
   /// their own device login. See class doc above.
   final String? authUserId;
 
@@ -80,6 +89,9 @@ class Employee {
 
   Employee copyWith({
     String? fullName,
+    Object? serverId = _sentinel,
+    Object? membershipId = _sentinel,
+    Object? cloudUserId = _sentinel,
     Object? role = _sentinel,
     Object? department = _sentinel,
     Object? position = _sentinel,
@@ -93,6 +105,9 @@ class Employee {
   }) {
     return Employee(
       id: id,
+      serverId: serverId == _sentinel ? this.serverId : serverId as String?,
+      membershipId: membershipId == _sentinel ? this.membershipId : membershipId as String?,
+      cloudUserId: cloudUserId == _sentinel ? this.cloudUserId : cloudUserId as String?,
       authUserId: authUserId,
       fullName: fullName ?? this.fullName,
       role: role == _sentinel ? this.role : role as String?,

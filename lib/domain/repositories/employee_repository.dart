@@ -16,6 +16,34 @@ abstract class EmployeeRepository {
 
   Future<Employee> updateEmployee(String id, EmployeeDraft draft);
 
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? membershipId,
+    String? cloudUserId,
+    String? operationId,
+  });
+
+  Future<void> reconcileDeleted(String serverId);
+
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String? membershipId,
+    required String? cloudUserId,
+    required String fullName,
+    required String? role,
+    required String? department,
+    required String? position,
+    required double? salary,
+    required String? phone,
+    required String? email,
+    required DateTime? dateHired,
+    required String? locationId,
+    required bool isActive,
+    required DateTime updatedAt,
+    required DateTime createdAt,
+  });
+
   /// Soft delete — mirrors employee_service.delete_employee (is_deleted +
   /// deleted_at + forces is_active false), never a hard row delete, so a
   /// departed employee's attendance/leave/sales-performance history

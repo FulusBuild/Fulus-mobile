@@ -18,30 +18,6 @@ class SyncDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
-  bool _syncingNow = false;
-
-  Future<void> _syncNow() async {
-    if (_syncingNow) return;
-    setState(() => _syncingNow = true);
-    try {
-      await ref.read(syncTriggersProvider).syncNow();
-      if (!mounted) return;
-      ref.invalidate(_syncDetailStatusProvider);
-      showFulusSnackbar(
-        context,
-        message: 'Backup checked. Fulus will keep trying automatically if anything is still waiting.',
-      );
-    } catch (_) {
-      if (!mounted) return;
-      showFulusSnackbar(
-        context,
-        message: 'Backup could not be completed yet. Your work is still safe on this device.',
-      );
-    } finally {
-      if (mounted) setState(() => _syncingNow = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(_syncDetailStatusProvider);
@@ -68,15 +44,13 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                     children: [
                       const FulusSectionHeader(
                         title: 'Your data',
-                        subtitle: 'Fulus saves locally first, then backs up when Cloud is connected',
+                        subtitle: 'Fulus saves locally first, then backs it up automatically',
                       ),
                       statusAsync.when(
                         data: (status) => _StatusCard(
                           status: status.kind == SyncStatusKind.disabled || connection.isSyncReady
                               ? status
                               : const SyncStatus.cloudUnavailable(),
-                          syncingNow: _syncingNow,
-                          onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
                         ),
                         loading: () => const _SyncStatusSkeleton(),
                         error: (_, __) => FulusErrorState(
@@ -92,7 +66,7 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       const FulusSectionHeader(
                         title: 'How Fulus protects your work',
-                        subtitle: 'Cloud backup never replaces your local-first workflow',
+                        subtitle: 'Automatic backup never replaces your local-first workflow',
                       ),
                       FulusCard(
                         child: Column(
@@ -105,8 +79,8 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                             const FulusListDivider(),
                             _InfoRow(
                               icon: Icons.cloud_outlined,
-                              title: 'Backed up when connected',
-                              body: 'Fulus Cloud sends pending changes automatically when the connection is available.',
+                              title: 'Backed up automatically',
+                              body: 'Fulus sends pending changes in the background whenever the service is available.',
                             ),
                             const FulusListDivider(),
                             _InfoRow(
@@ -287,11 +261,9 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
 }
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.status, required this.syncingNow, required this.onSyncNow});
+  const _StatusCard({required this.status});
 
   final SyncStatus status;
-  final bool syncingNow;
-  final VoidCallback? onSyncNow;
 
   @override
   Widget build(BuildContext context) {
@@ -334,7 +306,6 @@ class _StatusCard extends StatelessWidget {
         ),
     };
 
-    final settled = status.kind == SyncStatusKind.settled;
     final displayBody = status.conflictCount > 0
         ? '${status.conflictCount} change${status.conflictCount == 1 ? '' : 's'} need review because another device changed the same data.'
         : body;
@@ -366,18 +337,6 @@ class _StatusCard extends StatelessWidget {
               color: AppColors.textSecondaryOf(context),
             ),
           ),
-          if (onSyncNow != null && !settled && status.conflictCount == 0) ...[
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FulusButton(
-                label: syncingNow ? 'Checking backup…' : 'Try backup now',
-                loading: syncingNow,
-                onPressed: syncingNow ? null : onSyncNow,
-                variant: FulusButtonVariant.secondary,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -409,12 +368,12 @@ class _HealthCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _HealthLine(label: 'Last successful cloud sync', value: _when(health.lastPushAt)),
+          _HealthLine(label: 'Last successful backup', value: _when(health.lastPushAt)),
           const FulusListDivider(),
-          _HealthLine(label: 'Last successful pull', value: _when(health.lastPullAt)),
+          _HealthLine(label: 'Last successful update', value: _when(health.lastPullAt)),
           const FulusListDivider(),
           _HealthLine(
-            label: 'Cloud backup',
+            label: 'Automatic backup',
             value: cloudBackupLabel(health, status.kind),
           ),
         ],

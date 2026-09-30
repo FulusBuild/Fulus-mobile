@@ -1,0 +1,150 @@
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/data/repositories/employee_repository_impl.dart';
+import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
+import 'package:fulus_mobile/domain/repositories/permission_repository.dart';
+import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockAuthRepository extends Mock implements AuthRepository {}
+class _MockPermissionRepository extends Mock implements PermissionRepository {}
+
+void main() {
+  late AppDatabase db;
+  late SyncQueue syncQueue;
+  late EmployeeRepositoryImpl repository;
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    syncQueue = SyncQueue(db);
+    repository = EmployeeRepositoryImpl(
+      db: db,
+      authRepository: _MockAuthRepository(),
+      permissionRepository: _MockPermissionRepository(),
+      syncQueue: syncQueue,
+    );
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  test('reconcileServerState creates a local projection with stable server identity', () async {
+    final createdAt = DateTime.utc(2026, 9, 30, 10);
+    final updatedAt = DateTime.utc(2026, 9, 30, 11);
+
+    await repository.reconcileServerState(
+      serverId: 'employee-server-1',
+      membershipId: 'membership-1',
+      cloudUserId: 'cloud-user-1',
+      fullName: 'Amina Yusuf',
+      role: 'Cashier',
+      department: 'Sales',
+      position: 'Cashier',
+      salary: 85000,
+      phone: '+2348000000001',
+      email: 'amina@example.com',
+      dateHired: DateTime.utc(2026, 1, 2),
+      locationId: 'location-1',
+      isActive: true,
+      updatedAt: updatedAt,
+      createdAt: createdAt,
+    );
+
+    final rows = await db.select(db.employees).get();
+
+    expect(rows, hasLength(1));
+    expect(rows.single.serverId, 'employee-server-1');
+    expect(rows.single.membershipId, 'membership-1');
+    expect(rows.single.cloudUserId, 'cloud-user-1');
+    expect(rows.single.fullName, 'Amina Yusuf');
+    expect(rows.single.syncStatus, SyncStatus.settled);
+  });
+
+  test('reconcileServerState updates the same local row instead of duplicating it', () async {
+    final createdAt = DateTime.utc(2026, 9, 30, 10);
+    final firstUpdatedAt = DateTime.utc(2026, 9, 30, 11);
+    final secondUpdatedAt = DateTime.utc(2026, 9, 30, 12);
+
+    await repository.reconcileServerState(
+      serverId: 'employee-server-1',
+      membershipId: 'membership-1',
+      cloudUserId: 'cloud-user-1',
+      fullName: 'Amina Yusuf',
+      role: 'Cashier',
+      department: null,
+      position: null,
+      salary: 85000,
+      phone: null,
+      email: 'amina@example.com',
+      dateHired: null,
+      locationId: 'location-1',
+      isActive: true,
+      updatedAt: firstUpdatedAt,
+      createdAt: createdAt,
+    );
+
+    final first = (await db.select(db.employees).get()).single;
+
+    await repository.reconcileServerState(
+      serverId: 'employee-server-1',
+      membershipId: 'membership-2',
+      cloudUserId: 'cloud-user-2',
+      fullName: 'Amina Ibrahim',
+      role: 'Manager',
+      department: 'Operations',
+      position: 'Store Manager',
+      salary: 120000,
+      phone: '+2348000000002',
+      email: 'amina.ibrahim@example.com',
+      dateHired: DateTime.utc(2026, 2, 3),
+      locationId: 'location-2',
+      isActive: false,
+      updatedAt: secondUpdatedAt,
+      createdAt: createdAt,
+    );
+
+    final rows = await db.select(db.employees).get();
+
+    expect(rows, hasLength(1));
+    expect(rows.single.localId, first.localId);
+    expect(rows.single.serverId, 'employee-server-1');
+    expect(rows.single.membershipId, 'membership-2');
+    expect(rows.single.cloudUserId, 'cloud-user-2');
+    expect(rows.single.fullName, 'Amina Ibrahim');
+    expect(rows.single.isActive, isFalse);
+    expect(rows.single.deletedAt, DateTime(2026, 9, 30, 12));
+    expect(rows.single.syncStatus, SyncStatus.settled);
+  });
+
+  test('markSynced records the cloud identity and settles the local employee', () async {
+    await db.into(db.employees).insert(
+      EmployeesCompanion.insert(
+        localId: 'employee-local-1',
+        fullName: 'Amina Yusuf',
+        createdAt: DateTime.utc(2026, 9, 30, 10),
+        updatedAt: DateTime.utc(2026, 9, 30, 10),
+        syncStatus: const Value(SyncStatus.pending),
+      ),
+    );
+
+    await repository.markSynced(
+      localId: 'employee-local-1',
+      serverId: 'employee-server-1',
+      membershipId: 'membership-1',
+      cloudUserId: 'cloud-user-1',
+    );
+
+    final row = await (db.select(db.employees)
+          ..where((e) => e.localId.equals('employee-local-1')))
+        .getSingle();
+
+    expect(row.serverId, 'employee-server-1');
+    expect(row.membershipId, 'membership-1');
+    expect(row.cloudUserId, 'cloud-user-1');
+    expect(row.syncStatus, SyncStatus.settled);
+  });
+}

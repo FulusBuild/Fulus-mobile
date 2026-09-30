@@ -191,7 +191,7 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
       - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs --low-resources-mode
       - name: Analyze
         run: flutter analyze --fatal-infos
 
@@ -212,7 +212,7 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
       - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs --low-resources-mode
       - name: Run tests
         run: flutter test
 

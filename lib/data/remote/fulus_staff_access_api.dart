@@ -17,6 +17,8 @@ class FulusStaffAccessApi {
     required List<String> permissionCodes,
     String? locationId,
     String? invitedName,
+    String? employeeClientReference,
+    Map<String, dynamic>? employee,
     int expiresHours = 24,
   }) async {
     final response = await _call({
@@ -27,6 +29,8 @@ class FulusStaffAccessApi {
       'permission_codes': permissionCodes,
       if (locationId != null) 'location_id': locationId,
       if (invitedName != null && invitedName.trim().isNotEmpty) 'invited_name': invitedName.trim(),
+      if (employeeClientReference != null) 'employee_client_reference': employeeClientReference,
+      if (employee != null) 'employee': employee,
       'expires_hours': expiresHours,
     });
     return StaffInvite.fromJson(Map<String, dynamic>.from(response['data'] as Map));
@@ -247,6 +251,8 @@ class StaffClaim {
     required this.email,
     required this.locationId,
     required this.permissionCodes,
+    this.employeeId,
+    this.employee,
   });
 
   final String businessId;
@@ -258,6 +264,8 @@ class StaffClaim {
   final String email;
   final String? locationId;
   final List<String> permissionCodes;
+  final String? employeeId;
+  final Map<String, dynamic>? employee;
 
   factory StaffClaim.fromJson(Map<String, dynamic> json) {
     final rawPermissions = json['permission_codes'];
@@ -273,6 +281,8 @@ class StaffClaim {
       permissionCodes: rawPermissions is List
           ? rawPermissions.map((value) => value.toString()).toList(growable: false)
           : const [],
+      employeeId: json['employee_id']?.toString(),
+      employee: json['employee'] is Map ? Map<String, dynamic>.from(json['employee'] as Map) : null,
     );
   }
 }

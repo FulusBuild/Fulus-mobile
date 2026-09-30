@@ -155,12 +155,16 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
           };
       }
 
-      if (operationType == 'customer.update' ||
+      if (operationType == 'employee.create' ||
+          operationType == 'employee.update' ||
+          operationType == 'customer.update' ||
           operationType == 'expense.update') {
         body
           ..remove('operation_type')
           ..remove('payload')
           ..['action'] = switch (operationType) {
+            'employee.create' => 'employee_create',
+            'employee.update' => 'employee_update',
             'customer.update' => 'customer_update',
             'expense.update' => 'expense_update',
             _ => throw StateError('Unsupported Fulus operation: $operationType'),

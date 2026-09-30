@@ -88,7 +88,7 @@ class FulusCanonicalTypedReconciler {
 
       final group = changes.sublist(start, end);
       const batchable = {
-        'customer', 'category', 'supplier', 'expense_category', 'expense',
+        'customer', 'employee', 'category', 'supplier', 'expense_category', 'expense',
         'income_record', 'cash_drawer_shift', 'location',
         'customer_ledger', 'stock_movement',
       };

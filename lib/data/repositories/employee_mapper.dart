@@ -2,12 +2,16 @@ import 'package:drift/drift.dart';
 
 import '../../domain/entities/employee.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import '../local/database/tables/employee_tables.dart';
 
 extension EmployeeRowMapper on EmployeeRow {
   Employee toDomain() {
     return Employee(
-      id: id,
+      id: localId,
+      serverId: serverId,
+      membershipId: membershipId,
+      cloudUserId: cloudUserId,
       authUserId: authUserId,
       fullName: fullName,
       role: role,
@@ -28,7 +32,11 @@ extension EmployeeRowMapper on EmployeeRow {
 extension EmployeeDomainMapper on Employee {
   EmployeesCompanion toCompanion() {
     return EmployeesCompanion(
-      id: Value(id),
+      localId: Value(id),
+      serverId: Value(serverId),
+      membershipId: Value(membershipId),
+      cloudUserId: Value(cloudUserId),
+      syncStatus: const Value(SyncStatus.pending),
       authUserId: Value(authUserId),
       fullName: Value(fullName),
       role: Value(role),

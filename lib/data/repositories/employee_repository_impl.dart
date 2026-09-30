@@ -8,7 +8,9 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/permission_repository.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../../domain/usecases/employee_engine.dart';
+import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import 'employee_mapper.dart';
 
 /// Every write here runs [EmployeeEngine]'s validation FIRST — see that
@@ -21,15 +23,18 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required AppDatabase db,
     required AuthRepository authRepository,
     required PermissionRepository permissionRepository,
+    required SyncQueue syncQueue,
     EmployeeEngine engine = const EmployeeEngine(),
   })  : _db = db,
         _authRepository = authRepository,
         _permissionRepository = permissionRepository,
+        _syncQueue = syncQueue,
         _engine = engine;
 
   final AppDatabase _db;
   final AuthRepository _authRepository;
   final PermissionRepository _permissionRepository;
+  final SyncQueue _syncQueue;
   final EmployeeEngine _engine;
 
   Future<void> _requireManageEmployees() async {
@@ -53,7 +58,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     _engine.validateDraft(draft);
     final now = DateTime.now();
     final entity = draft.toEntity(id: Ulid().toString(), now: now);
-    await _db.into(_db.employees).insert(entity.toCompanion());
+    await _db.transaction(() async {
+      await _db.into(_db.employees).insert(entity.toCompanion());
+      await _syncQueue.enqueue(SyncTask.createEmployee(entity.id));
+    });
     return entity;
   }
 
@@ -77,8 +85,20 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       locationId: draft.locationId,
       updatedAt: DateTime.now(),
     );
-    await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(updated.toCompanion());
-    return updated;
+    await _db.transaction(() async {
+      await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
+        EmployeesCompanion(
+          fullName: Value(updated.fullName), role: Value(updated.role),
+          department: Value(updated.department), position: Value(updated.position),
+          salary: Value(updated.salary), phone: Value(updated.phone),
+          email: Value(updated.email), dateHired: Value(updated.dateHired),
+          locationId: Value(updated.locationId), updatedAt: Value(updated.updatedAt),
+          syncStatus: const Value(SyncStatus.pending),
+        ),
+      );
+      await _syncQueue.enqueue(SyncTask.updateEmployee(id));
+    });
+    return (await getEmployeeById(id, includeInactive: true))!;
   }
 
   @override
@@ -88,12 +108,13 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     await _db.transaction(() async {
       final row = await (_db.select(
         _db.employees,
-      )..where((e) => e.id.equals(id))).getSingleOrNull();
-      await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
+      )..where((e) => e.localId.equals(id))).getSingleOrNull();
+      await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(false),
           deletedAt: Value(now),
           updatedAt: Value(now),
+          syncStatus: const Value(SyncStatus.pending),
         ),
       );
       // Deactivating the roster record alone never revoked sign-in
@@ -110,6 +131,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           const UsersCompanion(isActive: Value(false)),
         );
       }
+      await _syncQueue.enqueue(SyncTask.updateEmployee(id));
     });
   }
 
@@ -122,12 +144,13 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     await _db.transaction(() async {
       final row = await (_db.select(
         _db.employees,
-      )..where((e) => e.id.equals(id))).getSingleOrNull();
-      await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
+      )..where((e) => e.localId.equals(id))).getSingleOrNull();
+      await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(true),
           deletedAt: const Value(null),
           updatedAt: Value(now),
+          syncStatus: const Value(SyncStatus.pending),
         ),
       );
       final authUserId = row?.authUserId;
@@ -138,6 +161,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           const UsersCompanion(isActive: Value(true)),
         );
       }
+      await _syncQueue.enqueue(SyncTask.updateEmployee(id));
     });
   }
 
@@ -171,7 +195,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     // deactivated-employees view has somewhere real to navigate to for
     // reactivating one. updateEmployee's own call site doesn't pass it,
     // so this stays exactly as protective as before for that path.
-    final query = _db.select(_db.employees)..where((e) => e.id.equals(id));
+    final query = _db.select(_db.employees)..where((e) => e.localId.equals(id));
     if (!includeInactive) {
       query.where((e) => e.deletedAt.isNull());
     }
@@ -183,6 +207,124 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   Future<EmployeeStats> getStats() async {
     final rows = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
     return _engine.computeStats(rows.map((r) => r.toDomain()).toList());
+  }
+
+  @override
+  Future<void> markSynced({
+    required String localId,
+    required String serverId,
+    String? membershipId,
+    String? cloudUserId,
+    String? operationId,
+  }) async {
+    await _db.transaction(() async {
+      var hasNewerMutation = false;
+      if (operationId != null) {
+        final current = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (current == null) {
+          hasNewerMutation = true;
+        } else {
+          hasNewerMutation = await _syncQueue.hasNewerQueueMutation(
+            entityType: 'employee',
+            entityLocalId: localId,
+            operationId: operationId,
+            enqueuedAt: current.enqueuedAt,
+          );
+        }
+      }
+      await (_db.update(_db.employees)..where((e) => e.localId.equals(localId))).write(
+        EmployeesCompanion(
+          serverId: Value(serverId),
+          membershipId: Value(membershipId),
+          cloudUserId: Value(cloudUserId),
+          syncStatus: Value(hasNewerMutation ? SyncStatus.pending : SyncStatus.settled),
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> reconcileServerState({
+    required String serverId,
+    required String? membershipId,
+    required String? cloudUserId,
+    required String fullName,
+    required String? role,
+    required String? department,
+    required String? position,
+    required double? salary,
+    required String? phone,
+    required String? email,
+    required DateTime? dateHired,
+    required String? locationId,
+    required bool isActive,
+    required DateTime updatedAt,
+    required DateTime createdAt,
+  }) async {
+    final existing = await (_db.select(_db.employees)
+          ..where((e) => e.serverId.equals(serverId)))
+        .getSingleOrNull();
+    final localId = existing?.localId ?? Ulid().toString();
+    await _db.transaction(() async {
+      if (existing == null) {
+        await _db.into(_db.employees).insert(
+          EmployeesCompanion(
+            localId: Value(localId),
+            serverId: Value(serverId),
+            membershipId: Value(membershipId),
+            cloudUserId: Value(cloudUserId),
+            fullName: Value(fullName),
+            role: Value(role),
+            department: Value(department),
+            position: Value(position),
+            salary: Value(salary),
+            phone: Value(phone),
+            email: Value(email),
+            dateHired: Value(dateHired),
+            locationId: Value(locationId),
+            isActive: Value(isActive),
+            createdAt: Value(createdAt),
+            updatedAt: Value(updatedAt),
+            deletedAt: Value(isActive ? null : updatedAt),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        );
+      } else {
+        await (_db.update(_db.employees)..where((e) => e.localId.equals(localId))).write(
+          EmployeesCompanion(
+            serverId: Value(serverId),
+            membershipId: Value(membershipId),
+            cloudUserId: Value(cloudUserId),
+            fullName: Value(fullName),
+            role: Value(role),
+            department: Value(department),
+            position: Value(position),
+            salary: Value(salary),
+            phone: Value(phone),
+            email: Value(email),
+            dateHired: Value(dateHired),
+            locationId: Value(locationId),
+            isActive: Value(isActive),
+            deletedAt: Value(isActive ? null : updatedAt),
+            updatedAt: Value(updatedAt),
+            syncStatus: const Value(SyncStatus.settled),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> reconcileDeleted(String serverId) async {
+    await (_db.update(_db.employees)..where((e) => e.serverId.equals(serverId))).write(
+      EmployeesCompanion(
+        isActive: const Value(false),
+        deletedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncStatus.settled),
+      ),
+    );
   }
 
   // ── Attendance ──────────────────────────────────────────────────────────
@@ -224,7 +366,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }) async {
     final day = DateTime(date.year, date.month, date.day);
     final roster = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
-    final rosterIds = roster.map((e) => e.id).toSet();
+    final rosterIds = roster.map((e) => e.localId).toSet();
     _engine.validateBulkAttendance(statusByEmployeeId: statusByEmployeeId, rosterIds: rosterIds);
 
     final results = <AttendanceRecord>[];

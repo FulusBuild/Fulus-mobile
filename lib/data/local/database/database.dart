@@ -207,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration {
@@ -416,6 +416,15 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 13) {
           await m.createTable(syncConflictRecords);
+        }
+        if (from < 15) {
+          // Employees were historically local-only. Preserve the existing
+          // physical id column (attendance/leave foreign keys depend on it)
+          // and add only the durable cloud identity/sync metadata.
+          await m.addColumn(employees, employees.serverId);
+          await m.addColumn(employees, employees.membershipId);
+          await m.addColumn(employees, employees.cloudUserId);
+          await m.addColumn(employees, employees.syncStatus);
         }
         if (from < 14) {
           // Cross-runtime Cloud Sync execution lease. This is purely sync

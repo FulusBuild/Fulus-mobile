@@ -94,17 +94,17 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               ],
               if (canManageSettings || canManageBackup) ...[
                 const FulusSectionHeader(
-                  title: 'Account & Backup',
+                  title: 'Data & Backup',
                   titleColor: Colors.white,
                   subtitleColor: Colors.white70,
-                  subtitle: 'Devices, data, and cloud protection',
+                  subtitle: 'Devices, data, and automatic protection',
                 ),
                 _tileGrid([
                   if (canManageBackup)
                     FulusActionTile(
                       icon: FulusIcons.backup,
-                      label: 'Backup',
-                      subtitle: 'Back up and restore your business data',
+                      label: 'Backup & restore',
+                      subtitle: 'Protect and restore your business data',
                       onTap: () => context.pushNamed('moreSettingsBackup'),
                     ),
                   if (canManageSettings)
@@ -117,8 +117,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   if (canManageSettings)
                     FulusActionTile(
                       icon: FulusIcons.sync,
-                      label: 'Sync',
-                      subtitle: 'Local and cloud synchronization status',
+                      label: 'Backup status',
+                      subtitle: 'See backup status and recovery',
                       onTap: () => context.pushNamed('moreSyncDetail'),
                     ),
                   if (canManageSettings)
@@ -133,16 +133,16 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               ],
               if (isOwner) ...[
                 const FulusSectionHeader(
-                  title: 'Fulus Cloud',
+                  title: 'Automatic backup & sync',
                   titleColor: Colors.white,
                   subtitleColor: Colors.white70,
-                  subtitle: 'Back up this business and keep it available across devices',
+                  subtitle: 'Keep this business backed up and available across devices',
                 ),
                 _tileGrid([
                   FulusActionTile(
                     icon: FulusIcons.cloud,
-                    label: 'Fulus Cloud',
-                    subtitle: 'Connect this business for server-authoritative sync',
+                    label: 'Automatic backup & sync',
+                    subtitle: 'Fulus keeps your business backed up and up to date automatically',
                     onTap: () => context.pushNamed('moreSettingsCloud'),
                   ),
                 ]),

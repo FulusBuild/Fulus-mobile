@@ -275,6 +275,8 @@ Deno.serve(async (req: Request) => {
         : null;
       const locationId = typeof body.location_id === "string" ? body.location_id.trim() : null;
       const invitedName = typeof body.invited_name === "string" ? body.invited_name.trim() : "";
+      const employeeClientReference = typeof body.employee_client_reference === "string" ? body.employee_client_reference.trim() : null;
+      const employee = body.employee && typeof body.employee === "object" ? body.employee as Record<string, unknown> : null;
 
       if (!requestedRole || requestedRole === "owner") {
         return json({ error: { code: "INVALID_REQUEST", message: "A non-owner staff role is required" } }, 400);
@@ -305,7 +307,8 @@ Deno.serve(async (req: Request) => {
         target_actor_user_id: userData.user.id,
         target_permission_codes: permissionCodes,
         target_location_id: locationId || null,
-        target_invited_name: invitedName || null,
+        target_employee_client_reference: employeeClientReference,
+        target_employee: employee,
       }));
       break;
     }
