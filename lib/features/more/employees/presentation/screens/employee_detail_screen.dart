@@ -728,12 +728,31 @@ class _AccessAction extends ConsumerWidget {
     try {
       final authUserId = employee.authUserId;
       final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
-      if (authUserId != null && businessId != null) {
-        await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
-              businessId: businessId,
-              userId: authUserId,
-              status: 'suspended',
-            );
+      final email = employee.email?.trim().toLowerCase();
+      if (businessId != null) {
+        if (authUserId != null) {
+          await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
+                businessId: businessId,
+                userId: authUserId,
+                status: 'suspended',
+              );
+        } else if (email != null && email.isNotEmpty) {
+          try {
+            await ref.read(fulusStaffAccessApiProvider).setMemberStatusByEmail(
+                  businessId: businessId,
+                  email: email,
+                  status: 'suspended',
+                );
+          } on Failure catch (failure) {
+            if (failure.message.contains('not found') || failure.message.contains('not joined')) {
+              // The invitation has not been claimed yet; the local deactivation
+              // still blocks the roster entry and the pending invite can simply
+              // be reissued after reactivation.
+            } else {
+              rethrow;
+            }
+          }
+        }
       }
       await ref.read(employeeRepositoryProvider).deactivateEmployee(employee.id);
       if (context.mounted) {
@@ -751,12 +770,30 @@ class _AccessAction extends ConsumerWidget {
     try {
       final authUserId = employee.authUserId;
       final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
-      if (authUserId != null && businessId != null) {
-        await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
-              businessId: businessId,
-              userId: authUserId,
-              status: 'active',
-            );
+      final email = employee.email?.trim().toLowerCase();
+      if (businessId != null) {
+        if (authUserId != null) {
+          await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
+                businessId: businessId,
+                userId: authUserId,
+                status: 'active',
+              );
+        } else if (email != null && email.isNotEmpty) {
+          try {
+            await ref.read(fulusStaffAccessApiProvider).setMemberStatusByEmail(
+                  businessId: businessId,
+                  email: email,
+                  status: 'active',
+                );
+          } on Failure catch (failure) {
+            if (failure.message.contains('not found') || failure.message.contains('not joined')) {
+              // No cloud membership exists yet; reactivation only needs to
+              // restore the local roster until the employee claims an invite.
+            } else {
+              rethrow;
+            }
+          }
+        }
       }
       await ref.read(employeeRepositoryProvider).reactivateEmployee(employee.id);
       if (context.mounted) {
