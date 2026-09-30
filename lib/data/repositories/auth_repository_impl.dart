@@ -402,7 +402,7 @@ class AuthRepositoryImpl implements AuthRepository {
       pin: pin,
     );
 
-    await (_db.update(_db.employees)..where((e) => e.id.equals(employeeId)))
+    await (_db.update(_db.employees)..where((e) => e.localId.equals(employeeId)))
         .write(
       EmployeesCompanion(
         authUserId: Value(newAccount.id),
