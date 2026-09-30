@@ -23,6 +23,7 @@ const SIMPLE_ENTITIES: Record<string, string> = {
   location: "locations",
   customer_ledger: "customer_ledger_entries",
   stock_movement: "inventory_movements",
+  employee: "employees",
 };
 
 Deno.serve(async (req) => {
@@ -97,6 +98,14 @@ Deno.serve(async (req) => {
     ? roleMembership.roles[0]
     : roleMembership.roles;
   const isBusinessAdmin = role?.name === "owner" || role?.name === "admin";
+  const [{ data: canReadEmployees }, { data: canManageEmployees }] = await Promise.all([
+    db.rpc("user_has_permission", { target_business_id: businessId, target_user_id: userId, target_permission: "employees.read" }),
+    db.rpc("user_has_permission", { target_business_id: businessId, target_user_id: userId, target_permission: "employees.manage" }),
+  ]);
+  if (canReadEmployees == null || canManageEmployees == null) {
+    return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
+  }
+  const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
 
   const { data: locationRows, error: locationMembershipError } = await db
     .from("location_memberships")
@@ -192,6 +201,7 @@ Deno.serve(async (req) => {
     }
 
     const unauthorized = (rows ?? []).some((row) => {
+      if (entityType === "employee") return !hasLocationAccess(entityType, String(row.id), row, new Map(), new Map());
       if (entityType === "location") return !assertLocationAccess(row.id);
       if (locationScopedEntityTypes.has(entityType)) return !assertLocationAccess(row.location_id);
       return false;
@@ -324,6 +334,9 @@ Deno.serve(async (req) => {
     return out({ error: { code: "CANONICAL_READ_FAILED", message: `Unable to read ${entityType}` } }, 500);
   }
   if (row) {
+    if (entityType === "employee" && !hasLocationAccess(entityType, String(row.id), row, new Map(), new Map())) {
+      return out({ error: { code: "FORBIDDEN", message: "Employee is outside the user's access" } }, 403);
+    }
     if (entityType === "location" && !assertLocationAccess(row.id)) {
       return out({ error: { code: "FORBIDDEN", message: "Location is outside the user's location access" } }, 403);
     }
