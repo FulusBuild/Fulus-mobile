@@ -4,3 +4,9 @@ project_id = "fulus-mobile-local"
 port = 54325
 
 # Local migration-chain CI intentionally rebuilds the schema from zero.
+
+# The staff API performs its own authentication so invite inspection can be
+# reached before an employee has a session. All authenticated staff mutations
+# still require and validate a Supabase user token inside the function.
+[functions.fulus-staff-api]
+verify_jwt = false
