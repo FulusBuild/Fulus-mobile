@@ -51,8 +51,6 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                           status: status.kind == SyncStatusKind.disabled || connection.isSyncReady
                               ? status
                               : const SyncStatus.cloudUnavailable(),
-                          syncingNow: _syncingNow,
-                          onSyncNow: status.kind == SyncStatusKind.disabled ? null : _syncNow,
                         ),
                         loading: () => const _SyncStatusSkeleton(),
                         error: (_, __) => FulusErrorState(
