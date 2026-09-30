@@ -1,6 +1,7 @@
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/employee_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/repositories/permission_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
