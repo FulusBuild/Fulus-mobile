@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../../app/providers.dart';
+import '../../../../../core/errors/failure.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/async_timeout.dart';
@@ -304,9 +305,9 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
             FulusTextField(
               label: 'Email',
               controller: _emailController,
-              enabled: !_saving && isNew,
+              enabled: !_saving,
               keyboardType: TextInputType.emailAddress,
-              helperText: isNew ? 'This becomes their Fulus login email.' : null,
+              helperText: 'This becomes their Fulus login email.',
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Role', style: AppTypography.subheading),
