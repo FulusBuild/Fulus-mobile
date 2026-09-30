@@ -262,7 +262,7 @@ class _FulusCloudConnectionScreenState
       if (mounted) {
         showFulusSnackbar(
           context,
-          message: 'Backup is active again. Pending changes will resume automatically.',
+          message: 'Automatic protection is active again. Pending changes will resume automatically.',
         );
         setState(() {});
       }
@@ -348,7 +348,7 @@ class _FulusCloudConnectionScreenState
       showFulusSnackbar(
         context,
         message:
-            'Your business is connected. Fulus will back it up automatically when you’re online.',
+            'Automatic protection is on. Fulus will keep your business up to date when you’re online.',
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
@@ -378,7 +378,7 @@ class _FulusCloudConnectionScreenState
       if (!mounted) return;
       showFulusSnackbar(
         context,
-        message: 'Backup is active again. Pending changes will resume automatically.',
+        message: 'Automatic protection is active again. Pending changes will resume automatically.',
       );
       setState(() {});
     } on Failure catch (failure) {
@@ -402,7 +402,7 @@ class _FulusCloudConnectionScreenState
     if (mounted) {
       showFulusSnackbar(
         context,
-        message: 'Cloud backup disconnected. Your local data is still safe.',
+        message: 'Automatic protection is off. Your local data is still safe.',
       );
       setState(() {});
     }
@@ -425,10 +425,10 @@ class _FulusCloudConnectionScreenState
     final isWide = MediaQuery.sizeOf(context).width >= 700;
 
     return FulusScreen(
-      title: 'Automatic backup & sync',
+      title: 'Business backup & sync',
       subtitle: connected
-          ? 'Your business stays backed up and up to date automatically'
-          : 'Protect this business without changing your local data',
+          ? 'Fulus keeps your business backed up and up to date automatically'
+          : 'Keep this business protected without changing your local data',
       body: ListView(
         padding: EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [
@@ -465,9 +465,9 @@ class _FulusCloudConnectionScreenState
                             children: [
                               Text(
                                 connected
-                                    ? 'Backup is on'
+                                    ? 'Automatic protection is on'
                                     : cloudSessionActive
-                                        ? 'Backup is reconnecting'
+                                        ? 'Backup is getting ready again'
                                         : 'Back up your business',
                                 style: AppTypography.heading.copyWith(
                                   color: AppColors.textPrimaryOf(context),
@@ -477,10 +477,10 @@ class _FulusCloudConnectionScreenState
                               const SizedBox(height: AppSpacing.xs),
                               Text(
                                 connected
-                                    ? 'Connected and ready to keep your business data backed up when you’re online.'
+                                    ? 'Fulus keeps your business data backed up automatically when you’re online.'
                                     : cloudSessionActive
-                                        ? 'Your account is still signed in. Fulus will resume cloud backup when this device is ready.'
-                                        : 'Create a Fulus account to protect this local business and use it on other devices.',
+                                        ? 'Your account is still signed in. Fulus will continue automatically when this device is ready.'
+                                        : 'Create a Fulus account to protect this business and use it on other phones.',
                                 style: AppTypography.body.copyWith(
                                   color: AppColors.textSecondaryOf(context),
                                 ),
@@ -501,10 +501,10 @@ class _FulusCloudConnectionScreenState
                                   const SizedBox(width: AppSpacing.xs),
                                   Text(
                                     connected
-                                        ? 'Backup is on'
+                                        ? 'Automatic protection is on'
                                         : cloudSessionActive
-                                            ? 'Reconnecting'
-                                            : 'Not connected',
+                                            ? 'Getting ready'
+                                            : 'Backup not set up',
                                     style: AppTypography.caption.copyWith(
                                       color: connected
                                           ? AppColors.successOf(context)
@@ -524,14 +524,14 @@ class _FulusCloudConnectionScreenState
                   if (needsReauthentication) ...[
                     FulusSectionHeader(
                       title: 'Restore automatic backup',
-                      subtitle: 'Your business is still available, but automatic backup needs to be restored',
+                      subtitle: 'Automatic protection needs your attention',
                     ),
                     FulusCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'Your local business is safe. Sign in again to restore cloud sync. Pending queued changes will remain on this device until the session is restored.',
+                            'Your local business is safe. Sign in again to continue automatic backup. Pending changes stay on this device until access is restored.',
                             style: AppTypography.body.copyWith(
                               color: AppColors.textSecondaryOf(context),
                             ),
@@ -559,7 +559,7 @@ class _FulusCloudConnectionScreenState
                           ],
                           const SizedBox(height: AppSpacing.lg),
                           FulusButton(
-                            label: 'Reconnect account',
+                            label: 'Sign in to continue',
                             loading: _busy,
                             onPressed: _busy ? null : _reauthenticate,
                           ),
@@ -568,8 +568,8 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (connected) ...[
                     FulusSectionHeader(
-                      title: 'Automatic backup & sync',
-                      subtitle: 'Cloud backup for this business',
+                      title: 'Business backup & sync',
+                      subtitle: 'Automatic protection for this business',
                     ),
                     FulusCard(
                       child: Column(
@@ -577,7 +577,7 @@ class _FulusCloudConnectionScreenState
                         children: [
                           FulusListRow(
                             leading: const Icon(Icons.cloud_done_outlined),
-                            title: const Text('Automatic backup'),
+                            title: const Text('Automatic protection'),
                             subtitle: const Text('Backed up automatically when online'),
                             trailing: const Icon(Icons.check_circle_outline),
                           ),
@@ -587,7 +587,7 @@ class _FulusCloudConnectionScreenState
                             child: SizedBox(
                               width: isWide ? 240 : double.infinity,
                               child: FulusButton(
-                                label: 'Disconnect account',
+                                label: 'Turn off automatic backup',
                                 variant: FulusButtonVariant.secondary,
                                 onPressed: _busy ? null : _disconnect,
                               ),
@@ -598,7 +598,7 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (cloudSyncEnabled && connection.isSessionAuthenticated) ...[
                     FulusSectionHeader(
-                      title: 'Automatic backup needs attention',
+                      title: 'Automatic protection needs attention',
                       subtitle: 'Your account is still signed in, but automatic backup is not ready yet',
                     ),
                     FulusCard(
@@ -606,7 +606,7 @@ class _FulusCloudConnectionScreenState
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'Your local business is safe. Fulus will restore the cloud connection and continue any pending backup without replacing your local data.',
+                            'Your local business is safe. Fulus will continue automatic backup without replacing the data on this device.',
                             style: AppTypography.body.copyWith(
                               color: AppColors.textSecondaryOf(context),
                             ),
@@ -620,7 +620,7 @@ class _FulusCloudConnectionScreenState
                           ],
                           const SizedBox(height: AppSpacing.lg),
                           FulusButton(
-                            label: 'Reconnect & sync',
+                            label: 'Try again',
                             loading: _busy,
                             onPressed: _busy ? null : _retryCloudSync,
                           ),
@@ -629,12 +629,12 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (cloudSessionRestoring) ...[
                     FulusSectionHeader(
-                      title: 'Automatic backup is reconnecting',
+                      title: 'Automatic protection is reconnecting',
                       subtitle: 'Your business stays available while backup restores automatically',
                     ),
                     FulusCard(
                       child: Text(
-                        'Your local business is safe. Fulus will reconnect automatically when the internet is available. You do not need to sign in again.',
+                        'Your local business is safe. Fulus will continue automatically when the internet is available. You do not need to sign in again.',
                         style: AppTypography.body.copyWith(
                           color: AppColors.textSecondaryOf(context),
                         ),
@@ -642,8 +642,8 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else if (connected) ...[
                     FulusSectionHeader(
-                      title: 'Automatic backup & sync',
-                      subtitle: 'Cloud backup for this business',
+                      title: 'Business backup & sync',
+                      subtitle: 'Automatic protection for this business',
                     ),
                     FulusCard(
                       child: Column(
@@ -651,7 +651,7 @@ class _FulusCloudConnectionScreenState
                         children: [
                           FulusListRow(
                             leading: const Icon(Icons.cloud_done_outlined),
-                            title: const Text('Automatic backup'),
+                            title: const Text('Automatic protection'),
                             subtitle: const Text('Backed up automatically when online'),
                             trailing: const Icon(Icons.check_circle_outline),
                           ),
@@ -661,7 +661,7 @@ class _FulusCloudConnectionScreenState
                             child: SizedBox(
                               width: isWide ? 240 : double.infinity,
                               child: FulusButton(
-                                label: 'Disconnect account',
+                                label: 'Turn off automatic backup',
                                 variant: FulusButtonVariant.secondary,
                                 onPressed: _busy ? null : _disconnect,
                               ),
@@ -672,7 +672,7 @@ class _FulusCloudConnectionScreenState
                     ),
                   ] else ...[
                     FulusSectionHeader(
-                      title: 'Automatic backup',
+                      title: 'Automatic protection',
                       subtitle: 'Create your account and protect this business',
                     ),
                     FulusCard(
@@ -755,7 +755,7 @@ class _FulusCloudConnectionScreenState
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                       child: Text(
-                        'Your business remains local-first. Connecting Cloud adds backup and sync; it does not replace the data already on this device.',
+                        'Your business stays on this device first. Automatic backup & sync adds protection without replacing the data already here.',
                         style: AppTypography.caption.copyWith(
                           color: AppColors.textSecondaryOf(context),
                         ),
