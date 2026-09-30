@@ -37,6 +37,14 @@ class LocationRepositoryImpl implements LocationRepository {
   }
 
   @override
+  Future<Location?> getLocationByServerId(String serverId) async {
+    final row = await (_db.select(_db.locations)
+          ..where((l) => l.serverId.equals(serverId) & l.deletedAt.isNull()))
+        .getSingleOrNull();
+    return row?.toDomain();
+  }
+
+  @override
   Future<Location> createLocation(LocationDraft draft) async {
     final localId = Ulid().toString();
     final location = draft.toLocationEntity(localId: localId);
