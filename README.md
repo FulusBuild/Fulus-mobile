@@ -33,7 +33,7 @@ Customer records with a running credit ledger — track what's owed, record paym
 Income and expense tracking with categorization, supplier ledgers, tax remittance records, and profit/cash-flow reporting.
 
 **Employees**
-Cloud-synchronized staff roster, attendance, and leave tracking. Owners can add a team member once, create an invitation, and let that employee join the same business on another phone. Same-device staff logins remain available for shared tills, while cloud membership/permissions remain authoritative for cross-device access.
+Cloud-synchronized staff roster, attendance, and leave tracking. Owners add a team member once, create an invitation, and let that employee join the same business on another phone. The invitation is the employee account entry point; shared-device identity switching remains separate from employee onboarding, while cloud membership/permissions remain authoritative for access.
 
 **Reports & Insights**
 Sales, inventory, and finance reporting with CSV and PDF export.
