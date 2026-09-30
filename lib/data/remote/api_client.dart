@@ -121,7 +121,10 @@ class ApiClient {
     if (code == 'invalid_credentials' ||
         code == 'user_not_found' ||
         code == 'email_exists') {
-      return const BusinessRuleFailure('Email or password is incorrect.');
+      return BusinessRuleFailure(
+        'Email or password is incorrect.',
+        code: code,
+      );
     }
     if (code == 'signup_disabled' || code == 'email_provider_disabled') {
       return const BusinessRuleFailure(
