@@ -229,13 +229,21 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
       if (businessId == null) {
         throw StateError('This business is not ready for employee invitations yet.');
       }
+      final localLocationId = saved.locationId;
+      final localLocation = localLocationId == null
+          ? null
+          : await ref.read(locationRepositoryProvider).getLocationById(localLocationId);
+      final cloudLocationId = localLocation?.serverId;
+      if (localLocationId != null && (cloudLocationId == null || cloudLocationId.isEmpty)) {
+        throw StateError('This location is still being backed up. Try again in a moment.');
+      }
 
       final invite = await ref.read(fulusConnectionStateProvider).createStaffInvite(
             roleName: _cloudRole(saved.role),
             email: saved.email!,
             invitedName: saved.fullName,
             permissionCodes: _cloudPermissionCodesForRole(saved.role),
-            locationId: saved.locationId,
+            locationId: cloudLocationId,
             employeeClientReference: saved.id,
             employee: {
               'full_name': saved.fullName,
@@ -246,7 +254,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
               'position': saved.position,
               'salary': saved.salary,
               'date_hired': saved.dateHired?.toIso8601String(),
-              'location_id': saved.locationId,
+              'location_id': cloudLocationId,
             },
           );
 
