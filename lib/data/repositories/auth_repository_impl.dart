@@ -376,7 +376,7 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     final employeeRow = await (_db.select(_db.employees)
-          ..where((e) => e.id.equals(employeeId) & e.deletedAt.isNull()))
+          ..where((e) => e.localId.equals(employeeId) & e.deletedAt.isNull()))
         .getSingleOrNull();
     if (employeeRow == null) {
       throw const BusinessRuleFailure(
