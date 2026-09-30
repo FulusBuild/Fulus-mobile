@@ -29,6 +29,7 @@ import '../data/remote/fulus_customer_canonical_reconciler.dart';
 import '../data/remote/fulus_customer_ledger_canonical_reconciler.dart';
 import '../data/remote/fulus_device_registration.dart';
 import '../data/remote/fulus_expense_canonical_reconciler.dart';
+import '../data/remote/fulus_employee_canonical_reconciler.dart';
 import '../data/remote/fulus_expense_category_canonical_reconciler.dart';
 import '../data/remote/fulus_income_canonical_reconciler.dart';
 import '../data/remote/fulus_location_canonical_reconciler.dart';
@@ -41,6 +42,7 @@ import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/product_image_api.dart';
 import '../data/remote/fulus_supplier_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_coordinator.dart';
+import '../sync/handlers/employee_sync_handler.dart';
 import '../data/remote/endpoints/auth_api.dart';
 import '../data/remote/endpoints/business_settings_api.dart';
 import '../data/remote/endpoints/cash_drawer_shifts_api.dart';
@@ -238,6 +240,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   }
 
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository, productRepository: productRepository, customerRepository: customerRepository, executionLease: syncExecutionLease);
+  final employeeSyncHandler = EmployeeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, employeeRepository: employeeRepository);
   final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository);
   final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage, customerRepository: customerRepository, executionLease: syncExecutionLease);
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
@@ -256,6 +259,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     handlers: {
       'sale': FulusSaleCanonicalReconciler(repository: saleCanonicalRepository).apply,
       'customer': FulusCustomerCanonicalReconciler(repository: customerRepository).apply,
+      'employee': FulusEmployeeCanonicalReconciler(repository: employeeRepository).apply,
       'customer_ledger': FulusCustomerLedgerCanonicalReconciler(repository: customerCreditRepository).apply,
       'category': FulusCategoryCanonicalReconciler(repository: categoryRepository).apply,
       'supplier': FulusSupplierCanonicalReconciler(repository: supplierRepository).apply,
@@ -351,6 +355,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     handlersByEntityType: {
       'sale': saleSyncHandler,
       'customer': customerSyncHandler,
+      'employee': employeeSyncHandler,
       'customer_ledger': customerLedgerSyncHandler,
       'category': categorySyncHandler,
       'supplier': supplierSyncHandler,
@@ -636,6 +641,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     db: database,
     authRepository: authRepository,
     permissionRepository: permissionRepository,
+    syncQueue: syncQueue,
   );
   final receiptRepository = ReceiptRepositoryImpl(db: database);
   final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
