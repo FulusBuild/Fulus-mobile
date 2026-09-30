@@ -190,6 +190,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   late final SyncTriggers syncTriggers;
 
+  final employeeRepository = EmployeeRepositoryImpl(
+    db: database,
+    authRepository: authRepository,
+    permissionRepository: permissionRepository,
+    syncQueue: syncQueue,
+  );
+
   final customerCreditRepository = CustomerCreditRepositoryImpl(db: database, syncQueue: syncQueue);
   final saleRepository = SaleRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository, customerCreditRepository: customerCreditRepository, diagnosticLogger: diagnosticLogger);
 
@@ -637,12 +644,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final importProductsFromCsv = ImportProductsFromCsv(productRepository: productRepository, categoryRepository: categoryRepository, supplierRepository: supplierRepository);
   // Keep the CSV import use case in the root provider container.
   // This is intentionally wired here because the provider has no default implementation.
-  final employeeRepository = EmployeeRepositoryImpl(
-    db: database,
-    authRepository: authRepository,
-    permissionRepository: permissionRepository,
-    syncQueue: syncQueue,
-  );
   final receiptRepository = ReceiptRepositoryImpl(db: database);
   final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
   final backupRepository = BackupRepositoryImpl(lifecycle: appDatabaseLifecycle);
