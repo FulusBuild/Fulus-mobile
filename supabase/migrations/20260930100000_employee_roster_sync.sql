@@ -216,8 +216,6 @@ begin
 end;
 $$;
 
-revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[],uuid)
-  from public,anon,authenticated,service_role;
 revoke all on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[],uuid,text,jsonb)
   from public,anon,authenticated;
 grant execute on function public.create_staff_invite(uuid,uuid,text,integer,uuid,text[],uuid,text,jsonb)
