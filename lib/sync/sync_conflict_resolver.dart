@@ -184,6 +184,11 @@ class SyncConflictResolver {
 
   Future<String?> _serverEntityId(String entityType, String localId) async {
     switch (entityType) {
+      case 'employee':
+        return (await (_db.select(_db.employees)
+                  ..where((t) => t.localId.equals(localId)))
+                .getSingleOrNull())
+            ?.serverId;
       case 'customer':
         return (await (_db.select(_db.customers)
                   ..where((t) => t.localId.equals(localId)))
