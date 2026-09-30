@@ -18,7 +18,7 @@ void main() {
     employeeRepository = _MockEmployeeRepository();
     locationRepository = _MockLocationRepository();
     when(() => locationRepository.getLocationByServerId(any()))
-        .thenAnswer((_) async => const Location(
+        .thenAnswer((_) async => Location(
               localId: 'location-local-1',
               serverId: 'location-server-1',
               name: 'Main shop',
