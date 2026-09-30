@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../domain/entities/employee.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import '../local/database/tables/employee_tables.dart';
 
 extension EmployeeRowMapper on EmployeeRow {
