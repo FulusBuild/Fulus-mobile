@@ -40,6 +40,55 @@ Deno.serve(async (req: Request) => {
 
   const action = body.action;
 
+  // Invite previews are intentionally the only unauthenticated staff-api action.
+  // The token is a high-entropy bearer secret; the preview reveals only the
+  // identity and role already embedded in the invitation, never membership data.
+  if (action === "inspect_invite") {
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    if (!token) {
+      return json({ error: { code: "INVALID_REQUEST", message: "Invite token is required" } }, 400);
+    }
+
+    const tokenHash = await sha256Hex(token);
+    const { data: invite, error: inviteError } = await admin
+      .from("staff_invites")
+      .select("business_id, invited_email, invited_name, role_id, expires_at, claimed_at, location_id")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+
+    if (inviteError || !invite) {
+      return json({ error: { code: "INVALID_INVITE", message: "That invitation is not valid." } }, 404);
+    }
+    if (invite.claimed_at) {
+      return json({ error: { code: "INVITE_CLAIMED", message: "That invitation has already been used." } }, 409);
+    }
+    if (new Date(invite.expires_at).getTime() <= Date.now()) {
+      return json({ error: { code: "INVITE_EXPIRED", message: "That invitation has expired." } }, 410);
+    }
+
+    const [{ data: role }, { data: business }] = await Promise.all([
+      admin.from("roles").select("name").eq("id", invite.role_id).eq("business_id", invite.business_id).maybeSingle(),
+      admin.from("businesses").select("name").eq("id", invite.business_id).maybeSingle(),
+    ]);
+
+    if (!role || role.name === "owner") {
+      return json({ error: { code: "INVALID_INVITE", message: "That invitation is no longer valid." } }, 404);
+    }
+
+    return json({
+      data: {
+        business_id: invite.business_id,
+        business_name: business?.name ?? "your business",
+        full_name: invite.invited_name ?? "",
+        email: invite.invited_email ?? "",
+        role_name: role.name,
+        expires_at: invite.expires_at,
+        location_id: invite.location_id,
+      },
+      server_authoritative: true,
+    });
+  }
+
   if (action === "claim_invite") {
     const token = typeof body.token === "string" ? body.token.trim() : "";
     if (!token) {
@@ -207,6 +256,7 @@ Deno.serve(async (req: Request) => {
         ? body.permission_codes.filter((value): value is string => typeof value === "string")
         : null;
       const locationId = typeof body.location_id === "string" ? body.location_id.trim() : null;
+      const invitedName = typeof body.invited_name === "string" ? body.invited_name.trim() : "";
 
       if (!requestedRole || requestedRole === "owner") {
         return json({ error: { code: "INVALID_REQUEST", message: "A non-owner staff role is required" } }, 400);
@@ -237,6 +287,7 @@ Deno.serve(async (req: Request) => {
         target_actor_user_id: userData.user.id,
         target_permission_codes: permissionCodes,
         target_location_id: locationId || null,
+        target_invited_name: invitedName || null,
       }));
       break;
     }
