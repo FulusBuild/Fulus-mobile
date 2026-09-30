@@ -201,6 +201,24 @@ class _EmployeeDetailBody extends ConsumerWidget {
             ],
           ),
         ),
+        if (employee.authUserId == null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: FulusButton(
+              label: 'Use on this phone',
+              variant: FulusButtonVariant.secondary,
+              onPressed: () => _openSetUpLoginSheet(context, ref, grantableBy),
+              icon: Icons.pin_outlined,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Optional. Use this only if the employee also needs a local switchable account on your phone.',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+        ],
         if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
