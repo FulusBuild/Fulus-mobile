@@ -32,6 +32,9 @@ class _FakeLocationRepository implements LocationRepository {
   @override
   Future<Location?> getLocationById(String localId) async => null;
   @override
+  Future<Location?> getLocationByServerId(String serverId) async =>
+      this.serverId == serverId ? null : null;
+  @override
   Future<Location> createLocation(LocationDraft draft) => throw UnimplementedError();
   @override
   Future<Location> getOrCreateDefaultLocation({required String name}) => throw UnimplementedError();
