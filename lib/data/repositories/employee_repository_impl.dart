@@ -329,11 +329,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
             syncStatus: const Value(SyncStatus.settled),
           ),
         );
-        if (cloudUserId != null && cloudUserId.isNotEmpty) {
-          await (_db.update(_db.users)..where((u) => u.localId.equals(cloudUserId))).write(
-            UsersCompanion(isActive: Value(isActive), updatedAt: Value(updatedAt)),
-          );
-        }
+      }
+      if (cloudUserId != null && cloudUserId.isNotEmpty) {
+        await (_db.update(_db.users)..where((u) => u.localId.equals(cloudUserId))).write(
+          UsersCompanion(isActive: Value(isActive), updatedAt: Value(updatedAt)),
+        );
       }
     });
   }
