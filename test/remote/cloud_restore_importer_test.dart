@@ -34,6 +34,7 @@ void main() {
           'user_id': 'staff-1',
           'role_id': 'role-manager',
           'status': 'active',
+          'permissions_overridden': true,
           'created_at': '2026-01-02T00:00:00Z',
           'updated_at': '2026-01-02T00:00:00Z',
         },
@@ -51,6 +52,9 @@ void main() {
       'role_permissions': [
         {'role_id': 'role-manager', 'permission_id': 'perm-reports'},
         {'role_id': 'role-manager', 'permission_id': 'perm-employees'},
+      ],
+      'business_member_permissions': [
+        {'business_id': 'business-1', 'user_id': 'staff-1', 'permission_id': 'perm-reports'},
       ],
       'location_memberships': [],
       'locations': [],
@@ -81,7 +85,7 @@ void main() {
 
     expect(result.importedCounts['restored_staff_users'], 1);
     expect(result.importedCounts['restored_employees'], 1);
-    expect(result.importedCounts['restored_user_permissions'], 2);
+    expect(result.importedCounts['restored_user_permissions'], 1);
 
     final users = await db.select(db.users).get();
     final employees = await db.select(db.employees).get();
@@ -91,7 +95,10 @@ void main() {
     expect(users.single.fullName, 'Staff Member');
     expect(employees.single.authUserId, 'staff-1');
     expect(employees.single.role, 'manager');
-    expect(permissions.map((row) => row.permission.name), containsAll(<String>['viewReports', 'manageEmployees']));
+    expect(users.single.role, AuthRole.manager);
+    expect(users.single.isActive, isTrue);
+    expect(permissions.map((row) => row.permission.name), contains('viewReports'));
+    expect(permissions.map((row) => row.permission.name), isNot(contains('manageEmployees')));
   });
 
   test('restores the cloud employee roster without duplicating claimed staff', () async {
