@@ -256,6 +256,21 @@ class CloudRestoreImporter {
       }
     }
 
+    // A membership may deliberately override its role's permissions. The
+    // cloud membership flag is authoritative: when it is true, restore the
+    // explicit business_member_permissions rows instead of silently falling
+    // back to the role preset.
+    final memberPermissions = _maps(snapshot['business_member_permissions']);
+    final permissionCodesByUser = <String, Set<String>>{};
+    for (final row in memberPermissions) {
+      final userId = row['user_id']?.toString();
+      final permissionId = row['permission_id']?.toString();
+      final code = permissionId == null ? null : permissions[permissionId];
+      if (userId != null && code != null) {
+        permissionCodesByUser.putIfAbsent(userId, () => <String>{}).add(code);
+      }
+    }
+
     final locationMemberships = _maps(snapshot['location_memberships']);
     final locationByUser = <String, String>{};
     for (final row in locationMemberships) {
@@ -308,9 +323,12 @@ class CloudRestoreImporter {
         employees++;
       }
 
-      final localPermissions = _mapCloudPermissions(
-        permissionCodesByRole[membership['role_id']?.toString() ?? ''] ?? const {},
-      );
+      final roleCodes =
+          permissionCodesByRole[membership['role_id']?.toString() ?? ''] ?? const <String>{};
+      final explicitCodes = permissionCodesByUser[userId] ?? const <String>{};
+      final effectiveCodes =
+          membership['permissions_overridden'] == true ? explicitCodes : roleCodes;
+      final localPermissions = _mapCloudPermissions(effectiveCodes);
       for (final permission in localPermissions) {
         await _insertPermission(
           userId: userId,
@@ -335,18 +353,34 @@ class CloudRestoreImporter {
     );
   }
 
+  AuthRole _localRoleFromCloudRole(String roleName) {
+    switch (roleName.trim().toLowerCase()) {
+      case 'owner':
+      case 'admin':
+        return AuthRole.owner;
+      case 'manager':
+        return AuthRole.manager;
+      case 'cashier':
+        return AuthRole.cashier;
+      default:
+        return AuthRole.employee;
+    }
+  }
+
   Future<void> _insertUser({
     required String userId,
     required String fullName,
     required String? email,
+    required AuthRole role,
+    required bool isActive,
     required DateTime now,
   }) async {
     final values = <String, Object?>{
       'local_id': userId,
       'full_name': fullName,
       'email': email,
-      'role': 'employee',
-      'is_active': 1,
+      'role': role.name,
+      'is_active': isActive ? 1 : 0,
       'failed_login_attempts': 0,
       'created_at': now.millisecondsSinceEpoch,
       'updated_at': now.millisecondsSinceEpoch,
