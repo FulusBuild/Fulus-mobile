@@ -20,7 +20,7 @@ class Employees extends Table {
   TextColumn get serverId => text().nullable()();
   TextColumn get membershipId => text().nullable()();
   TextColumn get cloudUserId => text().nullable()();
-  TextColumn get syncStatus => textEnum<SyncStatus>().withDefault(const Constant(SyncStatus.pending))();
+  TextColumn get syncStatus => textEnum<SyncStatus>().withDefault(const Constant('pending'))();
 
   /// Nullable link into Users — see domain/entities/employee.dart's
   /// class doc for why this is optional (a roster row can exist for
@@ -79,7 +79,7 @@ enum LeaveStatusValue { pending, approved, denied }
 @DataClassName('LeaveRecordRow')
 class LeaveRecords extends Table {
   TextColumn get id => text()();
-  TextColumn get employeeId => text().references(Employees, #id)();
+  TextColumn get employeeId => text().references(Employees, #localId)();
   DateTimeColumn get startDate => dateTime()();
   DateTimeColumn get endDate => dateTime()();
   TextColumn get reason => text().withLength(max: 255).nullable()();
