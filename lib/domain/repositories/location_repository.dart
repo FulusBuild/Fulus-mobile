@@ -6,6 +6,11 @@ abstract class LocationRepository {
 
   Future<Location?> getLocationById(String localId);
 
+  /// Resolves a cloud location identity back to this device's local identity.
+  /// Cross-device business entities store server IDs in the cloud but keep
+  /// local foreign keys locally.
+  Future<Location?> getLocationByServerId(String serverId);
+
   Future<Location> createLocation(LocationDraft draft);
 
   Future<Location> getOrCreateDefaultLocation({required String name});
