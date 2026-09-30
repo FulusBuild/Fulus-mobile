@@ -57,15 +57,10 @@ String permissionDescription(Permission permission) {
 }
 
 /// A checkbox per [Permission], each tile carrying its own one-line
-/// description — used both for the initial grant while setting up a
-/// login (_SetUpLoginSheet, seeded from a role preset the owner can
-/// adjust before creating) and for editing an existing login's grant
-/// afterward (EmployeeDetailScreen's own "Access & permissions"
-/// section). Stateless by design: the caller owns [selected] and gets
-/// every change back through [onChanged] rather than this widget
-/// holding its own copy, the same "caller owns the state, this widget
-/// is just its view" shape FulusTextField's controller-based API uses
-/// elsewhere in this app.
+/// description — used for editing an existing employee login's grant
+/// from EmployeeDetailScreen's "Access & permissions" section.
+/// Stateless by design: the caller owns [selected] and gets every change
+/// back through [onChanged] rather than this widget holding its own copy.
 ///
 /// [grantableBy] is the ACTING user's own held permissions (an Owner
 /// passes [Permission.all]) — Permission.manageEmployees's own doc
