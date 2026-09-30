@@ -33,7 +33,7 @@ Customer records with a running credit ledger — track what's owed, record paym
 Income and expense tracking with categorization, supplier ledgers, tax remittance records, and profit/cash-flow reporting.
 
 **Employees**
-Staff roster, attendance, and leave tracking. An owner can set up a login for any staff member directly from their own account, and an owner-approval PIN system lets staff operate the till under supervision without full account access.
+Cloud-synchronized staff roster, attendance, and leave tracking. Owners can add a team member once, create an invitation, and let that employee join the same business on another phone. Same-device staff logins remain available for shared tills, while cloud membership/permissions remain authoritative for cross-device access.
 
 **Reports & Insights**
 Sales, inventory, and finance reporting with CSV and PDF export.
@@ -204,7 +204,7 @@ flutter build ios --release
 
 **Near-term priorities:**
 - Round out the rest of Settings beyond what's built today
-- A cross-device employee invite flow (QR-code based) for shops running more than one device — today, an owner sets up a staff login from the same device that staff member will use
+- Continue production-readiness validation across physical Android lifecycle, restore, location switching, and release workflows
 
 **Further out:**
 - Localization into additional languages spoken across the target market
