@@ -58,7 +58,7 @@ enum AttendanceStatusValue { present, absent, late }
 @DataClassName('AttendanceRecordRow')
 class AttendanceRecords extends Table {
   TextColumn get id => text()();
-  TextColumn get employeeId => text().references(Employees, #id)();
+  TextColumn get employeeId => text().references(Employees, #localId)();
   DateTimeColumn get date => dateTime()();
   TextColumn get status => textEnum<AttendanceStatusValue>()();
 
