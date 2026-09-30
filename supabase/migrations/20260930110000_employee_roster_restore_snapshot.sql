@@ -153,6 +153,7 @@ begin
     'cash_ledger', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.cash_ledger t where t.business_id = p_business_id), '[]'::jsonb),
     'cash_drawer_shifts', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.cash_drawer_shifts t where t.business_id = p_business_id), '[]'::jsonb),
     'staff_invites', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.staff_invites t where t.business_id = p_business_id), '[]'::jsonb),
+    'employees', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.employees t where t.business_id = p_business_id), '[]'::jsonb),
     'roles', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.roles t where t.business_id = p_business_id), '[]'::jsonb),
     'business_memberships', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.business_memberships t where t.business_id = p_business_id), '[]'::jsonb),
     'profiles', coalesce((select jsonb_agg(to_jsonb(px) order by px.id) from public.profiles px where px.id in (select bm.user_id from public.business_memberships bm where bm.business_id = p_business_id)), '[]'::jsonb),
