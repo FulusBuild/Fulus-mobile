@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../../app/providers.dart';
 import '../../../../../core/errors/module_failures.dart';
 import '../../../../../core/theme/design_tokens.dart';
 import '../../../../../core/utils/async_timeout.dart';
+import '../../../../../domain/entities/auth_user.dart';
 import '../../../../../domain/entities/employee.dart';
+import '../../../../../domain/entities/permission.dart';
 import '../../../../../shared/widgets/widgets.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
@@ -99,43 +102,19 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     );
   }
 
-  Future<void> _openEmployeeSheet(BuildContext context, {Employee? existing}) => showFulusBottomSheet<void>(
-        context: context,
-        title: existing == null ? 'Add team member' : 'Edit team member',
-        builder: (_) => _EmployeeFormSheet(existing: existing),
-      );
-}
+  Future<void> _openEmployeeSheet(BuildContext context, {Employee? existing}) async {
+    final invitation = await showFulusBottomSheet<String>(
+      context: context,
+      title: existing == null ? 'Add team member' : 'Edit team member',
+      builder: (_) => _EmployeeFormSheet(existing: existing),
+    );
+    if (invitation == null || !context.mounted) return;
 
-class _TeamOverview extends StatelessWidget {
-  const _TeamOverview({required this.employees});
-  final List<Employee> employees;
-
-  @override
-  Widget build(BuildContext context) {
-    const color = Color(0xFF1473E6);
-    final foreground = AppColors.onColor(color);
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: 132,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: FulusMetricCardColumn(
-            icon: FulusIcons.staff,
-            iconColor: foreground,
-            children: [
-              Text(
-                'Employees  ${employees.length}',
-                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const Text(
-                'People, access and attendance',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ],
-          ),
-        ),
+    await SharePlus.instance.share(
+      ShareParams(
+        text: invitation,
+        title: 'Invite to Fulus',
+        subject: 'Fulus team invitation',
       ),
     );
   }
@@ -151,42 +130,93 @@ class _EmployeeFormSheet extends ConsumerStatefulWidget {
 
 class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
   late final _nameController = TextEditingController(text: widget.existing?.fullName ?? '');
-  late final _roleController = TextEditingController(text: widget.existing?.role ?? '');
+  late final _emailController = TextEditingController(text: widget.existing?.email ?? '');
   late final _phoneController = TextEditingController(text: widget.existing?.phone ?? '');
+  late String _role = _initialRole(widget.existing?.role);
   bool _saving = false;
+
+  String _initialRole(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (normalized == 'manager' || normalized == 'admin') return 'Manager';
+    if (normalized == 'employee') return 'Employee';
+    return 'Cashier';
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _roleController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
+
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
+    if (name.length < 2) {
+      showFulusSnackbar(context, message: 'Enter the team member’s name.');
+      return;
+    }
+    if (widget.existing == null && (email.isEmpty || !email.contains('@'))) {
+      showFulusSnackbar(context, message: 'Add the email they will use for Fulus.');
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final existing = widget.existing;
       final draft = EmployeeDraft(
-        fullName: _nameController.text.trim(),
-        role: _roleController.text.trim().isEmpty ? null : _roleController.text.trim(),
+        fullName: name,
+        role: _role,
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        email: email.isEmpty ? existing?.email : email,
         authUserId: existing?.authUserId,
         department: existing?.department,
         position: existing?.position,
         salary: existing?.salary,
-        email: existing?.email,
         dateHired: existing?.dateHired,
         locationId: existing?.locationId,
       );
       final repo = ref.read(employeeRepositoryProvider);
-      if (existing == null) {
-        await repo.createEmployee(draft);
-      } else {
-        await repo.updateEmployee(existing.id, draft);
+      final saved = existing == null
+          ? await repo.createEmployee(draft)
+          : await repo.updateEmployee(existing.id, draft);
+
+      if (existing != null) {
+        if (mounted) Navigator.of(context).pop();
+        return;
       }
-      if (mounted) Navigator.of(context).pop();
+
+      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
+      if (businessId == null) {
+        throw StateError('This business is not ready for employee invitations yet.');
+      }
+
+      final invite = await ref.read(fulusConnectionStateProvider).createStaffInvite(
+            roleName: _cloudRole(saved.role),
+            email: saved.email!,
+            invitedName: saved.fullName,
+            permissionCodes: _cloudPermissionCodesForRole(saved.role),
+            locationId: saved.locationId,
+          );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(
+        'You’ve been invited to use Fulus for ${saved.fullName}.\n\n'
+        'Email: ${saved.email}\n'
+        'Role: ${saved.role ?? 'Employee'}\n\n'
+        'Open Fulus, tap “Join as employee”, and enter this invitation code:\n'
+        '${invite.token}\n\n'
+        'The invitation expires in 24 hours.',
+      );
     } on EmployeeValidationException catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        showFulusSnackbar(context, message: e.message);
+      }
+    } on Failure catch (e) {
       if (mounted) {
         setState(() => _saving = false);
         showFulusSnackbar(context, message: e.message);
@@ -194,40 +224,124 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
-        showFulusSnackbar(context, message: "Couldn't save this team member. Try again.");
+        showFulusSnackbar(context, message: "Couldn't finish adding this team member. Try again.");
       }
     }
   }
 
+  String _cloudRole(String? role) {
+    switch ((role ?? '').trim().toLowerCase()) {
+      case 'manager':
+      case 'admin':
+        return 'manager';
+      case 'cashier':
+        return 'cashier';
+      default:
+        return 'employee';
+    }
+  }
+
+  List<String> _cloudPermissionCodesForRole(String? role) {
+    final authRole = switch (_cloudRole(role)) {
+      'manager' => AuthRole.manager,
+      'cashier' => AuthRole.cashier,
+      _ => AuthRole.employee,
+    };
+    return _cloudPermissionCodes(Permission.defaultsForRole(authRole));
+  }
+
+  List<String> _cloudPermissionCodes(Set<Permission> permissions) {
+    final codes = <String>{};
+    for (final permission in permissions) {
+      switch (permission) {
+        case Permission.viewMoney:
+          codes.addAll({'cash.read', 'finance.read', 'sales.read', 'customers.read'});
+        case Permission.viewDashboardStats:
+          codes.add('business.read');
+        case Permission.approveWithoutSupervisor:
+          codes.addAll({'returns.approve', 'sales.void'});
+        case Permission.manageStock:
+          codes.addAll({'catalog.manage', 'inventory.adjust', 'inventory.transfer'});
+        case Permission.viewReports:
+          codes.add('reports.read');
+        case Permission.manageEmployees:
+          codes.add('employees.manage');
+        case Permission.manageSettings:
+          codes.addAll({'business.manage', 'locations.manage'});
+        case Permission.manageBackup:
+          codes.add('backup.manage');
+        case Permission.viewAuditLog:
+          codes.add('audit.read');
+      }
+    }
+    return codes.toList()..sort();
+  }
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.lg,
-          right: AppSpacing.lg,
-          bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FulusTextField(label: 'Full name', controller: _nameController),
-              const SizedBox(height: AppSpacing.sm),
-              FulusTextField(label: 'Role (e.g. Cashier)', controller: _roleController),
-              const SizedBox(height: AppSpacing.sm),
-              FulusTextField(label: 'Phone (optional)', controller: _phoneController, keyboardType: TextInputType.phone),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: FulusButton(
-                  label: widget.existing == null ? 'Add member' : 'Save changes',
-                  loading: _saving,
-                  onPressed: _saving ? null : _submit,
+  Widget build(BuildContext context) {
+    final isNew = widget.existing == null;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isNew)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Text(
+                  'Add their name, email and role once. Fulus will create the invitation for you.',
+                  style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ),
-            ],
-          ),
+            FulusTextField(label: 'Full name', controller: _nameController, enabled: !_saving),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(
+              label: 'Email',
+              controller: _emailController,
+              enabled: !_saving && isNew,
+              keyboardType: TextInputType.emailAddress,
+              helperText: isNew ? 'This becomes their Fulus login email.' : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Role', style: AppTypography.subheading),
+            const SizedBox(height: AppSpacing.xs),
+            FulusChipRow(
+              children: [
+                for (final role in const ['Cashier', 'Manager', 'Employee'])
+                  FulusChip(
+                    label: role,
+                    selected: _role == role,
+                    onTap: _saving ? null : () => setState(() => _role = role),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FulusTextField(
+              label: 'Phone (optional)',
+              controller: _phoneController,
+              enabled: !_saving,
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FulusButton(
+                label: isNew ? 'Add & invite' : 'Save changes',
+                loading: _saving,
+                onPressed: _saving ? null : _submit,
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _EmployeeTile extends ConsumerWidget {
