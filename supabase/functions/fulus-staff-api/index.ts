@@ -18,18 +18,9 @@ const sha256Hex = async (value: string) => {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
 
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) {
-    return json({ error: { code: "UNAUTHENTICATED", message: "Bearer token required" } }, 401);
-  }
-
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: userData, error: userError } = await admin.auth.getUser(auth.slice(7));
-  if (userError || !userData.user) {
-    return json({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
-  }
 
   let body: Record<string, unknown>;
   try {
@@ -87,6 +78,17 @@ Deno.serve(async (req: Request) => {
       },
       server_authoritative: true,
     });
+  }
+
+  // Every action after invite inspection requires an authenticated account.
+  const auth = req.headers.get("authorization");
+  if (!auth?.startsWith("Bearer ")) {
+    return json({ error: { code: "UNAUTHENTICATED", message: "Bearer token required" } }, 401);
+  }
+
+  const { data: userData, error: userError } = await admin.auth.getUser(auth.slice(7));
+  if (userError || !userData.user) {
+    return json({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
   }
 
   if (action === "claim_invite") {
