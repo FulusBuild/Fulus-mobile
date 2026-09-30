@@ -106,14 +106,6 @@ Deno.serve(async (req) => {
     return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
   }
   const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
-  const [{ data: canReadEmployees }, { data: canManageEmployees }] = await Promise.all([
-    db.rpc("user_has_permission", { target_business_id: businessId, target_user_id: userId, target_permission: "employees.read" }),
-    db.rpc("user_has_permission", { target_business_id: businessId, target_user_id: userId, target_permission: "employees.manage" }),
-  ]);
-  if (canReadEmployees == null || canManageEmployees == null) {
-    return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
-  }
-  const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
 
   const { data: locationRows, error: locationMembershipError } = await db
     .from("location_memberships")
