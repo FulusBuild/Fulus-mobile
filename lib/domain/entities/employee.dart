@@ -11,9 +11,9 @@
 ///
 /// This module (Stage 11) owns the HR roster on top of whatever local
 /// login accounts Stage 2 already created: who's on the team, their
-/// role/position, contact details, attendance, and leave requests. Every
-/// entity below is local-only per the Implementation Bible ("Employees do
-/// NOT require synchronization").
+/// role/position, contact details, attendance, and leave requests. The
+/// employee roster is cloud-synchronized business data; attendance and leave
+/// remain device-local records for now.
 ///
 /// [authUserId] is the deliberate seam to Stage 2: when a roster entry
 /// also has its own device login (the common case — a till employee who
