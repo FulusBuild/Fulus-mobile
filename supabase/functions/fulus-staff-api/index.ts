@@ -335,6 +335,25 @@ Deno.serve(async (req: Request) => {
       break;
     }
 
+    case "revoke_pending_invites_by_email": {
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      if (!email) {
+        return json({ error: { code: "INVALID_REQUEST", message: "Employee email is required" } }, 400);
+      }
+      const { error: revokeError } = await admin
+        .from("staff_invites")
+        .update({ expires_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("business_id", businessId)
+        .eq("invited_email", email)
+        .is("claimed_at", null)
+        .gt("expires_at", new Date().toISOString());
+      if (revokeError) {
+        return json({ error: { code: "STAFF_ACCESS_FAILED", message: "Unable to revoke pending invitations" } }, 500);
+      }
+      data = true;
+      break;
+    }
+
     case "set_member_status_by_email": {
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
       const targetUserId = await resolveUserIdByEmail(email);
