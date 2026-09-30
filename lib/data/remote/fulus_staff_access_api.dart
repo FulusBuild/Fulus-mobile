@@ -16,6 +16,7 @@ class FulusStaffAccessApi {
     required String email,
     required List<String> permissionCodes,
     String? locationId,
+    String? invitedName,
     int expiresHours = 24,
   }) async {
     final response = await _call({
@@ -25,9 +26,20 @@ class FulusStaffAccessApi {
       'email': email,
       'permission_codes': permissionCodes,
       if (locationId != null) 'location_id': locationId,
+      if (invitedName != null && invitedName.trim().isNotEmpty) 'invited_name': invitedName.trim(),
       'expires_hours': expiresHours,
     });
     return StaffInvite.fromJson(Map<String, dynamic>.from(response['data'] as Map));
+  }
+
+  Future<StaffInvitePreview> inspectInvite(String token) async {
+    final response = await _call({
+      'action': 'inspect_invite',
+      'token': token.trim(),
+    });
+    return StaffInvitePreview.fromJson(
+      Map<String, dynamic>.from(response['data'] as Map),
+    );
   }
 
   Future<StaffClaim> claimInvite(String token, {String? fullName}) async {
@@ -148,6 +160,36 @@ class FulusStaffAccessApi {
       throw _client.mapError(e);
     }
   }
+}
+
+class StaffInvitePreview {
+  const StaffInvitePreview({
+    required this.businessId,
+    required this.businessName,
+    required this.fullName,
+    required this.email,
+    required this.roleName,
+    required this.expiresAt,
+    this.locationId,
+  });
+
+  final String businessId;
+  final String businessName;
+  final String fullName;
+  final String email;
+  final String roleName;
+  final DateTime expiresAt;
+  final String? locationId;
+
+  factory StaffInvitePreview.fromJson(Map<String, dynamic> json) => StaffInvitePreview(
+        businessId: json['business_id'] as String,
+        businessName: (json['business_name'] as String? ?? 'your business').trim(),
+        fullName: (json['full_name'] as String? ?? '').trim(),
+        email: (json['email'] as String? ?? '').trim().toLowerCase(),
+        roleName: (json['role_name'] as String? ?? 'employee').trim().toLowerCase(),
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+        locationId: json['location_id']?.toString(),
+      );
 }
 
 class StaffInvite {
