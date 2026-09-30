@@ -110,6 +110,9 @@ class CrossDeviceEmployeeRestore {
         await _db.into(_db.businessSettings).insert(settings.toDriftCompanion());
 
         final employee = claim.employee;
+        final dateHired = employee?['date_hired'] == null
+            ? null
+            : DateTime.tryParse(employee!['date_hired'].toString())?.millisecondsSinceEpoch;
         await _db.customStatement(
           '''
           INSERT INTO employees(
@@ -153,7 +156,7 @@ class CrossDeviceEmployeeRestore {
             employee?['salary'],
             employee?['phone'],
             employee?['email'] ?? claim.email,
-            employee?['date_hired']?.toString(),
+            dateHired,
             employee?['location_id'] ?? claim.locationId,
             now.millisecondsSinceEpoch,
             now.millisecondsSinceEpoch,
