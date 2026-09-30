@@ -247,7 +247,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   }
 
   final saleSyncHandler = SaleSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, salesApi: salesApi, saleRepository: saleRepository, productRepository: productRepository, customerRepository: customerRepository, executionLease: syncExecutionLease);
-  final employeeSyncHandler = EmployeeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, employeeRepository: employeeRepository);
+  final employeeSyncHandler = EmployeeSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, employeeRepository: employeeRepository, locationRepository: locationRepository);
   final customerSyncHandler = CustomerSyncHandler(fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, customerRepository: customerRepository);
   final customerLedgerSyncHandler = CustomerLedgerSyncHandler(db: database, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState, secureStorage: secureStorage, customerRepository: customerRepository, executionLease: syncExecutionLease);
   final categorySyncHandler = CategorySyncHandler(categoryRepository: categoryRepository, fulusSyncApi: fulusSyncApi, fulusConnectionState: fulusConnectionState);
@@ -266,7 +266,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     handlers: {
       'sale': FulusSaleCanonicalReconciler(repository: saleCanonicalRepository).apply,
       'customer': FulusCustomerCanonicalReconciler(repository: customerRepository).apply,
-      'employee': FulusEmployeeCanonicalReconciler(repository: employeeRepository).apply,
+      'employee': FulusEmployeeCanonicalReconciler(repository: employeeRepository, locationRepository: locationRepository).apply,
       'customer_ledger': FulusCustomerLedgerCanonicalReconciler(repository: customerCreditRepository).apply,
       'category': FulusCategoryCanonicalReconciler(repository: categoryRepository).apply,
       'supplier': FulusSupplierCanonicalReconciler(repository: supplierRepository).apply,
