@@ -218,6 +218,24 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const resolveUserIdByEmail = async (email: string): Promise<string | null> => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return null;
+    for (let page = 1; page <= 20; page += 1) {
+      const { data, error } = await admin.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
+      if (error) return null;
+      const match = data.users.find(
+        (candidate) => (candidate.email ?? "").toLowerCase() === normalized,
+      );
+      if (match) return match.id;
+      if (data.users.length < 1000) break;
+    }
+    return null;
+  };
+
   const businessId = typeof body.business_id === "string" ? body.business_id : null;
   if (!businessId) {
     return json({ error: { code: "INVALID_REQUEST", message: "business_id is required" } }, 400);
@@ -311,6 +329,33 @@ Deno.serve(async (req: Request) => {
       ({ data, error } = await admin.rpc("set_member_status", {
         target_business_id: businessId,
         target_membership_id: body.membership_id,
+        target_status: body.status,
+        target_user_id: userData.user.id,
+      }));
+      break;
+    }
+
+    case "set_member_status_by_email": {
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      const targetUserId = await resolveUserIdByEmail(email);
+      if (!targetUserId) {
+        return json({ error: { code: "INVALID_REQUEST", message: "Employee login account not found yet" } }, 404);
+      }
+      const { data: targetMembership, error: targetMembershipError } = await admin
+        .from("business_memberships")
+        .select("id")
+        .eq("business_id", businessId)
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      if (targetMembershipError) {
+        return json({ error: { code: "STAFF_ACCESS_FAILED", message: "Unable to resolve staff membership" } }, 500);
+      }
+      if (!targetMembership) {
+        return json({ error: { code: "INVALID_REQUEST", message: "Employee has not joined this business yet" } }, 404);
+      }
+      ({ data, error } = await admin.rpc("set_member_status", {
+        target_business_id: businessId,
+        target_membership_id: targetMembership.id,
         target_status: body.status,
         target_user_id: userData.user.id,
       }));
