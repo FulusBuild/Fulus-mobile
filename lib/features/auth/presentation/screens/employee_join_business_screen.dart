@@ -116,8 +116,16 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
               publishableKey: SupabaseConfig.publishableKey,
             );
         authenticated = true;
-      } catch (_) {
-        // A first-time employee may simply not have an account yet.
+      } on Failure catch (failure) {
+        // Only a definitive user-not-found response permits the signup
+        // fallback. Invalid credentials (including a wrong password) must
+        // stay on the sign-in path; otherwise a typo in an existing
+        // employee's password could trigger an unnecessary account-creation
+        // attempt.
+        if (failure is! BusinessRuleFailure ||
+            failure.code != 'user_not_found') {
+          rethrow;
+        }
       }
 
       if (!authenticated) {
