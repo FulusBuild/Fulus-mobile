@@ -313,7 +313,9 @@ class CloudRestoreImporter {
       );
       users++;
 
-      if (!hasEmployeeRosterSnapshot) {
+      if (!hasEmployeeRosterSnapshot &&
+          roleName.trim().toLowerCase() != 'owner' &&
+          roleName.trim().toLowerCase() != 'admin') {
         final membershipId = membership['id']?.toString() ?? userId;
         await _insertEmployee(
           employeeId: membershipId,
@@ -350,11 +352,13 @@ class CloudRestoreImporter {
         'restored_staff_users': users,
         'restored_employees': employees,
         'restored_user_permissions': permissionRows,
+        if (!hasEmployeeRosterSnapshot) 'employees': employees,
       },
       imported: {
         'restored_staff_users': users,
         'restored_employees': employees,
         'restored_user_permissions': permissionRows,
+        if (!hasEmployeeRosterSnapshot) 'employees': employees,
       },
     );
   }
