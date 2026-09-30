@@ -523,14 +523,7 @@ class CloudRestoreImporter {
         continue;
       }
 
-      // Attendance/leave preserve their employee foreign keys when the
-      // restore snapshot intentionally omits those historical tables. The
-      // employee roster itself must still be restored from the snapshot. For
-      // the legacy fallback path, staff are reconstructed from membership.
-      if (table == 'employees') {
-        await _db.customStatement('DELETE FROM "employees"');
-        continue;
-      }
+
 
       await _db.customStatement('DELETE FROM ${_quoteIdentifier(table)}');
     }
