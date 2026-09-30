@@ -65,6 +65,14 @@ Deno.serve(async req => {
     if (roleError || !roleMembership) return out({ error: { code: "MEMBERSHIP_ROLE_LOOKUP_FAILED", message: "Unable to resolve business role" } }, 500);
     const role = Array.isArray(roleMembership.roles) ? roleMembership.roles[0] : roleMembership.roles;
     const isBusinessAdmin = role?.name === "owner" || role?.name === "admin";
+    const [{ data: canReadEmployees }, { data: canManageEmployees }] = await Promise.all([
+      serviceDb.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: "employees.read" }),
+      serviceDb.rpc("user_has_permission", { target_business_id: bid, target_user_id: uid, target_permission: "employees.manage" }),
+    ]);
+    if (canReadEmployees == null || canManageEmployees == null) {
+      return out({ error: { code: "EMPLOYEE_PERMISSION_LOOKUP_FAILED", message: "Unable to resolve employee access" } }, 500);
+    }
+    const canReadRoster = isBusinessAdmin || canReadEmployees === true || canManageEmployees === true;
     const { data: locationRows, error: locationError } = await serviceDb
       .from("location_memberships")
       .select("location_id")
@@ -91,10 +99,20 @@ Deno.serve(async req => {
       "location",
       "stock_movement",
       "return",
+      "employee",
     ]);
     const hasLocationAccess = (entityType: string, entityId: string, payload: unknown, saleLocationBySaleId: Map<string, string>, returnSaleIdByReturnId: Map<string, string>) => {
       if (entityType === "location") {
         return accessibleLocationIds.has(entityId);
+      }
+      if (entityType === "employee") {
+        if (!canReadRoster) {
+          const row = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+          return row?.auth_user_id === uid;
+        }
+        const row = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+        const locationId = row?.location_id;
+        return locationId == null || accessibleLocationIds.has(String(locationId));
       }
       if (!payload || typeof payload !== "object") return false;
       const row = payload as Record<string, unknown>;
