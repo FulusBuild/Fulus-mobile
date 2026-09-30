@@ -167,7 +167,18 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Stream<List<Employee>> watchEmployees({String? searchQuery, String? department, bool? isActive}) {
-    final query = _db.select(_db.employees)..where((e) => e.deletedAt.isNull());
+    final query = _db.select(_db.employees);
+    // Active/default roster views hide soft-deleted rows. The explicit
+    // inactive view must do the opposite so deactivated employees remain
+    // recoverable for reactivation and audit history.
+    if (isActive == false) {
+      query.where((e) => e.isActive.equals(false));
+    } else {
+      query.where((e) => e.deletedAt.isNull());
+      if (isActive == true) {
+        query.where((e) => e.isActive.equals(true));
+      }
+    }
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       final like = '%${searchQuery.trim()}%';
       query.where((e) =>
