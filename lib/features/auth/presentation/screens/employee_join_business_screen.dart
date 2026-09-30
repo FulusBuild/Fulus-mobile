@@ -103,33 +103,15 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
     setState(() {
       _busy = true;
       _error = null;
-      _status = 'Signing you in…';
+      _status = 'Creating your Fulus login…';
     });
 
     try {
-      var authenticated = false;
+      // This is a first-time onboarding screen, so account creation is the
+      // primary path. If Supabase reports that the email already has an
+      // account, authenticate that existing account with the supplied
+      // password instead.
       try {
-        await ref.read(authApiProvider).connectServer(
-              email: preview.email,
-              password: password,
-              supabaseUrl: SupabaseConfig.url,
-              publishableKey: SupabaseConfig.publishableKey,
-            );
-        authenticated = true;
-      } on Failure catch (failure) {
-        // Only a definitive user-not-found response permits the signup
-        // fallback. Invalid credentials (including a wrong password) must
-        // stay on the sign-in path; otherwise a typo in an existing
-        // employee's password could trigger an unnecessary account-creation
-        // attempt.
-        if (failure is! BusinessRuleFailure ||
-            failure.code != 'user_not_found') {
-          rethrow;
-        }
-      }
-
-      if (!authenticated) {
-        setState(() => _status = 'Creating your Fulus login…');
         final result = await ref.read(authApiProvider).signUpServer(
               email: preview.email,
               password: password,
@@ -142,6 +124,18 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
             'Your Fulus login needs email verification before this phone can join the business.',
           );
         }
+      } on Failure catch (failure) {
+        if (failure is! BusinessRuleFailure ||
+            failure.code != 'email_exists') {
+          rethrow;
+        }
+        setState(() => _status = 'Signing you in…');
+        await ref.read(authApiProvider).connectServer(
+              email: preview.email,
+              password: password,
+              supabaseUrl: SupabaseConfig.url,
+              publishableKey: SupabaseConfig.publishableKey,
+            );
       }
 
       setState(() => _status = 'Joining ${preview.businessName}…');
