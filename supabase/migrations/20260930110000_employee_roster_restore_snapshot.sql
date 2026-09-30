@@ -187,7 +187,7 @@ begin
       'server_schema_optional_sections_omitted', jsonb_build_array('supplier_ledger_entries','tax_remittances'),
       'employee_source', 'employees + business_memberships + profiles',
       'authorization_source', 'roles + role_permissions + permissions',
-      'version', 6,
+      'version', 7,
       'snapshot_consistency', 'single PostgreSQL SELECT statement snapshot',
       'sync_boundary', 'max sync_changes.sequence for this business in the same statement snapshot'
     )
