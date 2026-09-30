@@ -236,6 +236,18 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
             invitedName: saved.fullName,
             permissionCodes: _cloudPermissionCodesForRole(saved.role),
             locationId: saved.locationId,
+            employeeClientReference: saved.id,
+            employee: {
+              'full_name': saved.fullName,
+              'role': saved.role,
+              'phone': saved.phone,
+              'email': saved.email,
+              'department': saved.department,
+              'position': saved.position,
+              'salary': saved.salary,
+              'date_hired': saved.dateHired?.toIso8601String(),
+              'location_id': saved.locationId,
+            },
           );
 
       if (!mounted) return;
