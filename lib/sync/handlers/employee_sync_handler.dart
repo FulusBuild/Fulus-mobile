@@ -13,7 +13,8 @@ class EmployeeSyncHandler implements SyncHandler {
     required LocationRepository locationRepository,
   })  : _api = fulusSyncApi,
         _connection = fulusConnectionState,
-        _repository = employeeRepository;
+        _repository = employeeRepository,
+        _locationRepository = locationRepository;
 
   final FulusSyncApi _api;
   final FulusConnectionState _connection;
