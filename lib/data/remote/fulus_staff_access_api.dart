@@ -251,6 +251,7 @@ class StaffClaim {
     required this.email,
     required this.locationId,
     required this.permissionCodes,
+    this.employeeId,
   });
 
   final String businessId;
@@ -262,6 +263,7 @@ class StaffClaim {
   final String email;
   final String? locationId;
   final List<String> permissionCodes;
+  final String? employeeId;
 
   factory StaffClaim.fromJson(Map<String, dynamic> json) {
     final rawPermissions = json['permission_codes'];
@@ -277,6 +279,7 @@ class StaffClaim {
       permissionCodes: rawPermissions is List
           ? rawPermissions.map((value) => value.toString()).toList(growable: false)
           : const [],
+      employeeId: json['employee_id']?.toString(),
     );
   }
 }
