@@ -26,6 +26,14 @@ class SyncTask {
         entityType: 'sale', entityLocalId: localId, operation: 'create',
         priority: SyncPriority.salesAndPayments,
       );
+  factory SyncTask.createEmployee(String localId) => SyncTask(
+        entityType: 'employee', entityLocalId: localId, operation: 'create',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
+  factory SyncTask.updateEmployee(String localId) => SyncTask(
+        entityType: 'employee', entityLocalId: localId, operation: 'update',
+        priority: SyncPriority.stockAndCustomerWrites,
+      );
   factory SyncTask.updateCustomer(String localId) => SyncTask(
         entityType: 'customer', entityLocalId: localId, operation: 'update',
         priority: SyncPriority.stockAndCustomerWrites,
@@ -148,7 +156,7 @@ class SyncQueue {
   Future<void> normalizeDependencyPriorities() async {
     await _db.transaction(() async {
       const dependencyTypes = [
-        'customer', 'category', 'supplier', 'location', 'expense_category',
+        'customer', 'employee', 'category', 'supplier', 'location', 'expense_category',
         'product', 'stock_movement', 'expense', 'income_record',
       ];
       await (_db.update(_db.syncQueueItems)
