@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/permission.dart';
 import '../local/database/database.dart';
 
