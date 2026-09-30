@@ -125,8 +125,8 @@ void main() {
       EmployeesCompanion.insert(
         localId: 'employee-local-1',
         fullName: 'Amina Yusuf',
-        createdAt: Value(DateTime.utc(2026, 9, 30, 10)),
-        updatedAt: Value(DateTime.utc(2026, 9, 30, 10)),
+        createdAt: DateTime.utc(2026, 9, 30, 10),
+        updatedAt: DateTime.utc(2026, 9, 30, 10),
         syncStatus: const Value(SyncStatus.pending),
       ),
     );
