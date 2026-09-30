@@ -19,6 +19,7 @@ class CloudRestoreImporter {
 
   static const _tableMap = <String, String>{
     'locations': 'locations',
+    'employees': 'employees',
     'products': 'products',
     'categories': 'categories',
     'suppliers': 'suppliers',
@@ -65,6 +66,7 @@ class CloudRestoreImporter {
     'locations',
     'audit_logs',
     'users',
+    'employees',
   ];
 
   static const _importOrder = <String>[
@@ -269,6 +271,7 @@ class CloudRestoreImporter {
     var employees = 0;
     var permissionRows = 0;
     final now = DateTime.now();
+    final hasEmployeeRosterSnapshot = snapshot['employees'] is List;
 
     for (final membership in memberships) {
       final userId = membership['user_id']?.toString();
@@ -289,19 +292,21 @@ class CloudRestoreImporter {
       );
       users++;
 
-      final membershipId = membership['id']?.toString() ?? userId;
-      await _insertEmployee(
-        employeeId: membershipId,
-        userId: userId,
-        fullName: safeName,
-        email: email,
-        role: roleName,
-        locationId: locationByUser[userId],
-        isActive: membership['status']?.toString() == 'active',
-        createdAt: _dateOrNow(membership['created_at'], now),
-        updatedAt: _dateOrNow(membership['updated_at'], now),
-      );
-      employees++;
+      if (!hasEmployeeRosterSnapshot) {
+        final membershipId = membership['id']?.toString() ?? userId;
+        await _insertEmployee(
+          employeeId: membershipId,
+          userId: userId,
+          fullName: safeName,
+          email: email,
+          role: roleName,
+          locationId: locationByUser[userId],
+          isActive: membership['status']?.toString() == 'active',
+          createdAt: _dateOrNow(membership['created_at'], now),
+          updatedAt: _dateOrNow(membership['updated_at'], now),
+        );
+        employees++;
+      }
 
       final localPermissions = _mapCloudPermissions(
         permissionCodesByRole[membership['role_id']?.toString() ?? ''] ?? const {},
