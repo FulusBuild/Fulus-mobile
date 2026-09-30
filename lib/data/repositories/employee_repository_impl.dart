@@ -107,7 +107,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     await _db.transaction(() async {
       final row = await (_db.select(
         _db.employees,
-      )..where((e) => e.id.equals(id))).getSingleOrNull();
+      )..where((e) => e.localId.equals(id))).getSingleOrNull();
       await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(false),
