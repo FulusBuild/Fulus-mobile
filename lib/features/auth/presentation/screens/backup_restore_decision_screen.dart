@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../app/providers.dart';
+import '../../../../app/restore_restart_gate.dart';
 import '../../../../core/errors/module_failures.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
@@ -128,6 +129,11 @@ class _BackupRestoreDecisionScreenState extends ConsumerState<BackupRestoreDecis
     try {
       await ref.read(backupRepositoryProvider).restoreBackup(fileName);
       if (!mounted) return;
+      // The native restore replaces the SQLite file while the current DI graph
+      // still holds repositories/handlers bound to the pre-restore database.
+      // Force the same restart boundary used by Backup & Restore in Settings
+      // before AuthGate can rebuild the business UI around stale references.
+      ref.read(restoreRestartStateProvider).requireRestart();
       // Same "this screen is no longer a valid place to come back to"
       // reasoning as RestoreProgressScreen's own Start Fresh —
       // AuthGateScreen re-evaluates from scratch and now finds a real
