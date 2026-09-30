@@ -26,7 +26,7 @@ class FulusEmployeeCanonicalReconciler {
       role: row['role']?.toString(), department: row['department']?.toString(),
       position: row['position']?.toString(), salary: number(row['salary']),
       phone: row['phone']?.toString(), email: row['email']?.toString(),
-      dateHired: date(row['date_hired']), locationId: localLocation?.id,
+      dateHired: date(row['date_hired']), locationId: localLocation?.localId,
       isActive: row['is_active'] != false, createdAt: date(row['created_at']) ?? DateTime.now(),
       updatedAt: date(row['updated_at']) ?? DateTime.now(),
     );
