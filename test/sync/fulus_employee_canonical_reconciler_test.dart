@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_employee_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
+import 'package:fulus_mobile/domain/entities/employee.dart';
 import 'package:fulus_mobile/domain/repositories/employee_repository.dart';
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 import 'package:fulus_mobile/domain/entities/location.dart';
@@ -10,6 +11,10 @@ class _MockEmployeeRepository extends Mock implements EmployeeRepository {}
 class _MockLocationRepository extends Mock implements LocationRepository {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(const EmployeeDraft(fullName: 'mock employee'));
+  });
+
   late _MockEmployeeRepository employeeRepository;
   late _MockLocationRepository locationRepository;
   late FulusEmployeeCanonicalReconciler reconciler;
