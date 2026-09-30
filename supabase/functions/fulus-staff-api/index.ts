@@ -116,6 +116,13 @@ Deno.serve(async (req: Request) => {
     // Claiming is intentionally idempotent for the same account. This makes
     // a partially completed first-device restore recoverable without asking
     // the owner to issue a second invitation.
+    if (error.code === "23505" && error.message.includes("business_memberships_one_business_per_user")) {
+      return json(
+        { error: { code: "BUSINESS_ALREADY_LINKED", message: "This Fulus account is already linked to another business." } },
+        409,
+      );
+    }
+
     if (error.message !== "Invite already claimed") {
       return json(
         { error: { code: "STAFF_ACCESS_FAILED", message: error.message } },
