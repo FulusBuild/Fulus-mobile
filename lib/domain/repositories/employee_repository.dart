@@ -24,6 +24,8 @@ abstract class EmployeeRepository {
     String? operationId,
   });
 
+  Future<void> reconcileDeleted(String serverId);
+
   Future<void> reconcileServerState({
     required String serverId,
     required String? membershipId,
