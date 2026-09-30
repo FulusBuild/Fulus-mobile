@@ -309,7 +309,6 @@ Deno.serve(async (req: Request) => {
         target_location_id: locationId || null,
         target_employee_client_reference: employeeClientReference,
         target_employee: employee,
-        target_invited_name: invitedName || null,
       }));
       break;
     }
