@@ -30,6 +30,18 @@ void main() {
     );
   });
 
+  test('single-business account conflicts explain the actual join requirement', () {
+    expect(
+      syncUserMessage(
+        const BusinessRuleFailure(
+          'internal',
+          code: 'BUSINESS_ALREADY_LINKED',
+        ),
+      ),
+      'This Fulus account is already linked to another business. Use a different Fulus account to join this business.',
+    );
+  });
+
   test('validation failures never expose raw implementation text', () {
     final message = syncUserMessage(
       const ValidationFailure(fieldErrors: {'sync': 'Canonical stock movement contains an invalid date.'}),
