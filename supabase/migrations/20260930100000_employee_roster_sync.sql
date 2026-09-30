@@ -592,6 +592,7 @@ begin
     'email', account_email,
     'location_id', selected_location_id,
     'employee_id', employee_row.id,
+    'employee', to_jsonb(employee_row),
     'permission_codes',
       coalesce(
         invite.permission_codes,
