@@ -18,6 +18,8 @@ String syncUserMessage(Object error) {
         return 'Fulus is finishing an earlier backup before restoring cloud history.';
       case 'IDEMPOTENCY_CONFLICT':
         return 'A backup change could not be applied safely. Your work is still safe on this device.';
+      case 'BUSINESS_ALREADY_LINKED':
+        return 'This Fulus account is already linked to another business. Use a different Fulus account to join this business.';
       case 'SYNC_CURSOR_CHECK_FAILED':
       case 'SYNC_PULL_FAILED':
       case 'SYNC_RECOVERY_FAILED':
