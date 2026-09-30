@@ -156,6 +156,7 @@ begin
     'employees', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.employees t where t.business_id = p_business_id), '[]'::jsonb),
     'roles', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.roles t where t.business_id = p_business_id), '[]'::jsonb),
     'business_memberships', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.business_memberships t where t.business_id = p_business_id), '[]'::jsonb),
+    'business_member_permissions', coalesce((select jsonb_agg(to_jsonb(t) order by t.user_id, t.permission_id) from public.business_member_permissions t where t.business_id = p_business_id), '[]'::jsonb),
     'profiles', coalesce((select jsonb_agg(to_jsonb(px) order by px.id) from public.profiles px where px.id in (select bm.user_id from public.business_memberships bm where bm.business_id = p_business_id)), '[]'::jsonb),
     'product_stock_levels', coalesce((select jsonb_agg(to_jsonb(t) order by t.product_id, t.location_id) from public.product_stock_levels t where t.product_id in (select id from public.products where business_id = p_business_id)), '[]'::jsonb),
     'sale_items', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.sale_items t where t.sale_id in (select id from public.sales where business_id = p_business_id)), '[]'::jsonb),
@@ -181,12 +182,12 @@ begin
     'return_items', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.return_items t where t.return_id in (select id from public.returns where business_id = p_business_id)), '[]'::jsonb),
     'customer_ledger_entries', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.customer_ledger_entries t where t.customer_id in (select id from public.customers where business_id = p_business_id)), '[]'::jsonb),
     'role_permissions', coalesce((select jsonb_agg(to_jsonb(t) order by t.role_id, t.permission_id) from public.role_permissions t where t.role_id in (select id from public.roles where business_id = p_business_id)), '[]'::jsonb),
-    'permissions', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.permissions t where t.id in (select distinct rp.permission_id from public.role_permissions rp where rp.role_id in (select id from public.roles where business_id = p_business_id))), '[]'::jsonb),
+    'permissions', coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.permissions t), '[]'::jsonb),
     'local_restore_notes', jsonb_build_object(
       'non_cloud_local_tables', jsonb_build_array('app_notifications','paired_printers','diagnostic_events','sync_queue_items','draft_carts','draft_cart_items','draft_cart_payments'),
       'server_schema_optional_sections_omitted', jsonb_build_array('supplier_ledger_entries','tax_remittances'),
       'employee_source', 'employees + business_memberships + profiles',
-      'authorization_source', 'roles + role_permissions + permissions',
+      'authorization_source', 'roles + role_permissions + business_member_permissions + permissions',
       'version', 7,
       'snapshot_consistency', 'single PostgreSQL SELECT statement snapshot',
       'sync_boundary', 'max sync_changes.sequence for this business in the same statement snapshot'
