@@ -523,7 +523,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     for (final emp in employees) {
       final attendance = await (_db.select(_db.attendanceRecords)
             ..where((a) =>
-                a.employeeId.equals(emp.id) &
+                a.employeeId.equals(emp.localId) &
                 a.date.isBetweenValues(period.start, _endOfDay(period.end))))
           .get();
       final domainRecords = attendance.map((r) => r.toDomain()).toList();
@@ -540,7 +540,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
       }
       final authUserId = emp.authUserId;
       performance.add(EmployeePerformance(
-        employeeId: emp.id,
+        employeeId: emp.localId,
         employeeName: emp.fullName,
         salesTotal: authUserId != null ? (salesTotalByCashier[authUserId] ?? 0) : 0,
         salesCount: authUserId != null ? (salesCountByCashier[authUserId] ?? 0) : 0,
