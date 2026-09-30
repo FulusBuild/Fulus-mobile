@@ -698,7 +698,7 @@ void main() {
       await insertProduct('product-a');
       await db.into(db.employees).insert(
             EmployeesCompanion.insert(
-              id: 'emp-1',
+              localId: 'emp-1',
               fullName: 'Amaka Okafor',
               authUserId: const Value('user-1'),
               createdAt: DateTime(2026, 1, 1),
@@ -738,7 +738,7 @@ void main() {
       await insertLocation('loc-1');
       await db.into(db.employees).insert(
             EmployeesCompanion.insert(
-              id: 'emp-1',
+              localId: 'emp-1',
               fullName: 'Tracked Employee',
               createdAt: DateTime(2026, 1, 1),
               updatedAt: DateTime(2026, 1, 1),
@@ -746,7 +746,7 @@ void main() {
           );
       await db.into(db.employees).insert(
             EmployeesCompanion.insert(
-              id: 'emp-2',
+              localId: 'emp-2',
               fullName: 'Untracked Employee',
               createdAt: DateTime(2026, 1, 1),
               updatedAt: DateTime(2026, 1, 1),
@@ -834,7 +834,7 @@ void main() {
       await insertUser('user-1', 'Amaka Okafor');
       await db.into(db.employees).insert(
             EmployeesCompanion.insert(
-              id: 'emp-1',
+              localId: 'emp-1',
               fullName: 'Amaka Okafor',
               authUserId: const Value('user-1'),
               createdAt: DateTime(2026, 1, 1),
@@ -875,7 +875,7 @@ void main() {
       await insertUser('user-1', 'Amaka Okafor');
       await db.into(db.employees).insert(
             EmployeesCompanion.insert(
-              id: 'emp-1',
+              localId: 'emp-1',
               fullName: 'Chidi Eze', // no authUserId — never set up a login
               createdAt: DateTime(2026, 1, 1),
               updatedAt: DateTime(2026, 1, 1),
