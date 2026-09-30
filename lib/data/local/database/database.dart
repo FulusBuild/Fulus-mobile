@@ -157,8 +157,8 @@ part 'database.g.dart';
     SyncRuntimeLeases,
     BusinessSettings,
     AuditLogs,
-    // Stage 11 (Employees) — see tables/employee_tables.dart's own doc
-    // comment for why these deliberately don't use SyncableColumns.
+    // Stage 11 (Employees) — roster rows participate in durable business sync;
+    // authentication/access remains separate and authoritative in cloud membership.
     Employees,
     AttendanceRecords,
     LeaveRecords,
