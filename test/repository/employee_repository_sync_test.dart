@@ -120,6 +120,45 @@ void main() {
     expect(rows.single.syncStatus, SyncStatus.settled);
   });
 
+  test('reconcileServerState matches a local pending employee by client reference', () async {
+    await db.into(db.employees).insert(
+      EmployeesCompanion.insert(
+        localId: 'employee-local-1',
+        fullName: 'Pending employee',
+        createdAt: DateTime.utc(2026, 9, 30, 10),
+        updatedAt: DateTime.utc(2026, 9, 30, 10),
+        syncStatus: const Value(SyncStatus.pending),
+      ),
+    );
+
+    await repository.reconcileServerState(
+      serverId: 'employee-server-1',
+      clientReference: 'employee-local-1',
+      membershipId: null,
+      cloudUserId: null,
+      fullName: 'Pending employee',
+      role: 'Cashier',
+      department: null,
+      position: null,
+      salary: null,
+      phone: null,
+      email: 'pending@example.com',
+      dateHired: null,
+      locationId: null,
+      isActive: true,
+      updatedAt: DateTime.utc(2026, 9, 30, 11),
+      createdAt: DateTime.utc(2026, 9, 30, 10),
+    );
+
+    final rows = await db.select(db.employees).get();
+
+    expect(rows, hasLength(1));
+    expect(rows.single.localId, 'employee-local-1');
+    expect(rows.single.serverId, 'employee-server-1');
+    expect(rows.single.email, 'pending@example.com');
+    expect(rows.single.syncStatus, SyncStatus.settled);
+  });
+
   test('markSynced records the cloud identity and settles the local employee', () async {
     await db.into(db.employees).insert(
       EmployeesCompanion.insert(
