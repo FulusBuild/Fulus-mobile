@@ -329,12 +329,20 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
             syncStatus: const Value(SyncStatus.settled),
           ),
         );
+        if (cloudUserId != null && cloudUserId.isNotEmpty) {
+          await (_db.update(_db.users)..where((u) => u.localId.equals(cloudUserId))).write(
+            UsersCompanion(isActive: Value(isActive), updatedAt: Value(updatedAt)),
+          );
+        }
       }
     });
   }
 
   @override
   Future<void> reconcileDeleted(String serverId) async {
+    final employee = await (_db.select(_db.employees)
+          ..where((e) => e.serverId.equals(serverId)))
+        .getSingleOrNull();
     await (_db.update(_db.employees)..where((e) => e.serverId.equals(serverId))).write(
       EmployeesCompanion(
         isActive: const Value(false),
@@ -342,6 +350,12 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         syncStatus: const Value(SyncStatus.settled),
       ),
     );
+    final authUserId = employee?.authUserId ?? employee?.cloudUserId;
+    if (authUserId != null && authUserId.isNotEmpty) {
+      await (_db.update(_db.users)..where((u) => u.localId.equals(authUserId))).write(
+        const UsersCompanion(isActive: Value(false)),
+      );
+    }
   }
 
   // ── Attendance ──────────────────────────────────────────────────────────
