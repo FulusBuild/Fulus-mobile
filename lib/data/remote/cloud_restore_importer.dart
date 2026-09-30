@@ -298,11 +298,16 @@ class CloudRestoreImporter {
       final fullName = profile['full_name']?.toString().trim();
       final safeName = fullName?.isNotEmpty == true ? fullName! : 'Staff member';
       final email = profile['email']?.toString();
+      final membershipStatus = membership['status']?.toString().toLowerCase();
+      final isActive = membershipStatus == 'active';
+      final localRole = _localRoleFromCloudRole(roleName);
 
       await _insertUser(
         userId: userId,
         fullName: safeName,
         email: email,
+        role: localRole,
+        isActive: isActive,
         now: now,
       );
       users++;
