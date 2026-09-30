@@ -147,12 +147,10 @@ abstract class AuthRepository {
   /// entry (Employees, EmployeeRepository), so that person can
   /// subsequently switch to their own identity on this same device
   /// rather than sharing the owner's. This is deliberately a
-  /// same-device, owner-provisioned action — not a cross-device
-  /// invite/QR-claim flow (Volume 9 describes one, but Employees is
-  /// explicitly not a synced table in this architecture, so nothing
-  /// about a roster entry is visible to a second device to claim
-  /// against; a cross-device version is a later-phase capability once
-  /// Employees has a sync story, not a Phase 0 one). [pin] replaces the
+  /// same-device, owner-provisioned action — separate from the normal
+  /// cross-device invitation flow. Employee roster data is now cloud
+  /// synchronized, but this method remains intentionally scoped to creating
+  /// a second local login on the current device. [pin] replaces the
   /// former username+email+password entirely — the new account's
   /// display name is still taken from the roster entry already on
   /// file, same as before.
