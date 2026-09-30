@@ -174,6 +174,7 @@ class FulusConnectionState extends ChangeNotifier {
     required String email,
     required List<String> permissionCodes,
     String? locationId,
+    String? invitedName,
     int expiresHours = 24,
   }) async {
     final api = _staffAccessApi;
@@ -187,6 +188,7 @@ class FulusConnectionState extends ChangeNotifier {
       email: email,
       permissionCodes: permissionCodes,
       locationId: locationId,
+      invitedName: invitedName,
       expiresHours: expiresHours,
     );
   }
