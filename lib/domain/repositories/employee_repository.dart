@@ -28,6 +28,7 @@ abstract class EmployeeRepository {
 
   Future<void> reconcileServerState({
     required String serverId,
+    String? clientReference,
     required String? membershipId,
     required String? cloudUserId,
     required String fullName,
