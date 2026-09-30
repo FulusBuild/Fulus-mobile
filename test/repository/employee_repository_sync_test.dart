@@ -4,6 +4,7 @@ import 'package:fulus_mobile/data/repositories/employee_repository_impl.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/domain/repositories/permission_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -124,6 +125,8 @@ void main() {
       EmployeesCompanion.insert(
         localId: 'employee-local-1',
         fullName: 'Amina Yusuf',
+        createdAt: Value(DateTime.utc(2026, 9, 30, 10)),
+        updatedAt: Value(DateTime.utc(2026, 9, 30, 10)),
         syncStatus: const Value(SyncStatus.pending),
       ),
     );
