@@ -201,24 +201,6 @@ class _EmployeeDetailBody extends ConsumerWidget {
             ],
           ),
         ),
-        if (employee.authUserId == null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: FulusButton(
-              label: 'Use on this phone',
-              variant: FulusButtonVariant.secondary,
-              onPressed: () => _openSetUpLoginSheet(context, ref, grantableBy),
-              icon: Icons.pin_outlined,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Optional. Use this only if the employee also needs a local switchable account on your phone.',
-            textAlign: TextAlign.center,
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-        ],
         if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
@@ -276,23 +258,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
         _AttendanceStat(label: 'Absent', value: attendance?.absent ?? 0, color: AppColors.errorOf(context)),
       ];
 
-  Future<void> _openSetUpLoginSheet(BuildContext context, WidgetRef ref, Set<Permission> grantableBy) async {
-    final actingOwner = ref.read(sessionProvider);
-    if (actingOwner != null && !actingOwner.hasLoginPin) {
-      final pinSet = await showModalBottomSheet<bool>(context: context, isScrollControlled: true, builder: (_) => const _SetOwnPinSheet());
-      if (pinSet != true) return;
-    }
-    if (!context.mounted) return;
-    final createdPin = await showModalBottomSheet<String>(context: context, isScrollControlled: true, builder: (_) => _SetUpLoginSheet(employee: employee, grantableBy: grantableBy));
-    if (createdPin == null) return;
-    onChanged();
-    if (!context.mounted) return;
-    await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('Login created'),
-      content: Text('Share the PIN you set with ${employee.fullName} so they can switch to their own account on this device — they\'ll find their name in the "who\'s this?" list.\n\nPIN: $createdPin'),
-      actions: [TextButton(onPressed: () => Clipboard.setData(ClipboardData(text: createdPin)), child: const Text('Copy PIN')), FilledButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Done'))],
-    ));
-  }
+
 }
 
 class _InviteToAnotherPhoneAction extends ConsumerStatefulWidget {
@@ -832,32 +798,6 @@ class _AccessAction extends ConsumerWidget {
       }
     }
   }
-}
-
-class _SetOwnPinSheet extends ConsumerStatefulWidget {
-  const _SetOwnPinSheet();
-  @override ConsumerState<_SetOwnPinSheet> createState() => _SetOwnPinSheetState();
-}
-class _SetOwnPinSheetState extends ConsumerState<_SetOwnPinSheet> {
-  final _pinController = TextEditingController(); final _confirmController = TextEditingController(); Map<String, String> _errors = {}; bool _submitting = false;
-  @override void dispose() { _pinController.dispose(); _confirmController.dispose(); super.dispose(); }
-  Future<void> _submit() async { final pin = _pinController.text.trim(); final errors = <String, String>{}; if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.'; if (_confirmController.text.trim() != pin) errors['confirm'] = "PINs don't match."; if (errors.isNotEmpty) { setState(() => _errors = errors); return; } setState(() { _submitting = true; _errors = {}; }); try { await ref.read(authRepositoryProvider).setOwnLoginPin(pin: pin); final updated = ref.read(sessionProvider); if (updated != null) ref.read(sessionProvider.notifier).state = AuthUser(id: updated.id, username: updated.username, email: updated.email, fullName: updated.fullName, role: updated.role, isActive: updated.isActive, hasLoginPin: true); if (mounted) Navigator.of(context).pop(true); } on Failure catch (f) { if (mounted) setState(() { _submitting = false; _errors = {'form': f.message}; }); } }
-  @override Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Set your own PIN first', style: AppTypography.heading), const SizedBox(height: AppSpacing.xs), Text("You'll use this to switch back to your own account once someone else has one on this device.", style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))), const SizedBox(height: AppSpacing.lg), if (_errors['form'] != null) Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), FulusTextField(label: 'Your PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['pin'], helperText: 'At least 4 digits.'), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['confirm']), const SizedBox(height: AppSpacing.lg), SizedBox(width: double.infinity, child: FulusButton(label: 'Save PIN', loading: _submitting, onPressed: _submitting ? null : _submit))])));
-}
-
-class _SetUpLoginSheet extends ConsumerStatefulWidget {
-  const _SetUpLoginSheet({required this.employee, required this.grantableBy});
-  final Employee employee; final Set<Permission> grantableBy;
-  @override ConsumerState<_SetUpLoginSheet> createState() => _SetUpLoginSheetState();
-}
-class _SetUpLoginSheetState extends ConsumerState<_SetUpLoginSheet> {
-  final _pinController = TextEditingController(); final _confirmController = TextEditingController(); Map<String, String> _errors = {}; bool _submitting = false; AuthRolePreset _preset = AuthRolePreset.cashier; Set<Permission> _permissions = {}; bool _permissionsCustomized = false;
-  @override void initState() { super.initState(); _permissions = _defaultsWithinGrant(AuthRole.cashier); }
-  Set<Permission> _defaultsWithinGrant(AuthRole role) => Permission.defaultsForRole(role).intersection(widget.grantableBy);
-  @override void dispose() { _pinController.dispose(); _confirmController.dispose(); super.dispose(); }
-  void _onPresetChanged(AuthRolePreset preset) { setState(() { _preset = preset; if (!_permissionsCustomized) _permissions = _defaultsWithinGrant(preset.role); }); }
-  Future<void> _submit() async { final pin = _pinController.text.trim(); final errors = <String, String>{}; if (pin.length < 4) errors['pin'] = 'Use at least 4 digits.'; if (_confirmController.text.trim() != pin) errors['confirm'] = "PINs don't match."; if (errors.isNotEmpty) { setState(() => _errors = errors); return; } setState(() { _submitting = true; _errors = {}; }); try { final acting = ref.read(sessionProvider); final created = await ref.read(authRepositoryProvider).createEmployeeAccount(employeeId: widget.employee.id, pin: pin, role: _preset.role); if (acting != null) await ref.read(permissionRepositoryProvider).setPermissions(userId: created.id, permissions: _permissions, grantedBy: acting.id); if (mounted) Navigator.of(context).pop(pin); } on Failure catch (f) { if (mounted) setState(() { _submitting = false; _errors = {'form': f.message}; }); } }
-  @override Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, top: AppSpacing.lg, bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Set up login for ${widget.employee.fullName}', style: AppTypography.heading), const SizedBox(height: AppSpacing.xs), Text("They'll use this PIN to switch to their own account on this device.", style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))), const SizedBox(height: AppSpacing.lg), if (_errors['form'] != null) Text(_errors['form']!, style: AppTypography.body.copyWith(color: AppColors.errorOf(context))), FulusTextField(label: 'PIN', controller: _pinController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['pin'], helperText: 'At least 4 digits.'), const SizedBox(height: AppSpacing.sm), FulusTextField(label: 'Confirm PIN', controller: _confirmController, obscureText: true, keyboardType: TextInputType.number, errorText: _errors['confirm']), const SizedBox(height: AppSpacing.lg), Text('Role', style: AppTypography.subheading), const SizedBox(height: AppSpacing.xs), RolePresetSelector(selected: _preset, onChanged: _onPresetChanged), const SizedBox(height: AppSpacing.md), Text('Permissions', style: AppTypography.subheading), Text('Starts from the role above — adjust anything before creating the login.', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))), PermissionEditor(selected: _permissions, grantableBy: widget.grantableBy, onChanged: (next) => setState(() { _permissions = next; _permissionsCustomized = true; })), const SizedBox(height: AppSpacing.lg), SizedBox(width: double.infinity, child: FulusButton(label: 'Create login', loading: _submitting, onPressed: _submitting ? null : _submit))])));
 }
 
 class _EmployeeDetailSkeleton extends StatelessWidget {
