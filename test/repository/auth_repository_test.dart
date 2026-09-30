@@ -49,7 +49,7 @@ Future<void> _insertRosterEmployee(
   final now = DateTime.now();
   await db.into(db.employees).insert(
         EmployeesCompanion.insert(
-          id: id,
+          localId: id,
           fullName: fullName,
           locationId: Value(locationId),
           createdAt: now,
