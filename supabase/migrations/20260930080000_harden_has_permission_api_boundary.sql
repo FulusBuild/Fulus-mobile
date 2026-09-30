@@ -56,7 +56,8 @@ as $$
 $$;
 
 revoke all on function private.has_permission(uuid, text, uuid)
-  from public, anon, authenticated, service_role;
+  from public, anon, service_role;
+grant execute on function private.has_permission(uuid, text, uuid) to authenticated;
 
 create or replace function public.has_permission(
   target_business_id uuid,
