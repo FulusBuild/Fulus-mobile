@@ -109,7 +109,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final row = await (_db.select(
         _db.employees,
       )..where((e) => e.localId.equals(id))).getSingleOrNull();
-      await (_db.update(_db.employees)..where((e) => e.id.equals(id))).write(
+      await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(false),
           deletedAt: Value(now),
@@ -195,7 +195,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     // deactivated-employees view has somewhere real to navigate to for
     // reactivating one. updateEmployee's own call site doesn't pass it,
     // so this stays exactly as protective as before for that path.
-    final query = _db.select(_db.employees)..where((e) => e.id.equals(id));
+    final query = _db.select(_db.employees)..where((e) => e.localId.equals(id));
     if (!includeInactive) {
       query.where((e) => e.deletedAt.isNull());
     }
