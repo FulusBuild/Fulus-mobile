@@ -121,6 +121,41 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   }
 }
 
+class _TeamOverview extends StatelessWidget {
+  const _TeamOverview({required this.employees});
+  final List<Employee> employees;
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFF1473E6);
+    final foreground = AppColors.onColor(color);
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 132,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: FulusMetricCardColumn(
+            icon: FulusIcons.staff,
+            iconColor: foreground,
+            children: [
+              Text(
+                'Employees  ${employees.length}',
+                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const Text(
+                'People, access and attendance',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmployeeFormSheet extends ConsumerStatefulWidget {
   const _EmployeeFormSheet({this.existing});
   final Employee? existing;
@@ -318,7 +353,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
                   FulusChip(
                     label: role,
                     selected: _role == role,
-                    onTap: _saving ? null : () => setState(() => _role = role),
+                    onTap: () { if (!_saving) setState(() => _role = role); },
                   ),
               ],
             ),
