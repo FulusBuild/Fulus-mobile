@@ -65,6 +65,20 @@ class FulusStaffAccessApi {
     return response['data'] == true;
   }
 
+  Future<bool> setMemberStatusByEmail({
+    required String businessId,
+    required String email,
+    required String status,
+  }) async {
+    final response = await _call({
+      'action': 'set_member_status_by_email',
+      'business_id': businessId,
+      'email': email.trim().toLowerCase(),
+      'status': status,
+    });
+    return response['data'] == true;
+  }
+
   Future<bool> setMemberStatusByUser({
     required String businessId,
     required String userId,
