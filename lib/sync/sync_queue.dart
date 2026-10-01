@@ -329,6 +329,11 @@ class SyncQueue {
     // duplicate a cloud record.
     await _db.transaction(() async {
       final existingRows = await _db.select(_db.syncQueueItems).get();
+      final session = await (_db.select(_db.sessions)
+            ..where((s) => s.id.equals('current')))
+          .getSingleOrNull();
+      final seedActorUserId =
+          session?.userId ?? _actorUserIdProvider?.call();
       final existingKeys = existingRows
           .map((row) => '${row.entityType}|${row.entityLocalId}|${row.operation}')
           .toSet();
@@ -356,6 +361,7 @@ class SyncQueue {
             priority: task.priority,
             enqueuedAt: DateTime.now(),
             baseCursor: Value(_baseCursorProvider?.call()),
+            actorUserId: Value(seedActorUserId),
           ),
         );
       }
