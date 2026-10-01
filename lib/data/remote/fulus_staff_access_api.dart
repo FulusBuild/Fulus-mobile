@@ -46,6 +46,14 @@ class FulusStaffAccessApi {
     );
   }
 
+  Future<void> prepareInvitedAccount({required String token, required String password}) async {
+    await _call({
+      'action': 'prepare_invited_account',
+      'token': token.trim(),
+      'password': password,
+    });
+  }
+
   Future<StaffClaim> claimInvite(String token, {String? fullName}) async {
     final response = await _call({
       'action': 'claim_invite',
