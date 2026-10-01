@@ -7,7 +7,6 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
-import '../../../../domain/entities/permission.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 /// Replaces the pre-simplification SignInScreen entirely — see
