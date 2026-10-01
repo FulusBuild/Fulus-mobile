@@ -103,33 +103,17 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
     setState(() {
       _busy = true;
       _error = null;
-      _status = 'Signing you in…';
+      _status = 'Creating your Fulus login…';
     });
 
     try {
+      // An invitation is an account-creation flow. Try creating the
+      // Fulus account with the password the employee just chose first.
+      // If the email already belongs to a Fulus account, sign in with that
+      // existing password instead.
+      setState(() => _status = 'Creating your Fulus login…');
       var authenticated = false;
       try {
-        await ref.read(authApiProvider).connectServer(
-              email: preview.email,
-              password: password,
-              supabaseUrl: SupabaseConfig.url,
-              publishableKey: SupabaseConfig.publishableKey,
-            );
-        authenticated = true;
-      } on Failure catch (failure) {
-        // Only a definitive user-not-found response permits the signup
-        // fallback. Invalid credentials (including a wrong password) must
-        // stay on the sign-in path; otherwise a typo in an existing
-        // employee's password could trigger an unnecessary account-creation
-        // attempt.
-        if (failure is! BusinessRuleFailure ||
-            failure.code != 'user_not_found') {
-          rethrow;
-        }
-      }
-
-      if (!authenticated) {
-        setState(() => _status = 'Creating your Fulus login…');
         final result = await ref.read(authApiProvider).signUpServer(
               email: preview.email,
               password: password,
@@ -142,6 +126,22 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
             'Your Fulus login needs email verification before this phone can join the business.',
           );
         }
+        authenticated = true;
+      } on BusinessRuleFailure catch (failure) {
+        if (failure.code != 'email_exists') rethrow;
+
+        setState(() => _status = 'Signing you in…');
+        await ref.read(authApiProvider).connectServer(
+              email: preview.email,
+              password: password,
+              supabaseUrl: SupabaseConfig.url,
+              publishableKey: SupabaseConfig.publishableKey,
+            );
+        authenticated = true;
+      }
+
+      if (!authenticated) {
+        throw StateError('Fulus could not create or restore the employee login.');
       }
 
       setState(() => _status = 'Joining ${preview.businessName}…');
