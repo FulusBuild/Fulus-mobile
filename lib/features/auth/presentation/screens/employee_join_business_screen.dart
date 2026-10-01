@@ -107,42 +107,28 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
     });
 
     try {
-      // An invitation is an account-creation flow. Try creating the
-      // Fulus account with the password the employee just chose first.
-      // If the email already belongs to a Fulus account, sign in with that
-      // existing password instead.
+      // The invitation authorizes first-device account setup. Prepare the
+      // account server-side before signing in: create a brand-new account,
+      // or recover an orphan account left behind by an interrupted join.
+      // An account that already belongs to a business is never password-reset
+      // by an invitation; that path requires its existing credentials.
       setState(() => _status = 'Creating your Fulus login…');
-      var authenticated = false;
       try {
-        final result = await ref.read(authApiProvider).signUpServer(
-              email: preview.email,
+        await ref.read(fulusStaffAccessApiProvider).prepareInvitedAccount(
+              token: token,
               password: password,
-              supabaseUrl: SupabaseConfig.url,
-              publishableKey: SupabaseConfig.publishableKey,
             );
-
-        if (result.session == null) {
-          throw StateError(
-            'Your Fulus login needs email verification before this phone can join the business.',
-          );
-        }
-        authenticated = true;
       } on BusinessRuleFailure catch (failure) {
-        if (failure.code != 'email_exists') rethrow;
-
-        setState(() => _status = 'Signing you in…');
-        await ref.read(authApiProvider).connectServer(
-              email: preview.email,
-              password: password,
-              supabaseUrl: SupabaseConfig.url,
-              publishableKey: SupabaseConfig.publishableKey,
-            );
-        authenticated = true;
+        if (failure.code != 'ACCOUNT_ALREADY_LINKED') rethrow;
       }
 
-      if (!authenticated) {
-        throw StateError('Fulus could not create or restore the employee login.');
-      }
+      setState(() => _status = 'Signing you in…');
+      await ref.read(authApiProvider).connectServer(
+            email: preview.email,
+            password: password,
+            supabaseUrl: SupabaseConfig.url,
+            publishableKey: SupabaseConfig.publishableKey,
+          );
 
       setState(() => _status = 'Joining ${preview.businessName}…');
       final claim = await ref.read(fulusStaffAccessApiProvider).claimInvite(
