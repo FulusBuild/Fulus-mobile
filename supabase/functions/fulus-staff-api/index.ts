@@ -80,6 +80,84 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // An invitation is also the authorization for first-device account setup.
+  // This action is intentionally unauthenticated because a brand-new employee
+  // has no session yet. The high-entropy invite token is the bearer secret.
+  // Existing orphan auth accounts (created by an interrupted earlier attempt)
+  // can safely recover a password only when they have no business membership.
+  if (action === "prepare_invited_account") {
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    if (!token || password.length < 8) {
+      return json({ error: { code: "INVALID_REQUEST", message: "Invite token and a password of at least 8 characters are required" } }, 400);
+    }
+
+    const tokenHash = await sha256Hex(token);
+    const { data: invite, error: inviteError } = await admin
+      .from("staff_invites")
+      .select("id, invited_email, expires_at, claimed_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+
+    if (inviteError || !invite) {
+      return json({ error: { code: "INVALID_INVITE", message: "That invitation is not valid." } }, 404);
+    }
+    if (invite.claimed_at) {
+      return json({ error: { code: "INVITE_CLAIMED", message: "That invitation has already been used." } }, 409);
+    }
+    if (new Date(invite.expires_at).getTime() <= Date.now()) {
+      return json({ error: { code: "INVITE_EXPIRED", message: "That invitation has expired." } }, 410);
+    }
+    const email = (invite.invited_email ?? "").trim().toLowerCase();
+    if (!email) {
+      return json({ error: { code: "INVALID_INVITE", message: "That invitation has no employee email." } }, 400);
+    }
+
+    let existingUser: { id: string } | null = null;
+    for (let page = 1; page <= 20 && !existingUser; page += 1) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) {
+        return json({ error: { code: "ACCOUNT_SETUP_FAILED", message: "Unable to prepare the employee login." } }, 500);
+      }
+      const match = data.users.find((candidate) => (candidate.email ?? "").toLowerCase() === email);
+      if (match) existingUser = { id: match.id };
+      if (data.users.length < 1000) break;
+    }
+
+    if (!existingUser) {
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      if (error || !data.user) {
+        return json({ error: { code: "ACCOUNT_SETUP_FAILED", message: "Unable to create the employee login." } }, 500);
+      }
+      return json({ data: { user_id: data.user.id, created: true }, server_authoritative: true });
+    }
+
+    const { data: memberships, error: membershipError } = await admin
+      .from("business_memberships")
+      .select("id")
+      .eq("user_id", existingUser.id)
+      .limit(1);
+    if (membershipError) {
+      return json({ error: { code: "ACCOUNT_SETUP_FAILED", message: "Unable to check the existing employee login." } }, 500);
+    }
+    if ((memberships ?? []).length > 0) {
+      return json({ error: { code: "ACCOUNT_ALREADY_LINKED", message: "This Fulus account is already linked to a business." } }, 409);
+    }
+
+    const { error: updateError } = await admin.auth.admin.updateUserById(existingUser.id, {
+      password,
+      email_confirm: true,
+    });
+    if (updateError) {
+      return json({ error: { code: "ACCOUNT_SETUP_FAILED", message: "Unable to prepare the employee login." } }, 500);
+    }
+    return json({ data: { user_id: existingUser.id, created: false, recovered: true }, server_authoritative: true });
+  }
+
   // Every action after invite inspection requires an authenticated account.
   const auth = req.headers.get("authorization");
   if (!auth?.startsWith("Bearer ")) {
