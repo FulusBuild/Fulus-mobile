@@ -16,6 +16,18 @@ void main() {
 
   tearDown(() => db.close());
 
+  test('captures the signed-in employee on the durable outbox row', () async {
+    final actorQueue = SyncQueue(
+      db,
+      actorUserIdProvider: () => 'employee-a',
+    );
+
+    await actorQueue.enqueue(SyncTask.createProduct('product-actor'));
+
+    final row = (await db.select(db.syncQueueItems).get()).single;
+    expect(row.actorUserId, 'employee-a');
+  });
+
   test('replaces duplicate update operations with a fresh queue identity', () async {
     final task = SyncTask.updateProduct('product-1');
 
