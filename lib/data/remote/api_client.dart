@@ -96,12 +96,41 @@ class ApiClient {
     final refreshToken = await _secureStorage.getUserRefreshToken(userId);
     if (refreshToken == null || refreshToken.isEmpty) return null;
     _activeCloudUserId = userId;
-    return _authInterceptor.restoreServerSessionWithRefreshToken(
-      refreshToken: refreshToken,
-      supabaseUrl: supabaseUrl,
-      publishableKey: publishableKey,
-      persistAsUser: true,
-    );
+    final refreshClient = Dio(BaseOptions(
+      baseUrl: supabaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    try {
+      final response = await refreshClient.post(
+        '/auth/v1/token?grant_type=refresh_token',
+        data: {'refresh_token': refreshToken},
+        options: Options(
+          headers: {
+            'apikey': publishableKey,
+            'content-type': 'application/json',
+          },
+          extra: {'skip_generic_retry': true},
+        ),
+      );
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final accessToken = data['access_token'] as String?;
+      final rotatedRefreshToken = data['refresh_token'] as String?;
+      if (accessToken == null || accessToken.isEmpty) {
+        throw StateError('Supabase refresh returned no access token.');
+      }
+      setAccessToken(accessToken);
+      if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
+        await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
+      }
+      return data;
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 401) {
+        await _secureStorage.deleteUserRefreshToken(userId);
+      }
+      return null;
+    }
   }
 
   /// Restores the durable Supabase session through the same single-flight
