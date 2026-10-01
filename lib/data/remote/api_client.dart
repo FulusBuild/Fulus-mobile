@@ -96,7 +96,9 @@ class ApiClient {
   }) async {
     final refreshToken = await _secureStorage.getUserRefreshToken(userId);
     if (refreshToken == null || refreshToken.isEmpty) return null;
-    _activeCloudUserId = userId;
+    // Do not change the active cloud identity until the refresh succeeds.
+    // A failed refresh must never leave the previous employee's access token
+    // paired with the target employee id on this shared device.
     final refreshClient = Dio(BaseOptions(
       baseUrl: supabaseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -120,10 +122,14 @@ class ApiClient {
       if (accessToken == null || accessToken.isEmpty) {
         throw StateError('Supabase refresh returned no access token.');
       }
-      setAccessToken(accessToken);
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
       }
+      // Commit the in-memory cloud identity only after Supabase accepted the
+      // target employee's refresh token and returned a valid access token.
+      _activeCloudUserId = userId;
+      _authInterceptor.setActiveCloudUser(userId);
+      setAccessToken(accessToken);
       return data;
     } on DioException catch (error) {
       if (error.response?.statusCode == 400 ||
