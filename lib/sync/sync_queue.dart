@@ -114,11 +114,16 @@ class SyncTask {
 }
 
 class SyncQueue {
-  SyncQueue(this._db, {int? Function()? baseCursorProvider})
-      : _baseCursorProvider = baseCursorProvider;
+  SyncQueue(
+    this._db, {
+    int? Function()? baseCursorProvider,
+    String? Function()? actorUserIdProvider,
+  })  : _baseCursorProvider = baseCursorProvider,
+        _actorUserIdProvider = actorUserIdProvider;
 
   final AppDatabase _db;
   final int? Function()? _baseCursorProvider;
+  final String? Function()? _actorUserIdProvider;
   Future<void> Function()? _onEnqueued;
   bool _businessSwitchBarrier = false;
 
@@ -459,6 +464,67 @@ class SyncQueue {
     return row != null;
   }
 
+  /// Repairs queue rows created before actor identity became a durable part of
+  /// the outbox. Prefer an actor already embedded in the business row; use
+  /// the current signed-in account only for entity types that historically
+  /// had no local actor field. New rows never need this fallback because
+  /// [enqueue] captures the actor inside the same transaction as the mutation.
+  Future<void> backfillLegacyActorUserIds(String? fallbackActorUserId) async {
+    final rows = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.actorUserId.isNull()))
+        .get();
+    if (rows.isEmpty) return;
+
+    await _db.transaction(() async {
+      for (final item in rows) {
+        String? actor;
+        switch (item.entityType) {
+          case 'sale':
+            actor = (await (_db.select(_db.sales)
+                  ..where((r) => r.localId.equals(item.entityLocalId)))
+                .getSingleOrNull())
+              ?.cashierUserId;
+            break;
+          case 'cash_drawer_shift':
+            actor = (await (_db.select(_db.cashDrawerShifts)
+                  ..where((r) => r.localId.equals(item.entityLocalId)))
+                .getSingleOrNull())
+              ?.cashierUserId;
+            break;
+          case 'return':
+            final request = await (_db.select(_db.returnRequests)
+                  ..where((r) => r.localId.equals(item.entityLocalId)))
+                .getSingleOrNull();
+            if (request != null) {
+              actor = (await (_db.select(_db.sales)
+                    ..where((r) => r.localId.equals(request.originalSaleLocalId)))
+                  .getSingleOrNull())
+                ?.cashierUserId;
+            }
+            break;
+          case 'customer_ledger':
+            final entry = await (_db.select(_db.customerLedgerEntries)
+                  ..where((r) => r.localId.equals(item.entityLocalId)))
+                .getSingleOrNull();
+            final saleLocalId = entry?.saleLocalId;
+            if (saleLocalId != null) {
+              actor = (await (_db.select(_db.sales)
+                    ..where((r) => r.localId.equals(saleLocalId)))
+                  .getSingleOrNull())
+                ?.cashierUserId;
+            }
+            break;
+        }
+        actor ??= fallbackActorUserId;
+        if (actor != null && actor.isNotEmpty) {
+          await (_db.update(_db.syncQueueItems)
+                ..where((q) => q.id.equals(item.id)))
+              .write(SyncQueueItemsCompanion(actorUserId: Value(actor)));
+        }
+      }
+    });
+  }
+
   Future<void> enqueue(SyncTask task) async {
     if (_businessSwitchBarrier) {
       throw StateError('Business context is switching; local mutation was rejected before durable enqueue.');
@@ -519,6 +585,7 @@ class SyncQueue {
           priority: task.priority,
           enqueuedAt: DateTime.now(),
           baseCursor: Value(_baseCursorProvider?.call()),
+          actorUserId: Value(_actorUserIdProvider?.call()),
         ),
       );
     });
