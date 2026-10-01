@@ -454,6 +454,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
 
   Future<void> initializeCloudSync() async {
+    if (fulusConnectionState.isCloudOnboardingInProgress) return;
     try {
       final session = await authApi.restoreServerSession(
       supabaseUrl: SupabaseConfig.url,
