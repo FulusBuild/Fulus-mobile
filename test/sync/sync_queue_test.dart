@@ -16,6 +16,34 @@ void main() {
 
   tearDown(() => db.close());
 
+  test('prefers the durable session identity over a stale in-memory actor', () async {
+    final now = DateTime.now();
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: 'employee-a',
+        fullName: 'Employee A',
+        role: AuthRole.employee,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await db.into(db.sessions).insert(
+      SessionsCompanion.insert(
+        id: 'current',
+        userId: 'employee-a',
+      ),
+    );
+
+    final actorQueue = SyncQueue(
+      db,
+      actorUserIdProvider: () => 'employee-b',
+    );
+    await actorQueue.enqueue(SyncTask.createProduct('product-session-actor'));
+
+    final row = (await db.select(db.syncQueueItems).get()).single;
+    expect(row.actorUserId, 'employee-a');
+  });
+
   test('captures the signed-in employee on the durable outbox row', () async {
     final actorQueue = SyncQueue(
       db,
