@@ -31,9 +31,10 @@ Deno.serve(async (req: Request) => {
 
   const action = body.action;
 
-  // Invite previews are intentionally the only unauthenticated staff-api action.
-  // The token is a high-entropy bearer secret; the preview reveals only the
-  // identity and role already embedded in the invitation, never membership data.
+  // Invite inspection and first-device account preparation are intentionally
+  // unauthenticated because a brand-new employee has no session yet. Both
+  // actions require the high-entropy invitation token; preparation only
+  // creates/recoveries an account with no existing business membership.
   if (action === "inspect_invite") {
     const token = typeof body.token === "string" ? body.token.trim() : "";
     if (!token) {
