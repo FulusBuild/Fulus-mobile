@@ -11,6 +11,7 @@ import '../domain/entities/permission.dart';
 import '../domain/entities/product.dart';
 import '../domain/entities/supplier.dart';
 import '../features/auth/presentation/screens/auth_gate_screen.dart';
+import '../features/auth/presentation/screens/employee_login_screen.dart';
 import '../features/auth/presentation/screens/owner_setup_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/money/domain/cash_drawer_state.dart';
@@ -184,6 +185,12 @@ final appRouter = GoRouter(
     return '/';
   },
   routes: [
+    GoRoute(
+      path: '/login',
+      name: 'login',
+      pageBuilder: (context, state) =>
+          _fulusNoTransitionPage(state, const EmployeeLoginScreen()),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) => _ShellGate(navigationShell: navigationShell),
       branches: [
