@@ -472,6 +472,15 @@ class SyncQueue {
       if (_businessSwitchBarrier) {
         throw StateError('Business context is switching; local mutation was rejected before durable enqueue.');
       }
+      // Read the durable local session inside the same SQLite
+      // transaction as the outbox insert. This prevents an employee switch
+      // racing an enqueue from attributing a mutation to the employee who
+      // happens to be in memory a moment later.
+      final session = await (_db.select(_db.sessions)
+            ..where((s) => s.id.equals('current')))
+          .getSingleOrNull();
+      final actorUserId = session?.userId ?? _actorUserIdProvider?.call();
+
       final existing = await (_db.select(_db.syncQueueItems)
             ..where((q) => q.entityType.equals(task.entityType))
             ..where((q) => q.entityLocalId.equals(task.entityLocalId))
@@ -524,7 +533,7 @@ class SyncQueue {
           priority: task.priority,
           enqueuedAt: DateTime.now(),
           baseCursor: Value(_baseCursorProvider?.call()),
-          actorUserId: Value(_actorUserIdProvider?.call()),
+          actorUserId: Value(actorUserId),
         ),
       );
     });
