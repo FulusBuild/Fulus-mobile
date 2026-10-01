@@ -306,6 +306,88 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  if (action === "get_my_access") {
+    const businessId = typeof body.business_id === "string" ? body.business_id.trim() : "";
+    if (!businessId) {
+      return json({ error: { code: "INVALID_REQUEST", message: "business_id is required" } }, 400);
+    }
+
+    const { data: membership, error: membershipError } = await admin
+      .from("business_memberships")
+      .select("id,user_id,role_id,status,permissions_overridden,roles(name)")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (membershipError) {
+      return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve employee access" } }, 500);
+    }
+    if (!membership) {
+      return json({ error: { code: "FORBIDDEN", message: "You are not an active member of this business" } }, 403);
+    }
+
+    const roleName = (membership.roles as { name?: string } | null)?.name ?? "employee";
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    const { data: employee } = await admin
+      .from("employees")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("auth_user_id", userData.user.id)
+      .maybeSingle();
+
+    const { data: locationMemberships } = await admin
+      .from("location_memberships")
+      .select("location_id")
+      .eq("business_id", businessId)
+      .eq("user_id", userData.user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    let permissionCodes: string[] = [];
+    if (membership.permissions_overridden) {
+      const { data: rows } = await admin
+        .from("business_member_permissions")
+        .select("permissions(code)")
+        .eq("business_id", businessId)
+        .eq("user_id", userData.user.id);
+      permissionCodes = (rows ?? [])
+        .map((row) => (row.permissions as { code?: string } | null)?.code)
+        .filter((code): code is string => typeof code === "string");
+    } else {
+      const { data: rows } = await admin
+        .from("role_permissions")
+        .select("permissions(code)")
+        .eq("role_id", membership.role_id);
+      permissionCodes = (rows ?? [])
+        .map((row) => (row.permissions as { code?: string } | null)?.code)
+        .filter((code): code is string => typeof code === "string");
+    }
+
+    return json({
+      data: {
+        business_id: businessId,
+        membership_id: membership.id,
+        user_id: userData.user.id,
+        role_id: membership.role_id,
+        role_name: roleName,
+        full_name: profile?.full_name ?? "",
+        email: userData.user.email ?? "",
+        location_id: locationMemberships?.[0]?.location_id ?? employee?.location_id ?? null,
+        permission_codes: permissionCodes,
+        employee_id: employee?.id ?? null,
+        employee: employee ?? null,
+      },
+      server_authoritative: true,
+    });
+  }
+
   const resolveUserIdByEmail = async (email: string): Promise<string | null> => {
     const normalized = email.trim().toLowerCase();
     if (!normalized) return null;
