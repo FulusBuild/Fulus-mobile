@@ -7,7 +7,6 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../../sync/sync_user_message.dart';
 
 /// Employee account authentication after the invitation has already been
 /// claimed. The invitation is never part of this flow.
@@ -21,6 +20,16 @@ class EmployeeLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
+  String _loginErrorMessage(Failure failure) {
+    if (failure is BusinessRuleFailure &&
+        (failure.code?.startsWith('SYNC_') ?? false)) {
+      return 'We couldn’t finish signing you in. Please try again.';
+    }
+    if (failure is NetworkFailure) {
+      return 'We couldn’t connect right now. Please try again.';
+    }
+    return failure.message;
+  }
   late final _emailController = TextEditingController(text: widget.initialEmail ?? '');
   final _passwordController = TextEditingController();
   bool _busy = false;
@@ -98,7 +107,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(failure);
+          _error = _loginErrorMessage(failure);
           _status = '';
         });
       }
@@ -106,7 +115,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(error);
+          _error = 'We couldn’t finish signing you in. Please try again.';
           _status = '';
         });
       }
@@ -141,7 +150,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     'Welcome back',
                     textAlign: TextAlign.center,
                     style: AppTypography.display.copyWith(
-                      color: AppColors.textPrimaryOf(context),
+                      color: AppColors.primaryOf(context),
                       fontWeight: FontWeight.w800,
                     ),
                   ),
