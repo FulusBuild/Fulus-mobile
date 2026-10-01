@@ -8,6 +8,7 @@ import '../../../../shared/widgets/widgets.dart';
 import 'fulus_account_screen.dart';
 import 'owner_setup_screen.dart';
 import 'employee_join_business_screen.dart';
+import 'employee_login_screen.dart';
 
 /// First-launch entry point for a device with no local owner/business yet.
 ///
@@ -71,6 +72,17 @@ class GetStartedScreen extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(context).push<void>(
                         MaterialPageRoute(builder: (_) => const FulusAccountScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FulusActionTile(
+                    label: 'Employee sign in',
+                    subtitle: 'Use your Fulus email and password on a new phone.',
+                    icon: Icons.badge_outlined,
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => const EmployeeLoginScreen()),
                       );
                     },
                   ),
