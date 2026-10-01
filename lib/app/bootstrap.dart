@@ -154,6 +154,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final restoreSessionFuture = authRepository.restoreSession();
   cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   await restoreSessionFuture;
+  final restoredLocalUser = authRepository.currentUser;
+  if (restoredLocalUser != null) {
+    apiClient.setActiveCloudUser(restoredLocalUser.id);
+  }
 
   // SharedPreferences and local session restoration are independent. Start
   // both as early as possible, then wait for the slower one before wiring the
