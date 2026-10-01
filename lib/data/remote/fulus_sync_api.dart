@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import '../../sync/sync_actor_context.dart';
+
 import '../../core/config/supabase_config.dart';
 import 'api_client.dart';
 import 'fulus_canonical_reconciler_typed.dart';
@@ -30,14 +32,15 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
   }) async {
     if (entityIds.isEmpty) return const [];
     try {
-      final response = await _client.dio.get(
+      final response = await _requestAsSyncActor(
+        'GET',
         _canonicalStateFunctionUrl,
         queryParameters: {
           'business_id': businessId,
           'entity_type': entityType,
           'entity_ids': entityIds.join(','),
         },
-        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+        deviceClientId: deviceClientId,
       );
       final root = Map<String, dynamic>.from(response.data as Map);
       final raw = root['data'];
@@ -62,14 +65,15 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
     required String deviceClientId,
   }) async {
     try {
-      final response = await _client.dio.get(
+      final response = await _requestAsSyncActor(
+        'GET',
         _canonicalStateFunctionUrl,
         queryParameters: {
           'business_id': businessId,
           'entity_type': entityType,
           'entity_id': entityId,
         },
-        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+        deviceClientId: deviceClientId,
       );
       return FulusCanonicalEntityResponse.fromJson(
         Map<String, dynamic>.from(response.data as Map),
@@ -85,14 +89,14 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
     int limit = 100,
   }) async {
     try {
-      final response = await _client.dio.get(
+      final response = await _requestAsSyncActor(
+        'GET',
         _functionBaseUrl,
         queryParameters: {
           'business_id': businessId,
           'cursor': cursor,
           'limit': limit,
         },
-        options: Options(headers: _headers()),
       );
       return FulusSyncPullResponse.fromJson(
         Map<String, dynamic>.from(response.data as Map),
@@ -200,15 +204,72 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
         }
       }
 
-      final response = await _client.dio.post(
+      final response = await _requestAsSyncActor(
+        'POST',
         _functionBaseUrl,
         data: body,
-        options: Options(headers: _headers(deviceClientId: deviceClientId)),
+        deviceClientId: deviceClientId,
       );
       final result = Map<String, dynamic>.from(response.data as Map);
       return _normalizeOperationResponse(result, operationType: operationType);
     } on DioException catch (e) {
       throw _mapSyncTransportError(e);
+    }
+  }
+
+  Future<Response<dynamic>> _requestAsSyncActor(
+    String method,
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Object? data,
+    String? deviceClientId,
+  }) async {
+    final actorUserId = currentSyncActorUserId();
+    final useActiveSession =
+        actorUserId == null || actorUserId == _client.activeCloudUserId;
+
+    if (useActiveSession) {
+      return _client.dio.request(
+        url,
+        queryParameters: queryParameters,
+        data: data,
+        options: Options(
+          method: method,
+          headers: _headers(deviceClientId: deviceClientId),
+        ),
+      );
+    }
+
+    Future<Response<dynamic>> send(String token) {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+      ));
+      return dio.request(
+        url,
+        queryParameters: queryParameters,
+        data: data,
+        options: Options(
+          method: method,
+          headers: _headers(
+            deviceClientId: deviceClientId,
+            accessToken: token,
+          ),
+        ),
+      );
+    }
+
+    final token = await _client.accessTokenForUser(actorUserId);
+    if (token == null) {
+      throw const AuthFailure.sessionExpired();
+    }
+    try {
+      return await send(token);
+    } on DioException catch (error) {
+      if (error.response?.statusCode != 401) rethrow;
+      final refreshed = await _client.accessTokenForUser(actorUserId, forceRefresh: true);
+      if (refreshed == null) throw const AuthFailure.sessionExpired();
+      return send(refreshed);
     }
   }
 
@@ -269,12 +330,17 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
     return result;
   }
 
-  Map<String, String> _headers({String? deviceClientId}) => {
-        'content-type': 'application/json',
-        if (deviceClientId != null) 'x-fulus-device-id': deviceClientId,
-        if (_client.serverAccessToken != null)
-          'Authorization': 'Bearer ${_client.serverAccessToken}',
-      };
+  Map<String, String> _headers({
+    String? deviceClientId,
+    String? accessToken,
+  }) {
+    final token = accessToken ?? _client.serverAccessToken;
+    return {
+      'content-type': 'application/json',
+      if (deviceClientId != null) 'x-fulus-device-id': deviceClientId,
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 }
 
 class FulusCanonicalEntityResponse {

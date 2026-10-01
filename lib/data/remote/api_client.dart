@@ -39,11 +39,17 @@ class ApiClient {
   late final _AuthInterceptor _authInterceptor;
   String? _serverAccessToken;
   String? _activeCloudUserId;
+  String? _supabaseUrl;
+  String? _publishableKey;
+  final Map<String, Future<String?>> _scopedRefreshRuns = {};
+  final Map<String, _ScopedAccessToken> _scopedAccessTokens = {};
 
   void configureServerAuth({
     required String supabaseUrl,
     required String publishableKey,
   }) {
+    _supabaseUrl = supabaseUrl;
+    _publishableKey = publishableKey;
     _authInterceptor.configureServerAuth(
       supabaseUrl: supabaseUrl,
       publishableKey: publishableKey,
@@ -89,6 +95,86 @@ class ApiClient {
     await _secureStorage.deleteRefreshToken();
   }
 
+  Future<String?> accessTokenForUser(
+    String userId, {
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh &&
+        userId == _activeCloudUserId &&
+        _serverAccessToken != null &&
+        _serverAccessToken!.isNotEmpty) {
+      return _serverAccessToken;
+    }
+    if (!forceRefresh) {
+      final cached = _scopedAccessTokens[userId];
+      if (cached != null && cached.expiresAt.isAfter(DateTime.now())) {
+        return cached.token;
+      }
+    }
+    final existing = _scopedRefreshRuns[userId];
+    if (existing != null) return existing;
+    final run = _refreshUserAccessToken(userId);
+    _scopedRefreshRuns[userId] = run;
+    try {
+      return await run;
+    } finally {
+      _scopedRefreshRuns.remove(userId);
+    }
+  }
+
+  Future<String?> _refreshUserAccessToken(String userId) async {
+    final supabaseUrl = _supabaseUrl;
+    final publishableKey = _publishableKey;
+    if (supabaseUrl == null || publishableKey == null) {
+      throw StateError('Supabase auth is not configured.');
+    }
+    final refreshToken = await _secureStorage.getUserRefreshToken(userId);
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    final refreshClient = Dio(BaseOptions(
+      baseUrl: supabaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    try {
+      final response = await refreshClient.post(
+        '/auth/v1/token?grant_type=refresh_token',
+        data: {'refresh_token': refreshToken},
+        options: Options(
+          headers: {
+            'apikey': publishableKey,
+            'content-type': 'application/json',
+          },
+        ),
+      );
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final accessToken = data['access_token'] as String?;
+      final rotatedRefreshToken = data['refresh_token'] as String?;
+      final expiresIn = (data['expires_in'] as num?)?.toInt() ?? 3600;
+      if (accessToken == null || accessToken.isEmpty) {
+        throw StateError('Supabase refresh returned no access token.');
+      }
+      if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
+        await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
+      }
+      _scopedAccessTokens[userId] = _ScopedAccessToken(
+        token: accessToken,
+        expiresAt: DateTime.now().add(
+          Duration(seconds: expiresIn > 30 ? expiresIn - 30 : expiresIn),
+        ),
+      );
+      return accessToken;
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 401) {
+        await _secureStorage.deleteUserRefreshToken(userId);
+      }
+      return null;
+    }
+  }
+
+  Future<String?> deviceClientId() => _secureStorage.getDeviceClientId();
+
   Future<Map<String, dynamic>?> restoreServerSessionForUser({
     required String userId,
     required String supabaseUrl,
@@ -96,7 +182,9 @@ class ApiClient {
   }) async {
     final refreshToken = await _secureStorage.getUserRefreshToken(userId);
     if (refreshToken == null || refreshToken.isEmpty) return null;
-    _activeCloudUserId = userId;
+    // Do not change the active cloud identity until the refresh succeeds.
+    // A failed refresh must never leave the previous employee's access token
+    // paired with the target employee id on this shared device.
     final refreshClient = Dio(BaseOptions(
       baseUrl: supabaseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -120,10 +208,14 @@ class ApiClient {
       if (accessToken == null || accessToken.isEmpty) {
         throw StateError('Supabase refresh returned no access token.');
       }
-      setAccessToken(accessToken);
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
       }
+      // Commit the in-memory cloud identity only after Supabase accepted the
+      // target employee's refresh token and returned a valid access token.
+      _activeCloudUserId = userId;
+      _authInterceptor.setActiveCloudUser(userId);
+      setAccessToken(accessToken);
       return data;
     } on DioException catch (error) {
       if (error.response?.statusCode == 400 ||
@@ -304,6 +396,17 @@ class ApiClient {
     }
     return errors;
   }
+}
+
+
+class _ScopedAccessToken {
+  const _ScopedAccessToken({
+    required this.token,
+    required this.expiresAt,
+  });
+
+  final String token;
+  final DateTime expiresAt;
 }
 
 class _AuthInterceptor extends Interceptor {
