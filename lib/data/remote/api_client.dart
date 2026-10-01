@@ -71,6 +71,7 @@ class ApiClient {
 
   void setActiveCloudUser(String? userId) {
     _activeCloudUserId = userId;
+    _authInterceptor.setActiveCloudUser(userId);
   }
 
   String? get activeCloudUserId => _activeCloudUserId;
@@ -318,6 +319,7 @@ class _AuthInterceptor extends Interceptor {
   final Dio _dio;
   Future<void> Function() _onSessionExpired;
   String? _accessToken;
+  String? _activeCloudUserId;
   String? _supabaseUrl;
   String? _publishableKey;
   Future<_RefreshResult>? _refreshRun;
@@ -331,6 +333,8 @@ class _AuthInterceptor extends Interceptor {
   }
 
   void setAccessToken(String? token) => _accessToken = token;
+  void setActiveCloudUser(String? userId) => _activeCloudUserId = userId;
+
 
   void setOnSessionExpired(Future<void> Function() callback) =>
       _onSessionExpired = callback;
