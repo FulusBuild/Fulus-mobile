@@ -38,6 +38,7 @@ class ApiClient {
   final SecureStorage _secureStorage;
   late final _AuthInterceptor _authInterceptor;
   String? _serverAccessToken;
+  String? _activeCloudUserId;
 
   void configureServerAuth({
     required String supabaseUrl,
@@ -62,12 +63,46 @@ class ApiClient {
   Future<void> persistServerRefreshToken(String token) =>
       _secureStorage.setRefreshToken(token);
 
+  Future<void> persistServerRefreshTokenForUser({
+    required String userId,
+    required String token,
+  }) =>
+      _secureStorage.setUserRefreshToken(userId, token);
+
+  void setActiveCloudUser(String? userId) {
+    _activeCloudUserId = userId;
+  }
+
+  String? get activeCloudUserId => _activeCloudUserId;
+
   String? get serverAccessToken => _serverAccessToken;
 
   Future<String?> secureRefreshToken() => _secureStorage.getRefreshToken();
 
   Future<void> clearServerRefreshToken() =>
       _secureStorage.deleteRefreshToken();
+
+  Future<void> clearActiveCloudSession() async {
+    _activeCloudUserId = null;
+    setAccessToken(null);
+    await _secureStorage.deleteRefreshToken();
+  }
+
+  Future<Map<String, dynamic>?> restoreServerSessionForUser({
+    required String userId,
+    required String supabaseUrl,
+    required String publishableKey,
+  }) async {
+    final refreshToken = await _secureStorage.getUserRefreshToken(userId);
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+    _activeCloudUserId = userId;
+    return _authInterceptor.restoreServerSessionWithRefreshToken(
+      refreshToken: refreshToken,
+      supabaseUrl: supabaseUrl,
+      publishableKey: publishableKey,
+      persistAsUser: true,
+    );
+  }
 
   /// Restores the durable Supabase session through the same single-flight
   /// refresh authority used by 401 recovery. Startup and in-flight requests
@@ -427,15 +462,26 @@ class _AuthInterceptor extends Interceptor {
   }
 
   Future<_RefreshResult> _performStoredRefresh() async {
-    final refreshToken = await _secureStorage.getRefreshToken();
+    final refreshToken = _activeCloudUserId == null
+        ? await _secureStorage.getRefreshToken()
+        : await _secureStorage.getUserRefreshToken(_activeCloudUserId!);
     if (refreshToken == null || refreshToken.isEmpty) {
       throw const _NoStoredRefreshToken();
     }
+    return _performRefreshToken(
+      refreshToken,
+      persistAsUser: _activeCloudUserId != null,
+    );
+  }
 
-    final supabaseUrl = _supabaseUrl ?? SupabaseConfig.url;
-    final publishableKey = _publishableKey ?? SupabaseConfig.publishableKey;
+  Future<_RefreshResult> _performRefreshToken(
+    String refreshToken, {
+    required bool persistAsUser,
+    String? supabaseUrl,
+    String? publishableKey,
+  }) async {
     final refreshClient = Dio(BaseOptions(
-      baseUrl: supabaseUrl,
+      baseUrl: supabaseUrl ?? _supabaseUrl ?? SupabaseConfig.url,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 15),
     ));
@@ -444,31 +490,27 @@ class _AuthInterceptor extends Interceptor {
       data: {'refresh_token': refreshToken},
       options: Options(
         headers: {
-          'apikey': publishableKey,
+          'apikey': publishableKey ?? _publishableKey ?? SupabaseConfig.publishableKey,
           'content-type': 'application/json',
         },
-        // Refresh failures are handled by the auth interceptor itself.
-        // Do not let the generic application retry interceptor turn a
-        // transient 5xx from Supabase Auth into a 30s/2m/10m backoff.
         extra: {'skip_generic_retry': true},
       ),
     );
-
     final data = Map<String, dynamic>.from(response.data as Map);
     final newAccessToken = data['access_token'] as String?;
     final newRefreshToken = data['refresh_token'] as String?;
     if (newAccessToken == null || newAccessToken.isEmpty) {
       throw StateError('Supabase refresh returned no access token.');
     }
-
     setAccessToken(newAccessToken);
     if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-      await _secureStorage.setRefreshToken(newRefreshToken);
+      if (persistAsUser && _activeCloudUserId != null) {
+        await _secureStorage.setUserRefreshToken(_activeCloudUserId!, newRefreshToken);
+      } else {
+        await _secureStorage.setRefreshToken(newRefreshToken);
+      }
     }
-    return _RefreshResult(
-      accessToken: newAccessToken,
-      raw: data,
-    );
+    return _RefreshResult(accessToken: newAccessToken, raw: data);
   }
 
   bool _isRefreshTokenRejected(DioException error) {
