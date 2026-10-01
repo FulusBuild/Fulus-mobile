@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
@@ -74,8 +75,52 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       final user = await ref
           .read(authRepositoryProvider)
           .switchLocalUser(userId: identity.id, pin: pin);
+
+      if (identity.role != AuthRole.owner) {
+        final accessToken = await ref.read(apiClientProvider).restoreServerSessionForUser(
+              userId: identity.id,
+              supabaseUrl: SupabaseConfig.url,
+              publishableKey: SupabaseConfig.publishableKey,
+            );
+        if (accessToken == null) {
+          await ref.read(authRepositoryProvider).logout();
+          ref.read(sessionProvider.notifier).state = null;
+          throw const BusinessRuleFailure(
+            'This employee needs to sign in with their Fulus email and password first.',
+          );
+        }
+
+        final connection = ref.read(fulusConnectionStateProvider);
+        connection.markSessionAuthenticated();
+        await connection.refresh();
+        final active = connection.membershipContext?.memberships
+                .where((membership) => membership.status == 'active')
+                .toList(growable: false) ??
+            const [];
+        if (active.length != 1) {
+          await ref.read(authRepositoryProvider).logout();
+          ref.read(sessionProvider.notifier).state = null;
+          throw const BusinessRuleFailure(
+            'This employee no longer has one active Fulus business on this device.',
+          );
+        }
+        await connection.selectBusiness(active.single.businessId);
+        final claim = await ref
+            .read(fulusStaffAccessApiProvider)
+            .getMyAccess(businessId: active.single.businessId);
+        if (claim.userId != identity.id) {
+          await ref.read(authRepositoryProvider).logout();
+          ref.read(sessionProvider.notifier).state = null;
+          throw const AuthFailure.forbidden();
+        }
+        await ref.read(employeeCloudSessionCoordinatorProvider).activateExisting(
+              claim: claim,
+            );
+      }
+
       if (!mounted) return;
-      ref.read(sessionProvider.notifier).state = user;
+      ref.read(sessionProvider.notifier).state =
+          ref.read(authRepositoryProvider).currentUser ?? user;
       context.closeScreenOr('/');
     } on Failure catch (f) {
       if (!mounted) return;

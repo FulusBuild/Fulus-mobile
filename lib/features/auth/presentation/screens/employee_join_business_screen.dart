@@ -1,38 +1,30 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ulid/ulid.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../data/remote/endpoints/cloud_restore_api.dart';
-import '../../../../data/remote/cross_device_employee_restore.dart';
 import '../../../../data/remote/fulus_staff_access_api.dart';
-import '../../../../domain/entities/auth_user.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../../sync/sync_execution_lease.dart';
 import '../../../../sync/sync_user_message.dart';
 
 /// First-device employee onboarding.
 ///
-/// The invitation is the source of truth for the employee's name, email,
-/// business, role and access. The employee only enters the invitation code
-/// once and then chooses their password. There is deliberately no
-/// create-account/sign-in toggle and no second email/name field.
+/// The invitation is the source of truth for first-time business access.
+/// After the account is created, every later sign-in uses the Fulus email and
+/// password; the invitation is never requested again.
 class EmployeeJoinBusinessScreen extends ConsumerStatefulWidget {
   const EmployeeJoinBusinessScreen({super.key});
 
   @override
-  ConsumerState<EmployeeJoinBusinessScreen> createState() => _EmployeeJoinBusinessScreenState();
+  ConsumerState<EmployeeJoinBusinessScreen> createState() =>
+      _EmployeeJoinBusinessScreenState();
 }
 
-class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusinessScreen> {
+class _EmployeeJoinBusinessScreenState
+    extends ConsumerState<EmployeeJoinBusinessScreen> {
   final _tokenController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -63,7 +55,8 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
     });
 
     try {
-      final preview = await ref.read(fulusStaffAccessApiProvider).inspectInvite(token);
+      final preview =
+          await ref.read(fulusStaffAccessApiProvider).inspectInvite(token);
       if (!mounted) return;
       setState(() {
         _preview = preview;
@@ -107,22 +100,12 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
     });
 
     try {
-      // The invitation authorizes first-device account setup. Prepare the
-      // account server-side before signing in: create a brand-new account,
-      // or recover an orphan account left behind by an interrupted join.
-      // An account that already belongs to a business is never password-reset
-      // by an invitation; that path requires its existing credentials.
-      setState(() => _status = 'Creating your Fulus login…');
       try {
         await ref.read(fulusStaffAccessApiProvider).prepareInvitedAccount(
               token: token,
               password: password,
             );
       } on BusinessRuleFailure catch (failure) {
-        // A join can legitimately be retried after the invitation was already
-        // claimed by this account. Claiming itself is idempotent and will
-        // recover the existing membership below, so do not turn that recovery
-        // path into a generic cloud-backup error.
         if (failure.code != 'ACCOUNT_ALREADY_LINKED' &&
             failure.code != 'INVITE_CLAIMED') {
           rethrow;
@@ -137,78 +120,23 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
             publishableKey: SupabaseConfig.publishableKey,
           );
 
-      setState(() => _status = 'Joining ${preview.businessName}…');
+      setState(() => _status = 'Joining ' + preview.businessName + '…');
       final claim = await ref.read(fulusStaffAccessApiProvider).claimInvite(
             token,
             fullName: preview.fullName.isEmpty ? null : preview.fullName,
           );
 
-      final connection = ref.read(fulusConnectionStateProvider);
-      connection.markSessionAuthenticated();
-      await connection.refresh();
-      await connection.selectBusiness(claim.businessId);
-      connection.clearSyncReady();
+      ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
 
-      final snapshot = await CloudRestoreApi(ref.read(apiClientProvider))
-          .fetchSnapshot(businessId: claim.businessId);
-      final boundary = snapshot['sync_boundary'];
-      if (boundary is! num || boundary.toInt() < 0) {
-        throw const FormatException('Business restore did not contain a valid sync boundary.');
-      }
+      final employee =
+          await ref.read(employeeCloudSessionCoordinatorProvider).establish(
+                claim: claim,
+                onProgress: (status) {
+                  if (mounted) setState(() => _status = status);
+                },
+              );
 
-      setState(() => _status = 'Registering this phone…');
-      final storage = ref.read(secureStorageProvider);
-      final deviceId = await storage.ensureDeviceClientId(Ulid().toString());
-      final package = await PackageInfo.fromPlatform();
-      await connection.registerDevice(
-        deviceClientId: deviceId,
-        deviceName: 'Fulus Mobile',
-        platform: Platform.operatingSystem,
-        appVersion: package.version,
-      );
-
-      setState(() => _status = 'Restoring your business…');
-      final localRole = _localRole(claim.roleName);
-      final result = await CrossDeviceEmployeeRestore(
-        ref.read(databaseProvider),
-        executionLease: SyncExecutionLease(ref.read(databaseProvider)),
-      ).restore(
-        snapshot: snapshot,
-        claim: claim,
-        settings: CrossDeviceEmployeeRestore.settingsFromSnapshot(snapshot),
-        role: localRole,
-        onProgress: (status) {
-          if (mounted) setState(() => _status = status);
-        },
-      );
-
-      if (result.totalRows == 0) {
-        throw StateError('The cloud business has no restorable business data.');
-      }
-
-      setState(() => _status = 'Finishing setup…');
-      final prefs = await SharedPreferences.getInstance();
-      final saved = await prefs.setInt(
-        'fulus_sync_cursor_' + claim.businessId,
-        boundary.toInt(),
-      );
-      if (!saved) {
-        throw StateError('Failed to save the cloud restore boundary.');
-      }
-
-      // The local account, business restore and device registration are
-      // complete at this point. Do not make entering the app depend on the
-      // first post-restore reconciliation completing in this same frame.
-      // SyncTriggers observes the enabled config and retries automatically;
-      // this is the same local-first boundary used by normal account setup.
-      await ref.read(syncConfigProvider).setEnabled(true);
-
-      final employee = await ref.read(authRepositoryProvider).restoreSession();
-      if (employee == null || employee.id != claim.userId || !employee.isActive) {
-        throw StateError('Employee login was created, but the local session could not be restored.');
-      }
       ref.read(sessionProvider.notifier).state = employee;
-
       if (!mounted) return;
       context.go('/');
     } on Failure catch (failure) {
@@ -227,18 +155,6 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
           _status = '';
         });
       }
-    }
-  }
-
-  AuthRole _localRole(String roleName) {
-    switch (roleName.toLowerCase()) {
-      case 'manager':
-      case 'admin':
-        return AuthRole.manager;
-      case 'cashier':
-        return AuthRole.cashier;
-      default:
-        return AuthRole.employee;
     }
   }
 
@@ -305,14 +221,19 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            preview.fullName.isEmpty ? 'Team member' : preview.fullName,
+                            preview.fullName.isEmpty
+                                ? 'Team member'
+                                : preview.fullName,
                             style: AppTypography.heading.copyWith(
                               color: AppColors.textPrimaryOf(context),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            '${preview.roleName[0].toUpperCase()}${preview.roleName.substring(1)} · ${preview.businessName}',
+                            preview.roleName[0].toUpperCase() +
+                                preview.roleName.substring(1) +
+                                ' · ' +
+                                preview.businessName,
                             style: AppTypography.body.copyWith(
                               color: AppColors.textSecondaryOf(context),
                             ),
@@ -330,11 +251,12 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
                     ),
                     const SizedBox(height: AppSpacing.md),
                     FulusTextField(
-                      label: 'Your password',
+                      label: 'Create your Fulus password',
                       controller: _passwordController,
                       enabled: !_busy,
                       obscureText: true,
-                      helperText: 'Use your existing Fulus password, or choose a new one.',
+                      helperText:
+                          'You will use this password to sign in after logging out.',
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     FulusButton(

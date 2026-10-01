@@ -19,6 +19,7 @@ import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
 import '../data/remote/cloud_restore_api.dart';
+import '../data/remote/endpoints/cloud_restore_api.dart' as employee_restore_api;
 import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
 import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
@@ -37,6 +38,7 @@ import '../data/remote/fulus_product_canonical_reconciler.dart';
 import '../data/remote/fulus_return_canonical_reconciler.dart';
 import '../data/remote/fulus_sale_canonical_reconciler.dart';
 import '../data/remote/fulus_staff_access_api.dart';
+import '../data/remote/employee_cloud_session_coordinator.dart';
 import '../data/remote/fulus_stock_movement_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/product_image_api.dart';
@@ -137,7 +139,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusDeviceRegistration = FulusDeviceRegistration(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusSyncApi = FulusSyncApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
-  late final CloudRestoreApi cloudRestoreApi;
+  final cloudRestoreApi = CloudRestoreApi(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final employeeCloudRestoreApi = employee_restore_api.CloudRestoreApi(apiClient);
   final fulusStaffAccessApi = FulusStaffAccessApi(client: apiClient, functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api');
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
@@ -152,8 +158,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
   final restoreSessionFuture = authRepository.restoreSession();
-  cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   await restoreSessionFuture;
+  final restoredLocalUser = authRepository.currentUser;
+  if (restoredLocalUser != null) {
+    apiClient.setActiveCloudUser(restoredLocalUser.id);
+  }
 
   // SharedPreferences and local session restoration are independent. Start
   // both as early as possible, then wait for the slower one before wiring the
@@ -450,6 +459,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
 
   Future<void> initializeCloudSync() async {
+    if (fulusConnectionState.isCloudOnboardingInProgress) return;
     try {
       final session = await authApi.restoreServerSession(
       supabaseUrl: SupabaseConfig.url,
@@ -627,6 +637,17 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  final employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
+    database: database,
+    restoreApi: employeeCloudRestoreApi,
+    connection: fulusConnectionState,
+    secureStorage: secureStorage,
+    syncConfig: syncConfig,
+    syncTriggers: syncTriggers,
+    authRepository: authRepository,
+    executionLease: syncExecutionLease,
+  );
+
   // Sync starts after runApp(). The trigger is fully wired here, but
   // network/session reconciliation is deliberately outside the first-frame
   // startup path. Queue notifications remain connected immediately so any
@@ -720,6 +741,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
       syncTriggersProvider.overrideWithValue(syncTriggers),
+      employeeCloudSessionCoordinatorProvider.overrideWithValue(
+        employeeCloudSessionCoordinator,
+      ),
     ],
   );
 }

@@ -33,6 +33,7 @@ class FulusConnectionState extends ChangeNotifier {
   bool _syncReady = false;
   bool _sessionAuthenticated = false;
   bool _sessionExpired = false;
+  bool _cloudOnboardingInProgress = false;
   Object? _syncError;
 
   FulusMembershipContext? get membershipContext => _membershipContext;
@@ -46,6 +47,19 @@ class FulusConnectionState extends ChangeNotifier {
   /// treated as an expired session, so the UI can wait for automatic recovery.
   bool get isSessionExpired => _sessionExpired;
   bool get hasSyncError => _syncError != null;
+  bool get isCloudOnboardingInProgress => _cloudOnboardingInProgress;
+
+  void beginCloudOnboarding() {
+    _cloudOnboardingInProgress = true;
+    _syncReady = false;
+    notifyListeners();
+  }
+
+  void endCloudOnboarding() {
+    if (!_cloudOnboardingInProgress) return;
+    _cloudOnboardingInProgress = false;
+    notifyListeners();
+  }
   bool get isSyncReady =>
       _syncReady &&
       _sessionAuthenticated &&

@@ -63,6 +63,14 @@ class FulusStaffAccessApi {
     return StaffClaim.fromJson(Map<String, dynamic>.from(response['data'] as Map));
   }
 
+  Future<StaffClaim> getMyAccess({required String businessId}) async {
+    final response = await _call({
+      'action': 'get_my_access',
+      'business_id': businessId,
+    });
+    return StaffClaim.fromJson(Map<String, dynamic>.from(response['data'] as Map));
+  }
+
   Future<bool> setMemberPermissions({
     required String businessId,
     required String userId,
