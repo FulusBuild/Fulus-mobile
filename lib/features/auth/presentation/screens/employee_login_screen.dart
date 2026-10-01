@@ -6,7 +6,6 @@ import '../../../../app/providers.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../data/remote/fulus_staff_access_api.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../../sync/sync_user_message.dart';
 
@@ -160,7 +159,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     controller: _emailController,
                     enabled: !_busy,
                     keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   FulusTextField(
@@ -168,7 +166,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     controller: _passwordController,
                     enabled: !_busy,
                     obscureText: true,
-                    onSubmitted: (_) => _login(),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   FulusButton(
