@@ -187,15 +187,28 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(sessionProvider);
+    final employee = user != null && user.role != AuthRole.owner;
     final confirmed = await showFulusConfirmDialog(
       context,
       title: 'Log out?',
-      message: "You'll need your PIN to sign back in on this device.",
+      message: employee
+          ? 'Sign in again with your Fulus email and password.'
+          : 'Your business data stays on this device. You can sign in again when you are ready.',
       confirmLabel: 'Log out',
     );
     if (!confirmed || !context.mounted) return;
+
     await ref.read(authRepositoryProvider).logout();
+    await ref.read(apiClientProvider).clearActiveCloudSession();
+    ref.read(fulusConnectionStateProvider).disconnect();
+    await ref.read(syncConfigProvider).setEnabled(false);
     ref.read(sessionProvider.notifier).state = null;
+
+    if (!context.mounted) return;
+    if (employee) {
+      context.goNamed('login');
+    }
   }
 
   void _openChangePinSheet(BuildContext context) {
