@@ -18,7 +18,8 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
-import '../data/remote/endpoints/cloud_restore_api.dart';
+import '../data/remote/cloud_restore_api.dart';
+import '../data/remote/endpoints/cloud_restore_api.dart' as employee_restore_api;
 import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
 import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
@@ -138,7 +139,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final fulusBusinessContext = FulusBusinessContext(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusDeviceRegistration = FulusDeviceRegistration(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   final fulusSyncApi = FulusSyncApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
-  late final CloudRestoreApi cloudRestoreApi;
+  final cloudRestoreApi = CloudRestoreApi(
+    client: apiClient,
+    functionBaseUrl: fulusFunctionBaseUrl,
+  );
+  final employeeCloudRestoreApi = employee_restore_api.CloudRestoreApi(apiClient);
   final fulusStaffAccessApi = FulusStaffAccessApi(client: apiClient, functionBaseUrl: '${SupabaseConfig.url}/functions/v1/fulus-staff-api');
   final fulusConnectionState = FulusConnectionState(
     businessContext: fulusBusinessContext,
@@ -153,7 +158,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
   final restoreSessionFuture = authRepository.restoreSession();
-  cloudRestoreApi = CloudRestoreApi(client: apiClient, functionBaseUrl: fulusFunctionBaseUrl);
   await restoreSessionFuture;
   final restoredLocalUser = authRepository.currentUser;
   if (restoredLocalUser != null) {
@@ -635,7 +639,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
-    restoreApi: cloudRestoreApi,
+    restoreApi: employeeCloudRestoreApi,
     connection: fulusConnectionState,
     secureStorage: secureStorage,
     syncConfig: syncConfig,
