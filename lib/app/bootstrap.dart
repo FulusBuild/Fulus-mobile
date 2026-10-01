@@ -37,6 +37,7 @@ import '../data/remote/fulus_product_canonical_reconciler.dart';
 import '../data/remote/fulus_return_canonical_reconciler.dart';
 import '../data/remote/fulus_sale_canonical_reconciler.dart';
 import '../data/remote/fulus_staff_access_api.dart';
+import '../data/remote/employee_cloud_session_coordinator.dart';
 import '../data/remote/fulus_stock_movement_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/product_image_api.dart';
@@ -632,6 +633,17 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  final employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
+    database: database,
+    restoreApi: cloudRestoreApi,
+    connection: fulusConnectionState,
+    secureStorage: secureStorage,
+    syncConfig: syncConfig,
+    syncTriggers: syncTriggers,
+    authRepository: authRepository,
+    executionLease: syncExecutionLease,
+  );
+
   // Sync starts after runApp(). The trigger is fully wired here, but
   // network/session reconciliation is deliberately outside the first-frame
   // startup path. Queue notifications remain connected immediately so any
@@ -725,6 +737,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
       syncTriggersProvider.overrideWithValue(syncTriggers),
+      employeeCloudSessionCoordinatorProvider.overrideWithValue(
+        employeeCloudSessionCoordinator,
+      ),
     ],
   );
 }
