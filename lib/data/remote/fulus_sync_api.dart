@@ -267,7 +267,7 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
       return await send(token);
     } on DioException catch (error) {
       if (error.response?.statusCode != 401) rethrow;
-      final refreshed = await _client.accessTokenForUser(actorUserId);
+      final refreshed = await _client.accessTokenForUser(actorUserId, forceRefresh: true);
       if (refreshed == null) throw const AuthFailure.sessionExpired();
       return send(refreshed);
     }
