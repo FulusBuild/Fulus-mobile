@@ -2,7 +2,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
-import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:fulus_mobile/sync/sync_queue.dart';
 
