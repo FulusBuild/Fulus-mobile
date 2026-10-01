@@ -9,9 +9,9 @@ import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
 import '../local/secure_storage/secure_storage.dart';
-import '../sync/sync_config.dart';
-import '../sync/sync_execution_lease.dart';
-import '../sync/sync_triggers.dart';
+import '../../sync/sync_config.dart';
+import '../../sync/sync_execution_lease.dart';
+import '../../sync/sync_triggers.dart';
 import 'api_client.dart';
 import 'cross_device_employee_restore.dart';
 import 'endpoints/cloud_restore_api.dart';
@@ -29,7 +29,6 @@ import 'fulus_staff_access_api.dart';
 class EmployeeCloudSessionCoordinator {
   EmployeeCloudSessionCoordinator({
     required AppDatabase database,
-    required ApiClient apiClient,
     required CloudRestoreApi restoreApi,
     required FulusConnectionState connection,
     required SecureStorage secureStorage,
@@ -38,7 +37,6 @@ class EmployeeCloudSessionCoordinator {
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
   })  : _database = database,
-        _apiClient = apiClient,
         _restoreApi = restoreApi,
         _connection = connection,
         _secureStorage = secureStorage,
@@ -48,7 +46,6 @@ class EmployeeCloudSessionCoordinator {
         _executionLease = executionLease;
 
   final AppDatabase _database;
-  final ApiClient _apiClient;
   final CloudRestoreApi _restoreApi;
   final FulusConnectionState _connection;
   final SecureStorage _secureStorage;
