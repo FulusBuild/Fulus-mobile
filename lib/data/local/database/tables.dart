@@ -570,6 +570,10 @@ class SyncQueueItems extends Table {
   // head-of-line-blocking fix.
   IntColumn get syncAttempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+  /// Cloud account that created this durable mutation. Kept on the outbox
+  /// rather than inferred from the currently signed-in employee so shared
+  /// devices can safely sync an older employee's work after a switch.
+  TextColumn get actorUserId => text().nullable()();
   DateTimeColumn get lastAttemptedAt => dateTime().nullable()();
 
   @override
