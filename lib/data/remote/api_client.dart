@@ -42,6 +42,7 @@ class ApiClient {
   String? _supabaseUrl;
   String? _publishableKey;
   final Map<String, Future<String?>> _scopedRefreshRuns = {};
+  final Map<String, _ScopedAccessToken> _scopedAccessTokens = {};
 
   void configureServerAuth({
     required String supabaseUrl,
@@ -94,11 +95,21 @@ class ApiClient {
     await _secureStorage.deleteRefreshToken();
   }
 
-  Future<String?> accessTokenForUser(String userId) async {
-    if (userId == _activeCloudUserId &&
+  Future<String?> accessTokenForUser(
+    String userId, {
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh &&
+        userId == _activeCloudUserId &&
         _serverAccessToken != null &&
         _serverAccessToken!.isNotEmpty) {
       return _serverAccessToken;
+    }
+    if (!forceRefresh) {
+      final cached = _scopedAccessTokens[userId];
+      if (cached != null && cached.expiresAt.isAfter(DateTime.now())) {
+        return cached.token;
+      }
     }
     final existing = _scopedRefreshRuns[userId];
     if (existing != null) return existing;
@@ -139,12 +150,19 @@ class ApiClient {
       final data = Map<String, dynamic>.from(response.data as Map);
       final accessToken = data['access_token'] as String?;
       final rotatedRefreshToken = data['refresh_token'] as String?;
+      final expiresIn = (data['expires_in'] as num?)?.toInt() ?? 3600;
       if (accessToken == null || accessToken.isEmpty) {
         throw StateError('Supabase refresh returned no access token.');
       }
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
       }
+      _scopedAccessTokens[userId] = _ScopedAccessToken(
+        token: accessToken,
+        expiresAt: DateTime.now().add(
+          Duration(seconds: expiresIn > 30 ? expiresIn - 30 : expiresIn),
+        ),
+      );
       return accessToken;
     } on DioException catch (error) {
       if (error.response?.statusCode == 400 ||
@@ -378,6 +396,17 @@ class ApiClient {
     }
     return errors;
   }
+}
+
+
+class _ScopedAccessToken {
+  const _ScopedAccessToken({
+    required this.token,
+    required this.expiresAt,
+  });
+
+  final String token;
+  final DateTime expiresAt;
 }
 
 class _AuthInterceptor extends Interceptor {
