@@ -119,7 +119,14 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
               password: password,
             );
       } on BusinessRuleFailure catch (failure) {
-        if (failure.code != 'ACCOUNT_ALREADY_LINKED') rethrow;
+        // A join can legitimately be retried after the invitation was already
+        // claimed by this account. Claiming itself is idempotent and will
+        // recover the existing membership below, so do not turn that recovery
+        // path into a generic cloud-backup error.
+        if (failure.code != 'ACCOUNT_ALREADY_LINKED' &&
+            failure.code != 'INVITE_CLAIMED') {
+          rethrow;
+        }
       }
 
       setState(() => _status = 'Signing you in…');
@@ -189,17 +196,12 @@ class _EmployeeJoinBusinessScreenState extends ConsumerState<EmployeeJoinBusines
         throw StateError('Failed to save the cloud restore boundary.');
       }
 
+      // The local account, business restore and device registration are
+      // complete at this point. Do not make entering the app depend on the
+      // first post-restore reconciliation completing in this same frame.
+      // SyncTriggers observes the enabled config and retries automatically;
+      // this is the same local-first boundary used by normal account setup.
       await ref.read(syncConfigProvider).setEnabled(true);
-
-      setState(() => _status = 'Checking cloud sync…');
-      try {
-        await ref.read(syncTriggersProvider).reconcileAfterRestore();
-        connection.markSyncReady();
-      } catch (error) {
-        connection.clearSyncReady();
-        connection.markSyncError(error);
-        rethrow;
-      }
 
       final employee = await ref.read(authRepositoryProvider).restoreSession();
       if (employee == null || employee.id != claim.userId || !employee.isActive) {
