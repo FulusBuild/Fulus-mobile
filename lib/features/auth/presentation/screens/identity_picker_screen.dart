@@ -8,6 +8,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../../sync/sync_user_message.dart';
 
 /// Replaces the pre-simplification SignInScreen entirely — see
 /// AuthRepository.switchLocalUser's own doc comment for why a
@@ -71,10 +72,19 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       _submitting = true;
       _error = null;
     });
+
+    // switchLocalUser changes the local session immediately after validating
+    // the PIN. If cloud authorization then fails, leaving that local session
+    // behind would make the UI's sessionProvider and AuthRepository disagree
+    // about who is signed in. Treat the whole employee switch as one
+    // security boundary: either cloud authorization becomes ready, or the
+    // partially switched employee session is cleared.
+    var employeeSessionChanged = false;
     try {
       final user = await ref
           .read(authRepositoryProvider)
           .switchLocalUser(userId: identity.id, pin: pin);
+      employeeSessionChanged = identity.role != AuthRole.owner;
 
       if (identity.role != AuthRole.owner) {
         final accessToken = await ref.read(apiClientProvider).restoreServerSessionForUser(
@@ -83,8 +93,6 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
               publishableKey: SupabaseConfig.publishableKey,
             );
         if (accessToken == null) {
-          await ref.read(authRepositoryProvider).logout();
-          ref.read(sessionProvider.notifier).state = null;
           throw const BusinessRuleFailure(
             'This employee needs to sign in with their Fulus email and password first.',
           );
@@ -98,8 +106,6 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
                 .toList(growable: false) ??
             const [];
         if (active.length != 1) {
-          await ref.read(authRepositoryProvider).logout();
-          ref.read(sessionProvider.notifier).state = null;
           throw const BusinessRuleFailure(
             'This employee no longer has one active Fulus business on this device.',
           );
@@ -109,8 +115,6 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
             .read(fulusStaffAccessApiProvider)
             .getMyAccess(businessId: active.single.businessId);
         if (claim.userId != identity.id) {
-          await ref.read(authRepositoryProvider).logout();
-          ref.read(sessionProvider.notifier).state = null;
           throw const AuthFailure.forbidden();
         }
         await ref.read(employeeCloudSessionCoordinatorProvider).activateExisting(
@@ -123,13 +127,37 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
           ref.read(authRepositoryProvider).currentUser ?? user;
       context.closeScreenOr('/');
     } on Failure catch (f) {
+      await _handleFailedSwitch(employeeSessionChanged);
       if (!mounted) return;
       setState(() {
         _submitting = false;
         _error = f.message;
         _pinController.clear();
       });
+    } catch (error) {
+      await _handleFailedSwitch(employeeSessionChanged);
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = syncUserMessage(error);
+        _pinController.clear();
+      });
     }
+  }
+
+  Future<void> _handleFailedSwitch(bool employeeSessionChanged) async {
+    if (!employeeSessionChanged) return;
+
+    // The employee identity has already been made locally active, so do not
+    // leave a half-authorized identity behind. Clearing both local and cloud
+    // session state is safer than allowing the previous employee's cloud
+    // token to remain paired with a failed target switch. The next attempt
+    // can use the normal Fulus email/password login path.
+    await ref.read(apiClientProvider).clearActiveCloudSession();
+    ref.read(fulusConnectionStateProvider).disconnect();
+    await ref.read(syncConfigProvider).setEnabled(false);
+    await ref.read(authRepositoryProvider).logout();
+    ref.read(sessionProvider.notifier).state = null;
   }
 
   @override
