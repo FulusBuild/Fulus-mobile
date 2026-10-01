@@ -9,6 +9,7 @@ import '../data/local/database/database.dart';
 import 'conflict_resolver.dart';
 import 'retry_policy.dart';
 import 'sync_error.dart';
+import 'sync_actor_context.dart';
 import 'sync_handler.dart';
 
 /// Durable queue-draining engine. A failed item remains in the queue, while
@@ -23,13 +24,15 @@ class SyncEngine {
     DiagnosticLogger? diagnosticLogger,
     Future<bool> Function()? canSync,
     Future<void> Function()? onDeviceAuthorizationLost,
+    String? Function()? actorUserIdProvider,
   })  : _db = db,
         _handlersByEntityType = handlersByEntityType,
         _retryPolicy = retryPolicy,
         _conflictResolver = conflictResolver,
         _diagnosticLogger = diagnosticLogger,
         _canSync = canSync,
-        _onDeviceAuthorizationLost = onDeviceAuthorizationLost;
+        _onDeviceAuthorizationLost = onDeviceAuthorizationLost,
+        _actorUserIdProvider = actorUserIdProvider;
 
   final AppDatabase _db;
 
@@ -42,6 +45,7 @@ class SyncEngine {
   final DiagnosticLogger? _diagnosticLogger;
   final Future<bool> Function()? _canSync;
   final Future<void> Function()? _onDeviceAuthorizationLost;
+  final String? Function()? _actorUserIdProvider;
   final int maxAttemptsBeforeAttentionNeeded;
 
   Future<void>? _activeRun;
@@ -74,6 +78,11 @@ class SyncEngine {
   Future<void> _drainQueue({required bool manual}) async {
     final canSync = _canSync;
     if (canSync != null && !await canSync()) return;
+
+    // Legacy queue rows predate durable actor attribution. Repair them before
+    // selecting work so a shared-device switch cannot silently execute them
+    // as whichever employee is currently visible.
+    await _backfillLegacyQueueActors();
 
     final query = _db.select(_db.syncQueueItems)
       ..orderBy([
@@ -121,7 +130,12 @@ class SyncEngine {
       }
 
       try {
-        await handler.sync(item);
+        await runZoned(
+          () => handler.sync(item),
+          zoneValues: {
+            fulusSyncActorUserIdZoneKey: item.actorUserId,
+          },
+        );
         await _removeFromQueue(item.id);
         progress = true;
       } on SyncFailure catch (e, st) {
@@ -170,6 +184,66 @@ class SyncEngine {
       if (!progress || deferred.isEmpty) break;
       pending = deferred;
     }
+  }
+
+  Future<void> _backfillLegacyQueueActors() async {
+    final provider = _actorUserIdProvider;
+    await _dbBackfill(
+      provider == null ? null : provider(),
+    );
+  }
+
+  Future<void> _dbBackfill(String? actorUserId) async {
+    // Keep the database-specific repair in SyncQueue so repositories and
+    // tests can use the same migration-safe logic without duplicating it.
+    // This small adapter avoids making SyncEngine own queue schema details.
+    final rows = await (_db.select(_db.syncQueueItems)
+          ..where((q) => q.actorUserId.isNull()))
+        .get();
+    if (rows.isEmpty) return;
+
+    await _db.transaction(() async {
+      for (final item in rows) {
+        String? actor;
+        if (item.entityType == 'sale') {
+          actor = (await (_db.select(_db.sales)
+                ..where((r) => r.localId.equals(item.entityLocalId)))
+              .getSingleOrNull())
+            ?.cashierUserId;
+        } else if (item.entityType == 'cash_drawer_shift') {
+          actor = (await (_db.select(_db.cashDrawerShifts)
+                ..where((r) => r.localId.equals(item.entityLocalId)))
+              .getSingleOrNull())
+            ?.cashierUserId;
+        } else if (item.entityType == 'return') {
+          final request = await (_db.select(_db.returnRequests)
+                ..where((r) => r.localId.equals(item.entityLocalId)))
+              .getSingleOrNull();
+          if (request != null) {
+            actor = (await (_db.select(_db.sales)
+                  ..where((r) => r.localId.equals(request.originalSaleLocalId)))
+                .getSingleOrNull())
+              ?.cashierUserId;
+          }
+        } else if (item.entityType == 'customer_ledger') {
+          final entry = await (_db.select(_db.customerLedgerEntries)
+                ..where((r) => r.localId.equals(item.entityLocalId)))
+              .getSingleOrNull();
+          if (entry?.saleLocalId != null) {
+            actor = (await (_db.select(_db.sales)
+                  ..where((r) => r.localId.equals(entry!.saleLocalId!)))
+                .getSingleOrNull())
+              ?.cashierUserId;
+          }
+        }
+        actor ??= actorUserId;
+        if (actor != null && actor.isNotEmpty) {
+          await (_db.update(_db.syncQueueItems)
+                ..where((q) => q.id.equals(item.id)))
+              .write(SyncQueueItemsCompanion(actorUserId: Value(actor)));
+        }
+      }
+    });
   }
 
   Future<void> _handleClassifiedFailure(
