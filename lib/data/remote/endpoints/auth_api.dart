@@ -29,6 +29,11 @@ class AuthApi {
       final response = await authClient.post('/auth/v1/token?grant_type=password', data: {'email': email, 'password': password}, options: Options(headers: {'apikey': publishableKey, 'content-type': 'application/json'}));
       final session = ServerAuthSessionDto.fromJson(response.data as Map<String, dynamic>);
       await _client.setServerAccessToken(session.accessToken);
+      _client.setActiveCloudUser(session.userId);
+      await _client.persistServerRefreshTokenForUser(
+        userId: session.userId,
+        token: session.refreshToken,
+      );
       await _client.persistServerRefreshToken(session.refreshToken);
       return session;
     } on DioException catch (e) { throw _client.mapError(e); }
@@ -50,6 +55,11 @@ class AuthApi {
       if (accessToken != null && refreshToken != null && user != null) {
         final session = ServerAuthSessionDto(accessToken: accessToken, refreshToken: refreshToken, userId: user['id'] as String);
         await _client.setServerAccessToken(session.accessToken);
+        _client.setActiveCloudUser(session.userId);
+        await _client.persistServerRefreshTokenForUser(
+          userId: session.userId,
+          token: session.refreshToken,
+        );
         await _client.persistServerRefreshToken(session.refreshToken);
         return ServerSignUpResult(session: session, emailConfirmed: user['email_confirmed_at'] != null);
       }
