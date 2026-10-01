@@ -33,6 +33,7 @@ class SecureStorage {
   final FlutterSecureStorage _storage;
 
   static const _refreshTokenKey = 'fulus_refresh_token';
+  static const _userRefreshTokensKey = 'fulus_user_refresh_tokens';
   static const _approvalPinVerifiersKey = 'fulus_approval_pin_verifiers';
   static const _deviceClientIdKey = 'fulus_device_client_id';
 
@@ -44,6 +45,34 @@ class SecureStorage {
 
   Future<void> setRefreshToken(String token) =>
       _storage.write(key: _refreshTokenKey, value: token);
+
+  /// Stores a Supabase refresh token for a specific Fulus account. Shared
+  /// devices can hold several employee identities, so cloud credentials must
+  /// follow the signed-in identity instead of one global token.
+  Future<void> setUserRefreshToken(String userId, String token) async {
+    final raw = await _storage.read(key: _userRefreshTokensKey);
+    final decoded = raw == null || raw.isEmpty
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    decoded[userId] = token;
+    await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
+  }
+
+  Future<String?> getUserRefreshToken(String userId) async {
+    final raw = await _storage.read(key: _userRefreshTokensKey);
+    if (raw == null || raw.isEmpty) return null;
+    final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    final token = decoded[userId];
+    return token is String && token.isNotEmpty ? token : null;
+  }
+
+  Future<void> deleteUserRefreshToken(String userId) async {
+    final raw = await _storage.read(key: _userRefreshTokensKey);
+    if (raw == null || raw.isEmpty) return;
+    final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    decoded.remove(userId);
+    await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
+  }
 
   Future<void> setDeviceClientId(String id) =>
       _storage.write(key: _deviceClientIdKey, value: id);
