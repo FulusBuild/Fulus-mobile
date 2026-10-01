@@ -491,15 +491,25 @@ class _AuthInterceptor extends Interceptor {
   }
 
   Future<_RefreshResult> _performStoredRefresh() async {
-    final refreshToken = _activeCloudUserId == null
-        ? await _secureStorage.getRefreshToken()
-        : await _secureStorage.getUserRefreshToken(_activeCloudUserId!);
+    String? refreshToken;
+    var persistAsUser = false;
+    if (_activeCloudUserId != null) {
+      refreshToken =
+          await _secureStorage.getUserRefreshToken(_activeCloudUserId!);
+      // Backward compatibility for installs that predate per-user cloud
+      // sessions. Only startup/current-session restoration may use the legacy
+      // global token; explicit account switching uses the per-user token API.
+      refreshToken ??= await _secureStorage.getRefreshToken();
+      persistAsUser = true;
+    } else {
+      refreshToken = await _secureStorage.getRefreshToken();
+    }
     if (refreshToken == null || refreshToken.isEmpty) {
       throw const _NoStoredRefreshToken();
     }
     return _performRefreshToken(
       refreshToken,
-      persistAsUser: _activeCloudUserId != null,
+      persistAsUser: persistAsUser,
     );
   }
 
