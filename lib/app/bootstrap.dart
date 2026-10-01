@@ -18,7 +18,7 @@ import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
-import '../data/remote/cloud_restore_api.dart';
+import '../data/remote/endpoints/cloud_restore_api.dart';
 import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
 import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
