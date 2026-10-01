@@ -195,6 +195,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
           ? null
           : syncPreferences.getInt('fulus_sync_cursor_$businessId');
     },
+    actorUserIdProvider: () => authRepository.currentUser?.id,
   );
 
   late final SyncTriggers syncTriggers;
@@ -396,6 +397,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // active-device authorization are the real safety boundary for writes;
     // otherwise queued work present before an app restart would wait for an
     // unrelated future trigger after startup readiness completes.
+    actorUserIdProvider: () => authRepository.currentUser?.id,
     canSync: () async =>
         fulusConnectionState.isSessionAuthenticated &&
         fulusConnectionState.isConnected &&
