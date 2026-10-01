@@ -207,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration {
@@ -416,6 +416,12 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 13) {
           await m.createTable(syncConflictRecords);
+        }
+        if (from < 16) {
+          // Durable outbox rows now retain the employee/account that created
+          // them. Nullable keeps existing installs upgrade-safe; legacy rows
+          // are resolved before they are drained.
+          await m.addColumn(syncQueueItems, syncQueueItems.actorUserId);
         }
         if (from < 15) {
           // Employees were historically local-only. Preserve the existing
