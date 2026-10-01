@@ -39,11 +39,16 @@ class ApiClient {
   late final _AuthInterceptor _authInterceptor;
   String? _serverAccessToken;
   String? _activeCloudUserId;
+  String? _supabaseUrl;
+  String? _publishableKey;
+  final Map<String, Future<String?>> _scopedRefreshRuns = {};
 
   void configureServerAuth({
     required String supabaseUrl,
     required String publishableKey,
   }) {
+    _supabaseUrl = supabaseUrl;
+    _publishableKey = publishableKey;
     _authInterceptor.configureServerAuth(
       supabaseUrl: supabaseUrl,
       publishableKey: publishableKey,
@@ -88,6 +93,69 @@ class ApiClient {
     setAccessToken(null);
     await _secureStorage.deleteRefreshToken();
   }
+
+  Future<String?> accessTokenForUser(String userId) async {
+    if (userId == _activeCloudUserId &&
+        _serverAccessToken != null &&
+        _serverAccessToken!.isNotEmpty) {
+      return _serverAccessToken;
+    }
+    final existing = _scopedRefreshRuns[userId];
+    if (existing != null) return existing;
+    final run = _refreshUserAccessToken(userId);
+    _scopedRefreshRuns[userId] = run;
+    try {
+      return await run;
+    } finally {
+      _scopedRefreshRuns.remove(userId);
+    }
+  }
+
+  Future<String?> _refreshUserAccessToken(String userId) async {
+    final supabaseUrl = _supabaseUrl;
+    final publishableKey = _publishableKey;
+    if (supabaseUrl == null || publishableKey == null) {
+      throw StateError('Supabase auth is not configured.');
+    }
+    final refreshToken = await _secureStorage.getUserRefreshToken(userId);
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    final refreshClient = Dio(BaseOptions(
+      baseUrl: supabaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    try {
+      final response = await refreshClient.post(
+        '/auth/v1/token?grant_type=refresh_token',
+        data: {'refresh_token': refreshToken},
+        options: Options(
+          headers: {
+            'apikey': publishableKey,
+            'content-type': 'application/json',
+          },
+        ),
+      );
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final accessToken = data['access_token'] as String?;
+      final rotatedRefreshToken = data['refresh_token'] as String?;
+      if (accessToken == null || accessToken.isEmpty) {
+        throw StateError('Supabase refresh returned no access token.');
+      }
+      if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
+        await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
+      }
+      return accessToken;
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 401) {
+        await _secureStorage.deleteUserRefreshToken(userId);
+      }
+      return null;
+    }
+  }
+
+  Future<String?> deviceClientId() => _secureStorage.getDeviceClientId();
 
   Future<Map<String, dynamic>?> restoreServerSessionForUser({
     required String userId,
