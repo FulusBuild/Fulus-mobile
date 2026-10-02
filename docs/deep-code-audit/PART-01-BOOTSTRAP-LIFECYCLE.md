@@ -2,7 +2,7 @@
 
 Baseline SHA: a71af8d4678c49f2dd5afa46018dffc0c4eaf799
 Audit branch: audit/deep-code-part-01-bootstrap-lifecycle
-Status: In progress; one concrete defect fixed, verification pending.
+Status: Code audit and CI verification complete for the audited scope; runtime/production evidence remains pending.
 
 ## Audit contract
 
@@ -99,8 +99,8 @@ This is intentionally not patched speculatively. Parts 15 and 17 should reproduc
 - DB/network boundaries: inspected where bootstrap owns them.
 - Concurrency/retry/disposal: inspected.
 - Tests: reviewed and regression coverage added.
-- Required tests: pending.
-- Required CI: pending.
+- Required tests: green in PR #117.
+- Required CI: green in PR #117, run 36983516765.
 - Android/runtime evidence: pending.
 - Remaining uncertainty: restore versus active sync.
 
@@ -136,11 +136,11 @@ Current SHA: 02ed7bd0284ae3ee10e007d1b7ed85f0ac1652f2
 
 ### Tests
 - test/sync/sync_triggers_test.dart updated.
-- Branch test execution pending.
+- Full Flutter test suite passed in PR #117.
 
 ### CI
 - Baseline main CI green.
-- Audit branch CI pending.
+- Audit branch CI green: run 36983516765.
 
 ### Runtime/production verification
 - Pending Android evidence.
