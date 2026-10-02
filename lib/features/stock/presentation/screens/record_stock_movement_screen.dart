@@ -79,7 +79,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
 
   /// Cost price/supplier default to whatever's already on the product —
   /// leaving them untouched on submit is then a genuine no-op, not a
-  /// silent reset (see [_recordCostAndCredit]).
+  /// silent reset (see the atomic Stock In transaction).
   void _seedFromProduct(Product product) {
     _costPriceController.text = product.costPrice == 0 ? '' : product.costPrice.toStringAsFixed(2);
     _supplierId = product.supplierId;
