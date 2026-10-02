@@ -130,7 +130,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       // isActive is a separate flag on a separate table. Cascading it
       // here is what makes "they'll no longer be able to sign in"
       // (the confirmation dialog's own claim) actually true.
-      final authUserId = row?.authUserId;
+      final authUserId = row.authUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,
@@ -152,6 +152,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final row = await (_db.select(
         _db.employees,
       )..where((e) => e.localId.equals(id))).getSingleOrNull();
+      if (row == null) {
+        throw StateError('Employee $id not found.');
+      }
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(true),
