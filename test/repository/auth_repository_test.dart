@@ -313,6 +313,26 @@ void main() {
           .called(1);
     });
 
+    test('successful switch remains committed if audit persistence fails', () async {
+      when(() => auditRepository.log(
+            userId: any(named: 'userId'),
+            action: any(named: 'action'),
+            module: any(named: 'module'),
+            recordId: any(named: 'recordId'),
+            details: any(named: 'details'),
+          )).thenThrow(StateError('audit store unavailable'));
+
+      final user = await repository.switchLocalUser(
+        userId: coOwnerId,
+        pin: '2222',
+      );
+
+      expect(user.fullName, 'Ngozi Eze');
+      expect(repository.currentUser?.id, coOwnerId);
+      expect(await repository.restoreSession(), isNotNull);
+      expect((await repository.restoreSession())!.id, coOwnerId);
+    });
+
     test('fails for an unknown userId', () async {
       await expectLater(
         repository.switchLocalUser(userId: 'nonexistent', pin: 'whatever'),
@@ -428,6 +448,23 @@ void main() {
       expect(await repository.restoreSession(), isNull);
     });
   });
+
+    test('logout remains committed if audit persistence fails', () async {
+      await repository.createFirstOwner(fullName: 'Chidinma Okafor');
+
+      when(() => auditRepository.log(
+            userId: any(named: 'userId'),
+            action: any(named: 'action'),
+            module: any(named: 'module'),
+            recordId: any(named: 'recordId'),
+            details: any(named: 'details'),
+          )).thenThrow(StateError('audit store unavailable'));
+
+      await repository.logout();
+
+      expect(repository.currentUser, isNull);
+      expect(await repository.restoreSession(), isNull);
+    });
 
   group('restoreSession', () {
     test('clears the in-memory user when the durable session row is gone', () async {
