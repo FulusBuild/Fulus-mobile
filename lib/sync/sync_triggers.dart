@@ -82,6 +82,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Timer? _retryTimer;
   Timer? _readinessRecoveryTimer;
   bool _started = false;
+  bool _disposed = false;
   Future<bool>? _connectivityRun;
   Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
@@ -121,7 +122,7 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    if (_started) return;
+    if (_disposed || _started) return;
     _started = true;
     _syncConfig.addListener(_onConfigChanged);
     if (!_syncConfig.isEnabled) return;
@@ -147,6 +148,8 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _syncConfig.removeListener(_onConfigChanged);
     WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
@@ -173,7 +176,7 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_syncConfig.isEnabled) return;
+    if (_disposed || !_syncConfig.isEnabled) return;
     if (state == AppLifecycleState.resumed) {
       unawaited(_runIfOnlineSafely());
     }
@@ -185,13 +188,16 @@ class SyncTriggers with WidgetsBindingObserver {
   /// this starts the normal connectivity-gated cycle; when offline, the regular
   /// connectivity/lifecycle triggers will retry without making the switch fail.
   Future<void> refreshAfterContextChange() async {
-    if (!_syncConfig.isEnabled) return;
+    if (_disposed || !_syncConfig.isEnabled) return;
     final didRun = await _runIfOnlineSafely();
     if (!didRun || !_syncConfig.isEnabled) return;
     await _onContextChangeReconciled?.call();
   }
 
   Future<void> syncNow() async {
+    if (_disposed) {
+      throw StateError('SyncTriggers has been disposed and cannot sync.');
+    }
     if (!_syncConfig.isEnabled) {
       throw StateError(
         'SyncTriggers.syncNow() was called while sync is disabled. '
@@ -233,6 +239,9 @@ class SyncTriggers with WidgetsBindingObserver {
   /// paths may use [_runIfOnline], but restore must not accidentally perform
   /// two network-state checks around the same reconciliation.
   Future<void> reconcileAfterRestore() async {
+    if (_disposed) {
+      throw StateError('SyncTriggers has been disposed and cannot reconcile.');
+    }
     if (!_syncConfig.isEnabled) {
       throw StateError(
         'Cannot reconcile a restored business while sync is disabled.',
@@ -307,7 +316,7 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> notifyEnqueued() async {
-    if (!_syncConfig.isEnabled) return;
+    if (_disposed || !_syncConfig.isEnabled) return;
     // A local mutation can be committed while the push phase is in flight.
     // Do not let that mutation run before the current cycle's pull advances
     // the local cursor; its base cursor may otherwise be stale relative to a

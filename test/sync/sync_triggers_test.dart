@@ -48,6 +48,53 @@ void main() {
     await db.close();
   });
 
+  group('lifecycle disposal', () {
+    test('dispose makes trigger inert for later enqueued mutations', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async {});
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      triggers.dispose();
+      await triggers.notifyEnqueued();
+      triggers.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+
+      verifyNever(() => connectivity.checkConnectivity());
+      verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
+    });
+
+    test('disposed trigger rejects explicit sync requests', () async {
+      SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
+      final config = await SyncConfig.load();
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        connectivity: connectivity,
+      );
+
+      triggers.dispose();
+
+      await expectLater(
+        triggers.syncNow(),
+        throwsA(isA<StateError>()),
+      );
+      verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
+    });
+  });
+
   group('sync disabled', () {
     test('start() never checks connectivity and never runs the engine', () async {
       final config = await SyncConfig.load();
