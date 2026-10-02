@@ -7,7 +7,6 @@ import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
-import '../../domain/entities/employee.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
 import '../local/secure_storage/secure_storage.dart';
@@ -161,8 +160,8 @@ class EmployeeCloudSessionCoordinator {
         DateTime.now().difference(lastRefresh) < _accessRefreshInterval) {
       return current;
     }
-    final employee = await _findEmployeeForUser(current.id);
-    if (employee == null) return null;
+    final hasEmployee = await _hasLocalEmployeeForUser(current.id);
+    if (!hasEmployee) return null;
     final resolvedBusinessId = businessId ?? _connection.selectedBusinessId;
     if (resolvedBusinessId == null) return null;
     StaffClaim claim;
@@ -363,15 +362,16 @@ class EmployeeCloudSessionCoordinator {
     );
   }
 
-  Future<Employee?> _findEmployeeForUser(String userId) async {
+  Future<bool> _hasLocalEmployeeForUser(String userId) async {
     final byAuthUser = await (_database.select(_database.employees)
           ..where((e) => e.authUserId.equals(userId)))
         .getSingleOrNull();
-    if (byAuthUser != null) return byAuthUser;
+    if (byAuthUser != null) return true;
 
-    return (_database.select(_database.employees)
+    final byCloudUser = await (_database.select(_database.employees)
           ..where((e) => e.cloudUserId.equals(userId)))
         .getSingleOrNull();
+    return byCloudUser != null;
   }
 
   Future<String?> _resolveLocalLocationId(String? cloudLocationId) async {
