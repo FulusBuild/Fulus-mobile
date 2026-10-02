@@ -139,18 +139,20 @@ class _EmployeeJoinBusinessScreenState
       if (!mounted) return;
       context.go('/');
     } on Failure catch (failure) {
+      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(failure);
+          _error = _joinErrorMessage(failure);
           _status = '';
         });
       }
     } catch (error) {
+      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(error);
+          _error = 'We couldn’t finish joining your business. Please try again.';
           _status = '';
         });
       }
