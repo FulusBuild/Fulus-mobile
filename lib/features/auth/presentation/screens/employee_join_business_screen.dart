@@ -8,7 +8,6 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../data/remote/fulus_staff_access_api.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../../sync/sync_user_message.dart';
 
 /// First-device employee onboarding.
 ///
@@ -67,7 +66,7 @@ class _EmployeeJoinBusinessScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(failure);
+          _error = _joinErrorMessage(failure);
           _status = '';
         });
       }
@@ -75,7 +74,7 @@ class _EmployeeJoinBusinessScreenState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = syncUserMessage(error);
+          _error = 'We couldn’t finish joining your business. Please try again.';
           _status = '';
         });
       }
@@ -156,6 +155,17 @@ class _EmployeeJoinBusinessScreenState
         });
       }
     }
+  }
+
+  String _joinErrorMessage(Failure failure) {
+    if (failure is NetworkFailure) {
+      return 'We couldn’t connect right now. Please try again.';
+    }
+    if (failure is BusinessRuleFailure &&
+        (failure.code?.startsWith('SYNC_') ?? false)) {
+      return 'We couldn’t finish joining your business. Please try again.';
+    }
+    return failure.message;
   }
 
   @override
