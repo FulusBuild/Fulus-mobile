@@ -145,3 +145,17 @@ Evidence/fix completed in Part 11:
 2. Durable outbox entries remain inside the same transaction.
 3. Regression coverage proves successful composite commit and rollback when supplier-credit validation fails.
 4. The later sync/process-death retry dimensions remain part of Parts 14–17 rather than being claimed closed here.
+
+
+## X-012 — Customer credit ledger completeness
+
+Status: Open; coordinated across Parts 10, 12, and 13.
+
+Customer outstanding balance is authoritative and synchronized separately from customer-ledger history. The current sale-payment mutation can reduce outstanding balance without appending a customer-ledger repayment event. Therefore customer-ledger history is not, by itself, a complete reconstruction of all balance changes.
+
+Required fix:
+1. Define the canonical payment event model in Part 10.
+2. Align sale payments and customer repayments.
+3. Emit one idempotent customer-ledger event for each balance-decreasing customer payment where appropriate.
+4. Preserve cash/payment ledger semantics and split-payment behavior.
+5. Add database and cross-device reconciliation regressions.
