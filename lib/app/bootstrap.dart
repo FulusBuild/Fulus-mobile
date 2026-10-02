@@ -460,6 +460,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  late final EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator;
+
   Future<void> initializeCloudSync() async {
     if (fulusConnectionState.isCloudOnboardingInProgress) return;
     try {
@@ -500,6 +502,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     if (selectedBusinessId == null) {
       throw StateError('No active business is available for Cloud Sync.');
     }
+    // Employee access is cloud-authoritative. Refresh the current employee's
+    // membership, role, permissions and location projection before the next
+    // sync cycle so a change made on another device cannot remain hidden
+    // behind stale local permissions.
+    await employeeCloudSessionCoordinator.refreshExistingAccess();
+
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
     await fulusConnectionState.registerDevice(
@@ -639,7 +647,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  final employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
+  employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
     restoreApi: employeeCloudRestoreApi,
     connection: fulusConnectionState,
@@ -648,6 +656,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncTriggers: syncTriggers,
     authRepository: authRepository,
     executionLease: syncExecutionLease,
+    staffAccessApi: fulusStaffAccessApi,
   );
 
   // Sync starts after runApp(). The trigger is fully wired here, but
