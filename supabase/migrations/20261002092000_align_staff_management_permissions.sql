@@ -17,9 +17,9 @@ create or replace function public.create_staff_invite(
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
-  token text := replace(extensions.gen_random_uuid()::text || extensions.gen_random_uuid()::text, '-', '');
+  token text := replace(extensions.extensions.gen_random_uuid()::text || extensions.extensions.gen_random_uuid()::text, '-', '');
   invite public.staff_invites;
   employee_row public.employees;
   normalized_email text := nullif(lower(trim(target_email)), '');
@@ -123,7 +123,7 @@ begin
     )
     values (
       target_business_id,
-      coalesce(client_ref, 'invite:' || gen_random_uuid()::text),
+      coalesce(client_ref, 'invite:' || extensions.gen_random_uuid()::text),
       coalesce(nullif(trim(employee_payload->>'full_name'), ''), normalized_email),
       nullif(trim(employee_payload->>'role'), ''),
       nullif(trim(employee_payload->>'department'), ''),
