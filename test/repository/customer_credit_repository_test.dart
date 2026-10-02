@@ -215,6 +215,40 @@ void main() {
     expect(entries.single.entryType, 'creditSale');
   });
 
+  test('canonical credit sale attaches to the existing local ledger echo', () async {
+    final customerId = await createTestCustomer();
+    await (db.update(db.customers)..where((c) => c.localId.equals(customerId))).write(
+      const CustomersCompanion(serverId: Value('customer-server-1')),
+    );
+    await (db.update(db.sales)..where((s) => s.localId.equals('sale-1'))).write(
+      const SalesCompanion(serverId: Value('sale-server-1')),
+    );
+
+    final localEntry = await creditRepository.recordCreditSale(
+      customerLocalId: customerId,
+      amount: 3000,
+      saleLocalId: 'sale-1',
+    );
+
+    await creditRepository.reconcileServerState(
+      serverId: 'ledger-server-1',
+      customerServerId: 'customer-server-1',
+      saleServerId: 'sale-server-1',
+      entryType: CustomerLedgerEntryType.creditSale,
+      amount: 3000,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final rows = await (db.select(db.customerLedgerEntries)
+          ..where((e) => e.customerLocalId.equals(customerId)))
+        .get();
+    expect(rows, hasLength(1));
+    expect(rows.single.localId, localEntry.localId);
+    expect(rows.single.serverId, 'ledger-server-1');
+    expect(rows.single.entryType, 'creditSale');
+  });
+
   group('recordRefundAdjustment', () {
     test('reduces the balance the same way a repayment does', () async {
       final customerId = await createTestCustomer();
