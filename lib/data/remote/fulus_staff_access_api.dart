@@ -14,7 +14,7 @@ class FulusStaffAccessApi {
     required String businessId,
     required String roleName,
     required String email,
-    required List<String> permissionCodes,
+    List<String>? permissionCodes,
     String? locationId,
     String? invitedName,
     String? employeeClientReference,
