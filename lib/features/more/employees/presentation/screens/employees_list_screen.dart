@@ -207,7 +207,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
         fullName: name,
         role: _role,
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        email: email.isEmpty ? existing?.email : email,
+        email: existing?.email ?? email,
         authUserId: existing?.authUserId,
         department: existing?.department,
         position: existing?.position,
@@ -360,9 +360,11 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
             FulusTextField(
               label: 'Email',
               controller: _emailController,
-              enabled: !_saving,
+              enabled: !_saving && isNew,
               keyboardType: TextInputType.emailAddress,
-              helperText: 'This becomes their Fulus login email.',
+              helperText: isNew
+                  ? 'This becomes their Fulus login email.'
+                  : 'Login email cannot be changed here.',
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Role', style: AppTypography.subheading),
