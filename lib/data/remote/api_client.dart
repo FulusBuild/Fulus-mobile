@@ -239,10 +239,21 @@ class ApiClient {
   Future<Map<String, dynamic>?> restoreServerSession({
     required String supabaseUrl,
     required String publishableKey,
-  }) => _authInterceptor.restoreServerSession(
-        supabaseUrl: supabaseUrl,
-        publishableKey: publishableKey,
-      );
+  }) async {
+    final data = await _authInterceptor.restoreServerSession(
+      supabaseUrl: supabaseUrl,
+      publishableKey: publishableKey,
+    );
+    final responseUserId =
+        (data?['user'] is Map) ? (data!['user'] as Map)['id']?.toString() : null;
+    if (responseUserId != null && responseUserId.isNotEmpty) {
+      // Startup/global restoration has no local identity key. The Supabase
+      // response is the authoritative cloud identity and must be propagated
+      // to both ApiClient and its interceptor.
+      setActiveCloudUser(responseUserId);
+    }
+    return data;
+  };
 
   /// Invalidates the active cloud session and notifies the application state
   /// layer. Used by startup refresh when Supabase permanently rejects the
