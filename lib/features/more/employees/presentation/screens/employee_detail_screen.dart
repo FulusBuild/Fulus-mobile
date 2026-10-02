@@ -712,7 +712,8 @@ class _AccessAction extends ConsumerWidget {
     );
     if (!confirmed || !context.mounted) return;
     final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
-    if (employee.authUserId != null && employee.authUserId == currentUserId) {
+    if (currentUserId != null &&
+        (employee.authUserId == currentUserId || employee.cloudUserId == currentUserId)) {
       showFulusSnackbar(context, message: 'You can’t deactivate your own account.');
       return;
     }
