@@ -19,7 +19,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  token text := replace(extensions.extensions.gen_random_uuid()::text || extensions.extensions.gen_random_uuid()::text, '-', '');
+  token text := replace(extensions.gen_random_uuid()::text || extensions.gen_random_uuid()::text, '-', '');
   invite public.staff_invites;
   employee_row public.employees;
   normalized_email text := nullif(lower(trim(target_email)), '');
