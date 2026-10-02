@@ -17,8 +17,6 @@ Required evidence before a fix:
 3. Define the smallest shared maintenance gate.
 4. Add regression coverage proving restore and sync cannot overlap unsafely.
 
-No speculative cross-system rewrite is applied from Part 01 alone.
-
 ## X-002 — Local identity / cloud Auth identity namespace
 
 Status: Closed in Part 02 source scope; runtime/production verification remains pending.
@@ -31,43 +29,51 @@ Fix applied in Part 02:
 - once a cloud identity is explicitly selected, its refresh path never falls back to the legacy global token;
 - per-user refresh restoration rejects a response issued for a different cloud user.
 
-Relevant parts:
-- Part 02 — Authentication & Sessions
-- Part 03 — Employee, Membership & Access Control
-- Part 04 — Business & Location Isolation
-- Part 13 — Cloud APIs & Edge Functions
-- Part 20 — Security & Production Hardening
-
-Remaining verification:
-1. Fresh owner account sign-in → kill/reopen → cloud sync with rotated refresh token.
-2. Employee A → Employee B switching on a shared device, including process death between switch and next sync.
-3. Rejected A token with a still-present legacy/global token for B must never authenticate as B.
-4. Production Supabase response identity must remain equal to the selected local/cloud identity mapping.
-
-
 ## X-003 — Employee authorization projection vs server authority
 
 Status: Partially proven; Part 03 source fixes applied.
 
-Employee permissions are projected locally from the server-authoritative StaffClaim into user_permissions and consumed by router/app-shell and local repository checks. Cloud staff mutations independently enforce membership, role, permission-delegation, and location authorization. Part 03 also found that a staff Edge Function action can accidentally inherit a broader gate than its specific capability; P03-001 fixed this for device inventory.
-
-Remaining verification belongs to Parts 04, 13, and 20: prove every cloud action has an action-specific authorization boundary and that revocation/permission changes converge promptly to local UI and mutation guards.
-
+Employee permissions are projected locally from the server-authoritative StaffClaim into user_permissions and consumed by router/app-shell and local repository checks. Cloud staff mutations independently enforce membership, role, permission-delegation, and location authorization. P03-001 fixed the staff device-inventory authorization boundary.
 
 ## X-004 — Business/location-scoped employee bootstrap
 
 Status: Fixed in Part 04; production/runtime verification pending.
 
-Employee provisioning previously entered the owner/admin full-business restore RPC. That RPC correctly rejected non-admin employees, which blocked the employee bootstrap path. Simply widening it would have exposed the entire business snapshot to a location-bound employee. Part 04 introduced a separate employee restore contract that validates active business membership plus active location membership and returns only the assigned location's operational state, while preserving intentionally business-wide catalog/customer identity.
+Employee provisioning previously entered the owner/admin full-business restore RPC. Part 04 introduced a separate employee restore contract scoped to the assigned active location while preserving intentionally business-wide catalog/customer identity.
+
+## X-005 — Local financial representation
+
+Status: Open; owned by Parts 05 and 10.
+
+The local schema persists monetary values as SQLite REAL in multiple financial tables. This is incompatible with the stated integer-safe financial invariant unless every persisted value is guaranteed to be an exact integer-valued REAL and every arithmetic boundary preserves that property. Source inspection does not provide that proof.
 
 Relevant parts:
-- Part 03 — Employee, Membership & Access Control
-- Part 04 — Business & Location Isolation
-- Part 15 — Backup, Restore & Cross-Device Provisioning
-- Part 16 — Multi-Device Convergence & Conflict Safety
-- Part 20 — Security & Production Hardening
+- Part 05 — Local Database & Persistence
+- Part 07 — Domain & Business Logic
+- Part 09 — Sales & Checkout
+- Part 10 — Financial & Ledger Integrity
+- Part 11 — Inventory & Stock
 
-Remaining verification:
-1. Production employee fresh-device restore with locations A/B proves only assigned A is imported.
-2. Employee A cannot switch to B after process death/reopen.
-3. Incremental change-feed filtering continues to suppress B operational changes after the employee restore boundary.
+Required evidence:
+1. Enumerate every monetary field and calculation.
+2. Define the canonical integer unit.
+3. Verify API/database compatibility.
+4. Migrate persisted values without rounding loss.
+5. Add exact-arithmetic regression coverage across sale/payment/credit/refund/expense/income/drawer paths.
+
+## X-006 — Local cardinality constraints
+
+Status: Open; requires Parts 06, 09, 10, and 16 cross-check.
+
+Two local invariants are currently documented and enforced primarily by repository logic:
+- one draft cart per location;
+- one open cash-drawer shift per location.
+
+The database does not currently provide corresponding uniqueness constraints. The audit deliberately did not add destructive migrations before determining how existing duplicate rows would be reconciled safely.
+
+Required evidence:
+1. Determine whether duplicate rows already exist on representative legacy databases.
+2. Define non-destructive migration behavior.
+3. Add database-level uniqueness.
+4. Add concurrent repository regression tests.
+5. Verify restore/import paths cannot bypass the invariant.
