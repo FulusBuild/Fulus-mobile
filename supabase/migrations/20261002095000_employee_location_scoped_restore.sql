@@ -55,7 +55,7 @@ BEGIN
   INTO v_employee
   FROM public.employees e
   WHERE e.business_id = p_business_id
-    AND (e.cloud_user_id = p_user_id OR e.auth_user_id = p_user_id)
+    AND e.auth_user_id = p_user_id
     AND e.is_active = true
     AND e.deleted_at IS NULL
   ORDER BY e.updated_at DESC, e.id
@@ -240,7 +240,7 @@ BEGIN
       SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id)
       FROM public.employees t
       WHERE t.business_id = p_business_id
-        AND (t.cloud_user_id = p_user_id OR t.auth_user_id = p_user_id)
+        AND t.auth_user_id = p_user_id
         AND t.is_active = true
         AND t.deleted_at IS NULL
     ), '[]'::jsonb),
