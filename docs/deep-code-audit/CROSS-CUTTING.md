@@ -104,3 +104,9 @@ Required evidence/fix:
 3. Preserve split-payment and credit semantics.
 4. Align local checkout, receipts, cash drawer, cloud sale RPC, and canonical reconciliation.
 5. Complete integer-money migration and exact regressions in Part 10.
+
+## X-009 — Financial integer-money contract
+
+Part 10 owns the coordinated migration from local floating-point monetary values to integer minor units. The existing cloud contract is NUMERIC(14,2), so conversion boundaries must remain explicit and lossless.
+
+The migration must cover catalog prices, sales, payments, customer/supplier ledgers, expenses, income, returns, tax remittance, drawer state, drafts, reports and receipts. It must also define tendered cash versus applied payment versus change.
