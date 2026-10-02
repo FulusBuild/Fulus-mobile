@@ -253,9 +253,9 @@ class _EmployeeDetailBody extends ConsumerWidget {
           const FulusEmptyState(icon: Icons.event_busy_outlined, headline: 'No leave requests.')
         else ...[
           if (pending.isNotEmpty) _LeaveGroupLabel(label: 'Needs review'),
-          for (final leave in pending) _LeaveRequestTile(leave: leave, onChanged: onChanged),
+          for (final leave in pending) _LeaveRequestTile(leave: leave, onChanged: onChanged, canDecide: canManageEmployees),
           if (decided.isNotEmpty) _LeaveGroupLabel(label: 'History'),
-          for (final leave in decided) _LeaveRequestTile(leave: leave, onChanged: onChanged),
+          for (final leave in decided) _LeaveRequestTile(leave: leave, onChanged: onChanged, canDecide: canManageEmployees),
         ],
         const SizedBox(height: AppSpacing.xl),
         _AccessAction(employee: employee),
@@ -673,8 +673,14 @@ class _LeaveGroupLabel extends StatelessWidget {
 }
 
 class _LeaveRequestTile extends ConsumerWidget {
-  const _LeaveRequestTile({required this.leave, required this.onChanged});
-  final LeaveRequest leave; final VoidCallback onChanged;
+  const _LeaveRequestTile({
+    required this.leave,
+    required this.onChanged,
+    required this.canDecide,
+  });
+  final LeaveRequest leave;
+  final VoidCallback onChanged;
+  final bool canDecide;
   String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -693,7 +699,7 @@ class _LeaveRequestTile extends ConsumerWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(leave.reason!, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
           ],
-          if (leave.status == LeaveStatus.pending) ...[
+          if (leave.status == LeaveStatus.pending && canDecide) ...[
             const SizedBox(height: AppSpacing.sm),
             Row(children: [
               Expanded(child: FulusButton(label: 'Deny', variant: FulusButtonVariant.secondary, onPressed: () => _decide(context, ref, LeaveStatus.denied))),
