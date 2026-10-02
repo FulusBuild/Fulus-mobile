@@ -37,7 +37,25 @@ Deno.serve(async (req: Request) => {
   if (!businessId) return json({ error: { code: "BUSINESS_REQUIRED", message: "business_id is required" } }, 400);
   if (!UUID_RE.test(businessId)) return json({ error: { code: "INVALID_BUSINESS_ID", message: "business_id must be a UUID" } }, 400);
 
-  const { data, error } = await admin.rpc("build_fulus_restore_snapshot", {
+  const { data: membership, error: membershipError } = await admin
+    .from("business_memberships")
+    .select("role_id, roles(name)")
+    .eq("business_id", businessId)
+    .eq("user_id", userData.user.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    return json({ error: { code: "RESTORE_NOT_ALLOWED", message: "You are not authorized to restore this business." } }, 403);
+  }
+
+  const role = Array.isArray(membership.roles) ? membership.roles[0] : membership.roles;
+  const isBusinessAdmin = role?.name === "owner" || role?.name === "admin";
+  const rpcName = isBusinessAdmin
+    ? "build_fulus_restore_snapshot"
+    : "build_fulus_employee_restore_snapshot";
+
+  const { data, error } = await admin.rpc(rpcName, {
     p_business_id: businessId,
     p_user_id: userData.user.id,
   });
