@@ -24,22 +24,30 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final actor = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManageEmployees =
+        actor?.role == AuthRole.owner ||
+        permissions.contains(Permission.manageEmployees);
+
     return FulusScreen(
       title: 'Employees',
       subtitle: 'People, access and attendance',
       backgroundColor: const Color(0xFF061B3A),
       headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
-        FulusIconButton(
-          icon: FulusIcons.add,
-          tooltip: 'Add team member',
-          onPressed: () => _openEmployeeSheet(context),
-        ),
-        FulusIconButton(
-          icon: FulusIcons.staff,
-          tooltip: 'Deactivated team members',
-          onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
-        ),
+        if (canManageEmployees)
+          FulusIconButton(
+            icon: FulusIcons.add,
+            tooltip: 'Add team member',
+            onPressed: () => _openEmployeeSheet(context),
+          ),
+        if (canManageEmployees)
+          FulusIconButton(
+            icon: FulusIcons.staff,
+            tooltip: 'Deactivated team members',
+            onPressed: () => context.pushNamed('moreEmployeesDeactivated'),
+          ),
       ],
       floatingActionButton: null,
       body: StreamBuilder<List<Employee>>(
@@ -61,8 +69,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               body: 'Add your first team member to manage attendance and access.',
               headlineColor: Colors.white,
               bodyColor: Colors.white70,
-              actionLabel: 'Add team member',
-              onAction: () => _openEmployeeSheet(context),
+              actionLabel: canManageEmployees ? 'Add team member' : null,
+              onAction: canManageEmployees ? () => _openEmployeeSheet(context) : null,
             );
           }
 
@@ -87,6 +95,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                         for (var i = 0; i < employees.length; i++) ...[
                           _EmployeeTile(
                             employee: employees[i],
+                            canManage: canManageEmployees,
                             onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
                           ),
                           if (i < employees.length - 1) const FulusListDivider(),
@@ -401,8 +410,13 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
 }
 
 class _EmployeeTile extends ConsumerWidget {
-  const _EmployeeTile({required this.employee, required this.onEdit});
+  const _EmployeeTile({
+    required this.employee,
+    required this.canManage,
+    required this.onEdit,
+  });
   final Employee employee;
+  final bool canManage;
   final VoidCallback onEdit;
 
   @override
@@ -419,16 +433,18 @@ class _EmployeeTile extends ConsumerWidget {
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
+                    if (canManage)
+                      FulusIconButton(
+                        icon: FulusIcons.calendar,
+                        tooltip: 'Mark attendance',
+                        onPressed: () => _markToday(context, ref),
+                      ),
+                    if (canManage)
+                      FulusIconButton(
+                        icon: FulusIcons.edit,
+                        tooltip: 'Edit',
+                        onPressed: onEdit,
+                      ),
                   ],
                 )
               : Row(
@@ -450,16 +466,18 @@ class _EmployeeTile extends ConsumerWidget {
                       style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
+                    if (canManage)
+                      FulusIconButton(
+                        icon: FulusIcons.calendar,
+                        tooltip: 'Mark attendance',
+                        onPressed: () => _markToday(context, ref),
+                      ),
+                    if (canManage)
+                      FulusIconButton(
+                        icon: FulusIcons.edit,
+                        tooltip: 'Edit',
+                        onPressed: onEdit,
+                      ),
                     Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
                   ],
                 ),
