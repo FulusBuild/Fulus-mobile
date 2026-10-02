@@ -501,6 +501,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       force: true,
       businessId: knownBusinessId,
     );
+    if (authRepository.currentUser == null) return;
 
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
     if (active.isEmpty) return;
@@ -523,6 +524,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         force: true,
         businessId: selectedBusinessId,
       );
+      if (authRepository.currentUser == null) return;
     }
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
