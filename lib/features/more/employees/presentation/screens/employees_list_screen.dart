@@ -245,7 +245,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
             roleName: _cloudRole(saved.role),
             email: saved.email!,
             invitedName: saved.fullName,
-            permissionCodes: null,
+            permissionCodes: _cloudPermissionCodesForRole(saved.role),
             locationId: cloudLocationId,
             employeeClientReference: saved.id,
             employee: {
