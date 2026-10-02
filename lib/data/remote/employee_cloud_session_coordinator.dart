@@ -212,6 +212,10 @@ class EmployeeCloudSessionCoordinator {
 
   Future<void> _upsertIdentityProjection(StaffClaim claim) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    final localLocationId = await _resolveLocalLocationId(
+      claim.employee?['location_id']?.toString() ?? claim.locationId,
+    );
+    final localEmployeeId = await _resolveLocalEmployeeId(claim);
     final fullName =
         claim.fullName.trim().isEmpty ? 'Staff member' : claim.fullName.trim();
     final role = _localRole(claim.roleName);
@@ -277,7 +281,7 @@ class EmployeeCloudSessionCoordinator {
         updated_at = excluded.updated_at
       ''',
       [
-        claim.employeeId ?? claim.membershipId,
+        localEmployeeId,
         claim.employeeId,
         claim.membershipId,
         claim.userId,
@@ -292,7 +296,7 @@ class EmployeeCloudSessionCoordinator {
         employee?['phone'],
         employee?['email'] ?? claim.email,
         dateHired,
-        employee?['location_id'] ?? claim.locationId,
+        localLocationId,
         now,
         now,
       ],
@@ -316,8 +320,39 @@ class EmployeeCloudSessionCoordinator {
     await _database.customStatement('DELETE FROM sessions');
     await _database.customStatement(
       'INSERT INTO sessions(id, user_id, active_location_id) VALUES (?, ?, ?)',
-      ['current', claim.userId, claim.locationId],
+      ['current', claim.userId, localLocationId],
     );
+  }
+
+  Future<String?> _resolveLocalLocationId(String? cloudLocationId) async {
+    if (cloudLocationId == null || cloudLocationId.isEmpty) return null;
+    final byServer = await (_database.select(_database.locations)
+          ..where((l) => l.serverId.equals(cloudLocationId)))
+        .getSingleOrNull();
+    if (byServer != null) return byServer.localId;
+
+    final byLocal = await (_database.select(_database.locations)
+          ..where((l) => l.localId.equals(cloudLocationId)))
+        .getSingleOrNull();
+    return byLocal?.localId;
+  }
+
+  Future<String> _resolveLocalEmployeeId(StaffClaim claim) async {
+    if (claim.employeeId != null) {
+      final byServer = await (_database.select(_database.employees)
+            ..where((e) => e.serverId.equals(claim.employeeId!)))
+          .getSingleOrNull();
+      if (byServer != null) return byServer.localId;
+    }
+
+    final byAuth = await (_database.select(_database.employees)
+          ..where((e) =>
+              e.authUserId.equals(claim.userId) |
+              e.cloudUserId.equals(claim.userId)))
+        .getSingleOrNull();
+    if (byAuth != null) return byAuth.localId;
+
+    return claim.employeeId ?? claim.membershipId;
   }
 
   Set<String> _mapPermissions(List<String> codes) {
