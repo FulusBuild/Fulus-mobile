@@ -9,6 +9,7 @@ import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
 import '../../sync/sync_execution_lease.dart';
