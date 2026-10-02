@@ -416,6 +416,11 @@ begin
   where id = target_membership_id
     and business_id = target_business_id;
 
+  if target_member_user = target_user_id then
+    raise exception using errcode='42501',
+      message='You cannot change your own employee access status';
+  end if;
+
   if target_member_user is null then
     return false;
   end if;
