@@ -146,6 +146,32 @@ void main() {
       expect(active?.isOpen, isTrue);
     });
 
+    test('includes cash expenses parked for attention in expected cash', () async {
+      final shift = await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+      );
+
+      await db.into(db.expenses).insert(
+        ExpensesCompanion.insert(
+          localId: 'expense-attention',
+          locationId: locationId,
+          description: 'Cash purchase',
+          amount: 250,
+          expenseDate: shift.openedAt.add(const Duration(minutes: 10)),
+          paymentMethod: const Value('cash'),
+          createdAt: shift.openedAt.add(const Duration(minutes: 10)),
+          updatedAt: shift.openedAt.add(const Duration(minutes: 10)),
+          syncStatus: SyncStatus.attentionNeeded,
+          deletedAt: const Value(null),
+        ),
+      );
+
+      final preview = await repository.computeExpectedCash(shift.localId);
+
+      expect(preview.cashExpenses, 250);
+      expect(preview.expectedCash, 4750);
+    });
+
     test('rejects closing a shift that is already closed', () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
