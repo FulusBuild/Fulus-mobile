@@ -232,7 +232,6 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
         return;
       }
 
-      final inviteBusinessId = businessId!;
       final localLocationId = saved.locationId;
       final localLocation = localLocationId == null
           ? null
