@@ -163,7 +163,10 @@ BEGIN
     'sales', coalesce((
       SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id)
       FROM public.sales t
-      WHERE t.business_id = p_business_id
+      WHERE t.product_id IN (
+          SELECT psl_product.id FROM public.products psl_product
+          WHERE psl_product.business_id = p_business_id
+        )
         AND t.location_id = v_location_id
     ), '[]'::jsonb),
     'sale_items', coalesce((
