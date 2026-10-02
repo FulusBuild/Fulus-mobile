@@ -149,6 +149,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
     staffAccessApi: fulusStaffAccessApi,
+    onSessionChanged: (user) {
+      providerContainer.read(sessionProvider.notifier).state = user;
+    },
   );
   final authApi = AuthApi(apiClient);
   apiClient.setOnSessionExpired(() async {
@@ -460,6 +463,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  late final ProviderContainer providerContainer;
   late final EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator;
 
   Future<void> initializeCloudSync() async {
@@ -692,7 +696,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
 
-  return ProviderContainer(
+  providerContainer = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(database),
       secureStorageProvider.overrideWithValue(secureStorage),
@@ -767,4 +771,5 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       ),
     ],
   );
+  return providerContainer;
 }
