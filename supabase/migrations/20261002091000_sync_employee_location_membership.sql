@@ -165,6 +165,11 @@ begin
     returning * into employee_row;
   end if;
 
+  if employee_row.auth_user_id = target_user_id then
+    raise exception using errcode='42501',
+      message='You cannot modify your own employee access record';
+  end if;
+
   -- Managers with employees.manage may manage ordinary staff, but they
   -- cannot modify or deactivate owner/administrator accounts.
   if employee_row.auth_user_id is not null
