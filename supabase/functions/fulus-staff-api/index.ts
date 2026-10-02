@@ -451,6 +451,14 @@ Deno.serve(async (req: Request) => {
   const canManageEmployees =
     isAdmin ||
     (canManageStaff === true && managerDelegableActions.has(String(action)));
+
+  // Device inventory is an administrator-only surface. `employees.manage`
+  // authorizes staff roster/access changes, not visibility into every device
+  // registered to the business. Keep this boundary explicit because this
+  // Edge Function uses the service-role client for its data reads.
+  if (action === "list_devices" && !isAdmin) {
+    return json({ error: { code: "FORBIDDEN", message: "Owner or admin access is required for device management" } }, 403);
+  }
   if (!canManageEmployees) {
     return json({ error: { code: "FORBIDDEN", message: "Owner or admin access is required for this action" } }, 403);
   }
