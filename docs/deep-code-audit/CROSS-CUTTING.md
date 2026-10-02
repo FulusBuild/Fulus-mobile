@@ -90,3 +90,17 @@ Required evidence/fix ownership:
 3. Define the canonical integer money unit in Part 10.
 4. Align local checkout calculations with the cloud transaction.
 5. Add exact local/cloud regression coverage before changing the financial schema.
+
+
+## X-008 — Sale tender/change contract
+
+Status: Open; owned by Parts 09 and 10.
+
+The normal checkout permits cash tender above the remaining balance so change can be returned. Local SalePayment/Sale.amountPaid currently retain the tendered amount, while the cloud V2 sale command requires all payment legs to equal the sale total and the authoritative sale amount_paid is capped at the total.
+
+Required evidence/fix:
+1. Define tendered cash separately from applied payment.
+2. Define change and its cash-ledger treatment.
+3. Preserve split-payment and credit semantics.
+4. Align local checkout, receipts, cash drawer, cloud sale RPC, and canonical reconciliation.
+5. Complete integer-money migration and exact regressions in Part 10.

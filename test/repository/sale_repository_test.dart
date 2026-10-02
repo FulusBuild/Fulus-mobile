@@ -198,6 +198,23 @@ void main() {
       expect(stockRow.currentStock, initialStock - 3);
     });
 
+    test('does not decrement local stock for a non-stock-tracked product', () async {
+      await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+          .write(const ProductsCompanion(tracksStock: Value(false)));
+
+      await repository.createSale(draftWithOneItem(quantity: 3));
+
+      final stockRow = await (db.select(db.productStockLevels)
+            ..where(
+              (s) =>
+                  s.productLocalId.equals(productId) &
+                  s.locationLocalId.equals(locationId),
+            ))
+          .getSingle();
+
+      expect(stockRow.currentStock, initialStock);
+    });
+
     test('enqueues exactly one high-priority sync task', () async {
       final result = await repository.createSale(draftWithOneItem());
 
