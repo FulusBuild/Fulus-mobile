@@ -518,6 +518,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     if (selectedBusinessId == null) {
       throw StateError('No active business is available for Cloud Sync.');
     }
+    if (knownBusinessId == null) {
+      await employeeCloudSessionCoordinator.refreshExistingAccess(
+        force: true,
+        businessId: selectedBusinessId,
+      );
+    }
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
     await fulusConnectionState.registerDevice(
