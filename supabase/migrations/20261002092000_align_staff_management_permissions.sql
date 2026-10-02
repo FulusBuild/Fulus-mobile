@@ -40,7 +40,7 @@ begin
       )
   ) then
     raise exception using errcode='42501',
-      message='Only an owner or admin may create staff invites';
+      message='Employee management access is required';
   end if;
 
   if normalized_email is null then
@@ -224,7 +224,7 @@ begin
       )
   ) then
     raise exception using errcode='42501',
-      message='Only an owner or admin may change staff permissions';
+      message='Employee management access is required';
   end if;
 
   if target_user_id is null or target_user_id = actor then
@@ -283,8 +283,8 @@ begin
     raise exception using errcode='22023', message='Unknown permission';
   end if;
 
-  -- Match the local permission-editor invariant: an admin may only add or
-  -- remove permissions they themselves hold. Existing permissions outside
+  -- Match the local permission-editor invariant: an employee manager may only
+  -- add or remove permissions they themselves hold. Existing permissions outside
   -- the actor's grant set may remain unchanged.
   if exists (
     with current_codes as (
@@ -379,7 +379,7 @@ begin
       )
   ) then
     raise exception using errcode='42501',
-      message='Only an owner or admin may change membership status';
+      message='Employee management access is required';
   end if;
   if target_status not in ('active', 'suspended', 'removed') then
     raise exception using errcode='22023', message='Invalid membership status';
