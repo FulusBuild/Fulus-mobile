@@ -84,13 +84,19 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       final user = await ref
           .read(authRepositoryProvider)
           .switchLocalUser(userId: identity.id, pin: pin);
-      final employeeRow = await (ref.read(databaseProvider).select(
-        ref.read(databaseProvider).employees,
-      )..where((e) =>
-          e.authUserId.equals(identity.id) | e.cloudUserId.equals(identity.id)))
+      final database = ref.read(databaseProvider);
+      final employeeByAuth = await (database.select(database.employees)
+            ..where((e) => e.authUserId.equals(identity.id)))
           .getSingleOrNull();
+      final employeeByCloud = employeeByAuth == null
+          ? await (database.select(database.employees)
+                ..where((e) => e.cloudUserId.equals(identity.id)))
+              .getSingleOrNull()
+          : null;
       final isEmployeeIdentity =
-          employeeRow != null || identity.role != AuthRole.owner;
+          employeeByAuth != null ||
+          employeeByCloud != null ||
+          identity.role != AuthRole.owner;
       employeeSessionChanged = isEmployeeIdentity;
 
       if (isEmployeeIdentity) {
