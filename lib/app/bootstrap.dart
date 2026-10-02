@@ -573,8 +573,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // or role changes become local projection changes without adding a
       // request to every mutation.
       unawaited(
-        employeeCloudSessionCoordinator.refreshExistingAccess().catchError(
-          (_) => null,
+        employeeCloudSessionCoordinator.refreshExistingAccess().then<void>(
+          (_) {},
+          onError: (_, __) {},
         ),
       );
       // A successful push + pull proves that authentication, business
