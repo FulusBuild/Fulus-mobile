@@ -203,6 +203,13 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     setState(() => _saving = true);
     try {
       final existing = widget.existing;
+      final businessId = isNew
+          ? ref.read(fulusConnectionStateProvider).selectedBusinessId
+          : null;
+      if (isNew && businessId == null) {
+        throw StateError('This business is not ready for employee invitations yet.');
+      }
+
       final draft = EmployeeDraft(
         fullName: name,
         role: _role,
@@ -225,10 +232,6 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
         return;
       }
 
-      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
-      if (businessId == null) {
-        throw StateError('This business is not ready for employee invitations yet.');
-      }
       final localLocationId = saved.locationId;
       final localLocation = localLocationId == null
           ? null
