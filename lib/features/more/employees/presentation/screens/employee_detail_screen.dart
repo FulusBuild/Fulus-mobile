@@ -711,6 +711,11 @@ class _AccessAction extends ConsumerWidget {
       confirmLabel: 'Deactivate',
     );
     if (!confirmed || !context.mounted) return;
+    final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
+    if (employee.authUserId != null && employee.authUserId == currentUserId) {
+      showFulusSnackbar(context, message: 'You can’t deactivate your own account.');
+      return;
+    }
     try {
       final authUserId = employee.authUserId;
       final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
