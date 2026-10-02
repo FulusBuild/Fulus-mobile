@@ -208,9 +208,17 @@ class ApiClient {
       if (accessToken == null || accessToken.isEmpty) {
         throw StateError('Supabase refresh returned no access token.');
       }
+      final effectiveRefreshToken =
+          rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty
+              ? rotatedRefreshToken
+              : refreshToken;
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
       }
+      // Keep the process-restart session aligned with the employee just
+      // switched to. The per-user token is needed for background actor-scoped
+      // sync, while the global token is the startup authority.
+      await _secureStorage.setRefreshToken(effectiveRefreshToken);
       // Commit the in-memory cloud identity only after Supabase accepted the
       // target employee's refresh token and returned a valid access token.
       _activeCloudUserId = userId;
