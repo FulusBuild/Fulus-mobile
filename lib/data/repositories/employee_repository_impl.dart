@@ -445,6 +445,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<List<AttendanceRecord>> getAttendance({String? employeeId, DateTime? dateFrom, DateTime? dateTo}) async {
+    if (employeeId == null) {
+      await _requireManageEmployees();
+    } else {
+      await _requireManageOrOwnEmployee(employeeId);
+    }
     final query = _db.select(_db.attendanceRecords);
     if (employeeId != null) query.where((a) => a.employeeId.equals(employeeId));
     if (dateFrom != null) query.where((a) => a.date.isBiggerOrEqualValue(dateFrom));
@@ -456,6 +461,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<AttendanceSummary> getAttendanceSummary({required String employeeId, required int month, required int year}) async {
+    await _requireManageOrOwnEmployee(employeeId);
     final rows = await (_db.select(_db.attendanceRecords)..where((a) => a.employeeId.equals(employeeId))).get();
     final inMonth = rows.where((r) => r.date.month == month && r.date.year == year).map((r) => r.toDomain()).toList();
     return _engine.summarizeAttendance(employeeId: employeeId, month: month, year: year, records: inMonth);
@@ -516,6 +522,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<List<LeaveRequest>> listLeaveRequests({String? employeeId, LeaveStatus? status}) async {
+    if (employeeId == null) {
+      await _requireManageEmployees();
+    } else {
+      await _requireManageOrOwnEmployee(employeeId);
+    }
     final query = _db.select(_db.leaveRecords);
     if (employeeId != null) query.where((l) => l.employeeId.equals(employeeId));
     if (status != null) query.where((l) => l.status.equalsValue(leaveStatusToDb(status)));
