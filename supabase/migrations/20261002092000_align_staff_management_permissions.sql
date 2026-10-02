@@ -392,6 +392,7 @@ set search_path = ''
 as $fn0$
 declare
   target_member_user uuid;
+  employee_row public.employees;
 begin
   if not exists (
     select 1
@@ -489,6 +490,56 @@ begin
       updated_at = now()
   where id = target_membership_id
     and business_id = target_business_id;
+
+  select * into employee_row
+  from public.employees
+  where business_id = target_business_id
+    and auth_user_id = target_member_user
+  for update;
+
+  if employee_row.id is not null then
+    update public.employees
+    set is_active = target_status = 'active',
+        deleted_at = case
+          when target_status = 'active' then null
+          else coalesce(deleted_at, now())
+        end,
+        updated_at = now()
+    where id = employee_row.id
+    returning * into employee_row;
+
+    perform public._fulus_append_change(
+      target_business_id,
+      'employee',
+      employee_row.id,
+      'upsert',
+      to_jsonb(employee_row)
+    );
+
+    delete from public.location_memberships
+    where business_id = target_business_id
+      and user_id = target_member_user
+      and status = 'active';
+
+    if target_status = 'active' and employee_row.location_id is not null then
+      insert into public.location_memberships(
+        business_id, location_id, user_id, status, created_at, updated_at
+      )
+      values (
+        target_business_id,
+        employee_row.location_id,
+        target_member_user,
+        'active',
+        now(),
+        now()
+      )
+      on conflict (location_id, user_id)
+      do update set
+        business_id = excluded.business_id,
+        status = 'active',
+        updated_at = now();
+    end if;
+  end if;
 
   if target_status = 'active' then
     update public.devices
