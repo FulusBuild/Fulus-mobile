@@ -426,7 +426,12 @@ begin
   where id = target_membership_id
     and business_id = target_business_id;
 
-  if target_status <> 'active' then
+  if target_status = 'active' then
+    update public.devices
+    set status = 'active', updated_at = now()
+    where business_id = target_business_id
+      and registered_by = target_member_user;
+  else
     update public.devices
     set status = 'revoked', updated_at = now()
     where business_id = target_business_id
