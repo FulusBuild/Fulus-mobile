@@ -16,10 +16,10 @@ create or replace function public.create_staff_invite(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public, extensions
-as $$
+set search_path = ''
+as $
 declare
-  token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+  token text := replace(extensions.gen_random_uuid()::text || extensions.gen_random_uuid()::text, '-', '');
   invite public.staff_invites;
   employee_row public.employees;
   normalized_email text := nullif(lower(trim(target_email)), '');
@@ -160,7 +160,7 @@ begin
   )
   values (
     target_business_id, target_role_id, normalized_email,
-    encode(digest(token, 'sha256'), 'hex'),
+    encode(extensions.digest(token, 'sha256'), 'hex'),
     target_permission_codes, target_location_id, employee_row.id,
     now() + make_interval(hours => target_expires_hours), actor
   )
