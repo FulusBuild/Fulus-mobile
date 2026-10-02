@@ -21,7 +21,7 @@ create or replace function public.register_device(
 returns public.devices
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   result public.devices;
