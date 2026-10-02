@@ -8,7 +8,6 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/screen_exit.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../../sync/sync_user_message.dart';
 
 /// Replaces the pre-simplification SignInScreen entirely — see
 /// AuthRepository.switchLocalUser's own doc comment for why a
@@ -152,7 +151,7 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = syncUserMessage(error);
+        _error = 'We couldn’t switch employees. Please try again.';
         _pinController.clear();
       });
     }
