@@ -43,3 +43,12 @@ Remaining verification:
 2. Employee A → Employee B switching on a shared device, including process death between switch and next sync.
 3. Rejected A token with a still-present legacy/global token for B must never authenticate as B.
 4. Production Supabase response identity must remain equal to the selected local/cloud identity mapping.
+
+
+## X-003 — Employee authorization projection vs server authority
+
+Status: Partially proven; Part 03 source fixes applied.
+
+Employee permissions are projected locally from the server-authoritative StaffClaim into user_permissions and consumed by router/app-shell and local repository checks. Cloud staff mutations independently enforce membership, role, permission-delegation, and location authorization. Part 03 also found that a staff Edge Function action can accidentally inherit a broader gate than its specific capability; P03-001 fixed this for device inventory.
+
+Remaining verification belongs to Parts 04, 13, and 20: prove every cloud action has an action-specific authorization boundary and that revocation/permission changes converge promptly to local UI and mutation guards.
