@@ -171,6 +171,10 @@ final permissionRepositoryProvider = Provider<PermissionRepository>((ref) {
 /// automatically alongside it. No case exists where this needs
 /// invalidating without [sessionProvider] also changing.
 final sessionPermissionsProvider = FutureProvider<Set<Permission>>((ref) async {
+  // Cloud membership/permission state is authoritative for employees.
+  // Watch connection changes so a successful access projection refresh
+  // invalidates this local projection without requiring logout/login.
+  ref.watch(fulusConnectionStateProvider);
   final user = ref.watch(sessionProvider);
   if (user == null) return const {};
   if (user.role == AuthRole.owner) return Permission.all;
