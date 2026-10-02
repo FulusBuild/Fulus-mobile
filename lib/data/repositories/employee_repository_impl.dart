@@ -121,9 +121,6 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   Future<Employee> updateEmployee(String id, EmployeeDraft draft) async {
     final existing = await _requireManageableEmployee(id);
     _engine.validateDraft(draft);
-    if (existing == null) {
-      throw StateError('Employee $id not found.');
-    }
     final updated = existing.copyWith(
       fullName: draft.fullName.trim(),
       role: draft.role,
@@ -163,8 +160,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (row == null) {
         throw StateError('Employee $id not found.');
       }
-      if (row.authUserId != null &&
-          row.authUserId == _authRepository.currentUser.id) {
+      final currentUserId = _authRepository.currentUser?.id;
+      if (currentUserId != null &&
+          (row.authUserId == currentUserId || row.cloudUserId == currentUserId)) {
         throw const AuthFailure.forbidden();
       }
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
@@ -181,7 +179,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       // isActive is a separate flag on a separate table. Cascading it
       // here is what makes "they'll no longer be able to sign in"
       // (the confirmation dialog's own claim) actually true.
-      final authUserId = row.authUserId;
+      final authUserId = row.authUserId ?? row.cloudUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,
@@ -214,7 +212,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           syncStatus: const Value(SyncStatus.pending),
         ),
       );
-      final authUserId = row?.authUserId;
+      final authUserId = row.authUserId ?? row.cloudUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,
