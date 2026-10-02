@@ -156,8 +156,11 @@ class EmployeeCloudSessionCoordinator {
         DateTime.now().difference(lastRefresh) < _accessRefreshInterval) {
       return current;
     }
-    final employee = await (_database.select(_database.employees)
-          ..where((e) => e.authUserId.equals(current.id) | e.cloudUserId.equals(current.id)))
+    var employee = await (_database.select(_database.employees)
+          ..where((e) => e.authUserId.equals(current.id)))
+        .getSingleOrNull();
+    employee ??= await (_database.select(_database.employees)
+          ..where((e) => e.cloudUserId.equals(current.id)))
         .getSingleOrNull();
     if (employee == null) return null;
     final businessId = _connection.selectedBusinessId;
@@ -356,11 +359,14 @@ class EmployeeCloudSessionCoordinator {
     }
 
     final byAuth = await (_database.select(_database.employees)
-          ..where((e) =>
-              e.authUserId.equals(claim.userId) |
-              e.cloudUserId.equals(claim.userId)))
+          ..where((e) => e.authUserId.equals(claim.userId)))
         .getSingleOrNull();
     if (byAuth != null) return byAuth.localId;
+
+    final byCloudUser = await (_database.select(_database.employees)
+          ..where((e) => e.cloudUserId.equals(claim.userId)))
+        .getSingleOrNull();
+    if (byCloudUser != null) return byCloudUser.localId;
 
     return claim.employeeId ?? claim.membershipId;
   }
