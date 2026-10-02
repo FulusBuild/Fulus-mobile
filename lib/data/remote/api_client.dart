@@ -240,10 +240,23 @@ class ApiClient {
   Future<Map<String, dynamic>?> restoreServerSession({
     required String supabaseUrl,
     required String publishableKey,
-  }) => _authInterceptor.restoreServerSession(
-        supabaseUrl: supabaseUrl,
-        publishableKey: publishableKey,
-      );
+  }) async {
+    final data = await _authInterceptor.restoreServerSession(
+      supabaseUrl: supabaseUrl,
+      publishableKey: publishableKey,
+    );
+    if (data != null) {
+      final user = data['user'];
+      final userId = user is Map ? user['id']?.toString() : null;
+      if (userId != null && userId.isNotEmpty) {
+        // Rebuild the in-memory actor identity after process death so normal
+        // requests for the restored employee use the active token directly,
+        // while other queued actors remain explicitly scoped.
+        setActiveCloudUser(userId);
+      }
+    }
+    return data;
+  }
 
   /// Invalidates the active cloud session and notifies the application state
   /// layer. Used by startup refresh when Supabase permanently rejects the
