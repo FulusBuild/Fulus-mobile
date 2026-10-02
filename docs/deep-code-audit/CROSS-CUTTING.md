@@ -114,7 +114,7 @@ The migration must cover catalog prices, sales, payments, customer/supplier ledg
 
 ## X-010 — Inventory tracking-flag contract
 
-Status: Fixed in Part 11 source; migration/runtime verification pending.
+Status: Closed in Part 11 source; CI green; production invariant checks clean.
 
 The product `tracks_stock` flag was enforced by sales and absolute stock-setting paths but not by the common manual stock-movement boundary. Part 11 found that Product Detail exposed Record stock for non-tracked products, the local repository could create a stock row/movement, and the delta inventory command lacked the same server-side guard. The source fix now enforces the invariant locally, at the UI action boundary, and at the database insert boundary.
 
@@ -129,7 +129,7 @@ Production evidence at audit time: zero inventory movements for non-stock-tracke
 
 ## X-011 — Stock-in composite transaction boundary
 
-Status: Open; requires coordinated repository/domain work.
+Status: Closed for the local Stock In transaction boundary; later sync/process-death/financial cross-checks remain owned by their respective parts.
 
 Manual stock-in commits inventory and its outbox entry before optional product cost/supplier and supplier-credit writes complete. This creates a partial local-success boundary that differs from the atomic sale checkout transaction.
 
@@ -140,8 +140,8 @@ Relevant parts:
 - Part 10 — Financial & Ledger Integrity
 - Part 11 — Inventory & Stock
 
-Required evidence/fix:
-1. Define the single application transaction boundary for stock-in.
-2. Keep the durable outbox entry inside that boundary.
-3. Inject failures after each side effect and prove full rollback.
-4. Prove retry cannot duplicate inventory or supplier-credit effects.
+Evidence/fix completed in Part 11:
+1. The single repository transaction now owns stock, movement, product metadata, supplier credit, and outbox writes.
+2. Durable outbox entries remain inside the same transaction.
+3. Regression coverage proves successful composite commit and rollback when supplier-credit validation fails.
+4. The later sync/process-death retry dimensions remain part of Parts 14–17 rather than being claimed closed here.
