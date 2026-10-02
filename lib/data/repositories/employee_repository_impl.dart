@@ -50,6 +50,26 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     }
   }
 
+  Future<Employee> _requireManageOrOwnEmployee(String employeeId) async {
+    final user = _authRepository.currentUser;
+    if (user == null) throw const AuthFailure.forbidden();
+
+    final employee = await getEmployeeById(employeeId, includeInactive: true);
+    if (employee == null) throw StateError('Employee $employeeId not found.');
+
+    final canManage = await _permissionRepository.hasPermission(
+      userId: user.id,
+      role: user.role,
+      permission: Permission.manageEmployees,
+    );
+    if (!canManage &&
+        employee.authUserId != user.id &&
+        employee.cloudUserId != user.id) {
+      throw const AuthFailure.forbidden();
+    }
+    return employee;
+  }
+
   // ── Roster ──────────────────────────────────────────────────────────────
 
   @override
@@ -376,6 +396,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required DateTime date,
     required AttendanceStatus status,
   }) async {
+    await _requireManageEmployees();
+    final employee = await getEmployeeById(employeeId, includeInactive: true);
+    if (employee == null) throw StateError('Employee $employeeId not found.');
     final day = DateTime(date.year, date.month, date.day);
     final existing = await (_db.select(_db.attendanceRecords)
           ..where((a) => a.employeeId.equals(employeeId) & a.date.equals(day)))
@@ -405,6 +428,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required DateTime date,
     required Map<String, AttendanceStatus> statusByEmployeeId,
   }) async {
+    await _requireManageEmployees();
     final day = DateTime(date.year, date.month, date.day);
     final roster = await (_db.select(_db.employees)..where((e) => e.deletedAt.isNull())).get();
     final rosterIds = roster.map((e) => e.localId).toSet();
@@ -441,6 +465,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<LeaveRequest> createLeaveRequest(LeaveRequestDraft draft) async {
+    await _requireManageOrOwnEmployee(draft.employeeId);
     _engine.validateLeaveDraft(draft);
     final id = Ulid().toString();
     await _db.into(_db.leaveRecords).insert(
@@ -468,6 +493,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required LeaveStatus status,
     required String decidedBy,
   }) async {
+    await _requireManageEmployees();
     final row = await (_db.select(_db.leaveRecords)..where((l) => l.id.equals(leaveId))).getSingleOrNull();
     if (row == null) {
       throw StateError('Leave request $leaveId not found.');
