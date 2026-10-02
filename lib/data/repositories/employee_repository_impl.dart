@@ -500,6 +500,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required String decidedBy,
   }) async {
     await _requireManageEmployees();
+    final actor = _authRepository.currentUser;
+    if (actor == null || actor.id != decidedBy) {
+      throw const AuthFailure.forbidden();
+    }
     final row = await (_db.select(_db.leaveRecords)..where((l) => l.id.equals(leaveId))).getSingleOrNull();
     if (row == null) {
       throw StateError('Leave request $leaveId not found.');
