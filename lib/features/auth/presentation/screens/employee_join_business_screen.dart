@@ -63,7 +63,6 @@ class _EmployeeJoinBusinessScreenState
         _status = '';
       });
     } on Failure catch (failure) {
-      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
@@ -72,7 +71,6 @@ class _EmployeeJoinBusinessScreenState
         });
       }
     } catch (error) {
-      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
