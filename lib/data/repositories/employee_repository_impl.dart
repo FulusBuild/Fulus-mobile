@@ -131,7 +131,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       // isActive is a separate flag on a separate table. Cascading it
       // here is what makes "they'll no longer be able to sign in"
       // (the confirmation dialog's own claim) actually true.
-      final authUserId = row?.authUserId;
+      final authUserId = row.authUserId ?? row.cloudUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,
