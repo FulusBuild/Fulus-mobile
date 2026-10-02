@@ -26,6 +26,11 @@ as $$
 declare
   result public.devices;
 begin
+  if target_user_id <> auth.uid() then
+    raise exception using errcode='42501',
+      message='A device may only be registered for the signed-in user';
+  end if;
+
   if target_device_client_id is null
      or length(trim(target_device_client_id)) < 8 then
     raise exception using errcode='22023',
@@ -73,9 +78,21 @@ begin
     updated_at = now()
   returning * into result;
 
+  insert into public.audit_events(
+    business_id, actor_user_id, device_id, action, entity_type, entity_id, metadata
+  )
+  values (
+    target_business_id, target_user_id, result.id, 'device_registered',
+    'device', result.id,
+    jsonb_build_object(
+      'device_client_id', result.device_client_id,
+      'platform', result.platform
+    )
+  );
+
   return result;
 end;
-$$;
+$;
 
 revoke execute on function public.register_device(uuid,uuid,text,text,text,text)
   from public, anon, authenticated;
