@@ -160,9 +160,7 @@ class EmployeeCloudSessionCoordinator {
         DateTime.now().difference(lastRefresh) < _accessRefreshInterval) {
       return current;
     }
-    final employee = await (_database.select(_database.employees)
-          ..where((e) => e.authUserId.equals(current.id) | e.cloudUserId.equals(current.id)))
-        .getSingleOrNull();
+    final employee = await _findEmployeeForUser(current.id);
     if (employee == null) return null;
     final resolvedBusinessId = businessId ?? _connection.selectedBusinessId;
     if (resolvedBusinessId == null) return null;
@@ -358,6 +356,17 @@ class EmployeeCloudSessionCoordinator {
       'INSERT INTO sessions(id, user_id, active_location_id) VALUES (?, ?, ?)',
       ['current', claim.userId, localLocationId],
     );
+  }
+
+  Future<Employee?> _findEmployeeForUser(String userId) async {
+    final byAuthUser = await (_database.select(_database.employees)
+          ..where((e) => e.authUserId.equals(userId)))
+        .getSingleOrNull();
+    if (byAuthUser != null) return byAuthUser;
+
+    return (_database.select(_database.employees)
+          ..where((e) => e.cloudUserId.equals(userId)))
+        .getSingleOrNull();
   }
 
   Future<String?> _resolveLocalLocationId(String? cloudLocationId) async {
