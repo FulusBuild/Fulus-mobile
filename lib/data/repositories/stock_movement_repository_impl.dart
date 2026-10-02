@@ -129,7 +129,7 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
             SupplierLedgerEntriesCompanion.insert(
               localId: Ulid().toString(),
               supplierLocalId: supplierId,
-              entryType: SupplierLedgerEntryType.stockPurchaseOnCredit.wireValue,
+              entryType: SupplierLedgerEntryType.stockPurchaseOnCredit.name,
               amount: amount,
               stockMovementLocalId: Value(movement.localId),
               createdAt: now,
