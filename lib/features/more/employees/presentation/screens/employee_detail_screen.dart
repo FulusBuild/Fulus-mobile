@@ -206,7 +206,16 @@ class _EmployeeDetailBody extends ConsumerWidget {
             ],
           ),
         ),
-        if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
+        if (employee.authUserId != null && canManageEmployees && actor?.id != employee.authUserId) ...[
+          const SizedBox(height: AppSpacing.lg),
+          FulusSectionHeader(title: 'Access & permissions'),
+          FulusCard(
+            child: _AccessPermissionsSection(
+              authUserId: employee.authUserId!,
+              grantableBy: grantableBy,
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
         if (relatedError)
