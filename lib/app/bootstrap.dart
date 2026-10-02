@@ -157,12 +157,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
   final authRepository = AuthRepositoryImpl(db: database, pinHasher: const Argon2PinHasher(), auditRepository: auditRepository, permissionRepository: permissionRepository);
-  final restoreSessionFuture = authRepository.restoreSession();
-  await restoreSessionFuture;
-  final restoredLocalUser = authRepository.currentUser;
-  if (restoredLocalUser != null) {
-    apiClient.setActiveCloudUser(restoredLocalUser.id);
-  }
+  // Local identity IDs and Supabase Auth user IDs are different namespaces
+  // for owner accounts. Do not derive the cloud credential identity from the
+  // local Users row. initializeCloudSync() restores the durable cloud session
+  // and lets the Supabase refresh response establish the authoritative cloud
+  // user id.
+  await authRepository.restoreSession();
 
   // SharedPreferences and local session restoration are independent. Start
   // both as early as possible, then wait for the slower one before wiring the
