@@ -133,6 +133,37 @@ void main() {
     });
   });
 
+  group('stock tracking contract', () {
+    test('rejects movements for products that do not track stock', () async {
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'prod-no-stock',
+        name: 'Service Item',
+        sku: 'SERVICE-1',
+        costPrice: 0,
+        sellingPrice: 500,
+        tracksStock: const Value(false),
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+
+      await expectLater(
+        repository.recordStockIn(const StockInDraft(
+          productLocalId: 'prod-no-stock',
+          locationId: locationId,
+          quantity: 1,
+        )),
+        throwsStateError,
+      );
+
+      expect(await db.select(db.stockMovements).get(), isEmpty);
+      final stock = await (db.select(db.productStockLevels)
+            ..where((s) => s.productLocalId.equals('prod-no-stock')))
+          .getSingleOrNull();
+      expect(stock, isNull);
+    });
+  });
+
   group('local stock safety', () {
     test('rejects stock-out that would make local stock negative and writes nothing', () async {
       await (db.update(db.productStockLevels)

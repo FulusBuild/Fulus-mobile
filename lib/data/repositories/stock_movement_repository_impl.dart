@@ -21,6 +21,16 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
 
   Future<StockMovement> _record(StockMovement movement) async {
     await _db.transaction(() async {
+      final product = await (_db.select(_db.products)
+            ..where((row) => row.localId.equals(movement.productLocalId)))
+          .getSingleOrNull();
+      if (product == null) {
+        throw StateError('No product record exists for ' + movement.productLocalId + '.');
+      }
+      if (!product.tracksStock) {
+        throw StateError('Product ' + movement.productLocalId + ' does not track stock.');
+      }
+
       final current = await (_db.select(_db.productStockLevels)
             ..where((row) => row.productLocalId.equals(movement.productLocalId))
             ..where((row) => row.locationLocalId.equals(movement.locationId)))
