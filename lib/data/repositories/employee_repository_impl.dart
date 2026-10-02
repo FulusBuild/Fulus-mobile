@@ -112,6 +112,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       if (row == null) {
         throw StateError('Employee $id not found.');
       }
+      if (row.authUserId != null &&
+          row.authUserId == _authRepository.currentUser?.id) {
+        throw const AuthFailure.forbidden();
+      }
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(false),
