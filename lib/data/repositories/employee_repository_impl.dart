@@ -73,6 +73,12 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     if (existing == null) {
       throw StateError('Employee $id not found.');
     }
+    if ((draft.email ?? '').trim().toLowerCase() !=
+        (existing.email ?? '').trim().toLowerCase()) {
+      throw const EmployeeValidationException(
+        'An employee login email cannot be changed after the employee is created.',
+      );
+    }
     final updated = existing.copyWith(
       fullName: draft.fullName.trim(),
       role: draft.role,
