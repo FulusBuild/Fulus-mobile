@@ -52,3 +52,22 @@ Status: Partially proven; Part 03 source fixes applied.
 Employee permissions are projected locally from the server-authoritative StaffClaim into user_permissions and consumed by router/app-shell and local repository checks. Cloud staff mutations independently enforce membership, role, permission-delegation, and location authorization. Part 03 also found that a staff Edge Function action can accidentally inherit a broader gate than its specific capability; P03-001 fixed this for device inventory.
 
 Remaining verification belongs to Parts 04, 13, and 20: prove every cloud action has an action-specific authorization boundary and that revocation/permission changes converge promptly to local UI and mutation guards.
+
+
+## X-004 — Business/location-scoped employee bootstrap
+
+Status: Fixed in Part 04; production/runtime verification pending.
+
+Employee provisioning previously entered the owner/admin full-business restore RPC. That RPC correctly rejected non-admin employees, which blocked the employee bootstrap path. Simply widening it would have exposed the entire business snapshot to a location-bound employee. Part 04 introduced a separate employee restore contract that validates active business membership plus active location membership and returns only the assigned location's operational state, while preserving intentionally business-wide catalog/customer identity.
+
+Relevant parts:
+- Part 03 — Employee, Membership & Access Control
+- Part 04 — Business & Location Isolation
+- Part 15 — Backup, Restore & Cross-Device Provisioning
+- Part 16 — Multi-Device Convergence & Conflict Safety
+- Part 20 — Security & Production Hardening
+
+Remaining verification:
+1. Production employee fresh-device restore with locations A/B proves only assigned A is imported.
+2. Employee A cannot switch to B after process death/reopen.
+3. Incremental change-feed filtering continues to suppress B operational changes after the employee restore boundary.
