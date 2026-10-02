@@ -131,7 +131,7 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = f.message;
+        _error = _switchErrorMessage(f);
         _pinController.clear();
       });
     } catch (error) {
@@ -143,6 +143,17 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
         _pinController.clear();
       });
     }
+  }
+
+  String _switchErrorMessage(Failure failure) {
+    if (failure is NetworkFailure) {
+      return 'We couldn’t connect right now. Please try again.';
+    }
+    if (failure is BusinessRuleFailure ||
+        failure is AuthFailure) {
+      return 'We couldn’t switch to that employee. Please try again.';
+    }
+    return 'We couldn’t switch employees. Please try again.';
   }
 
   Future<void> _handleFailedSwitch(bool employeeSessionChanged) async {
