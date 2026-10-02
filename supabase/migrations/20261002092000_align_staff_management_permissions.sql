@@ -243,6 +243,33 @@ begin
     raise exception using errcode='22023', message='Active staff membership not found';
   end if;
 
+  if not exists (
+    select 1
+    from public.business_memberships actor_membership
+    join public.roles actor_role on actor_role.id = actor_membership.role_id
+    where actor_membership.business_id = target_business_id
+      and actor_membership.user_id = actor
+      and actor_membership.status = 'active'
+      and actor_role.name in ('owner', 'admin')
+  ) and exists (
+    select 1
+    from public.employees target_employee
+    where target_employee.business_id = target_business_id
+      and target_employee.auth_user_id = target_user_id
+      and target_employee.location_id is not null
+      and not exists (
+        select 1
+        from public.location_memberships actor_location
+        where actor_location.business_id = target_business_id
+          and actor_location.user_id = actor
+          and actor_location.location_id = target_employee.location_id
+          and actor_location.status = 'active'
+      )
+  ) then
+    raise exception using errcode='42501',
+      message='You do not have access to this employee location';
+  end if;
+
   if exists (
     select 1
     from public.roles r
@@ -383,6 +410,38 @@ begin
   end if;
   if target_status not in ('active', 'suspended', 'removed') then
     raise exception using errcode='22023', message='Invalid membership status';
+  end if;
+
+  if not exists (
+    select 1
+    from public.business_memberships actor_member
+    join public.roles actor_role on actor_role.id = actor_member.role_id
+    where actor_member.business_id = target_business_id
+      and actor_member.user_id = target_user_id
+      and actor_member.status = 'active'
+      and actor_role.name in ('owner', 'admin')
+  ) and exists (
+    select 1
+    from public.employees target_employee
+    where target_employee.business_id = target_business_id
+      and target_employee.auth_user_id = (
+        select bm.user_id
+        from public.business_memberships bm
+        where bm.id = target_membership_id
+          and bm.business_id = target_business_id
+      )
+      and target_employee.location_id is not null
+      and not exists (
+        select 1
+        from public.location_memberships actor_location
+        where actor_location.business_id = target_business_id
+          and actor_location.user_id = target_user_id
+          and actor_location.location_id = target_employee.location_id
+          and actor_location.status = 'active'
+      )
+  ) then
+    raise exception using errcode='42501',
+      message='You do not have access to this employee location';
   end if;
 
   if exists (
