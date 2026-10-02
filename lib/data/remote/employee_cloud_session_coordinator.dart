@@ -183,18 +183,28 @@ class EmployeeCloudSessionCoordinator {
       await (_database.update(_database.users)
             ..where((u) => u.localId.equals(current.id)))
           .write(const UsersCompanion(isActive: Value(false)));
-      await (_database.update(_database.employees)
-            ..where((e) =>
-                e.authUserId.equals(current.id) |
-                e.cloudUserId.equals(current.id)))
-          .write(
-        EmployeesCompanion(
-          isActive: const Value(false),
-          deletedAt: Value(revokedAt),
-          syncStatus: const Value(SyncStatus.settled),
-          updatedAt: Value(revokedAt),
-        ),
-      );
+      final employeeByAuth = await (_database.select(_database.employees)
+            ..where((e) => e.authUserId.equals(current.id)))
+          .getSingleOrNull();
+      final employeeByCloud = employeeByAuth == null
+          ? await (_database.select(_database.employees)
+                ..where((e) => e.cloudUserId.equals(current.id)))
+              .getSingleOrNull()
+          : null;
+      final employeeLocalId =
+          employeeByAuth?.localId ?? employeeByCloud?.localId;
+      if (employeeLocalId != null) {
+        await (_database.update(_database.employees)
+              ..where((e) => e.localId.equals(employeeLocalId)))
+            .write(
+          EmployeesCompanion(
+            isActive: const Value(false),
+            deletedAt: Value(revokedAt),
+            syncStatus: const Value(SyncStatus.settled),
+            updatedAt: Value(revokedAt),
+          ),
+        );
+      }
       await (_database.delete(_database.userPermissions)
             ..where((p) => p.userId.equals(current.id)))
           .go();
