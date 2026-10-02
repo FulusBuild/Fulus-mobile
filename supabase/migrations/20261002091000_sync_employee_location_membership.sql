@@ -188,8 +188,11 @@ begin
         target_business_id, membership_user, employee_row.location_id,
         'active', now(), now()
       )
-      on conflict (business_id, user_id, location_id)
-      do update set status = 'active', updated_at = now();
+      on conflict (location_id, user_id)
+      do update set
+        business_id = excluded.business_id,
+        status = 'active',
+        updated_at = now();
     end if;
 
     if not employee_row.is_active then
