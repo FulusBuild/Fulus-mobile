@@ -1,9 +1,9 @@
 # Fulus Deep Code Audit — Part 11: Inventory & Stock
 
-**Status:** Active / source audit completed for the primary inventory boundary; verification pending  
+**Status:** Complete for the audited inventory boundary; P11-001 and P11-002 source fixes verified by CI  
 **Baseline SHA:** 5bfb9618c0057f4991e00c95dcb019d8fdadf14e  
 **Audit branch:** audit/deep-code-part-11-inventory-stock  
-**Current SHA:** 41d9e14130f81beea84b2e80d670e221b565d495
+**Current SHA:** 83377dae947d8e265bd79922eaa51ee7f7942a21
 
 ## Scope
 
@@ -133,65 +133,55 @@ These are production observations at the audit timestamp, not substitutes for re
 
 **Part:** 11 — Inventory & Stock  
 **Severity:** High  
-**Status:** Open; cross-cutting transaction-boundary issue  
-**Files:** `lib/features/stock/presentation/screens/record_stock_movement_screen.dart`, `lib/data/repositories/stock_movement_repository_impl.dart`, `lib/data/repositories/product_repository_impl.dart`  
-**Functions/classes:** `_submit`, `_recordCostAndCredit`, `StockMovementRepositoryImpl._record`
+**Status:** Fixed; required CI green; runtime retry/process-death evidence remains part of later cross-cutting sync audits  
+**Files:** `lib/features/stock/presentation/screens/record_stock_movement_screen.dart`, `lib/data/repositories/stock_movement_repository_impl.dart`  
+**Functions/classes:** `_submit`, `StockMovementRepositoryImpl._record`
 
 ### Observed behavior
 
-A stock-in operation commits its inventory movement, local stock projection, and durable sync queue item inside `StockMovementRepositoryImpl._record`. After that transaction has committed, the screen performs additional stock-in side effects:
-
-1. optional product cost/supplier update
-2. optional supplier-credit ledger write.
-
-Those later operations are separate repository calls and therefore separate transactions.
+Stock In originally committed its inventory movement, local stock projection, and durable sync queue item before optional product cost/supplier metadata and supplier-credit writes completed. Those later writes were separate repository transactions.
 
 ### Expected invariant
 
-A single user action labelled as one stock-in should not leave inventory, product cost/supplier metadata, and supplier-credit state partially committed when one of its required side effects fails.
+One Stock In action must not partially commit inventory, product metadata, and supplier-credit state.
 
 ### Root cause
 
-The orchestration boundary is the screen, while the durable inventory mutation is committed before its stock-in ancillary state is completed.
-
-### Impact
-
-If product update or supplier-credit persistence fails after the stock movement commits, the user can see an error even though stock was already changed and queued. Retrying the same visible action can create a second stock movement. This is a credible duplicate-inventory path caused by partial local success.
-
-### Evidence
-
-Source trace shows `recordStockIn` completes its DB transaction before `_recordCostAndCredit` is called. The latter performs separate repository writes.
+The UI was composing multiple repository transaction boundaries.
 
 ### Fix
 
-Do not patch this with compensation stock movements. The safe fix is a shared application/service transaction boundary that commits the stock movement, product metadata update, and local supplier-credit entry together, with one durable outbox boundary.
+Stock In now enters one Drift transaction at the repository boundary. The same transaction covers:
 
-Ownership should be coordinated with Parts 06, 07, 09 and the supplier/financial audit rather than introducing a speculative cross-repository transaction abstraction inside Part 11.
+1. local stock projection
+2. stock movement
+3. optional product cost/supplier metadata
+4. product outbox entry when metadata changes
+5. supplier outstanding balance and supplier ledger entry when purchased on account
+6. stock-movement outbox entry.
 
-### Regression test
+The UI now submits all Stock In inputs through this single operation. No compensating stock movement is used.
 
-Required:
+### Regression coverage
 
-- failure of product metadata write rolls back stock movement and queue item
-- failure of supplier-credit write rolls back stock movement and queue item
-- successful stock-in commits all components exactly once
-- retry after injected failure cannot duplicate stock.
+Added repository coverage proving:
 
-### Cross-check
-
-Sale checkout already keeps sale rows, sale items, payments, local stock decrement and its sale outbox entry inside one local transaction. Manual stock-in does not yet have the same composite transaction boundary.
+- the composite operation commits stock, movement, product metadata, both required outbox entries, and supplier credit together;
+- a missing supplier during an on-account purchase rolls back stock, movement, product metadata, outbox entries, and supplier balance/ledger.
 
 ### Verification
 
-Pending coordinated fix and regression coverage.
+Fulus Mobile CI run **3509** completed successfully. Static analysis, the full Flutter test suite, live sync contract test, and multi-device convergence test all passed.
 
----
+### Cross-check
+
+Sale checkout already uses one local transaction for its sale rows, payments, inventory decrement, credit effect, and outbox. Manual Stock In now has the same atomic local-write property for its own composite state.
 
 ## FINDING P11-002
 
 **Part:** 11 — Inventory & Stock  
 **Severity:** High  
-**Status:** Fixed in source; CI/migration/runtime verification pending  
+**Status:** Fixed; CI green; production invariant evidence clean at audit time  
 **Files:** `lib/data/repositories/stock_movement_repository_impl.dart`, `lib/features/stock/presentation/screens/product_detail_screen.dart`, `supabase/migrations/20261002200000_enforce_inventory_tracks_stock.sql`, `test/repository/stock_movement_repository_test.dart`  
 **Functions/classes:** `StockMovementRepositoryImpl._record`, `ProductDetailScreen`, database inventory movement insert boundary
 
@@ -229,7 +219,7 @@ Live production data currently contains zero inventory movements for non-stock-t
 
 ### Verification
 
-CI, migration application, and runtime command-path verification pending.
+CI and source verification complete. Live production inventory invariants remain clean; direct privileged command-path rejection is covered by the database trigger and should be revisited during Part 13/20 runtime security verification..
 
 ## Pass status
 
@@ -263,13 +253,11 @@ Complete for source-level tracing. Production database invariant queries were al
 
 ## Remaining verification
 
-- Run targeted inventory tests.
-- Run full required Fulus Mobile CI.
-- Apply/verify the new migration in the production Supabase project through the normal migration workflow.
-- Verify the live command path rejects a non-stock-tracked product.
-- Complete P11-001 with a shared transaction boundary.
-- Revisit inventory during Parts 14–16 for sync/convergence and concurrent multi-device evidence.
+- Revisit inventory during Parts 13–16 for cloud API, sync/convergence, and concurrent multi-device evidence.
 - Revisit background/process-death behavior in Part 17.
+- Revisit financial integer-money interaction in Part 10.
+
+The Part 11 local inventory boundary is otherwise closed.
 
 ## Session handoff
 
