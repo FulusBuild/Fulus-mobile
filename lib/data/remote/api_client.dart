@@ -253,7 +253,7 @@ class ApiClient {
       setActiveCloudUser(responseUserId);
     }
     return data;
-  };
+  }
 
   /// Invalidates the active cloud session and notifies the application state
   /// layer. Used by startup refresh when Supabase permanently rejects the
