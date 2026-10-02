@@ -7,6 +7,7 @@ import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
+import '../../domain/entities/employee.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
 import '../local/secure_storage/secure_storage.dart';
