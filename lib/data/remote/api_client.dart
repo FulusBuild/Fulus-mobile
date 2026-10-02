@@ -675,8 +675,7 @@ class _AuthInterceptor extends Interceptor {
       // The legacy/global startup credential has no local identity key.
       // Bind the active cloud identity only to the identity returned by
       // Supabase, never to the local Users-table id.
-      _activeCloudUserId = responseUserId;
-      _authInterceptor.setActiveCloudUser(responseUserId);
+      setActiveCloudUser(responseUserId);
     }
 
     setAccessToken(newAccessToken);
