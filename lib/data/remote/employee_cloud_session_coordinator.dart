@@ -343,7 +343,8 @@ class EmployeeCloudSessionCoordinator {
     final byLocal = await (_database.select(_database.locations)
           ..where((l) => l.localId.equals(cloudLocationId)))
         .getSingleOrNull();
-    return byLocal?.localId;
+    if (byLocal != null) return byLocal.localId;
+    throw StateError('Employee location is not available on this device.');
   }
 
   Future<String> _resolveLocalEmployeeId(StaffClaim claim) async {
