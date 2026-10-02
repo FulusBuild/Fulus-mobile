@@ -321,7 +321,7 @@ The deep-link handler accepts access/refresh tokens into the cloud client. The s
 
 ### Evidence
 - Source trace across auth repository, ApiClient, AuthApi, employee coordinator, bootstrap, auth screens, secure storage, and auth tests.
-- Supabase documentation confirms refresh tokens are one-use/rotated and refresh responses identify the authenticated user. citeturn0search0turn4search2
+- Supabase documentation confirms refresh tokens are one-use/rotated and refresh responses identify the authenticated user.
 
 ### Tests
 - test/repository/auth_repository_test.dart updated.
