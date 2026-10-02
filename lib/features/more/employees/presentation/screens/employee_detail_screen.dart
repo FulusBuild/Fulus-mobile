@@ -719,6 +719,7 @@ class _AccessAction extends ConsumerWidget {
     }
     try {
       final email = employee.email?.trim().toLowerCase();
+      final unclaimed = employee.authUserId == null && employee.cloudUserId == null;
 
       // Access/activation is part of the durable employee roster mutation.
       // The normal employee sync handler updates cloud membership/device
@@ -731,8 +732,11 @@ class _AccessAction extends ConsumerWidget {
                   businessId: businessId,
                   email: email,
                 );
-          } on Failure {
-            // Local deactivation still persists in the durable outbox.
+          } on Failure catch (failure) {
+            // An unclaimed employee still has a live invitation as the
+            // cloud-side access path. Do not create a local deactivation
+            // that cannot revoke that invitation while offline.
+            if (unclaimed) rethrow;
           }
         }
       }
