@@ -211,8 +211,15 @@ class ApiClient {
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
       }
+      final responseUserId =
+          (data['user'] is Map) ? (data['user'] as Map)['id']?.toString() : null;
+      if (responseUserId != userId) {
+        // Do not ever pair a target local identity with a token issued for a
+        // different Supabase user.
+        return null;
+      }
       // Commit the in-memory cloud identity only after Supabase accepted the
-      // target employee's refresh token and returned a valid access token.
+      // target employee's refresh token and returned the same cloud identity.
       _activeCloudUserId = userId;
       _authInterceptor.setActiveCloudUser(userId);
       setAccessToken(accessToken);
@@ -601,14 +608,17 @@ class _AuthInterceptor extends Interceptor {
     String? refreshToken;
     var persistAsUser = false;
     if (_activeCloudUserId != null) {
+      // Once a cloud identity is explicitly selected, only that identity's
+      // durable refresh token is valid. Never fall back to the legacy global
+      // token: on a shared device that token may belong to another account,
+      // and refreshing it would silently pair the wrong cloud identity with
+      // the active local session.
       refreshToken =
           await _secureStorage.getUserRefreshToken(_activeCloudUserId!);
-      // Backward compatibility for installs that predate per-user cloud
-      // sessions. Only startup/current-session restoration may use the legacy
-      // global token; explicit account switching uses the per-user token API.
-      refreshToken ??= await _secureStorage.getRefreshToken();
       persistAsUser = true;
     } else {
+      // Startup restoration may use the legacy global token. The refresh
+      // response establishes the authoritative cloud user id below.
       refreshToken = await _secureStorage.getRefreshToken();
     }
     if (refreshToken == null || refreshToken.isEmpty) {
@@ -645,9 +655,30 @@ class _AuthInterceptor extends Interceptor {
     final data = Map<String, dynamic>.from(response.data as Map);
     final newAccessToken = data['access_token'] as String?;
     final newRefreshToken = data['refresh_token'] as String?;
+    final responseUserId =
+        (data['user'] is Map) ? (data['user'] as Map)['id']?.toString() : null;
     if (newAccessToken == null || newAccessToken.isEmpty) {
       throw StateError('Supabase refresh returned no access token.');
     }
+
+    if (persistAsUser) {
+      final expectedUserId = _activeCloudUserId;
+      if (expectedUserId == null ||
+          responseUserId == null ||
+          responseUserId.isEmpty ||
+          responseUserId != expectedUserId) {
+        throw StateError(
+          'Supabase refresh returned a different cloud identity than the active user.',
+        );
+      }
+    } else if (responseUserId != null && responseUserId.isNotEmpty) {
+      // The legacy/global startup credential has no local identity key.
+      // Bind the active cloud identity only to the identity returned by
+      // Supabase, never to the local Users-table id.
+      _activeCloudUserId = responseUserId;
+      _authInterceptor.setActiveCloudUser(responseUserId);
+    }
+
     setAccessToken(newAccessToken);
     if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
       if (persistAsUser && _activeCloudUserId != null) {
