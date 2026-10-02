@@ -100,7 +100,7 @@ This is intentionally not patched speculatively. Parts 15 and 17 should reproduc
 - Concurrency/retry/disposal: inspected.
 - Tests: reviewed and regression coverage added.
 - Required tests: green in PR #117.
-- Required CI: green in PR #117, run 36983516765.
+- Required CI: green in PR #117, run 36984821345.
 - Android/runtime evidence: pending.
 - Remaining uncertainty: restore versus active sync.
 
@@ -140,7 +140,7 @@ Current SHA: 02ed7bd0284ae3ee10e007d1b7ed85f0ac1652f2
 
 ### CI
 - Baseline main CI green.
-- Audit branch CI green: run 36983516765.
+- Audit branch CI green: run 36984821345.
 
 ### Runtime/production verification
 - Pending Android evidence.
