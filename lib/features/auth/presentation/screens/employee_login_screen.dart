@@ -104,6 +104,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       if (!mounted) return;
       context.go('/');
     } on Failure catch (failure) {
+      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
@@ -112,6 +113,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         });
       }
     } catch (error) {
+      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
@@ -119,6 +121,18 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           _status = '';
         });
       }
+    }
+  }
+
+  Future<void> _clearFailedCloudSession() async {
+    try {
+      await ref.read(apiClientProvider).clearActiveCloudSession();
+      ref.read(fulusConnectionStateProvider).disconnect();
+      await ref.read(syncConfigProvider).setEnabled(false);
+      await ref.read(authRepositoryProvider).logout();
+      ref.read(sessionProvider.notifier).state = null;
+    } catch (_) {
+      // Cleanup is best-effort; the visible login error remains actionable.
     }
   }
 
