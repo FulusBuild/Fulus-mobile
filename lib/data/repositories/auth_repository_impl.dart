@@ -147,7 +147,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // (verified directly against routers/auth.py); details payload
     // changed from created_username to created_full_name since the
     // former no longer exists for a local-only identity.
-    await _auditRepository.log(
+    await _logAudit(
       action: 'BOOTSTRAP_ADMIN',
       module: 'AUTH',
       userId: user.id,
@@ -216,7 +216,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
     if (userRow.lockedUntil != null &&
         userRow.lockedUntil!.isAfter(DateTime.now())) {
-      await _auditRepository.log(
+      await _logAudit(
         action: 'LOGIN_BLOCKED_LOCKOUT',
         module: 'AUTH',
         details: {'user_id': userId},
@@ -258,7 +258,7 @@ class AuthRepositoryImpl implements AuthRepository {
             updatedAt: Value(DateTime.now()),
           ),
         );
-        await _auditRepository.log(
+        await _logAudit(
           action: 'LOGIN_FAILED',
           module: 'AUTH',
           details: {'user_id': userId},
@@ -279,7 +279,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // long as the PIN was still correct — or, for a PIN-less identity,
     // unconditionally.
     if (!userRow.isActive) {
-      await _auditRepository.log(
+      await _logAudit(
         action: 'LOGIN_FAILED',
         module: 'AUTH',
         details: {'user_id': userId},
@@ -303,7 +303,7 @@ class AuthRepositoryImpl implements AuthRepository {
     final user = _toAuthUser(userRow);
     _currentUser = user;
     await _persistSession(user);
-    await _auditRepository.log(action: 'LOGIN', module: 'AUTH', userId: user.id);
+    await _logAudit(action: 'LOGIN', module: 'AUTH', userId: user.id);
     return user;
   }
 
@@ -343,7 +343,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // the backend's user_id=admin.id), recordId is the newly created
     // identity; details payload changed from created_username to
     // created_full_name, same reason as createFirstOwner's.
-    await _auditRepository.log(
+    await _logAudit(
       action: 'CREATE',
       module: 'AUTH',
       userId: acting.id,
@@ -428,7 +428,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // Same CREATE/AUTH shape as createAdditionalOwner's own audit entry,
     // plus which roster row this account now maps to and which role
     // preset it started with.
-    await _auditRepository.log(
+    await _logAudit(
       action: 'CREATE',
       module: 'AUTH',
       userId: acting.id,
@@ -451,7 +451,34 @@ class AuthRepositoryImpl implements AuthRepository {
     // endpoint (POST /api/auth/logout existed purely to record this);
     // now a direct local write, no network round-trip needed for it to
     // still happen reliably.
-    await _auditRepository.log(action: 'LOGOUT', module: 'AUTH', userId: signedOutUserId);
+    await _logAudit(action: 'LOGOUT', module: 'AUTH', userId: signedOutUserId);
+  }
+
+  /// Authentication state transitions are committed before audit logging.
+  /// Audit persistence must never turn a successful login/logout/account
+  /// transition into a reported authentication failure, because callers may
+  /// then stop the remaining session cleanup or leave their reactive session
+  /// projection stale. Audit failures remain local diagnostics rather than
+  /// becoming a second source of truth for auth state.
+  Future<void> _logAudit({
+    required String action,
+    required String module,
+    String? userId,
+    String? recordId,
+    Map<String, dynamic>? details,
+  }) async {
+    try {
+      await _auditRepository.log(
+        action: action,
+        module: module,
+        userId: userId,
+        recordId: recordId,
+        details: details,
+      );
+    } catch (_) {
+      // Authentication state is already committed. Never roll it back or
+      // report the auth transition as failed because audit persistence failed.
+    }
   }
 
   /// pin.length < _minPinLength check shared by every call site that
