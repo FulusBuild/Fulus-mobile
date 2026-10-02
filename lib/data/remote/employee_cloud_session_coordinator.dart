@@ -151,7 +151,7 @@ class EmployeeCloudSessionCoordinator {
     }
   }
 
-  Future<AuthUser?> refreshExistingAccess({bool force = false}) async {
+  Future<AuthUser?> refreshExistingAccess({bool force = false, String? businessId}) async {
     final current = _authRepository.currentUser;
     if (current == null) return null;
     final lastRefresh = _lastAccessRefreshAt;
@@ -164,11 +164,11 @@ class EmployeeCloudSessionCoordinator {
           ..where((e) => e.authUserId.equals(current.id) | e.cloudUserId.equals(current.id)))
         .getSingleOrNull();
     if (employee == null) return null;
-    final businessId = _connection.selectedBusinessId;
-    if (businessId == null) return null;
+    final resolvedBusinessId = businessId ?? _connection.selectedBusinessId;
+    if (resolvedBusinessId == null) return null;
     StaffClaim claim;
     try {
-      claim = await _staffAccessApi.getMyAccess(businessId: businessId);
+      claim = await _staffAccessApi.getMyAccess(businessId: resolvedBusinessId);
     } on AuthFailure {
       // Cloud membership is authoritative. If the account is no longer
       // authorized, invalidate the local employee session and projection,
