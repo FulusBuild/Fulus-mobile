@@ -87,6 +87,14 @@ begin
     from public.permissions p where p.code = any(invite.permission_codes);
   end if;
 
+  -- An employee has one effective location. Remove stale active
+  -- memberships before assigning the invitation's location so a re-claim or
+  -- repaired invitation cannot silently expand the employee's access scope.
+  delete from public.location_memberships
+  where business_id = invite.business_id
+    and user_id = target_user_id
+    and status = 'active';
+
   selected_location_id := invite.location_id;
   if selected_location_id is null then
     select lm.location_id into selected_location_id
