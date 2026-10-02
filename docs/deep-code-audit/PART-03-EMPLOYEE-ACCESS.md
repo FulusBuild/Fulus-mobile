@@ -32,7 +32,7 @@ Cloud membership status/employee state → device revocation/location membership
 ### P03-001
 
 Severity: Medium  
-Status: Fixed; CI verification pending.
+Status: Fixed; required CI green.
 
 File: supabase/functions/fulus-staff-api/index.ts  
 Function: staff action authorization / list_devices
@@ -79,7 +79,7 @@ change_member_role and set_role_permission remain unreachable to managers becaus
 Part: 03 — Employee, Membership & Access Control  
 Baseline SHA: 4cfbdbfed16f6a7799fd2ee454c604e742a84b7f  
 Audit branch: audit/deep-code-part-03-employee-access  
-Current SHA: c079fa26a34efa8aec78e16a9f9aa533580da28b
+Current SHA: f0af66c12b125ae24d969d21f9babb79aec23bf8
 
 ### Completed
 - Structural and end-to-end employee/access trace.
@@ -108,10 +108,10 @@ Current SHA: c079fa26a34efa8aec78e16a9f9aa533580da28b
 - No dedicated Edge Function test harness exists.
 
 ### CI
-- Pending for current audit branch.
+- CI run 37006328840 green: migration lint, static analysis, Flutter tests, live sync contract, and multi-device convergence.
 
 ### Runtime/production verification
-- Pending authenticated manager/admin runtime test.
+- Pending authenticated manager/admin runtime test against the deployed Edge Function.
 
 ### Files inspected
 - lib/data/repositories/employee_repository_impl.dart
