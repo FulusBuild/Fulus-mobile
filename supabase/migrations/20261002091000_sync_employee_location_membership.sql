@@ -165,6 +165,34 @@ begin
     returning * into employee_row;
   end if;
 
+  -- Managers with employees.manage may manage ordinary staff, but they
+  -- cannot modify or deactivate owner/administrator accounts.
+  if employee_row.auth_user_id is not null
+     and exists (
+       select 1
+       from public.business_memberships target_membership
+       join public.roles target_role
+         on target_role.id = target_membership.role_id
+       where target_membership.business_id = target_business_id
+         and target_membership.user_id = employee_row.auth_user_id
+         and target_membership.status = 'active'
+         and target_role.name in ('owner', 'admin')
+     )
+     and not exists (
+       select 1
+       from public.business_memberships actor_membership
+       join public.roles actor_role
+         on actor_role.id = actor_membership.role_id
+       where actor_membership.business_id = target_business_id
+         and actor_membership.user_id = target_user_id
+         and actor_membership.status = 'active'
+         and actor_role.name in ('owner', 'admin')
+     )
+  then
+    raise exception using errcode='42501',
+      message='Managers cannot modify owner or administrator employees';
+  end if;
+
   if employee_row.auth_user_id is not null then
     membership_user := employee_row.auth_user_id;
     update public.business_memberships
