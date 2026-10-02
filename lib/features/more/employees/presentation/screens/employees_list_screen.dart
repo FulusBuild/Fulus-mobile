@@ -203,10 +203,10 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     setState(() => _saving = true);
     try {
       final existing = widget.existing;
-      final businessId = isNew
+      final businessId = existing == null
           ? ref.read(fulusConnectionStateProvider).selectedBusinessId
           : null;
-      if (isNew && businessId == null) {
+      if (existing == null && businessId == null) {
         throw StateError('This business is not ready for employee invitations yet.');
       }
 
