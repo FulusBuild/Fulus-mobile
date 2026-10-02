@@ -516,11 +516,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     if (selectedBusinessId == null) {
       throw StateError('No active business is available for Cloud Sync.');
     }
-    // Employee access is cloud-authoritative. Refresh the current employee's
-    // membership, role, permissions and location projection before the next
-    // sync cycle so a change made on another device cannot remain hidden
-    // behind stale local permissions.
-    await employeeCloudSessionCoordinator.refreshExistingAccess(force: true);
+    if (knownBusinessId == null) {
+      await employeeCloudSessionCoordinator.refreshExistingAccess(
+        force: true,
+        businessId: selectedBusinessId,
+      );
+      if (authRepository.currentUser == null) return;
+    }
 
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
@@ -681,6 +683,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     authRepository: authRepository,
     executionLease: syncExecutionLease,
     staffAccessApi: fulusStaffAccessApi,
+    onSessionChanged: (user) {
+      providerContainer.read(sessionProvider.notifier).state = user;
+    },
   );
 
   // Sync starts after runApp(). The trigger is fully wired here, but
