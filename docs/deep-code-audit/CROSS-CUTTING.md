@@ -110,3 +110,38 @@ Required evidence/fix:
 Part 10 owns the coordinated migration from local floating-point monetary values to integer minor units. The existing cloud contract is NUMERIC(14,2), so conversion boundaries must remain explicit and lossless.
 
 The migration must cover catalog prices, sales, payments, customer/supplier ledgers, expenses, income, returns, tax remittance, drawer state, drafts, reports and receipts. It must also define tendered cash versus applied payment versus change.
+
+
+## X-010 — Inventory tracking-flag contract
+
+Status: Fixed in Part 11 source; migration/runtime verification pending.
+
+The product `tracks_stock` flag was enforced by sales and absolute stock-setting paths but not by the common manual stock-movement boundary. Part 11 found that Product Detail exposed Record stock for non-tracked products, the local repository could create a stock row/movement, and the delta inventory command lacked the same server-side guard. The source fix now enforces the invariant locally, at the UI action boundary, and at the database insert boundary.
+
+Relevant parts:
+- Part 08 — Product & Catalog
+- Part 09 — Sales & Checkout
+- Part 11 — Inventory & Stock
+- Part 13 — Cloud APIs
+- Part 20 — Security & Production
+
+Production evidence at audit time: zero inventory movements for non-stock-tracked products and zero business/location scope mismatches.
+
+## X-011 — Stock-in composite transaction boundary
+
+Status: Open; requires coordinated repository/domain work.
+
+Manual stock-in commits inventory and its outbox entry before optional product cost/supplier and supplier-credit writes complete. This creates a partial local-success boundary that differs from the atomic sale checkout transaction.
+
+Relevant parts:
+- Part 06 — Repositories
+- Part 07 — Domain Logic
+- Part 09 — Sales & Checkout
+- Part 10 — Financial & Ledger Integrity
+- Part 11 — Inventory & Stock
+
+Required evidence/fix:
+1. Define the single application transaction boundary for stock-in.
+2. Keep the durable outbox entry inside that boundary.
+3. Inject failures after each side effect and prove full rollback.
+4. Prove retry cannot duplicate inventory or supplier-credit effects.
