@@ -121,7 +121,7 @@ class CrossDeviceEmployeeRestore {
             phone, email, date_hired, location_id, is_active,
             created_at, updated_at, deleted_at
           )
-          VALUES (?, ?, ?, ?, 'settled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)
+          VALUES (?, ?, ?, ?, 'settled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)
           ON CONFLICT(id) DO UPDATE SET
             server_id = excluded.server_id,
             membership_id = excluded.membership_id,
