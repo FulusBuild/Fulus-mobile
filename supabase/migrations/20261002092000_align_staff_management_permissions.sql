@@ -444,6 +444,35 @@ begin
       and status = 'active';
   end if;
 
+  -- Membership status is access state; keep the HR employee projection
+  -- synchronized so a suspended/removed login cannot remain visibly active
+  -- on another device.
+  update public.employees
+  set is_active = (target_status = 'active'),
+      deleted_at = case
+        when target_status = 'active' then null
+        else coalesce(deleted_at, now())
+      end,
+      updated_at = now()
+  where business_id = target_business_id
+    and auth_user_id = target_member_user;
+
+  if found then
+    perform public._fulus_append_change(
+      target_business_id,
+      'employee',
+      (select e.id from public.employees e
+       where e.business_id = target_business_id
+         and e.auth_user_id = target_member_user
+       limit 1),
+      'upsert',
+      (select to_jsonb(e) from public.employees e
+       where e.business_id = target_business_id
+         and e.auth_user_id = target_member_user
+       limit 1)
+    );
+  end if;
+
   return true;
 end;
 $fn0$;
