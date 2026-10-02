@@ -37,7 +37,7 @@ import '../widgets/stock_error_banner.dart';
 /// sync; it reuses the one place cost price and supplier already
 /// persist for real. Picking a supplier surfaces a "Paid now" / "On
 /// account" choice — on account calls
-/// [SupplierCreditRepository.the supplier-credit ledger write], the same
+/// [SupplierCreditRepository.recordStockPurchaseOnCredit], the same
 /// forward seam a credit sale calls on the customer side, using
 /// cost price × quantity as the amount owed.
 class RecordStockMovementScreen extends ConsumerStatefulWidget {
@@ -62,8 +62,8 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
   String? _bannerMessage;
   String? _quantityError;
 
-  /// Stock In's optional "bought on credit" fields — only ever read in
-  /// the [StockMovementType.stockIn] branch of [_submit].
+  /// Stock In's optional "bought on credit" fields — passed to the
+  /// atomic Stock In transaction when [StockMovementType.stockIn] is active.
   String? _supplierId;
   bool _onAccount = false;
   String? _creditError;
@@ -79,7 +79,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
 
   /// Cost price/supplier default to whatever's already on the product —
   /// leaving them untouched on submit is then a genuine no-op, not a
-  /// silent reset (see the Stock In transaction).
+  /// silent reset (see [_recordCostAndCredit]).
   void _seedFromProduct(Product product) {
     _costPriceController.text = product.costPrice == 0 ? '' : product.costPrice.toStringAsFixed(2);
     _supplierId = product.supplierId;
@@ -160,13 +160,17 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
 
       switch (_type) {
         case StockMovementType.stockIn:
-          final movement = await repo.recordStockIn(StockInDraft(
-            productLocalId: product.localId,
-            locationId: locationId,
-            quantity: quantity,
-            reason: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-          ));
-          await _recordCostAndCredit(product: product, quantity: quantity, movement: movement);
+          await repo.recordStockIn(
+            StockInDraft(
+              productLocalId: product.localId,
+              locationId: locationId,
+              quantity: quantity,
+              reason: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+            ),
+            costPrice: double.tryParse(_costPriceController.text.trim()),
+            supplierLocalId: _supplierId,
+            onAccount: _onAccount,
+          );
           break;
         case StockMovementType.stockOut:
           await repo.recordStockOut(StockOutDraft(
@@ -224,36 +228,6 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
     }
   }
 
-  /// Cost price and supplier are [Product] fields, not [StockMovement]
-  /// ones (see this class's own doc comment) — so this writes to the
-  /// product, then, only if a supplier is picked and "On account" is
-  /// chosen, records what's owed against [movement] via
-  /// [SupplierCreditRepository.the supplier-credit ledger write]. A cost
-  /// price left blank passes `null` through to
-  /// [ProductRepository.updateProduct], which treats that as "leave
-  /// alone" — never a silent reset to 0.
-  Future<void> _recordCostAndCredit({
-    required Product product,
-    required int quantity,
-    required StockMovement movement,
-  }) async {
-    final costPriceInput = double.tryParse(_costPriceController.text.trim());
-    final supplierChanged = _supplierId != null && _supplierId != product.supplierId;
-    if (costPriceInput != null || supplierChanged) {
-      await ref.read(productRepositoryProvider).updateProduct(
-            localId: product.localId,
-            costPrice: costPriceInput,
-            supplierId: supplierChanged ? _supplierId : null,
-          );
-    }
-    if (_supplierId != null && _onAccount) {
-      await ref.read(supplierCreditRepositoryProvider).the supplier-credit ledger write(
-            supplierLocalId: _supplierId!,
-            amount: (costPriceInput ?? 0) * quantity,
-            stockMovementLocalId: movement.localId,
-          );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +423,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
                         }),
                       ),
                       // "Paid now" vs "on account" only makes sense once a
-                      // supplier is actually picked — the supplier-credit ledger write
+                      // supplier is actually picked — recordStockPurchaseOnCredit
                       // needs one to attach the ledger entry to.
                       if (_supplierId != null) ...[
                         const SizedBox(height: AppSpacing.sm),
