@@ -376,10 +376,7 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
                     label: role,
                     selected: _role == role,
                     onTap: () {
-                      final canEditRole = isNew ||
-                          (widget.existing?.authUserId == null &&
-                              widget.existing?.cloudUserId == null);
-                      if (!_saving && canEditRole) setState(() => _role = role);
+                      if (!_saving && isNew) setState(() => _role = role);
                     },
                   ),
               ],
