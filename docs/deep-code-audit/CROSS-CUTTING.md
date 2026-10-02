@@ -77,3 +77,16 @@ Required evidence:
 3. Add database-level uniqueness.
 4. Add concurrent repository regression tests.
 5. Verify restore/import paths cannot bypass the invariant.
+
+## X-007 — Local/cloud sale arithmetic contract
+
+Status: Deferred to Parts 09/10.
+
+Part 07 found that the local Sale/SaleDraft arithmetic does not fully match the authoritative Supabase sale transaction. Local totals can become negative when an excessive whole-cart discount is accepted, while the cloud transaction clamps total to zero. Local overpayment is represented through amountPaid > total and changeDue, while the cloud transaction clamps amount_paid to total.
+
+Required evidence/fix ownership:
+1. Define the canonical meaning of amountPaid versus tendered cash.
+2. Define change as an explicit financial concept if overpayment is supported.
+3. Define the canonical integer money unit in Part 10.
+4. Align local checkout calculations with the cloud transaction.
+5. Add exact local/cloud regression coverage before changing the financial schema.
