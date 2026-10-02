@@ -429,8 +429,30 @@ Deno.serve(async (req: Request) => {
 
   const roleName = (membership.roles as { name?: string } | null)?.name;
   const isAdmin = roleName === "owner" || roleName === "admin";
-  if (!isAdmin) {
-    return json({ error: { code: "FORBIDDEN", message: "Owner or admin access is required" } }, 403);
+  const { data: canManageStaff, error: staffPermissionError } = await admin.rpc(
+    "staff_actor_has_permission",
+    {
+      target_business_id: businessId,
+      target_actor_user_id: userData.user.id,
+      target_permission_code: "employees.manage",
+    },
+  );
+  if (staffPermissionError) {
+    return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve staff access" } }, 500);
+  }
+  const managerDelegableActions = new Set([
+    "create_invite",
+    "set_member_permissions",
+    "set_member_status",
+    "set_member_status_by_user",
+    "set_member_status_by_email",
+    "revoke_pending_invites_by_email",
+  ]);
+  const canManageEmployees =
+    isAdmin ||
+    (canManageStaff === true && managerDelegableActions.has(String(action)));
+  if (!canManageEmployees) {
+    return json({ error: { code: "FORBIDDEN", message: "Owner or admin access is required for this action" } }, 403);
   }
 
   let data: unknown;
@@ -513,6 +535,37 @@ Deno.serve(async (req: Request) => {
       if (!email) {
         return json({ error: { code: "INVALID_REQUEST", message: "Employee email is required" } }, 400);
       }
+
+      if (!isAdmin) {
+        const { data: pendingInvites, error: pendingInviteError } = await admin
+          .from("staff_invites")
+          .select("location_id")
+          .eq("business_id", businessId)
+          .eq("invited_email", email)
+          .is("claimed_at", null)
+          .gt("expires_at", new Date().toISOString());
+        if (pendingInviteError) {
+          return json({ error: { code: "STAFF_ACCESS_FAILED", message: "Unable to resolve pending invitation" } }, 500);
+        }
+        for (const invite of pendingInvites ?? []) {
+          if (!invite.location_id) continue;
+          const { data: locationAccess, error: locationError } = await admin
+            .from("location_memberships")
+            .select("id")
+            .eq("business_id", businessId)
+            .eq("user_id", userData.user.id)
+            .eq("location_id", invite.location_id)
+            .eq("status", "active")
+            .maybeSingle();
+          if (locationError) {
+            return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve employee location access" } }, 500);
+          }
+          if (!locationAccess) {
+            return json({ error: { code: "FORBIDDEN", message: "You do not have access to this employee location" } }, 403);
+          }
+        }
+      }
+
       const { error: revokeError } = await admin
         .from("staff_invites")
         .update({ expires_at: new Date().toISOString(), updated_at: new Date().toISOString() })

@@ -131,6 +131,13 @@ class FulusConnectionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Notifies consumers that cloud-authoritative employee access was
+  /// re-projected locally. This is separate from sync health because an
+  /// access refresh can succeed without changing sync readiness.
+  void notifyAccessProjectionChanged() {
+    notifyListeners();
+  }
+
   void markSyncReady() {
     if (!isConnected || !isDeviceAuthorized) {
       throw StateError(

@@ -84,9 +84,19 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       final user = await ref
           .read(authRepositoryProvider)
           .switchLocalUser(userId: identity.id, pin: pin);
-      employeeSessionChanged = identity.role != AuthRole.owner;
+      var employeeRow = await (ref.read(databaseProvider).select(
+        ref.read(databaseProvider).employees,
+      )..where((e) => e.authUserId.equals(identity.id)))
+          .getSingleOrNull();
+      employeeRow ??= await (ref.read(databaseProvider).select(
+        ref.read(databaseProvider).employees,
+      )..where((e) => e.cloudUserId.equals(identity.id)))
+          .getSingleOrNull();
+      final isEmployeeIdentity =
+          employeeRow != null || identity.role != AuthRole.owner;
+      employeeSessionChanged = isEmployeeIdentity;
 
-      if (identity.role != AuthRole.owner) {
+      if (isEmployeeIdentity) {
         final accessToken = await ref.read(apiClientProvider).restoreServerSessionForUser(
               userId: identity.id,
               supabaseUrl: SupabaseConfig.url,
@@ -131,7 +141,7 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = f.message;
+        _error = _switchErrorMessage(f);
         _pinController.clear();
       });
     } catch (error) {
@@ -143,6 +153,17 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
         _pinController.clear();
       });
     }
+  }
+
+  String _switchErrorMessage(Failure failure) {
+    if (failure is NetworkFailure) {
+      return 'We couldn’t connect right now. Please try again.';
+    }
+    if (failure is BusinessRuleFailure ||
+        failure is AuthFailure) {
+      return 'We couldn’t switch to that employee. Please try again.';
+    }
+    return 'We couldn’t switch employees. Please try again.';
   }
 
   Future<void> _handleFailedSwitch(bool employeeSessionChanged) async {

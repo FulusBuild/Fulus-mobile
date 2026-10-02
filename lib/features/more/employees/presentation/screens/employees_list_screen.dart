@@ -203,11 +203,18 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     setState(() => _saving = true);
     try {
       final existing = widget.existing;
+      final businessId = existing == null
+          ? ref.read(fulusConnectionStateProvider).selectedBusinessId
+          : null;
+      if (existing == null && businessId == null) {
+        throw StateError('This business is not ready for employee invitations yet.');
+      }
+
       final draft = EmployeeDraft(
         fullName: name,
         role: _role,
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        email: email.isEmpty ? existing?.email : email,
+        email: existing?.email ?? email,
         authUserId: existing?.authUserId,
         department: existing?.department,
         position: existing?.position,
@@ -225,10 +232,6 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
         return;
       }
 
-      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
-      if (businessId == null) {
-        throw StateError('This business is not ready for employee invitations yet.');
-      }
       final localLocationId = saved.locationId;
       final localLocation = localLocationId == null
           ? null
@@ -297,6 +300,9 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     }
   }
 
+  // Invite permissions mirror the selected cloud role defaults so the
+  // invitation is complete at creation time rather than relying on a later
+  // repair step.
   List<String> _cloudPermissionCodesForRole(String? role) {
     final authRole = switch (_cloudRole(role)) {
       'manager' => AuthRole.manager,
@@ -360,9 +366,11 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
             FulusTextField(
               label: 'Email',
               controller: _emailController,
-              enabled: !_saving,
+              enabled: !_saving && isNew,
               keyboardType: TextInputType.emailAddress,
-              helperText: 'This becomes their Fulus login email.',
+              helperText: isNew
+                  ? 'This becomes their Fulus login email.'
+                  : 'Login email cannot be changed here.',
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Role', style: AppTypography.subheading),
@@ -373,7 +381,9 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
                   FulusChip(
                     label: role,
                     selected: _role == role,
-                    onTap: () { if (!_saving) setState(() => _role = role); },
+                    onTap: () {
+                      if (!_saving && isNew) setState(() => _role = role);
+                    },
                   ),
               ],
             ),

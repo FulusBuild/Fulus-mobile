@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
@@ -8,6 +9,7 @@ import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
+import '../local/database/tables.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
 import '../../sync/sync_execution_lease.dart';
@@ -35,6 +37,8 @@ class EmployeeCloudSessionCoordinator {
     required SyncTriggers syncTriggers,
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
+    required FulusStaffAccessApi staffAccessApi,
+    void Function(AuthUser?)? onSessionChanged,
   })  : _database = database,
         _restoreApi = restoreApi,
         _connection = connection,
@@ -42,7 +46,9 @@ class EmployeeCloudSessionCoordinator {
         _syncConfig = syncConfig,
         _syncTriggers = syncTriggers,
         _authRepository = authRepository,
-        _executionLease = executionLease;
+        _executionLease = executionLease,
+        _staffAccessApi = staffAccessApi,
+        _onSessionChanged = onSessionChanged;
 
   final AppDatabase _database;
   final CloudRestoreApi _restoreApi;
@@ -52,8 +58,12 @@ class EmployeeCloudSessionCoordinator {
   final SyncTriggers _syncTriggers;
   final AuthRepository _authRepository;
   final SyncExecutionLease _executionLease;
+  final FulusStaffAccessApi _staffAccessApi;
+  final void Function(AuthUser?)? _onSessionChanged;
 
   static const _localCloudBusinessKey = 'fulus_local_cloud_business_id';
+  static const _accessRefreshInterval = Duration(seconds: 60);
+  DateTime? _lastAccessRefreshAt;
 
   Future<AuthUser> establish({
     required StaffClaim claim,
@@ -128,6 +138,11 @@ class EmployeeCloudSessionCoordinator {
       }
       _connection.markSyncReady();
 
+      // Pull the current business projection before translating the cloud
+      // employee location into a local ID. A location can be newly created
+      // or moved by another device and must exist locally before projection.
+      await _upsertIdentityProjection(claim);
+
       final employee = await _authRepository.restoreSession();
       if (employee == null ||
           employee.id != claim.userId ||
@@ -140,6 +155,76 @@ class EmployeeCloudSessionCoordinator {
     } finally {
       _connection.endCloudOnboarding();
     }
+  }
+
+  Future<AuthUser?> refreshExistingAccess({bool force = false, String? businessId}) async {
+    final current = _authRepository.currentUser;
+    if (current == null) return null;
+    final lastRefresh = _lastAccessRefreshAt;
+    if (!force &&
+        lastRefresh != null &&
+        DateTime.now().difference(lastRefresh) < _accessRefreshInterval) {
+      return current;
+    }
+    var employee = await (_database.select(_database.employees)
+          ..where((e) => e.authUserId.equals(current.id)))
+        .getSingleOrNull();
+    employee ??= await (_database.select(_database.employees)
+          ..where((e) => e.cloudUserId.equals(current.id)))
+        .getSingleOrNull();
+    if (employee == null) return null;
+    final resolvedBusinessId = businessId ?? _connection.selectedBusinessId;
+    if (resolvedBusinessId == null) return null;
+    StaffClaim claim;
+    try {
+      claim = await _staffAccessApi.getMyAccess(businessId: resolvedBusinessId);
+    } on AuthFailure {
+      final revokedAt = DateTime.now();
+      await (_database.update(_database.users)
+            ..where((u) => u.localId.equals(current.id)))
+          .write(const UsersCompanion(isActive: Value(false)));
+      final employeeByAuth = await (_database.select(_database.employees)
+            ..where((e) => e.authUserId.equals(current.id)))
+          .getSingleOrNull();
+      final employeeByCloud = employeeByAuth == null
+          ? await (_database.select(_database.employees)
+                ..where((e) => e.cloudUserId.equals(current.id)))
+              .getSingleOrNull()
+          : null;
+      final employeeLocalId =
+          employeeByAuth?.localId ?? employeeByCloud?.localId;
+      if (employeeLocalId != null) {
+        await (_database.update(_database.employees)
+              ..where((e) => e.localId.equals(employeeLocalId)))
+            .write(
+          EmployeesCompanion(
+            isActive: const Value(false),
+            deletedAt: Value(revokedAt),
+            syncStatus: const Value(SyncStatus.settled),
+            updatedAt: Value(revokedAt),
+          ),
+        );
+      }
+      await (_database.delete(_database.userPermissions)
+            ..where((p) => p.userId.equals(current.id)))
+          .go();
+      await _database.delete(_database.sessions).go();
+      _connection.disconnect();
+      await _syncConfig.setEnabled(false);
+      final restored = await _authRepository.restoreSession();
+      _onSessionChanged?.call(restored);
+      _connection.notifyAccessProjectionChanged();
+      return restored;
+    }
+    if (claim.userId != current.id) {
+      throw const AuthFailure.forbidden();
+    }
+    await _upsertIdentityProjection(claim);
+    _lastAccessRefreshAt = DateTime.now();
+    _connection.notifyAccessProjectionChanged();
+    final restored = await _authRepository.restoreSession();
+    _onSessionChanged?.call(restored);
+    return restored;
   }
 
   Future<AuthUser> activateExisting({
@@ -156,7 +241,6 @@ class EmployeeCloudSessionCoordinator {
     try {
       await _connection.refresh();
       await _connection.selectBusiness(claim.businessId);
-      await _upsertIdentityProjection(claim);
 
       onProgress?.call('Setting up this phone…');
       final deviceId = await _secureStorage.ensureDeviceClientId(Ulid().toString());
@@ -191,6 +275,10 @@ class EmployeeCloudSessionCoordinator {
 
   Future<void> _upsertIdentityProjection(StaffClaim claim) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    final localLocationId = await _resolveLocalLocationId(
+      claim.employee?['location_id']?.toString() ?? claim.locationId,
+    );
+    final localEmployeeId = await _resolveLocalEmployeeId(claim);
     final fullName =
         claim.fullName.trim().isEmpty ? 'Staff member' : claim.fullName.trim();
     final role = _localRole(claim.roleName);
@@ -256,7 +344,7 @@ class EmployeeCloudSessionCoordinator {
         updated_at = excluded.updated_at
       ''',
       [
-        claim.employeeId ?? claim.membershipId,
+        localEmployeeId,
         claim.employeeId,
         claim.membershipId,
         claim.userId,
@@ -271,7 +359,7 @@ class EmployeeCloudSessionCoordinator {
         employee?['phone'],
         employee?['email'] ?? claim.email,
         dateHired,
-        employee?['location_id'] ?? claim.locationId,
+        localLocationId,
         now,
         now,
       ],
@@ -295,8 +383,43 @@ class EmployeeCloudSessionCoordinator {
     await _database.customStatement('DELETE FROM sessions');
     await _database.customStatement(
       'INSERT INTO sessions(id, user_id, active_location_id) VALUES (?, ?, ?)',
-      ['current', claim.userId, claim.locationId],
+      ['current', claim.userId, localLocationId],
     );
+  }
+
+  Future<String?> _resolveLocalLocationId(String? cloudLocationId) async {
+    if (cloudLocationId == null || cloudLocationId.isEmpty) return null;
+    final byServer = await (_database.select(_database.locations)
+          ..where((l) => l.serverId.equals(cloudLocationId)))
+        .getSingleOrNull();
+    if (byServer != null) return byServer.localId;
+
+    final byLocal = await (_database.select(_database.locations)
+          ..where((l) => l.localId.equals(cloudLocationId)))
+        .getSingleOrNull();
+    if (byLocal != null) return byLocal.localId;
+    throw StateError('Employee location is not available on this device.');
+  }
+
+  Future<String> _resolveLocalEmployeeId(StaffClaim claim) async {
+    if (claim.employeeId != null) {
+      final byServer = await (_database.select(_database.employees)
+            ..where((e) => e.serverId.equals(claim.employeeId!)))
+          .getSingleOrNull();
+      if (byServer != null) return byServer.localId;
+    }
+
+    final byAuth = await (_database.select(_database.employees)
+          ..where((e) => e.authUserId.equals(claim.userId)))
+        .getSingleOrNull();
+    if (byAuth != null) return byAuth.localId;
+
+    final byCloudUser = await (_database.select(_database.employees)
+          ..where((e) => e.cloudUserId.equals(claim.userId)))
+        .getSingleOrNull();
+    if (byCloudUser != null) return byCloudUser.localId;
+
+    return claim.employeeId ?? claim.membershipId;
   }
 
   Set<String> _mapPermissions(List<String> codes) {
@@ -339,8 +462,9 @@ class EmployeeCloudSessionCoordinator {
 
   AuthRole _localRole(String roleName) {
     switch (roleName.toLowerCase()) {
-      case 'manager':
       case 'admin':
+        return AuthRole.owner;
+      case 'manager':
         return AuthRole.manager;
       case 'cashier':
         return AuthRole.cashier;

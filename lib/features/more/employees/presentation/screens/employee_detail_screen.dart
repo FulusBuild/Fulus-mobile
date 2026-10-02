@@ -556,7 +556,7 @@ class _AccessPermissionsSectionState extends ConsumerState<_AccessPermissionsSec
         case Permission.manageSettings:
           codes.addAll({'business.manage', 'locations.manage'});
         case Permission.manageBackup:
-          codes.add('business.manage');
+          codes.add('backup.manage');
         case Permission.viewAuditLog:
           codes.add('audit.read');
       }
@@ -711,41 +711,36 @@ class _AccessAction extends ConsumerWidget {
       confirmLabel: 'Deactivate',
     );
     if (!confirmed || !context.mounted) return;
+    final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
+    if (currentUserId != null &&
+        (employee.authUserId == currentUserId || employee.cloudUserId == currentUserId)) {
+      showFulusSnackbar(context, message: 'You can’t deactivate your own account.');
+      return;
+    }
     try {
-      final authUserId = employee.authUserId;
-      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
       final email = employee.email?.trim().toLowerCase();
-      if (businessId != null) {
-        if (authUserId != null) {
-          await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
-                businessId: businessId,
-                userId: authUserId,
-                status: 'suspended',
-              );
-        } else if (email != null && email.isNotEmpty) {
+      final unclaimed = employee.authUserId == null && employee.cloudUserId == null;
+
+      // Access/activation is part of the durable employee roster mutation.
+      // The normal employee sync handler updates cloud membership/device
+      // authorization from employee.isActive.
+      if (email != null && email.isNotEmpty) {
+        final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
+        if (businessId != null) {
           try {
-            await ref.read(fulusStaffAccessApiProvider).setMemberStatusByEmail(
+            await ref.read(fulusStaffAccessApiProvider).revokePendingInvitesByEmail(
                   businessId: businessId,
                   email: email,
-                  status: 'suspended',
                 );
-          } on Failure catch (failure) {
-            if (failure.message.contains('not found') || failure.message.contains('not joined')) {
-              // The invitation has not been claimed yet; the local deactivation
-              // still blocks the roster entry and the pending invite can simply
-              // be reissued after reactivation.
-            } else {
-              rethrow;
-            }
+          } on Failure catch (_) {
+            // An unclaimed employee still has a live invitation as the
+            // cloud-side access path. Do not create a local deactivation
+            // that cannot revoke that invitation while offline.
+            if (unclaimed) rethrow;
           }
         }
       }
-      if (businessId != null && email != null && email.isNotEmpty) {
-        await ref.read(fulusStaffAccessApiProvider).revokePendingInvitesByEmail(
-              businessId: businessId,
-              email: email,
-            );
-      }
+
       await ref.read(employeeRepositoryProvider).deactivateEmployee(employee.id);
       if (context.mounted) {
         showFulusSnackbar(context, message: '${employee.fullName} was deactivated.');
@@ -760,33 +755,8 @@ class _AccessAction extends ConsumerWidget {
 
   Future<void> _reactivate(BuildContext context, WidgetRef ref) async {
     try {
-      final authUserId = employee.authUserId;
-      final businessId = ref.read(fulusConnectionStateProvider).selectedBusinessId;
-      final email = employee.email?.trim().toLowerCase();
-      if (businessId != null) {
-        if (authUserId != null) {
-          await ref.read(fulusStaffAccessApiProvider).setMemberStatusByUser(
-                businessId: businessId,
-                userId: authUserId,
-                status: 'active',
-              );
-        } else if (email != null && email.isNotEmpty) {
-          try {
-            await ref.read(fulusStaffAccessApiProvider).setMemberStatusByEmail(
-                  businessId: businessId,
-                  email: email,
-                  status: 'active',
-                );
-          } on Failure catch (failure) {
-            if (failure.message.contains('not found') || failure.message.contains('not joined')) {
-              // No cloud membership exists yet; reactivation only needs to
-              // restore the local roster until the employee claims an invite.
-            } else {
-              rethrow;
-            }
-          }
-        }
-      }
+      // Reactivation is also a durable employee roster mutation. The normal
+      // employee sync handler restores cloud membership/device access.
       await ref.read(employeeRepositoryProvider).reactivateEmployee(employee.id);
       if (context.mounted) {
         showFulusSnackbar(context, message: '${employee.fullName} was reactivated.');

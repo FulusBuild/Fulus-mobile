@@ -430,6 +430,14 @@ void main() {
   });
 
   group('restoreSession', () {
+    test('clears the in-memory user when the durable session row is gone', () async {
+      await repository.createFirstOwner(fullName: 'Chidinma Okafor');
+      await (db.delete(db.sessions)..where((s) => s.id.equals('current'))).go();
+
+      expect(await repository.restoreSession(), isNull);
+      expect(repository.currentUser, isNull);
+    });
+
     test('restores the signed-in user across a fresh repository instance', () async {
       final created = await repository.createFirstOwner(fullName: 'Chidinma Okafor');
 

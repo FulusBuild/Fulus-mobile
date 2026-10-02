@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
+import '../../core/errors/module_failures.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/permission.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -73,6 +74,12 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     if (existing == null) {
       throw StateError('Employee $id not found.');
     }
+    if ((draft.email ?? '').trim().toLowerCase() !=
+        (existing.email ?? '').trim().toLowerCase()) {
+      throw const EmployeeValidationException(
+        'An employee login email cannot be changed after the employee is created.',
+      );
+    }
     final updated = existing.copyWith(
       fullName: draft.fullName.trim(),
       role: draft.role,
@@ -109,6 +116,14 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final row = await (_db.select(
         _db.employees,
       )..where((e) => e.localId.equals(id))).getSingleOrNull();
+      if (row == null) {
+        throw StateError('Employee $id not found.');
+      }
+      final currentUserId = _authRepository.currentUser?.id;
+      if (currentUserId != null &&
+          (row.authUserId == currentUserId || row.cloudUserId == currentUserId)) {
+        throw const AuthFailure.forbidden();
+      }
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(false),
@@ -123,7 +138,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       // isActive is a separate flag on a separate table. Cascading it
       // here is what makes "they'll no longer be able to sign in"
       // (the confirmation dialog's own claim) actually true.
-      final authUserId = row?.authUserId;
+      final authUserId = row.authUserId ?? row.cloudUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,
@@ -145,6 +160,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final row = await (_db.select(
         _db.employees,
       )..where((e) => e.localId.equals(id))).getSingleOrNull();
+      if (row == null) {
+        throw StateError('Employee $id not found.');
+      }
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(true),
@@ -153,7 +171,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           syncStatus: const Value(SyncStatus.pending),
         ),
       );
-      final authUserId = row?.authUserId;
+      final authUserId = row.authUserId ?? row.cloudUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,

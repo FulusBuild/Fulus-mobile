@@ -460,6 +460,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  late ProviderContainer providerContainer;
+  late final EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator;
+
   Future<void> initializeCloudSync() async {
     if (fulusConnectionState.isCloudOnboardingInProgress) return;
     try {
@@ -484,6 +487,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     }
     fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
+
+    final knownBusinessId =
+        fulusConnectionState.selectedBusinessId ??
+        syncPreferences.getString('fulus_local_cloud_business_id');
+    await employeeCloudSessionCoordinator.refreshExistingAccess(
+      force: true,
+      businessId: knownBusinessId,
+    );
+    if (authRepository.currentUser == null) return;
+
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
     if (active.isEmpty) return;
 
@@ -500,6 +513,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     if (selectedBusinessId == null) {
       throw StateError('No active business is available for Cloud Sync.');
     }
+    if (knownBusinessId == null) {
+      await employeeCloudSessionCoordinator.refreshExistingAccess(
+        force: true,
+        businessId: selectedBusinessId,
+      );
+      if (authRepository.currentUser == null) return;
+    }
+
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
     await fulusConnectionState.registerDevice(
@@ -560,6 +581,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onNotReady: initializeCloudSync,
     onSyncSuccess: () {
       fulusConnectionState.clearSyncError();
+      // Access is cloud-authoritative. Refresh it opportunistically after
+      // successful sync, throttled by the coordinator, so remote permission
+      // or role changes become local projection changes without adding a
+      // request to every mutation.
+      unawaited(
+        employeeCloudSessionCoordinator.refreshExistingAccess().then<void>(
+          (_) {},
+          onError: (_, __) {},
+        ),
+      );
       // A successful push + pull proves that authentication, business
       // membership, device authorization, and canonical reconciliation are
       // working again. Promote the connection back to Sync Ready even when
@@ -639,7 +670,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  final employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
+  employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
     restoreApi: employeeCloudRestoreApi,
     connection: fulusConnectionState,
@@ -648,6 +679,10 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncTriggers: syncTriggers,
     authRepository: authRepository,
     executionLease: syncExecutionLease,
+    staffAccessApi: fulusStaffAccessApi,
+    onSessionChanged: (user) {
+      providerContainer.read(sessionProvider.notifier).state = user;
+    },
   );
 
   // Sync starts after runApp(). The trigger is fully wired here, but
@@ -673,7 +708,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
 
-  return ProviderContainer(
+  providerContainer = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(database),
       secureStorageProvider.overrideWithValue(secureStorage),
@@ -748,4 +783,5 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       ),
     ],
   );
+  return providerContainer;
 }

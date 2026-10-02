@@ -95,7 +95,10 @@ class AuthRepositoryImpl implements AuthRepository {
     final session =
         await (_db.select(_db.sessions)..where((s) => s.id.equals('current')))
             .getSingleOrNull();
-    if (session == null) return null;
+    if (session == null) {
+      _currentUser = null;
+      return null;
+    }
 
     final userRow = await (_db.select(_db.users)
           ..where((u) => u.localId.equals(session.userId)))
@@ -110,6 +113,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // than returning it.
     if (userRow == null || !userRow.isActive) {
       await _clearSession();
+      _currentUser = null;
       return null;
     }
 
