@@ -149,6 +149,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
     staffAccessApi: fulusStaffAccessApi,
+    onSessionChanged: (user) {
+      providerContainer.read(sessionProvider.notifier).state = user;
+    },
   );
   final authApi = AuthApi(apiClient);
   apiClient.setOnSessionExpired(() async {
@@ -460,6 +463,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  late ProviderContainer providerContainer;
   late final EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator;
 
   Future<void> initializeCloudSync() async {
@@ -486,6 +490,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     }
     fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
+
+    final knownBusinessId =
+        fulusConnectionState.selectedBusinessId ??
+        syncPreferences.getString('fulus_local_cloud_business_id');
+    await employeeCloudSessionCoordinator.refreshExistingAccess(
+      force: true,
+      businessId: knownBusinessId,
+    );
+    if (authRepository.currentUser == null) return;
+
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
     if (active.isEmpty) return;
 
@@ -692,7 +706,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
 
-  return ProviderContainer(
+  providerContainer = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(database),
       secureStorageProvider.overrideWithValue(secureStorage),
@@ -767,4 +781,5 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       ),
     ],
   );
+  return providerContainer;
 }
