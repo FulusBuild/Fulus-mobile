@@ -184,7 +184,9 @@ class EmployeeCloudSessionCoordinator {
             ..where((u) => u.localId.equals(current.id)))
           .write(const UsersCompanion(isActive: Value(false)));
       await (_database.update(_database.employees)
-            ..where((e) => e.authUserId.equals(current.id)))
+            ..where((e) =>
+                e.authUserId.equals(current.id) |
+                e.cloudUserId.equals(current.id)))
           .write(
         EmployeesCompanion(
           isActive: const Value(false),
