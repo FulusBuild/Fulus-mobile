@@ -130,8 +130,12 @@ class _EmployeeDetailBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = leaveRequests.where((l) => l.status == LeaveStatus.pending).toList();
     final decided = leaveRequests.where((l) => l.status != LeaveStatus.pending).toList();
-    final actingIsOwner = ref.watch(sessionProvider)?.role == AuthRole.owner;
-    final grantableBy = actingIsOwner ? Permission.all : ref.watch(sessionPermissionsProvider).value ?? const {};
+    final actor = ref.watch(sessionProvider);
+    final actingIsOwner = actor?.role == AuthRole.owner;
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManageEmployees =
+        actingIsOwner || permissions.contains(Permission.manageEmployees);
+    final grantableBy = actingIsOwner ? Permission.all : permissions;
 
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 760;
@@ -196,7 +200,8 @@ class _EmployeeDetailBody extends ConsumerWidget {
               ),
               if (employee.email != null && employee.email!.trim().isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                _InviteToAnotherPhoneAction(employee: employee),
+                if (canManageEmployees && actor?.id != employee.authUserId)
+                  _InviteToAnotherPhoneAction(employee: employee),
               ],
             ],
           ),
