@@ -57,6 +57,8 @@ class EmployeeCloudSessionCoordinator {
   final FulusStaffAccessApi _staffAccessApi;
 
   static const _localCloudBusinessKey = 'fulus_local_cloud_business_id';
+  static const _accessRefreshInterval = Duration(seconds: 60);
+  DateTime? _lastAccessRefreshAt;
 
   Future<AuthUser> establish({
     required StaffClaim claim,
@@ -145,9 +147,15 @@ class EmployeeCloudSessionCoordinator {
     }
   }
 
-  Future<AuthUser?> refreshExistingAccess() async {
+  Future<AuthUser?> refreshExistingAccess({bool force = false}) async {
     final current = _authRepository.currentUser;
     if (current == null) return null;
+    final lastRefresh = _lastAccessRefreshAt;
+    if (!force &&
+        lastRefresh != null &&
+        DateTime.now().difference(lastRefresh) < _accessRefreshInterval) {
+      return current;
+    }
     final employee = await (_database.select(_database.employees)
           ..where((e) => e.authUserId.equals(current.id) | e.cloudUserId.equals(current.id)))
         .getSingleOrNull();
@@ -159,6 +167,7 @@ class EmployeeCloudSessionCoordinator {
       throw const AuthFailure.forbidden();
     }
     await _upsertIdentityProjection(claim);
+    _lastAccessRefreshAt = DateTime.now();
     _connection.notifyAccessProjectionChanged();
     return _authRepository.restoreSession();
   }
