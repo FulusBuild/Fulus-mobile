@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
+import '../../core/errors/module_failures.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/permission.dart';
 import '../../domain/repositories/auth_repository.dart';
