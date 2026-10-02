@@ -490,6 +490,18 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     }
     fulusConnectionState.markSessionAuthenticated();
     await fulusConnectionState.refresh();
+
+    // Refresh a locally known employee even when the cloud membership was
+    // suspended/removed. The local session must not survive a cloud access
+    // revocation just because the membership is no longer in the active list.
+    final knownBusinessId =
+        fulusConnectionState.selectedBusinessId ??
+        syncPreferences.getString('fulus_local_cloud_business_id');
+    await employeeCloudSessionCoordinator.refreshExistingAccess(
+      force: true,
+      businessId: knownBusinessId,
+    );
+
     final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
     if (active.isEmpty) return;
 
@@ -506,12 +518,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     if (selectedBusinessId == null) {
       throw StateError('No active business is available for Cloud Sync.');
     }
-    // Employee access is cloud-authoritative. Refresh the current employee's
-    // membership, role, permissions and location projection before the next
-    // sync cycle so a change made on another device cannot remain hidden
-    // behind stale local permissions.
-    await employeeCloudSessionCoordinator.refreshExistingAccess(force: true);
-
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
     await fulusConnectionState.registerDevice(
