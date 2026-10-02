@@ -3,6 +3,7 @@ import 'package:ulid/ulid.dart';
 
 import '../../core/business_engine/stock_movement_validation.dart' as validation;
 import '../../domain/entities/stock_movement.dart';
+import '../../domain/entities/supplier_ledger_entry.dart';
 import '../../domain/repositories/stock_movement_repository.dart';
 import '../../sync/sync_queue.dart';
 import '../local/database/database.dart';
@@ -19,7 +20,12 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   final AppDatabase _db;
   final SyncQueue _syncQueue;
 
-  Future<StockMovement> _record(StockMovement movement) async {
+  Future<StockMovement> _record(
+    StockMovement movement, {
+    double? costPrice,
+    String? supplierLocalId,
+    bool onAccount = false,
+  }) async {
     await _db.transaction(() async {
       final product = await (_db.select(_db.products)
             ..where((row) => row.localId.equals(movement.productLocalId)))
@@ -53,15 +59,104 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
         ),
       );
       await _db.into(_db.stockMovements).insert(movement.toDriftCompanion());
+
+      // Stock In is a composite local-first operation: stock, movement,
+      // product cost/supplier metadata, the durable stock outbox item,
+      // and (when applicable) the supplier-credit ledger must commit or
+      // roll back together.
+      if (movement.movementType == StockMovementType.stockIn) {
+        if (costPrice != null && costPrice < 0) {
+          throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
+        }
+
+        final currentProduct = product;
+        final supplierChanged =
+            supplierLocalId != null && supplierLocalId != currentProduct.supplierId;
+        if (costPrice != null || supplierChanged) {
+          await (_db.update(_db.products)
+                ..where((row) => row.localId.equals(currentProduct.localId)))
+              .write(
+            ProductsCompanion(
+              supplierId: supplierChanged ? Value(supplierLocalId) : const Value.absent(),
+              costPrice: costPrice == null ? const Value.absent() : Value(costPrice),
+              syncStatus: const Value(SyncStatus.pending),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+          await _syncQueue.enqueue(SyncTask.updateProduct(currentProduct.localId));
+        }
+
+        if (onAccount) {
+          final supplierId = supplierLocalId;
+          if (supplierId == null) {
+            throw ArgumentError.value(
+              supplierId,
+              'supplierLocalId',
+              'is required for an on-account stock purchase',
+            );
+          }
+          if (costPrice == null || costPrice <= 0) {
+            throw ArgumentError.value(
+              costPrice,
+              'costPrice',
+              'must be > 0 for an on-account stock purchase',
+            );
+          }
+
+          final supplier = await (_db.select(_db.suppliers)
+                ..where((row) =>
+                    row.localId.equals(supplierId) & row.deletedAt.isNull()))
+              .getSingleOrNull();
+          if (supplier == null) {
+            throw ArgumentError.value(
+              supplierId,
+              'supplierLocalId',
+              'no such supplier',
+            );
+          }
+
+          final now = DateTime.now();
+          final amount = costPrice * movement.quantity!;
+          await (_db.update(_db.suppliers)
+                ..where((row) => row.localId.equals(supplierId)))
+              .write(
+            SuppliersCompanion(
+              outstandingBalance: Value(supplier.outstandingBalance + amount),
+              updatedAt: Value(now),
+            ),
+          );
+          await _db.into(_db.supplierLedgerEntries).insert(
+            SupplierLedgerEntriesCompanion.insert(
+              localId: Ulid().toString(),
+              supplierLocalId: supplierId,
+              entryType: SupplierLedgerEntryType.stockPurchaseOnCredit.name,
+              amount: amount,
+              stockMovementLocalId: Value(movement.localId),
+              createdAt: now,
+            ),
+          );
+        }
+      }
+
       await _syncQueue.enqueue(SyncTask.recordStockMovement(movement.localId));
     });
     return movement;
   }
 
   @override
-  Future<StockMovement> recordStockIn(StockInDraft draft) {
+  Future<StockMovement> recordStockIn(
+    StockInDraft draft, {
+    double? costPrice,
+    String? supplierLocalId,
+    bool onAccount = false,
+  }) {
     validation.validateMovementQuantity(draft.quantity);
-    return _record(draft.toStockMovementEntity(localId: Ulid().toString()));
+    return _record(
+      draft.toStockMovementEntity(localId: Ulid().toString()),
+      costPrice: costPrice,
+      supplierLocalId: supplierLocalId,
+      onAccount: onAccount,
+    );
   }
 
   @override
