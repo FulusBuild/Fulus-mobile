@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -129,19 +130,30 @@ class EmployeeCloudSessionCoordinator {
       await prefs.setString(_localCloudBusinessKey, claim.businessId);
 
       onProgress?.call('Finishing setup…');
-      await _syncConfig.setEnabled(true);
-      try {
-        await _syncTriggers.reconcileForReadiness();
-      } catch (_) {
-        _connection.clearSyncReady();
-        rethrow;
-      }
-      _connection.markSyncReady();
 
-      // Pull the current business projection before translating the cloud
-      // employee location into a local ID. A location can be newly created
-      // or moved by another device and must exist locally before projection.
+      // The restore snapshot is already a complete point-in-time business
+      // image. Establish the claimed local identity before enabling sync so
+      // any trigger that wakes immediately after setEnabled() sees the same
+      // user/location projection the restore just created.
+      //
+      // Do not make first-device onboarding depend on a second network
+      // reconciliation completing synchronously. A transient connectivity or
+      // sync failure after a valid restore must not strand the employee on the
+      // join screen. The persisted restore cursor and device registration make
+      // the local snapshot safe to use; normal sync triggers can retry the
+      // follow-up reconciliation in the background.
       await _upsertIdentityProjection(claim);
+
+      await _syncConfig.setEnabled(true);
+      _connection.markSyncReady();
+      unawaited(
+        _syncTriggers.reconcileAfterRestore().catchError((_) {
+          // The sync layer records the failure and its normal connectivity/
+          // retry triggers will attempt reconciliation again. Joining the
+          // business must remain successful because the restore itself has
+          // already completed and the cursor is durable.
+        }),
+      );
 
       final employee = await _authRepository.restoreSession();
       if (employee == null ||
