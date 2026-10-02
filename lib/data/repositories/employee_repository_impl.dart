@@ -70,6 +70,14 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     return employee;
   }
 
+  Future<void> _invalidateCurrentEmployeeSession(String? authUserId) async {
+    if (authUserId == null || authUserId.isEmpty) return;
+    final current = _authRepository.currentUser;
+    if (current?.id != authUserId) return;
+    await (_db.delete(_db.sessions)..where((s) => s.id.equals('current'))).go();
+    await _authRepository.restoreSession();
+  }
+
   // ── Roster ──────────────────────────────────────────────────────────────
 
   @override
@@ -366,6 +374,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         );
       }
     });
+    if (!isActive) {
+      await _invalidateCurrentEmployeeSession(cloudUserId);
+    }
   }
 
   @override
@@ -385,6 +396,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       await (_db.update(_db.users)..where((u) => u.localId.equals(authUserId))).write(
         const UsersCompanion(isActive: Value(false)),
       );
+      await _invalidateCurrentEmployeeSession(authUserId);
     }
   }
 
