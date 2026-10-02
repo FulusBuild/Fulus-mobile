@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
@@ -36,6 +37,7 @@ class EmployeeCloudSessionCoordinator {
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
     required FulusStaffAccessApi staffAccessApi,
+    void Function(AuthUser?)? onSessionChanged,
   })  : _database = database,
         _restoreApi = restoreApi,
         _connection = connection,
@@ -44,7 +46,8 @@ class EmployeeCloudSessionCoordinator {
         _syncTriggers = syncTriggers,
         _authRepository = authRepository,
         _executionLease = executionLease,
-        _staffAccessApi = staffAccessApi;
+        _staffAccessApi = staffAccessApi,
+        _onSessionChanged = onSessionChanged;
 
   final AppDatabase _database;
   final CloudRestoreApi _restoreApi;
@@ -55,6 +58,7 @@ class EmployeeCloudSessionCoordinator {
   final AuthRepository _authRepository;
   final SyncExecutionLease _executionLease;
   final FulusStaffAccessApi _staffAccessApi;
+  final void Function(AuthUser?)? _onSessionChanged;
 
   static const _localCloudBusinessKey = 'fulus_local_cloud_business_id';
   static const _accessRefreshInterval = Duration(seconds: 60);
@@ -147,7 +151,7 @@ class EmployeeCloudSessionCoordinator {
     }
   }
 
-  Future<AuthUser?> refreshExistingAccess({bool force = false}) async {
+  Future<AuthUser?> refreshExistingAccess({bool force = false, String? businessId}) async {
     final current = _authRepository.currentUser;
     if (current == null) return null;
     final lastRefresh = _lastAccessRefreshAt;
@@ -163,16 +167,46 @@ class EmployeeCloudSessionCoordinator {
           ..where((e) => e.cloudUserId.equals(current.id)))
         .getSingleOrNull();
     if (employee == null) return null;
-    final businessId = _connection.selectedBusinessId;
-    if (businessId == null) return null;
-    final claim = await _staffAccessApi.getMyAccess(businessId: businessId);
+    final resolvedBusinessId = businessId ?? _connection.selectedBusinessId;
+    if (resolvedBusinessId == null) return null;
+    StaffClaim claim;
+    try {
+      claim = await _staffAccessApi.getMyAccess(businessId: resolvedBusinessId);
+    } on AuthFailure {
+      final revokedAt = DateTime.now();
+      await (_database.update(_database.users)
+            ..where((u) => u.localId.equals(current.id)))
+          .write(const UsersCompanion(isActive: Value(false)));
+      await (_database.update(_database.employees)
+            ..where((e) => e.authUserId.equals(current.id)))
+          .write(
+        EmployeesCompanion(
+          isActive: const Value(false),
+          deletedAt: Value(revokedAt),
+          syncStatus: const Value(SyncStatus.settled),
+          updatedAt: Value(revokedAt),
+        ),
+      );
+      await (_database.delete(_database.userPermissions)
+            ..where((p) => p.userId.equals(current.id)))
+          .go();
+      await _database.delete(_database.sessions).go();
+      _connection.disconnect();
+      await _syncConfig.setEnabled(false);
+      final restored = await _authRepository.restoreSession();
+      _onSessionChanged?.call(restored);
+      _connection.notifyAccessProjectionChanged();
+      return restored;
+    }
     if (claim.userId != current.id) {
       throw const AuthFailure.forbidden();
     }
     await _upsertIdentityProjection(claim);
     _lastAccessRefreshAt = DateTime.now();
     _connection.notifyAccessProjectionChanged();
-    return _authRepository.restoreSession();
+    final restored = await _authRepository.restoreSession();
+    _onSessionChanged?.call(restored);
+    return restored;
   }
 
   Future<AuthUser> activateExisting({
