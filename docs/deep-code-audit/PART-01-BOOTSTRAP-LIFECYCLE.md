@@ -109,7 +109,7 @@ This is intentionally not patched speculatively. Parts 15 and 17 should reproduc
 Part: 01 — App Bootstrap & Lifecycle
 Baseline SHA: a71af8d4678c49f2dd5afa46018dffc0c4eaf799
 Audit branch: audit/deep-code-part-01-bootstrap-lifecycle
-Current SHA: d88624d454f57336f9330531d1551194c9d54590
+Current SHA: 02ed7bd0284ae3ee10e007d1b7ed85f0ac1652f2
 
 ### Completed
 - Read master plan and confirmed current main baseline.
