@@ -70,6 +70,29 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     return employee;
   }
 
+  Future<Employee> _requireManageableEmployee(String employeeId) async {
+    await _requireManageEmployees();
+    final employee = await getEmployeeById(employeeId, includeInactive: true);
+    if (employee == null) throw StateError('Employee $employeeId not found.');
+
+    final actor = _authRepository.currentUser;
+    if (actor == null) throw const AuthFailure.forbidden();
+    if (employee.authUserId == actor.id) {
+      throw const AuthFailure.forbidden();
+    }
+
+    if (actor.role != AuthRole.owner && employee.authUserId != null) {
+      final target = await (_db.select(_db.users)
+            ..where((u) => u.localId.equals(employee.authUserId!)))
+          .getSingleOrNull();
+      if (target != null &&
+          (target.role == AuthRole.owner || target.role == AuthRole.manager)) {
+        throw const AuthFailure.forbidden();
+      }
+    }
+    return employee;
+  }
+
   Future<void> _invalidateCurrentEmployeeSession(String? authUserId) async {
     if (authUserId == null || authUserId.isEmpty) return;
     final current = _authRepository.currentUser;
@@ -95,9 +118,8 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<Employee> updateEmployee(String id, EmployeeDraft draft) async {
-    await _requireManageEmployees();
+    final existing = await _requireManageableEmployee(id);
     _engine.validateDraft(draft);
-    final existing = await getEmployeeById(id);
     if (existing == null) {
       throw StateError('Employee $id not found.');
     }
@@ -131,7 +153,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
 
   @override
   Future<void> deactivateEmployee(String id) async {
-    await _requireManageEmployees();
+    await _requireManageableEmployee(id);
     final now = DateTime.now();
     await _db.transaction(() async {
       final row = await (_db.select(
@@ -174,7 +196,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   /// record and, symmetrically, sign-in access for a linked account.
   @override
   Future<void> reactivateEmployee(String id) async {
-    await _requireManageEmployees();
+    await _requireManageableEmployee(id);
     final now = DateTime.now();
     await _db.transaction(() async {
       final row = await (_db.select(
