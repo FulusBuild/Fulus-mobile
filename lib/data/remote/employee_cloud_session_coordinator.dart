@@ -142,6 +142,24 @@ class EmployeeCloudSessionCoordinator {
     }
   }
 
+  Future<AuthUser?> refreshExistingAccess() async {
+    final current = _authRepository.currentUser;
+    if (current == null) return null;
+    final employee = await (_database.select(_database.employees)
+          ..where((e) => e.authUserId.equals(current.id) | e.cloudUserId.equals(current.id)))
+        .getSingleOrNull();
+    if (employee == null) return null;
+    final businessId = _connection.selectedBusinessId;
+    if (businessId == null) return null;
+    final claim = await _staffAccessApi.getMyAccess(businessId: businessId);
+    if (claim.userId != current.id) {
+      throw const AuthFailure.forbidden();
+    }
+    await _upsertIdentityProjection(claim);
+    _connection.notifyAccessProjectionChanged();
+    return _authRepository.restoreSession();
+  }
+
   Future<AuthUser> activateExisting({
     required StaffClaim claim,
     void Function(String status)? onProgress,
