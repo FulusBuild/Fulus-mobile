@@ -732,7 +732,7 @@ class _AccessAction extends ConsumerWidget {
                   businessId: businessId,
                   email: email,
                 );
-          } on Failure catch (failure) {
+          } on Failure catch (_) {
             // An unclaimed employee still has a live invitation as the
             // cloud-side access path. Do not create a local deactivation
             // that cannot revoke that invitation while offline.
