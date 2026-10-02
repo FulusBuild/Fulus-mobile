@@ -26,11 +26,13 @@ void main() {
   late HttpServer server;
   late MockSecureStorage storage;
   late String? storedRefreshToken;
+  late Map<String, String> storedUserRefreshTokens;
   late int expiredCallbackCount;
   late ApiClient client;
 
   setUp(() async {
     storedRefreshToken = 'refresh-0';
+    storedUserRefreshTokens = {};
     expiredCallbackCount = 0;
     storage = MockSecureStorage();
 
@@ -41,6 +43,21 @@ void main() {
     });
     when(() => storage.deleteRefreshToken()).thenAnswer((_) async {
       storedRefreshToken = null;
+    });
+    when(() => storage.getUserRefreshToken(any()))
+        .thenAnswer((invocation) async {
+      return storedUserRefreshTokens[invocation.positionalArguments.first as String];
+    });
+    when(() => storage.setUserRefreshToken(any(), any()))
+        .thenAnswer((invocation) async {
+      storedUserRefreshTokens[
+          invocation.positionalArguments.first as String] =
+          invocation.positionalArguments[1] as String;
+    });
+    when(() => storage.deleteUserRefreshToken(any()))
+        .thenAnswer((invocation) async {
+      storedUserRefreshTokens
+          .remove(invocation.positionalArguments.first as String);
     });
     when(() => storage.getDeviceClientId()).thenAnswer((_) async => null);
 
@@ -182,9 +199,69 @@ void main() {
 
     expect(session?['access_token'], 'fresh-access');
     expect(response.data?['ok'], isTrue);
+    expect(client.activeCloudUserId, 'user-1');
     expect(refreshCalls, 1);
     expect(storedRefreshToken, 'refresh-2');
     expect(expiredCallbackCount, 0);
+  });
+
+  test('active cloud identity never falls back to the legacy global refresh token',
+      () async {
+    client.setActiveCloudUser('user-a');
+
+    var refreshCalls = 0;
+    server.listen((request) async {
+      if (request.uri.path == '/auth/v1/token') {
+        refreshCalls++;
+        await _json(request.response, 200, {
+          'access_token': 'wrong-user-access',
+          'refresh_token': 'wrong-user-refresh',
+          'user': {'id': 'user-b'},
+        });
+        return;
+      }
+
+      await _json(request.response, 404, {'message': 'not found'});
+    });
+
+    final session = await client.restoreServerSession(
+      supabaseUrl: 'http://127.0.0.1:${server.port}',
+      publishableKey: 'test-publishable-key',
+    );
+
+    expect(session, isNull);
+    expect(refreshCalls, 0);
+    expect(storedRefreshToken, 'refresh-0');
+    expect(storedUserRefreshTokens, isEmpty);
+  });
+
+  test('per-user refresh rejects a response for a different cloud identity',
+      () async {
+    client.setActiveCloudUser('user-a');
+    storedUserRefreshTokens['user-a'] = 'refresh-a';
+
+    server.listen((request) async {
+      if (request.uri.path == '/auth/v1/token') {
+        await _json(request.response, 200, {
+          'access_token': 'user-b-access',
+          'refresh_token': 'refresh-b',
+          'user': {'id': 'user-b'},
+        });
+        return;
+      }
+
+      await _json(request.response, 404, {'message': 'not found'});
+    });
+
+    await expectLater(
+      client.restoreServerSession(
+        supabaseUrl: 'http://127.0.0.1:${server.port}',
+        publishableKey: 'test-publishable-key',
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(storedUserRefreshTokens['user-a'], 'refresh-a');
   });
 
   test('transient refresh server failure preserves the durable refresh token',
