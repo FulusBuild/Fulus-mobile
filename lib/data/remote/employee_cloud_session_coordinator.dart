@@ -35,6 +35,7 @@ class EmployeeCloudSessionCoordinator {
     required SyncTriggers syncTriggers,
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
+    required FulusStaffAccessApi staffAccessApi,
   })  : _database = database,
         _restoreApi = restoreApi,
         _connection = connection,
@@ -42,7 +43,8 @@ class EmployeeCloudSessionCoordinator {
         _syncConfig = syncConfig,
         _syncTriggers = syncTriggers,
         _authRepository = authRepository,
-        _executionLease = executionLease;
+        _executionLease = executionLease,
+        _staffAccessApi = staffAccessApi;
 
   final AppDatabase _database;
   final CloudRestoreApi _restoreApi;
@@ -52,6 +54,7 @@ class EmployeeCloudSessionCoordinator {
   final SyncTriggers _syncTriggers;
   final AuthRepository _authRepository;
   final SyncExecutionLease _executionLease;
+  final FulusStaffAccessApi _staffAccessApi;
 
   static const _localCloudBusinessKey = 'fulus_local_cloud_business_id';
 
