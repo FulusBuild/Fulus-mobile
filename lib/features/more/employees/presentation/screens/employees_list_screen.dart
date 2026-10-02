@@ -300,6 +300,9 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
     }
   }
 
+  // Invite permissions mirror the selected cloud role defaults so the
+  // invitation is complete at creation time rather than relying on a later
+  // repair step.
   List<String> _cloudPermissionCodesForRole(String? role) {
     final authRole = switch (_cloudRole(role)) {
       'manager' => AuthRole.manager,
