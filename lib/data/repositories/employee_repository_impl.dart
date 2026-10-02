@@ -153,6 +153,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final row = await (_db.select(
         _db.employees,
       )..where((e) => e.localId.equals(id))).getSingleOrNull();
+      if (row == null) {
+        throw StateError('Employee $id not found.');
+      }
       await (_db.update(_db.employees)..where((e) => e.localId.equals(id))).write(
         EmployeesCompanion(
           isActive: const Value(true),
@@ -161,7 +164,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           syncStatus: const Value(SyncStatus.pending),
         ),
       );
-      final authUserId = row?.authUserId;
+      final authUserId = row.authUserId ?? row.cloudUserId;
       if (authUserId != null) {
         await (_db.update(
           _db.users,
