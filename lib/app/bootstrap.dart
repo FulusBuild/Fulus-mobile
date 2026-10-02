@@ -149,9 +149,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
     staffAccessApi: fulusStaffAccessApi,
-    onSessionChanged: (user) {
-      providerContainer.read(sessionProvider.notifier).state = user;
-    },
   );
   final authApi = AuthApi(apiClient);
   apiClient.setOnSessionExpired(() async {
