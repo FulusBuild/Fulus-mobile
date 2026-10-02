@@ -535,6 +535,37 @@ Deno.serve(async (req: Request) => {
       if (!email) {
         return json({ error: { code: "INVALID_REQUEST", message: "Employee email is required" } }, 400);
       }
+
+      if (!isAdmin) {
+        const { data: pendingInvites, error: pendingInviteError } = await admin
+          .from("staff_invites")
+          .select("location_id")
+          .eq("business_id", businessId)
+          .eq("invited_email", email)
+          .is("claimed_at", null)
+          .gt("expires_at", new Date().toISOString());
+        if (pendingInviteError) {
+          return json({ error: { code: "STAFF_ACCESS_FAILED", message: "Unable to resolve pending invitation" } }, 500);
+        }
+        for (const invite of pendingInvites ?? []) {
+          if (!invite.location_id) continue;
+          const { data: locationAccess, error: locationError } = await admin
+            .from("location_memberships")
+            .select("id")
+            .eq("business_id", businessId)
+            .eq("user_id", userData.user.id)
+            .eq("location_id", invite.location_id)
+            .eq("status", "active")
+            .maybeSingle();
+          if (locationError) {
+            return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve employee location access" } }, 500);
+          }
+          if (!locationAccess) {
+            return json({ error: { code: "FORBIDDEN", message: "You do not have access to this employee location" } }, 403);
+          }
+        }
+      }
+
       const { error: revokeError } = await admin
         .from("staff_invites")
         .update({ expires_at: new Date().toISOString(), updated_at: new Date().toISOString() })
