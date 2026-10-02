@@ -1,7 +1,15 @@
 import '../entities/stock_movement.dart';
 
 abstract class StockMovementRepository {
-  Future<StockMovement> recordStockIn(StockInDraft draft);
+  /// Records Stock In and all optional purchase metadata as one local
+  /// transaction. If any part fails, stock, the movement, product metadata,
+  /// outbox entries, and supplier credit all roll back together.
+  Future<StockMovement> recordStockIn(
+    StockInDraft draft, {
+    double? costPrice,
+    String? supplierLocalId,
+    bool onAccount = false,
+  });
   Future<StockMovement> recordStockOut(StockOutDraft draft);
   Future<StockMovement> recordAdjustment(StockAdjustmentDraft draft);
   Stream<List<StockMovement>> watchMovementsForLocation(String locationId);
