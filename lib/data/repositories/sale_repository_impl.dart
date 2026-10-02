@@ -286,6 +286,18 @@ class SaleRepositoryImpl implements SaleRepository {
       final productLocalId = item.productLocalId;
       if (productLocalId == null) continue;
 
+      // The stock-level row exists for every catalog product, including
+      // products deliberately configured as non-stock-tracked. Cloud sale
+      // creation skips inventory effects for those products; the local
+      // optimistic projection must obey the same invariant.
+      final productRow = await (_db.select(_db.products)
+            ..where((p) => p.localId.equals(productLocalId)))
+          .getSingleOrNull();
+      if (productRow == null) {
+        throw StateError('No product record exists for $productLocalId.');
+      }
+      if (!productRow.tracksStock) continue;
+
       final stockRow = await (_db.select(_db.productStockLevels)
             ..where(
               (s) =>
