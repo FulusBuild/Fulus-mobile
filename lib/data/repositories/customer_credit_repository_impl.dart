@@ -171,6 +171,26 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
       // "credit_reversal". Reuse that local projection when the canonical
       // event arrives instead of creating a duplicate ledger line.
       CustomerLedgerEntryRow? existing = existingByServerId;
+      if (existing == null &&
+          entryType == CustomerLedgerEntryType.creditSale) {
+        // Credit sales are written locally as an immediate ledger echo when
+        // the sale commits. The authoritative cloud ledger event arrives
+        // later through the canonical change feed. Reuse that unsynced echo
+        // rather than rendering a second credit-sale history row.
+        final candidates = await (_db.select(_db.customerLedgerEntries)
+              ..where((e) =>
+                  e.serverId.isNull() &
+                  e.customerLocalId.equals(customer.localId) &
+                  e.entryType.equals(CustomerLedgerEntryType.creditSale.name) &
+                  e.amount.equals(amount) &
+                  (saleLocalId == null
+                      ? e.saleLocalId.isNull()
+                      : e.saleLocalId.equals(saleLocalId)))
+              ..orderBy([(e) => OrderingTerm.asc(e.createdAt)])
+              ..limit(1))
+            .get();
+        if (candidates.isNotEmpty) existing = candidates.single;
+      }
       if (existing == null && entryType == CustomerLedgerEntryType.refundAdjustment) {
         final candidates = await (_db.select(_db.customerLedgerEntries)
               ..where((e) =>
