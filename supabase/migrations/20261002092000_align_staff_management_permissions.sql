@@ -123,7 +123,7 @@ begin
     )
     values (
       target_business_id,
-      coalesce(client_ref, 'invite:' || gen_random_uuid()::text),
+      coalesce(client_ref, 'invite:' || extensions.gen_random_uuid()::text),
       coalesce(nullif(trim(employee_payload->>'full_name'), ''), normalized_email),
       nullif(trim(employee_payload->>'role'), ''),
       nullif(trim(employee_payload->>'department'), ''),
@@ -192,7 +192,7 @@ begin
     'expires_at', invite.expires_at
   );
 end;
-$$;
+$;
 
 
 
@@ -349,7 +349,7 @@ begin
 
   return true;
 end;
-$$;
+$;
 
 
 
