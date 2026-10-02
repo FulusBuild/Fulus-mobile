@@ -283,8 +283,8 @@ The deep-link handler accepts access/refresh tokens into the cloud client. The s
 - [x] Concrete findings recorded
 - [x] Fixes implemented where justified
 - [x] Regression tests added
-- [ ] Relevant tests pass in this session
-- [ ] Required CI passes
+- [x] Relevant tests pass in this session
+- [x] Required CI passes
 - [x] Cross-check completed
 - [x] Evidence recorded
 - [x] Remaining uncertainty documented
@@ -295,7 +295,7 @@ The deep-link handler accepts access/refresh tokens into the cloud client. The s
 **Part:** 02 — Authentication & Sessions  
 **Baseline SHA:** 42ea5339fe5ab4eb98fb9439879ecf52a8300360  
 **Audit branch:** audit/deep-code-part-02-auth-sessions  
-**Current SHA:** 29075b2ab8cc0defc7b6bde141ac2a62514cfb4d
+**Current SHA:** c03927fd236dea88c4f9d003fbf3e555663601d6
 
 ### Completed
 - Deep source audit of local and cloud authentication/session paths.
@@ -326,10 +326,14 @@ The deep-link handler accepts access/refresh tokens into the cloud client. The s
 ### Tests
 - test/repository/auth_repository_test.dart updated.
 - test/data/remote/api_client_test.dart updated.
-- Full test suite not yet run from this environment.
+- Final CI Flutter test suite: 934 tests passed.
 
 ### CI
-- Pending.
+- Final Fulus Mobile CI run: 36992869058 — green.
+- Static analysis: green.
+- Flutter tests: green (934 passed).
+- Fulus live sync contract test: green.
+- Fulus multi-device convergence test: green.
 
 ### Runtime/production verification
 - Pending.
