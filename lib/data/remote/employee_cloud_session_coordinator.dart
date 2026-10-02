@@ -395,8 +395,9 @@ class EmployeeCloudSessionCoordinator {
 
   AuthRole _localRole(String roleName) {
     switch (roleName.toLowerCase()) {
-      case 'manager':
       case 'admin':
+        return AuthRole.owner;
+      case 'manager':
         return AuthRole.manager;
       case 'cashier':
         return AuthRole.cashier;
