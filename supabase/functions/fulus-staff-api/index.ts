@@ -440,9 +440,19 @@ Deno.serve(async (req: Request) => {
   if (staffPermissionError) {
     return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve staff access" } }, 500);
   }
-  const canManageEmployees = isAdmin || canManageStaff === true;
+  const managerDelegableActions = new Set([
+    "create_invite",
+    "set_member_permissions",
+    "set_member_status",
+    "set_member_status_by_user",
+    "set_member_status_by_email",
+    "revoke_pending_invites_by_email",
+  ]);
+  const canManageEmployees =
+    isAdmin ||
+    (canManageStaff === true && managerDelegableActions.has(String(action)));
   if (!canManageEmployees) {
-    return json({ error: { code: "FORBIDDEN", message: "Employee management access is required" } }, 403);
+    return json({ error: { code: "FORBIDDEN", message: "Owner or admin access is required for this action" } }, 403);
   }
 
   let data: unknown;
