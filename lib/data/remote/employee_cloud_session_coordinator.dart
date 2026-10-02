@@ -138,6 +138,11 @@ class EmployeeCloudSessionCoordinator {
       }
       _connection.markSyncReady();
 
+      // Pull the current business projection before translating the cloud
+      // employee location into a local ID. A location can be newly created
+      // or moved by another device and must exist locally before projection.
+      await _upsertIdentityProjection(claim);
+
       final employee = await _authRepository.restoreSession();
       if (employee == null ||
           employee.id != claim.userId ||
@@ -224,7 +229,6 @@ class EmployeeCloudSessionCoordinator {
     try {
       await _connection.refresh();
       await _connection.selectBusiness(claim.businessId);
-      await _upsertIdentityProjection(claim);
 
       onProgress?.call('Setting up this phone…');
       final deviceId = await _secureStorage.ensureDeviceClientId(Ulid().toString());
