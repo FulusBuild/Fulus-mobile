@@ -63,6 +63,7 @@ class _EmployeeJoinBusinessScreenState
         _status = '';
       });
     } on Failure catch (failure) {
+      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
@@ -71,6 +72,7 @@ class _EmployeeJoinBusinessScreenState
         });
       }
     } catch (error) {
+      await _clearFailedCloudSession();
       if (mounted) {
         setState(() {
           _busy = false;
@@ -155,6 +157,16 @@ class _EmployeeJoinBusinessScreenState
         });
       }
     }
+  }
+
+  Future<void> _clearFailedCloudSession() async {
+    try {
+      await ref.read(apiClientProvider).clearActiveCloudSession();
+      ref.read(fulusConnectionStateProvider).disconnect();
+      await ref.read(syncConfigProvider).setEnabled(false);
+      await ref.read(authRepositoryProvider).logout();
+      ref.read(sessionProvider.notifier).state = null;
+    } catch (_) {}
   }
 
   String _joinErrorMessage(Failure failure) {
