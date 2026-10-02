@@ -167,6 +167,10 @@ class EmployeeCloudSessionCoordinator {
     StaffClaim claim;
     try {
       claim = await _staffAccessApi.getMyAccess(businessId: resolvedBusinessId);
+    } on NetworkFailure {
+      // Access already exists as a local projection. Offline startup must
+      // never become a login blocker; sync will retry the cloud check later.
+      return current;
     } on AuthFailure {
       // Cloud membership is authoritative. If the account is no longer
       // authorized, invalidate the local employee session and projection,
