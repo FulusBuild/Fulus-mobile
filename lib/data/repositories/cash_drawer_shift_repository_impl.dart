@@ -74,7 +74,10 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
               e.locationId.equals(shiftRow.locationId) &
               e.paymentMethod.equals('cash') &
               e.expenseDate.isBiggerOrEqualValue(since) &
-              (e.syncStatus.equals(SyncStatus.settled.name) | e.syncStatus.equals(SyncStatus.pending.name) | e.syncStatus.equals(SyncStatus.syncing.name))))
+              (e.syncStatus.equals(SyncStatus.settled.name) |
+                  e.syncStatus.equals(SyncStatus.pending.name) |
+                  e.syncStatus.equals(SyncStatus.syncing.name) |
+                  e.syncStatus.equals(SyncStatus.attentionNeeded.name))))
         .get();
     final cashExpenses = cashExpenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
     final expectedCash = shiftRow.openingCash + cashSales - cashExpenses;
