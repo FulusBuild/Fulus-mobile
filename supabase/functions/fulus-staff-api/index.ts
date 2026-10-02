@@ -429,8 +429,20 @@ Deno.serve(async (req: Request) => {
 
   const roleName = (membership.roles as { name?: string } | null)?.name;
   const isAdmin = roleName === "owner" || roleName === "admin";
-  if (!isAdmin) {
-    return json({ error: { code: "FORBIDDEN", message: "Owner or admin access is required" } }, 403);
+  const { data: canManageStaff, error: staffPermissionError } = await admin.rpc(
+    "staff_actor_has_permission",
+    {
+      target_business_id: businessId,
+      target_actor_user_id: userData.user.id,
+      target_permission_code: "employees.manage",
+    },
+  );
+  if (staffPermissionError) {
+    return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve staff access" } }, 500);
+  }
+  const canManageEmployees = isAdmin || canManageStaff === true;
+  if (!canManageEmployees) {
+    return json({ error: { code: "FORBIDDEN", message: "Employee management access is required" } }, 403);
   }
 
   let data: unknown;
