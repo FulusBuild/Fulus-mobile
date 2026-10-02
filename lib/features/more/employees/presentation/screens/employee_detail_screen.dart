@@ -702,7 +702,18 @@ class _LeaveRequestTile extends ConsumerWidget {
 class _AccessAction extends ConsumerWidget {
   const _AccessAction({required this.employee}); final Employee employee;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Column(children: [SizedBox(width: double.infinity, child: FulusButton(label: employee.isActive ? 'Deactivate this team member' : 'Reactivate this team member', variant: employee.isActive ? FulusButtonVariant.destructive : FulusButtonVariant.secondary, onPressed: () => employee.isActive ? _deactivate(context, ref) : _reactivate(context, ref))), const SizedBox(height: AppSpacing.sm), Text(employee.isActive ? "They'll no longer be able to sign in, and will disappear from the active roster. Their history is kept, and this can be undone at any time." : "They'll be restored to the active roster and, if they had a login, able to sign in again.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)), textAlign: TextAlign.center)]);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final actor = ref.watch(sessionProvider);
+    final permissions = ref.watch(sessionPermissionsProvider).value ?? const <Permission>{};
+    final canManage =
+        actor?.role == AuthRole.owner ||
+        permissions.contains(Permission.manageEmployees);
+    if (!canManage || actor?.id == employee.authUserId) {
+      return const SizedBox.shrink();
+    }
+    return Column(children: [SizedBox(width: double.infinity, child: FulusButton(label: employee.isActive ? 'Deactivate this team member' : 'Reactivate this team member', variant: employee.isActive ? FulusButtonVariant.destructive : FulusButtonVariant.secondary, onPressed: () => employee.isActive ? _deactivate(context, ref) : _reactivate(context, ref))), const SizedBox(height: AppSpacing.sm), Text(employee.isActive ? "They'll no longer be able to sign in, and will disappear from the active roster. Their history is kept, and this can be undone at any time." : "They'll be restored to the active roster and, if they had a login, able to sign in again.", style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)), textAlign: TextAlign.center)]);
+  }
+
   Future<void> _deactivate(BuildContext context, WidgetRef ref) async {
     final confirmed = await showFulusConfirmDialog(
       context,
