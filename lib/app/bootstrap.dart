@@ -506,7 +506,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // membership, role, permissions and location projection before the next
     // sync cycle so a change made on another device cannot remain hidden
     // behind stale local permissions.
-    await employeeCloudSessionCoordinator.refreshExistingAccess();
+    await employeeCloudSessionCoordinator.refreshExistingAccess(force: true);
 
     final package = await PackageInfo.fromPlatform();
     final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
@@ -568,6 +568,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onNotReady: initializeCloudSync,
     onSyncSuccess: () {
       fulusConnectionState.clearSyncError();
+      // Access is cloud-authoritative. Refresh it opportunistically after
+      // successful sync, throttled by the coordinator, so remote permission
+      // or role changes become local projection changes without adding a
+      // request to every mutation.
+      unawaited(
+        employeeCloudSessionCoordinator.refreshExistingAccess().catchError(
+          (_) => null,
+        ),
+      );
       // A successful push + pull proves that authentication, business
       // membership, device authorization, and canonical reconciliation are
       // working again. Promote the connection back to Sync Ready even when
