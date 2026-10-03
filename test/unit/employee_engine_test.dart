@@ -21,12 +21,12 @@ void main() {
     });
 
     test('rejects negative salary', () {
-      const draft = EmployeeDraft(fullName: 'Ada', salary: moneyFromMajor(-1));
+      final draft = EmployeeDraft(fullName: 'Ada', salary: moneyFromMajor(-1));
       expect(() => engine.validateDraft(draft), throwsA(isA<EmployeeValidationException>()));
     });
 
     test('accepts zero salary', () {
-      const draft = EmployeeDraft(fullName: 'Ada', salary: moneyFromMajor(0));
+      final draft = EmployeeDraft(fullName: 'Ada', salary: moneyFromMajor(0));
       expect(() => engine.validateDraft(draft), returnsNormally);
     });
 
