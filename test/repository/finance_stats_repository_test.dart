@@ -42,7 +42,7 @@ void main() {
     required DateTime saleDate,
     required Money total,
     required Money amountPaid,
-    required List<({double costPriceAtSale, int quantity})> items,
+    required List<({Money costPriceAtSale, int quantity})> items,
   }) async {
     await db.into(db.sales).insert(
           SalesCompanion.insert(
@@ -79,8 +79,8 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
-        items: [(costPriceAtSale: 60, quantity: 5)],
+        amountPaid: moneyFromMajor(1000),
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 5)],
       );
 
       final report = await repository.getProfitLoss(
@@ -90,7 +90,7 @@ void main() {
       );
 
       expect(report.costDataCompleteness, 1.0);
-      expect(report.costOfGoodsSold, 300);
+      expect(report.costOfGoodsSold, 30000);
     });
 
     test('partial completeness when some sold units have no cost recorded',
@@ -101,10 +101,10 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(2000),
-        amountPaid: 2000,
+        amountPaid: moneyFromMajor(2000),
         items: [
-          (costPriceAtSale: 60, quantity: 5), // 5 units with cost
-          (costPriceAtSale: 0, quantity: 5), // 5 units with no cost (Quick Sale)
+          (costPriceAtSale: moneyFromMajor(60), quantity: 5), // 5 units with cost
+          (costPriceAtSale: moneyFromMajor(0), quantity: 5), // 5 units with no cost (Quick Sale)
         ],
       );
 
@@ -119,7 +119,7 @@ void main() {
       // COGS only reflects the 5 units that had a cost — silently
       // understating true cost, exactly why completeness has to be
       // shown alongside it rather than presented as a precise figure.
-      expect(report.costOfGoodsSold, 300);
+      expect(report.costOfGoodsSold, 30000);
     });
 
     test('1.0 (not 0/0) when the range has no sales at all', () async {
@@ -143,8 +143,8 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
-        items: [(costPriceAtSale: 60, quantity: 5)],
+        amountPaid: moneyFromMajor(1000),
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 5)],
       );
       await db.into(db.expenses).insert(
             ExpensesCompanion.insert(
@@ -165,11 +165,11 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.revenue, 1000);
-      expect(report.costOfGoodsSold, 300);
-      expect(report.grossProfit, 700);
-      expect(report.expenses, 200);
-      expect(report.netProfit, 500);
+      expect(report.revenue, 100000);
+      expect(report.costOfGoodsSold, 30000);
+      expect(report.grossProfit, 70000);
+      expect(report.expenses, 20000);
+      expect(report.netProfit, 50000);
     });
   });
 
@@ -219,7 +219,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [],
       );
       await db.into(db.returnRequests).insert(
@@ -254,7 +254,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [],
       );
       await db.into(db.returnRequests).insert(
@@ -290,7 +290,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [],
       );
       await db.into(db.incomeRecords).insert(
@@ -382,7 +382,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [],
       );
       await db.into(db.customerLedgerEntries).insert(
