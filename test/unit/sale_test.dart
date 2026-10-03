@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 
+/// Cash tender and applied payment are intentionally modeled separately.
 /// No dedicated test file existed for Sale's computed getters before
 /// this — they were only ever exercised indirectly through repository
 /// tests. Covers balanceDue/paymentStatus (pre-existing, correct) and
