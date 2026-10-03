@@ -8,7 +8,7 @@ import 'package:fulus_mobile/core/money/money.dart';
 void main() {
   const engine = ReceiptEngine();
 
-  ReceiptData sample({String currencySymbol = '₦', Money amountPaid = 1000, Money total = 1000}) => ReceiptData(
+  ReceiptData sample({String currencySymbol = '₦', Money amountPaid = 100000, Money total = 100000}) => ReceiptData(
         businessName: 'Adaeze Stores',
         businessAddress: '12 Market Rd, Lagos',
         businessPhone: '08012345678',
@@ -17,8 +17,8 @@ void main() {
         invoiceNumber: 'INV-0042',
         saleDate: DateTime(2026, 7, 30, 14, 5),
         items: [
-          ReceiptLineItem(productName: 'Rice 5kg', quantity: 2, unitPrice: moneyFromMajor(400), lineTotal: 800),
-          ReceiptLineItem(productName: 'Milk', quantity: 1, unitPrice: moneyFromMajor(200), lineTotal: 200),
+          ReceiptLineItem(productName: 'Rice 5kg', quantity: 2, unitPrice: moneyFromMajor(400), lineTotal: moneyFromMajor(800)),
+          ReceiptLineItem(productName: 'Milk', quantity: 1, unitPrice: moneyFromMajor(200), lineTotal: moneyFromMajor(200)),
         ],
         subtotal: moneyFromMajor(1000),
         discount: 0,
