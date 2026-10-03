@@ -73,6 +73,26 @@ void main() {
   tearDown(() async => db.close());
 
   group('openShift', () {
+    test('database rejects a second open shift for the same location', () async {
+      await repository.openShift(
+        const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
+      );
+      await expectLater(
+        db.into(db.cashDrawerShifts).insert(
+          CashDrawerShiftsCompanion.insert(
+            localId: 'direct-duplicate-open-shift',
+            cashierUserId: cashierUserId,
+            locationId: locationId,
+            openedAt: DateTime.now(),
+            openingCash: const Value(5000),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
     test('opens a shift with the given opening cash', () async {
       final shift = await repository.openShift(
         const CashDrawerShiftDraft(locationId: locationId, openingCash: 5000),
