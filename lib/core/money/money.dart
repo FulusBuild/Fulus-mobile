@@ -1,3 +1,5 @@
+import 'package:json_annotation/json_annotation.dart';
+
 /// Canonical local representation for monetary values.
 ///
 /// Money is stored as integer minor units. For the normal two-decimal
