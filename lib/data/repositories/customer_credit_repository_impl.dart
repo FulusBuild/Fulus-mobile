@@ -1,4 +1,5 @@
 import '../../sync/sync_queue.dart';
+import '../../core/money/money.dart';
 
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
@@ -31,7 +32,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   @override
   Future<CustomerLedgerEntry> recordCreditSale({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     required String saleLocalId,
   }) async {
     if (amount <= 0) throw ArgumentError.value(amount, 'amount', 'must be > 0');
@@ -56,9 +57,9 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   }
 
   @override
-  Future<({CustomerLedgerEntry entry, double newBalance, double excessAmount})> recordRepayment({
+  Future<({CustomerLedgerEntry entry, Money newBalance, Money excessAmount})> recordRepayment({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     String? paymentMethod,
     String? note,
     String? saleLocalId,
@@ -96,7 +97,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   @override
   Future<CustomerLedgerEntry> recordRefundAdjustment({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     required String saleLocalId,
   }) async {
     if (amount <= 0) throw ArgumentError.value(amount, 'amount', 'must be > 0');
@@ -146,7 +147,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     required String customerServerId,
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
-    required double amount,
+    required Money amount,
     String? operationId,
     String? paymentMethod,
     String? note,
