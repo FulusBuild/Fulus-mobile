@@ -207,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration {
@@ -430,6 +430,23 @@ class AppDatabase extends _$AppDatabase {
           // them. Nullable keeps existing installs upgrade-safe; legacy rows
           // are resolved before they are drained.
           await m.addColumn(syncQueueItems, syncQueueItems.actorUserId);
+        }
+        if (from < 19) {
+          // Persist the distinction between cash physically tendered and the
+          // amount actually applied to the sale. Existing rows default to
+          // applied amount, preserving historical sales exactly.
+          await customStatement(
+            'ALTER TABLE sales ADD COLUMN cash_tendered INTEGER NOT NULL DEFAULT 0',
+          );
+          await customStatement(
+            'ALTER TABLE sales ADD COLUMN cash_change INTEGER NOT NULL DEFAULT 0',
+          );
+          await customStatement(
+            'ALTER TABLE sale_payments ADD COLUMN tendered_amount INTEGER',
+          );
+          await customStatement(
+            'ALTER TABLE draft_cart_payments ADD COLUMN tendered_amount INTEGER',
+          );
         }
         if (from < 18) {
           // Durable cardinality guards: the repository already serializes
