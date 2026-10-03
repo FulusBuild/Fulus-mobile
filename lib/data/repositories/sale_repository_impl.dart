@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/diagnostics/diagnostic_logger.dart';
