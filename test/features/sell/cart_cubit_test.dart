@@ -100,8 +100,8 @@ void main() {
     required String localId,
     required String sku,
     required int stock,
-    double sellingPrice = 1000,
-    double costPrice = 600,
+    Money sellingPrice = 100000,
+    Money costPrice = 60000,
     bool isActive = true,
   }) async {
     final now = DateTime(2026, 1, 1);
