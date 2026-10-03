@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import '../../core/money/money.dart';
 
 import '../../domain/entities/employee.dart';
 import '../local/database/database.dart';
