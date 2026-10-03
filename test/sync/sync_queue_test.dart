@@ -57,6 +57,29 @@ void main() {
     expect(row.actorUserId, 'employee-a');
   });
 
+  test('blocks canonical pull while an employee update is pending', () async {
+    final now = DateTime.now();
+    await db.into(db.employees).insert(
+      EmployeesCompanion.insert(
+        localId: 'employee-1',
+        serverId: const Value('server-employee-1'),
+        fullName: 'Employee One',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await queue.enqueue(SyncTask.updateEmployee('employee-1'));
+
+    expect(
+      await queue.hasPendingMutationForServerEntity(
+        entityType: 'employee',
+        serverId: 'server-employee-1',
+      ),
+      isTrue,
+    );
+  });
+
   test('replaces duplicate update operations with a fresh queue identity', () async {
     final task = SyncTask.updateProduct('product-1');
 
