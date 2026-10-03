@@ -34,6 +34,7 @@ class Supplier {
   /// supplier. Mutated only through `SupplierCreditRepository`'s
   /// methods, never a raw field update — same discipline
   /// `Customer.outstandingBalance` follows.
+  @MoneyJsonConverter()
   final Money outstandingBalance;
 
   final DateTime createdAt;
