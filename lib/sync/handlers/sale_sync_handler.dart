@@ -66,7 +66,11 @@ class SaleSyncHandler implements SyncHandler {
             ..where((p) => p.saleLocalId.equals(sale.localId)))
           .get();
       final paymentLegs = paymentRows
-          .map((payment) => {'method': payment.method, 'amount': payment.amount})
+          .map((payment) => {
+            'method': payment.method,
+            'amount': payment.amount,
+            if (payment.tenderedAmount != null) 'tendered_amount': payment.tenderedAmount,
+          })
           .toList(growable: false);
       final locationId = await _resolveLocationServerId(sale.locationId);
       final items = await _resolveItems(sale);
