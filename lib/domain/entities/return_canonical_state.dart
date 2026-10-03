@@ -1,5 +1,5 @@
-class ReturnCanonicalState {
 import 'package:fulus_mobile/core/money/money.dart';
+class ReturnCanonicalState {
   const ReturnCanonicalState({
     required this.serverId,
     required this.originalSaleServerId,
