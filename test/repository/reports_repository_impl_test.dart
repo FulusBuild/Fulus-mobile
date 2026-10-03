@@ -340,7 +340,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
       );
       await insertCompletedSale(
         localId: 'sale-2',
@@ -348,7 +348,7 @@ void main() {
         saleDate: DateTime(2026, 1, 20),
         total: moneyFromMajor(2000),
         amountPaid: moneyFromMajor(2000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
       );
 
       final report = await repository.getSalesReport(
@@ -381,7 +381,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
         cashierUserId: 'cashier-1',
         customerId: 'customer-1',
       );
@@ -406,7 +406,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
       );
 
       final report = await repository.getSalesReport(
@@ -428,7 +428,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 2, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-1',
@@ -443,7 +443,7 @@ void main() {
         saleDate: DateTime(2026, 1, 6),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 2, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-2',
@@ -474,7 +474,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 4, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-1',
@@ -504,7 +504,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5, 10),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 2, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 2, productId: 'product-a')],
         paymentMethod: 'cash',
       );
       await insertCompletedSale(
@@ -513,7 +513,7 @@ void main() {
         saleDate: DateTime(2026, 1, 6, 14),
         total: moneyFromMajor(500),
         amountPaid: moneyFromMajor(500),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: 'product-a')],
         paymentMethod: 'cash',
       );
       await insertCompletedReturn(
@@ -552,7 +552,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5, 10),
         total: moneyFromMajor(400),
         amountPaid: moneyFromMajor(400),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 4, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 4, productId: 'product-a')],
         paymentMethod: 'cash',
       );
       // 1 of 4 units returned (non-void) — unitPrice was 100 (see
@@ -588,7 +588,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(60), quantity: 2, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-void',
@@ -618,7 +618,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(400),
         amountPaid: moneyFromMajor(400),
-        items: const [(costPriceAtSale: moneyFromMajor(60), quantity: 4, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-1',
@@ -656,7 +656,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(300),
         amountPaid: moneyFromMajor(300),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 3, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 3, productId: 'product-a')],
         customerId: 'customer-1',
       );
       await insertCompletedReturn(
@@ -671,7 +671,7 @@ void main() {
         saleDate: DateTime(2026, 1, 6),
         total: moneyFromMajor(500),
         amountPaid: moneyFromMajor(500),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: 'product-a')],
         customerId: 'customer-1',
       );
       await insertCompletedReturn(
@@ -712,7 +712,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1500),
         amountPaid: moneyFromMajor(1500),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: 'product-a')],
         cashierUserId: 'user-1',
       );
       await insertCompletedReturn(
@@ -848,7 +848,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1500),
         amountPaid: moneyFromMajor(1500),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
         cashierUserId: 'user-1',
       );
       await insertCompletedSale(
@@ -857,7 +857,7 @@ void main() {
         saleDate: DateTime(2026, 1, 6),
         total: moneyFromMajor(500),
         amountPaid: moneyFromMajor(500),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
         cashierUserId: 'user-1',
       );
 
@@ -888,7 +888,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1500),
         amountPaid: moneyFromMajor(1500),
-        items: const [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(40), quantity: 1, productId: null)],
         cashierUserId: 'user-1', // rung up by a DIFFERENT, unrelated account
       );
 
@@ -911,7 +911,7 @@ void main() {
         saleDate: DateTime(2026, 1, 10),
         total: moneyFromMajor(100),
         amountPaid: moneyFromMajor(100),
-        items: const [(costPriceAtSale: moneyFromMajor(20), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(20), quantity: 1, productId: null)],
       );
       await insertCompletedSale(
         localId: 'sale-b',
@@ -919,7 +919,7 @@ void main() {
         saleDate: DateTime(2026, 1, 10),
         total: moneyFromMajor(900),
         amountPaid: moneyFromMajor(900),
-        items: const [(costPriceAtSale: moneyFromMajor(20), quantity: 1, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(20), quantity: 1, productId: null)],
       );
 
       final report = await repository.getSalesReport(
