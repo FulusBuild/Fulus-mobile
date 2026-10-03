@@ -1,6 +1,6 @@
 import '../entities/product.dart';
 import '../entities/product_stock_snapshot.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 
 /// Repository contract for the local product catalog and per-location stock.
 abstract class ProductRepository {
