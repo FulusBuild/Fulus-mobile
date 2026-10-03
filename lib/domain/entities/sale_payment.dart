@@ -24,6 +24,6 @@ class SalePayment {
   final String? saleLocalId;
 
   final String method;
-  final double amount;
+  final Money amount;
   final DateTime recordedAt;
 }
