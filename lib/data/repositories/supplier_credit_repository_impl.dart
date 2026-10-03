@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
@@ -25,7 +26,7 @@ class SupplierCreditRepositoryImpl implements SupplierCreditRepository {
   @override
   Future<SupplierLedgerEntry> recordStockPurchaseOnCredit({
     required String supplierLocalId,
-    required double amount,
+    required Money amount,
     String? stockMovementLocalId,
   }) async {
     if (amount <= 0) {
@@ -65,11 +66,11 @@ class SupplierCreditRepositoryImpl implements SupplierCreditRepository {
   Future<
       ({
         SupplierLedgerEntry entry,
-        double newBalance,
-        double excessAmount,
+        Money newBalance,
+        Money excessAmount,
       })> recordPayment({
     required String supplierLocalId,
-    required double amount,
+    required Money amount,
     String? paymentMethod,
     String? note,
   }) async {
