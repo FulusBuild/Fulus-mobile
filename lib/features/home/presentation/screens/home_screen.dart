@@ -13,6 +13,7 @@ import '../../../../domain/entities/dashboard_summary.dart';
 import '../../../../domain/entities/location.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/presentation/screens/identity_picker_screen.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 
 final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
     ref.watch(locationRepositoryProvider).watchLocations());
