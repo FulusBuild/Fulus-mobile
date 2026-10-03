@@ -31,12 +31,12 @@ These were addressed in source/production where documented. The audit did not we
 | 02 | Authentication & Sessions | Audited; source fixes applied; runtime/production verification tracked |
 | 03 | Employee / Access | Audited; source fixes applied; authorization cross-checks performed |
 | 04 | Business / Location | Audited; source fix applied; runtime/production evidence tracked |
-| 05 | Local Database | Audited; integer-money and local cardinality findings fixed; runtime migration evidence remains |
+| 05 | Local Database | Audited; financial/local cardinality cross-cutting items remain |
 | 06 | Repositories | Audited; composite transaction and error-boundary fixes tracked |
 | 07 | Domain Logic | Audited; local/cloud arithmetic contract remains cross-cutting |
 | 08 | Product / Catalog | Audited; image/scope/tracking invariants cross-checked |
 | 09 | Sales / Checkout | Audited; tender/change contract remains coordinated with Part 10 |
-| 10 | Financial Integrity | Audited; integer-money migration closed; cash tender/change contract remains open |
+| 10 | Financial Integrity | Audited; integer-money migration remains a major open cross-cutting item |
 | 11 | Inventory / Stock | Audited; tracking and transaction boundaries fixed |
 | 12 | Customers / Credit | Audited; repayment/return defects fixed; live convergence evidence pending |
 | 13 | Cloud APIs | Audited; grants/actor/location/idempotency hardening cross-checked |
@@ -68,7 +68,7 @@ Fresh-install restore and post-restore sync/cursor continuation still require ph
 The financial multi-device E2E and final CI execution still require observed successful workflow completion.
 
 ### Financial integer-money contract
-The coordinated integer-money migration is closed by PR #145: schema v17 converts the local monetary columns to integer minor units, the Dart domain uses `Money` integer minor units, CI #3857 passed, and production migration workflow #313 completed. The remaining financial gap is the distinct cash tender/applied-payment/change contract tracked by P09-001/P10-002.
+Cross-cutting X-005/X-009 remains open. The local schema's REAL monetary representation requires a coordinated evidence-backed decision/migration before claiming the integer-safe financial invariant fully closed.
 
 ## 4. Security evidence
 
@@ -103,6 +103,7 @@ Tracked cross-cutting findings currently include:
 - identity namespace separation;
 - employee authorization projection versus cloud authority;
 - business/location bootstrap scope;
+- local floating-point money representation;
 - local cardinality constraints;
 - local/cloud sale arithmetic;
 - tender/change semantics;
