@@ -147,7 +147,7 @@ class SaleCanonicalRepositoryImpl implements SaleCanonicalRepository {
                 saleLocalId: localId,
                 method: payment.method,
                 amount: payment.amount,
-                tenderedAmount: payment.tenderedAmount,
+                tenderedAmount: Value(payment.tenderedAmount),
                 recordedAt: payment.recordedAt,
               ),
             );
