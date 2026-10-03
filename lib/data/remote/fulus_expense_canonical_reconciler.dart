@@ -60,7 +60,6 @@ class FulusExpenseCanonicalReconciler {
 
   Money _number(Object? value) {
     return moneyFromWire(value);
-    throw StateError('Canonical expense payload contains an invalid amount.');
   }
 
   DateTime _date(Object? value) {
