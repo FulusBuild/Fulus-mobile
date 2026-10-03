@@ -122,8 +122,8 @@ void main() {
             localId: productId,
             name: 'Test Product',
             sku: 'SKU-1',
-            costPrice: 10000,
-            sellingPrice: 15000,
+            costPrice: moneyFromMajor(10000),
+            sellingPrice: moneyFromMajor(15000),
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -141,7 +141,7 @@ void main() {
   setUpAll(() {
     registerFallbackValue(const SaleCreateDto(
       items: [],
-      amountPaid: 0,
+      amountPaid: moneyFromMajor(0),
       locationId: locationId,
     ));
   });
@@ -156,13 +156,13 @@ void main() {
       localId: 'item-1',
       productLocalId: productId,
       quantity: 2,
-      unitPrice: 150,
-      costPriceAtSale: 100,
+      unitPrice: moneyFromMajor(150),
+      costPriceAtSale: moneyFromMajor(100),
     );
     final draft = SaleDraft(
       items: [item],
       locationId: locationId,
-      amountPaid: 300,
+      amountPaid: moneyFromMajor(300),
       customerId: withCustomerId,
     );
     return saleRepository.createSale(draft);
@@ -493,8 +493,8 @@ void main() {
             productLocalId: null,
             description: 'Phone charger',
             quantity: 1,
-            unitPrice: 500,
-            costPriceAtSale: 0,
+            unitPrice: moneyFromMajor(500),
+            costPriceAtSale: moneyFromMajor(0),
           ),
         ],
         locationId: locationId,
@@ -621,8 +621,8 @@ void main() {
           barcode: null,
           categoryId: null,
           supplierId: null,
-          costPrice: 10000,
-          sellingPrice: 15000,
+          costPrice: moneyFromMajor(10000),
+          sellingPrice: moneyFromMajor(15000),
           lowStockThreshold: 5,
           isActive: true,
           updatedAt: DateTime.parse('2026-09-23T10:00:00Z'),
@@ -882,7 +882,7 @@ void main() {
           localId: 'repayment-1',
           customerLocalId: customerId,
           entryType: 'repayment',
-          amount: 5000,
+          amount: moneyFromMajor(5000),
           createdAt: now,
           updatedAt: now,
           syncStatus: SyncStatus.pending,
