@@ -383,8 +383,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   SecondaryNoticeSelection? _noticeSelection;
   bool _heroError = false;
   bool _noticesError = false;
-  bool _cashError = false;
-  double? _cashTotal;
 
   @override
   void initState() {
@@ -485,7 +483,7 @@ class _HomeMockupDashboard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: canViewMoney ? 2 : 1,
+            flex: 1,
             child: _HomeSalesHeroCard(
               salesTotal: _salesTotal,
               salesCount: _salesCount,
@@ -591,8 +589,6 @@ class _HomeSalesHeroCard extends StatelessWidget {
   final int? salesCount;
   final bool error;
   final String currencySymbol;
-  final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
     final value = error || salesTotal == null
