@@ -207,7 +207,7 @@ void main() {
         dateTo: DateTime(2026, 1, 15),
         locationId: 'loc-1',
       );
-      expect(profitLoss.revenue, 7500);
+      expect(profitLoss.revenue, moneyFromMajor(7500));
     });
   });
 
@@ -417,7 +417,7 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.customerRepaymentsInflow, 250);
+      expect(report.customerRepaymentsInflow, moneyFromMajor(250));
       expect(report.inflow, 1000 + 250);
     });
   });
