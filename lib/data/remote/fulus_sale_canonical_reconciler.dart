@@ -41,6 +41,8 @@ class FulusSaleCanonicalReconciler {
       tax: _number(sale['tax']),
       total: _number(sale['total']),
       amountPaid: _number(sale['amount_paid']),
+      cashTendered: _number(sale['cash_tendered'] ?? 0),
+      cashChange: _number(sale['cash_change'] ?? 0),
       paymentMethod: _nullableString(sale['payment_method']),
       notes: _nullableString(sale['notes']),
       items: rawItems.map((value) => _mapItem(_object(value, 'sale item'))).toList(growable: false),
