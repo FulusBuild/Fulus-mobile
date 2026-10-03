@@ -147,6 +147,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
     required double amount,
+    String? operationId,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
@@ -165,12 +166,36 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
             ..where((e) => e.serverId.equals(serverId)))
           .getSingleOrNull();
 
+      CustomerLedgerEntryRow? existing = existingByServerId;
+      if (existing == null &&
+          entryType == CustomerLedgerEntryType.repayment &&
+          operationId != null &&
+          operationId.isNotEmpty) {
+        // A successful repayment is committed on the server before the push
+        // handler receives its response and assigns serverId locally. A
+        // concurrent canonical pull can therefore arrive in that window.
+        // The durable outbox row is the local owner of the operation ID;
+        // reuse its ledger row instead of creating a second visible entry.
+        final queued = await (_db.select(_db.syncQueueItems)
+              ..where((q) => q.id.equals(operationId)))
+            .getSingleOrNull();
+        if (queued != null && queued.entityType == 'customer_ledger') {
+          final candidate = await (_db.select(_db.customerLedgerEntries)
+                ..where((e) => e.localId.equals(queued.entityLocalId))
+                ..where((e) => e.serverId.isNull())
+                ..where((e) => e.customerLocalId.equals(customer.localId))
+                ..where((e) => e.entryType.equals(CustomerLedgerEntryType.repayment.name))
+                ..where((e) => e.amount.equals(amount)))
+              .getSingleOrNull();
+          if (candidate != null) existing = candidate;
+        }
+      }
+
       // Return credit reversals are represented locally as a derived
       // refundAdjustment immediately when the return is completed offline,
       // while the authoritative server ledger event uses entry_type
       // "credit_reversal". Reuse that local projection when the canonical
       // event arrives instead of creating a duplicate ledger line.
-      CustomerLedgerEntryRow? existing = existingByServerId;
       if (existing == null &&
           entryType == CustomerLedgerEntryType.creditSale) {
         // Credit sales are written locally as an immediate ledger echo when

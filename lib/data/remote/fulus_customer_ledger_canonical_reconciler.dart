@@ -30,6 +30,7 @@ class FulusCustomerLedgerCanonicalReconciler {
       saleServerId: _nullableString(row['sale_id']),
       entryType: _entryType(type),
       amount: _number(row['amount']),
+      operationId: _nullableString(row['operation_id']),
       paymentMethod: _nullableString(row['payment_method']),
       note: _nullableString(row['note']),
       createdAt: _date(row['created_at']),
