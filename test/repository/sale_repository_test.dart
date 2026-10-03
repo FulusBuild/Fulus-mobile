@@ -153,7 +153,7 @@ void main() {
     return SaleDraft(
       items: [item],
       locationId: locationId,
-      amountPaid: 150 * quantity.toDouble(),
+      amountPaid: moneyFromMajor(150 * quantity),
     );
   }
 
@@ -161,7 +161,7 @@ void main() {
     test('writes the sale and its item locally', () async {
       final result = await repository.createSale(draftWithOneItem());
 
-      expect(result.total, 450);
+      expect(result.total, 45000);
       expect(result.items, hasLength(1));
 
       final salesRows = await db.select(db.sales).get();
@@ -278,7 +278,7 @@ void main() {
         expect(sale.total, 450);
         expect(sale.balanceDue, 450);
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, 450);
+        expect(customer!.outstandingBalance, 45000);
       });
 
       test(
@@ -299,7 +299,7 @@ void main() {
           items: [item],
           locationId: locationId,
           customerId: customerId,
-          amountPaid: 200,
+          amountPaid: 20000,
         );
 
         final sale = await repository.createSale(draft);
@@ -310,7 +310,7 @@ void main() {
         // The bug this guards against: naively recording sale.total
         // (450) instead of sale.balanceDue (250) would double-count
         // the ₦200 already paid in cash.
-        expect(customer!.outstandingBalance, 250);
+        expect(customer!.outstandingBalance, 25000);
       });
 
       test('a fully-paid sale with a customer attached does not touch '
@@ -328,7 +328,7 @@ void main() {
           ],
           locationId: locationId,
           customerId: customerId,
-          amountPaid: 300,
+          amountPaid: 30000,
         );
 
         final sale = await repository.createSale(draft);
@@ -376,7 +376,7 @@ void main() {
         await repository.createSale(creditDraftForItem('item-credit-4b'));
 
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, 300);
+        expect(customer!.outstandingBalance, 30000);
       });
     });
   });
