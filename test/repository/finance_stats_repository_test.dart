@@ -169,7 +169,7 @@ void main() {
       expect(report.costOfGoodsSold, 30000);
       expect(report.grossProfit, 70000);
       expect(report.expenses, 20000);
-      expect(report.netProfit, 50000);
+      expect(report.netProfit, moneyFromMajor(50000));
     });
   });
 
