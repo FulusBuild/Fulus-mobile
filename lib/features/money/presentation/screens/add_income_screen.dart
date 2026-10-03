@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 
@@ -50,7 +51,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     setState(() => _submitting = true);
     try {
       await ref.read(moneyRepositoryProvider).recordIncome(
-            amount: amount!,
+            amount: moneyFromMajor(amount!),
             source: source,
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
           );
