@@ -99,7 +99,7 @@ class Sale {
   /// (`total - amountPaid`); this just gives that a name and a floor,
   /// the same way a real cash register does: the change is a separate
   /// concept from the balance, never itself negative.
-  Money get changeDue => cashChange;
+  Money get changeDue => cashTendered > amountPaid ? cashTendered - amountPaid : 0;
 
   /// Also computed, also mirroring backend logic exactly rather than
   /// reintroducing a parallel definition of "what counts as paid" —
