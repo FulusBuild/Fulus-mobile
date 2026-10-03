@@ -107,7 +107,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
         productId: entry.key,
         productName: product?.name ?? entry.key,
         quantitySold: entry.value[0].toInt(),
-        revenue: entry.value[1].toDouble(),
+        revenue: entry.value[1].toInt(),
       ));
     }
     topProducts.sort((a, b) => b.revenue.compareTo(a.revenue));
