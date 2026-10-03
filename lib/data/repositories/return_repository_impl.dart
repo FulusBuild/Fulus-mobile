@@ -91,7 +91,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
     required int totalQuantity,
   }) {
     if (totalQuantity == 0) return 0;
-    return totalLineAmount / totalQuantity;
+    return (totalLineAmount / totalQuantity).round();
   }
 
   Future<List<ReturnItem>> _itemsForReturn(String returnLocalId) async {
@@ -372,9 +372,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
             ? paymentRows
                 .where((p) => p.method == 'credit')
                 .fold<Money>(0, (sum, p) => sum + p.amount)
-            : Money.parse(
-                (sale.total - sale.amountPaid).clamp(0, Money.infinity).toStringAsFixed(2),
-              );
+            : ((sale.total - sale.amountPaid) > 0 ? sale.total - sale.amountPaid : 0);
         final adjustment = row.refundAmount < creditExtended
             ? row.refundAmount
             : creditExtended;
