@@ -65,7 +65,7 @@ class DraftCartItem {
   /// Raw, pre-discount — same convention `SaleItem.lineTotal` uses, for
   /// the same reason: this is what a cart-level subtotal needs to sum,
   /// with the discount subtracted out separately afterward.
-  double get lineTotal => quantity * unitPrice;
+  Money get lineTotal => quantity * unitPrice;
 
   /// Converts to the [SaleItem] shape `SaleDraft`/`SaleRepository.
   /// createSale` actually expect, assigning the fresh identity a real
