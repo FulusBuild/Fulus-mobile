@@ -207,8 +207,8 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, 1000);
-      expect(report.totalCostOfGoodsSold, 300);
+      expect(report.totalRevenue, moneyFromMajor(1000));
+      expect(report.totalCostOfGoodsSold, moneyFromMajor(300));
       expect(report.totalExpenses, 200);
       expect(report.grossProfit, moneyFromMajor(700));
       // Before the fix this returned 800 (1000 - 200, COGS never
@@ -265,7 +265,7 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalCostOfGoodsSold, 380);
+      expect(report.totalCostOfGoodsSold, moneyFromMajor(380));
     });
 
     test('the previous-period comparison is COGS-aware too, so the '
@@ -535,7 +535,7 @@ void main() {
       expect(report.totalRevenue, 1000);
       expect(report.totalSalesCount, 1);
       expect(report.topProducts.single.quantitySold, 2);
-      expect(report.topProducts.single.revenue, 200); // 2 * unitPrice(100)
+      expect(report.topProducts.single.revenue, moneyFromMajor(200)); // 2 * unitPrice(100)
       expect(report.byPaymentMethod.single.total, moneyFromMajor(1000));
       expect(report.byPaymentMethod.single.count, 1);
       expect(report.byHour.single.total, moneyFromMajor(1000));
@@ -570,10 +570,10 @@ void main() {
         canViewAllSales: true,
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, 300); // 400 - 100 refunded
+      expect(report.totalRevenue, moneyFromMajor(300)); // 400 - 100 refunded
       expect(report.totalSalesCount, 1); // still one real transaction
       expect(report.topProducts.single.quantitySold, 3);
-      expect(report.topProducts.single.revenue, 300);
+      expect(report.topProducts.single.revenue, moneyFromMajor(300));
     });
   });
 
