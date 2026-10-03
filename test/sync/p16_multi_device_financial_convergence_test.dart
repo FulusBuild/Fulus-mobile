@@ -1,8 +1,9 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fulus/data/local/database/database.dart';
-import 'package:fulus/data/repositories/sale_canonical_repository_impl.dart';
-import 'package:fulus/domain/entities/sale_canonical_state.dart';
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/repositories/sale_canonical_repository_impl.dart';
+import 'package:fulus_mobile/domain/entities/sale_canonical_state.dart';
 
 void main() {
   test('two independent SQLite runtimes converge on the same canonical financial sale', () async {
