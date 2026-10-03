@@ -227,7 +227,7 @@ void main() {
       CustomersCompanion.insert(
         localId: customerId,
         name: 'Credit Split Customer',
-        outstandingBalance: const Value(500),
+        outstandingBalance: Value(moneyFromMajor(500)),
         createdAt: now,
         updatedAt: now,
         syncStatus: SyncStatus.settled,
