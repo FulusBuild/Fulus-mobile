@@ -207,15 +207,15 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, 1000);
-      expect(report.totalCostOfGoodsSold, 300);
-      expect(report.totalExpenses, 200);
-      expect(report.grossProfit, 700);
+      expect(report.totalRevenue, 100000);
+      expect(report.totalCostOfGoodsSold, 30000);
+      expect(report.totalExpenses, 20000);
+      expect(report.grossProfit, 70000);
       // Before the fix this returned 800 (1000 - 200, COGS never
       // subtracted) — the exact defect this pins down. Matches
       // FinanceStatsRepositoryImpl.getProfitLoss's netProfit for the
       // identical seeded data.
-      expect(report.netProfit, 500);
+      expect(report.netProfit, 50000);
     });
 
     test('a Quick Sale line (no catalog product, cost 0) correctly '
@@ -226,7 +226,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(500),
-        amountPaid: 500,
+        amountPaid: moneyFromMajor(500),
         items: [(costPriceAtSale: moneyFromMajor(0), quantity: 3, productId: null)],
       );
 
@@ -239,7 +239,7 @@ void main() {
         locationId: 'loc-1',      );
 
       expect(report.totalCostOfGoodsSold, 0);
-      expect(report.netProfit, 500);
+      expect(report.netProfit, 50000);
     });
 
     test('multiple line items on one sale all contribute to cost of '
@@ -265,7 +265,7 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalCostOfGoodsSold, 380);
+      expect(report.totalCostOfGoodsSold, 38000);
     });
 
     test('the previous-period comparison is COGS-aware too, so the '
@@ -300,14 +300,14 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.netProfit, 700);
+      expect(report.netProfit, 70000);
       // Before the fix, the current period's 800 (COGS omitted) would
       // have been compared against a previous period that (by the same
       // bug) was also COGS-omitted, i.e. 1000 — masking the bug from a
       // trend-only test. Comparing the two CORRECT figures: 700 vs 500
       // previous is a +40% change, not whatever the uncorrected pair
       // would have produced.
-      expect(report.previousPeriodNetProfit, 500);
+      expect(report.previousPeriodNetProfit, 50000);
       expect(report.profitTrendPercent, closeTo(40.0, 0.001));
     });
 
@@ -512,7 +512,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6, 14),
         total: moneyFromMajor(500),
-        amountPaid: 500,
+        amountPaid: moneyFromMajor(500),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         paymentMethod: 'cash',
       );
@@ -532,13 +532,13 @@ void main() {
 
       // Before the fix: totalRevenue 1500, count 2 — the voided sale
       // counted as if it were still valid.
-      expect(report.totalRevenue, 1000);
+      expect(report.totalRevenue, 100000);
       expect(report.totalSalesCount, 1);
       expect(report.topProducts.single.quantitySold, 2);
-      expect(report.topProducts.single.revenue, 200); // 2 * unitPrice(100)
-      expect(report.byPaymentMethod.single.total, 1000);
+      expect(report.topProducts.single.revenue, 20000); // 2 * unitPrice(100)
+      expect(report.byPaymentMethod.single.total, 100000);
       expect(report.byPaymentMethod.single.count, 1);
-      expect(report.byHour.single.total, 1000);
+      expect(report.byHour.single.total, 100000);
     });
 
     test('a partially-refunded sale nets the refunded amount/quantity '
@@ -551,7 +551,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5, 10),
         total: moneyFromMajor(400),
-        amountPaid: 400,
+        amountPaid: moneyFromMajor(400),
         items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
         paymentMethod: 'cash',
       );
@@ -570,10 +570,10 @@ void main() {
         canViewAllSales: true,
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, 300); // 400 - 100 refunded
+      expect(report.totalRevenue, 30000); // 400 - 100 refunded
       expect(report.totalSalesCount, 1); // still one real transaction
       expect(report.topProducts.single.quantitySold, 3);
-      expect(report.topProducts.single.revenue, 300);
+      expect(report.topProducts.single.revenue, 30000);
     });
   });
 
@@ -617,7 +617,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(400),
-        amountPaid: 400,
+        amountPaid: moneyFromMajor(400),
         items: [(costPriceAtSale: moneyFromMajor(60), quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -631,8 +631,8 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, 300); // 400 - 100 (1 unit @ 100)
-      expect(report.totalCostOfGoodsSold, 180); // (4-1) units @ cost 60
+      expect(report.totalRevenue, 30000); // 400 - 100 (1 unit @ 100)
+      expect(report.totalCostOfGoodsSold, 18000); // (4-1) units @ cost 60
     });
   });
 
@@ -655,7 +655,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(300),
-        amountPaid: 300,
+        amountPaid: moneyFromMajor(300),
         items: const [(costPriceAtSale: 40, quantity: 3, productId: 'product-a')],
         customerId: 'customer-1',
       );
@@ -670,7 +670,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
         total: moneyFromMajor(500),
-        amountPaid: 500,
+        amountPaid: moneyFromMajor(500),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         customerId: 'customer-1',
       );
@@ -687,7 +687,7 @@ void main() {
         locationId: 'loc-1',      );
 
       // Before the fix: 800 (300 + 500, both sales counted in full).
-      expect(report.topCustomers.single.totalSpend, 200); // 300 - 100
+      expect(report.topCustomers.single.totalSpend, 20000); // 300 - 100
     });
   });
 
@@ -711,7 +711,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1500),
-        amountPaid: 1500,
+        amountPaid: moneyFromMajor(1500),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         cashierUserId: 'user-1',
       );
@@ -847,7 +847,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1500),
-        amountPaid: 1500,
+        amountPaid: moneyFromMajor(1500),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1',
       );
@@ -856,7 +856,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
         total: moneyFromMajor(500),
-        amountPaid: 500,
+        amountPaid: moneyFromMajor(500),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1',
       );
@@ -866,7 +866,7 @@ void main() {
         locationId: 'loc-1',      );
 
       final perf = report.performance.single;
-      expect(perf.salesTotal, 2000);
+      expect(perf.salesTotal, 200000);
       expect(perf.salesCount, 2);
     });
 
@@ -887,7 +887,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1500),
-        amountPaid: 1500,
+        amountPaid: moneyFromMajor(1500),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1', // rung up by a DIFFERENT, unrelated account
       );
@@ -910,7 +910,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 10),
         total: moneyFromMajor(100),
-        amountPaid: 100,
+        amountPaid: moneyFromMajor(100),
         items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
       );
       await insertCompletedSale(
@@ -918,7 +918,7 @@ void main() {
         locationId: 'loc-2',
         saleDate: DateTime(2026, 1, 10),
         total: moneyFromMajor(900),
-        amountPaid: 900,
+        amountPaid: moneyFromMajor(900),
         items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
       );
 
@@ -929,7 +929,7 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.totalRevenue, 100);
+      expect(report.totalRevenue, 10000);
       expect(report.totalSalesCount, 1);
       expect(report.transactions.single.saleLocalId, 'sale-a');
     });
@@ -972,7 +972,7 @@ void main() {
 
       final report = await repository.getInventoryReport(locationId: 'loc-1');
 
-      expect(report.totalStockValue, 120);
+      expect(report.totalStockValue, 12000);
       expect(report.stockMovementsIn, 0);
     });
   });
