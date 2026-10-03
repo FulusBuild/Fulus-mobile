@@ -1,4 +1,5 @@
 /// Volume 8, Taxes: "tax collected, by period... An owner can mark a
+import 'package:fulus_mobile/core/money/money.dart';
 /// period as remitted." See tables.dart's `TaxRemittances` doc comment
 /// for the confirmed "100% Bible-only, no backend tracking at all"
 /// status. Decision 28's own boundary applies directly: "the app
@@ -22,7 +23,7 @@ class TaxRemittance {
   final String locationId;
   final DateTime periodStart;
   final DateTime periodEnd;
-  final double amountRemitted;
+  final Money amountRemitted;
 
   /// Whatever the tax authority's own receipt/confirmation number is —
   /// freeform, this app has no relationship with any tax authority to
@@ -46,7 +47,7 @@ class TaxRemittanceDraft {
   final String locationId;
   final DateTime periodStart;
   final DateTime periodEnd;
-  final double amountRemitted;
+  final Money amountRemitted;
   final String? referenceNumber;
   final String? note;
 
