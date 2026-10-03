@@ -21,8 +21,8 @@ void main() {
     return DraftCart(
       localId: 'draft-1',
       locationId: 'loc-1',
-      wholeCartDiscount: moneyFromMajor(wholeCartDiscount),
-      tax: moneyFromMajor(tax),
+      wholeCartDiscount: wholeCartDiscount,
+      tax: tax,
       createdAt: now,
       updatedAt: now,
     );
@@ -39,8 +39,8 @@ void main() {
       draftCartLocalId: 'draft-1',
       productLocalId: 'prod-1',
       quantity: quantity,
-      unitPrice: moneyFromMajor(unitPrice),
-      lineDiscount: moneyFromMajor(lineDiscount),
+      unitPrice: unitPrice,
+      lineDiscount: lineDiscount,
     );
   }
 
@@ -65,8 +65,8 @@ void main() {
   group('CartLoaded.total', () {
     test('with no discounts at all, total is just subtotal plus tax', () {
       final state = loadedWith(
-        draftCart: draftCartWith(tax: 50),
-        items: [itemWith(localId: 'i1', quantity: 2, unitPrice: 500)],
+        draftCart: draftCartWith(tax: moneyFromMajor(50)),
+        items: [itemWith(localId: 'i1', quantity: 2, unitPrice: moneyFromMajor(500))],
       );
 
       expect(state.subtotal, moneyFromMajor(1000));
@@ -76,8 +76,8 @@ void main() {
     test('a whole-cart-only discount is subtracted correctly '
         '(pre-existing behavior, still correct)', () {
       final state = loadedWith(
-        draftCart: draftCartWith(wholeCartDiscount: 100, tax: 0),
-        items: [itemWith(localId: 'i1', quantity: 3, unitPrice: 1500)],
+        draftCart: draftCartWith(wholeCartDiscount: moneyFromMajor(100), tax: moneyFromMajor(0)),
+        items: [itemWith(localId: 'i1', quantity: 3, unitPrice: moneyFromMajor(1500))],
       );
 
       expect(state.subtotal, moneyFromMajor(4500));
@@ -90,7 +90,7 @@ void main() {
       final state = loadedWith(
         draftCart: draftCartWith(),
         items: [
-          itemWith(localId: 'i1', quantity: 1, unitPrice: 1000, lineDiscount: 150),
+          itemWith(localId: 'i1', quantity: 1, unitPrice: moneyFromMajor(1000), lineDiscount: moneyFromMajor(150)),
         ],
       );
 
@@ -103,10 +103,10 @@ void main() {
     test('whole-cart and multiple line discounts combine additively, '
         'matching combineDiscount / completeSale exactly', () {
       final state = loadedWith(
-        draftCart: draftCartWith(wholeCartDiscount: 200, tax: 75),
+        draftCart: draftCartWith(wholeCartDiscount: moneyFromMajor(200), tax: moneyFromMajor(75)),
         items: [
-          itemWith(localId: 'i1', quantity: 1, unitPrice: 1000, lineDiscount: 50),
-          itemWith(localId: 'i2', quantity: 2, unitPrice: 750, lineDiscount: 25),
+          itemWith(localId: 'i1', quantity: 1, unitPrice: moneyFromMajor(1000), lineDiscount: moneyFromMajor(50)),
+          itemWith(localId: 'i2', quantity: 2, unitPrice: moneyFromMajor(750), lineDiscount: moneyFromMajor(25)),
         ],
       );
 
@@ -123,7 +123,7 @@ void main() {
       final state = loadedWith(
         draftCart: draftCartWith(),
         items: [
-          itemWith(localId: 'i1', quantity: 1, unitPrice: 1000, lineDiscount: 150),
+          itemWith(localId: 'i1', quantity: 1, unitPrice: moneyFromMajor(1000), lineDiscount: moneyFromMajor(150)),
         ],
         payments: const [],
       );
@@ -137,7 +137,7 @@ void main() {
       final state = loadedWith(
         draftCart: draftCartWith(),
         items: [
-          itemWith(localId: 'i1', quantity: 2, unitPrice: 500, lineDiscount: 1000),
+          itemWith(localId: 'i1', quantity: 2, unitPrice: moneyFromMajor(500), lineDiscount: moneyFromMajor(1000)),
         ],
       );
 
