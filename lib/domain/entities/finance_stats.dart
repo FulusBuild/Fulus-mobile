@@ -1,4 +1,5 @@
 /// Mirrors `finance_service.get_profit_loss`'s return shape, extended
+import 'package:fulus_mobile/core/money/money.dart';
 /// with Volume 8, Decision 27's honest-completeness caveat — verified
 /// directly that the backend does NOT implement this itself
 /// (`get_profit_loss` sums `cost_price_at_sale` with no missing-data
@@ -26,7 +27,7 @@ class ProfitLossReport {
 
   /// Backend: `sum(s.total for s in sales)`, cancelled sales already
   /// excluded by the underlying query.
-  final double revenue;
+  final Money revenue;
 
   /// Backend: `sum(item.cost_price_at_sale * item.quantity for item in
   /// items)` — silently includes zero-cost lines; see this class's own
@@ -35,14 +36,14 @@ class ProfitLossReport {
   /// would just be a different silent distortion — the honest fix is
   /// showing how complete the underlying data is, not picking a
   /// different way to guess around gaps in it).
-  final double costOfGoodsSold;
+  final Money costOfGoodsSold;
 
-  final double grossProfit;
+  final Money grossProfit;
 
   /// Backend: `sum(e.amount for e in expenses)` for the same range.
-  final double expenses;
+  final Money expenses;
 
-  final double netProfit;
+  final Money netProfit;
 
   /// **This domain's own addition** (Decision 27) — the fraction (0.0
   /// to 1.0) of sold *units* in this range whose line had a non-zero
@@ -114,7 +115,7 @@ class CashFlowReport {
   final double customerRepaymentsInflow;
 
   final double inflow;
-  final double expensesOutflow;
+  final Money expensesOutflow;
 
   /// **Not in the backend's own `get_cash_flow` at all** — verified
   /// directly; the backend's outflow is expenses only. Supplier
