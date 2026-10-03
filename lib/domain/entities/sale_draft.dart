@@ -71,10 +71,10 @@ class SaleDraft {
   /// above are enough on their own, exactly as before this pass.
   final List<SalePayment> payments;
 
-  double get subtotal =>
-      items.fold(0.0, (sum, item) => sum + item.lineTotal);
+  Money get subtotal =>
+      items.fold<Money>(0, (sum, item) => sum + item.lineTotal);
 
-  double get total => subtotal - discount + tax;
+  Money get total => subtotal - discount + tax;
 
   /// Commits this draft into a real [Sale] — called exactly once, by
   /// the repository, at the moment persistence actually happens.
