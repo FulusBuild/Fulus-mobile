@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_product_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
@@ -15,8 +16,8 @@ void main() {
     registerFallbackValue(const ProductDraft(
       name: 'fallback',
       sku: 'fallback',
-      costPrice: 0,
-      sellingPrice: 100,
+      costPrice: moneyFromMajor(0),
+      sellingPrice: moneyFromMajor(100),
       locationId: 'fallback',
     ));
   });
@@ -83,8 +84,8 @@ void main() {
           barcode: '123',
           categoryId: 'category-1',
           supplierId: 'supplier-1',
-          costPrice: 100000,
-          sellingPrice: 150000,
+          costPrice: moneyFromMajor(100000),
+          sellingPrice: moneyFromMajor(150000),
           lowStockThreshold: 5,
           isActive: true,
           photoPath: 'https://bejcuvoxemwomcatgyxz.supabase.co/storage/v1/object/public/product-images/business/product-1/photo.jpg',
