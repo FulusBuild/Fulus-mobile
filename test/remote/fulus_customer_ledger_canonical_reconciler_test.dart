@@ -9,6 +9,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   CustomerLedgerEntryType? entryType;
   String? serverId;
   double? amount;
+  String? operationId;
 
   @override
   Future<void> reconcileServerState({
@@ -17,6 +18,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
     required double amount,
+    String? operationId,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
@@ -25,6 +27,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
     this.serverId = serverId;
     this.entryType = entryType;
     this.amount = amount;
+    this.operationId = operationId;
   }
 
   @override
@@ -112,6 +115,7 @@ void main() {
             'customer_id': 'customer-1',
             'entry_type': 'repayment',
             'amount': 10,
+            'operation_id': 'repayment-operation-1',
             'created_at': '2026-09-24T08:00:00Z',
           },
         },
@@ -121,5 +125,6 @@ void main() {
     expect(repository.serverId, 'ledger-2');
     expect(repository.entryType, CustomerLedgerEntryType.repayment);
     expect(repository.amount, 10);
+    expect(repository.operationId, 'repayment-operation-1');
   });
 }
