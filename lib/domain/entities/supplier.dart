@@ -15,7 +15,7 @@ class Supplier {
     this.phone,
     this.email,
     this.address,
-    this.outstandingBalance = 0.0,
+    this.outstandingBalance = 0,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -34,7 +34,7 @@ class Supplier {
   /// supplier. Mutated only through `SupplierCreditRepository`'s
   /// methods, never a raw field update — same discipline
   /// `Customer.outstandingBalance` follows.
-  final double outstandingBalance;
+  final Money outstandingBalance;
 
   final DateTime createdAt;
   final DateTime updatedAt;
