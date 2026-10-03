@@ -63,7 +63,7 @@ void main() {
           email: 'customer@example.com',
           address: 'Ibadan',
           notes: 'from another device',
-          outstandingBalance: 1250000,
+          outstandingBalance: 125000000,
           duplicateWarning: null,
           updatedAt: DateTime.parse('2026-09-15T12:00:00.000Z'),
           deletedAt: null,
