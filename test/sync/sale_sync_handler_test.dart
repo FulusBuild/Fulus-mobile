@@ -21,6 +21,7 @@ import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSalesApi extends Mock implements SalesApi {}
@@ -121,8 +122,8 @@ void main() {
             localId: productId,
             name: 'Test Product',
             sku: 'SKU-1',
-            costPrice: 100,
-            sellingPrice: 150,
+            costPrice: 10000,
+            sellingPrice: 15000,
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -497,7 +498,7 @@ void main() {
           ),
         ],
         locationId: locationId,
-        amountPaid: 500,
+        amountPaid: moneyFromMajor(500),
       ),
     );
 
@@ -837,7 +838,7 @@ void main() {
         localId: customerId,
         serverId: const Value('server-customer-1'),
         name: 'Test Customer',
-        outstandingBalance: const Value(100),
+        outstandingBalance: const Value(10000),
         createdAt: now,
         updatedAt: now,
         syncStatus: SyncStatus.settled,
@@ -881,7 +882,7 @@ void main() {
           localId: 'repayment-1',
           customerLocalId: customerId,
           entryType: 'repayment',
-          amount: 50,
+          amount: 5000,
           createdAt: now,
           updatedAt: now,
           syncStatus: SyncStatus.pending,
