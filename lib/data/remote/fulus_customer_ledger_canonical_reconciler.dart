@@ -74,7 +74,6 @@ class FulusCustomerLedgerCanonicalReconciler {
 
   Money _number(Object? value) {
     return moneyFromWire(value);
-    throw StateError('Canonical customer ledger amount is invalid.');
   }
 
   DateTime _date(Object? value) {
