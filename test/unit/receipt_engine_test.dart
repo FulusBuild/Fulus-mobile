@@ -8,7 +8,7 @@ import 'package:fulus_mobile/core/money/money.dart';
 void main() {
   const engine = ReceiptEngine();
 
-  ReceiptData sample({String currencySymbol = '₦', double amountPaid = 1000, double total = 1000}) => ReceiptData(
+  ReceiptData sample({String currencySymbol = '₦', Money amountPaid = 1000, Money total = 1000}) => ReceiptData(
         businessName: 'Adaeze Stores',
         businessAddress: '12 Market Rd, Lagos',
         businessPhone: '08012345678',
