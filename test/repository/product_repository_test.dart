@@ -58,13 +58,13 @@ void main() {
       id: id,
       name: 'Product $id',
       sku: 'SKU-$id',
-      costPrice: 5.0,
-      sellingPrice: 10.0,
+      costPrice: 500,
+      sellingPrice: 1000,
       lowStockThreshold: lowStockThreshold,
       currentStock: currentStock,
       isActive: true,
       isLowStock: currentStock <= lowStockThreshold,
-      stockValue: 5.0 * currentStock,
+      stockValue: 500 * currentStock,
     );
   }
 
@@ -100,7 +100,7 @@ void main() {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1', currentStock: 20)],
-          total: 1,
+          total: 100,
           page: 1,
           pageSize: 200,
           totalPages: 1,
@@ -133,7 +133,7 @@ void main() {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1', currentStock: 20)],
-          total: 1,
+          total: 100,
           page: 1,
           pageSize: 200,
           totalPages: 1,
@@ -152,7 +152,7 @@ void main() {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1'), product('p2')],
-          total: 3,
+          total: 300,
           page: 1,
           pageSize: 2,
           totalPages: 2,
@@ -161,7 +161,7 @@ void main() {
       when(() => productsApi.listProducts(page: 2)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p3')],
-          total: 3,
+          total: 300,
           page: 2,
           pageSize: 2,
           totalPages: 2,
@@ -180,7 +180,7 @@ void main() {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1', currentStock: 20)],
-          total: 1,
+          total: 100,
           page: 1,
           pageSize: 200,
           totalPages: 1,
@@ -191,7 +191,7 @@ void main() {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1', currentStock: 999)],
-          total: 1,
+          total: 100,
           page: 1,
           pageSize: 200,
           totalPages: 1,
@@ -225,8 +225,8 @@ void main() {
             serverId: const Value('p1'),
             name: 'Product p1',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -252,7 +252,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
-            sku: 'SKU-p1', costPrice: 5, sellingPrice: 10,
+            sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.pending,
           ));
@@ -282,7 +282,7 @@ void main() {
           ));
       await db.into(db.products).insert(ProductsCompanion.insert(
             localId: 'p1', serverId: const Value('server-p1'), name: 'Product p1',
-            sku: 'SKU-p1', costPrice: 5, sellingPrice: 10,
+            sku: 'SKU-p1', costPrice: 500, sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1), updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
@@ -322,7 +322,7 @@ void main() {
       when(() => productsApi.listProducts(page: 1)).thenAnswer(
         (_) async => ProductListResponseDto(
           items: [product('p1', currentStock: 20)],
-          total: 1,
+          total: 100,
           page: 1,
           pageSize: 200,
           totalPages: 1,
@@ -343,8 +343,8 @@ void main() {
             localId: 'p1',
             name: 'Product p1',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -360,8 +360,8 @@ void main() {
             localId: 'p1',
             name: 'Discontinued',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -378,8 +378,8 @@ void main() {
             localId: 'p1',
             name: 'Discontinued',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -399,7 +399,7 @@ void main() {
             product('low', currentStock: 2, lowStockThreshold: 10),
             product('healthy', currentStock: 50, lowStockThreshold: 10),
           ],
-          total: 2,
+          total: 200,
           page: 1,
           pageSize: 200,
           totalPages: 1,
@@ -421,8 +421,8 @@ void main() {
             localId: 'p1',
             name: 'Never stocked here',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -439,8 +439,8 @@ void main() {
             name: 'Coca-Cola 50cl',
             sku: 'SKU-p1',
             barcode: const Value('6001234567890'),
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -462,8 +462,8 @@ void main() {
             localId: 'p1',
             name: 'Coca-Cola 50cl',
             sku: 'COKE-50CL',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
@@ -483,8 +483,8 @@ void main() {
       final result = await repository.createProduct(const ProductDraft(
         name: 'New Product',
         sku: 'NEW-1',
-        costPrice: 3.0,
-        sellingPrice: 6.0,
+        costPrice: 300,
+        sellingPrice: 600,
         locationId: locationId,
       ));
 
@@ -502,8 +502,8 @@ void main() {
       final result = await repository.createProduct(const ProductDraft(
         name: 'New Product',
         sku: 'NEW-1',
-        costPrice: 3.0,
-        sellingPrice: 6.0,
+        costPrice: 300,
+        sellingPrice: 600,
         locationId: locationId,
       ));
 
@@ -519,8 +519,8 @@ void main() {
       final result = await repository.createProduct(const ProductDraft(
         name: 'New Product',
         sku: 'NEW-1',
-        costPrice: 3.0,
-        sellingPrice: 6.0,
+        costPrice: 300,
+        sellingPrice: 600,
         locationId: locationId,
         initialStock: 15,
       ));
@@ -537,8 +537,8 @@ void main() {
       await repository.createProduct(const ProductDraft(
         name: 'New Product',
         sku: 'NEW-1',
-        costPrice: 3.0,
-        sellingPrice: 6.0,
+        costPrice: 300,
+        sellingPrice: 600,
         locationId: locationId,
       ));
 
@@ -564,7 +564,7 @@ void main() {
           repository.createProduct(const ProductDraft(
             name: 'Free Sample',
             sku: 'FREE-1',
-            costPrice: 3.0,
+            costPrice: 300,
             sellingPrice: 0,
             locationId: locationId,
           )),
@@ -578,8 +578,8 @@ void main() {
           repository.createProduct(const ProductDraft(
             name: 'Bad Product',
             sku: 'BAD-1',
-            costPrice: 3.0,
-            sellingPrice: -6.0,
+            costPrice: 300,
+            sellingPrice: -600,
             locationId: locationId,
           )),
           throwsArgumentError,
@@ -592,8 +592,8 @@ void main() {
           repository.createProduct(const ProductDraft(
             name: 'Bad Product',
             sku: 'BAD-2',
-            costPrice: -3.0,
-            sellingPrice: 6.0,
+            costPrice: -300,
+            sellingPrice: 600,
             locationId: locationId,
           )),
           throwsArgumentError,
@@ -607,7 +607,7 @@ void main() {
           name: 'New Product',
           sku: 'NEW-2',
           costPrice: 0,
-          sellingPrice: 6.0,
+          sellingPrice: 600,
           locationId: locationId,
         ));
         expect(result.costPrice, 0);
@@ -620,8 +620,8 @@ void main() {
           await repository.createProduct(const ProductDraft(
             name: 'Bad Product',
             sku: 'BAD-3',
-            costPrice: 3.0,
-            sellingPrice: -6.0,
+            costPrice: 300,
+            sellingPrice: -600,
             locationId: locationId,
           ));
         } on ArgumentError {
@@ -644,17 +644,17 @@ void main() {
             serverId: const Value('p1'),
             name: 'Original Name',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
 
-      await repository.updateProduct(localId: 'p1', sellingPrice: 12.0);
+      await repository.updateProduct(localId: 'p1', sellingPrice: 1200);
 
       final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
-      expect(row.sellingPrice, 12.0);
+      expect(row.sellingPrice, 1200);
       expect(row.name, 'Original Name'); // untouched
       expect(row.sku, 'SKU-p1'); // untouched
     });
@@ -666,14 +666,14 @@ void main() {
             serverId: const Value('p1'),
             name: 'Original Name',
             sku: 'SKU-p1',
-            costPrice: 5.0,
-            sellingPrice: 10.0,
+            costPrice: 500,
+            sellingPrice: 1000,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.settled,
           ));
 
-      await repository.updateProduct(localId: 'p1', sellingPrice: 12.0);
+      await repository.updateProduct(localId: 'p1', sellingPrice: 1200);
 
       final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
       expect(row.syncStatus, SyncStatus.pending);
@@ -696,8 +696,8 @@ void main() {
               serverId: const Value('p1'),
               name: 'Original Name',
               sku: 'SKU-p1',
-              costPrice: 5.0,
-              sellingPrice: 10.0,
+              costPrice: 500,
+              sellingPrice: 1000,
               createdAt: DateTime(2026, 1, 1),
               updatedAt: DateTime(2026, 1, 1),
               syncStatus: SyncStatus.settled,
@@ -711,7 +711,7 @@ void main() {
           throwsArgumentError,
         );
         await expectLater(
-          repository.updateProduct(localId: 'p1', sellingPrice: -5.0),
+          repository.updateProduct(localId: 'p1', sellingPrice: -500),
           throwsArgumentError,
         );
       });
@@ -719,7 +719,7 @@ void main() {
       test('rejects updating costPrice to a negative value', () async {
         await seedExistingProduct();
         await expectLater(
-          repository.updateProduct(localId: 'p1', costPrice: -1.0),
+          repository.updateProduct(localId: 'p1', costPrice: -100),
           throwsArgumentError,
         );
       });
@@ -750,7 +750,7 @@ void main() {
           await repository.updateProduct(
             localId: 'p1',
             name: 'Should Not Stick',
-            sellingPrice: -5.0,
+            sellingPrice: -500,
           );
         } on ArgumentError {
           // expected
@@ -758,7 +758,7 @@ void main() {
 
         final row = await (db.select(db.products)..where((p) => p.localId.equals('p1'))).getSingle();
         expect(row.name, 'Original Name');
-        expect(row.sellingPrice, 10.0);
+        expect(row.sellingPrice, 1000);
         expect(row.syncStatus, SyncStatus.settled); // never marked pending
         final queued = await db.select(db.syncQueueItems).get();
         expect(queued, isEmpty);
@@ -772,8 +772,8 @@ void main() {
             localId: 'p1',
             name: 'New Product',
             sku: 'NEW-1',
-            costPrice: 3.0,
-            sellingPrice: 6.0,
+            costPrice: 300,
+            sellingPrice: 600,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.pending,
@@ -795,8 +795,8 @@ void main() {
             localId: 'p1',
             name: 'New Product',
             sku: 'NEW-1',
-            costPrice: 3.0,
-            sellingPrice: 6.0,
+            costPrice: 300,
+            sellingPrice: 600,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.pending,
@@ -839,8 +839,8 @@ void main() {
             localId: 'p1',
             name: 'New Product',
             sku: 'NEW-1',
-            costPrice: 3.0,
-            sellingPrice: 6.0,
+            costPrice: 300,
+            sellingPrice: 600,
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
             syncStatus: SyncStatus.pending,
@@ -861,8 +861,8 @@ void main() {
         name: 'Product $id',
         sku: sku,
         barcode: barcode == null ? const Value.absent() : Value(barcode),
-        costPrice: 5,
-        sellingPrice: 10,
+        costPrice: 500,
+        sellingPrice: 1000,
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
         syncStatus: SyncStatus.settled,
@@ -875,8 +875,8 @@ void main() {
         repository.createProduct(const ProductDraft(
           name: 'Duplicate',
           sku: 'DUP-1',
-          costPrice: 1,
-          sellingPrice: 2,
+          costPrice: 100,
+          sellingPrice: 200,
           locationId: locationId,
         )),
         throwsArgumentError,
@@ -892,8 +892,8 @@ void main() {
           name: 'Duplicate',
           sku: 'SKU-2',
           barcode: '123',
-          costPrice: 1,
-          sellingPrice: 2,
+          costPrice: 100,
+          sellingPrice: 200,
           locationId: locationId,
         )),
         throwsArgumentError,
