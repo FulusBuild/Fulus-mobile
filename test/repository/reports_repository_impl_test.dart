@@ -44,12 +44,12 @@ void main() {
     required DateTime saleDate,
     required Money total,
     required Money amountPaid,
-    required List<({double costPriceAtSale, int quantity, String? productId})> items,
+    required List<({Money costPriceAtSale, int quantity, String? productId})> items,
     String? cashierUserId,
     String? customerId,
     String? invoiceNumber,
     String? paymentMethod,
-    double discount = 0,
+    Money discount = 0,
   }) async {
     await db.into(db.sales).insert(
           SalesCompanion.insert(
@@ -189,8 +189,8 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
-        items: [(costPriceAtSale: 60, quantity: 5, productId: null)],
+        amountPaid: moneyFromMajor(1000),
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 5, productId: null)],
       );
       await insertExpense(
         localId: 'expense-1',
@@ -227,7 +227,7 @@ void main() {
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(500),
         amountPaid: 500,
-        items: [(costPriceAtSale: 0, quantity: 3, productId: null)],
+        items: [(costPriceAtSale: moneyFromMajor(0), quantity: 3, productId: null)],
       );
 
       final report = await repository.getFinanceReport(
@@ -250,9 +250,9 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: [
-          (costPriceAtSale: 60, quantity: 5, productId: null), // 300
+          (costPriceAtSale: moneyFromMajor(60), quantity: 5, productId: null), // 300
           (costPriceAtSale: 40, quantity: 2, productId: null), // 80
         ],
       );
@@ -278,8 +278,8 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 2, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
-        items: [(costPriceAtSale: 60, quantity: 5, productId: null)],
+        amountPaid: moneyFromMajor(1000),
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 5, productId: null)],
       );
       // Previous period (same length: Jan 1-31): revenue 1000, COGS
       // 500 (5 units @ cost 100), expenses 0 -> profit 500.
@@ -288,7 +288,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: [(costPriceAtSale: 100, quantity: 5, productId: null)],
       );
 
@@ -339,7 +339,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
       await insertCompletedSale(
@@ -347,7 +347,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 20),
         total: moneyFromMajor(2000),
-        amountPaid: 2000,
+        amountPaid: moneyFromMajor(2000),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
 
@@ -380,7 +380,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'cashier-1',
         customerId: 'customer-1',
@@ -405,7 +405,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
 
@@ -427,7 +427,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -442,7 +442,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -473,7 +473,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -503,7 +503,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5, 10),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
+        amountPaid: moneyFromMajor(1000),
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
         paymentMethod: 'cash',
       );
@@ -587,8 +587,8 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
-        amountPaid: 1000,
-        items: const [(costPriceAtSale: 60, quantity: 2, productId: 'product-a')],
+        amountPaid: moneyFromMajor(1000),
+        items: const [(costPriceAtSale: moneyFromMajor(60), quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-void',
@@ -618,7 +618,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(400),
         amountPaid: 400,
-        items: const [(costPriceAtSale: 60, quantity: 4, productId: 'product-a')],
+        items: const [(costPriceAtSale: moneyFromMajor(60), quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-1',
