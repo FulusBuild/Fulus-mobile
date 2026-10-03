@@ -73,7 +73,7 @@ class TopProduct {
   final String productId;
   final String productName;
   final int quantitySold;
-  final double revenue;
+  final Money revenue;
 }
 
 /// completed: no return against this sale has ever been completed.
@@ -263,7 +263,7 @@ class FinanceReport {
 
   /// Revenue after cost of goods sold but before operating expenses —
   /// the intermediate figure between `totalRevenue` and `netProfit`.
-  double get grossProfit => totalRevenue - totalCostOfGoodsSold;
+  Money get grossProfit => totalRevenue - totalCostOfGoodsSold;
 
   double? get profitTrendPercent {
     final prev = previousPeriodNetProfit;
