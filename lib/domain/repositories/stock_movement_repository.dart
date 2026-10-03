@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../entities/stock_movement.dart';
 
 abstract class StockMovementRepository {
@@ -6,7 +7,7 @@ abstract class StockMovementRepository {
   /// outbox entries, and supplier credit all roll back together.
   Future<StockMovement> recordStockIn(
     StockInDraft draft, {
-    double? costPrice,
+    Money? costPrice,
     String? supplierLocalId,
     bool onAccount = false,
   });
