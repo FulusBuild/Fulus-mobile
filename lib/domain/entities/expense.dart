@@ -41,6 +41,7 @@ class Expense {
   final String locationId;
   final String? categoryId;
   final String description;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime expenseDate;
   final String? paymentMethod;
@@ -96,6 +97,7 @@ class ExpenseCreateDto {
   });
 
   final String description;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime expenseDate;
   final String? categoryId;
@@ -123,6 +125,7 @@ class ExpenseResponseDto {
 
   final String id;
   final String description;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime expenseDate;
   final String? categoryId;
@@ -150,6 +153,7 @@ class ExpenseDraft {
   final String locationId;
   final String? categoryId;
   final String description;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime expenseDate;
   final String? paymentMethod;
