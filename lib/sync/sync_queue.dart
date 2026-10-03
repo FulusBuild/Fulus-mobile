@@ -567,6 +567,12 @@ class SyncQueue {
   }) async {
     String? localId;
     switch (entityType) {
+      case 'employee':
+        localId = (await (_db.select(_db.employees)
+                  ..where((r) => r.serverId.equals(serverId)))
+              .getSingleOrNull())
+            ?.localId;
+        break;
       case 'sale':
         localId = (await (_db.select(_db.sales)..where((r) => r.serverId.equals(serverId)))
               .getSingleOrNull())

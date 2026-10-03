@@ -187,3 +187,11 @@ Relevant parts:
 - Part 10 — Financial & Ledger Integrity
 - Part 12 — Customers & Credit
 - Parts 14–17 — Sync, recovery, process-death, and background execution
+
+## X-015 — Employee canonical pull fencing
+
+Status: Fixed in Part 14 source; CI/runtime verification pending.
+
+The canonical pull path fences incoming server changes against pending local outbox mutations. The common entity lookup omitted employee rows, unlike the other registered sync entities. Part 14 added the employee serverId→localId lookup and a regression proving a queued employee update blocks canonical application.
+
+The employee repository completion path was also cross-checked and already fences stale push completions against newer employee mutations.
