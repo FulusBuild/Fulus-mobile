@@ -256,38 +256,6 @@ Future<String> _runFinancialConvergenceScenario(
   }
 
   final saleOperation = 'e2e-p16-credit-sale-$suffix';
-  final sale = await dio.post('', data: {
-    'action': 'sale_create',
-    'business_id': businessId,
-    'operation_id': saleOperation,
-    'client_reference': saleOperation,
-    'location_id': await _firstLocationId(dio, businessId),
-    'customer_id': customerId,
-    'sale_date': DateTime.now().toUtc().toIso8601String(),
-    'discount': 0,
-    'tax': 0,
-    'amount_paid': 0,
-    'payment_method': 'credit',
-    'payments': [
-      {'method': 'credit', 'amount': 150},
-    ],
-    'notes': 'P16 concurrent financial sale',
-    'items': [
-      {
-        'product_id': null,
-        'description': 'P16 financial sale $suffix',
-        'quantity': 1,
-        'unit_price': 150,
-        'cost_price_at_sale': 0,
-      },
-    ],
-  });
-  _expect2xx(sale, 'P16 sale.create');
-  final saleData = _actionData(sale);
-  final saleId = saleData?['sale_id'];
-  if (saleId is! String || saleId.isEmpty) {
-    throw StateError('P16 sale.create returned no sale_id: ${sale.data}');
-  }
 
   // Two independent device clients now perform financial work without
   // consuming each other's feed first. Running them concurrently exercises
@@ -345,6 +313,12 @@ Future<String> _runFinancialConvergenceScenario(
   final results = await Future.wait([saleFuture, repaymentFuture]);
   _expect2xx(results[0], 'P16 concurrent sale.create');
   _expect2xx(results[1], 'P16 concurrent customer.repayment');
+
+  final saleData = _actionData(results[0]);
+  final saleId = saleData?['sale_id'];
+  if (saleId is! String || saleId.isEmpty) {
+    throw StateError('P16 concurrent sale.create returned no sale_id: ${results[0].data}');
+  }
 
   final repaymentData = _actionData(results[1]);
   if ((repaymentData?['new_balance'] as num?)?.toDouble() != 100) {
