@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../data/remote/product_image_api.dart';
 import '../../../../domain/entities/product.dart';
 import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
@@ -60,10 +61,10 @@ class AddEditProductScreen extends ConsumerStatefulWidget {
 class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
   late final _nameController = TextEditingController(text: widget.existingProduct?.name ?? '');
   late final _priceController =
-      TextEditingController(text: widget.existingProduct?.sellingPrice.toStringAsFixed(2) ?? '');
+      TextEditingController(text: widget.existingProduct == null ? '' : moneyToMajor(widget.existingProduct!.sellingPrice).toStringAsFixed(2));
   late final _barcodeController = TextEditingController(text: widget.existingProduct?.barcode ?? '');
   late final _costController =
-      TextEditingController(text: _nullIfZero(widget.existingProduct?.costPrice)?.toStringAsFixed(2) ?? '');
+      TextEditingController(text: widget.existingProduct == null ? '' : (_nullIfZero(widget.existingProduct!.costPrice) == null ? '' : moneyToMajor(widget.existingProduct!.costPrice).toStringAsFixed(2)));
   late final _unitController = TextEditingController(text: widget.existingProduct?.unit ?? 'piece');
   late final _thresholdController =
       TextEditingController(text: (widget.existingProduct?.lowStockThreshold ?? 10).toString());
@@ -78,7 +79,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
   String? _bannerMessage;
   Map<String, String> _fieldErrors = {};
 
-  static double? _nullIfZero(double? value) => (value == null || value == 0) ? null : value;
+  static Money? _nullIfZero(Money? value) => (value == null || value == 0) ? null : value;
 
   @override
   void dispose() {
@@ -138,8 +139,8 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
           categoryId: _categoryId,
           supplierId: _supplierId,
-          costPrice: cost ?? 0,
-          sellingPrice: price!,
+          costPrice: moneyFromMajor(cost ?? 0),
+          sellingPrice: moneyFromMajor(price!),
           lowStockThreshold: threshold,
         );
         await productRepo.setLocalOverrides(
