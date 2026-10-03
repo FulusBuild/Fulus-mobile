@@ -58,7 +58,7 @@ class CloudRestoreCoordinator {
 
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
-        ownerCloudUserId: null,
+        ownerCloudUserId: ownerCloudUserId,
         transactional: false,
         onProgress: onProgress,
       );
