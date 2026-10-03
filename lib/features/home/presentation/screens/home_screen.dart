@@ -527,24 +527,11 @@ class _HomeMockupDashboard extends StatelessWidget {
                   : null,
             ),
           ),
-          if (canViewMoney) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              flex: 1,
-              child: _HomeCompactCard(
-                color: _HomeColors.blue,
-                icon: FulusIcons.cashBalance,
-                label: 'Business Balance',
-                value: cashError
-                    ? '—'
-                    : cashTotal != null
-                        ? formatMoney(cashTotal!, symbol: currencySymbol)
-                        : '—',
-                secondary: 'available',
-                onTap: () => context.goNamed('money'),
-              ),
-            ),
-          ],
+          const SizedBox(width: AppSpacing.sm),
+          const Expanded(
+            flex: 1,
+            child: _HomeSellCard(),
+          ),
         ],
       ),
     );
@@ -586,17 +573,17 @@ class _HomeMockupDashboard extends StatelessWidget {
     }
 
     rows.add(const SizedBox(height: AppSpacing.sm));
-    rows.add(
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (canViewReports)
-            Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
-          if (canViewReports) const SizedBox(width: AppSpacing.sm),
-          const Expanded(child: _HomeSellCard()),
-        ],
-      ),
-    );
+    if (canViewReports) {
+      rows.add(const SizedBox(height: AppSpacing.sm));
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: const [
+            Expanded(child: _HomeReportCard(canViewReports: true)),
+          ],
+        ),
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
