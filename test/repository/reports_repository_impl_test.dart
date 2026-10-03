@@ -77,7 +77,7 @@ void main() {
               saleLocalId: localId,
               productLocalId: Value(items[i].productId),
               quantity: items[i].quantity,
-              unitPrice: 10000,
+              unitPrice: 1000000,
               costPriceAtSale: items[i].costPriceAtSale,
             ),
           );
@@ -91,8 +91,8 @@ void main() {
             localId: localId,
             name: localId,
             sku: 'SKU-$localId',
-            costPrice: 4000,
-            sellingPrice: 10000,
+            costPrice: 400000,
+            sellingPrice: 1000000,
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -188,14 +188,14 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: [(costPriceAtSale: 60, quantity: 5, productId: null)],
       );
       await insertExpense(
         localId: 'expense-1',
         locationId: 'loc-1',
-        amount: 20000,
+        amount: 2000000,
         date: DateTime(2026, 1, 10),
       );
 
@@ -225,8 +225,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 50000,
-        amountPaid: 50000,
+        total: 5000000,
+        amountPaid: 5000000,
         items: [(costPriceAtSale: 0, quantity: 3, productId: null)],
       );
 
@@ -249,8 +249,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: [
           (costPriceAtSale: 60, quantity: 5, productId: null), // 300
           (costPriceAtSale: 40, quantity: 2, productId: null), // 80
@@ -277,8 +277,8 @@ void main() {
         localId: 'sale-current',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 2, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: [(costPriceAtSale: 60, quantity: 5, productId: null)],
       );
       // Previous period (same length: Jan 1-31): revenue 1000, COGS
@@ -287,8 +287,8 @@ void main() {
         localId: 'sale-previous',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: [(costPriceAtSale: 100, quantity: 5, productId: null)],
       );
 
@@ -338,16 +338,16 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
       await insertCompletedSale(
         localId: 'sale-2',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 20),
-        total: 200000,
-        amountPaid: 200000,
+        total: 20000000,
+        amountPaid: 20000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
 
@@ -379,8 +379,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'cashier-1',
         customerId: 'customer-1',
@@ -404,8 +404,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
 
@@ -426,8 +426,8 @@ void main() {
         localId: 'sale-refunded',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -441,8 +441,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -472,8 +472,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -502,8 +502,8 @@ void main() {
         localId: 'sale-good',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5, 10),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
         paymentMethod: 'cash',
       );
@@ -511,8 +511,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6, 14),
-        total: 50000,
-        amountPaid: 50000,
+        total: 5000000,
+        amountPaid: 5000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         paymentMethod: 'cash',
       );
@@ -536,9 +536,9 @@ void main() {
       expect(report.totalSalesCount, 1);
       expect(report.topProducts.single.quantitySold, 2);
       expect(report.topProducts.single.revenue, 200); // 2 * unitPrice(100)
-      expect(report.byPaymentMethod.single.total, 100000);
+      expect(report.byPaymentMethod.single.total, 10000000);
       expect(report.byPaymentMethod.single.count, 1);
-      expect(report.byHour.single.total, 100000);
+      expect(report.byHour.single.total, 10000000);
     });
 
     test('a partially-refunded sale nets the refunded amount/quantity '
@@ -550,8 +550,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5, 10),
-        total: 40000,
-        amountPaid: 40000,
+        total: 4000000,
+        amountPaid: 4000000,
         items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
         paymentMethod: 'cash',
       );
@@ -586,8 +586,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [(costPriceAtSale: 60, quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -616,8 +616,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 40000,
-        amountPaid: 40000,
+        total: 4000000,
+        amountPaid: 4000000,
         items: const [(costPriceAtSale: 60, quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
@@ -654,8 +654,8 @@ void main() {
         localId: 'sale-good',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 30000,
-        amountPaid: 30000,
+        total: 3000000,
+        amountPaid: 3000000,
         items: const [(costPriceAtSale: 40, quantity: 3, productId: 'product-a')],
         customerId: 'customer-1',
       );
@@ -669,8 +669,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
-        total: 50000,
-        amountPaid: 50000,
+        total: 5000000,
+        amountPaid: 5000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         customerId: 'customer-1',
       );
@@ -710,8 +710,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 150000,
-        amountPaid: 150000,
+        total: 15000000,
+        amountPaid: 15000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         cashierUserId: 'user-1',
       );
@@ -846,8 +846,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 150000,
-        amountPaid: 150000,
+        total: 15000000,
+        amountPaid: 15000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1',
       );
@@ -855,8 +855,8 @@ void main() {
         localId: 'sale-2',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
-        total: 50000,
-        amountPaid: 50000,
+        total: 5000000,
+        amountPaid: 5000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1',
       );
@@ -886,8 +886,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 150000,
-        amountPaid: 150000,
+        total: 15000000,
+        amountPaid: 15000000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1', // rung up by a DIFFERENT, unrelated account
       );
@@ -909,16 +909,16 @@ void main() {
         localId: 'sale-a',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 10),
-        total: 10000,
-        amountPaid: 10000,
+        total: 1000000,
+        amountPaid: 1000000,
         items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
       );
       await insertCompletedSale(
         localId: 'sale-b',
         locationId: 'loc-2',
         saleDate: DateTime(2026, 1, 10),
-        total: 90000,
-        amountPaid: 90000,
+        total: 9000000,
+        amountPaid: 9000000,
         items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
       );
 
