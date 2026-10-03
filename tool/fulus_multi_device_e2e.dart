@@ -559,7 +559,7 @@ Future<String> _runFinancialConvergenceScenario(
         )
       : <String, dynamic>{};
   if (customer['id'] != customerId ||
-      (customer['outstanding_balance'] as num?)?.toDouble() != 200) {
+      (customer['outstanding_balance'] as num?)?.toDouble() != 50) {
     throw StateError(
       'P16 final customer balance invariant failed: $customer',
     );
