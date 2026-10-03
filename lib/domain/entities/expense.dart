@@ -41,7 +41,7 @@ class Expense {
   final String locationId;
   final String? categoryId;
   final String description;
-  final double amount;
+  final Money amount;
   final DateTime expenseDate;
   final String? paymentMethod;
 
@@ -96,7 +96,7 @@ class ExpenseCreateDto {
   });
 
   final String description;
-  final double amount;
+  final Money amount;
   final DateTime expenseDate;
   final String? categoryId;
   final String locationId;
@@ -123,7 +123,7 @@ class ExpenseResponseDto {
 
   final String id;
   final String description;
-  final double amount;
+  final Money amount;
   final DateTime expenseDate;
   final String? categoryId;
   final String? paymentMethod;
@@ -150,7 +150,7 @@ class ExpenseDraft {
   final String locationId;
   final String? categoryId;
   final String description;
-  final double amount;
+  final Money amount;
   final DateTime expenseDate;
   final String? paymentMethod;
 
