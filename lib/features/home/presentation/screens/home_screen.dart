@@ -516,11 +516,9 @@ class _HomeMockupDashboard extends StatelessWidget {
                 child: _HomeCompactCard(
                   color: _HomeColors.purple,
                   icon: FulusIcons.customers,
-                  label: 'Customer Credit',
-                  value: _creditTotal != null
-                      ? formatMoney(_creditTotal!, symbol: currencySymbol)
-                      : '—',
-                  secondary: 'outstanding',
+                  label: 'Customer',
+                  value: 'View customers',
+                  secondary: 'view customers',
                   onTap: () => context.pushNamed('moneyCustomers'),
                 ),
               ),
