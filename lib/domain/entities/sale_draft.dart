@@ -1,4 +1,5 @@
 import 'sale.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'sale_payment.dart';
 
 /// The not-yet-persisted input to `SaleRepository.createSale` —
