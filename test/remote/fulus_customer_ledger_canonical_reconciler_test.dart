@@ -18,7 +18,6 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
     required double amount,
-    String? operationId,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
