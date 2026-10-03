@@ -2,7 +2,6 @@ import 'package:fulus_mobile/core/errors/module_failures.dart';
 import 'package:fulus_mobile/domain/entities/employee.dart';
 import 'package:fulus_mobile/domain/usecases/employee_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   const engine = EmployeeEngine();
@@ -21,7 +20,7 @@ void main() {
     });
 
     test('rejects negative salary', () {
-      const draft = EmployeeDraft(fullName: 'Ada', salary: -10000);
+      const draft = EmployeeDraft(fullName: 'Ada', salary: -1);
       expect(() => engine.validateDraft(draft), throwsA(isA<EmployeeValidationException>()));
     });
 
@@ -128,7 +127,7 @@ void main() {
           id: dept ?? 'e',
           fullName: 'Name',
           department: dept,
-          salary: salary == null ? null : moneyFromMajor(salary),
+          salary: salary,
           isActive: active,
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
@@ -136,9 +135,9 @@ void main() {
 
     test('sums salary across active employees only', () {
       final stats = engine.computeStats([
-        emp(active: true, salary: 1000000),
-        emp(active: true, salary: 500000),
-        emp(active: false, salary: 10000000), // excluded: inactive
+        emp(active: true, salary: 100),
+        emp(active: true, salary: 50),
+        emp(active: false, salary: 1000), // excluded: inactive
       ]);
       expect(stats.totalMonthlySalary, 150);
       expect(stats.totalEmployees, 3);
