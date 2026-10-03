@@ -109,8 +109,8 @@ void main() {
 
   group('getHeroState — sales totals', () {
     test('todayTotal is isolated to the requested location', () async {
-      await seedSale(total: 50000, saleLocationId: locationId);
-      await seedSale(total: 90000, saleLocationId: locationBId);
+      await seedSale(total: 5000000, saleLocationId: locationId);
+      await seedSale(total: 9000000, saleLocationId: locationBId);
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
@@ -129,8 +129,8 @@ void main() {
     });
 
     test('todayTotal reflects only sales from today', () async {
-      await seedSale(total: 50000);
-      await seedSale(total: 30000, saleDate: DateTime.now().subtract(const Duration(days: 3)));
+      await seedSale(total: 5000000);
+      await seedSale(total: 3000000, saleDate: DateTime.now().subtract(const Duration(days: 3)));
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
@@ -142,7 +142,7 @@ void main() {
   group('getSecondaryNotices — unsyncedCount', () {
     test('low-stock projection is isolated to the requested location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
-        localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: 1000, sellingPrice: 2000,
+        localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: 100000, sellingPrice: 200000,
         lowStockThreshold: const Value(5), createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
       ));
       await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
