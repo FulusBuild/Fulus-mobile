@@ -209,7 +209,7 @@ void main() {
 
       expect(report.totalRevenue, moneyFromMajor(1000));
       expect(report.totalCostOfGoodsSold, moneyFromMajor(300));
-      expect(report.totalExpenses, 200);
+      expect(report.totalExpenses, moneyFromMajor(200));
       expect(report.grossProfit, moneyFromMajor(700));
       // Before the fix this returned 800 (1000 - 200, COGS never
       // subtracted) — the exact defect this pins down. Matches
@@ -532,7 +532,7 @@ void main() {
 
       // Before the fix: totalRevenue 1500, count 2 — the voided sale
       // counted as if it were still valid.
-      expect(report.totalRevenue, 1000);
+      expect(report.totalRevenue, moneyFromMajor(1000));
       expect(report.totalSalesCount, 1);
       expect(report.topProducts.single.quantitySold, 2);
       expect(report.topProducts.single.revenue, moneyFromMajor(200)); // 2 * unitPrice(100)
@@ -631,8 +631,8 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, 300); // 400 - 100 (1 unit @ 100)
-      expect(report.totalCostOfGoodsSold, 180); // (4-1) units @ cost 60
+      expect(report.totalRevenue, moneyFromMajor(300)); // 400 - 100 (1 unit @ 100)
+      expect(report.totalCostOfGoodsSold, moneyFromMajor(180)); // (4-1) units @ cost 60
     });
   });
 
@@ -687,7 +687,7 @@ void main() {
         locationId: 'loc-1',      );
 
       // Before the fix: 800 (300 + 500, both sales counted in full).
-      expect(report.topCustomers.single.totalSpend, 200); // 300 - 100
+      expect(report.topCustomers.single.totalSpend, moneyFromMajor(200)); // 300 - 100
     });
   });
 
@@ -929,7 +929,7 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.totalRevenue, 100);
+      expect(report.totalRevenue, moneyFromMajor(100));
       expect(report.totalSalesCount, 1);
       expect(report.transactions.single.saleLocalId, 'sale-a');
     });
@@ -972,7 +972,7 @@ void main() {
 
       final report = await repository.getInventoryReport(locationId: 'loc-1');
 
-      expect(report.totalStockValue, 120);
+      expect(report.totalStockValue, moneyFromMajor(120));
       expect(report.stockMovementsIn, 0);
     });
   });
