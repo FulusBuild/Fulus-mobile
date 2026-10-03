@@ -36,6 +36,7 @@ declare
   total numeric;
   payment_total numeric := 0;
   cash_paid numeric := 0;
+  cash_applied numeric := 0;
   credit_paid numeric := 0;
   payment_method text;
   payment_index integer := 0;
@@ -66,6 +67,7 @@ begin
     else
       cash_paid := cash_paid + amount;
       if method='cash' then
+        cash_applied := cash_applied + amount;
         cash_tendered := cash_tendered + tendered_amount;
       elsif tendered_amount <> amount then
         raise exception using errcode='22023',message='Non-cash payment tender must equal applied amount';
@@ -143,7 +145,7 @@ begin
       raise exception using errcode='22023',message='Server paid amount does not match payment legs';
     end if;
 
-    cash_change := round(cash_tendered-cash_paid,2);
+    cash_change := round(cash_tendered-cash_applied,2);
     if cash_change < 0 then
       raise exception using errcode='22023',message='Cash tendered cannot be less than applied cash';
     end if;
@@ -152,11 +154,11 @@ begin
       raise exception using errcode='22023',message='Credit leg does not match server balance due';
     end if;
 
-    update public.sales
+    update public.sales s
     set cash_tendered=cash_tendered,
         cash_change=cash_change,
         updated_at=now()
-    where id=sale_id;
+    where s.id=sale_id;
 
     for payment in select * from jsonb_array_elements(target_payments) loop
       method := lower(trim(payment->>'method'));
@@ -211,3 +213,4 @@ begin
 
   return result;
 end;
+$function$;
