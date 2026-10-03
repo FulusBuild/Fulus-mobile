@@ -14,15 +14,15 @@ import 'package:fulus_mobile/features/sell/presentation/cubit/cart_state.dart';
 /// the correct formula down before any such UI is built on top of it.
 void main() {
   DraftCart draftCartWith({
-    double wholeCartDiscount = 0.0,
-    double tax = 0.0,
+    Money wholeCartDiscount = 0,
+    Money tax = 0,
   }) {
     final now = DateTime.now();
     return DraftCart(
       localId: 'draft-1',
       locationId: 'loc-1',
-      wholeCartDiscount: moneyFromMajor(wholeCartDiscount),
-      tax: moneyFromMajor(tax),
+      wholeCartDiscount: wholeCartDiscount,
+      tax: tax,
       createdAt: now,
       updatedAt: now,
     );
@@ -31,16 +31,16 @@ void main() {
   DraftCartItem itemWith({
     required String localId,
     required int quantity,
-    required double unitPrice,
-    double lineDiscount = 0.0,
+    required Money unitPrice,
+    Money lineDiscount = 0,
   }) {
     return DraftCartItem(
       localId: localId,
       draftCartLocalId: 'draft-1',
       productLocalId: 'prod-1',
       quantity: quantity,
-      unitPrice: moneyFromMajor(unitPrice),
-      lineDiscount: moneyFromMajor(lineDiscount),
+      unitPrice: unitPrice,
+      lineDiscount: lineDiscount,
     );
   }
 
