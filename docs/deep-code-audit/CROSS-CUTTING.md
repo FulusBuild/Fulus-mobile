@@ -145,3 +145,17 @@ Evidence/fix completed in Part 11:
 2. Durable outbox entries remain inside the same transaction.
 3. Regression coverage proves successful composite commit and rollback when supplier-credit validation fails.
 4. The later sync/process-death retry dimensions remain part of Parts 14–17 rather than being claimed closed here.
+
+
+## X-012 — Customer repayment overpayment contract
+
+Status: Fixed in source; deployment and live convergence verification pending.
+
+The local customer-credit contract intentionally records repayments above the outstanding balance, caps the customer balance at zero, and surfaces the excess. The authoritative cloud repayment mutation previously rejected the same operation, creating an offline-to-sync semantic mismatch.
+
+Part 12 adds a migration that makes the cloud mutation follow the established local contract while preserving operation-id idempotency and authorization boundaries.
+
+Relevant parts:
+- Part 10 — Financial & Ledger Integrity
+- Part 12 — Customers & Credit
+- Parts 14–17 — Sync, recovery, process-death, and background execution
