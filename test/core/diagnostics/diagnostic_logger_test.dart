@@ -241,5 +241,20 @@ void main() {
       await logger.deleteAll();
       await logger.applyRetentionPolicy();
     });
+
+    test('remain non-throwing when an attached store throws', () async {
+      final logger = DiagnosticLogger(fallbackStore: _InMemoryFallbackStore());
+      logger.attachStore(_ThrowingStore());
+
+      expect(await logger.getById('anything'), isNull);
+      expect((await logger.getSummary()).totalCount, 0);
+      expect(await logger.getForExport(), isEmpty);
+      await logger.markViewed('anything');
+      await logger.deleteAll();
+      await logger.applyRetentionPolicy();
+
+      final values = await logger.watchEvents().first;
+      expect(values, isEmpty);
+    });
   });
 }

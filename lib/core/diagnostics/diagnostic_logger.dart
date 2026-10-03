@@ -267,30 +267,78 @@ class DiagnosticLogger {
   // attachStore() has run.
   // ---------------------------------------------------------------
 
-  Stream<List<DiagnosticEvent>> watchEvents({DiagnosticFilter filter = const DiagnosticFilter(), int limit = 200}) {
+  Stream<List<DiagnosticEvent>> watchEvents({
+    DiagnosticFilter filter = const DiagnosticFilter(),
+    int limit = 200,
+  }) async* {
     final store = _primaryStore;
-    if (store == null) return Stream.value(const []);
-    return store.watchEvents(filter: filter, limit: limit);
+    if (store == null) {
+      yield const [];
+      return;
+    }
+    try {
+      yield* store.watchEvents(filter: filter, limit: limit);
+    } catch (_) {
+      // Diagnostics must never turn a store failure into a UI failure.
+      yield const [];
+    }
   }
 
-  Future<DiagnosticEvent?> getById(String id) async => _primaryStore?.getById(id);
+  Future<DiagnosticEvent?> getById(String id) async {
+    try {
+      return await _primaryStore?.getById(id);
+    } catch (_) {
+      return null;
+    }
+  }
 
-  Future<DiagnosticSummary> getSummary() async =>
-      _primaryStore?.getSummary() ?? const DiagnosticSummary.empty();
+  Future<DiagnosticSummary> getSummary() async {
+    try {
+      return await _primaryStore?.getSummary() ?? const DiagnosticSummary.empty();
+    } catch (_) {
+      return const DiagnosticSummary.empty();
+    }
+  }
 
-  Future<void> markViewed(String id) async => _primaryStore?.markViewed(id);
+  Future<void> markViewed(String id) async {
+    try {
+      await _primaryStore?.markViewed(id);
+    } catch (_) {
+      // Cosmetic only; never surface diagnostic-store failures.
+    }
+  }
 
-  Future<List<DiagnosticEvent>> getForExport({DiagnosticFilter filter = const DiagnosticFilter()}) async =>
-      _primaryStore?.getForExport(filter: filter) ?? const [];
+  Future<List<DiagnosticEvent>> getForExport({
+    DiagnosticFilter filter = const DiagnosticFilter(),
+  }) async {
+    try {
+      return await _primaryStore?.getForExport(filter: filter) ?? const [];
+    } catch (_) {
+      return const [];
+    }
+  }
 
   Future<void> applyRetentionPolicy({
     Duration olderThan = const Duration(days: 30),
     int keepAtLeast = 500,
   }) async {
-    await _primaryStore?.applyRetentionPolicy(olderThan: olderThan, keepAtLeast: keepAtLeast);
+    try {
+      await _primaryStore?.applyRetentionPolicy(
+        olderThan: olderThan,
+        keepAtLeast: keepAtLeast,
+      );
+    } catch (_) {
+      // Housekeeping must never become an application failure.
+    }
   }
 
-  Future<void> deleteAll() async => _primaryStore?.deleteAll();
+  Future<void> deleteAll() async {
+    try {
+      await _primaryStore?.deleteAll();
+    } catch (_) {
+      // Diagnostics must never crash the caller while clearing its own log.
+    }
+  }
 
   // ---------------------------------------------------------------
   // Internal helpers
