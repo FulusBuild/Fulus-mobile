@@ -67,7 +67,7 @@ void main() {
         'the same time, across the full range from unpaid to overpaid',
         () {
       for (final amountPaid in [0.0, 250.0, 600.0, 999.99, 1000.0, 1000.01, 1500.0]) {
-        final sale = saleWith(total: moneyFromMajor(1000), amountPaid: amountPaid);
+        final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(amountPaid));
         final bothOwed = sale.balanceDue > 0 && sale.changeDue > 0;
         expect(
           bothOwed,
@@ -89,7 +89,7 @@ void main() {
         'just paid', () {
       final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1000.01));
       expect(sale.paymentStatus, 'paid');
-      expect(sale.changeDue, closeTo(0.01, 0.0001));
+      expect(sale.changeDue, moneyFromMajor(0.01));
     });
   });
 }
