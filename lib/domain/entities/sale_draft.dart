@@ -43,7 +43,7 @@ class SaleDraft {
   final String locationId;
 
   final String? customerId;
-  final double discount;
+  final Money discount;
 
   /// The whole-cart-discount component specifically — see
   /// `Sale.wholeCartDiscount`'s own doc comment for why this is kept
@@ -52,9 +52,9 @@ class SaleDraft {
   /// only real caller that ever sets this to something nonzero today;
   /// everything else constructing a `SaleDraft` directly has no
   /// whole-cart/line split to report and leaves it at the default.
-  final double wholeCartDiscount;
-  final double tax;
-  final double amountPaid;
+  final Money wholeCartDiscount;
+  final Money tax;
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
 
