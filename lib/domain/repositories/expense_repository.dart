@@ -1,4 +1,5 @@
 import '../entities/expense.dart';
+import '../../core/money/money.dart;
 
 /// Architecture Section 4's repository pattern, applied to Expenses.
 abstract class ExpenseRepository {
@@ -22,7 +23,7 @@ abstract class ExpenseRepository {
   Future<Expense> updateExpense({
     required String localId,
     required String description,
-    required double amount,
+    required Money amount,
     String? categoryId,
     required DateTime expenseDate,
     String? paymentMethod,
@@ -39,7 +40,7 @@ abstract class ExpenseRepository {
     required String locationServerId,
     String? categoryId,
     required String description,
-    required double amount,
+    required Money amount,
     required DateTime expenseDate,
     String? paymentMethod,
     required DateTime createdAt,
