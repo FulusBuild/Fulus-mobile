@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
@@ -118,8 +119,8 @@ void main() {
             localId: productId,
             name: 'Test Product',
             sku: 'SKU-1',
-            costPrice: 100,
-            sellingPrice: 150,
+            costPrice: moneyFromMajor(100),
+            sellingPrice: moneyFromMajor(150),
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -146,7 +147,7 @@ void main() {
       localId: 'item-1',
       productLocalId: productId,
       quantity: quantity,
-      unitPrice: 150,
+      unitPrice: moneyFromMajor(150),
       costPriceAtSale: 100,
     );
     return SaleDraft(
@@ -262,7 +263,7 @@ void main() {
           localId: 'item-credit-1',
           productLocalId: productId,
           quantity: 3,
-          unitPrice: 150,
+          unitPrice: moneyFromMajor(150),
           costPriceAtSale: 100,
         );
         final draft = SaleDraft(
@@ -288,7 +289,7 @@ void main() {
           localId: 'item-credit-2',
           productLocalId: productId,
           quantity: 3,
-          unitPrice: 150,
+          unitPrice: moneyFromMajor(150),
           costPriceAtSale: 100,
         );
         // ₦450 total, ₦200 paid in cash up front — matches how
@@ -321,7 +322,7 @@ void main() {
               localId: 'item-credit-3',
               productLocalId: productId,
               quantity: 2,
-              unitPrice: 150,
+              unitPrice: moneyFromMajor(150),
               costPriceAtSale: 100,
             ),
           ],
@@ -362,7 +363,7 @@ void main() {
                   localId: itemId,
                   productLocalId: productId,
                   quantity: 1,
-                  unitPrice: 150,
+                  unitPrice: moneyFromMajor(150),
                   costPriceAtSale: 100,
                 ),
               ],
