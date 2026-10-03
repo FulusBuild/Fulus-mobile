@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_expense_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
@@ -56,7 +57,7 @@ void main() {
           locationServerId: 'location-1',
           categoryId: 'category-1',
           description: 'Transport',
-          amount: 450000,
+          amount: moneyFromMajor(450000),
           expenseDate: DateTime.parse('2026-09-15T10:00:00Z'),
           paymentMethod: 'cash',
           createdAt: DateTime.parse('2026-09-15T09:00:00Z'),
