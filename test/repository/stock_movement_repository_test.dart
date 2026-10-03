@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/stock_movement_repository_impl.dart';
@@ -37,8 +38,8 @@ void main() {
           localId: productLocalId,
           name: 'USB-C Cable',
           sku: 'CAB-USBC',
-          costPrice: 500.0,
-          sellingPrice: 1200.0,
+          costPrice: moneyFromMajor(500.0),
+          sellingPrice: moneyFromMajor(1200.0),
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
           syncStatus: SyncStatus.settled,
@@ -113,7 +114,7 @@ void main() {
           quantity: 4,
           reason: 'Delivery',
         ),
-        costPrice: 750,
+        costPrice: moneyFromMajor(750),
         supplierLocalId: 'supplier-1',
         onAccount: true,
       );
@@ -147,7 +148,7 @@ void main() {
             locationId: locationId,
             quantity: 4,
           ),
-          costPrice: 750,
+          costPrice: moneyFromMajor(750),
           supplierLocalId: 'missing-supplier',
           onAccount: true,
         ),
@@ -214,8 +215,8 @@ void main() {
         localId: 'prod-no-stock',
         name: 'Service Item',
         sku: 'SERVICE-1',
-        costPrice: 0,
-        sellingPrice: 500,
+        costPrice: moneyFromMajor(0),
+        sellingPrice: moneyFromMajor(500),
         tracksStock: const Value(false),
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
