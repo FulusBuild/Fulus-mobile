@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/cash_drawer_shift.dart';
@@ -64,7 +65,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     for (final sale in sales) {
       final payments = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(sale.localId))).get();
       if (payments.isNotEmpty) {
-        cashSales += payments.where((p) => p.method == 'cash' && !p.recordedAt.isBefore(since)).fold<double>(0.0, (sum, p) => sum + p.amount);
+        cashSales += payments.where((p) => p.method == 'cash' && !p.recordedAt.isBefore(since)).fold<Money>(0, (sum, p) => sum + p.amount);
       } else if (sale.paymentMethod == 'cash') {
         cashSales += sale.amountPaid;
       }
@@ -79,13 +80,13 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
                   e.syncStatus.equals(SyncStatus.syncing.name) |
                   e.syncStatus.equals(SyncStatus.attentionNeeded.name))))
         .get();
-    final cashExpenses = cashExpenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
+    final cashExpenses = cashExpenseRows.fold<Money>(0, (sum, e) => sum + e.amount);
     final expectedCash = shiftRow.openingCash + cashSales - cashExpenses;
     return ExpectedCashPreview(openingCash: shiftRow.openingCash, cashSales: cashSales, cashExpenses: cashExpenses, expectedCash: expectedCash);
   }
 
   @override
-  Future<CashDrawerShift> closeShift({required String shiftLocalId, required double closingCash, String? notes}) async {
+  Future<CashDrawerShift> closeShift({required String shiftLocalId, required Money closingCash, String? notes}) async {
     if (closingCash < 0) throw ArgumentError.value(closingCash, 'closingCash', 'must be ≥ 0');
     return _db.transaction(() async {
       final row = await (_db.select(_db.cashDrawerShifts)..where((s) => s.localId.equals(shiftLocalId))).getSingleOrNull();
@@ -162,9 +163,9 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     required String locationServerId,
     required DateTime openedAt,
     DateTime? closedAt,
-    required double openingCash,
-    double? closingCash,
-    double? cashDifference,
+    required Money openingCash,
+    Money? closingCash,
+    Money? cashDifference,
     String? closingNote,
     required bool closingSummaryLocked,
     required DateTime updatedAt,
