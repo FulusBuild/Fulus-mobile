@@ -36,7 +36,7 @@ class IncomeRecord {
   final String? serverId;
   final String locationId;
   final String source;
-  final double amount;
+  final Money amount;
   final DateTime incomeDate;
   final String? notes;
   final DateTime createdAt;
@@ -83,7 +83,7 @@ class IncomeCreateDto {
   });
 
   final String source;
-  final double amount;
+  final Money amount;
   final DateTime incomeDate;
   final String locationId;
   final String? notes;
@@ -108,7 +108,7 @@ class IncomeResponseDto {
 
   final String id;
   final String source;
-  final double amount;
+  final Money amount;
   final DateTime incomeDate;
   final String? notes;
 
@@ -132,7 +132,7 @@ class IncomeRecordDraft {
 
   final String locationId;
   final String source;
-  final double amount;
+  final Money amount;
   final DateTime incomeDate;
   final String? notes;
 
