@@ -18,7 +18,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
     required String customerServerId,
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
-    required double amount,
+    required Money amount,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
@@ -34,7 +34,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   @override
   Future<CustomerLedgerEntry> recordCreditSale({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     required String saleLocalId,
   }) => throw UnimplementedError();
 
