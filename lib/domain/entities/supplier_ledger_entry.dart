@@ -1,4 +1,5 @@
 /// Volume 8, Decision 26: "A supplier's balance works exactly like the
+import 'package:fulus_mobile/core/money/money.dart';
 /// customer credit book (Volume 7), mirrored." See tables.dart's
 /// `SupplierLedgerEntries` doc comment for the full "100% local-only,
 /// no backend column at all" gap this reflects.
@@ -43,7 +44,7 @@ class SupplierLedgerEntry {
 
   /// Always the positive, raw amount — direction implied by [entryType],
   /// same convention `CustomerLedgerEntry.amount` uses.
-  final double amount;
+  final Money amount;
 
   final String? paymentMethod;
   final String? note;
