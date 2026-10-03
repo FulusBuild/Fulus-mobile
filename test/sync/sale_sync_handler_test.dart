@@ -141,7 +141,7 @@ void main() {
   setUpAll(() {
     registerFallbackValue(SaleCreateDto(
       items: [],
-      amountPaid: moneyFromMajor(0),
+      amountPaid: 0,
       locationId: locationId,
     ));
   });
@@ -493,12 +493,12 @@ void main() {
             productLocalId: null,
             description: 'Phone charger',
             quantity: 1,
-            unitPrice: moneyFromMajor(500),
-            costPriceAtSale: moneyFromMajor(0),
+            unitPrice: 50000,
+            costPriceAtSale: 0,
           ),
         ],
         locationId: locationId,
-        amountPaid: moneyFromMajor(500),
+        amountPaid: 50000,
       ),
     );
 
