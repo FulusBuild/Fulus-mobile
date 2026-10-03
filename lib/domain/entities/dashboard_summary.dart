@@ -43,7 +43,7 @@ final class OpenHero extends HomeHeroState {
     this.yesterdayTotal = 0,
     this.yesterdaySalesCount = 0,
   });
-  final double todayTotal;
+  final Money todayTotal;
   final int todaySalesCount;
   final bool closeShopEmphasized;
 
@@ -63,7 +63,7 @@ final class OpenHero extends HomeHeroState {
 /// After Close Shop / Daily Closing — "a number that's now history."
 final class ClosedHero extends HomeHeroState {
   const ClosedHero({required this.finalTotal, required this.finalSalesCount});
-  final double finalTotal;
+  final Money finalTotal;
   final int finalSalesCount;
 }
 
@@ -74,7 +74,7 @@ final class ClosedHero extends HomeHeroState {
 /// flag on OpenHero.
 final class EmployeeShiftHero extends HomeHeroState {
   const EmployeeShiftHero({required this.shiftTotal, required this.shiftSalesCount});
-  final double shiftTotal;
+  final Money shiftTotal;
   final int shiftSalesCount;
 }
 
