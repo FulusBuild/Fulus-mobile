@@ -290,6 +290,30 @@ Future<String> _runFinancialConvergenceScenario(
   });
   _expect2xx(seedSale, 'P16 seed sale.create');
 
+  final productOperation = 'e2e-p16-product-$suffix';
+  final productResponse = await dio.post('', data: {
+    'action': 'catalog_upsert',
+    'business_id': businessId,
+    'entity': 'products',
+    'operation_id': productOperation,
+    'item': {
+      'name': 'P16 Return Product $suffix',
+      'sku': 'P16-$suffix',
+      'cost_price': 50,
+      'selling_price': 150,
+      'low_stock_threshold': 0,
+      'is_active': true,
+      'tracks_stock': false,
+      'initial_stock': 0,
+      'location_id': await _firstLocationId(dio, businessId),
+    },
+  });
+  _expect2xx(productResponse, 'P16 product.create');
+  final productData = _actionData(productResponse);
+  final productId = productData?['id'] ?? productData?['product_id'];
+  if (productId is! String || productId.isEmpty) {
+    throw StateError('P16 product.create returned no product id: ' + productResponse.data.toString());
+  }
   // Two independent device clients now perform financial work without
   // consuming each other's feed first. Running them concurrently exercises
   // the authoritative customer lock/idempotency boundary.
@@ -325,7 +349,7 @@ Future<String> _runFinancialConvergenceScenario(
     'notes': 'P16 concurrent financial sale',
     'items': [
       {
-        'product_id': null,
+        'product_id': productId,
         'description': 'P16 financial sale $suffix',
         'quantity': 1,
         'unit_price': 150,
@@ -411,6 +435,44 @@ Future<String> _runFinancialConvergenceScenario(
     );
   }
 
+  // Return the concurrent credit sale using the same device identity.
+  // This exercises the credit-reversal path and then retries the exact return
+  // operation to prove idempotency does not apply the reversal twice.
+  final returnOperation = 'e2e-p16-credit-return-$suffix';
+  final returnResponse = await primaryDio.post('', data: {
+    'action': 'return_create',
+    'business_id': businessId,
+    'operation_id': returnOperation,
+    'sale_id': saleId,
+    'reason': 'P16 credit return',
+    'refund_amount': 150,
+    'refund_method': 'credit',
+    'items': [
+      {'product_id': productId, 'quantity': 1},
+    ],
+  });
+  _expect2xx(returnResponse, 'P16 credit return');
+  final returnData = _actionData(returnResponse);
+  if ((returnData?['credit_reversal'] as num?)?.toDouble() != 150) {
+    throw StateError('P16 credit return did not reverse exactly 150: ' + returnResponse.data.toString());
+  }
+
+  final returnReplay = await secondaryDio.post('', data: {
+    'action': 'return_create',
+    'business_id': businessId,
+    'operation_id': returnOperation,
+    'sale_id': saleId,
+    'reason': 'P16 credit return',
+    'refund_amount': 150,
+    'refund_method': 'credit',
+    'items': [
+      {'product_id': productId, 'quantity': 1},
+    ],
+  });
+  _expect2xx(returnReplay, 'P16 credit return idempotent replay');
+  if (_actionData(returnReplay)?['return_id'] != returnData?['return_id']) {
+    throw StateError('P16 return replay returned a different return: ' + returnReplay.data.toString());
+  }
   // Both devices consume the canonical feed from the same pre-scenario
   // boundary. The feed must expose the sale and repayment exactly once.
   dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
@@ -449,14 +511,22 @@ Future<String> _runFinancialConvergenceScenario(
     'customer_ledger',
     repaymentOperation,
   );
+  final returnId = returnData?['return_id'];
+  if (returnId is! String || returnId.isEmpty) {
+    throw StateError('P16 return response returned no return_id: ' + returnResponse.data.toString());
+  }
+  final returnCountA = _countEntity(changesA, 'return', returnId);
+  final returnCountB = _countEntity(changesB, 'return', returnId);
 
   if (saleCountA < 1 ||
       saleCountB < 1 ||
       repaymentCountA != 1 ||
-      repaymentCountB != 1) {
+      repaymentCountB != 1 ||
+      returnCountA < 1 ||
+      returnCountB < 1) {
     throw StateError(
       'P16 canonical feed missing financial changes, got sale A/B=$saleCountA/$saleCountB '
-      'and repayment A/B=$repaymentCountA/$repaymentCountB.',
+      'and repayment A/B=$repaymentCountA/$repaymentCountB and return A/B=$returnCountA/$returnCountB.',
     );
   }
 
