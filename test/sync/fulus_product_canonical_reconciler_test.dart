@@ -13,11 +13,11 @@ void main() {
   late FulusProductCanonicalReconciler reconciler;
 
   setUpAll(() {
-    registerFallbackValue(ProductDraft(
+    registerFallbackValue(const ProductDraft(
       name: 'fallback',
       sku: 'fallback',
-      costPrice: 0,
-      sellingPrice: 100,
+      costPrice: moneyFromMajor(0),
+      sellingPrice: moneyFromMajor(1),
       locationId: 'fallback',
     ));
   });
@@ -84,8 +84,8 @@ void main() {
           barcode: '123',
           categoryId: 'category-1',
           supplierId: 'supplier-1',
-          costPrice: moneyFromMajor(100000),
-          sellingPrice: moneyFromMajor(150000),
+          costPrice: moneyFromMajor(1000),
+          sellingPrice: moneyFromMajor(1500),
           lowStockThreshold: 5,
           isActive: true,
           photoPath: 'https://bejcuvoxemwomcatgyxz.supabase.co/storage/v1/object/public/product-images/business/product-1/photo.jpg',
