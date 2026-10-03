@@ -1,4 +1,5 @@
 /// Receipts — Stage 9.
+import 'package:fulus_mobile/core/money/money.dart';
 ///
 /// [ReceiptData] is the single, format-agnostic input to the receipt
 /// business engine (domain/usecases/receipt_engine.dart). It exists so
@@ -57,11 +58,11 @@ class ReceiptData {
   final DateTime saleDate;
   final List<ReceiptLineItem> items;
 
-  final double subtotal;
-  final double discount;
-  final double tax;
-  final double total;
-  final double amountPaid;
+  final Money subtotal;
+  final Money discount;
+  final Money tax;
+  final Money total;
+  final Money amountPaid;
 
   /// paid | partial | unpaid | cancelled — mirrors Sale.payment_status
   /// exactly (pdf_invoice.py's status_color map and receipt.ts's
@@ -97,7 +98,7 @@ class ReceiptData {
   /// is what a receipt actually needs to show instead. Each entry's
   /// `method` is already display-formatted, matching [paymentMethod]'s
   /// own convention.
-  final List<({String method, double amount})>? paymentBreakdown;
+  final List<({String method, Money amount})>? paymentBreakdown;
 
   /// total - amountPaid, floored at 0 — mirrors Sale.balance_due exactly
   /// (a computed backend @property, never a stored column, per
@@ -132,8 +133,8 @@ class ReceiptLineItem {
 
   final String productName;
   final int quantity;
-  final double unitPrice;
-  final double lineTotal;
+  final Money unitPrice;
+  final Money lineTotal;
 }
 
 enum ReceiptFormat { thermalEscPos, pdfA4 }
