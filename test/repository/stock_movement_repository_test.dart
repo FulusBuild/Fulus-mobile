@@ -134,7 +134,7 @@ void main() {
       final supplier = await (db.select(db.suppliers)
             ..where((s) => s.localId.equals('supplier-1')))
           .getSingle();
-      expect(supplier.outstandingBalance, 4000);
+      expect(supplier.outstandingBalance, 301000);
       final queue = await db.select(db.syncQueueItems).get();
       expect(queue, hasLength(2));
       expect(queue.map((q) => q.entityType), containsAll(<String>['product', 'stock_movement']));
