@@ -43,6 +43,7 @@ class SaleDraft {
   final String locationId;
 
   final String? customerId;
+  @MoneyJsonConverter()
   final Money discount;
 
   /// The whole-cart-discount component specifically — see
@@ -52,8 +53,11 @@ class SaleDraft {
   /// only real caller that ever sets this to something nonzero today;
   /// everything else constructing a `SaleDraft` directly has no
   /// whole-cart/line split to report and leaves it at the default.
+  @MoneyJsonConverter()
   final Money wholeCartDiscount;
+  @MoneyJsonConverter()
   final Money tax;
+  @MoneyJsonConverter()
   final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
