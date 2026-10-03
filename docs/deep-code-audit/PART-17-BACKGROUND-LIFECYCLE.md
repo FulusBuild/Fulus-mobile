@@ -1,4 +1,4 @@
-# Part 15 — Background Sync, Lifecycle & Process Death
+# Part 17 — Background Execution & OS Lifecycle
 
 ## Scope
 
@@ -80,7 +80,7 @@ Therefore process death does not depend on an in-memory queue surviving.
 
 ## Findings
 
-### P15-001 — Medium — Background execution has an evidence gap, not a demonstrated source defect
+### P17-001 — Medium — Background execution has an evidence gap, not a demonstrated source defect
 
 The source path is internally consistent, but the repository has no direct automated test that executes the real WorkManager callback in a headless Android process and proves the complete sequence:
 
@@ -153,7 +153,7 @@ The application therefore correctly treats WorkManager as a recovery/safety mech
 
 ## Remaining evidence
 
-Part 15 should not claim physical process-death behavior fully verified until an Android runtime test demonstrates:
+Part 17 should not claim physical process-death behavior fully verified until an Android runtime test demonstrates:
 
 - offline mutation;
 - process termination;
@@ -167,8 +167,8 @@ This evidence should be collected before final production-readiness closure.
 
 ## Conclusion
 
-No high-confidence Part 15 source defect was found in the reviewed lifecycle/background architecture.
+No high-confidence Part 17 source defect was found in the reviewed lifecycle/background architecture.
 
-The key remaining item is **P15-001**, an Android runtime evidence gap. The implementation already has the necessary durable-state and cross-runtime coordination primitives, but source/unit tests cannot prove that the complete WorkManager process-death path works on a real Android runtime.
+The key remaining item is **P17-001**, an Android runtime evidence gap. The implementation already has the necessary durable-state and cross-runtime coordination primitives, but source/unit tests cannot prove that the complete WorkManager process-death path works on a real Android runtime.
 
 This audit therefore makes **no speculative architectural rewrite** and does not weaken existing tests.
