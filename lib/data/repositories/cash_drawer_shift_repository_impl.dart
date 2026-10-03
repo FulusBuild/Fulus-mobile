@@ -63,7 +63,7 @@ class CashDrawerShiftRepositoryImpl implements CashDrawerShiftRepository {
     if (shiftRow == null) throw ArgumentError.value(shiftLocalId, 'shiftLocalId', 'no such shift');
     final since = shiftRow.openedAt;
     final sales = await (_db.select(_db.sales)..where((s) => s.locationId.equals(shiftRow.locationId) & s.deletedAt.isNull() & s.saleDate.isBiggerOrEqualValue(since))).get();
-    var cashSales = 0.0;
+    Money cashSales = 0;
     for (final sale in sales) {
       final payments = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(sale.localId))).get();
       if (payments.isNotEmpty) {
