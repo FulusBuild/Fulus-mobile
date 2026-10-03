@@ -1,6 +1,6 @@
 # Part 10 — Financial & Ledger Integrity
 
-**Status:** Source audit complete; one High drawer-reconciliation defect fixed with regression coverage. The coordinated integer-money migration remains an open High finding and must not be split into ad-hoc field conversions.
+**Status:** Source audit complete; drawer-reconciliation defect fixed with regression coverage. The coordinated integer-money migration was completed and merged as PR #145 on 2026-10-03; CI and production migration-history verification passed. Remaining financial evidence is limited to the explicit cash tender/change semantic contract and runtime/convergence evidence.
 **Baseline SHA:** 24063ca8a4fe3235e1adb65e6b9b0258fddbdc5e
 **Audit branch:** audit/deep-code-part-10-financial-ledger
 
@@ -94,7 +94,7 @@ Supplier ledger and tax-remittance ledgers are intentionally local-only today. T
 ### P10-001
 
 **Severity:** High
-**Status:** Open — coordinated migration required
+**Status:** Closed — PR #145 merged; CI and production migration verification passed
 **Area:** Monetary representation
 
 Local financial persistence and domain APIs use IEEE-754 Dart/SQLite floating-point values while the cloud financial schema uses NUMERIC(14,2).
@@ -117,7 +117,7 @@ Required fix:
 ### P10-002
 
 **Severity:** High
-**Status:** Open — coordinated with Part 09
+**Status:** Open — semantic contract and runtime evidence remain
 **Area:** Cash tender/change and cash ledger
 
 Tendered cash, applied payment, change, Sale.amountPaid, SalePayments.amount, and cash-drawer expected cash do not yet have one canonical semantic contract.
