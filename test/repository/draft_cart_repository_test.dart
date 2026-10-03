@@ -317,6 +317,27 @@ void main() {
   });
 
   group('getOrCreateDraftCart', () {
+    test('database rejects a second draft cart for the same location', () async {
+      final first = await draftCartRepository.getOrCreateDraftCart(
+        locationId: 'loc-1',
+      );
+      await expectLater(
+        db.into(db.draftCarts).insert(
+          DraftCartsCompanion.insert(
+            localId: 'direct-duplicate-draft',
+            locationId: 'loc-1',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        await draftCartRepository.getOrCreateDraftCart(locationId: 'loc-1'),
+        isA<DraftCart>().having((c) => c.localId, 'localId', first.localId),
+      );
+    });
+
     test('returns the same cart for the same location on a second call',
         () async {
       final first = await draftCartRepository.getOrCreateDraftCart(
