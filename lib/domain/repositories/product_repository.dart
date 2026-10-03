@@ -1,5 +1,6 @@
 import '../entities/product.dart';
 import '../entities/product_stock_snapshot.dart';
+import '../../core/money/money.dart;
 
 /// Repository contract for the local product catalog and per-location stock.
 abstract class ProductRepository {
@@ -18,8 +19,8 @@ abstract class ProductRepository {
     String? barcode,
     String? categoryId,
     String? supplierId,
-    double? costPrice,
-    double? sellingPrice,
+    Money? costPrice,
+    Money? sellingPrice,
     int? lowStockThreshold,
     bool? isActive,
     String? photoPath,
@@ -40,8 +41,8 @@ abstract class ProductRepository {
     String? barcode,
     String? categoryId,
     String? supplierId,
-    required double costPrice,
-    required double sellingPrice,
+    required Money costPrice,
+    required Money sellingPrice,
     required int lowStockThreshold,
     required bool isActive,
     String? photoPath,
