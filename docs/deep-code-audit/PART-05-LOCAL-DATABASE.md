@@ -112,7 +112,7 @@ This finding was deliberately handed to Part 10 rather than duplicated as an ad-
 
 **Observed behavior**
 
-`DraftCarts` documents an invariant of at most one cart per location, but the table has no unique constraint/index on `locationId`. `DraftCartRepositoryImpl.getOrCreateDraftCart` performs a read-then-insert sequence:
+`DraftCarts` enforces at most one cart per location with the schema-v18 unique index `idx_draft_carts_location_id`; the repository read-before-insert remains as the normal fast path. `DraftCartRepositoryImpl.getOrCreateDraftCart` performs a read-then-insert sequence:
 
 1. query for an existing cart;
 2. if none exists, construct a new ULID;
@@ -149,7 +149,7 @@ Add a persistence-level uniqueness test after the migration design is approved, 
 
 **Observed behavior**
 
-`CashDrawerShiftRepositoryImpl.openShift` checks `getActiveShift(locationId)` and then inserts a new shift inside a transaction. `CashDrawerShifts` has no partial unique index enforcing one non-deleted, open shift per location.
+`CashDrawerShiftRepositoryImpl.openShift` checks `getActiveShift(locationId)` and then inserts a new shift inside a transaction. `CashDrawerShifts` now has schema-v18 partial unique index `idx_cash_drawer_shifts_open_location` enforcing one open shift per location.
 
 **Expected invariant**
 
