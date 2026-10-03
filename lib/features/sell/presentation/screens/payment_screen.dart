@@ -462,8 +462,8 @@ class _AmountDueHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final remaining = state.remaining > 0 ? state.remaining : 0.0;
-    final changeDue = state.remaining < 0 ? -state.remaining : 0.0;
+    final remaining = state.remaining > 0 ? state.remaining : 0;
+    final changeDue = state.remaining < 0 ? -state.remaining : 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -506,7 +506,7 @@ class _AmountDueHeader extends StatelessWidget {
             symbol: state.currencySymbol,
             emphasized: remaining > 0,
           ),
-          if (changeDue > 0.004)
+          if (changeDue > 0)
             _PaymentRow(
               label: 'Change due',
               value: changeDue,
@@ -523,7 +523,7 @@ class _PaymentRow extends StatelessWidget {
   const _PaymentRow({required this.label, required this.value, required this.symbol, this.emphasized = false});
 
   final String label;
-  final double value;
+  final Money value;
   final String symbol;
   final bool emphasized;
 
