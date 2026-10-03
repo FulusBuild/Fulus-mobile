@@ -645,7 +645,6 @@ class _HomeSalesHeroCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
