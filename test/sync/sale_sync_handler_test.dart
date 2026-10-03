@@ -487,7 +487,7 @@ void main() {
 
     final sale = await saleRepository.createSale(
       SaleDraft(
-        items: const [
+        items: [
           SaleItem(
             localId: 'quick-1',
             productLocalId: null,
