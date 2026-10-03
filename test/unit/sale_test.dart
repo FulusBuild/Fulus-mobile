@@ -21,6 +21,7 @@ void main() {
       tax: moneyFromMajor(0),
       total: total,
       amountPaid: amountPaid,
+      cashTendered: amountPaid,
       items: const [],
       createdAt: now,
       updatedAt: now,
