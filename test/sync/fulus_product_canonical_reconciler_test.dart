@@ -13,7 +13,7 @@ void main() {
   late FulusProductCanonicalReconciler reconciler;
 
   setUpAll(() {
-    registerFallbackValue(const ProductDraft(
+    registerFallbackValue(ProductDraft(
       name: 'fallback',
       sku: 'fallback',
       costPrice: moneyFromMajor(0),
