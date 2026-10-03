@@ -4,7 +4,7 @@
 
 **Source audit:** Parts 01–20 inspected/reconciled.
 
-**Overall production-readiness closure:** **Not yet closed.**
+**Overall production-readiness closure:** **Not yet closed; source audit is complete and remaining gaps are runtime/production configuration evidence plus a small set of concrete cross-cutting findings.**
 
 This is deliberate. The audit master plan requires runtime/device/production evidence in addition to source inspection and CI. The remaining evidence gaps are explicitly listed below.
 
@@ -36,7 +36,7 @@ These were addressed in source/production where documented. The audit did not we
 | 07 | Domain Logic | Audited; local/cloud arithmetic contract remains cross-cutting |
 | 08 | Product / Catalog | Audited; image/scope/tracking invariants cross-checked |
 | 09 | Sales / Checkout | Audited; tender/change contract remains coordinated with Part 10 |
-| 10 | Financial Integrity | Audited; integer-money migration remains a major open cross-cutting item |
+| 10 | Financial Integrity | Audited; integer-money migration completed in PR #145; remaining cash tender/change semantics and runtime evidence tracked |
 | 11 | Inventory / Stock | Audited; tracking and transaction boundaries fixed |
 | 12 | Customers / Credit | Audited; repayment/return defects fixed; live convergence evidence pending |
 | 13 | Cloud APIs | Audited; grants/actor/location/idempotency hardening cross-checked |
@@ -68,7 +68,7 @@ Fresh-install restore and post-restore sync/cursor continuation still require ph
 The financial multi-device E2E and final CI execution still require observed successful workflow completion.
 
 ### Financial integer-money contract
-Cross-cutting X-005/X-009 remains open. The local schema's REAL monetary representation requires a coordinated evidence-backed decision/migration before claiming the integer-safe financial invariant fully closed.
+The coordinated integer-money migration was completed in PR #145 and merged into `main` on 2026-10-03. Fulus Mobile CI run #3857 passed on the merged head, including Flutter tests (951/951), static analysis, live sync contract, and migration integrity. Production Supabase migration workflow #313 also passed, and the corrected migration filenames are present in production migration history. The remaining financial issue is the separate P10-002 cash tender/change semantic contract and its runtime/convergence evidence.
 
 ## 4. Security evidence
 
@@ -141,10 +141,10 @@ The overall audit is **not yet fully complete** because the master plan explicit
 
 ## 9. Next execution loop
 
-1. Finish and observe current Fulus Mobile CI.
-2. Fix any real CI failures without weakening tests.
-3. Merge PR #144 only after required CI is green.
-4. Rebase/continue from the resulting main commit.
+1. Reconcile the completed 20-part source audit against the current `main` baseline.
+2. Fix any real remaining source-level cross-cutting findings without weakening tests.
+3. Keep runtime/production evidence gaps explicit; do not mark them closed from source inspection alone.
+4. Continue from the merged PR #145 baseline.
 5. Execute the remaining Android runtime scenarios.
 6. Verify production authorization matrix.
 7. Enable and verify leaked-password protection.
@@ -155,3 +155,10 @@ The overall audit is **not yet fully complete** because the master plan explicit
 ## Final principle
 
 **The audit is complete only when the implementation is proven under the failure modes Fulus is designed to survive — not merely when every source file has been read.**
+
+
+## 2026-10-03 Reconciliation Addendum
+
+PR #145 (`3f1132c1b3b2952d5c7002b155c086be36b9e849`) completed the coordinated integer-money migration. CI run #3857 passed on the merged head, including migration filename integrity, static analysis, Flutter tests (951/951), and the live sync contract. Production Supabase migration workflow #313 passed, and production migration history contains the corrected migration filenames. This supersedes the older report wording that described the integer-money migration as open.
+
+The 20-part source audit remains complete. The remaining closure work is evidence-driven: Android process-death/WorkManager, Android UI/navigation, restore/provisioning, live multi-device workflow execution, the production leaked-password-protection configuration, and any concrete remaining cross-cutting source findings. No production-readiness claim should be made until those required evidence items are resolved or explicitly accepted.
