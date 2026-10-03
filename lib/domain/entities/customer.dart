@@ -34,14 +34,14 @@ class Customer {
   final String? email;
   final String? address;
   final String? notes;
-  final double outstandingBalance;
+  final Money outstandingBalance;
 
   /// **Bible-only** (Product Design Bible Volume 7: "Credit limit —
   /// No [required] — A guide, not an automatic block — see Decision
   /// 23"). No backend column — confirmed directly against
   /// backend/app/models/customer.py, same audit as Product's
   /// tracksStock. Never enforced as a hard block anywhere this is read.
-  final double? creditLimit;
+  final Money? creditLimit;
 
   /// **Bible-only** (Volume 7 Loyalty section: "a purchase count per
   /// customer"). No backend column. Incremented locally when a sale
@@ -116,7 +116,7 @@ class CustomerDraft {
   final String? email;
   final String? address;
   final String? notes;
-  final double? creditLimit;
+  final Money? creditLimit;
   final int? loyaltyThreshold;
   final String? photoPath;
 
@@ -194,7 +194,7 @@ class CustomerResponseDto {
   final String? email;
   final String? address;
   final String? notes;
-  final double outstandingBalance;
+  final Money outstandingBalance;
   final String? duplicateWarning;
 
   factory CustomerResponseDto.fromJson(Map<String, dynamic> json) =>
