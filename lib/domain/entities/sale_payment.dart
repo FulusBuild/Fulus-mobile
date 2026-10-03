@@ -24,6 +24,7 @@ class SalePayment {
   final String? saleLocalId;
 
   final String method;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime recordedAt;
 }
