@@ -32,15 +32,15 @@ void main() {
 
   group('ReceiptData.balanceDue', () {
     test('is zero when fully paid', () {
-      expect(sample(amountPaid: 100000, total: 100000).balanceDue, 0);
+      expect(sample(amountPaid: 100000, total: 100000).balanceDue, moneyFromMajor(0));
     });
 
     test('is the shortfall when partially paid', () {
-      expect(sample(amountPaid: 60000, total: 100000).balanceDue, 40000);
+      expect(sample(amountPaid: 60000, total: 100000).balanceDue, moneyFromMajor(40000));
     });
 
     test('never goes negative on overpayment', () {
-      expect(sample(amountPaid: 120000, total: 100000).balanceDue, 0);
+      expect(sample(amountPaid: 120000, total: 100000).balanceDue, moneyFromMajor(0));
     });
   });
 
@@ -51,16 +51,16 @@ void main() {
   // implied. Mirrors balanceDue's own three cases exactly, on purpose.
   group('ReceiptData.changeDue (bug fix)', () {
     test('is zero when fully paid', () {
-      expect(sample(amountPaid: 100000, total: 100000).changeDue, 0);
+      expect(sample(amountPaid: 100000, total: 100000).changeDue, moneyFromMajor(0));
     });
 
     test('is zero when underpaid — changeDue and balanceDue never both '
         'have money owed at once', () {
-      expect(sample(amountPaid: 60000, total: 100000).changeDue, 0);
+      expect(sample(amountPaid: 60000, total: 100000).changeDue, moneyFromMajor(0));
     });
 
     test('is the excess amount on overpayment', () {
-      expect(sample(amountPaid: 120000, total: 100000).changeDue, 20000);
+      expect(sample(amountPaid: 120000, total: 100000).changeDue, moneyFromMajor(20000));
     });
   });
 
