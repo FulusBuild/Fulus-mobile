@@ -140,14 +140,14 @@ void main() {
 
   /// A sale of 5x productA + 3x productB at ₦1000 each, fully paid in
   /// cash unless [customerId]/[amountPaid] say otherwise.
-  Future<Sale> purchase({String? customerId, double? amountPaid}) {
+  Future<Sale> purchase({String? customerId, Money? amountPaid}) {
     final items = [
       SaleItem(
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
         unitPrice: moneyFromMajor(1000),
-        costPriceAtSale: 400,
+        costPriceAtSale: 40000,
       ),
       SaleItem(
         localId: Ulid().toString(),
@@ -157,7 +157,7 @@ void main() {
         costPriceAtSale: 400,
       ),
     ];
-    final total = 8000.0;
+    final Money total = 800000;
     return saleRepository.createSale(
       SaleDraft(
         items: items,
@@ -248,7 +248,7 @@ void main() {
         items: items,
         locationId: locationId,
         customerId: customerId,
-        amountPaid: 4500,
+        amountPaid: 450000,
         paymentMethod: 'split',
         payments: [
           SalePayment(localId: Ulid().toString(), method: 'cash', amount: moneyFromMajor(4500), recordedAt: now),
@@ -298,7 +298,7 @@ void main() {
         autoApprove: true,
       );
 
-      expect(ret.refundAmount, 2000);
+      expect(ret.refundAmount, 200000);
     });
 
     test('autoApprove: false creates a pending return; true creates an '
@@ -412,7 +412,7 @@ void main() {
         autoApprove: true,
       );
 
-      expect(second.refundAmount, 2000);
+      expect(second.refundAmount, 200000);
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       expect(
         lines.firstWhere((l) => l.productLocalId == productAId).remainingReturnable,
@@ -541,7 +541,7 @@ void main() {
         const CustomerDraft(name: 'Test Customer'),
       );
       // 8000 total, 3000 paid up front — 5000 still owed on credit.
-      final sale = await purchase(customerId: customer.localId, amountPaid: 3000);
+      final sale = await purchase(customerId: customer.localId, amountPaid: 300000);
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
@@ -638,7 +638,7 @@ void main() {
             ),
           ],
           locationId: locationId,
-          amountPaid: 1000,
+          amountPaid: 100000,
           paymentMethod: 'transfer',
         ),
       );
@@ -656,7 +656,7 @@ void main() {
       final customer = await customerRepository.createCustomer(
         const CustomerDraft(name: 'Test Customer'),
       );
-      final sale = await purchase(customerId: customer.localId, amountPaid: 3000);
+      final sale = await purchase(customerId: customer.localId, amountPaid: 300000);
 
       await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
 
