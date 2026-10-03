@@ -72,11 +72,13 @@ class SaleCanonicalPayment {
     required this.serverId,
     required this.method,
     required this.amount,
+    this.tenderedAmount,
     required this.recordedAt,
   });
 
   final String serverId;
   final String method;
   final Money amount;
+  final Money? tenderedAmount;
   final DateTime recordedAt;
 }
