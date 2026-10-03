@@ -157,7 +157,7 @@ void main() {
   Future<void> insertExpense({
     required String localId,
     required String locationId,
-    required double amount,
+    required Money amount,
     required DateTime date,
   }) async {
     await db.into(db.expenses).insert(
