@@ -16,7 +16,7 @@ void main() {
         vatRate: 7.5,
         invoiceNumber: 'INV-0042',
         saleDate: DateTime(2026, 7, 30, 14, 5),
-        items: const [
+        items: [
           ReceiptLineItem(productName: 'Rice 5kg', quantity: 2, unitPrice: moneyFromMajor(400), lineTotal: 800),
           ReceiptLineItem(productName: 'Milk', quantity: 1, unitPrice: moneyFromMajor(200), lineTotal: 200),
         ],
