@@ -1,4 +1,5 @@
 import 'sale.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'sale_payment.dart';
 
 /// The persisted, resumable cart — see tables.dart's `DraftCarts` table
