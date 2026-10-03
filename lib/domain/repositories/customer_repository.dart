@@ -1,5 +1,5 @@
 import '../entities/customer.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 
 /// Architecture Section 4's repository pattern, applied to Customers.
 /// Unlike Location/Product, this is write-capable from mobile — a new
