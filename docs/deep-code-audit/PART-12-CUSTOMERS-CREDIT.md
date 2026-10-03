@@ -68,3 +68,23 @@ A financial-fidelity SQL regression now asserts that the authoritative return RP
 3. A credit-method return must complete with one ledger reversal and one balance reduction.
 4. Retry of the same operation ID must remain idempotent.
 5. Split-payment credit-reversal behavior must remain unchanged.
+
+
+## Finding P12-003 — Canonical repayment echo race
+
+**Severity:** High  
+**Status:** Fixed in source; CI/runtime verification pending
+
+### Evidence
+
+The repayment RPC commits the authoritative `customer_ledger_entries` row before returning. The sync handler only assigns that row's `serverId` after the RPC response returns. A concurrent canonical pull can therefore observe the committed server row while the local repayment ledger row still has no `serverId`.
+
+The canonical wire row includes the durable `operation_id`, but the customer-ledger reconciler previously discarded it. For repayments, the local durable outbox row uses that same operation ID as its queue-row ID. Without matching those identities, the canonical pull created a second local repayment ledger row; the subsequent push completion then settled the original row, leaving duplicate visible history.
+
+### Fix
+
+Pass the canonical `operation_id` through the ledger reconciler and, for repayment events, resolve that operation through the local durable outbox. When it points to a matching unsynced repayment row, update that existing row with the canonical server ID instead of inserting another row.
+
+### Regression coverage
+
+Repository coverage now simulates the exact race window: a local pending repayment has an outbox operation, then canonical server state for the same operation arrives before the push handler assigns `serverId`. The invariant is one local ledger row after reconciliation.
