@@ -94,7 +94,7 @@ void main() {
           role: 'cashier',
           department: 'Sales',
           position: 'Cashier',
-          salary: 85000,
+          salary: 8500000,
           phone: '+2348000000000',
           email: 'amina@example.com',
           dateHired: DateTime.parse('2026-01-02'),
