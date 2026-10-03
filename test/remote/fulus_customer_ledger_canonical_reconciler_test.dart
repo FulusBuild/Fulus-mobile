@@ -9,7 +9,7 @@ import 'package:fulus_mobile/domain/repositories/customer_credit_repository.dart
 class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   CustomerLedgerEntryType? entryType;
   String? serverId;
-  double? amount;
+  Money? amount;
   String? operationId;
 
   @override
@@ -51,7 +51,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   @override
   Future<CustomerLedgerEntry> recordRefundAdjustment({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     required String saleLocalId,
   }) => throw UnimplementedError();
 
