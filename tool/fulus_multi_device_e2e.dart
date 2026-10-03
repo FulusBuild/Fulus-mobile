@@ -289,11 +289,50 @@ Future<String> _runFinancialConvergenceScenario(
     throw StateError('P16 sale.create returned no sale_id: ${sale.data}');
   }
 
-  // Device B now performs an independent financial mutation before consuming
-  // A's feed, modelling work accumulated while the devices were disconnected.
-  dio.options.headers['x-fulus-device-id'] = secondaryDeviceId;
+  // Two independent device clients now perform financial work without
+  // consuming each other's feed first. Running them concurrently exercises
+  // the authoritative customer lock/idempotency boundary.
+  final primaryDio = Dio(dio.options.copyWith(
+    headers: {
+      ...dio.options.headers,
+      'x-fulus-device-id': primaryDeviceId,
+    },
+  ));
+  final secondaryDio = Dio(dio.options.copyWith(
+    headers: {
+      ...dio.options.headers,
+      'x-fulus-device-id': secondaryDeviceId,
+    },
+  ));
+
   final repaymentOperation = 'e2e-p16-repayment-$suffix';
-  final repayment = await dio.post('', data: {
+  final saleFuture = primaryDio.post('', data: {
+    'action': 'sale_create',
+    'business_id': businessId,
+    'operation_id': saleOperation,
+    'client_reference': saleOperation,
+    'location_id': await _firstLocationId(primaryDio, businessId),
+    'customer_id': customerId,
+    'sale_date': DateTime.now().toUtc().toIso8601String(),
+    'discount': 0,
+    'tax': 0,
+    'amount_paid': 0,
+    'payment_method': 'credit',
+    'payments': [
+      {'method': 'credit', 'amount': 150},
+    ],
+    'notes': 'P16 concurrent financial sale',
+    'items': [
+      {
+        'product_id': null,
+        'description': 'P16 financial sale $suffix',
+        'quantity': 1,
+        'unit_price': 150,
+        'cost_price_at_sale': 0,
+      },
+    ],
+  });
+  final repaymentFuture = secondaryDio.post('', data: {
     'action': 'customer_repayment',
     'business_id': businessId,
     'operation_id': repaymentOperation,
@@ -302,12 +341,15 @@ Future<String> _runFinancialConvergenceScenario(
     'payment_method': 'cash',
     'note': 'P16 independent device repayment',
   });
-  _expect2xx(repayment, 'P16 customer.repayment');
 
-  final repaymentData = _actionData(repayment);
+  final results = await Future.wait([saleFuture, repaymentFuture]);
+  _expect2xx(results[0], 'P16 concurrent sale.create');
+  _expect2xx(results[1], 'P16 concurrent customer.repayment');
+
+  final repaymentData = _actionData(results[1]);
   if ((repaymentData?['new_balance'] as num?)?.toDouble() != 100) {
     throw StateError(
-      'P16 repayment expected customer balance 100, got ${repayment.data}',
+      'P16 concurrent repayment expected customer balance 100, got ${results[1].data}',
     );
   }
 
