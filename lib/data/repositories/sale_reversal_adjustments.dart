@@ -180,8 +180,8 @@ class SaleReversalAdjustments {
       if (isVoidByReturnId[item.returnLocalId] ?? false) continue;
 
       final line = linesBySaleProduct[saleId]?[item.productLocalId];
-      final unitPrice = (line == null || line.quantity == 0) ? 0 : line.amount / line.quantity;
-      final unitCost = (line == null || line.quantity == 0) ? 0 : line.cost / line.quantity;
+      final unitPrice = (line == null || line.quantity == 0) ? 0 : (line.amount / line.quantity).round();
+      final unitCost = (line == null || line.quantity == 0) ? 0 : (line.cost / line.quantity).round();
       final refundedAmount = unitPrice * item.quantity;
       final refundedCost = unitCost * item.quantity;
 
