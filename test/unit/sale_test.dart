@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/domain/entities/sale.dart';
 
 /// No dedicated test file existed for Sale's computed getters before
@@ -8,7 +9,7 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 /// fix: no "change due" concept existed anywhere in this app despite
 /// full cash overpayment being possible).
 void main() {
-  Sale saleWith({required double total, required double amountPaid}) {
+  Sale saleWith({required Money total, required Money amountPaid}) {
     final now = DateTime(2026, 1, 15);
     return Sale(
       localId: 'sale-1',
@@ -29,7 +30,7 @@ void main() {
   group('Sale.balanceDue / changeDue / paymentStatus — combined behavior',
       () {
     test('fully paid: balanceDue and changeDue both zero, status paid', () {
-      final sale = saleWith(total: 1000, amountPaid: 1000);
+      final sale = saleWith(total: 100000, amountPaid: 100000);
       expect(sale.balanceDue, 0);
       expect(sale.changeDue, 0);
       expect(sale.paymentStatus, 'paid');
@@ -37,16 +38,16 @@ void main() {
 
     test('partially paid: balanceDue is the shortfall, changeDue stays '
         'zero, status partial', () {
-      final sale = saleWith(total: 1000, amountPaid: 600);
-      expect(sale.balanceDue, 400);
+      final sale = saleWith(total: 100000, amountPaid: 60000);
+      expect(sale.balanceDue, 40000);
       expect(sale.changeDue, 0);
       expect(sale.paymentStatus, 'partial');
     });
 
     test('unpaid: balanceDue is the full total, changeDue zero, status '
         'unpaid', () {
-      final sale = saleWith(total: 1000, amountPaid: 0);
-      expect(sale.balanceDue, 1000);
+      final sale = saleWith(total: 100000, amountPaid: 0);
+      expect(sale.balanceDue, 100000);
       expect(sale.changeDue, 0);
       expect(sale.paymentStatus, 'unpaid');
     });
@@ -56,17 +57,17 @@ void main() {
         'balanceDue goes negative — not floored here, unlike '
         'ReceiptData.balanceDue, which deliberately does floor for '
         'display — status still reads paid', () {
-      final sale = saleWith(total: 1000, amountPaid: 1500);
-      expect(sale.changeDue, 500);
-      expect(sale.balanceDue, -500);
+      final sale = saleWith(total: 100000, amountPaid: 150000);
+      expect(sale.changeDue, 50000);
+      expect(sale.balanceDue, -50000);
       expect(sale.paymentStatus, 'paid');
     });
 
     test('balanceDue and changeDue are never both greater than zero at '
         'the same time, across the full range from unpaid to overpaid',
         () {
-      for (final amountPaid in [0.0, 250.0, 600.0, 999.99, 1000.0, 1000.01, 1500.0]) {
-        final sale = saleWith(total: 1000, amountPaid: amountPaid);
+      for (final amountPaid in [0, 25000, 60000, 99999, 100000, 100001, 150000]) {
+        final sale = saleWith(total: 100000, amountPaid: amountPaid);
         final bothOwed = sale.balanceDue > 0 && sale.changeDue > 0;
         expect(
           bothOwed,
@@ -79,16 +80,16 @@ void main() {
 
     test('exactly one kobo underpaid still reads as partial, not paid '
         '(the >= boundary in paymentStatus)', () {
-      final sale = saleWith(total: 1000, amountPaid: 999.99);
+      final sale = saleWith(total: 100000, amountPaid: 99999);
       expect(sale.paymentStatus, 'partial');
       expect(sale.changeDue, 0);
     });
 
     test('exactly one kobo overpaid already counts as change due, not '
         'just paid', () {
-      final sale = saleWith(total: 1000, amountPaid: 1000.01);
+      final sale = saleWith(total: 100000, amountPaid: 100000.01);
       expect(sale.paymentStatus, 'paid');
-      expect(sale.changeDue, closeTo(0.01, 0.0001));
+      expect(sale.changeDue, 1);
     });
   });
 }
