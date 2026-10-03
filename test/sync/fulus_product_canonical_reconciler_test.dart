@@ -16,7 +16,7 @@ void main() {
       name: 'fallback',
       sku: 'fallback',
       costPrice: 0,
-      sellingPrice: 1,
+      sellingPrice: 100,
       locationId: 'fallback',
     ));
   });
@@ -83,8 +83,8 @@ void main() {
           barcode: '123',
           categoryId: 'category-1',
           supplierId: 'supplier-1',
-          costPrice: 1000,
-          sellingPrice: 1500,
+          costPrice: 100000,
+          sellingPrice: 150000,
           lowStockThreshold: 5,
           isActive: true,
           photoPath: 'https://bejcuvoxemwomcatgyxz.supabase.co/storage/v1/object/public/product-images/business/product-1/photo.jpg',
