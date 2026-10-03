@@ -89,6 +89,36 @@ jobs:
           echo "::error::Timed out waiting for Fulus Mobile CI for this exact commit."
           exit 1
 
+      - name: Diagnose Supabase Management API authentication
+        run: |
+          set -euo pipefail
+          endpoint="https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_ID}"
+          http_status="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H 'Accept: application/json' \
+            "$endpoint")"
+          case "$http_status" in
+            200)
+              echo "Supabase Management API authentication succeeded for the configured project."
+              ;;
+            401)
+              echo "::error::Supabase Management API rejected SUPABASE_ACCESS_TOKEN (HTTP 401 Unauthorized). Check that the production secret contains a valid, unexpired PAT."
+              exit 1
+              ;;
+            403)
+              echo "::error::Supabase Management API authenticated the token but denied access to the configured project (HTTP 403 Forbidden). Check project access and PAT scopes."
+              exit 1
+              ;;
+            429)
+              echo "::error::Supabase Management API rate-limited the authentication diagnostic (HTTP 429)."
+              exit 1
+              ;;
+            *)
+              echo "::error::Supabase Management API authentication diagnostic returned unexpected HTTP status: $http_status"
+              exit 1
+              ;;
+          esac
+
       - name: Link production project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
