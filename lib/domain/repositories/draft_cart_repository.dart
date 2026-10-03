@@ -64,6 +64,7 @@ abstract class DraftCartRepository {
     required String draftCartLocalId,
     required String method,
     required Money amount,
+    Money? tenderedAmount,
   });
 
   Future<void> removePayment(String paymentLocalId);

@@ -13,6 +13,8 @@ class SaleCanonicalState {
     required this.tax,
     required this.total,
     required this.amountPaid,
+    this.cashTendered = 0,
+    this.cashChange = 0,
     required this.paymentMethod,
     required this.notes,
     required this.items,
@@ -34,6 +36,8 @@ class SaleCanonicalState {
   final Money tax;
   final Money total;
   final Money amountPaid;
+  final Money cashTendered;
+  final Money cashChange;
   final String? paymentMethod;
   final String? notes;
   final List<SaleCanonicalItem> items;
@@ -68,11 +72,13 @@ class SaleCanonicalPayment {
     required this.serverId,
     required this.method,
     required this.amount,
+    this.tenderedAmount,
     required this.recordedAt,
   });
 
   final String serverId;
   final String method;
   final Money amount;
+  final Money? tenderedAmount;
   final DateTime recordedAt;
 }

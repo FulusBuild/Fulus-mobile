@@ -342,8 +342,20 @@ class CartCubit extends Cubit<CartState> {
     final remaining = moneyToMajor(current.remaining);
     if (remaining <= 0.004) throw StateError('This sale is already fully paid.');
     if (method == 'credit' && current.customer == null) throw StateError('Select a customer before using credit.');
-    if (method != 'cash' && amount > remaining + 0.004) throw StateError('That amount is more than the remaining balance.');
-    await _draftCartRepository.addPayment(draftCartLocalId: _draftCartId!, method: method, amount: moneyFromMajor(amount));
+    if (method != 'cash' && amount > remaining + 0.004) {
+      throw StateError('That amount is more than the remaining balance.');
+    }
+    final tendered = moneyFromMajor(amount);
+    final applied = method == 'cash'
+        ? moneyFromMajor(amount < remaining ? amount : remaining)
+        : tendered;
+    final cashTendered = method == 'cash' ? tendered : null;
+    await _draftCartRepository.addPayment(
+      draftCartLocalId: _draftCartId!,
+      method: method,
+      amount: applied,
+      tenderedAmount: cashTendered,
+    );
     _diagnosticLogger?.breadcrumb('Payment added', category: DiagnosticCategory.sales, data: {'Method': method});
   }
 

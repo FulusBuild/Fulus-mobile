@@ -376,6 +376,10 @@ class Sales extends Table with SyncableColumns {
   IntColumn get tax => integer().withDefault(const Constant(0))();
   IntColumn get total => integer()();
   IntColumn get amountPaid => integer().withDefault(const Constant(0))();
+  /// Cash physically tendered across cash payment legs. Null/zero means no cash tender was recorded.
+  IntColumn get cashTendered => integer().withDefault(const Constant(0))();
+  /// Change returned to the customer. Derived at checkout but persisted for receipt/accounting fidelity.
+  IntColumn get cashChange => integer().withDefault(const Constant(0))();
   // balanceDue and paymentStatus are NOT stored columns — both are
   // derived (total - amountPaid; a simple bucketed comparison) rather
   // than persisted, mirroring the backend's own SaleOut, where
@@ -871,6 +875,7 @@ class SalePayments extends Table {
   TextColumn get saleLocalId => text().references(Sales, #localId)();
   TextColumn get method => text()();
   IntColumn get amount => integer()();
+  IntColumn get tenderedAmount => integer().nullable()();
   DateTimeColumn get recordedAt => dateTime()();
 
   @override
@@ -1019,6 +1024,7 @@ class DraftCartPayments extends Table {
   TextColumn get draftCartLocalId => text().references(DraftCarts, #localId)();
   TextColumn get method => text()();
   IntColumn get amount => integer()();
+  IntColumn get tenderedAmount => integer().nullable()();
   DateTimeColumn get recordedAt => dateTime()();
 
   @override

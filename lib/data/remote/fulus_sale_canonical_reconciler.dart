@@ -41,6 +41,8 @@ class FulusSaleCanonicalReconciler {
       tax: _number(sale['tax']),
       total: _number(sale['total']),
       amountPaid: _number(sale['amount_paid']),
+      cashTendered: _number(sale['cash_tendered'] ?? 0),
+      cashChange: _number(sale['cash_change'] ?? 0),
       paymentMethod: _nullableString(sale['payment_method']),
       notes: _nullableString(sale['notes']),
       items: rawItems.map((value) => _mapItem(_object(value, 'sale item'))).toList(growable: false),
@@ -73,6 +75,7 @@ class FulusSaleCanonicalReconciler {
       serverId: _string(row['id']),
       method: _string(row['method'] ?? row['payment_method']),
       amount: _number(row['amount']),
+      tenderedAmount: row['tendered_amount'] == null ? null : _number(row['tendered_amount']),
       recordedAt: _date(row['recorded_at'] ?? row['created_at']),
     );
   }

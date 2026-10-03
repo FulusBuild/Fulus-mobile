@@ -32,6 +32,8 @@ extension SaleToCompanion on Sale {
       wholeCartDiscount: Value(wholeCartDiscount),
       tax: Value(tax),
       amountPaid: Value(amountPaid),
+      cashTendered: Value(cashTendered),
+      cashChange: Value(cashChange),
       paymentMethod: Value(paymentMethod),
       notes: Value(notes),
       deletedAt: const Value(null),
@@ -85,6 +87,8 @@ extension SaleRowToDomain on SaleRow {
       tax: tax,
       total: total,
       amountPaid: amountPaid,
+      cashTendered: cashTendered,
+      cashChange: cashChange,
       paymentMethod: paymentMethod,
       notes: notes,
       items: items.map((row) => row.toDomain()).toList(),
@@ -116,6 +120,7 @@ extension SalePaymentToCompanion on SalePayment {
       saleLocalId: saleLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: Value(tenderedAmount),
       recordedAt: recordedAt,
     );
   }
@@ -128,6 +133,7 @@ extension SalePaymentRowToDomain on SalePaymentRow {
       saleLocalId: saleLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: tenderedAmount,
       recordedAt: recordedAt,
     );
   }

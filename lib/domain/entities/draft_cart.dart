@@ -92,6 +92,7 @@ class DraftCartPayment {
     required this.draftCartLocalId,
     required this.method,
     required this.amount,
+    this.tenderedAmount,
     required this.recordedAt,
   });
 
@@ -100,6 +101,7 @@ class DraftCartPayment {
   final String method;
   @MoneyJsonConverter()
   final Money amount;
+  final Money? tenderedAmount;
   final DateTime recordedAt;
 
   /// Same fresh-identity reasoning as `DraftCartItem.toSaleItem`.
@@ -111,6 +113,7 @@ class DraftCartPayment {
       localId: newLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: tenderedAmount,
       recordedAt: recordedAt,
     );
   }

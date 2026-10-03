@@ -317,10 +317,14 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     required String draftCartLocalId,
     required String method,
     required Money amount,
+    Money? tenderedAmount,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     if (amount <= 0) {
       throw ArgumentError.value(amount, 'amount', 'must be > 0');
+    }
+    if (tenderedAmount != null && tenderedAmount < amount) {
+      throw ArgumentError.value(tenderedAmount, 'tenderedAmount', 'must be >= applied amount');
     }
     await _requireDraftCart(draftCartLocalId);
     final payment = DraftCartPayment(
@@ -328,6 +332,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
       draftCartLocalId: draftCartLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: tenderedAmount,
       recordedAt: DateTime.now(),
     );
     await _db
@@ -452,11 +457,15 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
       final paymentMethod = aggregation.aggregatePaymentMethod(
         payments.map((p) => p.method).toList(),
       );
+      final cashTendered = payments
+          .where((p) => p.method == 'cash')
+          .fold<Money>(0, (sum, p) => sum + (p.tenderedAmount ?? p.amount));
 
       final saleDraft = SaleDraft(
         items: items,
         locationId: draft.locationId,
         amountPaid: amountPaid,
+        cashTendered: cashTendered,
         customerId: draft.customerLocalId,
         discount: discount,
         wholeCartDiscount: draft.wholeCartDiscount,

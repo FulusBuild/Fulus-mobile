@@ -9,6 +9,7 @@ class SalePayment {
     this.saleLocalId,
     required this.method,
     required this.amount,
+    this.tenderedAmount,
     required this.recordedAt,
   });
 
@@ -26,5 +27,10 @@ class SalePayment {
   final String method;
   @MoneyJsonConverter()
   final Money amount;
+
+  /// For cash, the amount physically handed over. [amount] remains the
+  /// amount applied to the sale. For non-cash legs this is null/equal to
+  /// amount and therefore cannot create change.
+  final Money? tenderedAmount;
   final DateTime recordedAt;
 }

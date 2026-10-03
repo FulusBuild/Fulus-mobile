@@ -24,6 +24,8 @@ class Sale {
     required this.tax,
     required this.total,
     required this.amountPaid,
+    this.cashTendered = 0,
+    this.cashChange = 0,
     this.paymentMethod,
     this.notes,
     required this.items,
@@ -64,6 +66,11 @@ class Sale {
   final Money total;
   @MoneyJsonConverter()
   final Money amountPaid;
+
+  /// Total cash physically handed over. The sale's [amountPaid] remains the
+  /// amount applied to the sale, so change never inflates revenue.
+  final Money cashTendered;
+  final Money cashChange;
   final String? paymentMethod;
   final String? notes;
   final List<SaleItem> items;
@@ -92,7 +99,7 @@ class Sale {
   /// (`total - amountPaid`); this just gives that a name and a floor,
   /// the same way a real cash register does: the change is a separate
   /// concept from the balance, never itself negative.
-  Money get changeDue => amountPaid > total ? amountPaid - total : 0;
+  Money get changeDue => cashTendered > amountPaid ? cashTendered - amountPaid : 0;
 
   /// Also computed, also mirroring backend logic exactly rather than
   /// reintroducing a parallel definition of "what counts as paid" —

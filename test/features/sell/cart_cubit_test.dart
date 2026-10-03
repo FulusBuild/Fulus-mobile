@@ -393,6 +393,23 @@ void main() {
       expect(state.items, isEmpty);
     });
 
+    test('cash over-tender records applied amount and change separately', () async {
+      await cubit.addProduct(plentyProductId); // total = 1000
+      await waitFor(cubit, (s) => s.items.isNotEmpty);
+
+      await cubit.addPayment('cash', 1500);
+      final paid = await waitFor(cubit, (s) => s.payments.isNotEmpty);
+
+      expect(paid.payments.single.amount, moneyFromMajor(1000));
+
+      final sale = await cubit.completeSale();
+
+      expect(sale.amountPaid, moneyFromMajor(1000));
+      expect(sale.cashTendered, moneyFromMajor(1500));
+      expect(sale.cashChange, moneyFromMajor(500));
+      expect(sale.changeDue, moneyFromMajor(500));
+    });
+
     test('a successful sale totals what was in the cart and leaves the '
         'cart empty afterward', () async {
       await cubit.addProduct(plentyProductId);
