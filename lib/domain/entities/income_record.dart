@@ -36,6 +36,7 @@ class IncomeRecord {
   final String? serverId;
   final String locationId;
   final String source;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime incomeDate;
   final String? notes;
@@ -83,6 +84,7 @@ class IncomeCreateDto {
   });
 
   final String source;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime incomeDate;
   final String locationId;
@@ -108,6 +110,7 @@ class IncomeResponseDto {
 
   final String id;
   final String source;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime incomeDate;
   final String? notes;
@@ -132,6 +135,7 @@ class IncomeRecordDraft {
 
   final String locationId;
   final String source;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime incomeDate;
   final String? notes;
