@@ -100,7 +100,7 @@ void main() {
     final captured = verify(() => repository.reconcileServerState(captureAny())).captured.single as SaleCanonicalState;
     expect(captured.serverId, 'sale-1');
     expect(captured.items.single.productServerId, 'product-1');
-    expect(captured.payments.single.amount, 1000);
+    expect(captured.payments.single.amount, 100000);
   });
 
   test('maps canonical return aggregate', () async {
