@@ -394,7 +394,7 @@ Future<String> _runFinancialConvergenceScenario(
   }
 
   // Replay the exact operation on B. This must not create a second repayment.
-  final repaymentReplay = await dio.post('', data: {
+  final repaymentReplay = await secondaryDio.post('', data: {
     'action': 'customer_repayment',
     'business_id': businessId,
     'operation_id': repaymentOperation,
@@ -405,7 +405,7 @@ Future<String> _runFinancialConvergenceScenario(
   });
   _expect2xx(repaymentReplay, 'P16 customer.repayment idempotent replay');
   final replayData = _actionData(repaymentReplay);
-  if ((replayData?['new_balance'] as num?)?.toDouble() != 100) {
+  if ((replayData?['new_balance'] as num?)?.toDouble() != 200) {
     throw StateError(
       'P16 repayment replay changed the customer balance: ${repaymentReplay.data}',
     );
