@@ -34,6 +34,7 @@
 /// `customers_list_screen.dart` and `suppliers_list_screen.dart`.
 library;
 
+import '../../../core/money/money.dart';
 enum MoneyTransactionType {
   /// A completed sale — the till ringing. Mirrors `Sale`.
   saleIncome,
@@ -94,7 +95,7 @@ class MoneyTransaction {
   /// customer/supplier name — shown under [title] on a list row.
   final String? subtitle;
 
-  final double amount;
+  final Money amount;
   final DateTime dateTime;
 
   /// Expense category ("Rent", "Transport", "Wages", "Utilities",
@@ -146,7 +147,7 @@ class MoneyTransaction {
   /// never a list row" cost tradeoff [lineItems] documents above) —
   /// null for every non-split sale and for every other transaction
   /// type.
-  final List<({String method, double amount})>? paymentBreakdown;
+  final List<({String method, Money amount})>? paymentBreakdown;
 
   /// Feature (transaction audit center): who rang this up — a
   /// `Sales.cashierUserId` lookup, only ever resolved for the
@@ -164,13 +165,13 @@ class MoneyTransaction {
   /// apart from a smaller sale that was paid in full. Null for any
   /// non-sale transaction type, where "total vs. paid" isn't a
   /// distinct concept in the first place.
-  final double? saleTotal;
+  final Money? saleTotal;
 
   /// `saleTotal - amount`, floored at 0 — mirrors `Sale.balanceDue`/
   /// `ReceiptData.balanceDue` exactly. Always 0 when [saleTotal] is
   /// null (a non-sale row, or a sale row from before detail-enrichment
   /// populated it).
-  double get balanceDue {
+  Money get balanceDue {
     final total = saleTotal;
     if (total == null) return 0;
     final due = total - amount;
@@ -195,5 +196,5 @@ class MoneyTransaction {
 
   /// Signed amount — positive for money in, negative for money out.
   /// Used when summing a list of transactions into a net figure.
-  double get signedAmount => isInflow ? amount : -amount;
+  Money get signedAmount => isInflow ? amount : -amount;
 }
