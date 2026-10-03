@@ -14,8 +14,8 @@ class DraftCart {
     required this.localId,
     required this.locationId,
     this.customerLocalId,
-    this.wholeCartDiscount = 0.0,
-    this.tax = 0.0,
+    this.wholeCartDiscount = 0,
+    this.tax = 0,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -24,12 +24,12 @@ class DraftCart {
   final String localId;
   final String locationId;
   final String? customerLocalId;
-  final double wholeCartDiscount;
+  final Money wholeCartDiscount;
 
   /// Same "not resolved by this module" status `Sale.tax`/checkout
   /// always had — Business Settings owns the VAT rate; this is
   /// whatever the caller already computed from it.
-  final double tax;
+  final Money tax;
 
   final String? notes;
   final DateTime createdAt;
@@ -44,8 +44,8 @@ class DraftCartItem {
     this.description = '',
     required this.quantity,
     required this.unitPrice,
-    this.costPriceAtSale = 0.0,
-    this.lineDiscount = 0.0,
+    this.costPriceAtSale = 0,
+    this.lineDiscount = 0,
   });
 
   final String localId;
@@ -53,9 +53,9 @@ class DraftCartItem {
   final String? productLocalId;
   final String description;
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
-  final double lineDiscount;
+  final Money unitPrice;
+  final Money costPriceAtSale;
+  final Money lineDiscount;
 
   /// Raw, pre-discount — same convention `SaleItem.lineTotal` uses, for
   /// the same reason: this is what a cart-level subtotal needs to sum,
@@ -93,7 +93,7 @@ class DraftCartPayment {
   final String localId;
   final String draftCartLocalId;
   final String method;
-  final double amount;
+  final Money amount;
   final DateTime recordedAt;
 
   /// Same fresh-identity reasoning as `DraftCartItem.toSaleItem`.
