@@ -44,4 +44,19 @@ begin
   if position('set_config(''request.jwt.claim.sub'',target_user_id::text,true)' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
     raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
   end if;
+
+  -- A credit-method return must settle one customer-ledger reversal. The
+  -- operation_id is unique per business, so a second insert would abort the
+  -- whole return transaction. Keep this structural regression on the
+  -- authoritative function body so the duplicate-insert bug cannot return.
+  if (
+    length(pg_get_functiondef(to_regprocedure(return_sig)))
+    - length(replace(
+        pg_get_functiondef(to_regprocedure(return_sig)),
+        'target_client_reference||'':credit-reversal''',
+        ''
+      ))
+  ) / length('target_client_reference||'':credit-reversal''') <> 1 then
+    raise exception 'return RPC must contain exactly one customer credit-reversal operation id';
+  end if;
 end $$;
