@@ -16,8 +16,8 @@ void main() {
     registerFallbackValue(ProductDraft(
       name: 'fallback',
       sku: 'fallback',
-      costPrice: moneyFromMajor(0),
-      sellingPrice: moneyFromMajor(100),
+      costPrice: 0,
+      sellingPrice: 100,
       locationId: 'fallback',
     ));
   });
