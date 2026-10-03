@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/diagnostics/diagnostic_logger.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/diagnostics/models/diagnostic_enums.dart';
 import '../../../../core/utils/async_timeout.dart';
 import '../../../../domain/entities/business_settings.dart';
@@ -184,14 +185,14 @@ class CartCubit extends Cubit<CartState> {
     }
   }
 
-  double get _subtotal => _items.fold(0.0, (sum, i) => sum + i.lineTotal);
+  Money get _subtotal => _items.fold<Money>(0, (sum, i) => sum + i.lineTotal);
 
   Future<void> _applyTax() async {
     final profile = _profile;
     final draft = _draft;
     if (profile == null || draft == null) return;
-    final expectedTax = profile.vatEnabled ? _subtotal * (profile.vatRate / 100) : 0.0;
-    if ((draft.tax - expectedTax).abs() < 0.005) return;
+    final Money expectedTax = profile.vatEnabled ? (_subtotal * profile.vatRate / 100).round() : 0;
+    if (draft.tax == expectedTax) return;
     await _draftCartRepository.setTax(draftCartLocalId: draft.localId, tax: expectedTax);
   }
 
@@ -242,7 +243,7 @@ class CartCubit extends Cubit<CartState> {
         draftCartLocalId: _draftCartId!,
         productLocalId: productLocalId,
         quantity: quantity,
-        lineDiscount: 0.0,
+        lineDiscount: 0,
       );
     }
 
@@ -256,7 +257,7 @@ class CartCubit extends Cubit<CartState> {
   Future<void> addQuickSaleItem({required String description, required double unitPrice}) async {
     if (description.trim().isEmpty) throw StateError('Enter what you\'re selling.');
     if (unitPrice <= 0) throw StateError('Enter a price greater than 0.');
-    await _draftCartRepository.addItem(draftCartLocalId: _draftCartId!, description: description.trim(), unitPrice: unitPrice, quantity: 1, lineDiscount: 0.0);
+    await _draftCartRepository.addItem(draftCartLocalId: _draftCartId!, description: description.trim(), unitPrice: moneyFromMajor(unitPrice), quantity: 1, lineDiscount: 0);
   }
 
   Future<void> incrementItem(DraftCartItem item) async {
@@ -302,7 +303,7 @@ class CartCubit extends Cubit<CartState> {
   Future<void> updateItemDiscount(DraftCartItem item, double lineDiscount) async {
     if (lineDiscount < 0) throw StateError('Discount can\'t be negative.');
     if (lineDiscount > item.lineTotal) throw StateError('Discount can\'t be more than the line total.');
-    await _draftCartRepository.updateItemDiscount(itemLocalId: item.localId, lineDiscount: lineDiscount);
+    await _draftCartRepository.updateItemDiscount(itemLocalId: item.localId, lineDiscount: moneyFromMajor(lineDiscount));
   }
 
   Future<void> setWholeCartDiscount(double discount) async {
@@ -310,7 +311,7 @@ class CartCubit extends Cubit<CartState> {
     if (current is! CartLoaded) return;
     if (discount < 0) throw StateError('Discount can\'t be negative.');
     if (discount > current.subtotal) throw StateError('Discount can\'t be more than the subtotal.');
-    await _draftCartRepository.setWholeCartDiscount(draftCartLocalId: current.draftCart.localId, discount: discount);
+    await _draftCartRepository.setWholeCartDiscount(draftCartLocalId: current.draftCart.localId, discount: moneyFromMajor(discount));
   }
 
   Future<void> restoreItem(DraftCartItem item) async {
@@ -338,11 +339,11 @@ class CartCubit extends Cubit<CartState> {
     if (amount <= 0) throw StateError('Enter an amount greater than 0.');
     final current = state;
     if (current is! CartLoaded) throw StateError('Cart is not ready yet.');
-    final remaining = current.remaining;
+    final remaining = moneyToMajor(current.remaining);
     if (remaining <= 0.004) throw StateError('This sale is already fully paid.');
     if (method == 'credit' && current.customer == null) throw StateError('Select a customer before using credit.');
     if (method != 'cash' && amount > remaining + 0.004) throw StateError('That amount is more than the remaining balance.');
-    await _draftCartRepository.addPayment(draftCartLocalId: _draftCartId!, method: method, amount: amount);
+    await _draftCartRepository.addPayment(draftCartLocalId: _draftCartId!, method: method, amount: moneyFromMajor(amount);
     _diagnosticLogger?.breadcrumb('Payment added', category: DiagnosticCategory.sales, data: {'Method': method});
   }
 
