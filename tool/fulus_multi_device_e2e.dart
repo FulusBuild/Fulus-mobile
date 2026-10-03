@@ -404,7 +404,7 @@ Future<String> _runFinancialConvergenceScenario(
     'notes': 'P16 concurrent financial sale',
     'items': [
       {
-        'product_id': null,
+        'product_id': productId,
         'description': 'P16 financial sale $suffix',
         'quantity': 1,
         'unit_price': 150,
@@ -457,7 +457,7 @@ Future<String> _runFinancialConvergenceScenario(
     throw StateError('P16 credit return did not reverse exactly 150: ' + returnResponse.data.toString());
   }
 
-  final returnReplay = await secondaryDio.post('', data: {
+  final returnReplay = await primaryDio.post('', data: {
     'action': 'return_create',
     'business_id': businessId,
     'operation_id': returnOperation,
