@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,8 +89,8 @@ void main() {
               localId: id,
               name: id,
               sku: 'SKU-$id',
-              costPrice: 400,
-              sellingPrice: 1000,
+              costPrice: moneyFromMajor(400),
+              sellingPrice: moneyFromMajor(1000),
               createdAt: now,
               updatedAt: now,
               syncStatus: SyncStatus.settled,
@@ -145,14 +146,14 @@ void main() {
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
-        unitPrice: 1000,
+        unitPrice: moneyFromMajor(1000),
         costPriceAtSale: 400,
       ),
       SaleItem(
         localId: Ulid().toString(),
         productLocalId: productBId,
         quantity: 3,
-        unitPrice: 1000,
+        unitPrice: moneyFromMajor(1000),
         costPriceAtSale: 400,
       ),
     ];
@@ -238,7 +239,7 @@ void main() {
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
-        unitPrice: 1000,
+        unitPrice: moneyFromMajor(1000),
         costPriceAtSale: 400,
       ),
     ];
@@ -250,8 +251,8 @@ void main() {
         amountPaid: 4500,
         paymentMethod: 'split',
         payments: [
-          SalePayment(localId: Ulid().toString(), method: 'cash', amount: 4500, recordedAt: now),
-          SalePayment(localId: Ulid().toString(), method: 'credit', amount: 500, recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'cash', amount: moneyFromMajor(4500), recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'credit', amount: moneyFromMajor(500), recordedAt: now),
         ],
       ),
     );
@@ -632,7 +633,7 @@ void main() {
               localId: 'transfer-item-1',
               productLocalId: productAId,
               quantity: 1,
-              unitPrice: 1000,
+              unitPrice: moneyFromMajor(1000),
               costPriceAtSale: 400,
             ),
           ],
