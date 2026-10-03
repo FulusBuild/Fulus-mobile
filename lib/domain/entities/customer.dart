@@ -34,6 +34,7 @@ class Customer {
   final String? email;
   final String? address;
   final String? notes;
+  @MoneyJsonConverter()
   final Money outstandingBalance;
 
   /// **Bible-only** (Product Design Bible Volume 7: "Credit limit —
@@ -41,6 +42,7 @@ class Customer {
   /// 23"). No backend column — confirmed directly against
   /// backend/app/models/customer.py, same audit as Product's
   /// tracksStock. Never enforced as a hard block anywhere this is read.
+  @MoneyJsonConverter()
   final Money? creditLimit;
 
   /// **Bible-only** (Volume 7 Loyalty section: "a purchase count per
@@ -116,6 +118,7 @@ class CustomerDraft {
   final String? email;
   final String? address;
   final String? notes;
+  @MoneyJsonConverter()
   final Money? creditLimit;
   final int? loyaltyThreshold;
   final String? photoPath;
@@ -194,6 +197,7 @@ class CustomerResponseDto {
   final String? email;
   final String? address;
   final String? notes;
+  @MoneyJsonConverter()
   final Money outstandingBalance;
   final String? duplicateWarning;
 
