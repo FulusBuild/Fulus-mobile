@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/dashboard_repository_impl.dart';
@@ -41,7 +42,7 @@ void main() {
     await db.close();
   });
 
-  Future<void> seedSale({required double total, DateTime? saleDate, String saleLocationId = locationId}) {
+  Future<void> seedSale({required Money total, DateTime? saleDate, String saleLocationId = locationId}) {
     final id = 'sale-${DateTime.now().microsecondsSinceEpoch}-${total.toString()}';
     return db.into(db.sales).insert(SalesCompanion.insert(
           localId: id,
@@ -108,8 +109,8 @@ void main() {
 
   group('getHeroState — sales totals', () {
     test('todayTotal is isolated to the requested location', () async {
-      await seedSale(total: 500, saleLocationId: locationId);
-      await seedSale(total: 900, saleLocationId: locationBId);
+      await seedSale(total: moneyFromMajor(500), saleLocationId: locationId);
+      await seedSale(total: moneyFromMajor(900), saleLocationId: locationBId);
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
@@ -128,8 +129,8 @@ void main() {
     });
 
     test('todayTotal reflects only sales from today', () async {
-      await seedSale(total: 500);
-      await seedSale(total: 300, saleDate: DateTime.now().subtract(const Duration(days: 3)));
+      await seedSale(total: moneyFromMajor(500));
+      await seedSale(total: moneyFromMajor(300), saleDate: DateTime.now().subtract(const Duration(days: 3)));
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
@@ -141,7 +142,7 @@ void main() {
   group('getSecondaryNotices — unsyncedCount', () {
     test('low-stock projection is isolated to the requested location', () async {
       await db.into(db.products).insert(ProductsCompanion.insert(
-        localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: 10, sellingPrice: 20,
+        localId: 'p1', name: 'Product A', sku: 'SKU-A', costPrice: moneyFromMajor(10), sellingPrice: moneyFromMajor(20),
         lowStockThreshold: const Value(5), createdAt: DateTime.now(), updatedAt: DateTime.now(), syncStatus: SyncStatus.settled,
       ));
       await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
