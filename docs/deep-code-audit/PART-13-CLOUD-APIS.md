@@ -14,7 +14,7 @@ Audited the authenticated and privileged Edge Function boundary, including:
 - `fulus-diagnostics`
 - `fulus-reporting-api`
 
-Checks covered authentication, business membership, permission enforcement, location isolation, device ownership/revocation, service-role boundaries, restore scope, idempotency, canonical reads, and error exposure.
+Checks covered authentication, business membership, permission enforcement, location isolation, device ownership/revocation, service-role boundaries, restore scope, idempotency, canonical reads, diagnostic ingestion, and error exposure.
 
 ## Findings
 
@@ -23,6 +23,7 @@ Checks covered authentication, business membership, permission enforcement, loca
 | P13-001 | High | Fixed on branch | Reporting API accepted active business members without requiring `reports.read`, and accepted any active business device rather than binding the request to the authenticated user's registered device. | Added `reports.read` authorization and `registered_by = authenticated user` device binding. |
 | P13-002 | High | Fixed on branch | `set_inventory_quantity()` is SECURITY DEFINER and lacked an internal `inventory.adjust` permission check. | Recreated the RPC with an internal `public.has_permission(..., 'inventory.adjust')` guard plus existing business/device/product/location checks. |
 | P13-003 | Medium | Fixed on branch | Privileged Edge Functions could return raw Postgres/Supabase error messages to clients, exposing implementation details and coupling clients to database error text. | Sanitized client-facing RPC error messages while retaining stable application error codes/statuses. Added a source-contract regression check. |
+| P13-004 | Medium | Fixed on branch | Diagnostic ingestion accepted an arbitrary caller-supplied device identifier and stored the complete event payload without a bounded event-size invariant. | When a business is supplied, bind the diagnostic device to the authenticated user's active registered device; reject events whose serialized event exceeds 32 KiB. Added source-contract regression checks. |
 
 ## Cross-checks
 
@@ -36,7 +37,7 @@ Authenticated business operations verify active membership for the requested bus
 
 ### Device isolation
 
-Sync/reporting/recovery paths that require a device bind the supplied device client identifier to the authenticated user. Device revocation is delegated to guarded database RPCs.
+Sync/reporting/recovery paths that require a device bind the supplied device client identifier to the authenticated user. Diagnostic ingestion now follows the same binding when a business context is supplied. Device revocation is delegated to guarded database RPCs.
 
 ### Location isolation
 
@@ -56,7 +57,7 @@ Important service-role mutations were cross-checked against their SECURITY DEFIN
 
 ## Verification
 
-- Supabase migration-chain CI passed for the Part 13 branch.
+- Supabase migration-chain CI passed for the earlier Part 13 commit; the latest commit is being re-verified after diagnostic hardening.
 - Fulus Mobile CI is being monitored for the current branch after the latest source/test changes.
 - Production/runtime verification remains separate from source/CI proof and must be recorded before Part 13 is declared fully closed.
 
