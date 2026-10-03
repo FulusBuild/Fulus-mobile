@@ -57,7 +57,7 @@ void main() {
           locationServerId: 'location-1',
           categoryId: 'category-1',
           description: 'Transport',
-          amount: moneyFromMajor(450000),
+          amount: moneyFromMajor(4500),
           expenseDate: DateTime.parse('2026-09-15T10:00:00Z'),
           paymentMethod: 'cash',
           createdAt: DateTime.parse('2026-09-15T09:00:00Z'),
