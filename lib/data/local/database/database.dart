@@ -207,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration {
@@ -225,6 +225,14 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_sale_items_sale_local_id '
           'ON sale_items(sale_local_id)',
+        );
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_carts_location_id '
+          'ON draft_carts(location_id)',
+        );
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_drawer_shifts_open_location '
+          'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
         );
       },
       // The first real onUpgrade implementation this project has needed
@@ -422,6 +430,25 @@ class AppDatabase extends _$AppDatabase {
           // them. Nullable keeps existing installs upgrade-safe; legacy rows
           // are resolved before they are drained.
           await m.addColumn(syncQueueItems, syncQueueItems.actorUserId);
+        }
+        if (from < 18) {
+          // Durable cardinality guards: the repository already serializes
+          // normal callers, but the database must also enforce the two
+          // business invariants against concurrent writers/isolates.
+          // Do not merge or discard pre-existing duplicate carts/shifts here:
+          // those rows contain business state and there is no universally
+          // safe automatic merge policy. A duplicate therefore causes this
+          // index creation to fail loudly rather than silently deleting or
+          // rewriting user data; support can reconcile the duplicate rows
+          // before retrying the upgrade.
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_carts_location_id '
+            'ON draft_carts(location_id)',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_drawer_shifts_open_location '
+            'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
+          );
         }
         if (from < 17) {
           // Financial migration: every monetary SQLite REAL column is now an
