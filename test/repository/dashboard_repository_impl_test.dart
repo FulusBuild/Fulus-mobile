@@ -114,8 +114,8 @@ void main() {
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
-      expect(state.finalTotal, moneyFromMajor(500));
-      expect(state.finalSalesCount, moneyFromMajor(1));
+      expect(state.finalTotal, 500);
+      expect(state.finalSalesCount, 1);
     });
 
     test('open and closed drawer state is isolated to the requested location', () async {
@@ -134,8 +134,8 @@ void main() {
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
-      expect(state.finalTotal, moneyFromMajor(500));
-      expect(state.finalSalesCount, moneyFromMajor(1));
+      expect(state.finalTotal, 500);
+      expect(state.finalSalesCount, 1);
     });
   });
 
@@ -156,7 +156,7 @@ void main() {
 
       final selection = await repository.getSecondaryNotices(locationId: locationId);
       final low = selection.shown.where((n) => n.type == SecondaryNoticeType.lowStock);
-      expect(low.single.value, moneyFromMajor(1));
+      expect(low.single.value, 1);
     });
 
     test('reflects the real number of items still in the sync queue', () async {
@@ -174,7 +174,7 @@ void main() {
       final selection = await repository.getSecondaryNotices(locationId: locationId);
 
       final unsynced = selection.shown.where((n) => n.type == SecondaryNoticeType.unsyncedItems);
-      expect(unsynced.single.value, moneyFromMajor(3));
+      expect(unsynced.single.value, 3);
     });
 
     test('an empty sync queue produces no unsynced notice at all', () async {
