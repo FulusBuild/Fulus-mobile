@@ -204,7 +204,7 @@ Deno.serve(async (req: Request) => {
 
     if (error.message !== "Invite already claimed") {
       return json(
-        { error: { code: "STAFF_ACCESS_FAILED", message: error.message } },
+        { error: { code: "STAFF_ACCESS_FAILED", message: error.code === "42501" ? "Insufficient permission for this staff action" : "Unable to complete staff action" } },
         error.code === "42501" ? 403 : 400,
       );
     }
