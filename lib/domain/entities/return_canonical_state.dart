@@ -1,4 +1,5 @@
 class ReturnCanonicalState {
+import 'package:fulus_mobile/core/money/money.dart';
   const ReturnCanonicalState({
     required this.serverId,
     required this.originalSaleServerId,
@@ -18,7 +19,7 @@ class ReturnCanonicalState {
   final String originalSaleServerId;
   final String status;
   final String returnReason;
-  final double refundAmount;
+  final Money refundAmount;
   final String refundMethod;
   final bool inventoryRestored;
   final bool isVoid;
