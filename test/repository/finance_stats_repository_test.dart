@@ -189,7 +189,7 @@ void main() {
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
         total: moneyFromMajor(7500),
-        amountPaid: 7500,
+        amountPaid: moneyFromMajor(7500),
         items: const [],
       );
 
@@ -200,14 +200,14 @@ void main() {
         dateTo: DateTime(2026, 1, 15),
         locationId: 'loc-1',
       );
-      expect(cashFlow.salesInflow, 7500);
+      expect(cashFlow.salesInflow, 750000);
 
       final profitLoss = await repository.getProfitLoss(
         dateFrom: DateTime(2026, 1, 15),
         dateTo: DateTime(2026, 1, 15),
         locationId: 'loc-1',
       );
-      expect(profitLoss.revenue, 7500);
+      expect(profitLoss.revenue, 750000);
     });
   });
 
@@ -228,7 +228,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 1000,
+              refundAmount: moneyFromMajor(1000),
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -263,7 +263,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 1000,
+              refundAmount: moneyFromMajor(1000),
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -312,9 +312,9 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.salesInflow, 1000);
-      expect(report.manualIncomeInflow, 300);
-      expect(report.inflow, 1300);
+      expect(report.salesInflow, 100000);
+      expect(report.manualIncomeInflow, 30000);
+      expect(report.inflow, 130000);
     });
 
     test('combines expenses and supplier payments into outflow', () async {
@@ -356,9 +356,9 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.expensesOutflow, 150);
-      expect(report.supplierPaymentsOutflow, 400);
-      expect(report.outflow, 550);
+      expect(report.expensesOutflow, 15000);
+      expect(report.supplierPaymentsOutflow, 40000);
+      expect(report.outflow, 55000);
     });
 
     // Regression test for a confirmed bug (Reports & Auditability
@@ -417,8 +417,8 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.customerRepaymentsInflow, 250);
-      expect(report.inflow, 1000 + 250);
+      expect(report.customerRepaymentsInflow, 25000);
+      expect(report.inflow, 100000 + 25000);
     });
   });
 }
