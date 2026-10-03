@@ -39,10 +39,10 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<({CustomerLedgerEntry entry, double newBalance, double excessAmount})>
+  Future<({CustomerLedgerEntry entry, Money newBalance, Money excessAmount})>
       recordRepayment({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     String? paymentMethod,
     String? note,
     String? saleLocalId,
