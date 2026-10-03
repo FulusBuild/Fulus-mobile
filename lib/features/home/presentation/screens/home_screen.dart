@@ -10,12 +10,10 @@ import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../domain/entities/dashboard_summary.dart';
-import '../../../../domain/entities/report.dart';
 import '../../../../domain/entities/location.dart';
-import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
 import '../../../auth/presentation/screens/identity_picker_screen.dart';
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 
 final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
     ref.watch(locationRepositoryProvider).watchLocations());
@@ -45,7 +43,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
   late Future<SecondaryNoticeSelection> _noticesFuture;
-  late Future<double> _cashFuture;
 
   @override
   void initState() {
@@ -73,14 +70,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               overflowCount: 0,
             ),
           );
-    _cashFuture = (widget.isOwner || widget.canViewMoney)
-        ? ref.read(moneyRepositoryProvider).getAvailableBalance()
-        : Future.value(0);
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture, _cashFuture]);
+    await Future.wait([_heroFuture, _noticesFuture]);
   }
 
   @override
@@ -166,7 +160,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: _HomeDashboardHydration(
                             heroFuture: _heroFuture,
                             noticesFuture: _noticesFuture,
-                            cashFuture: _cashFuture,
                             currencySymbol: currencySymbol,
                             canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
@@ -365,7 +358,6 @@ class _HomeDashboardHydration extends StatefulWidget {
   const _HomeDashboardHydration({
     required this.heroFuture,
     required this.noticesFuture,
-    required this.cashFuture,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
@@ -375,7 +367,6 @@ class _HomeDashboardHydration extends StatefulWidget {
 
   final Future<HomeHeroState> heroFuture;
   final Future<SecondaryNoticeSelection> noticesFuture;
-  final Future<double> cashFuture;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
@@ -391,8 +382,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   SecondaryNoticeSelection? _noticeSelection;
   bool _heroError = false;
   bool _noticesError = false;
-  bool _cashError = false;
-  double? _cashTotal;
 
   @override
   void initState() {
@@ -401,24 +390,19 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     // FutureBuilder to build before its own future is observed.
     widget.heroFuture.then(_setHero, onError: _setHeroError);
     widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
-    widget.cashFuture.then(_setCash, onError: _setCashError);
   }
 
   @override
   void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.heroFuture != widget.heroFuture ||
-        oldWidget.noticesFuture != widget.noticesFuture ||
-        oldWidget.cashFuture != widget.cashFuture) {
+        oldWidget.noticesFuture != widget.noticesFuture) {
       _hero = null;
       _noticeSelection = null;
-      _cashTotal = null;
       _heroError = false;
       _noticesError = false;
-      _cashError = false;
       widget.heroFuture.then(_setHero, onError: _setHeroError);
       widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
-      widget.cashFuture.then(_setCash, onError: _setCashError);
     }
   }
 
@@ -430,20 +414,12 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     if (mounted) setState(() { _noticeSelection = value; _noticesError = false; });
   }
 
-  void _setCash(double value) {
-    if (mounted) setState(() { _cashTotal = value; _cashError = false; });
-  }
-
   void _setHeroError(Object _, StackTrace __) {
     if (mounted) setState(() => _heroError = true);
   }
 
   void _setNoticesError(Object _, StackTrace __) {
     if (mounted) setState(() => _noticesError = true);
-  }
-
-  void _setCashError(Object _, StackTrace __) {
-    if (mounted) setState(() => _cashError = true);
   }
 
   @override
@@ -453,8 +429,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
       notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
       noticesError: _noticesError,
       heroError: _heroError,
-      cashError: _cashError,
-      cashTotal: _cashTotal,
       currencySymbol: widget.currencySymbol,
       canViewDashboardStats: widget.canViewDashboardStats,
       canViewMoney: widget.canViewMoney,
@@ -467,10 +441,8 @@ class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
     required this.notices,
-    required this.cashTotal,
     required this.noticesError,
     required this.heroError,
-    required this.cashError,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
@@ -480,8 +452,6 @@ class _HomeMockupDashboard extends StatelessWidget {
   final List<SecondaryNotice> notices;
   final bool noticesError;
   final bool heroError;
-  final bool cashError;
-  final double? cashTotal;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
@@ -501,7 +471,6 @@ class _HomeMockupDashboard extends StatelessWidget {
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-  int? get _lowStockCount => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.lowStock).fold<int>(0, (sum, n) => sum + n.value.toInt());
   double? get _creditTotal => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
 
   @override
@@ -513,38 +482,14 @@ class _HomeMockupDashboard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: canViewMoney ? 2 : 1,
+            flex: 1,
             child: _HomeSalesHeroCard(
               salesTotal: _salesTotal,
               salesCount: _salesCount,
               error: heroError,
               currencySymbol: currencySymbol,
-              onTap: canViewReports
-                  ? () => context.pushNamed(
-                        'moreReportsSalesTransactions',
-                        extra: ReportsEngine().resolvePeriod(ReportPeriodKind.today),
-                      )
-                  : null,
             ),
           ),
-          if (canViewMoney) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              flex: 1,
-              child: _HomeCompactCard(
-                color: _HomeColors.blue,
-                icon: FulusIcons.cashBalance,
-                label: 'Business Balance',
-                value: cashError
-                    ? '—'
-                    : cashTotal != null
-                        ? formatMoney(cashTotal!, symbol: currencySymbol)
-                        : '—',
-                secondary: 'available',
-                onTap: () => context.goNamed('money'),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -558,11 +503,11 @@ class _HomeMockupDashboard extends StatelessWidget {
             Expanded(
               child: _HomeCompactCard(
                 color: _HomeColors.orange,
-                icon: FulusIcons.stock,
-                label: 'Low Stock',
-                value: _lowStockCount?.toString() ?? '—',
-                secondary: 'items',
-                onTap: () => context.goNamed('stock'),
+                icon: FulusIcons.receipt,
+                label: 'Receipts',
+                value: 'History',
+                secondary: 'view receipts',
+                onTap: () => context.goNamed('receiptHistory'),
               ),
             ),
             if (canViewMoney) ...[
@@ -637,15 +582,12 @@ class _HomeSalesHeroCard extends StatelessWidget {
     required this.salesCount,
     required this.error,
     required this.currencySymbol,
-    required this.onTap,
   });
 
   final double? salesTotal;
   final int? salesCount;
   final bool error;
   final String currencySymbol;
-  final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
     final value = error || salesTotal == null
@@ -656,16 +598,11 @@ class _HomeSalesHeroCard extends StatelessWidget {
         : '${salesCount!} sale${salesCount == 1 ? '' : 's'} today';
 
     return Semantics(
-      button: onTap != null,
-      enabled: onTap != null,
       label: 'Today’s sales, $value, $count',
       child: Material(
         color: _HomeColors.green,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
+        child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,7 +646,6 @@ class _HomeSalesHeroCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -885,7 +821,6 @@ class _HomeReportCard extends StatelessWidget {
 class _HomeColors {
   static const green = Color(0xFF0BBE6E);
   static const navy = Color(0xFF061B3A);
-  static const blue = Color(0xFF1473E6);
   static const orange = Color(0xFFFF9F1C);
   static const purple = Color(0xFF7B3FF2);
   static const teal = Color(0xFF0DA8C4);
