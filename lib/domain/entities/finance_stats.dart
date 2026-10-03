@@ -92,8 +92,8 @@ class CashFlowReport {
 
   final DateTime dateFrom;
   final DateTime dateTo;
-  final double salesInflow;
-  final double manualIncomeInflow;
+  final Money salesInflow;
+  final Money manualIncomeInflow;
 
   /// **Confirmed bug fix (Reports & Auditability upgrade):** this
   /// component didn't exist before — `inflow` only ever summed
@@ -112,9 +112,9 @@ class CashFlowReport {
   /// For a single-location business this is a non-issue; for a
   /// multi-location one, this component reflects repayments across
   /// every location, not just [locationId].
-  final double customerRepaymentsInflow;
+  final Money customerRepaymentsInflow;
 
-  final double inflow;
+  final Money inflow;
   final Money expensesOutflow;
 
   /// **Not in the backend's own `get_cash_flow` at all** — verified
@@ -123,8 +123,8 @@ class CashFlowReport {
   /// belong in outflow just as much as an expense does; included here
   /// as a genuine, cited addition rather than silently left out because
   /// the backend doesn't have it either.
-  final double supplierPaymentsOutflow;
+  final Money supplierPaymentsOutflow;
 
-  final double outflow;
-  final double netCashFlow;
+  final Money outflow;
+  final Money netCashFlow;
 }
