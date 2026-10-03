@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
@@ -59,7 +60,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     setState(() => _submitting = true);
     try {
       await ref.read(moneyRepositoryProvider).recordExpense(
-            amount: amount!,
+            amount: moneyFromMajor(amount!),
             category: _category!,
             paymentMethod: _paymentMethod!,
             note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
