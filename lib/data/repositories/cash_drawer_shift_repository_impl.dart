@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart';
 
-import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
+
+import '../../core/money/money.dart';
 
 import '../../domain/entities/cash_drawer_shift.dart';
 import '../../domain/repositories/auth_repository.dart';
