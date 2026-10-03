@@ -588,7 +588,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [(costPriceAtSale: moneyFromMajor(60), quantity: 2, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 2, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-void',
@@ -618,7 +618,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(400),
         amountPaid: 400,
-        items: const [(costPriceAtSale: moneyFromMajor(60), quantity: 4, productId: 'product-a')],
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 4, productId: 'product-a')],
       );
       await insertCompletedReturn(
         localId: 'return-1',
