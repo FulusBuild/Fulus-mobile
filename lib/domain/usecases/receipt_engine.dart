@@ -436,14 +436,14 @@ class MoneyFormatter {
     return _knownFallbacks[candidate] ?? '';
   }
 
-  String format(double value) {
+  String format(num value) {
     final label = _safeLabel();
     final amount = _thousands(value);
     if (label.isEmpty) return amount;
     return spaceBeforeAmount ? '$label $amount' : '$label$amount';
   }
 
-  String _thousands(double value) {
+  String _thousands(num value) {
     final fixed = value.toStringAsFixed(2);
     final parts = fixed.split('.');
     final whole = parts[0];
