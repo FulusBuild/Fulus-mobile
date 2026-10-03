@@ -163,7 +163,7 @@ void main() {
         items: items,
         locationId: locationId,
         customerId: customerId,
-        amountPaid: amountPaid ?? total,
+        amountPaid: moneyFromMajor(amountPaid ?? total),
       ),
     );
   }
