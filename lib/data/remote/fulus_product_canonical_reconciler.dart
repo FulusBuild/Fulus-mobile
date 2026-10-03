@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../domain/entities/product_stock_snapshot.dart';
 import '../../domain/repositories/product_repository.dart';
 import 'fulus_sync_api.dart';
@@ -82,8 +83,8 @@ class FulusProductCanonicalReconciler {
 
   String? _nullableString(Object? value) => value is String ? value : null;
 
-  double _number(Object? value) {
-    if (value is num) return value.toDouble();
+  Money _number(Object? value) {
+    return moneyFromWire(value);
     throw StateError('Canonical product payload contains an invalid number.');
   }
 
