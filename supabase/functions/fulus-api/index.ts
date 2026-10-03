@@ -207,7 +207,7 @@ Deno.serve(async req => {
     const name = typeof b.name === "string" ? b.name.trim() : "";
     if (name.length < 2) return out({ error: { code: "INVALID_BUSINESS", message: "Business name must be at least 2 characters" } }, 400);
     const { data, error } = await serviceDb.rpc("create_business_for_user_service", { target_user_id: uid, target_name: name, target_currency_code: typeof b.currency_code === "string" ? b.currency_code : "NGN", target_timezone: typeof b.timezone === "string" ? b.timezone : "Africa/Lagos", target_location_name: typeof b.location_name === "string" ? b.location_name : "Main" });
-    if (error) return out({ error: { code: "BUSINESS_CREATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+    if (error) return out({ error: { code: "BUSINESS_CREATION_FAILED", message: "Unable to create business" } }, error.code === "42501" ? 403 : 400);
     return out({ data: { ...data, server_authoritative: true } }, 201);
   }
 
@@ -236,7 +236,7 @@ Deno.serve(async req => {
       return out({
         error: {
           code: error.code === "42501" ? "FORBIDDEN" : "RESTORE_SNAPSHOT_FAILED",
-          message: error.message,
+          message: "Unable to restore device state",
         },
       }, error.code === "42501" ? 403 : 500);
     }
@@ -253,7 +253,7 @@ Deno.serve(async req => {
     });
     if (error) {
       const status = error.code === "42501" ? 403 : 400;
-      return out({ error: { code: error.code === "42501" ? "FORBIDDEN" : "DEVICE_REVOKE_FAILED", message: error.message } }, status);
+      return out({ error: { code: error.code === "42501" ? "FORBIDDEN" : "DEVICE_REVOKE_FAILED", message: error.code === "42501" ? "Insufficient permission to revoke device" : "Unable to revoke device" } }, status);
     }
     return out({ data: { revoked: data === true, server_authoritative: true } });
   }
@@ -262,7 +262,7 @@ Deno.serve(async req => {
     const cid = typeof b.device_client_id === "string" ? b.device_client_id : null;
     if (!cid) return out({ error: { code: "INVALID_DEVICE_REGISTRATION", message: "device_client_id is required" } }, 400);
     const { data, error } = await serviceDb.rpc("fulus_api_register_device", { target_user_id: uid, target_business_id: bid, target_device_client_id: cid, target_device_name: typeof b.device_name === "string" ? b.device_name : null, target_platform: typeof b.platform === "string" ? b.platform : null, target_app_version: typeof b.app_version === "string" ? b.app_version : null });
-    if (error) return out({ error: { code: "DEVICE_REGISTRATION_FAILED", message: error.message } }, error.code === "42501" ? 403 : 400);
+    if (error) return out({ error: { code: "DEVICE_REGISTRATION_FAILED", message: "Unable to register device" } }, error.code === "42501" ? 403 : 400);
     return out({ data: { device: data, server_authoritative: true } }, 201);
   }
 
