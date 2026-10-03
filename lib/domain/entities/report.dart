@@ -251,13 +251,13 @@ class FinanceReport {
   /// no explanation for why it changed.
   final Money totalCostOfGoodsSold;
   final Money totalExpenses;
-  final double netProfit;
+  final Money netProfit;
 
   /// Same-length prior period's net profit — the trend comparison
   /// Volume 10 calls for; null when there's no prior data at all (e.g.
   /// a business in its first period), in which case the engine omits
   /// the trend line entirely rather than showing a misleading "+100%".
-  final double? previousPeriodNetProfit;
+  final Money? previousPeriodNetProfit;
   final List<ExpenseCategoryTotal> expenseBreakdown;
   final List<ReportInsight> insights;
 
@@ -298,7 +298,7 @@ class EmployeePerformance {
 
   final String employeeId;
   final String employeeName;
-  final double salesTotal;
+  final Money salesTotal;
   final int salesCount;
   final int daysPresent;
   final int daysAbsent;
