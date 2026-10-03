@@ -260,7 +260,7 @@ void main() {
     final customerBefore = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerBefore.outstandingBalance, 100000);
+    expect(customerBefore.outstandingBalance, moneyFromMajor(100000));
 
     final ret = await returnRepository.createReturn(
       originalSaleLocalId: sale.localId,
@@ -274,7 +274,7 @@ void main() {
     final customerAfter = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerAfter.outstandingBalance, 50000);
+    expect(customerAfter.outstandingBalance, moneyFromMajor(50000));
 
     final adjustments = await (db.select(db.customerLedgerEntries)
           ..where((e) =>
@@ -282,7 +282,7 @@ void main() {
               e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name)))
         .get();
     expect(adjustments, hasLength(1));
-    expect(adjustments.single.amount, 50000);
+    expect(adjustments.single.amount, moneyFromMajor(50000));
   });
 
   group('createReturn', () {
@@ -298,7 +298,7 @@ void main() {
         autoApprove: true,
       );
 
-      expect(ret.refundAmount, 200000);
+      expect(ret.refundAmount, moneyFromMajor(200000));
     });
 
     test('autoApprove: false creates a pending return; true creates an '
@@ -412,7 +412,7 @@ void main() {
         autoApprove: true,
       );
 
-      expect(second.refundAmount, 200000);
+      expect(second.refundAmount, moneyFromMajor(200000));
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       expect(
         lines.firstWhere((l) => l.productLocalId == productAId).remainingReturnable,
@@ -553,7 +553,7 @@ void main() {
       await returnRepository.completeReturn(ret.localId);
 
       final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
-      expect(updatedCustomer!.outstandingBalance, 0);
+      expect(updatedCustomer!.outstandingBalance, moneyFromMajor(0));
     });
 
     test('does not touch the credit balance when the sale was already '
@@ -573,7 +573,7 @@ void main() {
       await returnRepository.completeReturn(ret.localId);
 
       final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
-      expect(updatedCustomer!.outstandingBalance, 0);
+      expect(updatedCustomer!.outstandingBalance, moneyFromMajor(0));
     });
   });
 
@@ -661,7 +661,7 @@ void main() {
       await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
 
       final updated = await customerRepository.getCustomerById(customer.localId);
-      expect(updated!.outstandingBalance, 0);
+      expect(updated!.outstandingBalance, moneyFromMajor(0));
     });
 
     test('rejects voiding a sale that has already been fully voided',
