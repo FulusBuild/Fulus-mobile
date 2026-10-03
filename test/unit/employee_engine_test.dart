@@ -141,8 +141,8 @@ void main() {
         emp(active: false, salary: moneyFromMajor(1000)), // excluded: inactive
       ]);
       expect(stats.totalMonthlySalary, moneyFromMajor(150));
-      expect(stats.totalEmployees, moneyFromMajor(3));
-      expect(stats.activeEmployees, moneyFromMajor(2));
+      expect(stats.totalEmployees, 3);
+      expect(stats.activeEmployees, 2);
     });
 
     test('treats a null salary as 0 rather than throwing', () {
@@ -170,10 +170,10 @@ void main() {
       ].map((s) => AttendanceRecord(id: 'a', employeeId: 'e1', date: DateTime(2026, 7, 1), status: s.status)).toList();
 
       final summary = engine.summarizeAttendance(employeeId: 'e1', month: 7, year: 2026, records: records);
-      expect(summary.present, moneyFromMajor(2));
-      expect(summary.absent, moneyFromMajor(1));
-      expect(summary.late, moneyFromMajor(1));
-      expect(summary.totalDays, moneyFromMajor(4));
+      expect(summary.present, 2);
+      expect(summary.absent, 1);
+      expect(summary.late, 1);
+      expect(summary.totalDays, 4);
     });
   });
 }
