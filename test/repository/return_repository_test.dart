@@ -140,7 +140,7 @@ void main() {
 
   /// A sale of 5x productA + 3x productB at ₦1000 each, fully paid in
   /// cash unless [customerId]/[amountPaid] say otherwise.
-  Future<Sale> purchase({String? customerId, double? amountPaid}) {
+  Future<Sale> purchase({String? customerId, Money? amountPaid}) {
     final items = [
       SaleItem(
         localId: Ulid().toString(),
