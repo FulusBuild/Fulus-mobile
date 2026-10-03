@@ -471,8 +471,6 @@ class _HomeMockupDashboard extends StatelessWidget {
     ClosedHero(:final finalSalesCount) => finalSalesCount,
     EmployeeShiftHero(:final shiftSalesCount) => shiftSalesCount,
   };
-  double? get _creditTotal => noticesError ? null : notices.where((n) => n.type == SecondaryNoticeType.pendingCredit).fold<double>(0, (sum, n) => sum + n.value.toDouble());
-
   @override
   Widget build(BuildContext context) {
     final rows = <Widget>[];
@@ -516,11 +514,9 @@ class _HomeMockupDashboard extends StatelessWidget {
                 child: _HomeCompactCard(
                   color: _HomeColors.purple,
                   icon: FulusIcons.customers,
-                  label: 'Customer Credit',
-                  value: _creditTotal != null
-                      ? formatMoney(_creditTotal!, symbol: currencySymbol)
-                      : '—',
-                  secondary: 'outstanding',
+                  label: 'Customer',
+                  value: 'View customers',
+                  secondary: 'view customers',
                   onTap: () => context.pushNamed('moneyCustomers'),
                 ),
               ),
