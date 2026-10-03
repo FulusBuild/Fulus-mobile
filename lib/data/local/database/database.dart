@@ -207,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration {
@@ -422,6 +422,106 @@ class AppDatabase extends _$AppDatabase {
           // them. Nullable keeps existing installs upgrade-safe; legacy rows
           // are resolved before they are drained.
           await m.addColumn(syncQueueItems, syncQueueItems.actorUserId);
+        }
+        if (from < 17) {
+          // Financial migration: every monetary SQLite REAL column is now an
+          // INTEGER minor-unit column. Existing values are converted exactly
+          // at the migration boundary with explicit two-decimal rounding.
+          // VAT rate is intentionally excluded because it is a percentage.
+          Expression<int> moneyColumnTransform(Expression<double> column) =>
+              CustomExpression<int>(
+                'CAST(ROUND(\${column.name} * 100) AS INTEGER)',
+              );
+
+          await m.alterTable(TableMigration(products, columnTransformer: {
+            products.costPrice: moneyColumnTransform(products.costPrice),
+            products.sellingPrice: moneyColumnTransform(products.sellingPrice),
+          }));
+          await m.alterTable(TableMigration(customers, columnTransformer: {
+            customers.outstandingBalance:
+                moneyColumnTransform(customers.outstandingBalance),
+            customers.creditLimit:
+                moneyColumnTransform(customers.creditLimit),
+          }));
+          await m.alterTable(TableMigration(sales, columnTransformer: {
+            sales.subtotal: moneyColumnTransform(sales.subtotal),
+            sales.wholeCartDiscount:
+                moneyColumnTransform(sales.wholeCartDiscount),
+            sales.discount: moneyColumnTransform(sales.discount),
+            sales.tax: moneyColumnTransform(sales.tax),
+            sales.total: moneyColumnTransform(sales.total),
+            sales.amountPaid: moneyColumnTransform(sales.amountPaid),
+          }));
+          await m.alterTable(TableMigration(saleItems, columnTransformer: {
+            saleItems.unitPrice: moneyColumnTransform(saleItems.unitPrice),
+            saleItems.costPriceAtSale:
+                moneyColumnTransform(saleItems.costPriceAtSale),
+            saleItems.lineDiscount:
+                moneyColumnTransform(saleItems.lineDiscount),
+          }));
+          await m.alterTable(TableMigration(salePayments, columnTransformer: {
+            salePayments.amount: moneyColumnTransform(salePayments.amount),
+          }));
+          await m.alterTable(TableMigration(customerLedgerEntries,
+              columnTransformer: {
+            customerLedgerEntries.amount:
+                moneyColumnTransform(customerLedgerEntries.amount),
+          }));
+          await m.alterTable(TableMigration(returnRequests, columnTransformer: {
+            returnRequests.refundAmount:
+                moneyColumnTransform(returnRequests.refundAmount),
+          }));
+          await m.alterTable(TableMigration(draftCarts, columnTransformer: {
+            draftCarts.wholeCartDiscount:
+                moneyColumnTransform(draftCarts.wholeCartDiscount),
+            draftCarts.tax: moneyColumnTransform(draftCarts.tax),
+          }));
+          await m.alterTable(TableMigration(draftCartItems,
+              columnTransformer: {
+            draftCartItems.unitPrice:
+                moneyColumnTransform(draftCartItems.unitPrice),
+            draftCartItems.costPriceAtSale:
+                moneyColumnTransform(draftCartItems.costPriceAtSale),
+            draftCartItems.lineDiscount:
+                moneyColumnTransform(draftCartItems.lineDiscount),
+          }));
+          await m.alterTable(TableMigration(draftCartPayments,
+              columnTransformer: {
+            draftCartPayments.amount:
+                moneyColumnTransform(draftCartPayments.amount),
+          }));
+          await m.alterTable(TableMigration(expenses, columnTransformer: {
+            expenses.amount: moneyColumnTransform(expenses.amount),
+          }));
+          await m.alterTable(TableMigration(incomeRecords, columnTransformer: {
+            incomeRecords.amount: moneyColumnTransform(incomeRecords.amount),
+          }));
+          await m.alterTable(TableMigration(suppliers, columnTransformer: {
+            suppliers.outstandingBalance:
+                moneyColumnTransform(suppliers.outstandingBalance),
+          }));
+          await m.alterTable(TableMigration(supplierLedgerEntries,
+              columnTransformer: {
+            supplierLedgerEntries.amount:
+                moneyColumnTransform(supplierLedgerEntries.amount),
+          }));
+          await m.alterTable(TableMigration(taxRemittances,
+              columnTransformer: {
+            taxRemittances.amountRemitted:
+                moneyColumnTransform(taxRemittances.amountRemitted),
+          }));
+          await m.alterTable(TableMigration(cashDrawerShifts,
+              columnTransformer: {
+            cashDrawerShifts.openingCash:
+                moneyColumnTransform(cashDrawerShifts.openingCash),
+            cashDrawerShifts.closingCash:
+                moneyColumnTransform(cashDrawerShifts.closingCash),
+            cashDrawerShifts.cashDifference:
+                moneyColumnTransform(cashDrawerShifts.cashDifference),
+          }));
+          await m.alterTable(TableMigration(employees, columnTransformer: {
+            employees.salary: moneyColumnTransform(employees.salary),
+          }));
         }
         if (from < 15) {
           // Employees were historically local-only. Preserve the existing
