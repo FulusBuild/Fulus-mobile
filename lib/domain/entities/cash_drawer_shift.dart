@@ -38,8 +38,8 @@ class CashDrawerShift {
 
   CashDrawerShift copyWith({
     DateTime? Function()? closedAt,
-    double? Function()? closingCash,
-    double? Function()? cashDifference,
+    Money? Function()? closingCash,
+    Money? Function()? cashDifference,
     String? Function()? closingNote,
     bool? closingSummaryLocked,
   }) {
