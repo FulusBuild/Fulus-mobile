@@ -22,6 +22,7 @@ void main() {
       total: total,
       amountPaid: amountPaid,
       cashTendered: amountPaid,
+      cashChange: amountPaid > total ? amountPaid - total : 0,
       items: const [],
       createdAt: now,
       updatedAt: now,
