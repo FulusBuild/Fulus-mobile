@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/return_request.dart';
@@ -33,14 +35,14 @@ class ReturnRepositoryImpl implements ReturnRepository {
   /// completed ones don't.
   Future<
       ({
-        Map<String, ({int quantity, double totalLineAmount})> purchased,
+        Map<String, ({int quantity, Money totalLineAmount})> purchased,
         Map<String, int> alreadyClaimed,
       })> _purchasedAndClaimed(String originalSaleLocalId) async {
     final itemRows = await (_db.select(_db.saleItems)
           ..where((i) => i.saleLocalId.equals(originalSaleLocalId)))
         .get();
 
-    final purchased = <String, ({int quantity, double totalLineAmount})>{};
+    final purchased = <String, ({int quantity, Money totalLineAmount})>{};
     for (final row in itemRows) {
       final productId = row.productLocalId;
       // Quick Sale lines (Volume 5) were never catalog stock — nothing
@@ -50,7 +52,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
       purchased[productId] = (
         quantity: (existing?.quantity ?? 0) + row.quantity,
         totalLineAmount:
-            (existing?.totalLineAmount ?? 0.0) + row.quantity * row.unitPrice,
+            (existing?.totalLineAmount ?? 0) + row.quantity * row.unitPrice,
       );
     }
 
@@ -84,11 +86,11 @@ class ReturnRepositoryImpl implements ReturnRepository {
   /// another, or a manually overridden `unitPrice` on one line), and a
   /// return doesn't ask which specific line a returned unit came from —
   /// this is the fairest single price to refund at across all of them.
-  double _weightedAveragePrice({
-    required double totalLineAmount,
+  Money _weightedAveragePrice({
+    required Money totalLineAmount,
     required int totalQuantity,
   }) {
-    if (totalQuantity == 0) return 0.0;
+    if (totalQuantity == 0) return 0;
     return totalLineAmount / totalQuantity;
   }
 
@@ -150,7 +152,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
 
     final data = await _purchasedAndClaimed(originalSaleLocalId);
 
-    var refundAmount = 0.0;
+    var refundAmount = 0;
     for (final requested in items) {
       if (requested.quantity <= 0) {
         throw ArgumentError.value(requested.quantity, 'quantity', 'must be > 0');
@@ -200,7 +202,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
       originalSaleLocalId: originalSaleLocalId,
       status: autoApprove ? ReturnStatus.approved : ReturnStatus.pending,
       returnReason: returnReason,
-      refundAmount: double.parse(refundAmount.toStringAsFixed(2)),
+      refundAmount: Money.parse(refundAmount.toStringAsFixed(2)),
       refundMethod: refundMethod,
       inventoryRestored: false,
       isVoid: isVoid,
@@ -369,9 +371,9 @@ class ReturnRepositoryImpl implements ReturnRepository {
         final creditExtended = paymentRows.isNotEmpty
             ? paymentRows
                 .where((p) => p.method == 'credit')
-                .fold<double>(0, (sum, p) => sum + p.amount)
-            : double.parse(
-                (sale.total - sale.amountPaid).clamp(0, double.infinity).toStringAsFixed(2),
+                .fold<Money>(0, (sum, p) => sum + p.amount)
+            : Money.parse(
+                (sale.total - sale.amountPaid).clamp(0, Money.infinity).toStringAsFixed(2),
               );
         final adjustment = row.refundAmount < creditExtended
             ? row.refundAmount
