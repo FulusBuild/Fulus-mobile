@@ -17,8 +17,8 @@ void main() {
       locationId: 'loc-1',
       saleDate: now,
       subtotal: total,
-      discount: 0,
-      tax: 0,
+      discount: moneyFromMajor(0),
+      tax: moneyFromMajor(0),
       total: total,
       amountPaid: amountPaid,
       items: const [],
@@ -30,7 +30,7 @@ void main() {
   group('Sale.balanceDue / changeDue / paymentStatus — combined behavior',
       () {
     test('fully paid: balanceDue and changeDue both zero, status paid', () {
-      final sale = saleWith(total: 100000, amountPaid: 100000);
+      final sale = saleWith(total: moneyFromMajor(100000), amountPaid: moneyFromMajor(100000));
       expect(sale.balanceDue, moneyFromMajor(0));
       expect(sale.changeDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'paid');
@@ -38,7 +38,7 @@ void main() {
 
     test('partially paid: balanceDue is the shortfall, changeDue stays '
         'zero, status partial', () {
-      final sale = saleWith(total: 100000, amountPaid: 60000);
+      final sale = saleWith(total: moneyFromMajor(100000), amountPaid: moneyFromMajor(60000));
       expect(sale.balanceDue, moneyFromMajor(40000));
       expect(sale.changeDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'partial');
@@ -46,7 +46,7 @@ void main() {
 
     test('unpaid: balanceDue is the full total, changeDue zero, status '
         'unpaid', () {
-      final sale = saleWith(total: 100000, amountPaid: 0);
+      final sale = saleWith(total: moneyFromMajor(100000), amountPaid: moneyFromMajor(0));
       expect(sale.balanceDue, moneyFromMajor(100000));
       expect(sale.changeDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'unpaid');
@@ -57,7 +57,7 @@ void main() {
         'balanceDue goes negative — not floored here, unlike '
         'ReceiptData.balanceDue, which deliberately does floor for '
         'display — status still reads paid', () {
-      final sale = saleWith(total: 100000, amountPaid: 150000);
+      final sale = saleWith(total: moneyFromMajor(100000), amountPaid: moneyFromMajor(150000));
       expect(sale.changeDue, moneyFromMajor(50000));
       expect(sale.balanceDue, moneyFromMajor(-50000));
       expect(sale.paymentStatus, 'paid');
@@ -67,7 +67,7 @@ void main() {
         'the same time, across the full range from unpaid to overpaid',
         () {
       for (final amountPaid in [0, 25000, 60000, 99999, 100000, 100001, 150000]) {
-        final sale = saleWith(total: 100000, amountPaid: amountPaid);
+        final sale = saleWith(total: moneyFromMajor(100000), amountPaid: amountPaid);
         final bothOwed = sale.balanceDue > 0 && sale.changeDue > 0;
         expect(
           bothOwed,
@@ -80,14 +80,14 @@ void main() {
 
     test('exactly one kobo underpaid still reads as partial, not paid '
         '(the >= boundary in paymentStatus)', () {
-      final sale = saleWith(total: 100000, amountPaid: 99999);
+      final sale = saleWith(total: moneyFromMajor(100000), amountPaid: moneyFromMajor(99999));
       expect(sale.paymentStatus, 'partial');
       expect(sale.changeDue, moneyFromMajor(0));
     });
 
     test('exactly one kobo overpaid already counts as change due, not '
         'just paid', () {
-      final sale = saleWith(total: 100000, amountPaid: 100001);
+      final sale = saleWith(total: moneyFromMajor(100000), amountPaid: moneyFromMajor(100001));
       expect(sale.paymentStatus, 'paid');
       expect(sale.changeDue, moneyFromMajor(1));
     });
