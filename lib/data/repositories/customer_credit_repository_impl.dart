@@ -59,7 +59,6 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
   Future<({CustomerLedgerEntry entry, double newBalance, double excessAmount})> recordRepayment({
     required String customerLocalId,
     required double amount,
-    String? operationId,
     String? paymentMethod,
     String? note,
     String? saleLocalId,
@@ -148,6 +147,7 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
     required double amount,
+    String? operationId,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
@@ -196,7 +196,6 @@ class CustomerCreditRepositoryImpl implements CustomerCreditRepository {
       // while the authoritative server ledger event uses entry_type
       // "credit_reversal". Reuse that local projection when the canonical
       // event arrives instead of creating a duplicate ledger line.
-      CustomerLedgerEntryRow? existing = existingByServerId;
       if (existing == null &&
           entryType == CustomerLedgerEntryType.creditSale) {
         // Credit sales are written locally as an immediate ledger echo when
