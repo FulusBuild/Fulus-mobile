@@ -136,9 +136,9 @@ void main() {
 
     test('sums salary across active employees only', () {
       final stats = engine.computeStats([
-        emp(active: true, salary: 1000000),
+        emp(active: true, salary: 10000),
         emp(active: true, salary: 5000),
-        emp(active: false, salary: 1000), // excluded: inactive
+        emp(active: false, salary: 100000), // excluded: inactive
       ]);
       expect(stats.totalMonthlySalary, 15000);
       expect(stats.totalEmployees, 3);
