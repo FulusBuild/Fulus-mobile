@@ -46,17 +46,30 @@ begin
   end if;
 
   -- A credit-method return must settle one customer-ledger reversal. The
-  -- operation_id is unique per business, so a second insert would abort the
-  -- whole return transaction. Keep this structural regression on the
-  -- authoritative function body so the duplicate-insert bug cannot return.
+  -- validation branch must not perform the reversal itself; the settlement
+  -- branch below owns the single credit-method insert. The other insert in
+  -- the function belongs to non-credit refunds that partially reverse credit.
   if (
-    length(pg_get_functiondef(to_regprocedure(return_sig)))
-    - length(replace(
-        pg_get_functiondef(to_regprocedure(return_sig)),
-        'target_client_reference||'':credit-reversal''',
-        ''
-      ))
-  ) / length('target_client_reference||'':credit-reversal''') <> 1 then
-    raise exception 'return RPC must contain exactly one customer credit-reversal operation id';
+    length(
+      substring(
+        pg_get_functiondef(to_regprocedure(return_sig))
+        from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+        for position('cash_refund := round' in pg_get_functiondef(to_regprocedure(return_sig)))
+          - position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+      )
+      - length(
+        replace(
+          substring(
+            pg_get_functiondef(to_regprocedure(return_sig))
+            from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+            for position('cash_refund := round' in pg_get_functiondef(to_regprocedure(return_sig)))
+              - position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+          ),
+          'insert into public.customer_ledger_entries',
+          ''
+        )
+      )
+    ) <> 0 then
+    raise exception 'credit-method validation branch must not insert customer ledger entries';
   end if;
 end $$;
