@@ -161,7 +161,7 @@ void main() {
       final product = await (db.select(db.products)
             ..where((p) => p.localId.equals(productLocalId)))
           .getSingle();
-      expect(product.costPrice, 500);
+      expect(product.costPrice, 50000);
       expect(await db.select(db.stockMovements).get(), isEmpty);
       expect(await db.select(db.syncQueueItems).get(), isEmpty);
       expect(await db.select(db.supplierLedgerEntries).get(), isEmpty);
