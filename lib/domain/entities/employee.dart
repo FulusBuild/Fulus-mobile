@@ -73,7 +73,7 @@ class Employee {
   /// repository boundary — many small businesses using this roster won't
   /// enter a figure at all, and EmployeeStats.totalMonthlySalary treats a
   /// missing value as 0, matching the backend's own `default=0.0`.
-  final double? salary;
+  final Money? salary;
   final String? phone;
   final String? email;
   final DateTime? dateHired;
@@ -113,7 +113,7 @@ class Employee {
       role: role == _sentinel ? this.role : role as String?,
       department: department == _sentinel ? this.department : department as String?,
       position: position == _sentinel ? this.position : position as String?,
-      salary: salary == _sentinel ? this.salary : salary as double?,
+      salary: salary == _sentinel ? this.salary : salary as Money?,
       phone: phone == _sentinel ? this.phone : phone as String?,
       email: email == _sentinel ? this.email : email as String?,
       dateHired: dateHired == _sentinel ? this.dateHired : dateHired as DateTime?,
@@ -150,7 +150,7 @@ class EmployeeDraft {
   final String? role;
   final String? department;
   final String? position;
-  final double? salary;
+  final Money? salary;
   final String? phone;
   final String? email;
   final DateTime? dateHired;
@@ -271,6 +271,6 @@ class EmployeeStats {
 
   /// Sum of `salary` across active, non-deleted employees — mirrors
   /// employee_service.get_employee_stats exactly (coalesced to 0).
-  final double totalMonthlySalary;
+  final Money totalMonthlySalary;
   final Map<String, int> departmentCounts;
 }
