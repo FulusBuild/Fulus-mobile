@@ -50,9 +50,9 @@ void main() {
             clientReference: localId,
             locationId: locationId,
             saleDate: saleDate,
-            subtotal: total,
-            total: total,
-            amountPaid: Value(amountPaid),
+            subtotal: moneyFromMajor(total),
+            total: moneyFromMajor(total),
+            amountPaid: Value(moneyFromMajor(amountPaid)),
             createdAt: saleDate,
             updatedAt: saleDate,
             syncStatus: SyncStatus.settled,
@@ -65,7 +65,7 @@ void main() {
               saleLocalId: localId,
               quantity: items[i].quantity,
               unitPrice: 1000000,
-              costPriceAtSale: items[i].costPriceAtSale,
+              costPriceAtSale: moneyFromMajor(items[i].costPriceAtSale),
             ),
           );
     }
