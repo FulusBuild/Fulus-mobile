@@ -17,12 +17,19 @@ Deno.serve(async req => {
   try { body = await req.json(); } catch { return out({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400); }
   const event = body.event && typeof body.event === "object" ? body.event as Record<string, unknown> : null;
   if (!event || typeof event.id !== "string" || typeof event.title !== "string" || typeof event.message !== "string") return out({ error: { code: "INVALID_DIAGNOSTIC_EVENT", message: "A structured diagnostic event is required" } }, 400);
+  const eventSize = JSON.stringify(event).length;
+  if (eventSize > 32768) return out({ error: { code: "DIAGNOSTIC_EVENT_TOO_LARGE", message: "Diagnostic event is too large" } }, 413);
   const deviceClientId = req.headers.get("x-fulus-device-id") ?? (typeof body.device_client_id === "string" ? body.device_client_id : null);
   const businessId = typeof body.business_id === "string" ? body.business_id : null;
   if (businessId) {
     const { data: member, error: me } = await db.from("business_memberships").select("business_id").eq("business_id", businessId).eq("user_id", ud.user.id).eq("status", "active").maybeSingle();
     if (me) return out({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to verify business" } }, 500);
     if (!member) return out({ error: { code: "FORBIDDEN", message: "User is not an active member of this business" } }, 403);
+    if (deviceClientId) {
+      const { data: device, error: deviceError } = await db.from("devices").select("id,status").eq("business_id", businessId).eq("device_client_id", deviceClientId).eq("registered_by", ud.user.id).maybeSingle();
+      if (deviceError) return out({ error: { code: "DEVICE_LOOKUP_FAILED", message: "Unable to verify diagnostic device" } }, 500);
+      if (!device || device.status !== "active") return out({ error: { code: "DEVICE_NOT_REGISTERED", message: "Diagnostic device is not registered or active" } }, 403);
+    }
   }
   const allowedSeverity = new Set(["info", "warning", "error", "critical"]);
   const severity = typeof event.severity === "string" && allowedSeverity.has(event.severity) ? event.severity : "error";

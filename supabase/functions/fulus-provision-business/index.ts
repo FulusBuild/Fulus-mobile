@@ -73,14 +73,14 @@ Deno.serve(async (req: Request) => {
       console.error("business provisioning RPC failed", {
         request_id: requestId,
         code: error.code,
-        message: error.message,
+        error_message: error.message,
       });
 
       if (error.code === "22023") {
         return json({
           error: {
             code: "INVALID_BUSINESS",
-            message: error.message,
+            message: "Unable to provision business",
             request_id: requestId,
           },
         }, 400);
@@ -100,7 +100,7 @@ Deno.serve(async (req: Request) => {
         return json({
           error: {
             code: "BUSINESS_ALREADY_LINKED",
-            message: error.message,
+            message: "Business is already linked to this account",
             request_id: requestId,
           },
         }, 409);

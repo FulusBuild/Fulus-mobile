@@ -7,6 +7,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/functions/**"
       - "supabase/tests/**"
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "supabase/functions/**"
       - "supabase/tests/**"
   workflow_dispatch:
 
@@ -58,6 +60,12 @@ jobs:
           db_url="$(supabase status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
           test -n "$db_url"
           psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/customer_repayment.sql
+
+      - name: Run cloud API authorization contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash supabase/tests/cloud_api_authorization_contracts.sh
 
       - name: Show migration status
         run: supabase migration list --local

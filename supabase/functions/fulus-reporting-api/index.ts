@@ -12,6 +12,9 @@ Deno.serve(async(req)=>{
  const {data:m}=await db.from("business_memberships").select("role_id,status,roles(name)").eq("business_id",businessId).eq("user_id",u.user.id).eq("status","active").maybeSingle();if(!m)return json({error:{code:"FORBIDDEN",message:"User is not an active member of this business"}},403);
  const role=Array.isArray(m.roles)?m.roles[0]:m.roles;
  const isBusinessAdmin=role?.name==="owner"||role?.name==="admin";
+ const {data:canReadReports,error:permissionError}=await db.rpc("user_has_permission",{target_business_id:businessId,target_user_id:u.user.id,target_permission:"reports.read"});
+ if(permissionError)return json({error:{code:"AUTHORIZATION_CHECK_FAILED",message:"Unable to resolve report permission"}},500);
+ if(!canReadReports)return json({error:{code:"FORBIDDEN",message:"Reports permission required"}},403);
  const {data:locationRows,error:locationError}=await db.from("location_memberships").select("location_id").eq("business_id",businessId).eq("user_id",u.user.id).eq("status","active");
  if(locationError)return json({error:{code:"LOCATION_MEMBERSHIP_LOOKUP_FAILED",message:"Unable to resolve location access"}},500);
  const accessibleLocationIds=new Set((locationRows??[]).map(row=>String(row.location_id)));
@@ -25,7 +28,10 @@ Deno.serve(async(req)=>{
  }else if(!isBusinessAdmin){
    return json({error:{code:"LOCATION_REQUIRED",message:"A location_id is required for non-admin cloud reports"}},403);
  }
- const device=q.get("device_id");if(!device)return json({error:{code:"DEVICE_REQUIRED",message:"device_id is required for cloud reports"}},400);const {data:d}=await db.from("devices").select("status").eq("business_id",businessId).eq("device_client_id",device).maybeSingle();if(!d||d.status!=="active")return json({error:{code:"DEVICE_NOT_REGISTERED",message:"Device is not registered or active"}},403);
+ const device=q.get("device_id");if(!device)return json({error:{code:"DEVICE_REQUIRED",message:"device_id is required for cloud reports"}},400);
+ const {data:d,error:deviceError}=await db.from("devices").select("status").eq("business_id",businessId).eq("device_client_id",device).eq("registered_by",u.user.id).maybeSingle();
+ if(deviceError)return json({error:{code:"DEVICE_LOOKUP_FAILED",message:"Unable to resolve device"}},500);
+ if(!d||d.status!=="active")return json({error:{code:"DEVICE_NOT_REGISTERED",message:"Device is not registered or active"}},403);
  let sq=db.from("sales").select("id,total,discount,tax,amount_paid,payment_method,sale_date").eq("business_id",businessId).is("deleted_at",null).gte("sale_date",from.toISOString()).lte("sale_date",to.toISOString());if(locationId)sq=sq.eq("location_id",locationId);
  const {data:sales,error:se}=await sq;if(se)return json({error:{code:"REPORT_QUERY_FAILED",message:"Unable to load sales report"}},500);const sr=sales??[];
  const ids=sr.map(s=>s.id);let items:any[]=[];if(ids.length){const x=await db.from("sale_items").select("sale_id,product_id,quantity,line_total").in("sale_id",ids);if(x.error)return json({error:{code:"REPORT_QUERY_FAILED",message:"Unable to load sales items"}},500);items=x.data??[];}
