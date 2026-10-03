@@ -258,6 +258,38 @@ Future<String> _runFinancialConvergenceScenario(
   final saleOperation = 'e2e-p16-credit-sale-$suffix';
   final saleDate = DateTime.now().toUtc().toIso8601String();
 
+  // Seed an outstanding customer balance first. The concurrent repayment
+  // must have a legitimate balance to act on regardless of lock ordering.
+  dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
+  final seedOperation = 'e2e-p16-seed-sale-$suffix';
+  final seedSale = await dio.post('', data: {
+    'action': 'sale_create',
+    'business_id': businessId,
+    'operation_id': seedOperation,
+    'client_reference': seedOperation,
+    'location_id': await _firstLocationId(dio, businessId),
+    'customer_id': customerId,
+    'sale_date': saleDate,
+    'discount': 0,
+    'tax': 0,
+    'amount_paid': 0,
+    'payment_method': 'credit',
+    'payments': [
+      {'method': 'credit', 'amount': 100},
+    ],
+    'notes': 'P16 seed customer credit',
+    'items': [
+      {
+        'product_id': null,
+        'description': 'P16 seed credit $suffix',
+        'quantity': 1,
+        'unit_price': 100,
+        'cost_price_at_sale': 0,
+      },
+    ],
+  });
+  _expect2xx(seedSale, 'P16 seed sale.create');
+
   // Two independent device clients now perform financial work without
   // consuming each other's feed first. Running them concurrently exercises
   // the authoritative customer lock/idempotency boundary.
@@ -322,9 +354,9 @@ Future<String> _runFinancialConvergenceScenario(
   }
 
   final repaymentData = _actionData(results[1]);
-  if ((repaymentData?['new_balance'] as num?)?.toDouble() != 100) {
+  if ((repaymentData?['new_balance'] as num?)?.toDouble() != 200) {
     throw StateError(
-      'P16 concurrent repayment expected customer balance 100, got ${results[1].data}',
+      'P16 concurrent repayment expected customer balance 200, got ${results[1].data}',
     );
   }
 
@@ -439,7 +471,7 @@ Future<String> _runFinancialConvergenceScenario(
         )
       : <String, dynamic>{};
   if (customer['id'] != customerId ||
-      (customer['outstanding_balance'] as num?)?.toDouble() != 100) {
+      (customer['outstanding_balance'] as num?)?.toDouble() != 200) {
     throw StateError(
       'P16 final customer balance invariant failed: $customer',
     );
