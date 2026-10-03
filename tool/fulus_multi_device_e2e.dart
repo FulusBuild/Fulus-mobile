@@ -303,11 +303,10 @@ Future<String> _runFinancialConvergenceScenario(
       'selling_price': 150,
       'low_stock_threshold': 0,
       'is_active': true,
-      // The production catalog path currently preserves stock tracking;
-      // seed enough stock so the financial sale can exercise the real sale
-      // transaction rather than failing on an empty inventory row.
-      'tracks_stock': true,
-      'initial_stock': 2,
+      // This scenario validates financial convergence, not inventory
+      // reservation. Keep stock tracking off so inventory state cannot mask
+      // the customer/payment concurrency contract.
+      'tracks_stock': false,
       'location_id': await _firstLocationId(dio, businessId),
     },
   });
