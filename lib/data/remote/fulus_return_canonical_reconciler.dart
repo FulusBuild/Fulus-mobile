@@ -67,7 +67,6 @@ class FulusReturnCanonicalReconciler {
 
   Money _number(Object? value) {
     return moneyFromWire(value);
-    throw StateError('Canonical return payload contains an invalid number.');
   }
 
   int _integer(Object? value) {
