@@ -103,7 +103,7 @@ class ReceiptData {
   /// total - amountPaid, floored at 0 — mirrors Sale.balance_due exactly
   /// (a computed backend @property, never a stored column, per
   /// pdf_invoice.py's own comment on why).
-  double get balanceDue {
+  Money get balanceDue {
     final due = total - amountPaid;
     return due > 0 ? due : 0;
   }
@@ -117,7 +117,7 @@ class ReceiptData {
   /// handed over more than the total is completely ordinary and this
   /// receipt is often the cashier's own record of how much change was
   /// actually given.
-  double get changeDue {
+  Money get changeDue {
     final change = amountPaid - total;
     return change > 0 ? change : 0;
   }
