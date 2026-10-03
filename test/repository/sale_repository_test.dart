@@ -161,7 +161,7 @@ void main() {
     test('writes the sale and its item locally', () async {
       final result = await repository.createSale(draftWithOneItem());
 
-      expect(result.total, 45000);
+      expect(result.total, moneyFromMajor(45000));
       expect(result.items, hasLength(1));
 
       final salesRows = await db.select(db.sales).get();
@@ -275,10 +275,10 @@ void main() {
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.total, 45000);
-        expect(sale.balanceDue, 45000);
+        expect(sale.total, moneyFromMajor(45000));
+        expect(sale.balanceDue, moneyFromMajor(45000));
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, 45000);
+        expect(customer!.outstandingBalance, moneyFromMajor(45000));
       });
 
       test(
@@ -304,13 +304,13 @@ void main() {
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.total, 45000);
-        expect(sale.balanceDue, 25000);
+        expect(sale.total, moneyFromMajor(45000));
+        expect(sale.balanceDue, moneyFromMajor(25000));
         final customer = await customerRepository.getCustomerById(customerId);
         // The bug this guards against: naively recording sale.total
         // (450) instead of sale.balanceDue (250) would double-count
         // the ₦200 already paid in cash.
-        expect(customer!.outstandingBalance, 25000);
+        expect(customer!.outstandingBalance, moneyFromMajor(25000));
       });
 
       test('a fully-paid sale with a customer attached does not touch '
@@ -333,9 +333,9 @@ void main() {
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.balanceDue, 0);
+        expect(sale.balanceDue, moneyFromMajor(0));
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, 0);
+        expect(customer!.outstandingBalance, moneyFromMajor(0));
         final ledgerEntries =
             await db.select(db.customerLedgerEntries).get();
         expect(ledgerEntries, isEmpty);
@@ -376,7 +376,7 @@ void main() {
         await repository.createSale(creditDraftForItem('item-credit-4b'));
 
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, 30000);
+        expect(customer!.outstandingBalance, moneyFromMajor(30000));
       });
     });
   });
