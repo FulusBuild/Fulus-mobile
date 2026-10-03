@@ -116,6 +116,7 @@ extension SalePaymentToCompanion on SalePayment {
       saleLocalId: saleLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: Value(tenderedAmount),
       recordedAt: recordedAt,
     );
   }
@@ -128,6 +129,7 @@ extension SalePaymentRowToDomain on SalePaymentRow {
       saleLocalId: saleLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: tenderedAmount,
       recordedAt: recordedAt,
     );
   }
