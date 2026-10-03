@@ -57,10 +57,10 @@ void main() {
             clientReference: localId,
             locationId: locationId,
             saleDate: saleDate,
-            subtotal: total,
-            total: total,
-            amountPaid: Value(amountPaid),
-            discount: Value(discount),
+            subtotal: moneyFromMajor(total),
+            total: moneyFromMajor(total),
+            amountPaid: Value(moneyFromMajor(amountPaid)),
+            discount: Value(moneyFromMajor(discount)),
             cashierUserId: Value(cashierUserId),
             customerId: Value(customerId),
             invoiceNumber: Value(invoiceNumber),
@@ -78,7 +78,7 @@ void main() {
               productLocalId: Value(items[i].productId),
               quantity: items[i].quantity,
               unitPrice: 1000000,
-              costPriceAtSale: items[i].costPriceAtSale,
+              costPriceAtSale: moneyFromMajor(items[i].costPriceAtSale),
             ),
           );
     }
