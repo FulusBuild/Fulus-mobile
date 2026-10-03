@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/export/export_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/cash_drawer_state.dart';
 import '../providers/money_providers.dart';
@@ -176,7 +177,7 @@ class DailyClosingSummaryScreen extends ConsumerWidget {
 class _Row extends StatelessWidget {
   const _Row({required this.label, required this.value, required this.symbol, this.emphasize = false});
   final String label;
-  final double value;
+  final Money value;
   final String symbol;
   final bool emphasize;
 
