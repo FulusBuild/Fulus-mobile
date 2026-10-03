@@ -12,7 +12,6 @@ import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fulus_mobile/core/money/money.dart';
 
 import '../helpers/db_seed_helpers.dart';
 
