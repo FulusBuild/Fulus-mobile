@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/business_engine/customer_credit_engine.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -70,21 +71,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
           return const FulusScreen(title: 'Payment', body: _PaymentLoadingSkeleton());
         }
 
-        _syncAmountDefault(cartState.remaining);
+        _syncAmountDefault(moneyToMajor(cartState.remaining));
         final creditEnabled = cartState.customer != null;
         final canComplete = cartState.items.isNotEmpty && cartState.remaining.abs() <= 0.004;
         final enteredAmount = double.tryParse(_amountController.text.trim());
         final splitActive = isPaymentSplitActive(
           explicitlySplit: _splitPayment,
           paymentCount: cartState.payments.length,
-          remaining: cartState.remaining,
+          remaining: moneyToMajor(cartState.remaining),
         );
         final oneTap = !canComplete &&
             !splitActive &&
             _method != 'credit' &&
             cartState.payments.isEmpty &&
             enteredAmount != null &&
-            enteredAmount >= cartState.remaining - 0.004;
+            enteredAmount >= moneyToMajor(cartState.remaining) - 0.004;
 
         return FulusScreen(
           title: 'Payment',
@@ -311,7 +312,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       showFulusSnackbar(context, message: 'Enter a valid amount.');
       return;
     }
-    if (_method != 'cash' && amount > state.remaining + 0.004) {
+    if (_method != 'cash' && amount > moneyToMajor(state.remaining) + 0.004) {
       FulusHaptics.error();
       showFulusSnackbar(context, message: 'That amount is more than the remaining balance.');
       return;
@@ -325,7 +326,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
       final overage = checkCreditLimitWarning(
         currentBalance: customer.outstandingBalance,
-        proposedAdditionalCredit: amount,
+        proposedAdditionalCredit: moneyFromMajor(amount),
         creditLimit: customer.creditLimit,
       );
       if (overage != null && context.mounted) {
