@@ -24,6 +24,7 @@ class SaleDraft {
     required this.items,
     required this.locationId,
     required this.amountPaid,
+    this.cashTendered = 0,
     this.customerId,
     this.discount = 0,
     this.wholeCartDiscount = 0,
@@ -59,6 +60,9 @@ class SaleDraft {
   final Money tax;
   @MoneyJsonConverter()
   final Money amountPaid;
+
+  /// Cash physically handed over; payment legs still store only applied amounts.
+  final Money cashTendered;
   final String? paymentMethod;
   final String? notes;
 
@@ -102,6 +106,8 @@ class SaleDraft {
       tax: tax,
       total: total,
       amountPaid: amountPaid,
+      cashTendered: cashTendered,
+      cashChange: cashTendered > amountPaid ? cashTendered - amountPaid : 0,
       paymentMethod: paymentMethod,
       notes: notes,
       items: items,
