@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 part 'expense.g.dart';
 
