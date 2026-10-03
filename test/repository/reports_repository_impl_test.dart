@@ -207,9 +207,9 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, moneyFromMajor(1000));
-      expect(report.totalCostOfGoodsSold, moneyFromMajor(300));
-      expect(report.totalExpenses, moneyFromMajor(200));
+      expect(report.totalRevenue, 1000);
+      expect(report.totalCostOfGoodsSold, 300);
+      expect(report.totalExpenses, 200);
       expect(report.grossProfit, moneyFromMajor(700));
       // Before the fix this returned 800 (1000 - 200, COGS never
       // subtracted) — the exact defect this pins down. Matches
@@ -238,7 +238,7 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalCostOfGoodsSold, moneyFromMajor(0));
+      expect(report.totalCostOfGoodsSold, 0);
       expect(report.netProfit, moneyFromMajor(500));
     });
 
@@ -265,7 +265,7 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalCostOfGoodsSold, moneyFromMajor(380));
+      expect(report.totalCostOfGoodsSold, 380);
     });
 
     test('the previous-period comparison is COGS-aware too, so the '
@@ -323,9 +323,9 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, moneyFromMajor(0));
-      expect(report.totalCostOfGoodsSold, moneyFromMajor(0));
-      expect(report.totalExpenses, moneyFromMajor(0));
+      expect(report.totalRevenue, 0);
+      expect(report.totalCostOfGoodsSold, 0);
+      expect(report.totalExpenses, 0);
       expect(report.netProfit, moneyFromMajor(0));
       expect(report.previousPeriodNetProfit, isNull);
     });
@@ -532,10 +532,10 @@ void main() {
 
       // Before the fix: totalRevenue 1500, count 2 — the voided sale
       // counted as if it were still valid.
-      expect(report.totalRevenue, moneyFromMajor(1000));
-      expect(report.totalSalesCount, moneyFromMajor(1));
+      expect(report.totalRevenue, 1000);
+      expect(report.totalSalesCount, 1);
       expect(report.topProducts.single.quantitySold, 2);
-      expect(report.topProducts.single.revenue, moneyFromMajor(200)); // 2 * unitPrice(100)
+      expect(report.topProducts.single.revenue, 200); // 2 * unitPrice(100)
       expect(report.byPaymentMethod.single.total, moneyFromMajor(1000));
       expect(report.byPaymentMethod.single.count, 1);
       expect(report.byHour.single.total, moneyFromMajor(1000));
@@ -570,10 +570,10 @@ void main() {
         canViewAllSales: true,
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, moneyFromMajor(300)); // 400 - 100 refunded
-      expect(report.totalSalesCount, moneyFromMajor(1)); // still one real transaction
+      expect(report.totalRevenue, 300); // 400 - 100 refunded
+      expect(report.totalSalesCount, 1); // still one real transaction
       expect(report.topProducts.single.quantitySold, 3);
-      expect(report.topProducts.single.revenue, moneyFromMajor(300));
+      expect(report.topProducts.single.revenue, 300);
     });
   });
 
@@ -604,8 +604,8 @@ void main() {
 
       // Before the fix: revenue 1000, COGS 120 — the voided sale
       // counted as if it were a normal, valid one.
-      expect(report.totalRevenue, moneyFromMajor(0));
-      expect(report.totalCostOfGoodsSold, moneyFromMajor(0));
+      expect(report.totalRevenue, 0);
+      expect(report.totalCostOfGoodsSold, 0);
     });
 
     test('a partially-refunded sale nets the refunded quantity\'s cost '
@@ -631,8 +631,8 @@ void main() {
         ReportPeriod(kind: ReportPeriodKind.custom, start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 31)),
         locationId: 'loc-1',      );
 
-      expect(report.totalRevenue, moneyFromMajor(300)); // 400 - 100 (1 unit @ 100)
-      expect(report.totalCostOfGoodsSold, moneyFromMajor(180)); // (4-1) units @ cost 60
+      expect(report.totalRevenue, 300); // 400 - 100 (1 unit @ 100)
+      expect(report.totalCostOfGoodsSold, 180); // (4-1) units @ cost 60
     });
   });
 
@@ -687,7 +687,7 @@ void main() {
         locationId: 'loc-1',      );
 
       // Before the fix: 800 (300 + 500, both sales counted in full).
-      expect(report.topCustomers.single.totalSpend, moneyFromMajor(200)); // 300 - 100
+      expect(report.topCustomers.single.totalSpend, 200); // 300 - 100
     });
   });
 
@@ -729,7 +729,7 @@ void main() {
 
       final perf = report.performance.single;
       expect(perf.salesTotal, moneyFromMajor(0));
-      expect(perf.salesCount, moneyFromMajor(0));
+      expect(perf.salesCount, 0);
     });
   });
 
@@ -867,7 +867,7 @@ void main() {
 
       final perf = report.performance.single;
       expect(perf.salesTotal, moneyFromMajor(2000));
-      expect(perf.salesCount, moneyFromMajor(2));
+      expect(perf.salesCount, 2);
     });
 
     test('an employee with no linked login account correctly shows 0, '
@@ -898,7 +898,7 @@ void main() {
 
       final perf = report.performance.single;
       expect(perf.salesTotal, moneyFromMajor(0));
-      expect(perf.salesCount, moneyFromMajor(0));
+      expect(perf.salesCount, 0);
     });
   });
   group('location isolation', () {
@@ -929,8 +929,8 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.totalRevenue, moneyFromMajor(100));
-      expect(report.totalSalesCount, moneyFromMajor(1));
+      expect(report.totalRevenue, 100);
+      expect(report.totalSalesCount, 1);
       expect(report.transactions.single.saleLocalId, 'sale-a');
     });
 
@@ -972,7 +972,7 @@ void main() {
 
       final report = await repository.getInventoryReport(locationId: 'loc-1');
 
-      expect(report.totalStockValue, moneyFromMajor(120));
+      expect(report.totalStockValue, 120);
       expect(report.stockMovementsIn, 0);
     });
   });
