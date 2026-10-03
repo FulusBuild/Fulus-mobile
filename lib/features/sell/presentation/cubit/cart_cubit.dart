@@ -302,7 +302,7 @@ class CartCubit extends Cubit<CartState> {
 
   Future<void> updateItemDiscount(DraftCartItem item, double lineDiscount) async {
     if (lineDiscount < 0) throw StateError('Discount can\'t be negative.');
-    if (lineDiscount > item.lineTotal) throw StateError('Discount can\'t be more than the line total.');
+    if (moneyFromMajor(lineDiscount) > item.lineTotal) throw StateError('Discount can\'t be more than the line total.');
     await _draftCartRepository.updateItemDiscount(itemLocalId: item.localId, lineDiscount: moneyFromMajor(lineDiscount));
   }
 
@@ -310,7 +310,7 @@ class CartCubit extends Cubit<CartState> {
     final current = state;
     if (current is! CartLoaded) return;
     if (discount < 0) throw StateError('Discount can\'t be negative.');
-    if (discount > current.subtotal) throw StateError('Discount can\'t be more than the subtotal.');
+    if (moneyFromMajor(discount) > current.subtotal) throw StateError('Discount can\'t be more than the subtotal.');
     await _draftCartRepository.setWholeCartDiscount(draftCartLocalId: current.draftCart.localId, discount: moneyFromMajor(discount));
   }
 
@@ -343,7 +343,7 @@ class CartCubit extends Cubit<CartState> {
     if (remaining <= 0.004) throw StateError('This sale is already fully paid.');
     if (method == 'credit' && current.customer == null) throw StateError('Select a customer before using credit.');
     if (method != 'cash' && amount > remaining + 0.004) throw StateError('That amount is more than the remaining balance.');
-    await _draftCartRepository.addPayment(draftCartLocalId: _draftCartId!, method: method, amount: moneyFromMajor(amount);
+    await _draftCartRepository.addPayment(draftCartLocalId: _draftCartId!, method: method, amount: moneyFromMajor(amount));
     _diagnosticLogger?.breadcrumb('Payment added', category: DiagnosticCategory.sales, data: {'Method': method});
   }
 
@@ -355,7 +355,7 @@ class CartCubit extends Cubit<CartState> {
     final current = state;
     if (current is! CartLoaded) throw StateError('Cart is not ready yet.');
     if (current.items.isEmpty) throw StateError('Add at least one item before completing the sale.');
-    if (current.remaining > 0.004) throw StateError('Collect the remaining balance before completing the sale.');
+    if (current.remaining > 0) throw StateError('Collect the remaining balance before completing the sale.');
     if (_submitting) throw StateError('Sale is already being completed.');
     _submitting = true;
     _emitLoaded();
