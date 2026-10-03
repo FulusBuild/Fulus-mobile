@@ -78,7 +78,7 @@ class Sale {
   /// has no balanceDue column — see tables.dart) risks it silently
   /// drifting from its own inputs after an edit; computing it here,
   /// every time it's read, cannot drift.
-  double get balanceDue => total - amountPaid;
+  Money get balanceDue => total - amountPaid;
 
   /// Bug fix (business-logic audit): no "change due" concept existed
   /// anywhere in this app before this — not in PaymentScreen, not in
@@ -92,7 +92,7 @@ class Sale {
   /// (`total - amountPaid`); this just gives that a name and a floor,
   /// the same way a real cash register does: the change is a separate
   /// concept from the balance, never itself negative.
-  double get changeDue => amountPaid > total ? amountPaid - total : 0.0;
+  Money get changeDue => amountPaid > total ? amountPaid - total : 0.0;
 
   /// Also computed, also mirroring backend logic exactly rather than
   /// reintroducing a parallel definition of "what counts as paid" —
@@ -159,7 +159,7 @@ class SaleItem {
   /// where needed (a receipt, a per-line display) rather than baked in
   /// here, so this keeps meaning the one thing `SaleDraft.subtotal`
   /// needs it to mean.
-  double get lineTotal => quantity * unitPrice;
+  Money get lineTotal => quantity * unitPrice;
 }
 
 /// The wire-format DTO for POST /api/sales — verified directly against
