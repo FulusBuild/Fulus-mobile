@@ -92,6 +92,21 @@ Future<void> main() async {
       direction: 'device B → device A',
     );
 
+
+    // Financial convergence scenario: two independent device identities create
+    // financial work before either device is used to consume the other's feed.
+    // This is intentionally API-level evidence: it exercises the production
+    // mutation, idempotency, device identity, change feed, and canonical
+    // snapshot boundaries without inventing a second Flutter runtime.
+    final financial = await _runFinancialConvergenceScenario(
+      dio,
+      businessId: businessId,
+      primaryDeviceId: primaryDeviceId,
+      secondaryDeviceId: secondaryDeviceId,
+      suffix: suffix,
+    );
+    stdout.writeln('PASS: $financial');
+
     stdout.writeln(
       'PASS: multi-device convergence feed contract verified in both directions',
     );
@@ -212,6 +227,265 @@ Future<void> _expectChange(
     'Sync feed for $direction did not contain category "$entityName" '
     'after cursor $cursor.',
   );
+}
+
+
+Future<String> _runFinancialConvergenceScenario(
+  Dio dio, {
+  required String businessId,
+  required String primaryDeviceId,
+  required String secondaryDeviceId,
+  required String suffix,
+}) async {
+  dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
+
+  final customerCreate = await dio.post('', data: {
+    'action': 'customer_create',
+    'business_id': businessId,
+    'operation_id': 'e2e-p16-customer-$suffix',
+    'name': 'Fulus P16 Customer $suffix',
+    'phone': '08000000001',
+    'credit_limit': 100000,
+    'notes': 'P16 financial convergence',
+  });
+  _expect2xx(customerCreate, 'P16 customer.create');
+  final customerData = _actionData(customerCreate);
+  final customerId = customerData?['customer_id'];
+  if (customerId is! String || customerId.isEmpty) {
+    throw StateError('P16 customer.create returned no customer_id: ${customerCreate.data}');
+  }
+
+  final saleOperation = 'e2e-p16-credit-sale-$suffix';
+  final sale = await dio.post('', data: {
+    'action': 'sale_create',
+    'business_id': businessId,
+    'operation_id': saleOperation,
+    'client_reference': saleOperation,
+    'location_id': await _firstLocationId(dio, businessId),
+    'customer_id': customerId,
+    'sale_date': DateTime.now().toUtc().toIso8601String(),
+    'discount': 0,
+    'tax': 0,
+    'amount_paid': 0,
+    'payment_method': 'credit',
+    'payments': [
+      {'method': 'credit', 'amount': 150},
+    ],
+    'notes': 'P16 concurrent financial sale',
+    'items': [
+      {
+        'product_id': null,
+        'description': 'P16 financial sale $suffix',
+        'quantity': 1,
+        'unit_price': 150,
+        'cost_price_at_sale': 0,
+      },
+    ],
+  });
+  _expect2xx(sale, 'P16 sale.create');
+  final saleData = _actionData(sale);
+  final saleId = saleData?['sale_id'];
+  if (saleId is! String || saleId.isEmpty) {
+    throw StateError('P16 sale.create returned no sale_id: ${sale.data}');
+  }
+
+  // Device B now performs an independent financial mutation before consuming
+  // A's feed, modelling work accumulated while the devices were disconnected.
+  dio.options.headers['x-fulus-device-id'] = secondaryDeviceId;
+  final repaymentOperation = 'e2e-p16-repayment-$suffix';
+  final repayment = await dio.post('', data: {
+    'action': 'customer_repayment',
+    'business_id': businessId,
+    'operation_id': repaymentOperation,
+    'customer_id': customerId,
+    'amount': 50,
+    'payment_method': 'cash',
+    'note': 'P16 independent device repayment',
+  });
+  _expect2xx(repayment, 'P16 customer.repayment');
+
+  final repaymentData = _actionData(repayment);
+  if ((repaymentData?['new_balance'] as num?)?.toDouble() != 100) {
+    throw StateError(
+      'P16 repayment expected customer balance 100, got ${repayment.data}',
+    );
+  }
+
+  // Replay the exact operation on B. This must not create a second repayment.
+  final repaymentReplay = await dio.post('', data: {
+    'action': 'customer_repayment',
+    'business_id': businessId,
+    'operation_id': repaymentOperation,
+    'customer_id': customerId,
+    'amount': 50,
+    'payment_method': 'cash',
+    'note': 'P16 independent device repayment',
+  });
+  _expect2xx(repaymentReplay, 'P16 customer.repayment idempotent replay');
+  final replayData = _actionData(repaymentReplay);
+  if ((replayData?['new_balance'] as num?)?.toDouble() != 100) {
+    throw StateError(
+      'P16 repayment replay changed the customer balance: ${repaymentReplay.data}',
+    );
+  }
+
+  // Both devices consume the canonical feed from the same pre-scenario
+  // boundary. The feed must expose the sale and repayment exactly once.
+  dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
+  final primaryBoundary = await _restoreBoundary(dio, businessId: businessId);
+  dio.options.headers['x-fulus-device-id'] = secondaryDeviceId;
+  final secondaryBoundary = await _restoreBoundary(dio, businessId: businessId);
+
+  if (primaryBoundary != secondaryBoundary) {
+    throw StateError(
+      'P16 devices received different canonical restore boundaries: '
+      '$primaryBoundary vs $secondaryBoundary',
+    );
+  }
+
+  final changesA = await _fetchChanges(
+    dio,
+    businessId: businessId,
+    cursor: primaryBoundary - 20 < 0 ? 0 : primaryBoundary - 20,
+  );
+  dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
+  final changesB = await _fetchChanges(
+    dio,
+    businessId: businessId,
+    cursor: secondaryBoundary - 20 < 0 ? 0 : secondaryBoundary - 20,
+  );
+
+  final saleSeenA = _containsEntity(changesA, 'sale', saleId);
+  final saleSeenB = _containsEntity(changesB, 'sale', saleId);
+  final repaymentSeenA = _containsOperation(changesA, 'customer_ledger', repaymentOperation);
+  final repaymentSeenB = _containsOperation(changesB, 'customer_ledger', repaymentOperation);
+
+  if (!saleSeenA || !saleSeenB || !repaymentSeenA || !repaymentSeenB) {
+    throw StateError(
+      'P16 canonical feed did not expose the complete financial scenario '
+      'to both device identities.',
+    );
+  }
+
+  // Re-read the authoritative snapshot after both mutations. This verifies
+  // the final server financial invariants and gives the mobile canonical
+  // reconcilers one deterministic boundary to consume.
+  dio.options.headers['x-fulus-device-id'] = primaryDeviceId;
+  final snapshot = await dio.post('', data: {
+    'action': 'restore_snapshot',
+    'business_id': businessId,
+  });
+  _expect2xx(snapshot, 'P16 final restore snapshot');
+  final snapshotData = snapshot.data is Map ? snapshot.data['data'] : null;
+  if (snapshotData is! Map) {
+    throw StateError('P16 final snapshot has no data: ${snapshot.data}');
+  }
+
+  final customers = snapshotData['customers'];
+  final customer = customers is List
+      ? customers.whereType<Map>().cast<Map>().firstWhere(
+          (row) => row['id'] == customerId,
+          orElse: () => <String, dynamic>{},
+        )
+      : <String, dynamic>{};
+  if (customer['id'] != customerId ||
+      (customer['outstanding_balance'] as num?)?.toDouble() != 100) {
+    throw StateError(
+      'P16 final customer balance invariant failed: $customer',
+    );
+  }
+
+  final sales = snapshotData['sales'];
+  final saleRow = sales is List
+      ? sales.whereType<Map>().cast<Map>().firstWhere(
+          (row) => row['id'] == saleId,
+          orElse: () => <String, dynamic>{},
+        )
+      : <String, dynamic>{};
+  if (saleRow['id'] != saleId ||
+      (saleRow['total'] as num?)?.toDouble() != 150 ||
+      (saleRow['amount_paid'] as num?)?.toDouble() != 0) {
+    throw StateError('P16 final sale invariant failed: $saleRow');
+  }
+
+  return 'P16 financial convergence mutation/feed/idempotency scenario verified';
+}
+
+Future<String> _firstLocationId(Dio dio, String businessId) async {
+  final response = await dio.post('', data: {
+    'action': 'restore_snapshot',
+    'business_id': businessId,
+  });
+  _expect2xx(response, 'P16 location snapshot');
+  final data = response.data is Map ? response.data['data'] : null;
+  final locations = data is Map ? data['locations'] : null;
+  if (locations is! List || locations.isEmpty) {
+    throw StateError('P16 business has no locations');
+  }
+  final first = locations.first;
+  final id = first is Map ? first['id'] : null;
+  if (id is! String || id.isEmpty) {
+    throw StateError('P16 snapshot location has no id');
+  }
+  return id;
+}
+
+Future<List<dynamic>> _fetchChanges(
+  Dio dio, {
+  required String businessId,
+  required int cursor,
+}) async {
+  final response = await dio.get('', queryParameters: {
+    'business_id': businessId,
+    'cursor': cursor,
+    'limit': 500,
+  });
+  final status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    throw StateError('P16 sync feed failed with HTTP $status: ${response.data}');
+  }
+  final root = response.data;
+  final data = root is Map ? root['data'] : null;
+  final changes = data is Map ? data['changes'] : null;
+  if (changes is! List) {
+    throw StateError('P16 sync feed returned no changes: ${response.data}');
+  }
+  return changes;
+}
+
+bool _containsEntity(List<dynamic> changes, String entityType, String entityId) {
+  return changes.any((raw) =>
+      raw is Map &&
+      raw['entity_type'] == entityType &&
+      raw['entity_id'] == entityId);
+}
+
+bool _containsOperation(
+  List<dynamic> changes,
+  String entityType,
+  String operationId,
+) {
+  return changes.any((raw) {
+    if (raw is! Map || raw['entity_type'] != entityType) return false;
+    final payload = raw['payload'];
+    return payload is Map &&
+        (payload['operation_id'] == operationId ||
+            payload['client_reference'] == operationId);
+  });
+}
+
+dynamic _actionData(Response<dynamic> response) {
+  final root = response.data;
+  return root is Map ? root['data'] : null;
+}
+
+void _expect2xx(Response<dynamic> response, String operation) {
+  final status = response.statusCode ?? 0;
+  if (status < 200 || status >= 300) {
+    throw StateError(
+      '$operation failed with HTTP $status: ${response.data}',
+    );
+  }
 }
 
 Future<String?> _registerDevice(
