@@ -56,7 +56,7 @@ void main() {
 
     test(
         'overpaid (cash tendered exceeds total): changeDue is the excess, '
-        'balanceDue goes negative — not floored here, unlike '
+        'balanceDue stays zero because tendered cash is separate from applied amount — '
         'ReceiptData.balanceDue, which deliberately does floor for '
         'display — status still reads paid', () {
       final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1000), cashTendered: moneyFromMajor(1500));
@@ -68,13 +68,18 @@ void main() {
     test('balanceDue and changeDue are never both greater than zero at '
         'the same time, across the full range from unpaid to overpaid',
         () {
-      for (final amountPaid in [0.0, 250.0, 600.0, 999.99, 1000.0, 1000.01, 1500.0]) {
-        final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(amountPaid));
+      for (final cashTendered in [0.0, 250.0, 600.0, 999.99, 1000.0, 1000.01, 1500.0]) {
+        final applied = cashTendered < 1000 ? cashTendered : 1000.0;
+        final sale = saleWith(
+          total: moneyFromMajor(1000),
+          amountPaid: moneyFromMajor(applied),
+          cashTendered: moneyFromMajor(cashTendered),
+        );
         final bothOwed = sale.balanceDue > 0 && sale.changeDue > 0;
         expect(
           bothOwed,
           isFalse,
-          reason: 'at amountPaid=$amountPaid, balanceDue=${sale.balanceDue} '
+          reason: 'at cashTendered=$cashTendered, balanceDue=${sale.balanceDue} '
               'and changeDue=${sale.changeDue} were both positive',
         );
       }
