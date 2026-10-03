@@ -46,6 +46,7 @@ class Sale {
   /// after that.
   final String? cashierUserId;
   final DateTime saleDate;
+  @MoneyJsonConverter()
   final Money subtotal;
 
   /// The whole-cart-discount component specifically, kept alongside
@@ -53,10 +54,15 @@ class Sale {
   /// tables.dart's `Sales.wholeCartDiscount` doc comment for why the
   /// breakdown is worth keeping even once a sale is finished, not just
   /// during cart-editing.
+  @MoneyJsonConverter()
   final Money wholeCartDiscount;
+  @MoneyJsonConverter()
   final Money discount;
+  @MoneyJsonConverter()
   final Money tax;
+  @MoneyJsonConverter()
   final Money total;
+  @MoneyJsonConverter()
   final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
@@ -130,7 +136,9 @@ class SaleItem {
   final String description;
 
   final int quantity;
+  @MoneyJsonConverter()
   final Money unitPrice;
+  @MoneyJsonConverter()
   final Money costPriceAtSale;
 
   /// New — Volume 5's per-line discount. No backend column; folds into
@@ -142,6 +150,7 @@ class SaleItem {
   /// round(sum(qty * unit_price), 2)`, discount subtracted separately
   /// afterward) — netting it in here would have silently corrupted that
   /// existing, correct aggregation.
+  @MoneyJsonConverter()
   final Money lineDiscount;
 
   /// Raw, pre-discount — `quantity * unitPrice`, matching
@@ -188,8 +197,11 @@ class SaleCreateDto {
   // 422 from the backend the moment that migration shipped, including
   // through the most mature vertical in the app.
   final String locationId;
+  @MoneyJsonConverter()
   final Money? discount;
+  @MoneyJsonConverter()
   final Money? tax;
+  @MoneyJsonConverter()
   final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
@@ -227,6 +239,7 @@ class SaleItemCreateDto {
   /// the product's own listed price unedited, letting the backend be
   /// the single source of truth for that price rather than the mobile
   /// client re-asserting a value it already got from the server.
+  @MoneyJsonConverter()
   final Money? unitPrice;
 
   Map<String, dynamic> toJson() => _$SaleItemCreateDtoToJson(this);
@@ -255,10 +268,15 @@ class SaleResponseDto {
   final String invoiceNumber;
   final String? customerId;
   final DateTime saleDate;
+  @MoneyJsonConverter()
   final Money subtotal;
+  @MoneyJsonConverter()
   final Money discount;
+  @MoneyJsonConverter()
   final Money tax;
+  @MoneyJsonConverter()
   final Money total;
+  @MoneyJsonConverter()
   final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
@@ -282,8 +300,11 @@ class SaleItemResponseDto {
   final String id;
   final String productId;
   final int quantity;
+  @MoneyJsonConverter()
   final Money unitPrice;
+  @MoneyJsonConverter()
   final Money costPriceAtSale;
+  @MoneyJsonConverter()
   final Money lineTotal;
 
   factory SaleItemResponseDto.fromJson(Map<String, dynamic> json) =>
