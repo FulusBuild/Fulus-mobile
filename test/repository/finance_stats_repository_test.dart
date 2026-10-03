@@ -418,7 +418,7 @@ void main() {
       );
 
       expect(report.customerRepaymentsInflow, moneyFromMajor(250));
-      expect(report.inflow, 1000 + 250);
+      expect(report.inflow, moneyFromMajor(1250));
     });
   });
 }
