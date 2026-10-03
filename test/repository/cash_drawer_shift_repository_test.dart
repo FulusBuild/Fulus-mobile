@@ -87,6 +87,7 @@ void main() {
             openingCash: const Value(5000),
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
+            syncStatus: SyncStatus.settled,
           ),
         ),
         throwsA(isA<Exception>()),
