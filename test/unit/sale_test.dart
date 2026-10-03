@@ -87,7 +87,7 @@ void main() {
 
     test('exactly one kobo overpaid already counts as change due, not '
         'just paid', () {
-      final sale = saleWith(total: 100000, amountPaid: 100000.01);
+      final sale = saleWith(total: 100000, amountPaid: 100001);
       expect(sale.paymentStatus, 'paid');
       expect(sale.changeDue, 1);
     });
