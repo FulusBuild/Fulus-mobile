@@ -1,4 +1,3 @@
-import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
@@ -13,6 +12,7 @@ import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 import '../helpers/db_seed_helpers.dart';
 
@@ -119,8 +119,8 @@ void main() {
             localId: productId,
             name: 'Test Product',
             sku: 'SKU-1',
-            costPrice: moneyFromMajor(100),
-            sellingPrice: moneyFromMajor(150),
+            costPrice: 100,
+            sellingPrice: 150,
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -147,13 +147,13 @@ void main() {
       localId: 'item-1',
       productLocalId: productId,
       quantity: quantity,
-      unitPrice: moneyFromMajor(150),
+      unitPrice: 150,
       costPriceAtSale: 100,
     );
     return SaleDraft(
       items: [item],
       locationId: locationId,
-      amountPaid: moneyFromMajor(150 * quantity),
+      amountPaid: 150 * quantity.toDouble(),
     );
   }
 
@@ -161,7 +161,7 @@ void main() {
     test('writes the sale and its item locally', () async {
       final result = await repository.createSale(draftWithOneItem());
 
-      expect(result.total, moneyFromMajor(45000));
+      expect(result.total, 450);
       expect(result.items, hasLength(1));
 
       final salesRows = await db.select(db.sales).get();
@@ -263,7 +263,7 @@ void main() {
           localId: 'item-credit-1',
           productLocalId: productId,
           quantity: 3,
-          unitPrice: moneyFromMajor(150),
+          unitPrice: 150,
           costPriceAtSale: 100,
         );
         final draft = SaleDraft(
@@ -275,10 +275,10 @@ void main() {
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.total, moneyFromMajor(45000));
-        expect(sale.balanceDue, moneyFromMajor(45000));
+        expect(sale.total, 450);
+        expect(sale.balanceDue, 450);
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, moneyFromMajor(45000));
+        expect(customer!.outstandingBalance, 450);
       });
 
       test(
@@ -289,7 +289,7 @@ void main() {
           localId: 'item-credit-2',
           productLocalId: productId,
           quantity: 3,
-          unitPrice: moneyFromMajor(150),
+          unitPrice: 150,
           costPriceAtSale: 100,
         );
         // ₦450 total, ₦200 paid in cash up front — matches how
@@ -299,18 +299,18 @@ void main() {
           items: [item],
           locationId: locationId,
           customerId: customerId,
-          amountPaid: 20000,
+          amountPaid: 200,
         );
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.total, moneyFromMajor(45000));
-        expect(sale.balanceDue, moneyFromMajor(25000));
+        expect(sale.total, 450);
+        expect(sale.balanceDue, 250);
         final customer = await customerRepository.getCustomerById(customerId);
         // The bug this guards against: naively recording sale.total
         // (450) instead of sale.balanceDue (250) would double-count
         // the ₦200 already paid in cash.
-        expect(customer!.outstandingBalance, moneyFromMajor(25000));
+        expect(customer!.outstandingBalance, 250);
       });
 
       test('a fully-paid sale with a customer attached does not touch '
@@ -322,20 +322,20 @@ void main() {
               localId: 'item-credit-3',
               productLocalId: productId,
               quantity: 2,
-              unitPrice: moneyFromMajor(150),
+              unitPrice: 150,
               costPriceAtSale: 100,
             ),
           ],
           locationId: locationId,
           customerId: customerId,
-          amountPaid: 30000,
+          amountPaid: 300,
         );
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.balanceDue, moneyFromMajor(0));
+        expect(sale.balanceDue, 0);
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, moneyFromMajor(0));
+        expect(customer!.outstandingBalance, 0);
         final ledgerEntries =
             await db.select(db.customerLedgerEntries).get();
         expect(ledgerEntries, isEmpty);
@@ -363,7 +363,7 @@ void main() {
                   localId: itemId,
                   productLocalId: productId,
                   quantity: 1,
-                  unitPrice: moneyFromMajor(150),
+                  unitPrice: 150,
                   costPriceAtSale: 100,
                 ),
               ],
@@ -376,7 +376,7 @@ void main() {
         await repository.createSale(creditDraftForItem('item-credit-4b'));
 
         final customer = await customerRepository.getCustomerById(customerId);
-        expect(customer!.outstandingBalance, moneyFromMajor(30000));
+        expect(customer!.outstandingBalance, 300);
       });
     });
   });
