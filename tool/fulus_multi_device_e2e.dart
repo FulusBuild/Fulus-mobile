@@ -256,6 +256,7 @@ Future<String> _runFinancialConvergenceScenario(
   }
 
   final saleOperation = 'e2e-p16-credit-sale-$suffix';
+  final saleDate = DateTime.now().toUtc().toIso8601String();
 
   // Two independent device clients now perform financial work without
   // consuming each other's feed first. Running them concurrently exercises
@@ -281,7 +282,7 @@ Future<String> _runFinancialConvergenceScenario(
     'client_reference': saleOperation,
     'location_id': await _firstLocationId(primaryDio, businessId),
     'customer_id': customerId,
-    'sale_date': DateTime.now().toUtc().toIso8601String(),
+    'sale_date': saleDate,
     'discount': 0,
     'tax': 0,
     'amount_paid': 0,
@@ -336,7 +337,7 @@ Future<String> _runFinancialConvergenceScenario(
     'client_reference': saleOperation,
     'location_id': await _firstLocationId(primaryDio, businessId),
     'customer_id': customerId,
-    'sale_date': DateTime.now().toUtc().toIso8601String(),
+    'sale_date': saleDate,
     'discount': 0,
     'tax': 0,
     'amount_paid': 0,
