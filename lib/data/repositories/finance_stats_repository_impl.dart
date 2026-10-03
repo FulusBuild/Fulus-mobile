@@ -17,7 +17,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
   final AppDatabase _db;
   final CustomerCreditRepository _customerCreditRepository;
 
-  Money _round2(Money value) => Money.parse(value.toStringAsFixed(2));
+  Money _round2(Money value) => value;
 
   /// **Bug fix (date/period-filter audit):** every query in this class
   /// used `dateTo` exactly as received, with `isSmallerOrEqualValue`.
@@ -73,7 +73,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
     final adjustments = await SaleReversalAdjustments.load(_db, saleIds);
     final revenue = saleRows.fold<Money>(0, (sum, sale) => sum + adjustments.netRevenue(sale));
 
-    var costOfGoodsSold = 0.0;
+    Money costOfGoodsSold = 0;
     var totalUnitsSold = 0;
     var unitsWithCostRecorded = 0;
     if (saleIds.isNotEmpty) {
@@ -121,7 +121,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
       grossProfit: _round2(grossProfit),
       expenses: _round2(expenses),
       netProfit: _round2(netProfit),
-      costDataCompleteness: _round2(completeness),
+      costDataCompleteness: completeness,
     );
   }
 
