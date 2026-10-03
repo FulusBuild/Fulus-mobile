@@ -3,6 +3,7 @@ import 'package:fulus_mobile/domain/entities/employee.dart';
 import 'package:fulus_mobile/domain/usecases/employee_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/core/money/money.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   const engine = EmployeeEngine();
@@ -128,7 +129,7 @@ void main() {
           id: dept ?? 'e',
           fullName: 'Name',
           department: dept,
-          salary: salary,
+          salary: salary == null ? null : moneyFromMajor(salary),
           isActive: active,
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
