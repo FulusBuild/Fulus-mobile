@@ -14,7 +14,7 @@ import '../../../../domain/entities/report.dart';
 import '../../../../domain/entities/location.dart';
 import '../../../../domain/usecases/reports_engine.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider, moneyRepositoryProvider;
+import '../../../money/presentation/providers/money_providers.dart' show moneyCurrencySymbolProvider;
 import '../../../auth/presentation/screens/identity_picker_screen.dart';
 
 final _homeLocationsProvider = StreamProvider<List<Location>>((ref) =>
@@ -45,7 +45,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
   late Future<SecondaryNoticeSelection> _noticesFuture;
-  late Future<double> _cashFuture;
 
   @override
   void initState() {
@@ -73,14 +72,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               overflowCount: 0,
             ),
           );
-    _cashFuture = (widget.isOwner || widget.canViewMoney)
-        ? ref.read(moneyRepositoryProvider).getAvailableBalance()
-        : Future.value(0);
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture, _cashFuture]);
+    await Future.wait([_heroFuture, _noticesFuture]);
   }
 
   @override
@@ -365,7 +361,6 @@ class _HomeDashboardHydration extends StatefulWidget {
   const _HomeDashboardHydration({
     required this.heroFuture,
     required this.noticesFuture,
-    required this.cashFuture,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
@@ -375,7 +370,6 @@ class _HomeDashboardHydration extends StatefulWidget {
 
   final Future<HomeHeroState> heroFuture;
   final Future<SecondaryNoticeSelection> noticesFuture;
-  final Future<double> cashFuture;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
@@ -392,7 +386,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   bool _heroError = false;
   bool _noticesError = false;
   bool _cashError = false;
-  double? _cashTotal;
 
   @override
   void initState() {
@@ -408,17 +401,13 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.heroFuture != widget.heroFuture ||
-        oldWidget.noticesFuture != widget.noticesFuture ||
-        oldWidget.cashFuture != widget.cashFuture) {
+        oldWidget.noticesFuture != widget.noticesFuture) {
       _hero = null;
       _noticeSelection = null;
-      _cashTotal = null;
       _heroError = false;
       _noticesError = false;
-      _cashError = false;
       widget.heroFuture.then(_setHero, onError: _setHeroError);
       widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
-      widget.cashFuture.then(_setCash, onError: _setCashError);
     }
   }
 
@@ -430,20 +419,12 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     if (mounted) setState(() { _noticeSelection = value; _noticesError = false; });
   }
 
-  void _setCash(double value) {
-    if (mounted) setState(() { _cashTotal = value; _cashError = false; });
-  }
-
   void _setHeroError(Object _, StackTrace __) {
     if (mounted) setState(() => _heroError = true);
   }
 
   void _setNoticesError(Object _, StackTrace __) {
     if (mounted) setState(() => _noticesError = true);
-  }
-
-  void _setCashError(Object _, StackTrace __) {
-    if (mounted) setState(() => _cashError = true);
   }
 
   @override
@@ -453,8 +434,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
       notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
       noticesError: _noticesError,
       heroError: _heroError,
-      cashError: _cashError,
-      cashTotal: _cashTotal,
       currencySymbol: widget.currencySymbol,
       canViewDashboardStats: widget.canViewDashboardStats,
       canViewMoney: widget.canViewMoney,
@@ -467,10 +446,8 @@ class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
     required this.notices,
-    required this.cashTotal,
     required this.noticesError,
     required this.heroError,
-    required this.cashError,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
@@ -480,8 +457,6 @@ class _HomeMockupDashboard extends StatelessWidget {
   final List<SecondaryNotice> notices;
   final bool noticesError;
   final bool heroError;
-  final bool cashError;
-  final double? cashTotal;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
