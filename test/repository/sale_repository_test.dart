@@ -304,7 +304,7 @@ void main() {
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.total, 450);
+        expect(sale.total, 45000);
         expect(sale.balanceDue, 25000);
         final customer = await customerRepository.getCustomerById(customerId);
         // The bug this guards against: naively recording sale.total
