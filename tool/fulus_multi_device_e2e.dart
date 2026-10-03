@@ -310,7 +310,10 @@ Future<String> _runFinancialConvergenceScenario(
   });
   _expect2xx(productResponse, 'P16 product.create');
   final productData = _actionData(productResponse);
-  final productId = productData?['id'] ?? productData?['product_id'];
+  final productItem = productData?['item'];
+  final productId = productData?['id'] ??
+      productData?['product_id'] ??
+      (productItem is Map ? productItem['id'] : null);
   if (productId is! String || productId.isEmpty) {
     throw StateError('P16 product.create returned no product id: ' + productResponse.data.toString());
   }
