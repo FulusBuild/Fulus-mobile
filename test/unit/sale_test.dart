@@ -31,24 +31,24 @@ void main() {
       () {
     test('fully paid: balanceDue and changeDue both zero, status paid', () {
       final sale = saleWith(total: 100000, amountPaid: 100000);
-      expect(sale.balanceDue, 0);
-      expect(sale.changeDue, 0);
+      expect(sale.balanceDue, moneyFromMajor(0));
+      expect(sale.changeDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'paid');
     });
 
     test('partially paid: balanceDue is the shortfall, changeDue stays '
         'zero, status partial', () {
       final sale = saleWith(total: 100000, amountPaid: 60000);
-      expect(sale.balanceDue, 40000);
-      expect(sale.changeDue, 0);
+      expect(sale.balanceDue, moneyFromMajor(40000));
+      expect(sale.changeDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'partial');
     });
 
     test('unpaid: balanceDue is the full total, changeDue zero, status '
         'unpaid', () {
       final sale = saleWith(total: 100000, amountPaid: 0);
-      expect(sale.balanceDue, 100000);
-      expect(sale.changeDue, 0);
+      expect(sale.balanceDue, moneyFromMajor(100000));
+      expect(sale.changeDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'unpaid');
     });
 
@@ -58,8 +58,8 @@ void main() {
         'ReceiptData.balanceDue, which deliberately does floor for '
         'display — status still reads paid', () {
       final sale = saleWith(total: 100000, amountPaid: 150000);
-      expect(sale.changeDue, 50000);
-      expect(sale.balanceDue, -50000);
+      expect(sale.changeDue, moneyFromMajor(50000));
+      expect(sale.balanceDue, moneyFromMajor(-50000));
       expect(sale.paymentStatus, 'paid');
     });
 
@@ -82,14 +82,14 @@ void main() {
         '(the >= boundary in paymentStatus)', () {
       final sale = saleWith(total: 100000, amountPaid: 99999);
       expect(sale.paymentStatus, 'partial');
-      expect(sale.changeDue, 0);
+      expect(sale.changeDue, moneyFromMajor(0));
     });
 
     test('exactly one kobo overpaid already counts as change due, not '
         'just paid', () {
       final sale = saleWith(total: 100000, amountPaid: 100001);
       expect(sale.paymentStatus, 'paid');
-      expect(sale.changeDue, 1);
+      expect(sale.changeDue, moneyFromMajor(1));
     });
   });
 }
