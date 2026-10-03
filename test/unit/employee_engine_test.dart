@@ -21,7 +21,7 @@ void main() {
     });
 
     test('rejects negative salary', () {
-      const draft = EmployeeDraft(fullName: 'Ada', salary: -100);
+      const draft = EmployeeDraft(fullName: 'Ada', salary: -10000);
       expect(() => engine.validateDraft(draft), throwsA(isA<EmployeeValidationException>()));
     });
 
@@ -136,9 +136,9 @@ void main() {
 
     test('sums salary across active employees only', () {
       final stats = engine.computeStats([
-        emp(active: true, salary: 10000),
-        emp(active: true, salary: 5000),
-        emp(active: false, salary: 100000), // excluded: inactive
+        emp(active: true, salary: 1000000),
+        emp(active: true, salary: 500000),
+        emp(active: false, salary: 10000000), // excluded: inactive
       ]);
       expect(stats.totalMonthlySalary, 150);
       expect(stats.totalEmployees, 3);
