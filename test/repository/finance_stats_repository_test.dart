@@ -190,7 +190,7 @@ void main() {
         saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
         total: moneyFromMajor(7500),
         amountPaid: moneyFromMajor(7500),
-        items: const [],
+        items: [],
       );
 
       // "Today" for Jan 15 — both bounds bare midnight, exactly like
@@ -220,7 +220,7 @@ void main() {
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [],
+        items: [],
       );
       await db.into(db.returnRequests).insert(
             ReturnRequestsCompanion.insert(
@@ -255,7 +255,7 @@ void main() {
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [],
+        items: [],
       );
       await db.into(db.returnRequests).insert(
             ReturnRequestsCompanion.insert(
@@ -291,7 +291,7 @@ void main() {
         saleDate: DateTime(2026, 1, 15),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [],
+        items: [],
       );
       await db.into(db.incomeRecords).insert(
             IncomeRecordsCompanion.insert(
@@ -383,7 +383,7 @@ void main() {
         saleDate: DateTime(2026, 1, 5),
         total: moneyFromMajor(1000),
         amountPaid: moneyFromMajor(1000),
-        items: const [],
+        items: [],
       );
       await db.into(db.customerLedgerEntries).insert(
             CustomerLedgerEntriesCompanion.insert(
