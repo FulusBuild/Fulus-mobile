@@ -13,8 +13,9 @@ grep -F '.eq("registered_by", ud.user.id)' "$diagnostics" >/dev/null
 
 echo "PASS: cloud API authorization contracts are present"
 
-# Cloud APIs must not expose raw Postgres/Supabase error messages.
-if grep -RIn --include='*.ts' 'message: error.message' supabase/functions; then
-  echo "Cloud API source exposes raw database error messages"
+# Client-facing Cloud API error responses must not expose raw Postgres/Supabase
+# messages. Server-side logging of error.message is allowed for diagnostics.
+if grep -RIn --include='*.ts' -E 'message:[[:space:]]*error\.message|message:[[:space:]]*err\.message' supabase/functions; then
+  echo "Cloud API source exposes raw database error messages to clients"
   exit 1
 fi
