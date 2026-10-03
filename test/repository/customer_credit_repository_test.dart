@@ -249,6 +249,39 @@ void main() {
     expect(rows.single.entryType, 'creditSale');
   });
 
+  test('canonical repayment reuses the local outbox ledger row before serverId arrives', () async {
+    final customerId = await createTestCustomer();
+    await (db.update(db.customers)..where((c) => c.localId.equals(customerId))).write(
+      const CustomersCompanion(serverId: Value('customer-server-1')),
+    );
+
+    final result = await creditRepository.recordRepayment(
+      customerLocalId: customerId,
+      amount: 2000,
+    );
+    final queue = await (db.select(db.syncQueueItems)
+          ..where((q) => q.entityLocalId.equals(result.entry.localId)))
+        .getSingle();
+
+    await creditRepository.reconcileServerState(
+      serverId: 'ledger-server-1',
+      customerServerId: 'customer-server-1',
+      entryType: CustomerLedgerEntryType.repayment,
+      amount: 2000,
+      operationId: queue.id,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final rows = await (db.select(db.customerLedgerEntries)
+          ..where((e) => e.customerLocalId.equals(customerId)))
+        .get();
+    expect(rows, hasLength(1));
+    expect(rows.single.localId, result.entry.localId);
+    expect(rows.single.serverId, 'ledger-server-1');
+    expect(rows.single.entryType, 'repayment');
+  });
+
   group('recordRefundAdjustment', () {
     test('reduces the balance the same way a repayment does', () async {
       final customerId = await createTestCustomer();
