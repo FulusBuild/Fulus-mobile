@@ -103,6 +103,11 @@ begin
     return idem.response_body;
   end if;
 
+  -- The Edge Function invokes this SECURITY DEFINER RPC as the service actor.
+  -- Bind the verified end-user before permission evaluation so has_permission()
+  -- authorizes the actual business member rather than the service role.
+  perform set_config('request.jwt.claim.sub',target_user_id::text,true);
+
   if not public.has_permission(target_business_id,'returns.create') then
     raise exception using errcode='42501',message='Return permission required';
   end if;
