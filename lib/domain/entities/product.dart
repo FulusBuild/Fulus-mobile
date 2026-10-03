@@ -32,8 +32,8 @@ class Product {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
-  final double costPrice;
-  final double sellingPrice;
+  final Money costPrice;
+  final Money sellingPrice;
   final int lowStockThreshold;
   final bool isActive;
   final bool tracksStock;
@@ -61,8 +61,8 @@ class ProductDraft {
 
   final String name;
   final String sku;
-  final double costPrice;
-  final double sellingPrice;
+  final Money costPrice;
+  final Money sellingPrice;
   final String locationId;
   final String? barcode;
   final String? categoryId;
@@ -111,8 +111,8 @@ class ProductCreateDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
-  final double costPrice;
-  final double sellingPrice;
+  final Money costPrice;
+  final Money sellingPrice;
   final int lowStockThreshold;
   final int initialStock;
   final String? photoPath;
@@ -140,8 +140,8 @@ class ProductUpdateDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
-  final double? costPrice;
-  final double? sellingPrice;
+  final Money? costPrice;
+  final Money? sellingPrice;
   final int? lowStockThreshold;
   final bool? isActive;
   final String? photoPath;
@@ -184,13 +184,13 @@ class ProductResponseDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
-  final double costPrice;
-  final double sellingPrice;
+  final Money costPrice;
+  final Money sellingPrice;
   final int lowStockThreshold;
   final int currentStock;
   final bool isActive;
   final bool isLowStock;
-  final double stockValue;
+  final Money stockValue;
   final String? photoPath;
 
   factory ProductResponseDto.fromJson(Map<String, dynamic> json) =>
