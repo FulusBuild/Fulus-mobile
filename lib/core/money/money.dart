@@ -50,3 +50,14 @@ Money moneyFromWire(Object? value) {
   }
   throw FormatException('Unsupported monetary value: $value');
 }
+
+
+class MoneyJsonConverter implements JsonConverter<Money, Object?> {
+  const MoneyJsonConverter();
+
+  @override
+  Money fromJson(Object? json) => moneyFromWire(json);
+
+  @override
+  Object toJson(Money object) => moneyToWire(object);
+}
