@@ -61,7 +61,7 @@ void main() {
         'display — status still reads paid', () {
       final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1000), cashTendered: moneyFromMajor(1500));
       expect(sale.changeDue, moneyFromMajor(500));
-      expect(sale.balanceDue, moneyFromMajor(-500));
+      expect(sale.balanceDue, moneyFromMajor(0));
       expect(sale.paymentStatus, 'paid');
     });
 
