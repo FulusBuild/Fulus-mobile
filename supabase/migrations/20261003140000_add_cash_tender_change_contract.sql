@@ -68,7 +68,7 @@ begin
       cash_paid := cash_paid + amount;
       if method='cash' then
         cash_applied := cash_applied + amount;
-        cash_tendered_total := cash_tendered + tendered_amount;
+        cash_tendered_total := cash_tendered_total + tendered_amount;
       elsif tendered_amount <> amount then
         raise exception using errcode='22023',message='Non-cash payment tender must equal applied amount';
       end if;
@@ -145,7 +145,7 @@ begin
       raise exception using errcode='22023',message='Server paid amount does not match payment legs';
     end if;
 
-    cash_change_total := round(cash_tendered-cash_applied,2);
+    cash_change_total := round(cash_tendered_total-cash_applied,2);
     if cash_change_total < 0 then
       raise exception using errcode='22023',message='Cash tendered cannot be less than applied cash';
     end if;
