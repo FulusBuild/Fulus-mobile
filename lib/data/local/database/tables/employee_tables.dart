@@ -35,7 +35,7 @@ class Employees extends Table {
   TextColumn get role => text().nullable()();
   TextColumn get department => text().withLength(max: 100).nullable()();
   TextColumn get position => text().withLength(max: 100).nullable()();
-  RealColumn get salary => real().nullable()();
+  IntColumn get salary => integer().nullable()();
   TextColumn get phone => text().withLength(max: 30).nullable()();
   TextColumn get email => text().withLength(max: 120).nullable()();
   DateTimeColumn get dateHired => dateTime().nullable()();
