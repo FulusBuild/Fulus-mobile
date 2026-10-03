@@ -19,7 +19,7 @@ class Sale {
     this.cashierUserId,
     required this.saleDate,
     required this.subtotal,
-    this.wholeCartDiscount = 0.0,
+    this.wholeCartDiscount = 0,
     required this.discount,
     required this.tax,
     required this.total,
@@ -46,18 +46,18 @@ class Sale {
   /// after that.
   final String? cashierUserId;
   final DateTime saleDate;
-  final double subtotal;
+  final Money subtotal;
 
   /// The whole-cart-discount component specifically, kept alongside
   /// `discount` (the combined total that actually syncs) — see
   /// tables.dart's `Sales.wholeCartDiscount` doc comment for why the
   /// breakdown is worth keeping even once a sale is finished, not just
   /// during cart-editing.
-  final double wholeCartDiscount;
-  final double discount;
-  final double tax;
-  final double total;
-  final double amountPaid;
+  final Money wholeCartDiscount;
+  final Money discount;
+  final Money tax;
+  final Money total;
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
   final List<SaleItem> items;
@@ -112,7 +112,7 @@ class SaleItem {
     required this.quantity,
     required this.unitPrice,
     required this.costPriceAtSale,
-    this.lineDiscount = 0.0,
+    this.lineDiscount = 0,
   });
 
   final String localId;
@@ -130,8 +130,8 @@ class SaleItem {
   final String description;
 
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
+  final Money unitPrice;
+  final Money costPriceAtSale;
 
   /// New — Volume 5's per-line discount. No backend column; folds into
   /// `Sale.discount` alongside the whole-cart discount — see that
@@ -142,7 +142,7 @@ class SaleItem {
   /// round(sum(qty * unit_price), 2)`, discount subtracted separately
   /// afterward) — netting it in here would have silently corrupted that
   /// existing, correct aggregation.
-  final double lineDiscount;
+  final Money lineDiscount;
 
   /// Raw, pre-discount — `quantity * unitPrice`, matching
   /// `SaleItemOut.line_total` exactly. A line's actual net contribution
@@ -188,9 +188,9 @@ class SaleCreateDto {
   // 422 from the backend the moment that migration shipped, including
   // through the most mature vertical in the app.
   final String locationId;
-  final double? discount;
-  final double? tax;
-  final double amountPaid;
+  final Money? discount;
+  final Money? tax;
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
 
@@ -227,7 +227,7 @@ class SaleItemCreateDto {
   /// the product's own listed price unedited, letting the backend be
   /// the single source of truth for that price rather than the mobile
   /// client re-asserting a value it already got from the server.
-  final double? unitPrice;
+  final Money? unitPrice;
 
   Map<String, dynamic> toJson() => _$SaleItemCreateDtoToJson(this);
 }
@@ -255,11 +255,11 @@ class SaleResponseDto {
   final String invoiceNumber;
   final String? customerId;
   final DateTime saleDate;
-  final double subtotal;
-  final double discount;
-  final double tax;
-  final double total;
-  final double amountPaid;
+  final Money subtotal;
+  final Money discount;
+  final Money tax;
+  final Money total;
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
   final List<SaleItemResponseDto> items;
@@ -282,9 +282,9 @@ class SaleItemResponseDto {
   final String id;
   final String productId;
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
-  final double lineTotal;
+  final Money unitPrice;
+  final Money costPriceAtSale;
+  final Money lineTotal;
 
   factory SaleItemResponseDto.fromJson(Map<String, dynamic> json) =>
       _$SaleItemResponseDtoFromJson(json);
