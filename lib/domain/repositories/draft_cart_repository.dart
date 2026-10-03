@@ -1,5 +1,5 @@
 import '../entities/draft_cart.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 import '../entities/sale.dart';
 
 /// The actual mechanism behind Decision 14 ("Sell always resumes an
