@@ -153,7 +153,7 @@ void main() {
     return SaleDraft(
       items: [item],
       locationId: locationId,
-      amountPaid: moneyFromMajor(150) * quantity.toDouble(),
+      amountPaid: moneyFromMajor(150) * quantity
     );
   }
 
