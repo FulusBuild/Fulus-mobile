@@ -1,7 +1,7 @@
-import 'package:fulus_mobile/core/money/money.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/business_settings_api.dart';
@@ -110,8 +110,8 @@ void main() {
             localId: localId,
             name: localId,
             sku: sku,
-            costPrice: moneyFromMajor(costPrice),
-            sellingPrice: moneyFromMajor(sellingPrice),
+            costPrice: costPrice,
+            sellingPrice: sellingPrice,
             isActive: Value(isActive),
             createdAt: now,
             updatedAt: now,
@@ -345,14 +345,14 @@ void main() {
   group('addQuickSaleItem', () {
     test('rejects an empty description', () async {
       await expectLater(
-        cubit.addQuickSaleItem(description: '   ', unitPrice: 500),
+        cubit.addQuickSaleItem(description: '   ', unitPrice: moneyFromMajor(500)),
         throwsStateError,
       );
     });
 
     test('rejects a non-positive price', () async {
       await expectLater(
-        cubit.addQuickSaleItem(description: 'Firewood', unitPrice: 0),
+        cubit.addQuickSaleItem(description: 'Firewood', unitPrice: moneyFromMajor(0)),
         throwsStateError,
       );
     });
@@ -403,7 +403,7 @@ void main() {
 
       final sale = await cubit.completeSale();
 
-      expect(sale.total, moneyFromMajor(200000));
+      expect(sale.total, moneyFromMajor(2000));
       expect(sale.items, hasLength(2));
 
       final after = await waitFor(cubit, (s) => s.items.isEmpty);
