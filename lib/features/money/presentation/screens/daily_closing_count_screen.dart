@@ -207,7 +207,7 @@ class _ConfirmRow extends StatelessWidget {
 class _AmountRow extends StatelessWidget {
   const _AmountRow({required this.label, required this.value, required this.symbol, this.showPlus = false, this.emphasize = false});
   final String label;
-  final double value;
+  final Money value;
   final String symbol;
   final bool showPlus;
   final bool emphasize;
