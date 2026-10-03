@@ -1,4 +1,5 @@
 import '../entities/employee.dart';
+import '../../core/money/money.dart';
 
 /// Architecture Section 4's repository pattern, applied to Stage 11.
 /// One repository covering roster + attendance + leave, mirroring the
@@ -37,7 +38,7 @@ abstract class EmployeeRepository {
     required String? role,
     required String? department,
     required String? position,
-    required double? salary,
+    required Money? salary,
     required String? phone,
     required String? email,
     required DateTime? dateHired,
