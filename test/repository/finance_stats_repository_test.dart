@@ -40,9 +40,9 @@ void main() {
     required String localId,
     required String locationId,
     required DateTime saleDate,
-    required double total,
-    required double amountPaid,
-    required List<({double costPriceAtSale, int quantity})> items,
+    required Money total,
+    required Money amountPaid,
+    required List<({Money costPriceAtSale, int quantity})> items,
   }) async {
     await db.into(db.sales).insert(
           SalesCompanion.insert(
