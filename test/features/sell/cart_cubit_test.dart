@@ -403,7 +403,7 @@ void main() {
 
       final sale = await cubit.completeSale();
 
-      expect(sale.total, moneyFromMajor(2000));
+      expect(sale.total, 2000);
       expect(sale.items, hasLength(2));
 
       final after = await waitFor(cubit, (s) => s.items.isEmpty);
