@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
@@ -39,8 +40,8 @@ void main() {
     required String localId,
     required String locationId,
     required DateTime saleDate,
-    required double total,
-    required double amountPaid,
+    required Money total,
+    required Money amountPaid,
     required List<({double costPriceAtSale, int quantity})> items,
   }) async {
     await db.into(db.sales).insert(
@@ -77,7 +78,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: [(costPriceAtSale: 60, quantity: 5)],
       );
@@ -99,7 +100,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 2000,
+        total: moneyFromMajor(2000),
         amountPaid: 2000,
         items: [
           (costPriceAtSale: 60, quantity: 5), // 5 units with cost
@@ -141,7 +142,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: [(costPriceAtSale: 60, quantity: 5)],
       );
@@ -150,7 +151,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Rent',
-              amount: 200,
+              amount: moneyFromMajor(200),
               expenseDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -187,7 +188,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
-        total: 7500,
+        total: moneyFromMajor(7500),
         amountPaid: 7500,
         items: const [],
       );
@@ -217,7 +218,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [],
       );
@@ -252,7 +253,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [],
       );
@@ -288,7 +289,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [],
       );
@@ -297,7 +298,7 @@ void main() {
               localId: 'income-1',
               locationId: 'loc-1',
               source: 'Old equipment sold',
-              amount: 300,
+              amount: moneyFromMajor(300),
               incomeDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -332,7 +333,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Utilities',
-              amount: 150,
+              amount: moneyFromMajor(150),
               expenseDate: DateTime(2026, 1, 12),
               createdAt: DateTime(2026, 1, 12),
               updatedAt: DateTime(2026, 1, 12),
@@ -344,7 +345,7 @@ void main() {
               localId: 'sle-1',
               supplierLocalId: 'supplier-1',
               entryType: 'paymentMade',
-              amount: 400,
+              amount: moneyFromMajor(400),
               createdAt: DateTime(2026, 1, 20),
             ),
           );
@@ -380,7 +381,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [],
       );
@@ -389,7 +390,7 @@ void main() {
               localId: 'cle-1',
               customerLocalId: 'customer-1',
               entryType: 'repayment',
-              amount: 250,
+              amount: moneyFromMajor(250),
               createdAt: DateTime(2026, 1, 18),
               updatedAt: DateTime(2026, 1, 18),
               syncStatus: SyncStatus.settled,
@@ -403,7 +404,7 @@ void main() {
               localId: 'cle-2',
               customerLocalId: 'customer-1',
               entryType: 'creditSale',
-              amount: 999,
+              amount: moneyFromMajor(999),
               createdAt: DateTime(2026, 1, 19),
               updatedAt: DateTime(2026, 1, 19),
               syncStatus: SyncStatus.settled,
