@@ -139,7 +139,7 @@ void main() {
   });
 
   setUpAll(() {
-    registerFallbackValue(const SaleCreateDto(
+    registerFallbackValue(SaleCreateDto(
       items: [],
       amountPaid: moneyFromMajor(0),
       locationId: locationId,
