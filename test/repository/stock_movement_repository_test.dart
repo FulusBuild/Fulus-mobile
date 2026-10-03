@@ -5,7 +5,6 @@ import 'package:fulus_mobile/domain/entities/stock_movement.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fulus_mobile/core/money/money.dart';
 import 'package:drift/drift.dart' hide isNull;
 
 void main() {
