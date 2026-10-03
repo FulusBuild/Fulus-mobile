@@ -162,8 +162,8 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           ProductDraft(
             name: name,
             sku: sku,
-            costPrice: cost ?? 0,
-            sellingPrice: price!,
+            costPrice: moneyFromMajor(cost ?? 0),
+            sellingPrice: moneyFromMajor(price!),
             locationId: locationId,
             barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
             categoryId: _categoryId,
