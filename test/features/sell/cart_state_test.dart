@@ -69,8 +69,8 @@ void main() {
         items: [itemWith(localId: 'i1', quantity: 2, unitPrice: 500)],
       );
 
-      expect(state.subtotal, moneyFromMajor(100000));
-      expect(state.total, moneyFromMajor(105000));
+      expect(state.subtotal, moneyFromMajor(1000));
+      expect(state.total, moneyFromMajor(1050));
     });
 
     test('a whole-cart-only discount is subtracted correctly '
@@ -80,8 +80,8 @@ void main() {
         items: [itemWith(localId: 'i1', quantity: 3, unitPrice: 1500)],
       );
 
-      expect(state.subtotal, moneyFromMajor(450000));
-      expect(state.total, moneyFromMajor(440000));
+      expect(state.subtotal, moneyFromMajor(4500));
+      expect(state.total, moneyFromMajor(4400));
     });
 
     test(
@@ -94,10 +94,10 @@ void main() {
         ],
       );
 
-      expect(state.subtotal, moneyFromMajor(100000));
+      expect(state.subtotal, moneyFromMajor(1000));
       // Before the fix this returned 1000 (wholeCartDiscount was 0, so
       // nothing was ever subtracted) — the exact defect this pins down.
-      expect(state.total, moneyFromMajor(85000));
+      expect(state.total, moneyFromMajor(850));
     });
 
     test('whole-cart and multiple line discounts combine additively, '
@@ -113,9 +113,9 @@ void main() {
       // subtotal = 1000 + 1500 = 2500
       // discount = 200 (whole-cart) + 50 + 25 (lines) = 275
       // total = 2500 - 275 + 75 (tax) = 2300
-      expect(state.subtotal, moneyFromMajor(250000));
-      expect(state.discount, moneyFromMajor(27500));
-      expect(state.total, moneyFromMajor(230000));
+      expect(state.subtotal, moneyFromMajor(2500));
+      expect(state.discount, moneyFromMajor(275));
+      expect(state.total, moneyFromMajor(2300));
     });
 
     test('remaining reflects the corrected total, not just what payments '
@@ -128,8 +128,8 @@ void main() {
         payments: const [],
       );
 
-      expect(state.total, moneyFromMajor(85000));
-      expect(state.remaining, 85000);
+      expect(state.total, moneyFromMajor(850));
+      expect(state.remaining, moneyFromMajor(850));
     });
 
     test('a 100% line discount reduces that line\'s contribution to zero',
@@ -141,7 +141,7 @@ void main() {
         ],
       );
 
-      expect(state.subtotal, moneyFromMajor(100000));
+      expect(state.subtotal, moneyFromMajor(1000));
       expect(state.total, moneyFromMajor(0));
     });
   });
