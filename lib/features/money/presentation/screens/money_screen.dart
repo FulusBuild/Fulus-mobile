@@ -128,7 +128,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      FutureBuilder<double>(
+                      FutureBuilder<Money>(
                         future: _balanceFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
