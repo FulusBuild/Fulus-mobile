@@ -59,7 +59,6 @@ class FulusCashDrawerCanonicalReconciler {
 
   Money _number(Object? value) {
     return moneyFromWire(value);
-    throw StateError('Canonical cash drawer payload contains an invalid number.');
   }
 
   Money? _nullableNumber(Object? value) => value == null ? null : moneyFromWire(value);
