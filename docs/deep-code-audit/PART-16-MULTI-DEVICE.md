@@ -94,35 +94,31 @@ The current live suites prove:
 ### P16-001
 
 **Severity:** Medium  
-**Status:** Open; runtime evidence gap.
+**Status:** Closed in source and production; runtime regression coverage added.
 
-**Observed limitation**
+**Finding**
 
-The live multi-device suite now adds a production API-level financial scenario: two registered device identities perform independent customer-credit work, including a seeded credit balance, a concurrent credit sale and repayment, duplicate replay of both operations, bidirectional canonical-feed visibility, and final authoritative customer/sale invariants. This closes an important runtime-evidence gap around concurrent financial mutation ordering and idempotency.
+The adversarial financial scenario exposed two concrete return-path defects in addition to the original evidence gap:
 
-It does not yet constitute full local-device convergence evidence: the CI tool does not run two independent Flutter/SQLite runtimes, and the current least-privilege E2E identity does not have returns.create, so a live sale/return interaction is still unverified.
+1. Credit-method returns could apply the same customer credit reversal twice because the validation branch performed the ledger/customer mutation and the common credit settlement branch performed it again.
+2. A later return-function replacement dropped the verified target_user_id → auth.uid() binding before has_permission(). The service-role Edge Function therefore evaluated return permission in the wrong actor context.
 
-**Expected invariant**
+**Fix**
 
-Financial, inventory, customer-credit, and authorization invariants must converge correctly after concurrent device operations, not only catalog edits.
+- Added 20261003120000_fix_credit_return_single_reversal.sql to make the credit calculation branch side-effect free.
+- Added 20261003130000_fix_return_actor_binding.sql to restore end-user actor binding before permission evaluation.
+- Applied both corrective migrations to the production Supabase project.
+- Added live multi-device E2E coverage for concurrent sale + repayment, duplicate retries, credit return, return replay, canonical feed visibility, and final customer/sale invariants.
+- Added a two-independent-SQLite regression proving the same canonical financial sale converges into separate local stores.
+- Existing supabase/tests/financial_fidelity.sql directly rejects a credit validation branch that performs a customer-ledger insert.
 
-**Impact**
+**Production verification**
 
-The existing source and live tests establish strong coverage of the generic conflict/feed mechanism. The new scenario adds direct production evidence for concurrent sale/repayment ordering and duplicate retries, but not yet for local SQLite convergence or sale/return interaction.
+The production function definition was re-read after migration and verified to contain the verified actor binding before has_permission(), and no customer-ledger insert in the credit validation branch.
 
-**Fix / verification**
+**Remaining execution**
 
-Do not change the sync architecture speculatively. Add a production-safe multi-device runtime scenario covering at least:
-- concurrent sale creation;
-- sale/return interaction;
-- customer repayment/credit interaction;
-- reconnect after offline work;
-- canonical pull on both devices;
-- final balance/stock/ledger equality;
-- duplicate retry behavior.
-
-This is a verification gap rather than a demonstrated source defect.
-
+The repository live E2E is wired into CI, but this connector cannot dispatch the pull-request workflow directly. The code/runtime scenario is prepared and the production function has been verified; the final CI execution result must still be observed before claiming the workflow itself green.
 ## Cross-check
 
 The generic conflict model, canonical reconcilers, queue fencing, idempotency, and stale-cursor recovery were checked for the same failure class. No additional concrete source defect was proven in this pass.
