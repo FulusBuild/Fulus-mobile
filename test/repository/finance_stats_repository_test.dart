@@ -64,7 +64,7 @@ void main() {
               localId: '$localId-item-$i',
               saleLocalId: localId,
               quantity: items[i].quantity,
-              unitPrice: 10000,
+              unitPrice: 1000000,
               costPriceAtSale: items[i].costPriceAtSale,
             ),
           );
@@ -78,8 +78,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: [(costPriceAtSale: 60, quantity: 5)],
       );
 
@@ -100,8 +100,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 200000,
-        amountPaid: 200000,
+        total: 20000000,
+        amountPaid: 20000000,
         items: [
           (costPriceAtSale: 60, quantity: 5), // 5 units with cost
           (costPriceAtSale: 0, quantity: 5), // 5 units with no cost (Quick Sale)
@@ -142,8 +142,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: [(costPriceAtSale: 60, quantity: 5)],
       );
       await db.into(db.expenses).insert(
@@ -151,7 +151,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Rent',
-              amount: 20000,
+              amount: 2000000,
               expenseDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -188,8 +188,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
-        total: 750000,
-        amountPaid: 750000,
+        total: 75000000,
+        amountPaid: 75000000,
         items: const [],
       );
 
@@ -218,8 +218,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [],
       );
       await db.into(db.returnRequests).insert(
@@ -228,7 +228,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 100000,
+              refundAmount: 10000000,
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -253,8 +253,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [],
       );
       await db.into(db.returnRequests).insert(
@@ -263,7 +263,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 100000,
+              refundAmount: 10000000,
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -289,8 +289,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [],
       );
       await db.into(db.incomeRecords).insert(
@@ -298,7 +298,7 @@ void main() {
               localId: 'income-1',
               locationId: 'loc-1',
               source: 'Old equipment sold',
-              amount: 30000,
+              amount: 3000000,
               incomeDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -333,7 +333,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Utilities',
-              amount: 15000,
+              amount: 1500000,
               expenseDate: DateTime(2026, 1, 12),
               createdAt: DateTime(2026, 1, 12),
               updatedAt: DateTime(2026, 1, 12),
@@ -345,7 +345,7 @@ void main() {
               localId: 'sle-1',
               supplierLocalId: 'supplier-1',
               entryType: 'paymentMade',
-              amount: 40000,
+              amount: 4000000,
               createdAt: DateTime(2026, 1, 20),
             ),
           );
@@ -381,8 +381,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 100000,
-        amountPaid: 100000,
+        total: 10000000,
+        amountPaid: 10000000,
         items: const [],
       );
       await db.into(db.customerLedgerEntries).insert(
@@ -390,7 +390,7 @@ void main() {
               localId: 'cle-1',
               customerLocalId: 'customer-1',
               entryType: 'repayment',
-              amount: 25000,
+              amount: 2500000,
               createdAt: DateTime(2026, 1, 18),
               updatedAt: DateTime(2026, 1, 18),
               syncStatus: SyncStatus.settled,
@@ -404,7 +404,7 @@ void main() {
               localId: 'cle-2',
               customerLocalId: 'customer-1',
               entryType: 'creditSale',
-              amount: 99900,
+              amount: 9990000,
               createdAt: DateTime(2026, 1, 19),
               updatedAt: DateTime(2026, 1, 19),
               syncStatus: SyncStatus.settled,
