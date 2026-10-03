@@ -36,7 +36,7 @@ void main() {
     });
 
     test('is the shortfall when partially paid', () {
-      expect(sample(amountPaid: 60000, total: 100000).balanceDue, 400);
+      expect(sample(amountPaid: 60000, total: 100000).balanceDue, 40000);
     });
 
     test('never goes negative on overpayment', () {
@@ -60,7 +60,7 @@ void main() {
     });
 
     test('is the excess amount on overpayment', () {
-      expect(sample(amountPaid: 120000, total: 100000).changeDue, 200);
+      expect(sample(amountPaid: 120000, total: 100000).changeDue, 20000);
     });
   });
 
