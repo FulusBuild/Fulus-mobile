@@ -52,9 +52,9 @@ import '../local/database/database.dart';
 class SaleReversalAdjustments {
   SaleReversalAdjustments._({
     required this.voidedSaleIds,
-    required Map<String, double> refundedAmountBySale,
-    required Map<String, double> refundedCostBySale,
-    required Map<String, Map<String, ({int quantity, double amount})>> refundedByProductBySale,
+    required Map<String, Money> refundedAmountBySale,
+    required Map<String, Money> refundedCostBySale,
+    required Map<String, Map<String, ({int quantity, Money amount})>> refundedByProductBySale,
   })  : _refundedAmountBySale = refundedAmountBySale,
         _refundedCostBySale = refundedCostBySale,
         _refundedByProductBySale = refundedByProductBySale;
@@ -67,25 +67,25 @@ class SaleReversalAdjustments {
   );
 
   final Set<String> voidedSaleIds;
-  final Map<String, double> _refundedAmountBySale;
-  final Map<String, double> _refundedCostBySale;
-  final Map<String, Map<String, ({int quantity, double amount})>> _refundedByProductBySale;
+  final Map<String, Money> _refundedAmountBySale;
+  final Map<String, Money> _refundedCostBySale;
+  final Map<String, Map<String, ({int quantity, Money amount})>> _refundedByProductBySale;
 
   bool isVoided(String saleLocalId) => voidedSaleIds.contains(saleLocalId);
 
   /// Total refunded (non-void, completed returns only) against this sale.
-  double refundedAmountFor(String saleLocalId) => _refundedAmountBySale[saleLocalId] ?? 0;
+  Money refundedAmountFor(String saleLocalId) => _refundedAmountBySale[saleLocalId] ?? 0;
 
   /// Total cost-of-goods-sold attributable to refunded (non-void)
   /// quantity against this sale — weighted-average cost per product,
   /// same fairness convention `ReturnRepositoryImpl._weightedAveragePrice`
   /// already uses for refund pricing, applied here to `costPriceAtSale`
   /// instead of `unitPrice`.
-  double refundedCostFor(String saleLocalId) => _refundedCostBySale[saleLocalId] ?? 0;
+  Money refundedCostFor(String saleLocalId) => _refundedCostBySale[saleLocalId] ?? 0;
 
   /// Per-product (quantity, amount) refunded against this sale — for
   /// netting Top Products at the line level.
-  Map<String, ({int quantity, double amount})> refundedItemsFor(String saleLocalId) =>
+  Map<String, ({int quantity, Money amount})> refundedItemsFor(String saleLocalId) =>
       _refundedByProductBySale[saleLocalId] ?? const {};
 
   /// The net revenue this sale should contribute: 0 if voided
@@ -154,7 +154,7 @@ class SaleReversalAdjustments {
     // refunded quantity can be priced and costed back out product by
     // product for Top Products / COGS netting.
     final saleItems = await (db.select(db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
-    final linesBySaleProduct = <String, Map<String, ({int quantity, double amount, double cost})>>{};
+    final linesBySaleProduct = <String, Map<String, ({int quantity, Money amount, Money cost})>>{};
     for (final item in saleItems) {
       final productId = item.productLocalId;
       if (productId == null) continue;
@@ -167,16 +167,16 @@ class SaleReversalAdjustments {
       );
     }
 
-    final refundedAmountBySale = <String, double>{};
-    final refundedCostBySale = <String, double>{};
-    final refundedByProductBySale = <String, Map<String, ({int quantity, double amount})>>{};
+    final refundedAmountBySale = <String, Money>{};
+    final refundedCostBySale = <String, Money>{};
+    final refundedByProductBySale = <String, Map<String, ({int quantity, Money amount})>>{};
 
     for (final item in returnItems) {
       final saleId = saleIdByReturnId[item.returnLocalId];
       if (saleId == null) continue;
       // A voided sale is excluded wholesale by the caller (via
       // voidedSaleIds) — its return items aren't netted line-by-line
-      // on top of that, which would double-subtract.
+      // on top of that, which would Money-subtract.
       if (isVoidByReturnId[item.returnLocalId] ?? false) continue;
 
       final line = linesBySaleProduct[saleId]?[item.productLocalId];
