@@ -438,7 +438,7 @@ class MoneyFormatter {
 
   String format(num value) {
     final label = _safeLabel();
-    final amount = _thousands(value);
+    final amount = _thousands(value is int ? value / 100.0 : value);
     if (label.isEmpty) return amount;
     return spaceBeforeAmount ? '$label $amount' : '$label$amount';
   }
