@@ -89,8 +89,8 @@ void main() {
               localId: id,
               name: id,
               sku: 'SKU-$id',
-              costPrice: 40000,
-              sellingPrice: 100000,
+              costPrice: 4000000,
+              sellingPrice: 10000000,
               createdAt: now,
               updatedAt: now,
               syncStatus: SyncStatus.settled,
@@ -146,14 +146,14 @@ void main() {
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
-        unitPrice: 100000,
+        unitPrice: 10000000,
         costPriceAtSale: 400,
       ),
       SaleItem(
         localId: Ulid().toString(),
         productLocalId: productBId,
         quantity: 3,
-        unitPrice: 100000,
+        unitPrice: 10000000,
         costPriceAtSale: 400,
       ),
     ];
@@ -239,7 +239,7 @@ void main() {
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
-        unitPrice: 100000,
+        unitPrice: 10000000,
         costPriceAtSale: 400,
       ),
     ];
@@ -248,11 +248,11 @@ void main() {
         items: items,
         locationId: locationId,
         customerId: customerId,
-        amountPaid: 450000,
+        amountPaid: 45000000,
         paymentMethod: 'split',
         payments: [
-          SalePayment(localId: Ulid().toString(), method: 'cash', amount: 450000, recordedAt: now),
-          SalePayment(localId: Ulid().toString(), method: 'credit', amount: 50000, recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'cash', amount: 45000000, recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'credit', amount: 5000000, recordedAt: now),
         ],
       ),
     );
@@ -260,7 +260,7 @@ void main() {
     final customerBefore = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerBefore.outstandingBalance, 100000);
+    expect(customerBefore.outstandingBalance, 10000000);
 
     final ret = await returnRepository.createReturn(
       originalSaleLocalId: sale.localId,
@@ -274,7 +274,7 @@ void main() {
     final customerAfter = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerAfter.outstandingBalance, 50000);
+    expect(customerAfter.outstandingBalance, 5000000);
 
     final adjustments = await (db.select(db.customerLedgerEntries)
           ..where((e) =>
@@ -282,7 +282,7 @@ void main() {
               e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name)))
         .get();
     expect(adjustments, hasLength(1));
-    expect(adjustments.single.amount, 50000);
+    expect(adjustments.single.amount, 5000000);
   });
 
   group('createReturn', () {
@@ -541,7 +541,7 @@ void main() {
         const CustomerDraft(name: 'Test Customer'),
       );
       // 8000 total, 3000 paid up front — 5000 still owed on credit.
-      final sale = await purchase(customerId: customer.localId, amountPaid: 300000);
+      final sale = await purchase(customerId: customer.localId, amountPaid: 30000000);
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
@@ -633,12 +633,12 @@ void main() {
               localId: 'transfer-item-1',
               productLocalId: productAId,
               quantity: 1,
-              unitPrice: 100000,
+              unitPrice: 10000000,
               costPriceAtSale: 400,
             ),
           ],
           locationId: locationId,
-          amountPaid: 100000,
+          amountPaid: 10000000,
           paymentMethod: 'transfer',
         ),
       );
@@ -656,7 +656,7 @@ void main() {
       final customer = await customerRepository.createCustomer(
         const CustomerDraft(name: 'Test Customer'),
       );
-      final sale = await purchase(customerId: customer.localId, amountPaid: 300000);
+      final sale = await purchase(customerId: customer.localId, amountPaid: 30000000);
 
       await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
 
