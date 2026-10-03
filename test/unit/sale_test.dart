@@ -9,7 +9,7 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 /// fix: no "change due" concept existed anywhere in this app despite
 /// full cash overpayment being possible).
 void main() {
-  Sale saleWith({required Money total, required Money amountPaid}) {
+  Sale saleWith({required Money total, required Money amountPaid, Money? cashTendered}) {
     final now = DateTime(2026, 1, 15);
     return Sale(
       localId: 'sale-1',
@@ -21,8 +21,8 @@ void main() {
       tax: moneyFromMajor(0),
       total: total,
       amountPaid: amountPaid,
-      cashTendered: amountPaid,
-      cashChange: amountPaid > total ? amountPaid - total : 0,
+      cashTendered: cashTendered ?? amountPaid,
+      cashChange: (cashTendered ?? amountPaid) > amountPaid ? (cashTendered ?? amountPaid) - amountPaid : 0,
       items: const [],
       createdAt: now,
       updatedAt: now,
@@ -59,7 +59,7 @@ void main() {
         'balanceDue goes negative — not floored here, unlike '
         'ReceiptData.balanceDue, which deliberately does floor for '
         'display — status still reads paid', () {
-      final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1500));
+      final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1000), cashTendered: moneyFromMajor(1500));
       expect(sale.changeDue, moneyFromMajor(500));
       expect(sale.balanceDue, moneyFromMajor(-500));
       expect(sale.paymentStatus, 'paid');
@@ -89,7 +89,7 @@ void main() {
 
     test('exactly one kobo overpaid already counts as change due, not '
         'just paid', () {
-      final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1000.01));
+      final sale = saleWith(total: moneyFromMajor(1000), amountPaid: moneyFromMajor(1000), cashTendered: moneyFromMajor(1000.01));
       expect(sale.paymentStatus, 'paid');
       expect(sale.changeDue, moneyFromMajor(0.01));
     });
