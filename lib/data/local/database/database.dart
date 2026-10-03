@@ -430,7 +430,7 @@ class AppDatabase extends _$AppDatabase {
           // VAT rate is intentionally excluded because it is a percentage.
           Expression<int> moneyColumnTransform(Expression<double> column) =>
               CustomExpression<int>(
-                'CAST(ROUND(\${column.name} * 100) AS INTEGER)',
+                'CAST(ROUND(${column.name} * 100) AS INTEGER)',
               );
 
           await m.alterTable(TableMigration(products, columnTransformer: {
