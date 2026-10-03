@@ -44,7 +44,7 @@ void main() {
     required DateTime saleDate,
     required Money total,
     required Money amountPaid,
-    required List<({double costPriceAtSale, int quantity, String? productId})> items,
+    required List<({Money costPriceAtSale, int quantity, String? productId})> items,
     String? cashierUserId,
     String? customerId,
     String? invoiceNumber,
@@ -157,7 +157,7 @@ void main() {
   Future<void> insertExpense({
     required String localId,
     required String locationId,
-    required double amount,
+    required Money amount,
     required DateTime date,
   }) async {
     await db.into(db.expenses).insert(
