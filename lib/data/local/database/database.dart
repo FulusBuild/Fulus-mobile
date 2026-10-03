@@ -428,7 +428,7 @@ class AppDatabase extends _$AppDatabase {
           // INTEGER minor-unit column. Existing values are converted exactly
           // at the migration boundary with explicit two-decimal rounding.
           // VAT rate is intentionally excluded because it is a percentage.
-          Expression<int> moneyColumnTransform(Expression<double> column) =>
+          Expression<int> moneyColumnTransform(GeneratedColumn<double> column) =>
               CustomExpression<int>(
                 'CAST(ROUND(${column.name} * 100) AS INTEGER)',
               );
