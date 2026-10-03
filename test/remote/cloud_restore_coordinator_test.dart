@@ -177,6 +177,95 @@ void main() {
     expect(localSettings.currencySymbol, '₦');
   });
 
+  test('preserves the owner row before restoring sales that reference the owner', () async {
+    const ownerId = 'owner-cloud-id';
+    final now = DateTime(2026, 9, 23);
+
+    await db.into(db.users).insert(
+      UsersCompanion.insert(
+        localId: ownerId,
+        fullName: 'Old Owner',
+        role: AuthRole.owner,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final snapshot = <String, dynamic>{
+      'version': 6,
+      'membership': {'user_id': ownerId, 'role_name': 'owner'},
+      'profile': {'id': ownerId, 'full_name': 'Restored Owner'},
+      'business_memberships': [
+        {
+          'id': 'membership-owner',
+          'user_id': ownerId,
+          'role_id': 'role-owner',
+          'status': 'active',
+        },
+      ],
+      'roles': [
+        {'id': 'role-owner', 'name': 'owner'},
+      ],
+      'permissions': [],
+      'role_permissions': [],
+      'location_memberships': [],
+      'locations': [
+        {'id': 'location-1', 'name': 'Main'},
+      ],
+      'sales': [
+        {
+          'id': 'sale-owner',
+          'client_reference': 'sale-owner',
+          'location_id': 'location-1',
+          'cashier_user_id': ownerId,
+          'sale_date': '2026-09-23T10:00:00Z',
+          'subtotal': 100,
+          'total': 100,
+          'amount_paid': 100,
+        },
+      ],
+      'sale_items': [],
+      'sale_payments': [],
+      'categories': [],
+      'suppliers': [],
+      'customers': [],
+      'products': [],
+      'product_stock_levels': [],
+      'customer_ledger_entries': [],
+      'inventory_movements': [],
+      'expense_categories': [],
+      'expenses': [],
+      'income_records': [],
+      'returns': [],
+      'return_items': [],
+      'tax_remittances': [],
+      'cash_drawer_shifts': [],
+      'audit_events': [],
+    };
+
+    await coordinator.restore(
+      snapshot: snapshot,
+      ownerCloudUserId: ownerId,
+      ownerEmail: 'owner@example.com',
+      settings: const BusinessSettingsResponseDto(
+        id: 'business-id',
+        businessName: 'Owner Store',
+        vatEnabled: false,
+        vatRate: 0,
+        currencySymbol: '₦',
+      ),
+    );
+
+    final owner = await (db.select(db.users)
+          ..where((u) => u.localId.equals(ownerId)))
+        .getSingle();
+    expect(owner.fullName, 'Restored Owner');
+
+    final sales = await db.select(db.sales).get();
+    expect(sales, hasLength(1));
+    expect(sales.single.cashierUserId, ownerId);
+  });
+
   test('does not upgrade a cloud administrator to the unrestricted owner role', () async {
     const adminId = 'admin-cloud-id';
     final snapshot = <String, dynamic>{
