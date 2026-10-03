@@ -582,7 +582,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
     required this.currencySymbol,
   });
 
-  final double? salesTotal;
+  final Money? salesTotal;
   final int? salesCount;
   final bool error;
   final String currencySymbol;
