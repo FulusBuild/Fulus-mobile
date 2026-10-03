@@ -22,9 +22,9 @@
 ///   that haven't synced down to this one yet — a false "looks unique"
 ///   answer would be actively worse than deferring to the check that's
 ///   already correct.
-import 'package:fulus_mobile/core/money/money.dart';
-
 library;
+
+import 'package:fulus_mobile/core/money/money.dart';
 
 /// Volume 7: "An owner extending credit past a customer's set limit
 /// sees a plain warning... but can proceed." Returns the overage
@@ -64,7 +64,7 @@ bool hasReachedLoyaltyThreshold({
 /// disappearing, for the owner to resolve." Returns `(newBalance,
 /// excessAmount)` — `excessAmount` is `0` in the ordinary case where the
 /// repayment didn't exceed what was owed.
-({double newBalance, double excessAmount}) computeRepaymentEffect({
+({Money newBalance, Money excessAmount}) computeRepaymentEffect({
   required Money currentBalance,
   required Money repaymentAmount,
 }) {
