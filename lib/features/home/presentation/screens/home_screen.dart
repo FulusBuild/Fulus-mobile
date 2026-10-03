@@ -162,7 +162,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: _HomeDashboardHydration(
                             heroFuture: _heroFuture,
                             noticesFuture: _noticesFuture,
-                            cashFuture: _cashFuture,
                             currencySymbol: currencySymbol,
                             canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
@@ -385,8 +384,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   SecondaryNoticeSelection? _noticeSelection;
   bool _heroError = false;
   bool _noticesError = false;
-  bool _cashError = false;
-
   @override
   void initState() {
     super.initState();
@@ -394,7 +391,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     // FutureBuilder to build before its own future is observed.
     widget.heroFuture.then(_setHero, onError: _setHeroError);
     widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
-    widget.cashFuture.then(_setCash, onError: _setCashError);
   }
 
   @override
