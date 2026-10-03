@@ -110,7 +110,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     String? description,
     required int quantity,
     Money? unitPrice,
-    Money lineDiscount = 0.0,
+    Money lineDiscount = 0,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     if (quantity <= 0) {
@@ -158,7 +158,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
         );
       }
       resolvedUnitPrice = unitPrice;
-      costPriceAtSale = 0.0;
+      costPriceAtSale = 0;
       resolvedDescription = description;
     }
 
@@ -366,8 +366,8 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
           .write(
         DraftCartsCompanion(
           customerLocalId: const Value(null),
-          wholeCartDiscount: const Value(0.0),
-          tax: const Value(0.0),
+          wholeCartDiscount: const Value(0),
+          tax: const Value(0),
           notes: const Value(null),
           updatedAt: Value(DateTime.now()),
         ),
