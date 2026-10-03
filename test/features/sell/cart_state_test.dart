@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/domain/entities/draft_cart.dart';
 import 'package:fulus_mobile/features/sell/presentation/cubit/cart_state.dart';
 
@@ -20,8 +21,8 @@ void main() {
     return DraftCart(
       localId: 'draft-1',
       locationId: 'loc-1',
-      wholeCartDiscount: wholeCartDiscount,
-      tax: tax,
+      wholeCartDiscount: moneyFromMajor(wholeCartDiscount),
+      tax: moneyFromMajor(tax),
       createdAt: now,
       updatedAt: now,
     );
@@ -38,8 +39,8 @@ void main() {
       draftCartLocalId: 'draft-1',
       productLocalId: 'prod-1',
       quantity: quantity,
-      unitPrice: unitPrice,
-      lineDiscount: lineDiscount,
+      unitPrice: moneyFromMajor(unitPrice),
+      lineDiscount: moneyFromMajor(lineDiscount),
     );
   }
 
