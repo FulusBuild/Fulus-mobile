@@ -202,7 +202,7 @@ class ReturnRepositoryImpl implements ReturnRepository {
       originalSaleLocalId: originalSaleLocalId,
       status: autoApprove ? ReturnStatus.approved : ReturnStatus.pending,
       returnReason: returnReason,
-      refundAmount: Money.parse(refundAmount.toStringAsFixed(2)),
+      refundAmount: refundAmount,
       refundMethod: refundMethod,
       inventoryRestored: false,
       isVoid: isVoid,
