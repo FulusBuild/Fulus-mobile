@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/legacy.dart'; // for StateProvider.autoDispose
 
 import '../../../app/providers.dart';
 import '../../../core/utils/async_timeout.dart';
+import '../../../core/money/money.dart';
 import '../../../domain/entities/category.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/stock_movement.dart';
