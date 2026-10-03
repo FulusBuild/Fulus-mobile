@@ -1,5 +1,5 @@
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 import 'fulus_sync_api.dart';
 
 /// Maps canonical cash-drawer state into the entity-owned repository.
