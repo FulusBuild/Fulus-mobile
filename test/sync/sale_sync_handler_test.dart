@@ -122,8 +122,8 @@ void main() {
             localId: productId,
             name: 'Test Product',
             sku: 'SKU-1',
-            costPrice: moneyFromMajor(10000),
-            sellingPrice: moneyFromMajor(15000),
+            costPrice: moneyFromMajor(100),
+            sellingPrice: moneyFromMajor(150),
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -139,9 +139,9 @@ void main() {
   });
 
   setUpAll(() {
-    registerFallbackValue(SaleCreateDto(
+    registerFallbackValue(const SaleCreateDto(
       items: [],
-      amountPaid: 0,
+      amountPaid: moneyFromMajor(0),
       locationId: locationId,
     ));
   });
@@ -487,18 +487,18 @@ void main() {
 
     final sale = await saleRepository.createSale(
       SaleDraft(
-        items: [
+        items: const [
           SaleItem(
             localId: 'quick-1',
             productLocalId: null,
             description: 'Phone charger',
             quantity: 1,
-            unitPrice: 50000,
-            costPriceAtSale: 0,
+            unitPrice: moneyFromMajor(500),
+            costPriceAtSale: moneyFromMajor(0),
           ),
         ],
         locationId: locationId,
-        amountPaid: 50000,
+        amountPaid: moneyFromMajor(500),
       ),
     );
 
@@ -621,8 +621,8 @@ void main() {
           barcode: null,
           categoryId: null,
           supplierId: null,
-          costPrice: moneyFromMajor(10000),
-          sellingPrice: moneyFromMajor(15000),
+          costPrice: moneyFromMajor(100),
+          sellingPrice: moneyFromMajor(150),
           lowStockThreshold: 5,
           isActive: true,
           updatedAt: DateTime.parse('2026-09-23T10:00:00Z'),
@@ -838,7 +838,7 @@ void main() {
         localId: customerId,
         serverId: const Value('server-customer-1'),
         name: 'Test Customer',
-        outstandingBalance: const Value(10000),
+        outstandingBalance: const Value(100),
         createdAt: now,
         updatedAt: now,
         syncStatus: SyncStatus.settled,
@@ -882,7 +882,7 @@ void main() {
           localId: 'repayment-1',
           customerLocalId: customerId,
           entryType: 'repayment',
-          amount: moneyFromMajor(5000),
+          amount: moneyFromMajor(50),
           createdAt: now,
           updatedAt: now,
           syncStatus: SyncStatus.pending,
