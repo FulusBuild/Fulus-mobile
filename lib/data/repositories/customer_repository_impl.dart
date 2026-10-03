@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/customer.dart';
@@ -107,7 +108,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     String? email,
     String? address,
     String? notes,
-    required double outstandingBalance,
+    required Money outstandingBalance,
     String? duplicateWarning,
     required DateTime updatedAt,
     DateTime? deletedAt,
