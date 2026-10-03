@@ -15,7 +15,9 @@ echo "PASS: cloud API authorization contracts are present"
 
 # Client-facing Cloud API error responses must not expose raw Postgres/Supabase
 # messages. Server-side logging of error.message is allowed for diagnostics.
-if grep -RIn --include='*.ts' -E 'message:[[:space:]]*error\.message|message:[[:space:]]*err\.message' supabase/functions; then
+# Match a real object property named exactly "message", not fields such as
+# "error_message" used for structured server-side logging.
+if grep -RIn --include='*.ts' -E '(^|[[:space:]{,])message:[[:space:]]*(error|err)\.message' supabase/functions; then
   echo "Cloud API source exposes raw database error messages to clients"
   exit 1
 fi
