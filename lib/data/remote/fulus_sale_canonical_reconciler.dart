@@ -91,7 +91,6 @@ class FulusSaleCanonicalReconciler {
 
   Money _number(Object? value) {
     return moneyFromWire(value);
-    throw StateError('Canonical sale payload contains an invalid number.');
   }
 
   int _integer(Object? value) {
