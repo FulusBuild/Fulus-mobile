@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import '../../core/money/money.dart';
-import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/cash_drawer_shift.dart';
