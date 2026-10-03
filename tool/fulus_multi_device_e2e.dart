@@ -337,12 +337,13 @@ Future<String> _runFinancialConvergenceScenario(
   ));
 
   final repaymentOperation = 'e2e-p16-repayment-$suffix';
+  final saleLocationId = await _firstLocationId(primaryDio, businessId);
   final saleFuture = primaryDio.post('', data: {
     'action': 'sale_create',
     'business_id': businessId,
     'operation_id': saleOperation,
     'client_reference': saleOperation,
-    'location_id': await _firstLocationId(primaryDio, businessId),
+    'location_id': saleLocationId,
     'customer_id': customerId,
     'sale_date': saleDate,
     'discount': 0,
