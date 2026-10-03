@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
@@ -270,9 +271,9 @@ class _CartLineTile extends StatelessWidget {
     await DiscountSheet.show(
       context,
       title: 'Discount on ${item.description}',
-      baseAmount: item.lineTotal,
+      baseAmount: moneyToMajor(item.lineTotal),
       currencySymbol: state is CartLoaded ? state.currencySymbol : '',
-      initialDiscount: item.lineDiscount,
+      initialDiscount: moneyToMajor(item.lineDiscount),
       onSave: (amount) => cubit.updateItemDiscount(item, amount),
     );
   }
@@ -583,9 +584,9 @@ class _DiscountRow extends StatelessWidget {
       onPressed: () => DiscountSheet.show(
         context,
         title: 'Discount on this sale',
-        baseAmount: state.subtotal,
+        baseAmount: moneyToMajor(state.subtotal),
         currencySymbol: state.currencySymbol,
-        initialDiscount: state.draftCart.wholeCartDiscount,
+        initialDiscount: moneyToMajor(state.draftCart.wholeCartDiscount),
         onSave: (amount) => context.read<CartCubit>().setWholeCartDiscount(amount),
       ),
       child: Padding(
@@ -614,7 +615,7 @@ class _TotalRow extends StatelessWidget {
   const _TotalRow({required this.label, required this.value, required this.currencySymbol, this.emphasized = false});
 
   final String label;
-  final double value;
+  final Money value;
   final String currencySymbol;
   final bool emphasized;
 
