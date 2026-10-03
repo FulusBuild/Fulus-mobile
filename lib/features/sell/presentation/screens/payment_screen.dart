@@ -382,7 +382,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         PageRouteBuilder<void>(
           pageBuilder: (_, __, ___) => SaleSuccessScreen(
             saleId: sale.localId,
-            changeDue: sale.changeDue,
+            changeDue: moneyToMajor(sale.changeDue),
             currencySymbol: currencySymbol,
           ),
           transitionDuration: Duration.zero,
