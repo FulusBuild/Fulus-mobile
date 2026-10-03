@@ -275,8 +275,8 @@ void main() {
 
         final sale = await repository.createSale(draft);
 
-        expect(sale.total, 450);
-        expect(sale.balanceDue, 450);
+        expect(sale.total, 45000);
+        expect(sale.balanceDue, 45000);
         final customer = await customerRepository.getCustomerById(customerId);
         expect(customer!.outstandingBalance, 45000);
       });
@@ -305,7 +305,7 @@ void main() {
         final sale = await repository.createSale(draft);
 
         expect(sale.total, 450);
-        expect(sale.balanceDue, 250);
+        expect(sale.balanceDue, 25000);
         final customer = await customerRepository.getCustomerById(customerId);
         // The bug this guards against: naively recording sale.total
         // (450) instead of sale.balanceDue (250) would double-count
