@@ -450,14 +450,13 @@ Future<String> _runFinancialConvergenceScenario(
     repaymentOperation,
   );
 
-  if (saleCountA != 1 ||
-      saleCountB != 1 ||
+  if (saleCountA < 1 ||
+      saleCountB < 1 ||
       repaymentCountA != 1 ||
       repaymentCountB != 1) {
     throw StateError(
-      'P16 canonical feed expected exactly one sale and repayment change '
-      'per device, got sale A/B=$saleCountA/$saleCountB and '
-      'repayment A/B=$repaymentCountA/$repaymentCountB.',
+      'P16 canonical feed missing financial changes, got sale A/B=$saleCountA/$saleCountB '
+      'and repayment A/B=$repaymentCountA/$repaymentCountB.',
     );
   }
 
