@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../domain/repositories/expense_repository.dart';
 import 'fulus_sync_api.dart';
 
@@ -57,8 +58,8 @@ class FulusExpenseCanonicalReconciler {
 
   String? _nullableString(Object? value) => value is String ? value : null;
 
-  double _number(Object? value) {
-    if (value is num) return value.toDouble();
+  Money _number(Object? value) {
+    return moneyFromWire(value);
     throw StateError('Canonical expense payload contains an invalid amount.');
   }
 
