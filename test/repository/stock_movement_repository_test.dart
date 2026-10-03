@@ -37,8 +37,8 @@ void main() {
           localId: productLocalId,
           name: 'USB-C Cable',
           sku: 'CAB-USBC',
-          costPrice: 5000000,
-          sellingPrice: 12000000,
+          costPrice: 500.0,
+          sellingPrice: 1200.0,
           createdAt: DateTime(2026, 1, 1),
           updatedAt: DateTime(2026, 1, 1),
           syncStatus: SyncStatus.settled,
@@ -113,7 +113,7 @@ void main() {
           quantity: 4,
           reason: 'Delivery',
         ),
-        costPrice: 7500000,
+        costPrice: 750,
         supplierLocalId: 'supplier-1',
         onAccount: true,
       );
@@ -125,15 +125,15 @@ void main() {
       final product = await (db.select(db.products)
             ..where((p) => p.localId.equals(productLocalId)))
           .getSingle();
-      expect(product.costPrice, 7500000);
+      expect(product.costPrice, 750);
       final ledger = await (db.select(db.supplierLedgerEntries)
             ..where((e) => e.stockMovementLocalId.equals(result.localId)))
           .getSingle();
-      expect(ledger.amount, 30000000);
+      expect(ledger.amount, 3000);
       final supplier = await (db.select(db.suppliers)
             ..where((s) => s.localId.equals('supplier-1')))
           .getSingle();
-      expect(supplier.outstandingBalance, 40000000);
+      expect(supplier.outstandingBalance, 4000);
       final queue = await db.select(db.syncQueueItems).get();
       expect(queue, hasLength(2));
       expect(queue.map((q) => q.entityType), containsAll(<String>['product', 'stock_movement']));
@@ -147,7 +147,7 @@ void main() {
             locationId: locationId,
             quantity: 4,
           ),
-          costPrice: 7500000,
+          costPrice: 750,
           supplierLocalId: 'missing-supplier',
           onAccount: true,
         ),
@@ -160,14 +160,14 @@ void main() {
       final product = await (db.select(db.products)
             ..where((p) => p.localId.equals(productLocalId)))
           .getSingle();
-      expect(product.costPrice, 5000000);
+      expect(product.costPrice, 500);
       expect(await db.select(db.stockMovements).get(), isEmpty);
       expect(await db.select(db.syncQueueItems).get(), isEmpty);
       expect(await db.select(db.supplierLedgerEntries).get(), isEmpty);
       final supplier = await (db.select(db.suppliers)
             ..where((s) => s.localId.equals('supplier-1')))
           .getSingle();
-      expect(supplier.outstandingBalance, 10000000);
+      expect(supplier.outstandingBalance, 1000);
     });
   });
 
@@ -215,7 +215,7 @@ void main() {
         name: 'Service Item',
         sku: 'SERVICE-1',
         costPrice: 0,
-        sellingPrice: 5000000,
+        sellingPrice: 500,
         tracksStock: const Value(false),
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
