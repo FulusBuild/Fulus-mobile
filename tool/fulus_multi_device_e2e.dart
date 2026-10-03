@@ -384,10 +384,15 @@ Future<String> _runFinancialConvergenceScenario(
     throw StateError('P16 concurrent sale.create returned no sale_id: ${results[0].data}');
   }
 
+  // The two mutations intentionally race, so the repayment's intermediate
+  // balance depends on which transaction commits first. Only the final
+  // authoritative snapshot is order-independent.
   final repaymentData = _actionData(results[1]);
-  if ((repaymentData?['new_balance'] as num?)?.toDouble() != 200) {
+  final firstRepaymentBalance =
+      (repaymentData?['new_balance'] as num?)?.toDouble();
+  if (firstRepaymentBalance == null) {
     throw StateError(
-      'P16 concurrent repayment expected customer balance 200, got ${results[1].data}',
+      'P16 concurrent repayment returned no authoritative balance: ${results[1].data}',
     );
   }
 
@@ -436,9 +441,10 @@ Future<String> _runFinancialConvergenceScenario(
   });
   _expect2xx(repaymentReplay, 'P16 customer.repayment idempotent replay');
   final replayData = _actionData(repaymentReplay);
-  if ((replayData?['new_balance'] as num?)?.toDouble() != 200) {
+  if ((replayData?['new_balance'] as num?)?.toDouble() !=
+      firstRepaymentBalance) {
     throw StateError(
-      'P16 repayment replay changed the customer balance: ${repaymentReplay.data}',
+      'P16 repayment replay changed the authoritative result: ${repaymentReplay.data}',
     );
   }
 
