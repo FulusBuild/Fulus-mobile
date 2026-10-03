@@ -1,4 +1,5 @@
 /// Dashboard / Home — the other half of Stage 12.
+import 'package:fulus_mobile/core/money/money.dart';
 ///
 /// Volume 4 is explicit that Home is NOT a dashboard: "one evolving hero
 /// element... not five widgets shown at once." [HomeHeroState] models
@@ -28,7 +29,7 @@ sealed class HomeHeroState {
 /// this module stays correct in the meantime.
 final class NotYetOpenedHero extends HomeHeroState {
   const NotYetOpenedHero({required this.yesterdayTotal, required this.yesterdaySalesCount});
-  final double yesterdayTotal;
+  final Money yesterdayTotal;
   final int yesterdaySalesCount;
 }
 
@@ -55,7 +56,7 @@ final class OpenHero extends HomeHeroState {
   /// value here, not just a safe default — see [HomeHeroState] callers'
   /// own "never shown as '0% vs yesterday'" rule for why a UI reading
   /// this must treat 0 as "omit the comparison," never as a real -100%.
-  final double yesterdayTotal;
+  final Money yesterdayTotal;
   final int yesterdaySalesCount;
 }
 
