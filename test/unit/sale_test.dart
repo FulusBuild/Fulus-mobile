@@ -9,7 +9,7 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 /// fix: no "change due" concept existed anywhere in this app despite
 /// full cash overpayment being possible).
 void main() {
-  Sale saleWith({required double total, required double amountPaid}) {
+  Sale saleWith({required Money total, required Money amountPaid}) {
     final now = DateTime(2026, 1, 15);
     return Sale(
       localId: 'sale-1',
