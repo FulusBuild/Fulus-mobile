@@ -176,9 +176,9 @@ void main() {
       final lines = await returnRepository.getReturnEligibility(sale.localId);
 
       final a = lines.firstWhere((l) => l.productLocalId == productAId);
-      expect(a.purchasedQuantity, moneyFromMajor(5));
-      expect(a.alreadyReturned, moneyFromMajor(0));
-      expect(a.remainingReturnable, moneyFromMajor(5));
+      expect(a.purchasedQuantity, 5);
+      expect(a.alreadyReturned, 0);
+      expect(a.remainingReturnable, 5);
     });
 
     test('reduces remaining eligibility by a completed return\'s quantity',
@@ -194,8 +194,8 @@ void main() {
 
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       final a = lines.firstWhere((l) => l.productLocalId == productAId);
-      expect(a.alreadyReturned, moneyFromMajor(2));
-      expect(a.remainingReturnable, moneyFromMajor(3));
+      expect(a.alreadyReturned, 2);
+      expect(a.remainingReturnable, 3);
     });
 
     test('a rejected return frees its claimed quantity back up', () async {
@@ -216,7 +216,7 @@ void main() {
       final a = lines.firstWhere((l) => l.productLocalId == productAId);
       expect(a.alreadyReturned, 0,
           reason: 'a rejected return must not still count as claimed');
-      expect(a.remainingReturnable, moneyFromMajor(5));
+      expect(a.remainingReturnable, 5);
     });
   });
 
@@ -594,7 +594,7 @@ void main() {
 
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       for (final line in lines) {
-        expect(line.remainingReturnable, moneyFromMajor(0));
+        expect(line.remainingReturnable, 0);
       }
     });
 
