@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,8 +110,8 @@ void main() {
             localId: localId,
             name: localId,
             sku: sku,
-            costPrice: costPrice,
-            sellingPrice: sellingPrice,
+            costPrice: moneyFromMajor(costPrice),
+            sellingPrice: moneyFromMajor(sellingPrice),
             isActive: Value(isActive),
             createdAt: now,
             updatedAt: now,
