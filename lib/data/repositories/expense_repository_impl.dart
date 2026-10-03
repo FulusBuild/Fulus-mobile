@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/expense.dart';
@@ -56,7 +57,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   Future<Expense> updateExpense({
     required String localId,
     required String description,
-    required double amount,
+    required Money amount,
     String? categoryId,
     required DateTime expenseDate,
     String? paymentMethod,
@@ -208,7 +209,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required String locationServerId,
     String? categoryId,
     required String description,
-    required double amount,
+    required Money amount,
     required DateTime expenseDate,
     String? paymentMethod,
     required DateTime createdAt,
