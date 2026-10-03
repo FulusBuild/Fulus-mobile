@@ -22,6 +22,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
     String? note,
     required DateTime createdAt,
     required DateTime updatedAt,
+    String? operationId,
   }) async {
     this.serverId = serverId;
     this.entryType = entryType;
