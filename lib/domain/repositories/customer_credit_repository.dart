@@ -11,7 +11,6 @@ abstract class CustomerCreditRepository {
       recordRepayment({
     required String customerLocalId,
     required double amount,
-    String? operationId,
     String? paymentMethod,
     String? note,
     String? saleLocalId,
@@ -38,6 +37,7 @@ abstract class CustomerCreditRepository {
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
     required double amount,
+    String? operationId,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
