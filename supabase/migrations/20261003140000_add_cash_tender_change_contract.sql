@@ -42,8 +42,8 @@ declare
   payment_index integer := 0;
   payment_inserted boolean;
   tendered_amount numeric;
-  cash_tendered numeric := 0;
-  cash_change numeric := 0;
+  cash_tendered_total numeric := 0;
+  cash_change_total numeric := 0;
 
   method text;
   amount numeric;
@@ -68,7 +68,7 @@ begin
       cash_paid := cash_paid + amount;
       if method='cash' then
         cash_applied := cash_applied + amount;
-        cash_tendered := cash_tendered + tendered_amount;
+        cash_tendered_total := cash_tendered + tendered_amount;
       elsif tendered_amount <> amount then
         raise exception using errcode='22023',message='Non-cash payment tender must equal applied amount';
       end if;
@@ -100,7 +100,7 @@ begin
     'device_id',target_device_id,
     'items',target_items,
     'payments',target_payments,
-    'cash_tendered',cash_tendered
+    'cash_tendered',cash_tendered_total
   )::text);
 
   insert into public.idempotency_keys(
@@ -145,8 +145,8 @@ begin
       raise exception using errcode='22023',message='Server paid amount does not match payment legs';
     end if;
 
-    cash_change := round(cash_tendered-cash_applied,2);
-    if cash_change < 0 then
+    cash_change_total := round(cash_tendered-cash_applied,2);
+    if cash_change_total < 0 then
       raise exception using errcode='22023',message='Cash tendered cannot be less than applied cash';
     end if;
 
@@ -155,8 +155,8 @@ begin
     end if;
 
     update public.sales s
-    set cash_tendered=cash_tendered,
-        cash_change=cash_change,
+    set cash_tendered=cash_tendered_total,
+        cash_change=cash_change_total,
         updated_at=now()
     where s.id=sale_id;
 
