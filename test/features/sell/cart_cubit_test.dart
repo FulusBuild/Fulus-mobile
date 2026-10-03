@@ -345,14 +345,14 @@ void main() {
   group('addQuickSaleItem', () {
     test('rejects an empty description', () async {
       await expectLater(
-        cubit.addQuickSaleItem(description: '   ', unitPrice: moneyFromMajor(500)),
+        cubit.addQuickSaleItem(description: '   ', unitPrice: 500),
         throwsStateError,
       );
     });
 
     test('rejects a non-positive price', () async {
       await expectLater(
-        cubit.addQuickSaleItem(description: 'Firewood', unitPrice: moneyFromMajor(0)),
+        cubit.addQuickSaleItem(description: 'Firewood', unitPrice: 0),
         throwsStateError,
       );
     });
