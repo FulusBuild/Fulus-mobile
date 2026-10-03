@@ -98,7 +98,9 @@ The current live suites prove:
 
 **Observed limitation**
 
-The live multi-device suite exercises catalog OCC, inventory concurrency, idempotency, and bidirectional feed delivery, but it does not execute a complete adversarial financial scenario across two devices such as concurrent offline sales/returns/customer repayments followed by reconnect, canonical reconciliation, and final local convergence.
+The live multi-device suite now adds a production API-level financial scenario: two registered device identities perform independent customer-credit work, including a seeded credit balance, a concurrent credit sale and repayment, duplicate replay of both operations, bidirectional canonical-feed visibility, and final authoritative customer/sale invariants. This closes an important runtime-evidence gap around concurrent financial mutation ordering and idempotency.
+
+It does not yet constitute full local-device convergence evidence: the CI tool does not run two independent Flutter/SQLite runtimes, and the current least-privilege E2E identity does not have returns.create, so a live sale/return interaction is still unverified.
 
 **Expected invariant**
 
@@ -106,7 +108,7 @@ Financial, inventory, customer-credit, and authorization invariants must converg
 
 **Impact**
 
-The existing source and live tests establish strong coverage of the generic conflict/feed mechanism, but they do not provide direct production evidence for every high-impact financial multi-device interaction.
+The existing source and live tests establish strong coverage of the generic conflict/feed mechanism. The new scenario adds direct production evidence for concurrent sale/repayment ordering and duplicate retries, but not yet for local SQLite convergence or sale/return interaction.
 
 **Fix / verification**
 
@@ -127,6 +129,7 @@ The generic conflict model, canonical reconcilers, queue fencing, idempotency, a
 
 ## Remaining evidence
 
-- P16-001 requires adversarial financial multi-device runtime evidence.
+- P16-001 now has live API-level evidence for concurrent sale/repayment, duplicate retry, feed delivery, and final server invariants.
+- P16-001 remains open for actual two-runtime local SQLite convergence and an authorized live sale/return interaction.
 - Android process-death remains P17-001.
 - Security/tenant isolation is completed in Part 20.
