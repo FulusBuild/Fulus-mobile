@@ -3,7 +3,6 @@ import 'package:fulus_mobile/domain/entities/employee.dart';
 import 'package:fulus_mobile/domain/usecases/employee_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/core/money/money.dart';
-import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   const engine = EmployeeEngine();
