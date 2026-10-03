@@ -126,11 +126,11 @@ void main() {
       final product = await (db.select(db.products)
             ..where((p) => p.localId.equals(productLocalId)))
           .getSingle();
-      expect(product.costPrice, 750);
+      expect(product.costPrice, 75000);
       final ledger = await (db.select(db.supplierLedgerEntries)
             ..where((e) => e.stockMovementLocalId.equals(result.localId)))
           .getSingle();
-      expect(ledger.amount, 3000);
+      expect(ledger.amount, 300000);
       final supplier = await (db.select(db.suppliers)
             ..where((s) => s.localId.equals('supplier-1')))
           .getSingle();
