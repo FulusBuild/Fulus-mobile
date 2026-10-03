@@ -437,15 +437,27 @@ Future<String> _runFinancialConvergenceScenario(
     cursor: secondaryBoundary - 20 < 0 ? 0 : secondaryBoundary - 20,
   );
 
-  final saleSeenA = _containsEntity(changesA, 'sale', saleId);
-  final saleSeenB = _containsEntity(changesB, 'sale', saleId);
-  final repaymentSeenA = _containsOperation(changesA, 'customer_ledger', repaymentOperation);
-  final repaymentSeenB = _containsOperation(changesB, 'customer_ledger', repaymentOperation);
+  final saleCountA = _countEntity(changesA, 'sale', saleId);
+  final saleCountB = _countEntity(changesB, 'sale', saleId);
+  final repaymentCountA = _countOperation(
+    changesA,
+    'customer_ledger',
+    repaymentOperation,
+  );
+  final repaymentCountB = _countOperation(
+    changesB,
+    'customer_ledger',
+    repaymentOperation,
+  );
 
-  if (!saleSeenA || !saleSeenB || !repaymentSeenA || !repaymentSeenB) {
+  if (saleCountA != 1 ||
+      saleCountB != 1 ||
+      repaymentCountA != 1 ||
+      repaymentCountB != 1) {
     throw StateError(
-      'P16 canonical feed did not expose the complete financial scenario '
-      'to both device identities.',
+      'P16 canonical feed expected exactly one sale and repayment change '
+      'per device, got sale A/B=$saleCountA/$saleCountB and '
+      'repayment A/B=$repaymentCountA/$repaymentCountB.',
     );
   }
 
@@ -535,25 +547,25 @@ Future<List<dynamic>> _fetchChanges(
   return changes;
 }
 
-bool _containsEntity(List<dynamic> changes, String entityType, String entityId) {
-  return changes.any((raw) =>
+int _countEntity(List<dynamic> changes, String entityType, String entityId) {
+  return changes.where((raw) =>
       raw is Map &&
       raw['entity_type'] == entityType &&
-      raw['entity_id'] == entityId);
+      raw['entity_id'] == entityId).length;
 }
 
-bool _containsOperation(
+int _countOperation(
   List<dynamic> changes,
   String entityType,
   String operationId,
 ) {
-  return changes.any((raw) {
+  return changes.where((raw) {
     if (raw is! Map || raw['entity_type'] != entityType) return false;
     final payload = raw['payload'];
     return payload is Map &&
         (payload['operation_id'] == operationId ||
             payload['client_reference'] == operationId);
-  });
+  }).length;
 }
 
 dynamic _actionData(Response<dynamic> response) {
