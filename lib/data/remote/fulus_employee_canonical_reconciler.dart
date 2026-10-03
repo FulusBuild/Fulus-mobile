@@ -1,5 +1,5 @@
 import '../../domain/repositories/employee_repository.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 import '../../domain/repositories/location_repository.dart';
 import 'fulus_sync_api.dart';
 
