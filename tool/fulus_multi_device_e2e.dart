@@ -327,6 +327,39 @@ Future<String> _runFinancialConvergenceScenario(
     );
   }
 
+  // Replay the exact sale operation on A as well. Both financial operations
+  // must be idempotent independently of device identity.
+  final saleReplay = await primaryDio.post('', data: {
+    'action': 'sale_create',
+    'business_id': businessId,
+    'operation_id': saleOperation,
+    'client_reference': saleOperation,
+    'location_id': await _firstLocationId(primaryDio, businessId),
+    'customer_id': customerId,
+    'sale_date': DateTime.now().toUtc().toIso8601String(),
+    'discount': 0,
+    'tax': 0,
+    'amount_paid': 0,
+    'payment_method': 'credit',
+    'payments': [
+      {'method': 'credit', 'amount': 150},
+    ],
+    'notes': 'P16 concurrent financial sale',
+    'items': [
+      {
+        'product_id': null,
+        'description': 'P16 financial sale $suffix',
+        'quantity': 1,
+        'unit_price': 150,
+        'cost_price_at_sale': 0,
+      },
+    ],
+  });
+  _expect2xx(saleReplay, 'P16 sale.create idempotent replay');
+  if (_actionData(saleReplay)?['sale_id'] != saleId) {
+    throw StateError('P16 sale replay returned a different sale: ${saleReplay.data}');
+  }
+
   // Replay the exact operation on B. This must not create a second repayment.
   final repaymentReplay = await dio.post('', data: {
     'action': 'customer_repayment',
