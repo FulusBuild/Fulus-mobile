@@ -124,7 +124,7 @@ void main() {
   });
 
   group('computeStats', () {
-    Employee emp({required bool active, String? dept, double? salary}) => Employee(
+    Employee emp({required bool active, String? dept, Money? salary}) => Employee(
           id: dept ?? 'e',
           fullName: 'Name',
           department: dept,
