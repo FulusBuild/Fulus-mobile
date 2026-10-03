@@ -1,3 +1,5 @@
+import 'package:fulus_mobile/core/money/money.dart';
+
 /// Employees — Stage 11 of the mobile roadmap.
 ///
 /// Scope note (read this before touching this file): the backend's
