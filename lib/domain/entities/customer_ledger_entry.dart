@@ -55,6 +55,7 @@ class CustomerLedgerEntry {
   /// that was actually applied to the balance — see
   /// CustomerCreditRepository.recordRepayment's doc comment for where
   /// the excess is surfaced instead of silently dropped.
+  @MoneyJsonConverter()
   final Money amount;
 
   /// Backend precedent: `Sale.payment_method`/`Expense.payment_method`
@@ -87,6 +88,7 @@ class RepaymentRequestDto {
   /// actually accepts — the sale's new *total* amount paid, not a delta
   /// — verified directly against backend/app/schemas/sale.py's
   /// `SaleUpdate`.
+  @MoneyJsonConverter()
   final Money amountPaid;
 
   Map<String, dynamic> toJson() => _$RepaymentRequestDtoToJson(this);
