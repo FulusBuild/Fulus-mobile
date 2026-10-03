@@ -1,4 +1,5 @@
 import '../entities/customer.dart';
+import '../../core/money/money.dart;
 
 /// Architecture Section 4's repository pattern, applied to Customers.
 /// Unlike Location/Product, this is write-capable from mobile — a new
@@ -48,7 +49,7 @@ abstract class CustomerRepository {
     String? email,
     String? address,
     String? notes,
-    required double outstandingBalance,
+    required Money outstandingBalance,
     String? duplicateWarning,
     required DateTime updatedAt,
     DateTime? deletedAt,
