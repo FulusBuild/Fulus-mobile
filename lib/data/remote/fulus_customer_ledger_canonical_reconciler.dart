@@ -1,5 +1,5 @@
 import '../../domain/entities/customer_ledger_entry.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 import '../../domain/repositories/customer_credit_repository.dart';
 import 'fulus_sync_api.dart';
 
