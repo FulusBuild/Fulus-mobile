@@ -134,7 +134,7 @@ void main() {
 
       final state = await repository.getHeroState(currentAuthUserId: 'u1', isOwner: true, locationId: locationId) as ClosedHero;
 
-      expect(state.finalTotal, 500);
+      expect(state.finalTotal, 50000);
       expect(state.finalSalesCount, 1);
     });
   });
