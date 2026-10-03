@@ -75,6 +75,7 @@ class FulusSaleCanonicalReconciler {
       serverId: _string(row['id']),
       method: _string(row['method'] ?? row['payment_method']),
       amount: _number(row['amount']),
+      tenderedAmount: row['tendered_amount'] == null ? null : _number(row['tendered_amount']),
       recordedAt: _date(row['recorded_at'] ?? row['created_at']),
     );
   }
