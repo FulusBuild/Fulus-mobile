@@ -174,3 +174,16 @@ Relevant parts:
 - Part 12 — Customers & Credit
 - Parts 14–17 — Sync, recovery, process-death, and background execution
 
+
+## X-014 — Customer repayment canonical operation identity
+
+Status: Fixed in Part 12 source; CI/runtime verification pending.
+
+A repayment mutation is committed remotely before the local push handler receives the response and attaches the server ID. Canonical ledger rows include the durable operation ID, which is also the local outbox row ID, but the ledger reconciler previously ignored it. That created a narrow concurrent pull/push window in which the same repayment could appear as two local ledger entries.
+
+Part 12 now carries operation_id through canonical reconciliation and uses the durable outbox identity to reuse the existing local repayment row.
+
+Relevant parts:
+- Part 10 — Financial & Ledger Integrity
+- Part 12 — Customers & Credit
+- Parts 14–17 — Sync, recovery, process-death, and background execution
