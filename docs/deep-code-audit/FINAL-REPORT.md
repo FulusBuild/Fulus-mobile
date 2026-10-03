@@ -104,7 +104,6 @@ Tracked cross-cutting findings currently include:
 - employee authorization projection versus cloud authority;
 - business/location bootstrap scope;
 - local cardinality constraints;
-- local cardinality constraints;
 - local/cloud sale arithmetic;
 - tender/change semantics;
 - inventory tracking flag;
