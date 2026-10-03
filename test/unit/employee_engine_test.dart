@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/core/errors/module_failures.dart';
 import 'package:fulus_mobile/domain/entities/employee.dart';
 import 'package:fulus_mobile/domain/usecases/employee_engine.dart';
@@ -123,7 +124,7 @@ void main() {
   });
 
   group('computeStats', () {
-    Employee emp({required bool active, String? dept, double? salary}) => Employee(
+    Employee emp({required bool active, String? dept, Money? salary}) => Employee(
           id: dept ?? 'e',
           fullName: 'Name',
           department: dept,
@@ -135,11 +136,11 @@ void main() {
 
     test('sums salary across active employees only', () {
       final stats = engine.computeStats([
-        emp(active: true, salary: 100),
-        emp(active: true, salary: 50),
+        emp(active: true, salary: 1000000),
+        emp(active: true, salary: 5000),
         emp(active: false, salary: 1000), // excluded: inactive
       ]);
-      expect(stats.totalMonthlySalary, 150);
+      expect(stats.totalMonthlySalary, 15000);
       expect(stats.totalEmployees, 3);
       expect(stats.activeEmployees, 2);
     });
