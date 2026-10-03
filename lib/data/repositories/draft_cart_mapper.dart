@@ -70,6 +70,7 @@ extension DraftCartPaymentToCompanion on DraftCartPayment {
       draftCartLocalId: draftCartLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: Value(tenderedAmount),
       recordedAt: recordedAt,
     );
   }
@@ -82,6 +83,7 @@ extension DraftCartPaymentRowToDomain on DraftCartPaymentRow {
       draftCartLocalId: draftCartLocalId,
       method: method,
       amount: amount,
+      tenderedAmount: tenderedAmount,
       recordedAt: recordedAt,
     );
   }
