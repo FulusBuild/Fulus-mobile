@@ -42,3 +42,29 @@ No client-side weakening of validation was needed because the existing local beh
 The customer ledger sync handler already contains a newer-mutation fence when reconciling a rejected repayment and restores the customer projection from the canonical customer endpoint. This is retained; the primary contract defect was upstream in the authoritative mutation itself.
 
 Customer ledger canonical reconciliation also reuses local credit-sale/refund-adjustment echoes by matching their stable business attributes before inserting a new row, preventing duplicate visible history lines when canonical events arrive.
+
+
+## Finding P12-002 — Credit-method return double reversal
+
+**Severity:** High  
+**Status:** Fixed in source; CI/runtime verification pending
+
+### Evidence
+
+The deployed authoritative `fulus_api_create_return_atomic_v2` function contained two `customer_ledger_entries` inserts for `refund_method='credit'`, using the same operation ID `target_client_reference||':credit-reversal'`. The first branch inserted the reversal, then the later credit settlement branch attempted the same insert again.
+
+The customer ledger table has a unique `(business_id, operation_id)` constraint. Therefore a credit-method return reaches the second insert and violates the uniqueness constraint; because the RPC is one transaction, the return is rolled back rather than successfully completing. This was confirmed against the live production function definition and the repository schema.
+
+### Fix
+
+Migration `20261003100000_fix_credit_return_double_reversal.sql` makes the first credit branch validation/calculation-only. The single authoritative ledger insertion remains in the common credit settlement branch.
+
+A financial-fidelity SQL regression now asserts that the authoritative return RPC contains exactly one credit-reversal operation ID occurrence.
+
+### Required verification
+
+1. Migration-chain CI must pass.
+2. Production function definition must contain exactly one credit-reversal ledger insertion.
+3. A credit-method return must complete with one ledger reversal and one balance reduction.
+4. Retry of the same operation ID must remain idempotent.
+5. Split-payment credit-reversal behavior must remain unchanged.

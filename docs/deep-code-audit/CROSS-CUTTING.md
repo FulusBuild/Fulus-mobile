@@ -159,3 +159,18 @@ Relevant parts:
 - Part 10 — Financial & Ledger Integrity
 - Part 12 — Customers & Credit
 - Parts 14–17 — Sync, recovery, process-death, and background execution
+
+## X-013 — Credit return customer-ledger atomicity
+
+Status: Fixed in source; deployment and live verification pending.
+
+The authoritative return mutation previously attempted the same `customer_ledger_entries.operation_id` twice for a `refund_method='credit'` return. Because customer ledger operation IDs are unique per business, the second insert aborts the transaction. This makes the credit-refund path materially different from cash/card/mobile-money return paths.
+
+Part 12 fixes the mutation by making the first credit branch validation/calculation-only and retaining a single ledger reversal mutation.
+
+Relevant parts:
+- Part 09 — Sales & Checkout
+- Part 10 — Financial & Ledger Integrity
+- Part 12 — Customers & Credit
+- Parts 14–17 — Sync, recovery, process-death, and background execution
+

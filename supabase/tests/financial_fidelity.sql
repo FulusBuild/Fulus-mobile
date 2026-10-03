@@ -44,4 +44,32 @@ begin
   if position('set_config(''request.jwt.claim.sub'',target_user_id::text,true)' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
     raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
   end if;
+
+  -- A credit-method return must settle one customer-ledger reversal. The
+  -- validation branch must not perform the reversal itself; the settlement
+  -- branch below owns the single credit-method insert. The other insert in
+  -- the function belongs to non-credit refunds that partially reverse credit.
+  if (
+    length(
+      substring(
+        pg_get_functiondef(to_regprocedure(return_sig))
+        from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+        for position('cash_refund := round' in pg_get_functiondef(to_regprocedure(return_sig)))
+          - position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+      )
+      - length(
+        replace(
+          substring(
+            pg_get_functiondef(to_regprocedure(return_sig))
+            from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+            for position('cash_refund := round' in pg_get_functiondef(to_regprocedure(return_sig)))
+              - position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
+          ),
+          'insert into public.customer_ledger_entries',
+          ''
+        )
+      )
+    ) <> 0 then
+    raise exception 'credit-method validation branch must not insert customer ledger entries';
+  end if;
 end $$;
