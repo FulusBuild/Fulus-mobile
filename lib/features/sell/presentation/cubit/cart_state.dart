@@ -1,4 +1,5 @@
 import '../../../../core/business_engine/draft_cart_aggregation.dart' as aggregation;
+import '../../../../core/money/money.dart';
 import '../../../../domain/entities/customer.dart';
 import '../../../../domain/entities/draft_cart.dart';
 import '../../../../domain/entities/product.dart';
@@ -99,7 +100,7 @@ final class CartLoaded extends CartState {
   /// comments): a line's discount is never netted into its own total,
   /// so this sums the same raw figure `DraftCartRepositoryImpl.
   /// completeSale` does.
-  double get subtotal => items.fold(0.0, (sum, i) => sum + i.lineTotal);
+  Money get subtotal => items.fold<Money>(0, (sum, i) => sum + i.lineTotal);
 
   /// Bug fix (business-logic audit): this used to be `subtotal -
   /// draftCart.wholeCartDiscount + draftCart.tax`, silently dropping
@@ -115,16 +116,16 @@ final class CartLoaded extends CartState {
   /// Reuses `combineDiscount` — the exact same aggregation
   /// `completeSale` calls — rather than re-deriving the sum here, so
   /// the two can never drift apart again the way they just did.
-  double get discount => aggregation.combineDiscount(
+  Money get discount => aggregation.combineDiscount(
         wholeCartDiscount: draftCart.wholeCartDiscount,
         lineDiscounts: items.map((i) => i.lineDiscount).toList(),
       );
 
-  double get total => subtotal - discount + draftCart.tax;
+  Money get total => subtotal - discount + draftCart.tax;
 
-  double get amountPaid => payments.fold(0.0, (sum, p) => sum + p.amount);
+  Money get amountPaid => payments.fold<Money>(0, (sum, p) => sum + p.amount);
 
-  double get remaining => total - amountPaid;
+  Money get remaining => total - amountPaid;
 
   CartLoaded copyWith({
     DraftCart? draftCart,
