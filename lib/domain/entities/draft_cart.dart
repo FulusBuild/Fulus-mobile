@@ -24,11 +24,13 @@ class DraftCart {
   final String localId;
   final String locationId;
   final String? customerLocalId;
+  @MoneyJsonConverter()
   final Money wholeCartDiscount;
 
   /// Same "not resolved by this module" status `Sale.tax`/checkout
   /// always had — Business Settings owns the VAT rate; this is
   /// whatever the caller already computed from it.
+  @MoneyJsonConverter()
   final Money tax;
 
   final String? notes;
@@ -53,8 +55,11 @@ class DraftCartItem {
   final String? productLocalId;
   final String description;
   final int quantity;
+  @MoneyJsonConverter()
   final Money unitPrice;
+  @MoneyJsonConverter()
   final Money costPriceAtSale;
+  @MoneyJsonConverter()
   final Money lineDiscount;
 
   /// Raw, pre-discount — same convention `SaleItem.lineTotal` uses, for
@@ -93,6 +98,7 @@ class DraftCartPayment {
   final String localId;
   final String draftCartLocalId;
   final String method;
+  @MoneyJsonConverter()
   final Money amount;
   final DateTime recordedAt;
 
