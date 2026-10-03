@@ -326,7 +326,7 @@ class _MoneyHeader extends StatelessWidget {
 
 class _BalanceHero extends StatelessWidget {
   const _BalanceHero({required this.balance, required this.currencySymbol});
-  final double balance;
+  final Money balance;
   final String currencySymbol;
   @override
   Widget build(BuildContext context) => SizedBox(
