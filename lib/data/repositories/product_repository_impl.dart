@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/product.dart';
@@ -143,7 +144,7 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required double costPrice, required double sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
+  Future<void> reconcileServerState({required String serverId, required String name, required String sku, String? barcode, String? categoryId, String? supplierId, required Money costPrice, required Money sellingPrice, required int lowStockThreshold, required bool isActive, String? photoPath, required DateTime updatedAt, DateTime? deletedAt, required List<ProductStockSnapshot> stockLevels}) async {
     final existing = await (_db.select(_db.products)..where((p) => p.serverId.equals(serverId))).getSingleOrNull();
     final localId = existing?.localId ?? Ulid().toString();
     final localCategoryId = await _resolveCategoryLocalId(categoryId);
@@ -210,7 +211,7 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, double? costPrice, double? sellingPrice, int? lowStockThreshold, bool? isActive, String? photoPath}) async {
+  Future<void> updateProduct({required String localId, String? name, String? sku, String? barcode, String? categoryId, String? supplierId, Money? costPrice, Money? sellingPrice, int? lowStockThreshold, bool? isActive, String? photoPath}) async {
     if (sellingPrice != null && sellingPrice <= 0) throw ArgumentError.value(sellingPrice, 'sellingPrice', 'must be > 0');
     if (costPrice != null && costPrice < 0) throw ArgumentError.value(costPrice, 'costPrice', 'must be >= 0');
     final current = await (_db.select(_db.products)..where((p) => p.localId.equals(localId))).getSingleOrNull();
