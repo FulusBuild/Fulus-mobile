@@ -154,7 +154,7 @@ void main() {
         productLocalId: productBId,
         quantity: 3,
         unitPrice: moneyFromMajor(1000),
-        costPriceAtSale: 400,
+        costPriceAtSale: 40000,
       ),
     ];
     final Money total = 800000;
@@ -227,7 +227,7 @@ void main() {
       CustomersCompanion.insert(
         localId: customerId,
         name: 'Credit Split Customer',
-        outstandingBalance: const Value(500),
+        outstandingBalance: const Value(50000),
         createdAt: now,
         updatedAt: now,
         syncStatus: SyncStatus.settled,
@@ -260,7 +260,7 @@ void main() {
     final customerBefore = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerBefore.outstandingBalance, 1000);
+    expect(customerBefore.outstandingBalance, 100000);
 
     final ret = await returnRepository.createReturn(
       originalSaleLocalId: sale.localId,
@@ -274,7 +274,7 @@ void main() {
     final customerAfter = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerAfter.outstandingBalance, 500);
+    expect(customerAfter.outstandingBalance, 50000);
 
     final adjustments = await (db.select(db.customerLedgerEntries)
           ..where((e) =>
@@ -282,7 +282,7 @@ void main() {
               e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name)))
         .get();
     expect(adjustments, hasLength(1));
-    expect(adjustments.single.amount, 500);
+    expect(adjustments.single.amount, 50000);
   });
 
   group('createReturn', () {
