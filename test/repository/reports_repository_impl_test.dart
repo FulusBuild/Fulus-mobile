@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,8 +42,8 @@ void main() {
     required String localId,
     required String locationId,
     required DateTime saleDate,
-    required double total,
-    required double amountPaid,
+    required Money total,
+    required Money amountPaid,
     required List<({double costPriceAtSale, int quantity, String? productId})> items,
     String? cashierUserId,
     String? customerId,
@@ -90,8 +91,8 @@ void main() {
             localId: localId,
             name: localId,
             sku: 'SKU-$localId',
-            costPrice: 40,
-            sellingPrice: 100,
+            costPrice: moneyFromMajor(40),
+            sellingPrice: moneyFromMajor(100),
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -156,7 +157,7 @@ void main() {
   Future<void> insertExpense({
     required String localId,
     required String locationId,
-    required double amount,
+    required Money amount,
     required DateTime date,
   }) async {
     await db.into(db.expenses).insert(
@@ -187,14 +188,14 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: [(costPriceAtSale: 60, quantity: 5, productId: null)],
       );
       await insertExpense(
         localId: 'expense-1',
         locationId: 'loc-1',
-        amount: 200,
+        amount: moneyFromMajor(200),
         date: DateTime(2026, 1, 10),
       );
 
@@ -224,7 +225,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 500,
+        total: moneyFromMajor(500),
         amountPaid: 500,
         items: [(costPriceAtSale: 0, quantity: 3, productId: null)],
       );
@@ -248,7 +249,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: [
           (costPriceAtSale: 60, quantity: 5, productId: null), // 300
@@ -276,7 +277,7 @@ void main() {
         localId: 'sale-current',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 2, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: [(costPriceAtSale: 60, quantity: 5, productId: null)],
       );
@@ -286,7 +287,7 @@ void main() {
         localId: 'sale-previous',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: [(costPriceAtSale: 100, quantity: 5, productId: null)],
       );
@@ -337,7 +338,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
@@ -345,7 +346,7 @@ void main() {
         localId: 'sale-2',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 20),
-        total: 2000,
+        total: moneyFromMajor(2000),
         amountPaid: 2000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
@@ -378,7 +379,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'cashier-1',
@@ -403,7 +404,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
       );
@@ -425,7 +426,7 @@ void main() {
         localId: 'sale-refunded',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
       );
@@ -440,7 +441,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
       );
@@ -471,7 +472,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
       );
@@ -501,7 +502,7 @@ void main() {
         localId: 'sale-good',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5, 10),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 40, quantity: 2, productId: 'product-a')],
         paymentMethod: 'cash',
@@ -510,7 +511,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6, 14),
-        total: 500,
+        total: moneyFromMajor(500),
         amountPaid: 500,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         paymentMethod: 'cash',
@@ -549,7 +550,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5, 10),
-        total: 400,
+        total: moneyFromMajor(400),
         amountPaid: 400,
         items: const [(costPriceAtSale: 40, quantity: 4, productId: 'product-a')],
         paymentMethod: 'cash',
@@ -585,7 +586,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
+        total: moneyFromMajor(1000),
         amountPaid: 1000,
         items: const [(costPriceAtSale: 60, quantity: 2, productId: 'product-a')],
       );
@@ -615,7 +616,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 400,
+        total: moneyFromMajor(400),
         amountPaid: 400,
         items: const [(costPriceAtSale: 60, quantity: 4, productId: 'product-a')],
       );
@@ -653,7 +654,7 @@ void main() {
         localId: 'sale-good',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 300,
+        total: moneyFromMajor(300),
         amountPaid: 300,
         items: const [(costPriceAtSale: 40, quantity: 3, productId: 'product-a')],
         customerId: 'customer-1',
@@ -668,7 +669,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
-        total: 500,
+        total: moneyFromMajor(500),
         amountPaid: 500,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         customerId: 'customer-1',
@@ -709,7 +710,7 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1500,
+        total: moneyFromMajor(1500),
         amountPaid: 1500,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: 'product-a')],
         cashierUserId: 'user-1',
@@ -845,7 +846,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1500,
+        total: moneyFromMajor(1500),
         amountPaid: 1500,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1',
@@ -854,7 +855,7 @@ void main() {
         localId: 'sale-2',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 6),
-        total: 500,
+        total: moneyFromMajor(500),
         amountPaid: 500,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1',
@@ -885,7 +886,7 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1500,
+        total: moneyFromMajor(1500),
         amountPaid: 1500,
         items: const [(costPriceAtSale: 40, quantity: 1, productId: null)],
         cashierUserId: 'user-1', // rung up by a DIFFERENT, unrelated account
@@ -908,7 +909,7 @@ void main() {
         localId: 'sale-a',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 10),
-        total: 100,
+        total: moneyFromMajor(100),
         amountPaid: 100,
         items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
       );
@@ -916,7 +917,7 @@ void main() {
         localId: 'sale-b',
         locationId: 'loc-2',
         saleDate: DateTime(2026, 1, 10),
-        total: 900,
+        total: moneyFromMajor(900),
         amountPaid: 900,
         items: const [(costPriceAtSale: 20, quantity: 1, productId: null)],
       );
