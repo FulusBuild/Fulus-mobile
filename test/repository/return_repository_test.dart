@@ -157,7 +157,7 @@ void main() {
         costPriceAtSale: moneyFromMajor(400),
       ),
     ];
-    final total = 8000.0;
+    final Money total = moneyFromMajor(8000);
     return saleRepository.createSale(
       SaleDraft(
         items: items,
