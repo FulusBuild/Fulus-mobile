@@ -639,7 +639,11 @@ int _countOperation(
 
 dynamic _actionData(Response<dynamic> response) {
   final root = response.data;
-  return root is Map ? root['data'] : null;
+  final data = root is Map ? root['data'] : null;
+  if (data is Map && data['data'] is Map) {
+    return data['data'];
+  }
+  return data;
 }
 
 void _expect2xx(Response<dynamic> response, String operation) {
