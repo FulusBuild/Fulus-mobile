@@ -1,16 +1,17 @@
 import '../entities/customer_ledger_entry.dart';
+import '../../core/money/money.dart';
 
 abstract class CustomerCreditRepository {
   Future<CustomerLedgerEntry> recordCreditSale({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     required String saleLocalId,
   });
 
-  Future<({CustomerLedgerEntry entry, double newBalance, double excessAmount})>
+  Future<({CustomerLedgerEntry entry, Money newBalance, Money excessAmount})>
       recordRepayment({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     String? paymentMethod,
     String? note,
     String? saleLocalId,
@@ -18,7 +19,7 @@ abstract class CustomerCreditRepository {
 
   Future<CustomerLedgerEntry> recordRefundAdjustment({
     required String customerLocalId,
-    required double amount,
+    required Money amount,
     required String saleLocalId,
   });
 
@@ -36,7 +37,7 @@ abstract class CustomerCreditRepository {
     required String customerServerId,
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
-    required double amount,
+    required Money amount,
     String? operationId,
     String? paymentMethod,
     String? note,

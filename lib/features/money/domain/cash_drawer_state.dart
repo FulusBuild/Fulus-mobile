@@ -1,3 +1,5 @@
+import '../../../core/money/money.dart';
+
 /// Volume 8's Cash Drawer & Opening Float + Daily Closing, mirroring
 /// the real (but locationId-gated — see money_transaction.dart's own
 /// doc comment) `CashDrawerShift`/`CashDrawerShiftRepository` shape,
@@ -5,7 +7,7 @@
 class MoneyDrawerSession {
   const MoneyDrawerSession({required this.openingFloat, required this.openedAt});
 
-  final double openingFloat;
+  final Money openingFloat;
   final DateTime openedAt;
 }
 
@@ -19,10 +21,10 @@ class MoneyExpectedCashPreview {
     required this.cashExpenses,
   });
 
-  final double openingFloat;
-  final double cashSales;
-  final double cashExpenses;
-  double get expectedCash => openingFloat + cashSales - cashExpenses;
+  final Money openingFloat;
+  final Money cashSales;
+  final Money cashExpenses;
+  Money get expectedCash => openingFloat + cashSales - cashExpenses;
 }
 
 /// The Daily Closing Summary screen's data — "counted, expected,
@@ -42,13 +44,13 @@ class DailyClosingSummary {
   final DateTime closedAt;
 
   /// Method label -> total sold, e.g. {"Cash": 42000, "Mobile Money": 18500}.
-  final Map<String, double> salesByMethod;
-  final double expensesTotal;
-  final double netForDay;
-  final double expectedCash;
-  final double countedCash;
+  final Map<String, Money> salesByMethod;
+  final Money expensesTotal;
+  final Money netForDay;
+  final Money expectedCash;
+  final Money countedCash;
   final String? note;
 
-  double get difference => countedCash - expectedCash;
-  double get totalSales => salesByMethod.values.fold(0.0, (a, b) => a + b);
+  Money get difference => countedCash - expectedCash;
+  Money get totalSales => salesByMethod.values.fold(0, (a, b) => a + b);
 }

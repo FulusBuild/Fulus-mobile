@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/errors/module_failures.dart';
+import '../../core/money/money.dart';
 import '../../domain/entities/receipt.dart';
 import '../../domain/repositories/receipt_repository.dart';
 import '../../domain/usecases/receipt_engine.dart';
@@ -92,7 +93,7 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
     // (this method already works with raw DB rows throughout, not
     // domain entities) rather than through SaleRepository, matching
     // this class's existing style.
-    List<({String method, double amount})>? paymentBreakdown;
+    List<({String method, Money amount})>? paymentBreakdown;
     if (sale.paymentMethod == 'split') {
       final legs = await (_db.select(_db.salePayments)..where((p) => p.saleLocalId.equals(saleId))).get();
       if (legs.isNotEmpty) {
@@ -131,7 +132,7 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
 
   /// See class doc point 1 above for why this exists instead of reading
   /// a stored column.
-  String _derivePaymentStatus(String? notes, double amountPaid, double total) {
+  String _derivePaymentStatus(String? notes, Money amountPaid, Money total) {
     if (notes != null && notes.startsWith('[CANCELLED')) return 'cancelled';
     if (amountPaid <= 0) return 'unpaid';
     if (amountPaid >= total) return 'paid';

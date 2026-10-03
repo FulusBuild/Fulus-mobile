@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/legacy.dart'; // for StateProvider.autoDispose
 
 import '../../../app/providers.dart';
 import '../../../core/utils/async_timeout.dart';
+import '../../../core/money/money.dart';
 import '../../../domain/entities/category.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/stock_movement.dart';
@@ -212,10 +213,10 @@ List<ProductWithStock> applyStockFilter(List<ProductWithStock> products, StockFi
 /// but its exact formula isn't visible from the DTO alone, so this is
 /// this screen's own best-supported reading, not a confirmed match to
 /// a backend calculation this device can't see.
-double _stockValue(ProductWithStock p) => p.product.costPrice * p.currentStock;
+Money _stockValue(ProductWithStock p) => p.product.costPrice * p.currentStock;
 
-double totalStockValue(List<ProductWithStock> products) =>
-    products.where((p) => p.product.tracksStock).fold(0.0, (sum, p) => sum + _stockValue(p));
+Money totalStockValue(List<ProductWithStock> products) =>
+    products.where((p) => p.product.tracksStock).fold<Money>(0, (sum, p) => sum + _stockValue(p));
 
 int outOfStockCount(List<ProductWithStock> products) =>
     products.where((p) => p.product.tracksStock && p.currentStock <= 0).length;

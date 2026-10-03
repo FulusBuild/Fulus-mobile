@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 class SaleCanonicalState {
   const SaleCanonicalState({
     required this.serverId,
@@ -28,11 +29,11 @@ class SaleCanonicalState {
   final String locationServerId;
   final String? cashierUserId;
   final DateTime saleDate;
-  final double subtotal;
-  final double discount;
-  final double tax;
-  final double total;
-  final double amountPaid;
+  final Money subtotal;
+  final Money discount;
+  final Money tax;
+  final Money total;
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
   final List<SaleCanonicalItem> items;
@@ -57,9 +58,9 @@ class SaleCanonicalItem {
   final String? productServerId;
   final String description;
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
-  final double lineTotal;
+  final Money unitPrice;
+  final Money costPriceAtSale;
+  final Money lineTotal;
 }
 
 class SaleCanonicalPayment {
@@ -72,6 +73,6 @@ class SaleCanonicalPayment {
 
   final String serverId;
   final String method;
-  final double amount;
+  final Money amount;
   final DateTime recordedAt;
 }

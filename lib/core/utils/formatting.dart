@@ -17,9 +17,10 @@
 /// this is the shared copy every *other* feature now converges on.
 library;
 
-String formatMoney(double amount, {String symbol = '₦', bool showSign = false}) {
-  final isNegative = amount < 0;
-  final fixed = amount.abs().toStringAsFixed(2);
+String formatMoney(num amount, {String symbol = '₦', bool showSign = false}) {
+  final money = amount is int ? amount / 100.0 : amount.toDouble();
+  final isNegative = money < 0;
+  final fixed = money.abs().toStringAsFixed(2);
   final parts = fixed.split('.');
   final wholePart = parts[0];
   final decimalPart = parts[1];

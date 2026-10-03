@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../entities/report.dart';
 
 /// Stage 12's pure-logic layer for Reports. ReportsRepositoryImpl does
@@ -88,7 +89,7 @@ class ReportsEngine {
 
   List<ReportInsight> customerInsights({
     required int newCustomersThisPeriod,
-    required double totalOutstandingCredit,
+    required Money totalOutstandingCredit,
     required List<TopCustomer> topCustomers,
   }) {
     final insights = <ReportInsight>[];
@@ -109,8 +110,8 @@ class ReportsEngine {
   /// against a zero or missing baseline (see FinanceReport.
   /// profitTrendPercent's own doc for the same rule).
   List<ReportInsight> financeInsights({
-    required double netProfit,
-    double? previousNetProfit,
+    required Money netProfit,
+    Money? previousNetProfit,
   }) {
     final insights = <ReportInsight>[];
     insights.add(ReportInsight(netProfit >= 0

@@ -1,3 +1,4 @@
+import '../../../core/money/money.dart';
 import '../../../domain/entities/report.dart';
 import '../domain/cash_drawer_state.dart';
 import '../domain/money_summary.dart';
@@ -52,9 +53,9 @@ class MockMoneyRepository implements MoneyRepository {
   }
 
   @override
-  Future<double> getAvailableBalance() async {
+  Future<Money> getAvailableBalance() async {
     await _delay();
-    return _transactions.fold<double>(0, (sum, t) => sum + t.signedAmount);
+    return _transactions.fold<Money>(0, (sum, t) => sum + t.signedAmount);
   }
 
   @override
@@ -68,8 +69,8 @@ class MockMoneyRepository implements MoneyRepository {
     final inPeriod = _transactions.where((t) => _inPeriod(t, period)).toList();
     final previousPeriod = period.previous;
 
-    double sumWhere(bool Function(MoneyTransaction) test) =>
-        inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
+    Money sumWhere(bool Function(MoneyTransaction) test) =>
+        inPeriod.where(test).fold<Money>(0, (sum, t) => sum + t.amount);
 
     final summary = MoneySummary(
       period: period,
@@ -77,7 +78,7 @@ class MockMoneyRepository implements MoneyRepository {
       moneyOut: sumWhere((t) => !t.isInflow),
       previousNet: _transactions
           .where((t) => _inPeriod(t, previousPeriod))
-          .fold<double>(0, (sum, t) => sum + t.signedAmount),
+          .fold<Money>(0, (sum, t) => sum + t.signedAmount),
       incomeBreakdown: _breakdownIncome(inPeriod),
       expenseBreakdown: _breakdownExpense(inPeriod),
       transactionCount: inPeriod.length,
@@ -95,8 +96,8 @@ class MockMoneyRepository implements MoneyRepository {
     await _delay();
     final inPeriod = _transactions.where((t) => _inPeriod(t, period)).toList();
 
-    double sumWhere(bool Function(MoneyTransaction) test) =>
-        inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
+    Money sumWhere(bool Function(MoneyTransaction) test) =>
+        inPeriod.where(test).fold<Money>(0, (sum, t) => sum + t.amount);
 
     final moneyIn = sumWhere((t) => t.isInflow);
     final moneyOut = sumWhere((t) => !t.isInflow);
@@ -104,7 +105,7 @@ class MockMoneyRepository implements MoneyRepository {
     final previousPeriod = period.previous;
     final previousNet = _transactions
         .where((t) => _inPeriod(t, previousPeriod))
-        .fold<double>(0, (sum, t) => sum + t.signedAmount);
+        .fold<Money>(0, (sum, t) => sum + t.signedAmount);
 
     return MoneySummary(
       period: period,
@@ -124,7 +125,7 @@ class MockMoneyRepository implements MoneyRepository {
       if (matches.isEmpty) return;
       rows.add(CategoryTotal(
         label: label,
-        amount: matches.fold<double>(0, (sum, t) => sum + t.amount),
+        amount: matches.fold<Money>(0, (sum, t) => sum + t.amount),
         count: matches.length,
         type: type,
       ));
@@ -146,7 +147,7 @@ class MockMoneyRepository implements MoneyRepository {
       for (final entry in byCategory.entries)
         CategoryTotal(
           label: entry.key,
-          amount: entry.value.fold<double>(0, (sum, t) => sum + t.amount),
+          amount: entry.value.fold<Money>(0, (sum, t) => sum + t.amount),
           count: entry.value.length,
           type: MoneyTransactionType.expense,
         ),
@@ -155,7 +156,7 @@ class MockMoneyRepository implements MoneyRepository {
     if (supplierPayments.isNotEmpty) {
       rows.add(CategoryTotal(
         label: 'Supplier payments',
-        amount: supplierPayments.fold<double>(0, (sum, t) => sum + t.amount),
+        amount: supplierPayments.fold<Money>(0, (sum, t) => sum + t.amount),
         count: supplierPayments.length,
         type: MoneyTransactionType.supplierPayment,
       ));
@@ -220,7 +221,7 @@ class MockMoneyRepository implements MoneyRepository {
 
   @override
   Future<MoneyTransaction> recordIncome({
-    required double amount,
+    required Money amount,
     required String source,
     String? note,
   }) async {
@@ -243,7 +244,7 @@ class MockMoneyRepository implements MoneyRepository {
 
   @override
   Future<MoneyTransaction> recordExpense({
-    required double amount,
+    required Money amount,
     required String category,
     required String paymentMethod,
     String? note,
@@ -320,7 +321,7 @@ class MockMoneyRepository implements MoneyRepository {
   }
 
   @override
-  Future<MoneyDrawerSession> openDrawer({required double openingFloat}) async {
+  Future<MoneyDrawerSession> openDrawer({required Money openingFloat}) async {
     await _delay();
     final session = MoneyDrawerSession(openingFloat: openingFloat, openedAt: DateTime.now());
     _drawerSession = session;
@@ -341,12 +342,12 @@ class MockMoneyRepository implements MoneyRepository {
     final sinceOpen = _transactions.where((t) => t.dateTime.isAfter(session.openedAt));
     final cashSales = sinceOpen
         .where((t) => t.type == MoneyTransactionType.saleIncome && t.paymentMethod == 'Cash')
-        .fold<double>(0, (sum, t) => sum + t.amount);
+        .fold<Money>(0, (sum, t) => sum + t.amount);
     final cashOut = sinceOpen
         .where((t) =>
             (t.type == MoneyTransactionType.expense || t.type == MoneyTransactionType.supplierPayment) &&
             t.paymentMethod == 'Cash')
-        .fold<double>(0, (sum, t) => sum + t.amount);
+        .fold<Money>(0, (sum, t) => sum + t.amount);
     return MoneyExpectedCashPreview(
       openingFloat: session.openingFloat,
       cashSales: cashSales,
@@ -355,7 +356,7 @@ class MockMoneyRepository implements MoneyRepository {
   }
 
   @override
-  Future<DailyClosingSummary> closeDrawer({required double countedCash, String? note}) async {
+  Future<DailyClosingSummary> closeDrawer({required Money countedCash, String? note}) async {
     await _delay();
     final session = _drawerSession;
     if (session == null) {
@@ -364,15 +365,15 @@ class MockMoneyRepository implements MoneyRepository {
     final preview = _expectedCashFor(session);
     final sinceOpen = _transactions.where((t) => t.dateTime.isAfter(session.openedAt)).toList();
 
-    final salesByMethod = <String, double>{};
+    final salesByMethod = <String, Money>{};
     for (final t in sinceOpen.where((t) => t.type == MoneyTransactionType.saleIncome)) {
       final method = t.paymentMethod ?? 'Other';
       salesByMethod.update(method, (v) => v + t.amount, ifAbsent: () => t.amount);
     }
     final expensesTotal = sinceOpen
         .where((t) => t.type == MoneyTransactionType.expense || t.type == MoneyTransactionType.supplierPayment)
-        .fold<double>(0, (sum, t) => sum + t.amount);
-    final totalSales = salesByMethod.values.fold<double>(0, (a, b) => a + b);
+        .fold<Money>(0, (sum, t) => sum + t.amount);
+    final totalSales = salesByMethod.values.fold<Money>(0, (a, b) => a + b);
 
     final summary = DailyClosingSummary(
       closedAt: DateTime.now(),

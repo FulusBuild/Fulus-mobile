@@ -1,3 +1,4 @@
+import '../../../core/money/money.dart';
 import '../../../domain/entities/cash_drawer_shift.dart';
 import '../../../domain/entities/customer_ledger_entry.dart';
 import '../../../domain/entities/expense.dart';
@@ -224,7 +225,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // at sale time), not total (what's owed). Same treatment
     // CashDrawerShiftRepositoryImpl.computeExpectedCash already gives
     // it (`cashSales += sale.amountPaid`) — using `total` here instead
-    // would double-count the unpaid portion the moment a credit
+    // would Money-count the unpaid portion the moment a credit
     // customer's later repayment also appears as its own
     // customerRepayment transaction.
     final descriptiveItems = sale.items.where((i) => i.description.isNotEmpty).toList();
@@ -297,7 +298,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       resolvedLineItems.add('${item.quantity} × ${product?.product.name ?? 'Unknown item'}');
     }
 
-    List<({String method, double amount})>? paymentBreakdown;
+    List<({String method, Money amount})>? paymentBreakdown;
     if (sale.paymentMethod == 'split') {
       final legs = await _saleRepository.getPaymentsForSale(sale.localId);
       if (legs.isNotEmpty) {
@@ -497,7 +498,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       if (matches.isEmpty) return;
       rows.add(CategoryTotal(
         label: label,
-        amount: matches.fold<double>(0, (sum, t) => sum + t.amount),
+        amount: matches.fold<Money>(0, (sum, t) => sum + t.amount),
         count: matches.length,
         type: type,
       ));
@@ -519,7 +520,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       for (final entry in byCategory.entries)
         CategoryTotal(
           label: entry.key,
-          amount: entry.value.fold<double>(0, (sum, t) => sum + t.amount),
+          amount: entry.value.fold<Money>(0, (sum, t) => sum + t.amount),
           count: entry.value.length,
           type: MoneyTransactionType.expense,
         ),
@@ -529,7 +530,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     if (supplierPayments.isNotEmpty) {
       rows.add(CategoryTotal(
         label: 'Supplier payments',
-        amount: supplierPayments.fold<double>(0, (sum, t) => sum + t.amount),
+        amount: supplierPayments.fold<Money>(0, (sum, t) => sum + t.amount),
         count: supplierPayments.length,
         type: MoneyTransactionType.supplierPayment,
       ));
@@ -548,7 +549,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   /// customer/supplier lookup per repayment/payment, even though none of that
   /// metadata contributes to the balance. On a business with a long history
   /// that made the first Money render scale with unrelated display work.
-  Future<double> _getAvailableBalanceFromSources(DateTime end) async {
+  Future<Money> _getAvailableBalanceFromSources(DateTime end) async {
     final locationId = await _locationId;
     final salesFuture = _saleRepository.getSalesForPeriod(
       locationId: locationId,
@@ -582,21 +583,21 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       paymentsFuture,
     ).wait;
 
-    final salesIn = sales.fold<double>(0, (sum, sale) => sum + sale.amountPaid);
+    final salesIn = sales.fold<Money>(0, (sum, sale) => sum + sale.amountPaid);
     final incomeIn =
-        incomeRecords.fold<double>(0, (sum, income) => sum + income.amount);
+        incomeRecords.fold<Money>(0, (sum, income) => sum + income.amount);
     final repaymentsIn =
-        repayments.fold<double>(0, (sum, repayment) => sum + repayment.amount);
+        repayments.fold<Money>(0, (sum, repayment) => sum + repayment.amount);
     final expensesOut =
-        expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
+        expenses.fold<Money>(0, (sum, expense) => sum + expense.amount);
     final paymentsOut =
-        payments.fold<double>(0, (sum, payment) => sum + payment.amount);
+        payments.fold<Money>(0, (sum, payment) => sum + payment.amount);
 
     return salesIn + incomeIn + repaymentsIn - expensesOut - paymentsOut;
   }
 
   @override
-  Future<double> getAvailableBalance() {
+  Future<Money> getAvailableBalance() {
     return _getAvailableBalanceFromSources(DateTime.now());
   }
 
@@ -625,13 +626,13 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final (inPeriod, previousTransactions) =
         await (inPeriodFuture, previousTransactionsFuture).wait;
 
-    double sumWhere(bool Function(MoneyTransaction) test) =>
-        inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
+    Money sumWhere(bool Function(MoneyTransaction) test) =>
+        inPeriod.where(test).fold<Money>(0, (sum, t) => sum + t.amount);
 
     final moneyIn = sumWhere((t) => t.isInflow);
     final moneyOut = sumWhere((t) => !t.isInflow);
     final previousNet =
-        previousTransactions.fold<double>(0, (sum, t) => sum + t.signedAmount);
+        previousTransactions.fold<Money>(0, (sum, t) => sum + t.signedAmount);
 
     final summary = MoneySummary(
       period: period,
@@ -655,8 +656,8 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     final cashierUserId = canViewAllSales ? null : currentAuthUserId;
     final inPeriod = await _transactionsForRange(period.start, period.end, cashierUserId: cashierUserId);
 
-    double sumWhere(bool Function(MoneyTransaction) test) =>
-        inPeriod.where(test).fold<double>(0, (sum, t) => sum + t.amount);
+    Money sumWhere(bool Function(MoneyTransaction) test) =>
+        inPeriod.where(test).fold<Money>(0, (sum, t) => sum + t.amount);
 
     final moneyIn = sumWhere((t) => t.isInflow);
     final moneyOut = sumWhere((t) => !t.isInflow);
@@ -668,7 +669,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
       cashierUserId: cashierUserId,
     );
     final previousNet =
-        previousTransactions.fold<double>(0, (sum, t) => sum + t.signedAmount);
+        previousTransactions.fold<Money>(0, (sum, t) => sum + t.signedAmount);
 
     return MoneySummary(
       period: period,
@@ -782,7 +783,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
 
   @override
   Future<MoneyTransaction> recordIncome({
-    required double amount,
+    required Money amount,
     required String source,
     String? note,
   }) async {
@@ -801,7 +802,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
 
   @override
   Future<MoneyTransaction> recordExpense({
-    required double amount,
+    required Money amount,
     required String category,
     required String paymentMethod,
     String? note,
@@ -866,7 +867,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
   }
 
   @override
-  Future<MoneyDrawerSession> openDrawer({required double openingFloat}) async {
+  Future<MoneyDrawerSession> openDrawer({required Money openingFloat}) async {
     final locationId = await _locationId;
     final shift = await _cashDrawerShiftRepository.openShift(
       CashDrawerShiftDraft(openingCash: openingFloat, locationId: locationId),
@@ -891,7 +892,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
 
   @override
   Future<DailyClosingSummary> closeDrawer({
-    required double countedCash,
+    required Money countedCash,
     String? note,
   }) async {
     final locationId = await _locationId;
@@ -915,7 +916,7 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
     // salesByMethod/expensesTotal from its in-memory transaction list
     // rather than a separate query.
     final sinceOpen = await _transactionsForRange(shift.openedAt, DateTime.now());
-    final salesByMethod = <String, double>{};
+    final salesByMethod = <String, Money>{};
     for (final t in sinceOpen.where((t) => t.type == MoneyTransactionType.saleIncome)) {
       final method = t.paymentMethod ?? 'Other';
       salesByMethod.update(method, (v) => v + t.amount, ifAbsent: () => t.amount);
@@ -924,8 +925,8 @@ class RealMoneyRepositoryImpl implements MoneyRepository {
         .where((t) =>
             t.type == MoneyTransactionType.expense ||
             t.type == MoneyTransactionType.supplierPayment)
-        .fold<double>(0, (sum, t) => sum + t.amount);
-    final totalSales = salesByMethod.values.fold<double>(0, (a, b) => a + b);
+        .fold<Money>(0, (sum, t) => sum + t.amount);
+    final totalSales = salesByMethod.values.fold<Money>(0, (a, b) => a + b);
 
     // The actual close — CashDrawerShiftRepositoryImpl.closeShift's own
     // expectedCash/cashDifference computation and persistence,

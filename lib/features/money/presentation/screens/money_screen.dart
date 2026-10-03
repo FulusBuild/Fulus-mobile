@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/money/money.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
@@ -30,7 +32,7 @@ class MoneyScreen extends ConsumerStatefulWidget {
 
 class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   ReportPeriod? _builtForPeriod;
-  late Future<double> _balanceFuture;
+  late Future<Money> _balanceFuture;
   late Future<MoneySummary> _summaryFuture;
   late Future<List<MoneyTransaction>> _transactionsFuture;
 
@@ -126,7 +128,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      FutureBuilder<double>(
+                      FutureBuilder<Money>(
                         future: _balanceFuture,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
@@ -324,7 +326,7 @@ class _MoneyHeader extends StatelessWidget {
 
 class _BalanceHero extends StatelessWidget {
   const _BalanceHero({required this.balance, required this.currencySymbol});
-  final double balance;
+  final Money balance;
   final String currencySymbol;
   @override
   Widget build(BuildContext context) => SizedBox(

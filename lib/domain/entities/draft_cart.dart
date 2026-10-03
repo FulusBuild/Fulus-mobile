@@ -1,4 +1,5 @@
 import 'sale.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'sale_payment.dart';
 
 /// The persisted, resumable cart — see tables.dart's `DraftCarts` table
@@ -13,8 +14,8 @@ class DraftCart {
     required this.localId,
     required this.locationId,
     this.customerLocalId,
-    this.wholeCartDiscount = 0.0,
-    this.tax = 0.0,
+    this.wholeCartDiscount = 0,
+    this.tax = 0,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -23,12 +24,14 @@ class DraftCart {
   final String localId;
   final String locationId;
   final String? customerLocalId;
-  final double wholeCartDiscount;
+  @MoneyJsonConverter()
+  final Money wholeCartDiscount;
 
   /// Same "not resolved by this module" status `Sale.tax`/checkout
   /// always had — Business Settings owns the VAT rate; this is
   /// whatever the caller already computed from it.
-  final double tax;
+  @MoneyJsonConverter()
+  final Money tax;
 
   final String? notes;
   final DateTime createdAt;
@@ -43,8 +46,8 @@ class DraftCartItem {
     this.description = '',
     required this.quantity,
     required this.unitPrice,
-    this.costPriceAtSale = 0.0,
-    this.lineDiscount = 0.0,
+    this.costPriceAtSale = 0,
+    this.lineDiscount = 0,
   });
 
   final String localId;
@@ -52,14 +55,17 @@ class DraftCartItem {
   final String? productLocalId;
   final String description;
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
-  final double lineDiscount;
+  @MoneyJsonConverter()
+  final Money unitPrice;
+  @MoneyJsonConverter()
+  final Money costPriceAtSale;
+  @MoneyJsonConverter()
+  final Money lineDiscount;
 
   /// Raw, pre-discount — same convention `SaleItem.lineTotal` uses, for
   /// the same reason: this is what a cart-level subtotal needs to sum,
   /// with the discount subtracted out separately afterward.
-  double get lineTotal => quantity * unitPrice;
+  Money get lineTotal => quantity * unitPrice;
 
   /// Converts to the [SaleItem] shape `SaleDraft`/`SaleRepository.
   /// createSale` actually expect, assigning the fresh identity a real
@@ -92,7 +98,8 @@ class DraftCartPayment {
   final String localId;
   final String draftCartLocalId;
   final String method;
-  final double amount;
+  @MoneyJsonConverter()
+  final Money amount;
   final DateTime recordedAt;
 
   /// Same fresh-identity reasoning as `DraftCartItem.toSaleItem`.

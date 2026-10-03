@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
@@ -284,7 +285,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required String? role,
     required String? department,
     required String? position,
-    required double? salary,
+    required Money? salary,
     required String? phone,
     required String? email,
     required DateTime? dateHired,

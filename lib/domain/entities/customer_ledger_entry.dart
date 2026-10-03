@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 part 'customer_ledger_entry.g.dart';
 
@@ -54,7 +55,8 @@ class CustomerLedgerEntry {
   /// that was actually applied to the balance — see
   /// CustomerCreditRepository.recordRepayment's doc comment for where
   /// the excess is surfaced instead of silently dropped.
-  final double amount;
+  @MoneyJsonConverter()
+  final Money amount;
 
   /// Backend precedent: `Sale.payment_method`/`Expense.payment_method`
   /// are both plain unconstrained strings, not an enum — matched here
@@ -86,7 +88,8 @@ class RepaymentRequestDto {
   /// actually accepts — the sale's new *total* amount paid, not a delta
   /// — verified directly against backend/app/schemas/sale.py's
   /// `SaleUpdate`.
-  final double amountPaid;
+  @MoneyJsonConverter()
+  final Money amountPaid;
 
   Map<String, dynamic> toJson() => _$RepaymentRequestDtoToJson(this);
 }

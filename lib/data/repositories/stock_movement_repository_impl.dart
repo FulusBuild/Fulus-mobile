@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/business_engine/stock_movement_validation.dart' as validation;
@@ -22,7 +24,7 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
 
   Future<StockMovement> _record(
     StockMovement movement, {
-    double? costPrice,
+    Money? costPrice,
     String? supplierLocalId,
     bool onAccount = false,
   }) async {
@@ -146,7 +148,7 @@ class StockMovementRepositoryImpl implements StockMovementRepository {
   @override
   Future<StockMovement> recordStockIn(
     StockInDraft draft, {
-    double? costPrice,
+    Money? costPrice,
     String? supplierLocalId,
     bool onAccount = false,
   }) {

@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/diagnostics/diagnostic_logger.dart';
@@ -144,7 +146,7 @@ class SaleRepositoryImpl implements SaleRepository {
     if (customerId == null) return;
 
     final creditAmount = payments.isNotEmpty
-        ? payments.where((p) => p.method == 'credit').fold(0.0, (sum, p) => sum + p.amount)
+        ? payments.where((p) => p.method == 'credit').fold<Money>(0, (sum, p) => sum + p.amount)
         : sale.balanceDue;
 
     if (creditAmount <= 0) return;

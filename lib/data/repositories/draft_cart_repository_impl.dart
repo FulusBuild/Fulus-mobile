@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../core/money/money.dart';
 
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
@@ -108,16 +109,16 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
     String? productLocalId,
     String? description,
     required int quantity,
-    double? unitPrice,
-    double lineDiscount = 0.0,
+    Money? unitPrice,
+    Money lineDiscount = 0,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     if (quantity <= 0) {
       throw ArgumentError.value(quantity, 'quantity', 'must be > 0');
     }
 
-    double resolvedUnitPrice;
-    double costPriceAtSale;
+    Money resolvedUnitPrice;
+    Money costPriceAtSale;
     String resolvedDescription;
 
     if (productLocalId != null) {
@@ -157,7 +158,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
         );
       }
       resolvedUnitPrice = unitPrice;
-      costPriceAtSale = 0.0;
+      costPriceAtSale = 0;
       resolvedDescription = description;
     }
 
@@ -224,7 +225,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   @override
   Future<DraftCartItem> updateItemDiscount({
     required String itemLocalId,
-    required double lineDiscount,
+    required Money lineDiscount,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     final existing = (await _requireItemRow(itemLocalId)).toDomain();
@@ -279,7 +280,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   @override
   Future<DraftCart> setWholeCartDiscount({
     required String draftCartLocalId,
-    required double discount,
+    required Money discount,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     if (discount < 0) {
@@ -299,7 +300,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   @override
   Future<DraftCart> setTax({
     required String draftCartLocalId,
-    required double tax,
+    required Money tax,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     if (tax < 0) {
@@ -315,7 +316,7 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
   Future<DraftCart> addPayment({
     required String draftCartLocalId,
     required String method,
-    required double amount,
+    required Money amount,
   }) async {
     _syncQueue?.ensureLocalMutationAllowed();
     if (amount <= 0) {
@@ -365,8 +366,8 @@ class DraftCartRepositoryImpl implements DraftCartRepository {
           .write(
         DraftCartsCompanion(
           customerLocalId: const Value(null),
-          wholeCartDiscount: const Value(0.0),
-          tax: const Value(0.0),
+          wholeCartDiscount: const Value(0),
+          tax: const Value(0),
           notes: const Value(null),
           updatedAt: Value(DateTime.now()),
         ),

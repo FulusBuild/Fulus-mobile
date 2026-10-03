@@ -1,4 +1,5 @@
 import '../../domain/repositories/employee_repository.dart';
+import '../../core/money/money.dart';
 import '../../domain/repositories/location_repository.dart';
 import 'fulus_sync_api.dart';
 
@@ -18,7 +19,7 @@ class FulusEmployeeCanonicalReconciler {
     final localLocation = cloudLocationId == null || cloudLocationId.isEmpty
         ? null
         : await _locationRepository.getLocationByServerId(cloudLocationId);
-    double? number(dynamic v) => v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+    Money? number(dynamic v) => v == null ? null : moneyFromWire(v);
     DateTime? date(dynamic v) => v is String ? DateTime.tryParse(v) : null;
     await _repository.reconcileServerState(
       serverId: response.entityId, clientReference: row['client_reference']?.toString(), membershipId: row['membership_id']?.toString(),

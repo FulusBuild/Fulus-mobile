@@ -6,6 +6,7 @@ import 'package:fulus_mobile/data/repositories/finance_stats_repository_impl.dar
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   late AppDatabase db;
@@ -39,9 +40,9 @@ void main() {
     required String localId,
     required String locationId,
     required DateTime saleDate,
-    required double total,
-    required double amountPaid,
-    required List<({double costPriceAtSale, int quantity})> items,
+    required Money total,
+    required Money amountPaid,
+    required List<({Money costPriceAtSale, int quantity})> items,
   }) async {
     await db.into(db.sales).insert(
           SalesCompanion.insert(
@@ -63,7 +64,7 @@ void main() {
               localId: '$localId-item-$i',
               saleLocalId: localId,
               quantity: items[i].quantity,
-              unitPrice: 100,
+              unitPrice: moneyFromMajor(100),
               costPriceAtSale: items[i].costPriceAtSale,
             ),
           );
@@ -77,9 +78,9 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
-        amountPaid: 1000,
-        items: [(costPriceAtSale: 60, quantity: 5)],
+        total: moneyFromMajor(1000),
+        amountPaid: moneyFromMajor(1000),
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 5)],
       );
 
       final report = await repository.getProfitLoss(
@@ -89,7 +90,7 @@ void main() {
       );
 
       expect(report.costDataCompleteness, 1.0);
-      expect(report.costOfGoodsSold, 300);
+      expect(report.costOfGoodsSold, moneyFromMajor(300));
     });
 
     test('partial completeness when some sold units have no cost recorded',
@@ -99,11 +100,11 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 2000,
-        amountPaid: 2000,
+        total: moneyFromMajor(2000),
+        amountPaid: moneyFromMajor(2000),
         items: [
-          (costPriceAtSale: 60, quantity: 5), // 5 units with cost
-          (costPriceAtSale: 0, quantity: 5), // 5 units with no cost (Quick Sale)
+          (costPriceAtSale: moneyFromMajor(60), quantity: 5), // 5 units with cost
+          (costPriceAtSale: moneyFromMajor(0), quantity: 5), // 5 units with no cost (Quick Sale)
         ],
       );
 
@@ -118,7 +119,7 @@ void main() {
       // COGS only reflects the 5 units that had a cost — silently
       // understating true cost, exactly why completeness has to be
       // shown alongside it rather than presented as a precise figure.
-      expect(report.costOfGoodsSold, 300);
+      expect(report.costOfGoodsSold, moneyFromMajor(300));
     });
 
     test('1.0 (not 0/0) when the range has no sales at all', () async {
@@ -141,16 +142,16 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
-        amountPaid: 1000,
-        items: [(costPriceAtSale: 60, quantity: 5)],
+        total: moneyFromMajor(1000),
+        amountPaid: moneyFromMajor(1000),
+        items: [(costPriceAtSale: moneyFromMajor(60), quantity: 5)],
       );
       await db.into(db.expenses).insert(
             ExpensesCompanion.insert(
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Rent',
-              amount: 200,
+              amount: moneyFromMajor(200),
               expenseDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -164,11 +165,11 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.revenue, 1000);
-      expect(report.costOfGoodsSold, 300);
-      expect(report.grossProfit, 700);
-      expect(report.expenses, 200);
-      expect(report.netProfit, 500);
+      expect(report.revenue, moneyFromMajor(1000));
+      expect(report.costOfGoodsSold, moneyFromMajor(300));
+      expect(report.grossProfit, moneyFromMajor(700));
+      expect(report.expenses, moneyFromMajor(200));
+      expect(report.netProfit, moneyFromMajor(500));
     });
   });
 
@@ -187,9 +188,9 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
-        total: 7500,
-        amountPaid: 7500,
-        items: const [],
+        total: moneyFromMajor(7500),
+        amountPaid: moneyFromMajor(7500),
+        items: [],
       );
 
       // "Today" for Jan 15 — both bounds bare midnight, exactly like
@@ -199,14 +200,14 @@ void main() {
         dateTo: DateTime(2026, 1, 15),
         locationId: 'loc-1',
       );
-      expect(cashFlow.salesInflow, 7500);
+      expect(cashFlow.salesInflow, moneyFromMajor(7500));
 
       final profitLoss = await repository.getProfitLoss(
         dateFrom: DateTime(2026, 1, 15),
         dateTo: DateTime(2026, 1, 15),
         locationId: 'loc-1',
       );
-      expect(profitLoss.revenue, 7500);
+      expect(profitLoss.revenue, moneyFromMajor(7500));
     });
   });
 
@@ -217,9 +218,9 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
-        amountPaid: 1000,
-        items: const [],
+        total: moneyFromMajor(1000),
+        amountPaid: moneyFromMajor(1000),
+        items: [],
       );
       await db.into(db.returnRequests).insert(
             ReturnRequestsCompanion.insert(
@@ -227,7 +228,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 1000,
+              refundAmount: moneyFromMajor(1000),
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -252,9 +253,9 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
-        amountPaid: 1000,
-        items: const [],
+        total: moneyFromMajor(1000),
+        amountPaid: moneyFromMajor(1000),
+        items: [],
       );
       await db.into(db.returnRequests).insert(
             ReturnRequestsCompanion.insert(
@@ -262,7 +263,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 1000,
+              refundAmount: moneyFromMajor(1000),
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -288,16 +289,16 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 1000,
-        amountPaid: 1000,
-        items: const [],
+        total: moneyFromMajor(1000),
+        amountPaid: moneyFromMajor(1000),
+        items: [],
       );
       await db.into(db.incomeRecords).insert(
             IncomeRecordsCompanion.insert(
               localId: 'income-1',
               locationId: 'loc-1',
               source: 'Old equipment sold',
-              amount: 300,
+              amount: moneyFromMajor(300),
               incomeDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -311,9 +312,9 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.salesInflow, 1000);
-      expect(report.manualIncomeInflow, 300);
-      expect(report.inflow, 1300);
+      expect(report.salesInflow, moneyFromMajor(1000));
+      expect(report.manualIncomeInflow, moneyFromMajor(300));
+      expect(report.inflow, moneyFromMajor(1300));
     });
 
     test('combines expenses and supplier payments into outflow', () async {
@@ -332,7 +333,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Utilities',
-              amount: 150,
+              amount: moneyFromMajor(150),
               expenseDate: DateTime(2026, 1, 12),
               createdAt: DateTime(2026, 1, 12),
               updatedAt: DateTime(2026, 1, 12),
@@ -344,7 +345,7 @@ void main() {
               localId: 'sle-1',
               supplierLocalId: 'supplier-1',
               entryType: 'paymentMade',
-              amount: 400,
+              amount: moneyFromMajor(400),
               createdAt: DateTime(2026, 1, 20),
             ),
           );
@@ -355,9 +356,9 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.expensesOutflow, 150);
-      expect(report.supplierPaymentsOutflow, 400);
-      expect(report.outflow, 550);
+      expect(report.expensesOutflow, moneyFromMajor(150));
+      expect(report.supplierPaymentsOutflow, moneyFromMajor(400));
+      expect(report.outflow, moneyFromMajor(550));
     });
 
     // Regression test for a confirmed bug (Reports & Auditability
@@ -380,16 +381,16 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 1000,
-        amountPaid: 1000,
-        items: const [],
+        total: moneyFromMajor(1000),
+        amountPaid: moneyFromMajor(1000),
+        items: [],
       );
       await db.into(db.customerLedgerEntries).insert(
             CustomerLedgerEntriesCompanion.insert(
               localId: 'cle-1',
               customerLocalId: 'customer-1',
               entryType: 'repayment',
-              amount: 250,
+              amount: moneyFromMajor(250),
               createdAt: DateTime(2026, 1, 18),
               updatedAt: DateTime(2026, 1, 18),
               syncStatus: SyncStatus.settled,
@@ -403,7 +404,7 @@ void main() {
               localId: 'cle-2',
               customerLocalId: 'customer-1',
               entryType: 'creditSale',
-              amount: 999,
+              amount: moneyFromMajor(999),
               createdAt: DateTime(2026, 1, 19),
               updatedAt: DateTime(2026, 1, 19),
               syncStatus: SyncStatus.settled,
@@ -416,8 +417,8 @@ void main() {
         locationId: 'loc-1',
       );
 
-      expect(report.customerRepaymentsInflow, 250);
-      expect(report.inflow, 1000 + 250);
+      expect(report.customerRepaymentsInflow, moneyFromMajor(250));
+      expect(report.inflow, moneyFromMajor(1250));
     });
   });
 }

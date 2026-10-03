@@ -1,3 +1,4 @@
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:drift/drift.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
@@ -82,9 +83,9 @@ Future<String> seedSale(
   String localId = 'sale-1',
   String locationId = 'loc-1',
   String? cashierUserId,
-  double subtotal = 1000,
-  double total = 1000,
-  double amountPaid = 1000,
+  Money subtotal = 100000,
+  Money total = 100000,
+  Money amountPaid = 100000,
 }) async {
   final existingLocation = await (db.select(db.locations)
         ..where((l) => l.localId.equals(locationId)))

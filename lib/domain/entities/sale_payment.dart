@@ -1,4 +1,5 @@
 /// One payment leg against a finished [Sale] — Volume 5's split-payment
+import 'package:fulus_mobile/core/money/money.dart';
 /// support. See tables.dart's `SalePayments` doc comment for the full
 /// "no backend equivalent, rides with parent, aggregates into
 /// Sale.paymentMethod/amountPaid" reasoning.
@@ -23,6 +24,7 @@ class SalePayment {
   final String? saleLocalId;
 
   final String method;
-  final double amount;
+  @MoneyJsonConverter()
+  final Money amount;
   final DateTime recordedAt;
 }

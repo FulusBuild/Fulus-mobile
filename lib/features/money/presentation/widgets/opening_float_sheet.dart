@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/money_providers.dart';
 
@@ -44,7 +45,7 @@ class _OpeningFloatFormState extends ConsumerState<_OpeningFloatForm> {
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(moneyRepositoryProvider).openDrawer(openingFloat: amount);
+      await ref.read(moneyRepositoryProvider).openDrawer(openingFloat: moneyFromMajor(amount));
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) return;

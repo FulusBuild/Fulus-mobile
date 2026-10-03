@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 part 'sale.g.dart';
 
@@ -18,7 +19,7 @@ class Sale {
     this.cashierUserId,
     required this.saleDate,
     required this.subtotal,
-    this.wholeCartDiscount = 0.0,
+    this.wholeCartDiscount = 0,
     required this.discount,
     required this.tax,
     required this.total,
@@ -45,18 +46,24 @@ class Sale {
   /// after that.
   final String? cashierUserId;
   final DateTime saleDate;
-  final double subtotal;
+  @MoneyJsonConverter()
+  final Money subtotal;
 
   /// The whole-cart-discount component specifically, kept alongside
   /// `discount` (the combined total that actually syncs) — see
   /// tables.dart's `Sales.wholeCartDiscount` doc comment for why the
   /// breakdown is worth keeping even once a sale is finished, not just
   /// during cart-editing.
-  final double wholeCartDiscount;
-  final double discount;
-  final double tax;
-  final double total;
-  final double amountPaid;
+  @MoneyJsonConverter()
+  final Money wholeCartDiscount;
+  @MoneyJsonConverter()
+  final Money discount;
+  @MoneyJsonConverter()
+  final Money tax;
+  @MoneyJsonConverter()
+  final Money total;
+  @MoneyJsonConverter()
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
   final List<SaleItem> items;
@@ -71,7 +78,7 @@ class Sale {
   /// has no balanceDue column — see tables.dart) risks it silently
   /// drifting from its own inputs after an edit; computing it here,
   /// every time it's read, cannot drift.
-  double get balanceDue => total - amountPaid;
+  Money get balanceDue => total - amountPaid;
 
   /// Bug fix (business-logic audit): no "change due" concept existed
   /// anywhere in this app before this — not in PaymentScreen, not in
@@ -85,7 +92,7 @@ class Sale {
   /// (`total - amountPaid`); this just gives that a name and a floor,
   /// the same way a real cash register does: the change is a separate
   /// concept from the balance, never itself negative.
-  double get changeDue => amountPaid > total ? amountPaid - total : 0.0;
+  Money get changeDue => amountPaid > total ? amountPaid - total : 0;
 
   /// Also computed, also mirroring backend logic exactly rather than
   /// reintroducing a parallel definition of "what counts as paid" —
@@ -111,7 +118,7 @@ class SaleItem {
     required this.quantity,
     required this.unitPrice,
     required this.costPriceAtSale,
-    this.lineDiscount = 0.0,
+    this.lineDiscount = 0,
   });
 
   final String localId;
@@ -129,8 +136,10 @@ class SaleItem {
   final String description;
 
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
+  @MoneyJsonConverter()
+  final Money unitPrice;
+  @MoneyJsonConverter()
+  final Money costPriceAtSale;
 
   /// New — Volume 5's per-line discount. No backend column; folds into
   /// `Sale.discount` alongside the whole-cart discount — see that
@@ -141,7 +150,8 @@ class SaleItem {
   /// round(sum(qty * unit_price), 2)`, discount subtracted separately
   /// afterward) — netting it in here would have silently corrupted that
   /// existing, correct aggregation.
-  final double lineDiscount;
+  @MoneyJsonConverter()
+  final Money lineDiscount;
 
   /// Raw, pre-discount — `quantity * unitPrice`, matching
   /// `SaleItemOut.line_total` exactly. A line's actual net contribution
@@ -149,7 +159,7 @@ class SaleItem {
   /// where needed (a receipt, a per-line display) rather than baked in
   /// here, so this keeps meaning the one thing `SaleDraft.subtotal`
   /// needs it to mean.
-  double get lineTotal => quantity * unitPrice;
+  Money get lineTotal => quantity * unitPrice;
 }
 
 /// The wire-format DTO for POST /api/sales — verified directly against
@@ -187,9 +197,12 @@ class SaleCreateDto {
   // 422 from the backend the moment that migration shipped, including
   // through the most mature vertical in the app.
   final String locationId;
-  final double? discount;
-  final double? tax;
-  final double amountPaid;
+  @MoneyJsonConverter()
+  final Money? discount;
+  @MoneyJsonConverter()
+  final Money? tax;
+  @MoneyJsonConverter()
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
 
@@ -226,7 +239,8 @@ class SaleItemCreateDto {
   /// the product's own listed price unedited, letting the backend be
   /// the single source of truth for that price rather than the mobile
   /// client re-asserting a value it already got from the server.
-  final double? unitPrice;
+  @MoneyJsonConverter()
+  final Money? unitPrice;
 
   Map<String, dynamic> toJson() => _$SaleItemCreateDtoToJson(this);
 }
@@ -254,11 +268,16 @@ class SaleResponseDto {
   final String invoiceNumber;
   final String? customerId;
   final DateTime saleDate;
-  final double subtotal;
-  final double discount;
-  final double tax;
-  final double total;
-  final double amountPaid;
+  @MoneyJsonConverter()
+  final Money subtotal;
+  @MoneyJsonConverter()
+  final Money discount;
+  @MoneyJsonConverter()
+  final Money tax;
+  @MoneyJsonConverter()
+  final Money total;
+  @MoneyJsonConverter()
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
   final List<SaleItemResponseDto> items;
@@ -281,9 +300,12 @@ class SaleItemResponseDto {
   final String id;
   final String productId;
   final int quantity;
-  final double unitPrice;
-  final double costPriceAtSale;
-  final double lineTotal;
+  @MoneyJsonConverter()
+  final Money unitPrice;
+  @MoneyJsonConverter()
+  final Money costPriceAtSale;
+  @MoneyJsonConverter()
+  final Money lineTotal;
 
   factory SaleItemResponseDto.fromJson(Map<String, dynamic> json) =>
       _$SaleItemResponseDtoFromJson(json);

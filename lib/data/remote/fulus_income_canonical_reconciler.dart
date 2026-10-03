@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../domain/repositories/income_record_repository.dart';
 import 'fulus_sync_api.dart';
 
@@ -55,9 +56,8 @@ class FulusIncomeCanonicalReconciler {
 
   String? _nullableString(Object? value) => value is String ? value : null;
 
-  double _number(Object? value) {
-    if (value is num) return value.toDouble();
-    throw StateError('Canonical income payload contains an invalid amount.');
+  Money _number(Object? value) {
+    return moneyFromWire(value);
   }
 
   DateTime _date(Object? value) {

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 
 import '../../domain/entities/finance_stats.dart';
 import '../../domain/repositories/customer_credit_repository.dart';
@@ -16,7 +17,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
   final AppDatabase _db;
   final CustomerCreditRepository _customerCreditRepository;
 
-  double _round2(double value) => double.parse(value.toStringAsFixed(2));
+  Money _round2(Money value) => value;
 
   /// **Bug fix (date/period-filter audit):** every query in this class
   /// used `dateTo` exactly as received, with `isSmallerOrEqualValue`.
@@ -70,14 +71,14 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
 
     final saleIds = saleRows.map((s) => s.localId).toSet();
     final adjustments = await SaleReversalAdjustments.load(_db, saleIds);
-    final revenue = saleRows.fold<double>(0.0, (sum, sale) => sum + adjustments.netRevenue(sale));
+    final revenue = saleRows.fold<Money>(0, (sum, sale) => sum + adjustments.netRevenue(sale));
 
-    var costOfGoodsSold = 0.0;
+    Money costOfGoodsSold = 0;
     var totalUnitsSold = 0;
     var unitsWithCostRecorded = 0;
     if (saleIds.isNotEmpty) {
       final items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
-      final rawCostBySale = <String, double>{};
+      final rawCostBySale = <String, Money>{};
       for (final item in items) {
         if (adjustments.isVoided(item.saleLocalId)) continue;
         final productId = item.productLocalId;
@@ -90,7 +91,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
           unitsWithCostRecorded += netQty;
         }
       }
-      costOfGoodsSold = rawCostBySale.entries.fold<double>(0.0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
+      costOfGoodsSold = rawCostBySale.entries.fold<Money>(0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
     }
 
     final expenseRows = await (_db.select(_db.expenses)
@@ -103,7 +104,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
           ))
         .get();
     final expenses =
-        expenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
+        expenseRows.fold<Money>(0, (sum, e) => sum + e.amount);
 
     final grossProfit = revenue - costOfGoodsSold;
     final netProfit = grossProfit - expenses;
@@ -120,7 +121,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
       grossProfit: _round2(grossProfit),
       expenses: _round2(expenses),
       netProfit: _round2(netProfit),
-      costDataCompleteness: _round2(completeness),
+      costDataCompleteness: completeness,
     );
   }
 
@@ -163,7 +164,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
         .get();
     final adjustments = await SaleReversalAdjustments.load(_db, saleRows.map((s) => s.localId).toSet());
     final salesInflow =
-        saleRows.fold<double>(0.0, (sum, s) => sum + adjustments.netCashReceived(s));
+        saleRows.fold<Money>(0, (sum, s) => sum + adjustments.netCashReceived(s));
 
     final incomeRows = await (_db.select(_db.incomeRecords)
           ..where(
@@ -175,7 +176,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
           ))
         .get();
     final manualIncomeInflow =
-        incomeRows.fold<double>(0.0, (sum, i) => sum + i.amount);
+        incomeRows.fold<Money>(0, (sum, i) => sum + i.amount);
 
     final expenseRows = await (_db.select(_db.expenses)
           ..where(
@@ -187,7 +188,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
           ))
         .get();
     final expensesOutflow =
-        expenseRows.fold<double>(0.0, (sum, e) => sum + e.amount);
+        expenseRows.fold<Money>(0, (sum, e) => sum + e.amount);
 
     // Supplier payments — this domain's own addition to outflow (see
     // CashFlowReport.supplierPaymentsOutflow's doc comment for the
@@ -204,7 +205,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
           ))
         .get();
     final supplierPaymentsOutflow =
-        supplierPaymentRows.fold<double>(0.0, (sum, e) => sum + e.amount);
+        supplierPaymentRows.fold<Money>(0, (sum, e) => sum + e.amount);
 
     // The confirmed fix — see CashFlowReport.customerRepaymentsInflow's
     // own doc comment for the full history of this gap. Business-wide,
@@ -220,7 +221,7 @@ class FinanceStatsRepositoryImpl implements FinanceStatsRepository {
       end: dateTo,
     );
     final customerRepaymentsInflow =
-        repayments.fold<double>(0.0, (sum, r) => sum + r.amount);
+        repayments.fold<Money>(0, (sum, r) => sum + r.amount);
 
     final inflow = salesInflow + manualIncomeInflow + customerRepaymentsInflow;
     final outflow = expensesOutflow + supplierPaymentsOutflow;

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../utils/money_format.dart';
 
@@ -27,12 +28,12 @@ class LedgerPaymentScreen extends StatefulWidget {
   final String title;
   final String counterpartyLabel;
   final String counterpartyName;
-  final double outstandingBalance;
+  final Money outstandingBalance;
   final String currencySymbol;
   final String successMessage;
 
-  final Future<({double newBalance, double excessAmount})> Function({
-    required double amount,
+  final Future<({Money newBalance, Money excessAmount})> Function({
+    required Money amount,
     required String paymentMethod,
     String? note,
   }) onSubmit;
@@ -79,7 +80,7 @@ class _LedgerPaymentScreenState extends State<LedgerPaymentScreen> {
     setState(() => _submitting = true);
     try {
       final result = await widget.onSubmit(
-        amount: amount!,
+        amount: moneyFromMajor(amount!),
         paymentMethod: _paymentMethod!,
         note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       );

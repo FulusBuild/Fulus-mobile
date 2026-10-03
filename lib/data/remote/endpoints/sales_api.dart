@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../core/money/money.dart';
 import '../../../domain/entities/sale.dart';
 import '../api_client.dart';
 
@@ -85,13 +86,13 @@ class SalesApi {
 
   Future<Sale> updateSale({
     required String serverId,
-    required double amountPaid,
+    required Money amountPaid,
     required String locationLocalId,
   }) async {
     try {
       final response = await _client.dio.patch(
         '/api/sales/$serverId',
-        data: {'amount_paid': amountPaid},
+        data: {'amount_paid': moneyToMajor(amountPaid)},
       );
       final dto = SaleResponseDto.fromJson(response.data as Map<String, dynamic>);
       return _toDomain(dto, locationLocalId: locationLocalId);

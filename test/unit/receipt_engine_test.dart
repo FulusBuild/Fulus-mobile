@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'package:fulus_mobile/domain/entities/receipt.dart';
 import 'package:fulus_mobile/domain/usecases/receipt_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   const engine = ReceiptEngine();
 
-  ReceiptData sample({String currencySymbol = '₦', double amountPaid = 1000, double total = 1000}) => ReceiptData(
+  ReceiptData sample({String currencySymbol = '₦', Money amountPaid = 100000, Money total = 100000}) => ReceiptData(
         businessName: 'Adaeze Stores',
         businessAddress: '12 Market Rd, Lagos',
         businessPhone: '08012345678',
@@ -15,11 +16,11 @@ void main() {
         vatRate: 7.5,
         invoiceNumber: 'INV-0042',
         saleDate: DateTime(2026, 7, 30, 14, 5),
-        items: const [
-          ReceiptLineItem(productName: 'Rice 5kg', quantity: 2, unitPrice: 400, lineTotal: 800),
-          ReceiptLineItem(productName: 'Milk', quantity: 1, unitPrice: 200, lineTotal: 200),
+        items: [
+          ReceiptLineItem(productName: 'Rice 5kg', quantity: 2, unitPrice: moneyFromMajor(400), lineTotal: moneyFromMajor(800)),
+          ReceiptLineItem(productName: 'Milk', quantity: 1, unitPrice: moneyFromMajor(200), lineTotal: moneyFromMajor(200)),
         ],
-        subtotal: 1000,
+        subtotal: moneyFromMajor(1000),
         discount: 0,
         tax: 0,
         total: total,
@@ -31,15 +32,15 @@ void main() {
 
   group('ReceiptData.balanceDue', () {
     test('is zero when fully paid', () {
-      expect(sample(amountPaid: 1000, total: 1000).balanceDue, 0);
+      expect(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)).balanceDue, moneyFromMajor(0));
     });
 
     test('is the shortfall when partially paid', () {
-      expect(sample(amountPaid: 600, total: 1000).balanceDue, 400);
+      expect(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)).balanceDue, moneyFromMajor(400));
     });
 
     test('never goes negative on overpayment', () {
-      expect(sample(amountPaid: 1200, total: 1000).balanceDue, 0);
+      expect(sample(amountPaid: moneyFromMajor(1200), total: moneyFromMajor(1000)).balanceDue, 0);
     });
   });
 
@@ -50,16 +51,16 @@ void main() {
   // implied. Mirrors balanceDue's own three cases exactly, on purpose.
   group('ReceiptData.changeDue (bug fix)', () {
     test('is zero when fully paid', () {
-      expect(sample(amountPaid: 1000, total: 1000).changeDue, 0);
+      expect(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)).changeDue, moneyFromMajor(0));
     });
 
     test('is zero when underpaid — changeDue and balanceDue never both '
         'have money owed at once', () {
-      expect(sample(amountPaid: 600, total: 1000).changeDue, 0);
+      expect(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)).changeDue, 0);
     });
 
     test('is the excess amount on overpayment', () {
-      expect(sample(amountPaid: 1200, total: 1000).changeDue, 200);
+      expect(sample(amountPaid: moneyFromMajor(1200), total: moneyFromMajor(1000)).changeDue, moneyFromMajor(200));
     });
   });
 
@@ -104,7 +105,7 @@ void main() {
     });
 
     test('prints a "Change given" line on cash overpayment (bug fix)', () {
-      final receipt = engine.renderThermal(sample(amountPaid: 1500, total: 1000));
+      final receipt = engine.renderThermal(sample(amountPaid: moneyFromMajor(1500), total: moneyFromMajor(1000)));
       final text = String.fromCharCodes(receipt.bytes.where((b) => b >= 0x20 && b < 0x7f));
       expect(text, contains('Change given'));
       expect(text, contains('500'));
@@ -112,11 +113,11 @@ void main() {
 
     test('omits "Change given" entirely when paid exactly or underpaid',
         () {
-      final exact = engine.renderThermal(sample(amountPaid: 1000, total: 1000));
+      final exact = engine.renderThermal(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)));
       final exactText = String.fromCharCodes(exact.bytes.where((b) => b >= 0x20 && b < 0x7f));
       expect(exactText, isNot(contains('Change given')));
 
-      final under = engine.renderThermal(sample(amountPaid: 600, total: 1000));
+      final under = engine.renderThermal(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)));
       final underText = String.fromCharCodes(under.bytes.where((b) => b >= 0x20 && b < 0x7f));
       expect(underText, isNot(contains('Change given')));
     });

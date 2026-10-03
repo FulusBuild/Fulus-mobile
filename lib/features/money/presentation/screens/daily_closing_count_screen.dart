@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider;
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/cash_drawer_state.dart';
 import '../providers/money_providers.dart';
@@ -50,7 +51,8 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
   }
 
   Future<void> _closeDay() async {
-    final counted = double.tryParse(_countedController.text.replaceAll(',', '').trim());
+    final parsedCounted = double.tryParse(_countedController.text.replaceAll(',', '').trim());
+    final counted = parsedCounted == null ? null : moneyFromMajor(parsedCounted);
     if (counted == null || counted < 0) {
       showFulusSnackbar(context, message: 'Enter how much cash was actually counted.');
       return;
@@ -130,7 +132,8 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
             );
           }
           final preview = data.preview!;
-          final counted = double.tryParse(_countedController.text.replaceAll(',', '').trim());
+          final parsedCounted = double.tryParse(_countedController.text.replaceAll(',', '').trim());
+          final counted = parsedCounted == null ? null : moneyFromMajor(parsedCounted);
           final difference = counted == null ? null : counted - preview.expectedCash;
           return ListView(
             children: [
@@ -175,7 +178,7 @@ class _DailyClosingCountScreenState extends ConsumerState<DailyClosingCountScree
 class _ConfirmRow extends StatelessWidget {
   const _ConfirmRow({required this.label, required this.value, required this.symbol});
   final String label;
-  final double value;
+  final Money value;
   final String symbol;
 
   @override
@@ -204,7 +207,7 @@ class _ConfirmRow extends StatelessWidget {
 class _AmountRow extends StatelessWidget {
   const _AmountRow({required this.label, required this.value, required this.symbol, this.showPlus = false, this.emphasize = false});
   final String label;
-  final double value;
+  final Money value;
   final String symbol;
   final bool showPlus;
   final bool emphasize;
@@ -229,7 +232,7 @@ class _AmountRow extends StatelessWidget {
 
 class _DifferencePill extends StatelessWidget {
   const _DifferencePill({required this.difference, required this.symbol});
-  final double difference;
+  final Money difference;
   final String symbol;
 
   @override

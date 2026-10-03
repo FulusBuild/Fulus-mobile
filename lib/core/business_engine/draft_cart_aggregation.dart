@@ -4,14 +4,16 @@
 /// comments for why the breakdown and the aggregate both need to exist.
 library;
 
+import '../money/money.dart';
+
 /// Combines Volume 5's two discount actions (whole-cart, per-line) into
 /// the one number `Sale.discount`/the backend's `SaleCreate.discount`
 /// actually is.
-double combineDiscount({
-  required double wholeCartDiscount,
-  required List<double> lineDiscounts,
+Money combineDiscount({
+  required Money wholeCartDiscount,
+  required List<Money> lineDiscounts,
 }) {
-  final lineTotal = lineDiscounts.fold<double>(0.0, (sum, d) => sum + d);
+  final lineTotal = lineDiscounts.fold<Money>(0, (sum, d) => sum + d);
   return wholeCartDiscount + lineTotal;
 }
 
@@ -20,11 +22,11 @@ double combineDiscount({
 /// payments already exceed the total, which the caller decides what to
 /// do with (the same "this module computes, the UI decides" split
 /// every other local calculation in this codebase follows).
-double computeRemainingToPay({
-  required double total,
-  required List<double> paymentAmounts,
+Money computeRemainingToPay({
+  required Money total,
+  required List<Money> paymentAmounts,
 }) {
-  final paid = paymentAmounts.fold<double>(0.0, (sum, amount) => sum + amount);
+  final paid = paymentAmounts.fold<Money>(0, (sum, amount) => sum + amount);
   return total - paid;
 }
 
@@ -69,6 +71,6 @@ String? aggregatePaymentMethod(List<String> methods) {
 /// the source. This is the one place that source gets fixed, so every
 /// downstream reader is correct without having to know about credit at
 /// all.
-double computeCashAmountPaid(List<({String method, double amount})> payments) {
-  return payments.where((p) => p.method != 'credit').fold<double>(0.0, (sum, p) => sum + p.amount);
+Money computeCashAmountPaid(List<({String method, Money amount})> payments) {
+  return payments.where((p) => p.method != 'credit').fold<Money>(0, (sum, p) => sum + p.amount);
 }

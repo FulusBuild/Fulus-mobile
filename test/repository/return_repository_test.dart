@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/customer_credit_repository_impl.dart';
@@ -88,8 +89,8 @@ void main() {
               localId: id,
               name: id,
               sku: 'SKU-$id',
-              costPrice: 400,
-              sellingPrice: 1000,
+              costPrice: moneyFromMajor(400),
+              sellingPrice: moneyFromMajor(1000),
               createdAt: now,
               updatedAt: now,
               syncStatus: SyncStatus.settled,
@@ -139,24 +140,24 @@ void main() {
 
   /// A sale of 5x productA + 3x productB at ₦1000 each, fully paid in
   /// cash unless [customerId]/[amountPaid] say otherwise.
-  Future<Sale> purchase({String? customerId, double? amountPaid}) {
+  Future<Sale> purchase({String? customerId, Money? amountPaid}) {
     final items = [
       SaleItem(
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
-        unitPrice: 1000,
-        costPriceAtSale: 400,
+        unitPrice: moneyFromMajor(1000),
+        costPriceAtSale: moneyFromMajor(400),
       ),
       SaleItem(
         localId: Ulid().toString(),
         productLocalId: productBId,
         quantity: 3,
-        unitPrice: 1000,
-        costPriceAtSale: 400,
+        unitPrice: moneyFromMajor(1000),
+        costPriceAtSale: moneyFromMajor(400),
       ),
     ];
-    final total = 8000.0;
+    final Money total = moneyFromMajor(8000);
     return saleRepository.createSale(
       SaleDraft(
         items: items,
@@ -226,7 +227,7 @@ void main() {
       CustomersCompanion.insert(
         localId: customerId,
         name: 'Credit Split Customer',
-        outstandingBalance: const Value(500),
+        outstandingBalance: Value(moneyFromMajor(500)),
         createdAt: now,
         updatedAt: now,
         syncStatus: SyncStatus.settled,
@@ -238,8 +239,8 @@ void main() {
         localId: Ulid().toString(),
         productLocalId: productAId,
         quantity: 5,
-        unitPrice: 1000,
-        costPriceAtSale: 400,
+        unitPrice: moneyFromMajor(1000),
+        costPriceAtSale: moneyFromMajor(400),
       ),
     ];
     final sale = await saleRepository.createSale(
@@ -247,11 +248,11 @@ void main() {
         items: items,
         locationId: locationId,
         customerId: customerId,
-        amountPaid: 4500,
+        amountPaid: moneyFromMajor(4500),
         paymentMethod: 'split',
         payments: [
-          SalePayment(localId: Ulid().toString(), method: 'cash', amount: 4500, recordedAt: now),
-          SalePayment(localId: Ulid().toString(), method: 'credit', amount: 500, recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'cash', amount: moneyFromMajor(4500), recordedAt: now),
+          SalePayment(localId: Ulid().toString(), method: 'credit', amount: moneyFromMajor(500), recordedAt: now),
         ],
       ),
     );
@@ -259,7 +260,7 @@ void main() {
     final customerBefore = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerBefore.outstandingBalance, 1000);
+    expect(customerBefore.outstandingBalance, moneyFromMajor(1000));
 
     final ret = await returnRepository.createReturn(
       originalSaleLocalId: sale.localId,
@@ -273,7 +274,7 @@ void main() {
     final customerAfter = await (db.select(db.customers)
           ..where((c) => c.localId.equals(customerId)))
         .getSingle();
-    expect(customerAfter.outstandingBalance, 500);
+    expect(customerAfter.outstandingBalance, moneyFromMajor(500));
 
     final adjustments = await (db.select(db.customerLedgerEntries)
           ..where((e) =>
@@ -281,7 +282,7 @@ void main() {
               e.entryType.equals(CustomerLedgerEntryType.refundAdjustment.name)))
         .get();
     expect(adjustments, hasLength(1));
-    expect(adjustments.single.amount, 500);
+    expect(adjustments.single.amount, moneyFromMajor(500));
   });
 
   group('createReturn', () {
@@ -297,7 +298,7 @@ void main() {
         autoApprove: true,
       );
 
-      expect(ret.refundAmount, 2000);
+      expect(ret.refundAmount, moneyFromMajor(2000));
     });
 
     test('autoApprove: false creates a pending return; true creates an '
@@ -411,7 +412,7 @@ void main() {
         autoApprove: true,
       );
 
-      expect(second.refundAmount, 2000);
+      expect(second.refundAmount, moneyFromMajor(2000));
       final lines = await returnRepository.getReturnEligibility(sale.localId);
       expect(
         lines.firstWhere((l) => l.productLocalId == productAId).remainingReturnable,
@@ -540,7 +541,7 @@ void main() {
         const CustomerDraft(name: 'Test Customer'),
       );
       // 8000 total, 3000 paid up front — 5000 still owed on credit.
-      final sale = await purchase(customerId: customer.localId, amountPaid: 3000);
+      final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
 
       final ret = await returnRepository.createReturn(
         originalSaleLocalId: sale.localId,
@@ -552,7 +553,7 @@ void main() {
       await returnRepository.completeReturn(ret.localId);
 
       final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
-      expect(updatedCustomer!.outstandingBalance, 0);
+      expect(updatedCustomer!.outstandingBalance, moneyFromMajor(0));
     });
 
     test('does not touch the credit balance when the sale was already '
@@ -572,7 +573,7 @@ void main() {
       await returnRepository.completeReturn(ret.localId);
 
       final updatedCustomer = await customerRepository.getCustomerById(customer.localId);
-      expect(updatedCustomer!.outstandingBalance, 0);
+      expect(updatedCustomer!.outstandingBalance, moneyFromMajor(0));
     });
   });
 
@@ -632,12 +633,12 @@ void main() {
               localId: 'transfer-item-1',
               productLocalId: productAId,
               quantity: 1,
-              unitPrice: 1000,
-              costPriceAtSale: 400,
+              unitPrice: moneyFromMajor(1000),
+              costPriceAtSale: moneyFromMajor(400),
             ),
           ],
           locationId: locationId,
-          amountPaid: 1000,
+          amountPaid: moneyFromMajor(1000),
           paymentMethod: 'transfer',
         ),
       );
@@ -655,12 +656,12 @@ void main() {
       final customer = await customerRepository.createCustomer(
         const CustomerDraft(name: 'Test Customer'),
       );
-      final sale = await purchase(customerId: customer.localId, amountPaid: 3000);
+      final sale = await purchase(customerId: customer.localId, amountPaid: moneyFromMajor(3000));
 
       await returnRepository.voidSale(saleLocalId: sale.localId, reason: 'Mistake');
 
       final updated = await customerRepository.getCustomerById(customer.localId);
-      expect(updated!.outstandingBalance, 0);
+      expect(updated!.outstandingBalance, moneyFromMajor(0));
     });
 
     test('rejects voiding a sale that has already been fully voided',

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/domain/entities/draft_cart.dart';
 import 'package:fulus_mobile/features/sell/presentation/cubit/cart_state.dart';
 
@@ -13,8 +14,8 @@ import 'package:fulus_mobile/features/sell/presentation/cubit/cart_state.dart';
 /// the correct formula down before any such UI is built on top of it.
 void main() {
   DraftCart draftCartWith({
-    double wholeCartDiscount = 0.0,
-    double tax = 0.0,
+    Money wholeCartDiscount = 0,
+    Money tax = 0,
   }) {
     final now = DateTime.now();
     return DraftCart(
@@ -30,8 +31,8 @@ void main() {
   DraftCartItem itemWith({
     required String localId,
     required int quantity,
-    required double unitPrice,
-    double lineDiscount = 0.0,
+    required Money unitPrice,
+    Money lineDiscount = 0,
   }) {
     return DraftCartItem(
       localId: localId,
@@ -64,23 +65,23 @@ void main() {
   group('CartLoaded.total', () {
     test('with no discounts at all, total is just subtotal plus tax', () {
       final state = loadedWith(
-        draftCart: draftCartWith(tax: 50),
-        items: [itemWith(localId: 'i1', quantity: 2, unitPrice: 500)],
+        draftCart: draftCartWith(tax: moneyFromMajor(50)),
+        items: [itemWith(localId: 'i1', quantity: 2, unitPrice: moneyFromMajor(500))],
       );
 
-      expect(state.subtotal, 1000);
-      expect(state.total, 1050);
+      expect(state.subtotal, moneyFromMajor(1000));
+      expect(state.total, moneyFromMajor(1050));
     });
 
     test('a whole-cart-only discount is subtracted correctly '
         '(pre-existing behavior, still correct)', () {
       final state = loadedWith(
-        draftCart: draftCartWith(wholeCartDiscount: 100, tax: 0),
-        items: [itemWith(localId: 'i1', quantity: 3, unitPrice: 1500)],
+        draftCart: draftCartWith(wholeCartDiscount: moneyFromMajor(100), tax: moneyFromMajor(0)),
+        items: [itemWith(localId: 'i1', quantity: 3, unitPrice: moneyFromMajor(1500))],
       );
 
-      expect(state.subtotal, 4500);
-      expect(state.total, 4400);
+      expect(state.subtotal, moneyFromMajor(4500));
+      expect(state.total, moneyFromMajor(4400));
     });
 
     test(
@@ -89,32 +90,32 @@ void main() {
       final state = loadedWith(
         draftCart: draftCartWith(),
         items: [
-          itemWith(localId: 'i1', quantity: 1, unitPrice: 1000, lineDiscount: 150),
+          itemWith(localId: 'i1', quantity: 1, unitPrice: moneyFromMajor(1000), lineDiscount: moneyFromMajor(150)),
         ],
       );
 
-      expect(state.subtotal, 1000);
+      expect(state.subtotal, moneyFromMajor(1000));
       // Before the fix this returned 1000 (wholeCartDiscount was 0, so
       // nothing was ever subtracted) — the exact defect this pins down.
-      expect(state.total, 850);
+      expect(state.total, moneyFromMajor(850));
     });
 
     test('whole-cart and multiple line discounts combine additively, '
         'matching combineDiscount / completeSale exactly', () {
       final state = loadedWith(
-        draftCart: draftCartWith(wholeCartDiscount: 200, tax: 75),
+        draftCart: draftCartWith(wholeCartDiscount: moneyFromMajor(200), tax: moneyFromMajor(75)),
         items: [
-          itemWith(localId: 'i1', quantity: 1, unitPrice: 1000, lineDiscount: 50),
-          itemWith(localId: 'i2', quantity: 2, unitPrice: 750, lineDiscount: 25),
+          itemWith(localId: 'i1', quantity: 1, unitPrice: moneyFromMajor(1000), lineDiscount: moneyFromMajor(50)),
+          itemWith(localId: 'i2', quantity: 2, unitPrice: moneyFromMajor(750), lineDiscount: moneyFromMajor(25)),
         ],
       );
 
       // subtotal = 1000 + 1500 = 2500
       // discount = 200 (whole-cart) + 50 + 25 (lines) = 275
       // total = 2500 - 275 + 75 (tax) = 2300
-      expect(state.subtotal, 2500);
-      expect(state.discount, 275);
-      expect(state.total, 2300);
+      expect(state.subtotal, moneyFromMajor(2500));
+      expect(state.discount, moneyFromMajor(275));
+      expect(state.total, moneyFromMajor(2300));
     });
 
     test('remaining reflects the corrected total, not just what payments '
@@ -122,13 +123,13 @@ void main() {
       final state = loadedWith(
         draftCart: draftCartWith(),
         items: [
-          itemWith(localId: 'i1', quantity: 1, unitPrice: 1000, lineDiscount: 150),
+          itemWith(localId: 'i1', quantity: 1, unitPrice: moneyFromMajor(1000), lineDiscount: moneyFromMajor(150)),
         ],
         payments: const [],
       );
 
-      expect(state.total, 850);
-      expect(state.remaining, 850);
+      expect(state.total, moneyFromMajor(850));
+      expect(state.remaining, moneyFromMajor(850));
     });
 
     test('a 100% line discount reduces that line\'s contribution to zero',
@@ -136,12 +137,12 @@ void main() {
       final state = loadedWith(
         draftCart: draftCartWith(),
         items: [
-          itemWith(localId: 'i1', quantity: 2, unitPrice: 500, lineDiscount: 1000),
+          itemWith(localId: 'i1', quantity: 2, unitPrice: moneyFromMajor(500), lineDiscount: moneyFromMajor(1000)),
         ],
       );
 
-      expect(state.subtotal, 1000);
-      expect(state.total, 0);
+      expect(state.subtotal, moneyFromMajor(1000));
+      expect(state.total, moneyFromMajor(0));
     });
   });
 }

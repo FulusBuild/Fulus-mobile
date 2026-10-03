@@ -1,4 +1,5 @@
 import '../entities/draft_cart.dart';
+import '../../core/money/money.dart';
 import '../entities/sale.dart';
 
 /// The actual mechanism behind Decision 14 ("Sell always resumes an
@@ -22,8 +23,8 @@ abstract class DraftCartRepository {
     String? productLocalId,
     String? description,
     required int quantity,
-    double? unitPrice,
-    double lineDiscount = 0.0,
+    Money? unitPrice,
+    Money lineDiscount = 0,
   });
 
   Future<DraftCartItem> updateItemQuantity({
@@ -33,7 +34,7 @@ abstract class DraftCartRepository {
 
   Future<DraftCartItem> updateItemDiscount({
     required String itemLocalId,
-    required double lineDiscount,
+    required Money lineDiscount,
   });
 
   /// Volume 5: "Removing a line is a left swipe; every removal shows a
@@ -49,20 +50,20 @@ abstract class DraftCartRepository {
 
   Future<DraftCart> setWholeCartDiscount({
     required String draftCartLocalId,
-    required double discount,
+    required Money discount,
   });
 
   /// Not resolved by this repository — see `DraftCart.tax`'s own doc
   /// comment. The caller supplies the already-computed amount.
   Future<DraftCart> setTax({
     required String draftCartLocalId,
-    required double tax,
+    required Money tax,
   });
 
   Future<DraftCart> addPayment({
     required String draftCartLocalId,
     required String method,
-    required double amount,
+    required Money amount,
   });
 
   Future<void> removePayment(String paymentLocalId);

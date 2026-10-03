@@ -1,4 +1,5 @@
 /// Reports — Stage 12 (the "Reports" half of "Dashboard / Reports").
+import 'package:fulus_mobile/core/money/money.dart';
 ///
 /// Volume 10 of the Product Design Bible: one reports experience with a
 /// shared period selector sitting above five categories (Sales,
@@ -45,7 +46,7 @@ class ReportInsight {
 class SalesByPaymentMethod {
   const SalesByPaymentMethod({required this.method, required this.total, required this.count});
   final String method;
-  final double total;
+  final Money total;
   final int count;
 }
 
@@ -54,7 +55,7 @@ class SalesByHour {
 
   /// 0-23, local time.
   final int hour;
-  final double total;
+  final Money total;
   final int count;
 }
 
@@ -72,7 +73,7 @@ class TopProduct {
   final String productId;
   final String productName;
   final int quantitySold;
-  final double revenue;
+  final Money revenue;
 }
 
 /// completed: no return against this sale has ever been completed.
@@ -120,8 +121,8 @@ class SaleRecord {
   /// case, it just can't say who rang it up.
   final String? cashierName;
   final String? paymentMethod;
-  final double total;
-  final double discount;
+  final Money total;
+  final Money discount;
   final SaleRecordStatus status;
 }
 
@@ -140,10 +141,10 @@ class SalesReport {
   });
 
   final ReportPeriod period;
-  final double totalRevenue;
+  final Money totalRevenue;
   final int totalSalesCount;
-  final double totalDiscount;
-  final double totalTax;
+  final Money totalDiscount;
+  final Money totalTax;
   final List<SalesByPaymentMethod> byPaymentMethod;
   final List<SalesByHour> byHour;
   final List<TopProduct> topProducts;
@@ -176,7 +177,7 @@ class InventoryReport {
   /// getInventoryReport`). Verified directly against the repository;
   /// the UI label now says "at cost" explicitly rather than leaving
   /// which basis this uses ambiguous (inventory audit).
-  final double totalStockValue;
+  final Money totalStockValue;
   final int lowStockCount;
   final int outOfStockCount;
   final int totalProducts;
@@ -205,7 +206,7 @@ class TopCustomer {
   /// profile instead of the report only ever being a dead end.
   final String customerId;
   final String customerName;
-  final double totalSpend;
+  final Money totalSpend;
 }
 
 class CustomerReport {
@@ -219,7 +220,7 @@ class CustomerReport {
 
   final ReportPeriod period;
   final List<TopCustomer> topCustomers;
-  final double totalOutstandingCredit;
+  final Money totalOutstandingCredit;
   final int newCustomersThisPeriod;
   final List<ReportInsight> insights;
 }
@@ -239,7 +240,7 @@ class FinanceReport {
   });
 
   final ReportPeriod period;
-  final double totalRevenue;
+  final Money totalRevenue;
 
   /// Added alongside the bug fix that made `netProfit` COGS-aware
   /// (previously `revenue - expenses`, now `revenue -
@@ -248,21 +249,21 @@ class FinanceReport {
   /// here, not folded silently into `netProfit`, so a future Finance
   /// tab can show the breakdown rather than just a smaller number with
   /// no explanation for why it changed.
-  final double totalCostOfGoodsSold;
-  final double totalExpenses;
-  final double netProfit;
+  final Money totalCostOfGoodsSold;
+  final Money totalExpenses;
+  final Money netProfit;
 
   /// Same-length prior period's net profit — the trend comparison
   /// Volume 10 calls for; null when there's no prior data at all (e.g.
   /// a business in its first period), in which case the engine omits
   /// the trend line entirely rather than showing a misleading "+100%".
-  final double? previousPeriodNetProfit;
+  final Money? previousPeriodNetProfit;
   final List<ExpenseCategoryTotal> expenseBreakdown;
   final List<ReportInsight> insights;
 
   /// Revenue after cost of goods sold but before operating expenses —
   /// the intermediate figure between `totalRevenue` and `netProfit`.
-  double get grossProfit => totalRevenue - totalCostOfGoodsSold;
+  Money get grossProfit => totalRevenue - totalCostOfGoodsSold;
 
   double? get profitTrendPercent {
     final prev = previousPeriodNetProfit;
@@ -274,7 +275,7 @@ class FinanceReport {
 class ExpenseCategoryTotal {
   const ExpenseCategoryTotal({required this.category, required this.total});
   final String category;
-  final double total;
+  final Money total;
 }
 
 // ── Employees ───────────────────────────────────────────────────────────────
@@ -297,7 +298,7 @@ class EmployeePerformance {
 
   final String employeeId;
   final String employeeName;
-  final double salesTotal;
+  final Money salesTotal;
   final int salesCount;
   final int daysPresent;
   final int daysAbsent;

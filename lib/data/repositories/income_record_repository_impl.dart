@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/money/money.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../domain/entities/income_record.dart';
@@ -136,7 +137,7 @@ class IncomeRecordRepositoryImpl implements IncomeRecordRepository {
     required String serverId,
     required String locationServerId,
     required String source,
-    required double amount,
+    required Money amount,
     required DateTime incomeDate,
     String? notes,
     required DateTime createdAt,

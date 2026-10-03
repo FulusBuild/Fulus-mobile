@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../entities/supplier_ledger_entry.dart';
 
 /// Volume 8, Decision 26's "mirrors the customer credit book" made
@@ -19,7 +20,7 @@ abstract class SupplierCreditRepository {
   /// rather than firing itself).
   Future<SupplierLedgerEntry> recordStockPurchaseOnCredit({
     required String supplierLocalId,
-    required double amount,
+    required Money amount,
     String? stockMovementLocalId,
   });
 
@@ -28,10 +29,10 @@ abstract class SupplierCreditRepository {
   /// `CustomerCreditRepository.recordRepayment` has, for the same
   /// Volume-7-originated failure scenario (a payment recorded larger
   /// than what's actually owed).
-  Future<({SupplierLedgerEntry entry, double newBalance, double excessAmount})>
+  Future<({SupplierLedgerEntry entry, Money newBalance, Money excessAmount})>
       recordPayment({
     required String supplierLocalId,
-    required double amount,
+    required Money amount,
     String? paymentMethod,
     String? note,
   });

@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import '../../../core/money/money.dart';
+
 import '../domain/money_transaction.dart';
 
 /// A deterministic ~120 days of realistic small-business activity —
@@ -57,7 +59,7 @@ List<MoneyTransaction> generateMockMoneyTransactions({int days = 120}) {
     return paymentMethods.first;
   }
 
-  double roundToNaira(double value) => value.roundToDouble();
+  Money roundToNaira(double value) => moneyFromMajor(value.roundToDouble());
 
   for (var dayOffset = days - 1; dayOffset >= 0; dayOffset--) {
     final day = today.subtract(Duration(days: dayOffset));

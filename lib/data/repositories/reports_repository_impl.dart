@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../../core/money/money.dart';
+
 import 'employee_mapper.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/report.dart';
@@ -52,18 +54,18 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final adjustments = await SaleReversalAdjustments.load(_db, saleIds);
     final validSales = sales.where((s) => !adjustments.isVoided(s.localId)).toList();
 
-    final totalRevenue = validSales.fold<double>(0, (s, r) => s + adjustments.netRevenue(r));
+    final totalRevenue = validSales.fold<Money>(0, (s, r) => s + adjustments.netRevenue(r));
     // Discount/tax are only zeroed out for a fully voided sale (the
     // whole transaction is excluded); a partial refund does not
     // prorate these — no business rule for that exists in this schema,
     // and inventing one silently would be exactly the kind of
     // unrequested distortion Decision 27 (finance_stats.dart) warns
     // against for cost data. Flagged here rather than done quietly.
-    final totalDiscount = validSales.fold<double>(0, (s, r) => s + r.discount);
-    final totalTax = validSales.fold<double>(0, (s, r) => s + r.tax);
+    final totalDiscount = validSales.fold<Money>(0, (s, r) => s + r.discount);
+    final totalTax = validSales.fold<Money>(0, (s, r) => s + r.tax);
 
-    final byMethod = <String, List<double>>{}; // method -> [total, count]
-    final byHour = <int, List<double>>{};
+    final byMethod = <String, List<Money>>{}; // method -> [total, count]
+    final byHour = <int, List<Money>>{};
     for (final sale in validSales) {
       final net = adjustments.netRevenue(sale);
       if (net <= 0) continue; // fully refunded, non-void — nothing left to attribute
@@ -105,7 +107,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
         productId: entry.key,
         productName: product?.name ?? entry.key,
         quantitySold: entry.value[0].toInt(),
-        revenue: entry.value[1].toDouble(),
+        revenue: entry.value[1].toInt(),
       ));
     }
     topProducts.sort((a, b) => b.revenue.compareTo(a.revenue));
@@ -236,7 +238,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
       stockByProduct[level.productLocalId] = (stockByProduct[level.productLocalId] ?? 0) + level.currentStock;
     }
 
-    var totalValue = 0.0;
+    var totalValue = 0;
     var lowStock = 0;
     var outOfStock = 0;
     for (final product in products) {
@@ -315,7 +317,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // used to include whatever they spent on sales later voided or
     // refunded — see SaleReversalAdjustments' own doc comment.
     final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
-    final spendByCustomer = <String, double>{};
+    final spendByCustomer = <String, Money>{};
     for (final sale in sales) {
       final id = sale.customerId;
       if (id == null) continue;
@@ -333,7 +335,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     topCustomers.sort((a, b) => b.totalSpend.compareTo(a.totalSpend));
 
     final allCustomers = await (_db.select(_db.customers)..where((c) => c.deletedAt.isNull())).get();
-    final outstanding = allCustomers.fold<double>(0, (s, c) => s + c.outstandingBalance);
+    final outstanding = allCustomers.fold<Money>(0, (s, c) => s + c.outstandingBalance);
     final newCustomers = allCustomers
         .where((c) => !c.createdAt.isBefore(period.start) && !c.createdAt.isAfter(_endOfDay(period.end)))
         .length;
@@ -397,7 +399,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     final categoryNamesById = {
       for (final c in await _db.select(_db.expenseCategories).get()) c.localId: c.name,
     };
-    final byCategory = <String, double>{};
+    final byCategory = <String, Money>{};
     for (final e in expenseRows) {
       final cat = e.categoryId != null ? (categoryNamesById[e.categoryId] ?? 'Other') : 'Uncategorized';
       byCategory[cat] = (byCategory[cat] ?? 0) + e.amount;
@@ -417,20 +419,20 @@ class ReportsRepositoryImpl implements ReportsRepository {
     );
   }
 
-  Future<double> _sumSalesRevenue(DateTime start, DateTime end, String locationId) async {
+  Future<Money> _sumSalesRevenue(DateTime start, DateTime end, String locationId) async {
     final sales = await (_db.select(_db.sales)..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(start, _endOfDay(end)))).get();
     // **Bug fix (void/refund audit):** see SaleReversalAdjustments' own
     // doc comment — a voided or refunded sale used to contribute its
     // full `total` here regardless.
     final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
-    final salesTotal = sales.fold<double>(0, (s, r) => s + adjustments.netRevenue(r));
+    final salesTotal = sales.fold<Money>(0, (s, r) => s + adjustments.netRevenue(r));
     final income = await (_db.select(_db.incomeRecords)
           ..where((i) =>
               i.locationId.equals(locationId) &
               i.incomeDate.isBetweenValues(start, _endOfDay(end)) &
               (i.syncStatus.equals(SyncStatus.settled.name) | i.syncStatus.equals(SyncStatus.pending.name) | i.syncStatus.equals(SyncStatus.syncing.name))))
         .get();
-    final incomeTotal = income.fold<double>(0, (s, r) => s + r.amount);
+    final incomeTotal = income.fold<Money>(0, (s, r) => s + r.amount);
     return salesTotal + incomeTotal;
   }
 
@@ -449,33 +451,33 @@ class ReportsRepositoryImpl implements ReportsRepository {
   /// never should have counted. See SaleReversalAdjustments' own doc
   /// comment for the full trace and for how a partial (non-void) refund
   /// nets out only the refunded quantity's cost, not the whole sale's.
-  Future<double> _sumCostOfGoodsSold(DateTime start, DateTime end, String locationId) async {
+  Future<Money> _sumCostOfGoodsSold(DateTime start, DateTime end, String locationId) async {
     final sales = await (_db.select(_db.sales)
           ..where((s) => s.locationId.equals(locationId) & s.saleDate.isBetweenValues(start, _endOfDay(end))))
         .get();
     final saleIds = sales.map((s) => s.localId).toSet();
-    if (saleIds.isEmpty) return 0.0;
+    if (saleIds.isEmpty) return 0;
     // One batched query, not one per sale (the exact N+1 shape
     // getSalesReport's topProducts computation already avoided —
     // this method just hadn't been brought in line with it yet).
     final items = await (_db.select(_db.saleItems)..where((i) => i.saleLocalId.isIn(saleIds))).get();
     final adjustments = await SaleReversalAdjustments.load(_db, saleIds);
-    final rawCostBySale = <String, double>{};
+    final rawCostBySale = <String, Money>{};
     for (final item in items) {
       rawCostBySale[item.saleLocalId] = (rawCostBySale[item.saleLocalId] ?? 0) + item.costPriceAtSale * item.quantity;
     }
     return rawCostBySale.entries
-        .fold<double>(0.0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
+        .fold<Money>(0, (sum, e) => sum + adjustments.netCostOfGoodsSold(e.key, e.value));
   }
 
-  Future<double> _sumExpenses(DateTime start, DateTime end, String locationId) async {
+  Future<Money> _sumExpenses(DateTime start, DateTime end, String locationId) async {
     final rows = await (_db.select(_db.expenses)
           ..where((e) =>
               e.locationId.equals(locationId) &
               e.expenseDate.isBetweenValues(start, _endOfDay(end)) &
               (e.syncStatus.equals(SyncStatus.settled.name) | e.syncStatus.equals(SyncStatus.pending.name) | e.syncStatus.equals(SyncStatus.syncing.name))))
         .get();
-    return rows.fold<double>(0, (s, r) => s + r.amount);
+    return rows.fold<Money>(0, (s, r) => s + r.amount);
   }
 
   @override
@@ -509,7 +511,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     // currently rendered anywhere in the Team tab, but fixed at the
     // source so a future UI addition doesn't silently inherit the bug.
     final adjustments = await SaleReversalAdjustments.load(_db, sales.map((s) => s.localId).toSet());
-    final salesTotalByCashier = <String, double>{};
+    final salesTotalByCashier = <String, Money>{};
     final salesCountByCashier = <String, int>{};
     for (final sale in sales) {
       final cashierId = sale.cashierUserId;

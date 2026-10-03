@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 part 'cash_drawer_shift.g.dart';
 
@@ -27,9 +28,9 @@ class CashDrawerShift {
   final String locationId;
   final DateTime openedAt;
   final DateTime? closedAt;
-  final double openingCash;
-  final double? closingCash;
-  final double? cashDifference;
+  final Money openingCash;
+  final Money? closingCash;
+  final Money? cashDifference;
   final String? closingNote;
   final bool closingSummaryLocked;
 
@@ -37,8 +38,8 @@ class CashDrawerShift {
 
   CashDrawerShift copyWith({
     DateTime? Function()? closedAt,
-    double? Function()? closingCash,
-    double? Function()? cashDifference,
+    Money? Function()? closingCash,
+    Money? Function()? cashDifference,
     String? Function()? closingNote,
     bool? closingSummaryLocked,
   }) {
@@ -72,7 +73,7 @@ class CashDrawerShiftDraft {
     required this.locationId,
   });
 
-  final double openingCash;
+  final Money openingCash;
   final String locationId;
 }
 
@@ -80,7 +81,7 @@ class CashDrawerShiftDraft {
 class ShiftOpenDto {
   const ShiftOpenDto({required this.openingCash, required this.locationId});
 
-  final double openingCash;
+  final Money openingCash;
   final String locationId;
 
   Map<String, dynamic> toJson() => _$ShiftOpenDtoToJson(this);
@@ -90,7 +91,7 @@ class ShiftOpenDto {
 class ShiftCloseDto {
   const ShiftCloseDto({required this.closingCash, this.notes});
 
-  final double closingCash;
+  final Money closingCash;
   final String? notes;
 
   Map<String, dynamic> toJson() => _$ShiftCloseDtoToJson(this);
@@ -114,9 +115,9 @@ class ShiftResponseDto {
   final String locationId;
   final DateTime openedAt;
   final DateTime? closedAt;
-  final double openingCash;
-  final double? closingCash;
-  final double? cashDifference;
+  final Money openingCash;
+  final Money? closingCash;
+  final Money? cashDifference;
 
   factory ShiftResponseDto.fromJson(Map<String, dynamic> json) =>
       _$ShiftResponseDtoFromJson(json);

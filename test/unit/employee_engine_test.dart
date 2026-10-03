@@ -2,6 +2,7 @@ import 'package:fulus_mobile/core/errors/module_failures.dart';
 import 'package:fulus_mobile/domain/entities/employee.dart';
 import 'package:fulus_mobile/domain/usecases/employee_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   const engine = EmployeeEngine();
@@ -20,12 +21,12 @@ void main() {
     });
 
     test('rejects negative salary', () {
-      const draft = EmployeeDraft(fullName: 'Ada', salary: -1);
+      final draft = EmployeeDraft(fullName: 'Ada', salary: moneyFromMajor(-1));
       expect(() => engine.validateDraft(draft), throwsA(isA<EmployeeValidationException>()));
     });
 
     test('accepts zero salary', () {
-      const draft = EmployeeDraft(fullName: 'Ada', salary: 0);
+      final draft = EmployeeDraft(fullName: 'Ada', salary: moneyFromMajor(0));
       expect(() => engine.validateDraft(draft), returnsNormally);
     });
 
@@ -123,7 +124,7 @@ void main() {
   });
 
   group('computeStats', () {
-    Employee emp({required bool active, String? dept, double? salary}) => Employee(
+    Employee emp({required bool active, String? dept, Money? salary}) => Employee(
           id: dept ?? 'e',
           fullName: 'Name',
           department: dept,
@@ -135,18 +136,18 @@ void main() {
 
     test('sums salary across active employees only', () {
       final stats = engine.computeStats([
-        emp(active: true, salary: 100),
-        emp(active: true, salary: 50),
-        emp(active: false, salary: 1000), // excluded: inactive
+        emp(active: true, salary: moneyFromMajor(100)),
+        emp(active: true, salary: moneyFromMajor(50)),
+        emp(active: false, salary: moneyFromMajor(1000)), // excluded: inactive
       ]);
-      expect(stats.totalMonthlySalary, 150);
+      expect(stats.totalMonthlySalary, moneyFromMajor(150));
       expect(stats.totalEmployees, 3);
       expect(stats.activeEmployees, 2);
     });
 
     test('treats a null salary as 0 rather than throwing', () {
       final stats = engine.computeStats([emp(active: true, salary: null)]);
-      expect(stats.totalMonthlySalary, 0);
+      expect(stats.totalMonthlySalary, moneyFromMajor(0));
     });
 
     test('counts departments only for employees that have one set', () {

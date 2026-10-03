@@ -1,4 +1,5 @@
 import '../../core/errors/module_failures.dart';
+import '../../core/money/money.dart';
 import '../entities/employee.dart';
 
 /// Stage 11's "Business Engine (Pure Dart)" layer per the Implementation
@@ -115,7 +116,7 @@ class EmployeeEngine {
   /// have a department set.
   EmployeeStats computeStats(List<Employee> roster) {
     final active = roster.where((e) => e.isActive).toList();
-    final totalSalary = active.fold<double>(0, (sum, e) => sum + (e.salary ?? 0));
+    final totalSalary = active.fold<Money>(0, (sum, e) => sum + (e.salary ?? 0));
     final departmentCounts = <String, int>{};
     for (final e in roster) {
       final dept = e.department;
@@ -126,7 +127,7 @@ class EmployeeEngine {
     return EmployeeStats(
       totalEmployees: roster.length,
       activeEmployees: active.length,
-      totalMonthlySalary: double.parse(totalSalary.toStringAsFixed(2)),
+      totalMonthlySalary: totalSalary,
       departmentCounts: departmentCounts,
     );
   }

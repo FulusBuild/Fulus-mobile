@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/business_settings_api.dart';
@@ -99,8 +100,8 @@ void main() {
     required String localId,
     required String sku,
     required int stock,
-    double sellingPrice = 1000,
-    double costPrice = 600,
+    Money sellingPrice = 100000,
+    Money costPrice = 60000,
     bool isActive = true,
   }) async {
     final now = DateTime(2026, 1, 1);
@@ -402,7 +403,7 @@ void main() {
 
       final sale = await cubit.completeSale();
 
-      expect(sale.total, 2000);
+      expect(sale.total, moneyFromMajor(2000));
       expect(sale.items, hasLength(2));
 
       final after = await waitFor(cubit, (s) => s.items.isEmpty);

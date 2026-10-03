@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../../core/money/money.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -694,7 +696,7 @@ class _SalesChart extends StatelessWidget {
 
     if (oneDay) {
       for (final point in report.byHour) {
-        buckets['${point.hour.toString().padLeft(2, '0')}:00'] = point.total;
+        buckets['${point.hour.toString().padLeft(2, '0')}:00'] = moneyToMajor(point.total);
       }
       for (var hour = 0; hour < 24; hour++) {
         buckets.putIfAbsent('${hour.toString().padLeft(2, '0')}:00', () => 0);
@@ -703,7 +705,7 @@ class _SalesChart extends StatelessWidget {
       for (final sale in report.transactions) {
         final local = sale.saleDate.toLocal();
         final key = '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}';
-        buckets[key] = (buckets[key] ?? 0) + sale.total;
+        buckets[key] = (buckets[key] ?? 0) + moneyToMajor(sale.total);
       }
       if (buckets.isEmpty) {
         var cursor = DateTime(period.start.year, period.start.month, period.start.day);

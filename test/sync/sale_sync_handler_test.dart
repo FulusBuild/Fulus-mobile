@@ -21,6 +21,7 @@ import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSalesApi extends Mock implements SalesApi {}
@@ -121,8 +122,8 @@ void main() {
             localId: productId,
             name: 'Test Product',
             sku: 'SKU-1',
-            costPrice: 100,
-            sellingPrice: 150,
+            costPrice: moneyFromMajor(100),
+            sellingPrice: moneyFromMajor(150),
             createdAt: now,
             updatedAt: now,
             syncStatus: SyncStatus.settled,
@@ -138,9 +139,9 @@ void main() {
   });
 
   setUpAll(() {
-    registerFallbackValue(const SaleCreateDto(
+    registerFallbackValue(SaleCreateDto(
       items: [],
-      amountPaid: 0,
+      amountPaid: moneyFromMajor(0),
       locationId: locationId,
     ));
   });
@@ -155,13 +156,13 @@ void main() {
       localId: 'item-1',
       productLocalId: productId,
       quantity: 2,
-      unitPrice: 150,
-      costPriceAtSale: 100,
+      unitPrice: moneyFromMajor(150),
+      costPriceAtSale: moneyFromMajor(100),
     );
     final draft = SaleDraft(
       items: [item],
       locationId: locationId,
-      amountPaid: 300,
+      amountPaid: moneyFromMajor(300),
       customerId: withCustomerId,
     );
     return saleRepository.createSale(draft);
@@ -486,18 +487,18 @@ void main() {
 
     final sale = await saleRepository.createSale(
       SaleDraft(
-        items: const [
+        items: [
           SaleItem(
             localId: 'quick-1',
             productLocalId: null,
             description: 'Phone charger',
             quantity: 1,
-            unitPrice: 500,
-            costPriceAtSale: 0,
+            unitPrice: moneyFromMajor(500),
+            costPriceAtSale: moneyFromMajor(0),
           ),
         ],
         locationId: locationId,
-        amountPaid: 500,
+        amountPaid: moneyFromMajor(500),
       ),
     );
 
@@ -516,7 +517,7 @@ void main() {
     expect(item['product_id'], isNull);
     expect(item['description'], 'Phone charger');
     expect(item['quantity'], 1);
-    expect(item['unit_price'], 500);
+    expect(item['unit_price'], 50000);
     expect(captured['location_id'], 'server-location-1');
 
     final updated = await saleRepository.getSaleByLocalId(sale.localId);
@@ -620,8 +621,8 @@ void main() {
           barcode: null,
           categoryId: null,
           supplierId: null,
-          costPrice: 100,
-          sellingPrice: 150,
+          costPrice: moneyFromMajor(100),
+          sellingPrice: moneyFromMajor(150),
           lowStockThreshold: 5,
           isActive: true,
           updatedAt: DateTime.parse('2026-09-23T10:00:00Z'),
@@ -881,7 +882,7 @@ void main() {
           localId: 'repayment-1',
           customerLocalId: customerId,
           entryType: 'repayment',
-          amount: 50,
+          amount: moneyFromMajor(50),
           createdAt: now,
           updatedAt: now,
           syncStatus: SyncStatus.pending,

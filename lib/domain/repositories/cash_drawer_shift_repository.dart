@@ -1,4 +1,5 @@
 import '../entities/cash_drawer_shift.dart';
+import '../../core/money/money.dart';
 
 class ExpectedCashPreview {
   const ExpectedCashPreview({
@@ -8,10 +9,10 @@ class ExpectedCashPreview {
     required this.expectedCash,
   });
 
-  final double openingCash;
-  final double cashSales;
-  final double cashExpenses;
-  final double expectedCash;
+  final Money openingCash;
+  final Money cashSales;
+  final Money cashExpenses;
+  final Money expectedCash;
 }
 
 abstract class CashDrawerShiftRepository {
@@ -25,7 +26,7 @@ abstract class CashDrawerShiftRepository {
 
   Future<CashDrawerShift> closeShift({
     required String shiftLocalId,
-    required double closingCash,
+    required Money closingCash,
     String? notes,
   });
 
@@ -44,9 +45,9 @@ abstract class CashDrawerShiftRepository {
     required String locationServerId,
     required DateTime openedAt,
     DateTime? closedAt,
-    required double openingCash,
-    double? closingCash,
-    double? cashDifference,
+    required Money openingCash,
+    Money? closingCash,
+    Money? cashDifference,
     String? closingNote,
     required bool closingSummaryLocked,
     required DateTime updatedAt,

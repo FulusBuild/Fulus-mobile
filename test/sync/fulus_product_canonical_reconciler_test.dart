@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_product_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
@@ -12,11 +13,11 @@ void main() {
   late FulusProductCanonicalReconciler reconciler;
 
   setUpAll(() {
-    registerFallbackValue(const ProductDraft(
+    registerFallbackValue(ProductDraft(
       name: 'fallback',
       sku: 'fallback',
-      costPrice: 0,
-      sellingPrice: 1,
+      costPrice: moneyFromMajor(0),
+      sellingPrice: moneyFromMajor(1),
       locationId: 'fallback',
     ));
   });
@@ -83,8 +84,8 @@ void main() {
           barcode: '123',
           categoryId: 'category-1',
           supplierId: 'supplier-1',
-          costPrice: 1000,
-          sellingPrice: 1500,
+          costPrice: moneyFromMajor(1000),
+          sellingPrice: moneyFromMajor(1500),
           lowStockThreshold: 5,
           isActive: true,
           photoPath: 'https://bejcuvoxemwomcatgyxz.supabase.co/storage/v1/object/public/product-images/business/product-1/photo.jpg',

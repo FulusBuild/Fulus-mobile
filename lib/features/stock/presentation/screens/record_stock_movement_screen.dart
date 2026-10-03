@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/money/money.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/product.dart';
@@ -167,7 +168,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
               quantity: quantity,
               reason: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
             ),
-            costPrice: double.tryParse(_costPriceController.text.trim()),
+            costPrice: (() { final value = double.tryParse(_costPriceController.text.trim()); return value == null ? null : moneyFromMajor(value); })(),
             supplierLocalId: _supplierId,
             onAccount: _onAccount,
           );

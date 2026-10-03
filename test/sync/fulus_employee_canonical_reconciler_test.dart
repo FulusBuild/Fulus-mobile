@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_employee_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
@@ -94,7 +95,7 @@ void main() {
           role: 'cashier',
           department: 'Sales',
           position: 'Cashier',
-          salary: 85000,
+          salary: moneyFromMajor(85000),
           phone: '+2348000000000',
           email: 'amina@example.com',
           dateHired: DateTime.parse('2026-01-02'),

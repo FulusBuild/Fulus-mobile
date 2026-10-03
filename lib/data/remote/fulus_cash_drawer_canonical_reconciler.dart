@@ -1,4 +1,5 @@
 import '../../domain/repositories/cash_drawer_shift_repository.dart';
+import '../../core/money/money.dart';
 import 'fulus_sync_api.dart';
 
 /// Maps canonical cash-drawer state into the entity-owned repository.
@@ -56,12 +57,11 @@ class FulusCashDrawerCanonicalReconciler {
 
   String? _nullableString(Object? value) => value is String ? value : null;
 
-  double _number(Object? value) {
-    if (value is num) return value.toDouble();
-    throw StateError('Canonical cash drawer payload contains an invalid number.');
+  Money _number(Object? value) {
+    return moneyFromWire(value);
   }
 
-  double? _nullableNumber(Object? value) => value is num ? value.toDouble() : null;
+  Money? _nullableNumber(Object? value) => value == null ? null : moneyFromWire(value);
 
   DateTime _date(Object? value) {
     final parsed = value is String ? DateTime.tryParse(value) : null;

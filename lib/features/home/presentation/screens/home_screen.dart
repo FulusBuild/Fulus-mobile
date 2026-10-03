@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../../../core/money/money.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -457,7 +459,7 @@ class _HomeMockupDashboard extends StatelessWidget {
   final bool canViewMoney;
   final bool canViewReports;
 
-  double? get _salesTotal => switch (hero) {
+  Money? get _salesTotal => switch (hero) {
     null => null,
     NotYetOpenedHero(:final yesterdayTotal) => yesterdayTotal,
     OpenHero(:final todayTotal) => todayTotal,
@@ -580,7 +582,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
     required this.currencySymbol,
   });
 
-  final double? salesTotal;
+  final Money? salesTotal;
   final int? salesCount;
   final bool error;
   final String currencySymbol;

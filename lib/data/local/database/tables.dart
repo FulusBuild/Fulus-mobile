@@ -226,8 +226,8 @@ class Products extends Table with SyncableColumns {
   TextColumn get barcode => text().nullable()();
   TextColumn get categoryId => text().nullable()();
   TextColumn get supplierId => text().nullable()();
-  RealColumn get costPrice => real()();
-  RealColumn get sellingPrice => real()();
+  IntColumn get costPrice => integer()();
+  IntColumn get sellingPrice => integer()();
   IntColumn get lowStockThreshold => integer().withDefault(const Constant(10))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
@@ -289,14 +289,14 @@ class Customers extends Table with SyncableColumns {
   TextColumn get email => text().nullable()();
   TextColumn get address => text().nullable()();
   TextColumn get notes => text().nullable()();
-  RealColumn get outstandingBalance => real().withDefault(const Constant(0))();
+  IntColumn get outstandingBalance => integer().withDefault(const Constant(0))();
 
   /// No backend column — verified directly against
   /// backend/app/models/customer.py, same audit pass as Products'
   /// tracksStock above. Never enforced as a hard block anywhere this
   /// field is read; see CustomerEngine.checkCreditLimitWarning — a
   /// guide, not an automatic block.
-  RealColumn get creditLimit => real().nullable()();
+  IntColumn get creditLimit => integer().nullable()();
 
   /// No backend column. Incremented locally when a sale completes for
   /// this customer — see CustomerLedgerEntries' own doc comment for the
@@ -361,7 +361,7 @@ class Sales extends Table with SyncableColumns {
   /// shifts at the same location legitimately overlap.
   TextColumn get cashierUserId => text().nullable().references(Users, #localId)();
   DateTimeColumn get saleDate => dateTime()();
-  RealColumn get subtotal => real()();
+  IntColumn get subtotal => integer()();
 
   /// The whole-cart discount specifically, kept separate from
   /// `discount` below so either it or a line's own `lineDiscount`
@@ -371,11 +371,11 @@ class Sales extends Table with SyncableColumns {
   /// line's `lineDiscount`, combined) — this column exists purely so
   /// that combination can be recomputed correctly after any one edit,
   /// not so two numbers get sent to the backend where one is expected.
-  RealColumn get wholeCartDiscount => real().withDefault(const Constant(0))();
-  RealColumn get discount => real().withDefault(const Constant(0))();
-  RealColumn get tax => real().withDefault(const Constant(0))();
-  RealColumn get total => real()();
-  RealColumn get amountPaid => real().withDefault(const Constant(0))();
+  IntColumn get wholeCartDiscount => integer().withDefault(const Constant(0))();
+  IntColumn get discount => integer().withDefault(const Constant(0))();
+  IntColumn get tax => integer().withDefault(const Constant(0))();
+  IntColumn get total => integer()();
+  IntColumn get amountPaid => integer().withDefault(const Constant(0))();
   // balanceDue and paymentStatus are NOT stored columns — both are
   // derived (total - amountPaid; a simple bucketed comparison) rather
   // than persisted, mirroring the backend's own SaleOut, where
@@ -430,9 +430,9 @@ class SaleItems extends Table {
   TextColumn get productLocalId => text().nullable().references(Products, #localId)();
   TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get quantity => integer()();
-  RealColumn get unitPrice => real()();
-  RealColumn get costPriceAtSale => real()();
-  RealColumn get lineDiscount => real().withDefault(const Constant(0))();
+  IntColumn get unitPrice => integer()();
+  IntColumn get costPriceAtSale => integer()();
+  IntColumn get lineDiscount => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -500,7 +500,7 @@ class Expenses extends Table with SyncableColumns {
   TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get categoryId => text().nullable()();
   TextColumn get description => text()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   DateTimeColumn get expenseDate => dateTime()();
   TextColumn get paymentMethod => text().nullable()();
 
@@ -528,7 +528,7 @@ class IncomeRecords extends Table with SyncableColumns {
   /// above for the fuller reasoning (same rule, same backend gap).
   TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get source => text()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   DateTimeColumn get incomeDate => dateTime()();
   TextColumn get notes => text().nullable()();
 
@@ -805,8 +805,8 @@ class Suppliers extends Table with SyncableColumns {
   /// What the business currently owes this supplier — see
   /// `SupplierLedgerEntries`' own doc comment for the "no backend
   /// column at all" gap this reflects.
-  RealColumn get outstandingBalance =>
-      real().withDefault(const Constant(0))();
+  IntColumn get outstandingBalance =>
+      integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -843,7 +843,7 @@ class Suppliers extends Table with SyncableColumns {
 class CustomerLedgerEntries extends Table with SyncableColumns {
   TextColumn get customerLocalId => text().references(Customers, #localId)();
   TextColumn get entryType => text()(); // creditSale | repayment | refundAdjustment
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   TextColumn get paymentMethod => text().nullable()();
   TextColumn get note => text().nullable()();
   TextColumn get saleLocalId =>
@@ -870,7 +870,7 @@ class SalePayments extends Table {
   TextColumn get localId => text()();
   TextColumn get saleLocalId => text().references(Sales, #localId)();
   TextColumn get method => text()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   DateTimeColumn get recordedAt => dateTime()();
 
   @override
@@ -920,7 +920,7 @@ class ReturnRequests extends Table with SyncableColumns {
   TextColumn get originalSaleLocalId => text().references(Sales, #localId)();
   TextColumn get status => text()(); // pending | approved | rejected | completed
   TextColumn get returnReason => text().withLength(min: 1, max: 500)();
-  RealColumn get refundAmount => real()();
+  IntColumn get refundAmount => integer()();
   TextColumn get refundMethod => text().withLength(min: 1, max: 30)();
   BoolColumn get inventoryRestored =>
       boolean().withDefault(const Constant(false))();
@@ -988,8 +988,8 @@ class DraftCarts extends Table {
   TextColumn get localId => text()();
   TextColumn get locationId => text().references(Locations, #localId)();
   TextColumn get customerLocalId => text().nullable()();
-  RealColumn get wholeCartDiscount => real().withDefault(const Constant(0))();
-  RealColumn get tax => real().withDefault(const Constant(0))();
+  IntColumn get wholeCartDiscount => integer().withDefault(const Constant(0))();
+  IntColumn get tax => integer().withDefault(const Constant(0))();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -1005,9 +1005,9 @@ class DraftCartItems extends Table {
   TextColumn get productLocalId => text().nullable().references(Products, #localId)();
   TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get quantity => integer()();
-  RealColumn get unitPrice => real()();
-  RealColumn get costPriceAtSale => real().withDefault(const Constant(0))();
-  RealColumn get lineDiscount => real().withDefault(const Constant(0))();
+  IntColumn get unitPrice => integer()();
+  IntColumn get costPriceAtSale => integer().withDefault(const Constant(0))();
+  IntColumn get lineDiscount => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {localId};
@@ -1018,7 +1018,7 @@ class DraftCartPayments extends Table {
   TextColumn get localId => text()();
   TextColumn get draftCartLocalId => text().references(DraftCarts, #localId)();
   TextColumn get method => text()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   DateTimeColumn get recordedAt => dateTime()();
 
   @override
@@ -1058,7 +1058,7 @@ class SupplierLedgerEntries extends Table {
   TextColumn get localId => text()();
   TextColumn get supplierLocalId => text().references(Suppliers, #localId)();
   TextColumn get entryType => text()(); // stockPurchaseOnCredit | paymentMade
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   TextColumn get paymentMethod => text().nullable()();
   TextColumn get note => text().nullable()();
   TextColumn get stockMovementLocalId => text().nullable()();
@@ -1082,7 +1082,7 @@ class TaxRemittances extends Table {
   TextColumn get locationId => text().references(Locations, #localId)();
   DateTimeColumn get periodStart => dateTime()();
   DateTimeColumn get periodEnd => dateTime()();
-  RealColumn get amountRemitted => real()();
+  IntColumn get amountRemitted => integer()();
   TextColumn get referenceNumber => text().nullable()();
   TextColumn get note => text().nullable()();
   DateTimeColumn get remittedAt => dateTime()();
@@ -1123,9 +1123,9 @@ class CashDrawerShifts extends Table with SyncableColumns {
   TextColumn get locationId => text().references(Locations, #localId)();
   DateTimeColumn get openedAt => dateTime()();
   DateTimeColumn get closedAt => dateTime().nullable()();
-  RealColumn get openingCash => real().withDefault(const Constant(0))();
-  RealColumn get closingCash => real().nullable()();
-  RealColumn get cashDifference => real().nullable()();
+  IntColumn get openingCash => integer().withDefault(const Constant(0))();
+  IntColumn get closingCash => integer().nullable()();
+  IntColumn get cashDifference => integer().nullable()();
   TextColumn get closingNote => text().nullable()();
   BoolColumn get closingSummaryLocked =>
       boolean().withDefault(const Constant(false))();

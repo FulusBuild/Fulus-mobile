@@ -1,4 +1,5 @@
 import '../../core/utils/csv_parser.dart';
+import '../../core/money/money.dart';
 import '../entities/category.dart';
 import '../entities/product.dart';
 import '../entities/product_import.dart';
@@ -118,8 +119,8 @@ class ImportProductsFromCsv {
           barcode: row.barcode,
           categoryId: categoryId,
           supplierId: supplierId,
-          costPrice: row.costPrice,
-          sellingPrice: row.sellingPrice,
+          costPrice: moneyFromMajor(row.costPrice),
+          sellingPrice: moneyFromMajor(row.sellingPrice),
           lowStockThreshold: row.lowStockThreshold,
           initialStock: row.initialStock,
           locationId: locationId,

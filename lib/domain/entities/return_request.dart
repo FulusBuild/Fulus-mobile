@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 part 'return_request.g.dart';
 
@@ -54,7 +55,7 @@ class ReturnRequest {
   /// line's *weighted-average* price within the original sale — see
   /// that method's own doc comment for why a plain per-line price isn't
   /// enough. Never caller-supplied.
-  final double refundAmount;
+  final Money refundAmount;
 
   /// Same plain-string choice `SalePayment.method` made — defaults to
   /// the original sale's payment method in the UI (Volume 5: "matches
@@ -191,7 +192,7 @@ class ReturnResponseDto {
   final String originalSaleId;
   final String status;
   final String returnReason;
-  final double refundAmount;
+  final Money refundAmount;
   final String refundMethod;
   final List<ReturnItemDto> items;
   final bool inventoryRestored;

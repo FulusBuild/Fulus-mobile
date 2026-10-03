@@ -1,4 +1,5 @@
 import '../../domain/entities/customer_ledger_entry.dart';
+import '../../core/money/money.dart';
 import '../../domain/repositories/customer_credit_repository.dart';
 import 'fulus_sync_api.dart';
 
@@ -71,9 +72,8 @@ class FulusCustomerLedgerCanonicalReconciler {
 
   String? _nullableString(Object? value) => value is String ? value : null;
 
-  double _number(Object? value) {
-    if (value is num) return value.toDouble();
-    throw StateError('Canonical customer ledger amount is invalid.');
+  Money _number(Object? value) {
+    return moneyFromWire(value);
   }
 
   DateTime _date(Object? value) {

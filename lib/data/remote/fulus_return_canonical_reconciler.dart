@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../domain/entities/return_canonical_state.dart';
 import '../../domain/repositories/return_canonical_repository.dart';
 import 'fulus_sync_api.dart';
@@ -64,9 +65,8 @@ class FulusReturnCanonicalReconciler {
     return value;
   }
 
-  double _number(Object? value) {
-    if (value is num) return value.toDouble();
-    throw StateError('Canonical return payload contains an invalid number.');
+  Money _number(Object? value) {
+    return moneyFromWire(value);
   }
 
   int _integer(Object? value) {

@@ -24,6 +24,8 @@
 ///   already correct.
 library;
 
+import 'package:fulus_mobile/core/money/money.dart';
+
 /// Volume 7: "An owner extending credit past a customer's set limit
 /// sees a plain warning... but can proceed." Returns the overage
 /// (always positive) if the proposed new balance would exceed
@@ -32,10 +34,10 @@ library;
 /// warning ever applies). **Never throws** — informational, not a
 /// block; Decision 23 is explicit that a limit is "a guide," not an
 /// enforced ceiling.
-double? checkCreditLimitWarning({
-  required double currentBalance,
-  required double proposedAdditionalCredit,
-  required double? creditLimit,
+Money? checkCreditLimitWarning({
+  required Money currentBalance,
+  required Money proposedAdditionalCredit,
+  required Money? creditLimit,
 }) {
   if (creditLimit == null) return null;
   final projectedBalance = currentBalance + proposedAdditionalCredit;
@@ -62,12 +64,12 @@ bool hasReachedLoyaltyThreshold({
 /// disappearing, for the owner to resolve." Returns `(newBalance,
 /// excessAmount)` — `excessAmount` is `0` in the ordinary case where the
 /// repayment didn't exceed what was owed.
-({double newBalance, double excessAmount}) computeRepaymentEffect({
-  required double currentBalance,
-  required double repaymentAmount,
+({Money newBalance, Money excessAmount}) computeRepaymentEffect({
+  required Money currentBalance,
+  required Money repaymentAmount,
 }) {
   if (repaymentAmount <= currentBalance) {
-    return (newBalance: currentBalance - repaymentAmount, excessAmount: 0.0);
+    return (newBalance: currentBalance - repaymentAmount, excessAmount: 0);
   }
-  return (newBalance: 0.0, excessAmount: repaymentAmount - currentBalance);
+  return (newBalance: 0, excessAmount: repaymentAmount - currentBalance);
 }

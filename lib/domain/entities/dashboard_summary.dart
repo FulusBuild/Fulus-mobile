@@ -1,4 +1,5 @@
 /// Dashboard / Home — the other half of Stage 12.
+import 'package:fulus_mobile/core/money/money.dart';
 ///
 /// Volume 4 is explicit that Home is NOT a dashboard: "one evolving hero
 /// element... not five widgets shown at once." [HomeHeroState] models
@@ -28,7 +29,7 @@ sealed class HomeHeroState {
 /// this module stays correct in the meantime.
 final class NotYetOpenedHero extends HomeHeroState {
   const NotYetOpenedHero({required this.yesterdayTotal, required this.yesterdaySalesCount});
-  final double yesterdayTotal;
+  final Money yesterdayTotal;
   final int yesterdaySalesCount;
 }
 
@@ -42,7 +43,7 @@ final class OpenHero extends HomeHeroState {
     this.yesterdayTotal = 0,
     this.yesterdaySalesCount = 0,
   });
-  final double todayTotal;
+  final Money todayTotal;
   final int todaySalesCount;
   final bool closeShopEmphasized;
 
@@ -55,14 +56,14 @@ final class OpenHero extends HomeHeroState {
   /// value here, not just a safe default — see [HomeHeroState] callers'
   /// own "never shown as '0% vs yesterday'" rule for why a UI reading
   /// this must treat 0 as "omit the comparison," never as a real -100%.
-  final double yesterdayTotal;
+  final Money yesterdayTotal;
   final int yesterdaySalesCount;
 }
 
 /// After Close Shop / Daily Closing — "a number that's now history."
 final class ClosedHero extends HomeHeroState {
   const ClosedHero({required this.finalTotal, required this.finalSalesCount});
-  final double finalTotal;
+  final Money finalTotal;
   final int finalSalesCount;
 }
 
@@ -73,7 +74,7 @@ final class ClosedHero extends HomeHeroState {
 /// flag on OpenHero.
 final class EmployeeShiftHero extends HomeHeroState {
   const EmployeeShiftHero({required this.shiftTotal, required this.shiftSalesCount});
-  final double shiftTotal;
+  final Money shiftTotal;
   final int shiftSalesCount;
 }
 

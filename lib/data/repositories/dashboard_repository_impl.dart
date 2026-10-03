@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../../core/money/money.dart';
+
 import '../../domain/entities/dashboard_summary.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../domain/usecases/dashboard_engine.dart';
@@ -62,9 +64,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
       todaySalesQuery.where((s) => s.cashierUserId.equals(currentAuthUserId));
     }
     final todaySales = await todaySalesQuery.get();
-    final todayTotal = todaySales.fold<double>(0, (s, r) => s + r.total);
+    final Money todayTotal = todaySales.fold<Money>(0, (s, r) => s + r.total);
 
-    double yesterdayTotal = 0;
+    Money yesterdayTotal = 0;
     int yesterdayCount = 0;
     if (isOwner) {
       final yesterdaySales = await (_db.select(_db.sales)
@@ -74,7 +76,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
                 s.locationId.equals(locationId) &
                 s.deletedAt.isNull()))
           .get();
-      yesterdayTotal = yesterdaySales.fold<double>(0, (s, r) => s + r.total);
+      yesterdayTotal = yesterdaySales.fold<Money>(0, (s, r) => s + r.total);
       yesterdayCount = yesterdaySales.length;
     }
 

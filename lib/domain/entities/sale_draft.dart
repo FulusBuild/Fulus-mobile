@@ -1,4 +1,5 @@
 import 'sale.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'sale_payment.dart';
 
 /// The not-yet-persisted input to `SaleRepository.createSale` —
@@ -42,7 +43,8 @@ class SaleDraft {
   final String locationId;
 
   final String? customerId;
-  final double discount;
+  @MoneyJsonConverter()
+  final Money discount;
 
   /// The whole-cart-discount component specifically — see
   /// `Sale.wholeCartDiscount`'s own doc comment for why this is kept
@@ -51,9 +53,12 @@ class SaleDraft {
   /// only real caller that ever sets this to something nonzero today;
   /// everything else constructing a `SaleDraft` directly has no
   /// whole-cart/line split to report and leaves it at the default.
-  final double wholeCartDiscount;
-  final double tax;
-  final double amountPaid;
+  @MoneyJsonConverter()
+  final Money wholeCartDiscount;
+  @MoneyJsonConverter()
+  final Money tax;
+  @MoneyJsonConverter()
+  final Money amountPaid;
   final String? paymentMethod;
   final String? notes;
 
@@ -66,10 +71,10 @@ class SaleDraft {
   /// above are enough on their own, exactly as before this pass.
   final List<SalePayment> payments;
 
-  double get subtotal =>
-      items.fold(0.0, (sum, item) => sum + item.lineTotal);
+  Money get subtotal =>
+      items.fold<Money>(0, (sum, item) => sum + item.lineTotal);
 
-  double get total => subtotal - discount + tax;
+  Money get total => subtotal - discount + tax;
 
   /// Commits this draft into a real [Sale] — called exactly once, by
   /// the repository, at the moment persistence actually happens.

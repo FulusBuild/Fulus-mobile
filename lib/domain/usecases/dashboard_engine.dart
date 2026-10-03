@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../entities/dashboard_summary.dart';
 
 /// Whether the business day has been opened/closed for cash-drawer
@@ -27,10 +28,10 @@ class DashboardEngine {
   /// DashboardRepositoryImpl already fetched.
   HomeHeroState deriveHeroState({
     required bool isOwner,
-    required double shiftOrTodayTotal,
+    required Money shiftOrTodayTotal,
     required int shiftOrTodaySalesCount,
     required ShopDayStatus dayStatus,
-    double yesterdayTotal = 0,
+    Money yesterdayTotal = 0,
     int yesterdaySalesCount = 0,
     DateTime? now,
     int typicalClosingHour = 20,

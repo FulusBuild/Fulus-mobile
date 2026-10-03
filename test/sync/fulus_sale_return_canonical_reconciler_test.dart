@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fulus_mobile/data/remote/fulus_return_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sale_canonical_reconciler.dart';
@@ -21,11 +22,11 @@ void main() {
       locationServerId: 'fallback',
       cashierUserId: null,
       saleDate: DateTime(2026),
-      subtotal: 0,
-      discount: 0,
-      tax: 0,
-      total: 0,
-      amountPaid: 0,
+      subtotal: moneyFromMajor(0),
+      discount: moneyFromMajor(0),
+      tax: moneyFromMajor(0),
+      total: moneyFromMajor(0),
+      amountPaid: moneyFromMajor(0),
       paymentMethod: 'cash',
       notes: null,
       createdAt: DateTime(2026),
@@ -39,7 +40,7 @@ void main() {
       originalSaleServerId: 'fallback',
       status: 'completed',
       returnReason: 'fallback',
-      refundAmount: 0,
+      refundAmount: moneyFromMajor(0),
       refundMethod: 'cash',
       inventoryRestored: false,
       isVoid: false,
@@ -100,7 +101,7 @@ void main() {
     final captured = verify(() => repository.reconcileServerState(captureAny())).captured.single as SaleCanonicalState;
     expect(captured.serverId, 'sale-1');
     expect(captured.items.single.productServerId, 'product-1');
-    expect(captured.payments.single.amount, 1000);
+    expect(captured.payments.single.amount, moneyFromMajor(1000));
   });
 
   test('maps canonical return aggregate', () async {
