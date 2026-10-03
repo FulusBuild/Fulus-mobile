@@ -1,4 +1,5 @@
 import '../../domain/entities/customer.dart';
+import '../../core/money/money.dart;
 import '../../domain/repositories/customer_repository.dart';
 import 'fulus_sync_api.dart';
 
