@@ -1,3 +1,4 @@
+import '../../../core/money/money.dart';
 import '../../../domain/entities/report.dart';
 import 'money_transaction.dart';
 
@@ -11,7 +12,7 @@ import 'money_transaction.dart';
 class CategoryTotal {
   const CategoryTotal({required this.label, required this.amount, required this.count, this.type});
   final String label;
-  final double amount;
+  final Money amount;
   final int count;
   final MoneyTransactionType? type;
 }
@@ -32,14 +33,14 @@ class MoneySummary {
   });
 
   final ReportPeriod period;
-  final double moneyIn;
-  final double moneyOut;
-  double get net => moneyIn - moneyOut;
+  final Money moneyIn;
+  final Money moneyOut;
+  Money get net => moneyIn - moneyOut;
 
   /// Net for the immediately-preceding period of the same length —
   /// what the hero's trend arrow compares against, same "vs previous
   /// period of equal length" rule Reports' Finance tab already uses.
-  final double previousNet;
+  final Money previousNet;
 
   final List<CategoryTotal> incomeBreakdown;
   final List<CategoryTotal> expenseBreakdown;
