@@ -1,4 +1,5 @@
 import '../entities/income_record.dart';
+import '../../core/money/money.dart;
 
 /// Architecture Section 4's repository pattern, applied to IncomeRecords.
 abstract class IncomeRecordRepository {
@@ -26,7 +27,7 @@ abstract class IncomeRecordRepository {
     required String serverId,
     required String locationServerId,
     required String source,
-    required double amount,
+    required Money amount,
     required DateTime incomeDate,
     String? notes,
     required DateTime createdAt,
