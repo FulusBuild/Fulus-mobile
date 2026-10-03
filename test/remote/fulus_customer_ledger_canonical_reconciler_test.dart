@@ -1,5 +1,5 @@
-import 'package:fulus_mobile/core/money/money.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 import 'package:fulus_mobile/data/remote/fulus_customer_ledger_canonical_reconciler.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
@@ -9,7 +9,7 @@ import 'package:fulus_mobile/domain/repositories/customer_credit_repository.dart
 class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   CustomerLedgerEntryType? entryType;
   String? serverId;
-  Money? amount;
+  double? amount;
   String? operationId;
 
   @override
@@ -18,7 +18,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
     required String customerServerId,
     String? saleServerId,
     required CustomerLedgerEntryType entryType,
-    required Money amount,
+    required double amount,
     String? paymentMethod,
     String? note,
     required DateTime createdAt,
@@ -34,15 +34,15 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   @override
   Future<CustomerLedgerEntry> recordCreditSale({
     required String customerLocalId,
-    required Money amount,
+    required double amount,
     required String saleLocalId,
   }) => throw UnimplementedError();
 
   @override
-  Future<({CustomerLedgerEntry entry, Money newBalance, Money excessAmount})>
+  Future<({CustomerLedgerEntry entry, double newBalance, double excessAmount})>
       recordRepayment({
     required String customerLocalId,
-    required Money amount,
+    required double amount,
     String? paymentMethod,
     String? note,
     String? saleLocalId,
@@ -51,7 +51,7 @@ class _FakeCustomerCreditRepository implements CustomerCreditRepository {
   @override
   Future<CustomerLedgerEntry> recordRefundAdjustment({
     required String customerLocalId,
-    required Money amount,
+    required double amount,
     required String saleLocalId,
   }) => throw UnimplementedError();
 
@@ -97,7 +97,7 @@ void main() {
 
     expect(repository.serverId, 'ledger-1');
     expect(repository.entryType, CustomerLedgerEntryType.refundAdjustment);
-    expect(repository.amount, 2500);
+    expect(repository.amount, moneyFromMajor(25));
   });
 
   test('uses created_at when canonical customer ledger has no updated_at', () async {
@@ -125,7 +125,7 @@ void main() {
 
     expect(repository.serverId, 'ledger-2');
     expect(repository.entryType, CustomerLedgerEntryType.repayment);
-    expect(repository.amount, 1000);
+    expect(repository.amount, moneyFromMajor(10));
     expect(repository.operationId, 'repayment-operation-1');
   });
 }
