@@ -1,9 +1,9 @@
-import 'package:fulus_mobile/core/money/money.dart';
 import 'dart:convert';
 
 import 'package:fulus_mobile/domain/entities/receipt.dart';
 import 'package:fulus_mobile/domain/usecases/receipt_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   const engine = ReceiptEngine();
@@ -21,8 +21,8 @@ void main() {
           ReceiptLineItem(productName: 'Milk', quantity: 1, unitPrice: moneyFromMajor(200), lineTotal: 200),
         ],
         subtotal: moneyFromMajor(1000),
-        discount: moneyFromMajor(0),
-        tax: moneyFromMajor(0),
+        discount: 0,
+        tax: 0,
         total: total,
         amountPaid: amountPaid,
         paymentStatus: 'paid',
@@ -32,15 +32,15 @@ void main() {
 
   group('ReceiptData.balanceDue', () {
     test('is zero when fully paid', () {
-      expect(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)).balanceDue, moneyFromMajor(0));
+      expect(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)).balanceDue, 0);
     });
 
     test('is the shortfall when partially paid', () {
-      expect(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)).balanceDue, moneyFromMajor(400));
+      expect(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)).balanceDue, 400);
     });
 
     test('never goes negative on overpayment', () {
-      expect(sample(amountPaid: moneyFromMajor(1200), total: moneyFromMajor(1000)).balanceDue, moneyFromMajor(0));
+      expect(sample(amountPaid: moneyFromMajor(1200), total: moneyFromMajor(1000)).balanceDue, 0);
     });
   });
 
@@ -51,16 +51,16 @@ void main() {
   // implied. Mirrors balanceDue's own three cases exactly, on purpose.
   group('ReceiptData.changeDue (bug fix)', () {
     test('is zero when fully paid', () {
-      expect(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)).changeDue, moneyFromMajor(0));
+      expect(sample(amountPaid: moneyFromMajor(1000), total: moneyFromMajor(1000)).changeDue, 0);
     });
 
     test('is zero when underpaid — changeDue and balanceDue never both '
         'have money owed at once', () {
-      expect(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)).changeDue, moneyFromMajor(0));
+      expect(sample(amountPaid: moneyFromMajor(600), total: moneyFromMajor(1000)).changeDue, 0);
     });
 
     test('is the excess amount on overpayment', () {
-      expect(sample(amountPaid: moneyFromMajor(1200), total: moneyFromMajor(1000)).changeDue, moneyFromMajor(200));
+      expect(sample(amountPaid: moneyFromMajor(1200), total: moneyFromMajor(1000)).changeDue, 200);
     });
   });
 
