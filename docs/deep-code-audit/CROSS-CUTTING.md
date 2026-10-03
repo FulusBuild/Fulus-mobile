@@ -195,3 +195,22 @@ Status: Fixed in Part 14 source; CI/runtime verification pending.
 The canonical pull path fences incoming server changes against pending local outbox mutations. The common entity lookup omitted employee rows, unlike the other registered sync entities. Part 14 added the employee serverId→localId lookup and a regression proving a queued employee update blocks canonical application.
 
 The employee repository completion path was also cross-checked and already fences stale push completions against newer employee mutations.
+
+## X-016 — Diagnostic failure containment
+
+Status: Fixed in Part 19 source; CI/runtime verification pending.
+
+The diagnostic logger's capture/write path already had fallback containment, but read/maintenance methods delegated directly to the store. Part 19 added a defensive facade boundary so a failing diagnostic store cannot become a user-facing failure.
+
+## X-017 — Production Auth password security configuration
+
+Status: Open; production configuration evidence.
+
+Supabase's production security advisor reports leaked-password protection disabled. This is an Auth configuration item rather than a repository migration. It must be enabled and re-verified in production.
+
+## X-018 — Final runtime evidence boundary
+
+Status: Open.
+
+Parts 15, 17, 18 and 19 still require real Android/runtime evidence for fresh-install restore, process-death WorkManager recovery, instant navigation/branch behavior, and diagnostic capture/fallback. Part 20 additionally requires a targeted production authorization matrix before the audit can be declared fully closed.
+
