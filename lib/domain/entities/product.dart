@@ -32,7 +32,9 @@ class Product {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
+  @MoneyJsonConverter()
   final Money costPrice;
+  @MoneyJsonConverter()
   final Money sellingPrice;
   final int lowStockThreshold;
   final bool isActive;
@@ -61,7 +63,9 @@ class ProductDraft {
 
   final String name;
   final String sku;
+  @MoneyJsonConverter()
   final Money costPrice;
+  @MoneyJsonConverter()
   final Money sellingPrice;
   final String locationId;
   final String? barcode;
@@ -111,7 +115,9 @@ class ProductCreateDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
+  @MoneyJsonConverter()
   final Money costPrice;
+  @MoneyJsonConverter()
   final Money sellingPrice;
   final int lowStockThreshold;
   final int initialStock;
@@ -140,7 +146,9 @@ class ProductUpdateDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
+  @MoneyJsonConverter()
   final Money? costPrice;
+  @MoneyJsonConverter()
   final Money? sellingPrice;
   final int? lowStockThreshold;
   final bool? isActive;
@@ -184,12 +192,15 @@ class ProductResponseDto {
   final String? barcode;
   final String? categoryId;
   final String? supplierId;
+  @MoneyJsonConverter()
   final Money costPrice;
+  @MoneyJsonConverter()
   final Money sellingPrice;
   final int lowStockThreshold;
   final int currentStock;
   final bool isActive;
   final bool isLowStock;
+  @MoneyJsonConverter()
   final Money stockValue;
   final String? photoPath;
 
