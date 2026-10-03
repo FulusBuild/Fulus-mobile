@@ -6,7 +6,6 @@ import 'package:fulus_mobile/data/repositories/finance_stats_repository_impl.dar
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fulus_mobile/core/money/money.dart';
 
 void main() {
   late AppDatabase db;
@@ -50,9 +49,9 @@ void main() {
             clientReference: localId,
             locationId: locationId,
             saleDate: saleDate,
-            subtotal: moneyFromMajor(total),
-            total: moneyFromMajor(total),
-            amountPaid: Value(moneyFromMajor(amountPaid)),
+            subtotal: total,
+            total: total,
+            amountPaid: Value(amountPaid),
             createdAt: saleDate,
             updatedAt: saleDate,
             syncStatus: SyncStatus.settled,
@@ -64,8 +63,8 @@ void main() {
               localId: '$localId-item-$i',
               saleLocalId: localId,
               quantity: items[i].quantity,
-              unitPrice: 1000000,
-              costPriceAtSale: moneyFromMajor(items[i].costPriceAtSale),
+              unitPrice: 100,
+              costPriceAtSale: items[i].costPriceAtSale,
             ),
           );
     }
@@ -78,8 +77,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 10000000,
-        amountPaid: 10000000,
+        total: 1000,
+        amountPaid: 1000,
         items: [(costPriceAtSale: 60, quantity: 5)],
       );
 
@@ -100,8 +99,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 20000000,
-        amountPaid: 20000000,
+        total: 2000,
+        amountPaid: 2000,
         items: [
           (costPriceAtSale: 60, quantity: 5), // 5 units with cost
           (costPriceAtSale: 0, quantity: 5), // 5 units with no cost (Quick Sale)
@@ -142,8 +141,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 10000000,
-        amountPaid: 10000000,
+        total: 1000,
+        amountPaid: 1000,
         items: [(costPriceAtSale: 60, quantity: 5)],
       );
       await db.into(db.expenses).insert(
@@ -151,7 +150,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Rent',
-              amount: 2000000,
+              amount: 200,
               expenseDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -188,8 +187,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15, 14, 30), // 2:30pm
-        total: 75000000,
-        amountPaid: 75000000,
+        total: 7500,
+        amountPaid: 7500,
         items: const [],
       );
 
@@ -218,8 +217,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 10000000,
-        amountPaid: 10000000,
+        total: 1000,
+        amountPaid: 1000,
         items: const [],
       );
       await db.into(db.returnRequests).insert(
@@ -228,7 +227,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 10000000,
+              refundAmount: 1000,
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -253,8 +252,8 @@ void main() {
         localId: 'sale-voided',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 10000000,
-        amountPaid: 10000000,
+        total: 1000,
+        amountPaid: 1000,
         items: const [],
       );
       await db.into(db.returnRequests).insert(
@@ -263,7 +262,7 @@ void main() {
               originalSaleLocalId: 'sale-voided',
               status: 'completed',
               returnReason: 'Test',
-              refundAmount: 10000000,
+              refundAmount: 1000,
               refundMethod: 'cash',
               isVoid: const Value(true),
               createdAt: DateTime(2026, 1, 15),
@@ -289,8 +288,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 15),
-        total: 10000000,
-        amountPaid: 10000000,
+        total: 1000,
+        amountPaid: 1000,
         items: const [],
       );
       await db.into(db.incomeRecords).insert(
@@ -298,7 +297,7 @@ void main() {
               localId: 'income-1',
               locationId: 'loc-1',
               source: 'Old equipment sold',
-              amount: 3000000,
+              amount: 300,
               incomeDate: DateTime(2026, 1, 10),
               createdAt: DateTime(2026, 1, 10),
               updatedAt: DateTime(2026, 1, 10),
@@ -333,7 +332,7 @@ void main() {
               localId: 'expense-1',
               locationId: 'loc-1',
               description: 'Utilities',
-              amount: 1500000,
+              amount: 150,
               expenseDate: DateTime(2026, 1, 12),
               createdAt: DateTime(2026, 1, 12),
               updatedAt: DateTime(2026, 1, 12),
@@ -345,7 +344,7 @@ void main() {
               localId: 'sle-1',
               supplierLocalId: 'supplier-1',
               entryType: 'paymentMade',
-              amount: 4000000,
+              amount: 400,
               createdAt: DateTime(2026, 1, 20),
             ),
           );
@@ -381,8 +380,8 @@ void main() {
         localId: 'sale-1',
         locationId: 'loc-1',
         saleDate: DateTime(2026, 1, 5),
-        total: 10000000,
-        amountPaid: 10000000,
+        total: 1000,
+        amountPaid: 1000,
         items: const [],
       );
       await db.into(db.customerLedgerEntries).insert(
@@ -390,7 +389,7 @@ void main() {
               localId: 'cle-1',
               customerLocalId: 'customer-1',
               entryType: 'repayment',
-              amount: 2500000,
+              amount: 250,
               createdAt: DateTime(2026, 1, 18),
               updatedAt: DateTime(2026, 1, 18),
               syncStatus: SyncStatus.settled,
@@ -404,7 +403,7 @@ void main() {
               localId: 'cle-2',
               customerLocalId: 'customer-1',
               entryType: 'creditSale',
-              amount: 9990000,
+              amount: 999,
               createdAt: DateTime(2026, 1, 19),
               updatedAt: DateTime(2026, 1, 19),
               syncStatus: SyncStatus.settled,
