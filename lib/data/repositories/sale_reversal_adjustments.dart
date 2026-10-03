@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../../core/money/money.dart';
+
 import '../local/database/database.dart';
 
 /// Reversal data for a set of sales — how much of each sale's revenue,
@@ -72,14 +74,14 @@ class SaleReversalAdjustments {
   bool isVoided(String saleLocalId) => voidedSaleIds.contains(saleLocalId);
 
   /// Total refunded (non-void, completed returns only) against this sale.
-  double refundedAmountFor(String saleLocalId) => _refundedAmountBySale[saleLocalId] ?? 0.0;
+  double refundedAmountFor(String saleLocalId) => _refundedAmountBySale[saleLocalId] ?? 0;
 
   /// Total cost-of-goods-sold attributable to refunded (non-void)
   /// quantity against this sale — weighted-average cost per product,
   /// same fairness convention `ReturnRepositoryImpl._weightedAveragePrice`
   /// already uses for refund pricing, applied here to `costPriceAtSale`
   /// instead of `unitPrice`.
-  double refundedCostFor(String saleLocalId) => _refundedCostBySale[saleLocalId] ?? 0.0;
+  double refundedCostFor(String saleLocalId) => _refundedCostBySale[saleLocalId] ?? 0;
 
   /// Per-product (quantity, amount) refunded against this sale — for
   /// netting Top Products at the line level.
@@ -90,10 +92,10 @@ class SaleReversalAdjustments {
   /// (excluded entirely), otherwise the sale's total less whatever's
   /// been refunded against it — floored at 0 so a data inconsistency
   /// (a refund somehow exceeding the sale total) can't go negative.
-  double netRevenue(SaleRow sale) {
-    if (isVoided(sale.localId)) return 0.0;
+  Money netRevenue(SaleRow sale) {
+    if (isVoided(sale.localId)) return 0;
     final net = sale.total - refundedAmountFor(sale.localId);
-    return net < 0 ? 0.0 : net;
+    return net < 0 ? 0 : net;
   }
 
   /// The net cost-of-goods-sold this sale should contribute — mirrors
@@ -101,10 +103,10 @@ class SaleReversalAdjustments {
   /// [rawCost] (the sale's own `sum(costPriceAtSale * quantity)`,
   /// passed in rather than recomputed here since callers already have
   /// each sale's items loaded).
-  double netCostOfGoodsSold(String saleLocalId, double rawCost) {
-    if (isVoided(saleLocalId)) return 0.0;
+  Money netCostOfGoodsSold(String saleLocalId, Money rawCost) {
+    if (isVoided(saleLocalId)) return 0;
     final net = rawCost - refundedCostFor(saleLocalId);
-    return net < 0 ? 0.0 : net;
+    return net < 0 ? 0 : net;
   }
 
   /// The net cash this sale should be treated as having brought in —
@@ -114,11 +116,11 @@ class SaleReversalAdjustments {
   /// an unpaid credit balance) is a credit-balance adjustment
   /// (`CustomerCreditRepository.recordRefundAdjustment` already
   /// handles that separately), never cash leaving twice.
-  double netCashReceived(SaleRow sale) {
+  Money netCashReceived(SaleRow sale) {
     final reversedValue = isVoided(sale.localId) ? sale.total : refundedAmountFor(sale.localId);
     final cashGivenBack = reversedValue < sale.amountPaid ? reversedValue : sale.amountPaid;
     final net = sale.amountPaid - cashGivenBack;
-    return net < 0 ? 0.0 : net;
+    return net < 0 ? 0 : net;
   }
 
   static Future<SaleReversalAdjustments> load(AppDatabase db, Set<String> saleIds) async {
@@ -178,8 +180,8 @@ class SaleReversalAdjustments {
       if (isVoidByReturnId[item.returnLocalId] ?? false) continue;
 
       final line = linesBySaleProduct[saleId]?[item.productLocalId];
-      final unitPrice = (line == null || line.quantity == 0) ? 0.0 : line.amount / line.quantity;
-      final unitCost = (line == null || line.quantity == 0) ? 0.0 : line.cost / line.quantity;
+      final unitPrice = (line == null || line.quantity == 0) ? 0 : line.amount / line.quantity;
+      final unitCost = (line == null || line.quantity == 0) ? 0 : line.cost / line.quantity;
       final refundedAmount = unitPrice * item.quantity;
       final refundedCost = unitCost * item.quantity;
 
