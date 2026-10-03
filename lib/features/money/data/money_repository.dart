@@ -1,3 +1,4 @@
+import '../../../core/money/money.dart';
 import '../../../domain/entities/report.dart';
 import '../domain/cash_drawer_state.dart';
 import '../domain/money_summary.dart';
@@ -14,7 +15,7 @@ abstract class MoneyRepository {
   /// the real domain persists a running balance. Not period-scoped —
   /// like a bank app's balance, it doesn't move when the period filter
   /// changes, only when a new transaction is recorded.
-  Future<double> getAvailableBalance();
+  Future<Money> getAvailableBalance();
 
   /// Employee data isolation: [currentAuthUserId] and [canViewAllSales]
   /// scope every sale-derived figure here to one cashier when
@@ -76,13 +77,13 @@ abstract class MoneyRepository {
   Future<MoneyTransaction?> getTransactionById(String id);
 
   Future<MoneyTransaction> recordIncome({
-    required double amount,
+    required Money amount,
     required String source,
     String? note,
   });
 
   Future<MoneyTransaction> recordExpense({
-    required double amount,
+    required Money amount,
     required String category,
     required String paymentMethod,
     String? note,
@@ -109,11 +110,11 @@ abstract class MoneyRepository {
 
   Future<MoneyDrawerSession?> getActiveDrawerSession();
 
-  Future<MoneyDrawerSession> openDrawer({required double openingFloat});
+  Future<MoneyDrawerSession> openDrawer({required Money openingFloat});
 
   Future<MoneyExpectedCashPreview> computeExpectedCash();
 
   /// Closes the active session and returns the day's summary. Throws
   /// [StateError] if no drawer is currently open.
-  Future<DailyClosingSummary> closeDrawer({required double countedCash, String? note});
+  Future<DailyClosingSummary> closeDrawer({required Money countedCash, String? note});
 }
