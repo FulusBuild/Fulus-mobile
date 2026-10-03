@@ -805,8 +805,8 @@ class Suppliers extends Table with SyncableColumns {
   /// What the business currently owes this supplier — see
   /// `SupplierLedgerEntries`' own doc comment for the "no backend
   /// column at all" gap this reflects.
-  RealColumn get outstandingBalance =>
-      real().withDefault(const Constant(0))();
+  IntColumn get outstandingBalance =>
+      integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {localId};
