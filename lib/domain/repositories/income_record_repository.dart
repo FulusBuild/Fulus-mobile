@@ -1,5 +1,5 @@
 import '../entities/income_record.dart';
-import '../../core/money/money.dart;
+import '../../core/money/money.dart';
 
 /// Architecture Section 4's repository pattern, applied to IncomeRecords.
 abstract class IncomeRecordRepository {
