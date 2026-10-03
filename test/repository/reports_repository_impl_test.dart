@@ -215,7 +215,7 @@ void main() {
       // subtracted) — the exact defect this pins down. Matches
       // FinanceStatsRepositoryImpl.getProfitLoss's netProfit for the
       // identical seeded data.
-      expect(report.netProfit, 50000);
+      expect(report.netProfit, moneyFromMajor(50000));
     });
 
     test('a Quick Sale line (no catalog product, cost 0) correctly '
@@ -239,7 +239,7 @@ void main() {
         locationId: 'loc-1',      );
 
       expect(report.totalCostOfGoodsSold, 0);
-      expect(report.netProfit, 50000);
+      expect(report.netProfit, moneyFromMajor(50000));
     });
 
     test('multiple line items on one sale all contribute to cost of '
@@ -300,14 +300,14 @@ void main() {
         ),
         locationId: 'loc-1',      );
 
-      expect(report.netProfit, 70000);
+      expect(report.netProfit, moneyFromMajor(70000));
       // Before the fix, the current period's 800 (COGS omitted) would
       // have been compared against a previous period that (by the same
       // bug) was also COGS-omitted, i.e. 1000 — masking the bug from a
       // trend-only test. Comparing the two CORRECT figures: 700 vs 500
       // previous is a +40% change, not whatever the uncorrected pair
       // would have produced.
-      expect(report.previousPeriodNetProfit, 50000);
+      expect(report.previousPeriodNetProfit, moneyFromMajor(50000));
       expect(report.profitTrendPercent, closeTo(40.0, 0.001));
     });
 
@@ -326,7 +326,7 @@ void main() {
       expect(report.totalRevenue, 0);
       expect(report.totalCostOfGoodsSold, 0);
       expect(report.totalExpenses, 0);
-      expect(report.netProfit, 0);
+      expect(report.netProfit, moneyFromMajor(0));
       expect(report.previousPeriodNetProfit, isNull);
     });
   });
@@ -536,9 +536,9 @@ void main() {
       expect(report.totalSalesCount, 1);
       expect(report.topProducts.single.quantitySold, 2);
       expect(report.topProducts.single.revenue, 20000); // 2 * unitPrice(100)
-      expect(report.byPaymentMethod.single.total, 100000);
+      expect(report.byPaymentMethod.single.total, moneyFromMajor(100000));
       expect(report.byPaymentMethod.single.count, 1);
-      expect(report.byHour.single.total, 100000);
+      expect(report.byHour.single.total, moneyFromMajor(100000));
     });
 
     test('a partially-refunded sale nets the refunded amount/quantity '
@@ -728,7 +728,7 @@ void main() {
         locationId: 'loc-1',      );
 
       final perf = report.performance.single;
-      expect(perf.salesTotal, 0);
+      expect(perf.salesTotal, moneyFromMajor(0));
       expect(perf.salesCount, 0);
     });
   });
@@ -866,7 +866,7 @@ void main() {
         locationId: 'loc-1',      );
 
       final perf = report.performance.single;
-      expect(perf.salesTotal, 200000);
+      expect(perf.salesTotal, moneyFromMajor(200000));
       expect(perf.salesCount, 2);
     });
 
@@ -897,7 +897,7 @@ void main() {
         locationId: 'loc-1',      );
 
       final perf = report.performance.single;
-      expect(perf.salesTotal, 0);
+      expect(perf.salesTotal, moneyFromMajor(0));
       expect(perf.salesCount, 0);
     });
   });
