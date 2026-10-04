@@ -118,6 +118,7 @@ import '../sync/sync_execution_lease.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
+import '../sync/sync_service.dart';
 import 'providers.dart';
 
 Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}) async {
@@ -777,7 +778,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
-      syncTriggersProvider.overrideWithValue(syncTriggers),
+      syncServiceProvider.overrideWithValue(SyncService(syncTriggers)),
       employeeCloudSessionCoordinatorProvider.overrideWithValue(
         employeeCloudSessionCoordinator,
       ),
