@@ -43,9 +43,9 @@ class SyncCycleRunner {
   final Future<void> Function()? _onBeforeSyncCycle;
   bool _beforeSyncCycleCompleted = false;
 
-  Future<void> run({bool manual = false}) async {
+  Future<bool> run({bool manual = false}) async {
     final lease = _executionLease;
-    if (!await lease.acquire()) return;
+    if (!await lease.acquire()) return false;
 
     try {
       try {
@@ -57,10 +57,12 @@ class SyncCycleRunner {
       } on SyncExecutionLeaseLost {
         // Another runtime took ownership after this runtime was suspended.
         // The current cycle must stop without starting a later recovery phase.
+        return false;
       }
     } finally {
       await lease.release();
     }
+    return true;
   }
 
   Future<void> _perform({
