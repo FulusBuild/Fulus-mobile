@@ -250,12 +250,13 @@ class _FulusCloudConnectionScreenState
       }
 
       await _registerDevice(connection);
-      await ref.read(syncServiceProvider).enable();
+      final syncService = ref.read(syncServiceProvider);
+      await syncService.enable();
       try {
-        await ref.read(syncServiceProvider).reconcileForReadiness();
-        connection.markSyncReady();
-      } catch (_) {
-        connection.clearSyncReady();
+        await syncService.reconcileForReadiness();
+        syncService.markReady();
+      } catch (error) {
+        syncService.markReadinessError(error);
         rethrow;
       }
 
@@ -267,10 +268,10 @@ class _FulusCloudConnectionScreenState
         setState(() {});
       }
     } on Failure catch (failure) {
-      connection.clearSyncReady();
+      ref.read(syncServiceProvider).markNotReady();
       if (mounted) setState(() => _error = syncUserMessage(failure));
     } catch (error) {
-      connection.clearSyncReady();
+      ref.read(syncServiceProvider).markNotReady();
       if (mounted) {
         setState(
           () => _error = syncUserMessage(error),
@@ -337,9 +338,9 @@ class _FulusCloudConnectionScreenState
     await syncService.enable();
     try {
       await syncService.reconcileForReadiness();
-      connection.markSyncReady();
-    } catch (_) {
-      connection.clearSyncReady();
+      syncService.markReady();
+    } catch (error) {
+      syncService.markReadinessError(error);
       rethrow;
     }
 
