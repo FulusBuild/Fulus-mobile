@@ -73,7 +73,7 @@ void main() {
     service.dispose();
   });
 
-  test('restore enable arms the restore gate before enabling sync', () async {
+  test('enable propagates runtime startup failure', () async {\n    final config = await SyncConfig.load();\n    when(() => runtime.start()).thenAnswer((_) async {\n      throw StateError('startup failed');\n    });\n\n    final service = SyncService(runtime, config);\n    await service.bootstrap();\n\n    await expectLater(\n      service.enable(),\n      throwsA(isA<StateError>()),\n    );\n    service.dispose();\n  });\n\n  test('restore enable arms the restore gate before enabling sync', () async {
     final config = await SyncConfig.load();
     final events = <String>[];
     when(() => runtime.beginRestoreReconciliation()).thenAnswer((_) {
