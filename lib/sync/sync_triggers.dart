@@ -279,10 +279,15 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       // A normal trigger may already own the connectivity cycle. Waiting
       // for the shared gate preserves the existing serialization boundary.
       if (_connectivityGate.isRunning) {
-        await _connectivityGate.run();
-        return;
+        final didRun = await _connectivityGate.run();
+        if (didRun) return;
       }
 
+      // A connectivity-gated readiness attempt can finish without running a
+      // sync cycle (for example, when readiness was blocked and then yielded
+      // without establishing readiness). Restore still owns the authoritative
+      // first reconciliation, so perform that cycle here rather than treating
+      // the readiness attempt itself as the restore reconciliation.
       await _runAndCheckStuck();
   }
 
