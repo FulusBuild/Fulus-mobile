@@ -95,6 +95,13 @@ class SyncService {
       await _runtime.reconcileAfterRestore();
     } finally {
       _restoreGateArmed = false;
+      // The restore reservation intentionally suppresses the normal lifecycle
+      // start while the authoritative snapshot is being reconciled. Re-arm
+      // the ordinary runtime only after that boundary has settled, including
+      // the failure case so connectivity/retry can recover it.
+      if (_started && _config.isEnabled) {
+        unawaited(_runtime.start());
+      }
     }
   }
 
