@@ -12,10 +12,15 @@ import 'sync_runtime.dart';
 /// idempotency, leases, cursor safety, reconciliation and retry machinery are
 /// preserved while lifecycle ownership is consolidated behind one boundary.
 class SyncService {
-  SyncService(this._runtime, this._config);
+  SyncService(
+    this._runtime,
+    this._config, {
+    Future<void> Function()? bootstrapCloud,
+  }) : _bootstrapCloud = bootstrapCloud;
 
   final SyncRuntime _runtime;
   final SyncConfig _config;
+  final Future<void> Function()? _bootstrapCloud;
   bool _started = false;
   bool _restoreGateArmed = false;
   bool _disposed = false;
@@ -61,6 +66,21 @@ class SyncService {
 
   /// Starts the synchronization lifecycle for the current application
   /// runtime. This is the only application-facing startup operation.
+  /// Owns the semantic cloud-readiness bootstrap entry point.
+  ///
+  /// The concrete cloud session/business/device bootstrap is composed by the
+  /// application root, but lifecycle/readiness triggers may enter it only
+  /// through this service boundary. This keeps SyncTriggers as an event
+  /// adapter rather than a second application-facing bootstrap authority.
+  Future<void> bootstrapCloud() {
+    _ensureActive();
+    final bootstrapCloud = _bootstrapCloud;
+    if (bootstrapCloud == null) {
+      throw StateError('Cloud bootstrap is not configured.');
+    }
+    return bootstrapCloud();
+  }
+
   Future<void> bootstrap() async {
     if (_disposed) {
       throw StateError('SyncService has been disposed and cannot bootstrap.');
