@@ -165,7 +165,7 @@ class SyncService {
       // the ordinary runtime only after that boundary has settled, including
       // the failure case so connectivity/retry can recover it.
       if (_started && _config.isEnabled) {
-        unawaited(_runtime.start());
+        unawaited(_startRuntime());
       }
     }
   }
