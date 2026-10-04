@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 remains in progress — the public facade, runtime boundary, cloud-session bootstrap coordinator, and service-owned readiness state are now established; the remaining gate is a final semantic ownership/call-path audit plus regression verification before source-level completion  
+**Status:** Source-level simplification is complete. The public facade, internal runtime boundary, cloud-session bootstrap coordinator, service-owned readiness state, and final call-path ownership audit are closed. Remaining work is production/runtime evidence only.  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -67,21 +67,16 @@ This is also a sound separation of concerns. Cursor acknowledgement after local 
 
 ### Trigger/orchestration layer
 
-`SyncTriggers` is still an internal lifecycle/event adapter, but it currently coordinates more than pure event observation:
+`SyncTriggers` remains an internal lifecycle/event adapter. Its responsibilities are now bounded to:
 
-- connectivity;
-- app lifecycle;
-- periodic retry;
-- queue-enqueue events;
-- readiness entry;
-- restore reconciliation;
-- device authorization recovery;
-- stale-cursor recovery;
-- context/location reconciliation;
-- execution leasing;
-- push/pull cycle sequencing.
+- observing app lifecycle and connectivity;
+- periodic/recovery trigger timing;
+- entering the internal readiness/runtime gates;
+- delegating restore fencing;
+- scheduling device/session readiness recovery;
+- forwarding requests into the internal runtime.
 
-This remains the **largest simplification candidate**. The facade now hides it from application callers, but the adapter itself still contains synchronization lifecycle decisions that should progressively move into the service/engine boundary.
+Push/pull sequencing and stale-cursor recovery live in `SyncCycleRunner`; readiness serialization, restore fencing, connectivity coalescing, and same-runtime cycle serialization live in their dedicated internal gates. `SyncTriggers` is no longer an application-facing synchronization authority.
 
 ### Bootstrap
 
@@ -323,7 +318,7 @@ The second-pass audit identified two semantic gaps that are now addressed in sou
 1. Cloud bootstrap implementation — the large initializeCloudSync() policy function was removed from bootstrap.dart and moved into CloudSessionBootstrapCoordinator. The app root now constructs dependencies and wires the coordinator; it no longer owns the cloud lifecycle algorithm.
 2. Readiness ownership — SyncService now owns readiness state and transitions. FulusConnectionState remains the reactive application projection and continues to own cloud session/business/device facts. Ordinary sync failures do not clear readiness.
 
-The source-level Phase 5 ownership gate is now closed. Branch-wide call-path review confirms application lifecycle callers enter through SyncService; SyncTriggers remains an internal event/runtime adapter; and readiness state transitions are committed by SyncService. The remaining gate is verification: full regression/CI plus the explicitly listed real-device production evidence.
+The source-level Phase 5 ownership gate is closed. The final branch-specific call-path review confirms application lifecycle callers enter through SyncService; SyncTriggers remains internal; and readiness transitions are committed by SyncService. CI, Flutter tests, the live sync contract test, and multi-device convergence test are green. The remaining gate is explicitly runtime/production evidence.
 
 ## Third-pass ownership closure
 
@@ -392,9 +387,9 @@ Migrate, one boundary at a time:
 - restore completion;
 - device readiness.
 
-At this stage the facade is becoming the single public entry point without changing sync algorithms.
+The facade is now the single public application entry point without changing the durable sync algorithms or their correctness guarantees.
 
-### Phase 5 — consolidate lifecycle state **(in progress — ownership extraction complete; final verification gate remains)**
+### Phase 5 — consolidate lifecycle state **(complete at source level; runtime verification remains)**
 
 After callers stop directly coordinating low-level readiness, simplify:
 
