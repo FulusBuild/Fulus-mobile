@@ -88,7 +88,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   bool _started = false;
   bool _disposed = false;
   Future<bool>? _connectivityRun;
-  Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
 
