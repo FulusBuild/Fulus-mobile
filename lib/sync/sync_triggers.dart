@@ -41,54 +41,37 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     this.retryInterval = const Duration(seconds: 30),
     Future<void> Function()? onDeviceAuthorizationLost,
     SyncExecutionLease? executionLease,
-  })  : _syncEngine = syncEngine,
-        _isEnabled = isEnabled,
+})  : _isEnabled = isEnabled,
         _syncStatusNotifier = syncStatusNotifier,
-        _pullFromServer = pullFromServer,
-        _onDeviceAuthorizationLost = onDeviceAuthorizationLost,
         _isReady = isReady,
         _onNotReady = onNotReady,
         _onSyncSuccess = onSyncSuccess,
-        _onPushSuccess = onPushSuccess,
-        _hasOutboundWork = hasOutboundWork,
-        _onCursorTooOldRecovery = onCursorTooOldRecovery,
-        _onRecoveryReconciled = onRecoveryReconciled,
-        _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
-        _onBeforeSyncCycle = onBeforeSyncCycle,
         _onContextChangeReconciled = onContextChangeReconciled,
         _connectivity = connectivity ?? Connectivity(),
-        _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db) {
+        _onDeviceAuthorizationLost = onDeviceAuthorizationLost {
     _cycleRunner = SyncCycleRunner(
-      syncEngine: _syncEngine,
-      executionLease: _executionLease,
-      hasOutboundWork: _hasOutboundWork,
-      onPushSuccess: _onPushSuccess,
-      pullFromServer: _pullFromServer,
-      onCursorTooOldRecovery: _onCursorTooOldRecovery,
-      onRecoveryReconciled: _onRecoveryReconciled,
-      onRecoveryFailed: _onRecoveryFailed,
-      onBeforeSyncCycle: _onBeforeSyncCycle,
+      syncEngine: syncEngine,
+      executionLease: executionLease ?? SyncExecutionLease(syncEngine.db),
+      hasOutboundWork: hasOutboundWork,
+      onPushSuccess: onPushSuccess,
+      pullFromServer: pullFromServer,
+      onCursorTooOldRecovery: onCursorTooOldRecovery,
+      onRecoveryReconciled: onRecoveryReconciled,
+      onRecoveryFailed: onRecoveryFailed,
+      onBeforeSyncCycle: onBeforeSyncCycle,
     );
   }
 
-  final SyncEngine _syncEngine;
   final bool Function() _isEnabled;
   final SyncStatusNotifier _syncStatusNotifier;
-  final Future<void> Function()? _pullFromServer;
   final Future<bool> Function()? _isReady;
   final Future<void> Function()? _onNotReady;
   final void Function()? _onSyncSuccess;
-  final Future<void> Function(bool hadOutboundWork)? _onPushSuccess;
-  final Future<bool> Function()? _hasOutboundWork;
-  final Future<void> Function()? _onCursorTooOldRecovery;
-  final Future<void> Function()? _onRecoveryReconciled;
-  final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Future<void> Function()? _onBeforeSyncCycle;
   final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
-  final SyncExecutionLease _executionLease;
   late final SyncCycleRunner _cycleRunner;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
