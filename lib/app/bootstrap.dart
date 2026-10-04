@@ -672,7 +672,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  syncService = SyncService(syncTriggers);
+  syncService = SyncService(syncTriggers, syncConfig);
 
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
