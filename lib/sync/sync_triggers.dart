@@ -11,9 +11,8 @@ import 'sync_execution_lease.dart';
 import 'sync_cycle_runner.dart';
 import 'sync_runtime.dart';
 
-/// Wires Architecture Section 8's trigger conditions to SyncEngine.runOnce.
-/// Server -> device reconciliation is supplied separately through
-/// [pullFromServer] so the queue algorithm remains platform-independent.
+/// Adapts platform lifecycle events into the internal synchronization
+/// authority. Push/pull cycle policy lives in [SyncCycleRunner].
 ///
 /// [isReady] is deliberately separate from the service-owned persisted
 /// switch means "the user enabled sync", while readiness means the current
@@ -458,14 +457,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     // Publish the in-flight marker before the first await so concurrent
     // triggers in this runtime serialize onto the same cycle.
     late Future<bool> run;
-    run = () async {
-      try {
-        await _cycleRunner.run(manual: manual);
-        return true;
-      } catch (_) {
-        rethrow;
-      }
-    }();
+    run = _cycleRunner.run(manual: manual);
     _syncCycleRun = run;
     try {
       return await run;
