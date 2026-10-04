@@ -12,6 +12,7 @@ import 'sync_cycle_runner.dart';
 import 'sync_readiness_gate.dart';
 import 'sync_runtime.dart';
 import 'sync_readiness_recovery.dart';
+import 'sync_restore_reconciliation_gate.dart';
 
 /// Adapts platform lifecycle events into the internal synchronization
 /// authority. Push/pull cycle policy lives in [SyncCycleRunner].
@@ -66,8 +67,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       isEnabled: _isEnabled,
       isReady: _isReady,
       onNotReady: _onNotReady,
-      isRestoreReconciliationInProgress: () =>
-          _restoreReconciliationInProgress,
+      isRestoreReconciliationInProgress: () => _restoreGate.isInProgress,
     );
     _readinessRecovery = SyncReadinessRecovery(
       isActive: () => _started && _isEnabled(),
@@ -97,32 +97,20 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   bool _started = false;
   bool _disposed = false;
   Future<bool>? _connectivityRun;
-  bool _restoreReconciliationInProgress = false;
-  Future<void>? _restoreReconciliationRun;
+  final SyncRestoreReconciliationGate _restoreGate =
+      SyncRestoreReconciliationGate();
 
   /// Arms the restore gate before sync is enabled.
-  ///
-  /// SyncService enables sync through its persisted configuration listener. Restore must
-  /// therefore mark itself as the owner of the initial reconciliation before
-  /// flipping that persisted switch, otherwise the normal readiness trigger
-  /// can start a competing initialization first.
   void beginRestoreReconciliation() {
     if (_disposed) {
       throw StateError('SyncTriggers has been disposed and cannot begin restore.');
     }
-    if (_restoreReconciliationRun != null) {
-      throw StateError('A cloud restore reconciliation is already in progress.');
-    }
-    _restoreReconciliationInProgress = true;
+    _restoreGate.begin();
   }
 
   /// Releases a restore gate that was armed but never reached
   /// [reconcileAfterRestore], for example when local restore setup fails.
-  void cancelRestoreReconciliation() {
-    if (_restoreReconciliationRun == null) {
-      _restoreReconciliationInProgress = false;
-    }
-  }
+  void cancelRestoreReconciliation() => _restoreGate.cancel();
   Future<bool>? _syncCycleRun;
   Future<void>? _followUpRun;
   bool _syncRequestedAfterCycle = false;
@@ -142,7 +130,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
         await syncCycle;
         continue;
       }
-      final restore = _restoreReconciliationRun;
+      final restore = _restoreGate.activeRun;
       if (restore != null) {
         await restore;
         continue;
@@ -187,6 +175,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     _retryTimer?.cancel();
     _retryTimer = null;
     _readinessRecovery.dispose();
+    _restoreGate.dispose();
     _started = false;
   }
 
@@ -269,26 +258,10 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       );
     }
 
-    final activeRestore = _restoreReconciliationRun;
-    if (activeRestore != null) {
-      await activeRestore;
-      return;
-    }
-
-    final run = _reconcileAfterRestore();
-    _restoreReconciliationRun = run;
-    try {
-      await run;
-    } finally {
-      if (identical(_restoreReconciliationRun, run)) {
-        _restoreReconciliationRun = null;
-      }
-    }
+    await _restoreGate.run(_reconcileAfterRestore);
   }
 
   Future<void> _reconcileAfterRestore() async {
-    _restoreReconciliationInProgress = true;
-    try {
       final results = await _connectivity.checkConnectivity();
       if (!_hasConnectivity(results)) {
         throw StateError(
@@ -310,9 +283,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       }
 
       await _runAndCheckStuck();
-    } finally {
-      _restoreReconciliationInProgress = false;
-    }
   }
 
   /// Performs the readiness reconciliation without waiting on any normal
