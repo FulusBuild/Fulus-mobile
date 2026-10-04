@@ -406,6 +406,7 @@ Current progress:
 - Deferred device/session readiness recovery timing now lives in the internal `SyncReadinessRecovery`; `SyncTriggers` only supplies the current-cycle boundary and invokes the semantic recovery operation.
 - Restore reconciliation fencing state and in-flight serialization now live in the internal `SyncRestoreReconciliationGate`; `SyncTriggers` only delegates the restore lifecycle boundary and reconciliation callback.
 - Connectivity-gated run coalescing now lives in the internal `SyncConnectivityRunGate`; lifecycle/connectivity events share one in-flight readiness/sync attempt instead of maintaining a second orchestration state in `SyncTriggers`.
+- Same-runtime cycle/follow-up serialization now lives in the internal `SyncCycleExecutionGate`; `SyncTriggers` no longer owns the active-cycle future, follow-up future, or mutation-during-cycle flag.
 
 ### Phase 6 — simplify handlers
 
@@ -466,7 +467,7 @@ PR #152 demonstrated a concrete consequence: the authentication → restore hand
 
 SyncTriggers is correctly designed around a single cycle Future, but it still coordinates readiness, restore reconciliation, recovery scheduling and multiple trigger classes.
 
-**Progress:** application callers no longer depend on it directly, and push/pull cycle sequencing plus stale-cursor recovery have been extracted into the internal `SyncCycleRunner`. The remaining safe work is readiness/recovery policy extraction one responsibility at a time, with existing trigger tests retained as regression coverage.
+**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The remaining work is to audit the adapter boundary, simplify handler responsibilities, and prove the preserved invariants with production evidence.
 
 ### FSA-003 — Existing SyncEngine is a strong core
 
