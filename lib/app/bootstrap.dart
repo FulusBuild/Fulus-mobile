@@ -438,7 +438,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onStarted: () async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
-        fulusConnectionState.clearSyncReady();
+        syncService.markNotReady();
         await syncStatusNotifier.markRecoveryStarted(businessId);
       }
     },
@@ -451,7 +451,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         // immediately trigger another SYNC_CURSOR_TOO_OLD recovery.
         await syncCoordinator.setCursor(businessId, boundary);
         await syncStatusNotifier.markRecoveryBoundaryPersisted(businessId, boundary);
-        fulusConnectionState.clearSyncError();
       }
     },
     onFailed: (error) async {
@@ -475,7 +474,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isReady: () async => syncService.isReady,
     onNotReady: () => syncService.bootstrapCloud(),
     onSyncSuccess: () {
-      fulusConnectionState.clearSyncError();
       // Access is cloud-authoritative. Refresh it opportunistically after
       // successful sync, throttled by the coordinator, so remote permission
       // or role changes become local projection changes without adding a
@@ -515,7 +513,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (businessId != null) {
         await syncStatusNotifier.markRecoveryFailed(businessId, error);
       }
-      fulusConnectionState.markSyncError(error);
+      syncService.markReadinessError(error);
     },
     hasOutboundWork: () async =>
         (await database.select(database.syncQueueItems).get()).isNotEmpty,
