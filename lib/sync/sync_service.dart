@@ -53,7 +53,6 @@ class SyncService {
     _ensureActive();
     await _config.setEnabled(false);
     markNotReady();
-    if (_started) _runtime.stop();
   }
 
   Future<void> _enableAndStartIfActive() async {
