@@ -191,7 +191,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // restore gate first so the normal readiness trigger cannot start a
       // competing cloud initialization between enabling sync and the explicit
       // post-restore reconciliation below.
-      final syncTriggers = ref.read(syncTriggersProvider);
+      final syncTriggers = ref.read(syncServiceProvider);
       syncTriggers.beginRestoreReconciliation();
       _restoreGateArmed = true;
       await ref.read(syncConfigProvider).setEnabled(true);
@@ -223,7 +223,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       Navigator.of(context).pop(true);
     } on Failure catch (failure) {
       if (_restoreGateArmed) {
-        ref.read(syncTriggersProvider).cancelRestoreReconciliation();
+        ref.read(syncServiceProvider).cancelRestoreReconciliation();
         _restoreGateArmed = false;
       }
       if (mounted) {
@@ -235,7 +235,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
     } catch (error) {
       if (_restoreGateArmed) {
-        ref.read(syncTriggersProvider).cancelRestoreReconciliation();
+        ref.read(syncServiceProvider).cancelRestoreReconciliation();
         _restoreGateArmed = false;
       }
       if (mounted) {
