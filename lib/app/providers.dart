@@ -472,13 +472,12 @@ final syncConflictResolverProvider = Provider<SyncConflictResolver>((ref) {
   );
 });
 
-/// Exposed specifically for the future "Sync Now" button (Volume 11)
-/// and a sync-status indicator to call `.syncNow()` — not for the
-/// automatic triggers themselves, which start once in bootstrap.dart
-/// regardless of whether any UI ever reads this provider.
-final syncTriggersProvider = Provider<SyncTriggers>((ref) {
+/// Single public synchronization boundary. Callers request synchronization
+/// without depending on trigger, lease, retry, cursor, or reconciliation
+/// implementation details.
+final syncServiceProvider = Provider<SyncService>((ref) {
   throw UnimplementedError(
-    'syncTriggersProvider must be overridden in bootstrap.dart.',
+    'syncServiceProvider must be overridden in bootstrap.dart.',
   );
 });
 
