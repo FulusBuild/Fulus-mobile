@@ -36,9 +36,9 @@ void fulusBackgroundSyncCallback() {
     ProviderContainer? container;
     try {
       container = await bootstrap(diagnosticLogger: diagnosticLogger);
-      final triggers = container.read(syncServiceProvider);
-      await triggers.syncNow();
-      await triggers.waitForIdle();
+      final syncService = container.read(syncServiceProvider);
+      await syncService.request();
+      await syncService.waitForIdle();
 
       // A worker can legitimately wake while the account is signed out, no
       // business is selected, or readiness is waiting for user action. That is
