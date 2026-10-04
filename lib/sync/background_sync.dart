@@ -36,7 +36,7 @@ void fulusBackgroundSyncCallback() {
     ProviderContainer? container;
     try {
       container = await bootstrap(diagnosticLogger: diagnosticLogger);
-      final triggers = container.read(syncTriggersProvider);
+      final triggers = container.read(syncServiceProvider);
       await triggers.syncNow();
       await triggers.waitForIdle();
 
@@ -59,7 +59,7 @@ void fulusBackgroundSyncCallback() {
     } finally {
       final current = container;
       if (current != null) {
-        final triggers = current.read(syncTriggersProvider);
+        final triggers = current.read(syncServiceProvider);
         triggers.dispose();
         final db = current.read(databaseProvider);
         current.dispose();
