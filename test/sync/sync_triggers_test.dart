@@ -1151,7 +1151,8 @@ void main() {
       );
 
       await triggers.start();
-      unawaited(config.setEnabled(true));
+      await config.setEnabled(true);
+      unawaited(triggers.start());
       await runStarted.future;
 
       final restoreRun = triggers.reconcileAfterRestore();
