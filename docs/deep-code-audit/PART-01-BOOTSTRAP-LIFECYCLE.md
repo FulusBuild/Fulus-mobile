@@ -59,7 +59,7 @@ Part: 01 — App Bootstrap & Lifecycle
 Severity: Medium
 Status: Closed in code; CI/runtime verification pending
 Files: lib/sync/sync_triggers.dart; test/sync/sync_triggers_test.dart
-Functions/classes: SyncTriggers.dispose, notifyEnqueued, syncNow, didChangeAppLifecycleState
+Functions/classes: SyncTriggers.dispose, notifyEnqueued, syncNow, didChangeAppLifecycleState (internal adapter responsibilities)
 
 Observed behavior:
 dispose removed listeners, observers, subscriptions and timers and set _started to false. It did not make the object terminal. A later SyncQueue enqueue callback could still call notifyEnqueued, which could enter _runIfOnline and start another sync cycle.
