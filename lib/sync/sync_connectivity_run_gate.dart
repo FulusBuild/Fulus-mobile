@@ -14,6 +14,8 @@ class SyncConnectivityRunGate {
   final Future<bool> Function() _run;
   Future<bool>? _active;
 
+  bool get isRunning => _active != null;
+
   Future<bool> run() async {
     final active = _active;
     if (active != null) return active;
