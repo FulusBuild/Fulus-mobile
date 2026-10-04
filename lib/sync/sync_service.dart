@@ -186,7 +186,7 @@ class SyncService {
           // failure inside the SyncService boundary instead of creating an
           // unhandled future from a fire-and-forget lifecycle callback.
           markReadinessError(error);
-          return Future<void>.error(error, stackTrace);
+          return Future<void>.value();
         }),
       );
     } else {
