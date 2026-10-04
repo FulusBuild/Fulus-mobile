@@ -32,15 +32,29 @@ class SyncCycleExecutionGate {
     final active = _activeCycle;
     if (active != null) return active;
 
-    late Future<bool> run;
-    run = _runCycle(manual: manual);
-    _activeCycle = run;
+    // Publish the active cycle before invoking the callback. This matters if
+    // the cycle callback re-enters the gate synchronously before its first
+    // await; re-entry must share the same cycle.
+    final completer = Completer<bool>();
+    final future = completer.future;
+    _activeCycle = future;
+    unawaited(_executeCycle(future, completer, manual: manual));
+    return future;
+  }
+
+  Future<void> _executeCycle(
+    Future<bool> future,
+    Completer<bool> completer, {
+    required bool manual,
+  }) async {
     try {
-      return await run;
+      completer.complete(await _runCycle(manual: manual));
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
     } finally {
       final requested = _followUpRequested;
       _followUpRequested = false;
-      if (identical(_activeCycle, run)) {
+      if (identical(_activeCycle, future)) {
         _activeCycle = null;
       }
       if (requested && _isActive()) {
