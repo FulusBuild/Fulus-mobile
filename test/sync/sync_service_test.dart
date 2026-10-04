@@ -64,6 +64,17 @@ void main() {
     verifyNever(() => runtime.request());
   });
 
+  test('request is a no-op while sync is disabled', () async {
+    final config = await SyncConfig.load();
+    final service = SyncService(runtime, config);
+    await service.bootstrap();
+
+    await service.request();
+
+    verifyNever(() => runtime.request());
+    service.dispose();
+  });
+
   test('runtime enable and disable are owned by SyncService', () async {
     final config = await SyncConfig.load();
     when(() => runtime.start()).thenAnswer((_) async {});
