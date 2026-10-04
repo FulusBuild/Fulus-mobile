@@ -1343,7 +1343,7 @@ void main() {
       onNotReady: () async {
         initializations++;
         if (initializations == 1) {
-          await gate.ensureReady();
+          unawaited(gate.ensureReady());
           ready = true;
         }
       },
