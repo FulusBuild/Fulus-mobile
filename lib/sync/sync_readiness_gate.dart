@@ -56,4 +56,21 @@ class SyncReadinessGate {
     // readiness, for example while offline or signed out.
     return await ready();
   }
+
+  Future<void> _executeInitialization(
+    Future<void> run,
+    Completer<void> completer,
+    Future<void> Function() initialize,
+  ) async {
+    try {
+      await initialize();
+      completer.complete();
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
+    } finally {
+      if (identical(_initializationRun, run)) {
+        _initializationRun = null;
+      }
+    }
+  }
 }
