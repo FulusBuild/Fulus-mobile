@@ -5,7 +5,6 @@ import 'package:drift/native.dart';
 import '../../lib/data/local/database/database.dart';
 import '../../lib/data/remote/cloud_restore_coordinator.dart';
 import '../../lib/domain/entities/business_settings.dart';
-import '../../lib/domain/entities/auth_user.dart';
 import '../../lib/sync/sync_execution_lease.dart';
 
 void main() {
