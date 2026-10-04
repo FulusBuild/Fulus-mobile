@@ -74,6 +74,26 @@ void main() {
     await idle;
   });
 
+  test('coalesces synchronous re-entry before the cycle first awaits', () async {
+    late SyncCycleExecutionGate gate;
+    var cycles = 0;
+    gate = SyncCycleExecutionGate(
+      runCycle: ({manual = false}) async {
+        cycles++;
+        if (cycles == 1) {
+          await gate.run();
+        }
+        return true;
+      },
+      runFollowUp: () async => true,
+      isActive: () => true,
+      onFollowUpError: (_, __) {},
+    );
+
+    expect(await gate.run(), isTrue);
+    expect(cycles, 1);
+  });
+
   test('clears cycle state after a failed cycle', () async {
     final gate = SyncCycleExecutionGate(
       runCycle: ({manual = false}) async {
