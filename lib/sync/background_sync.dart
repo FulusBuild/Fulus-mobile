@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../app/bootstrap.dart';
@@ -27,11 +26,6 @@ void fulusBackgroundSyncCallback() {
     if (taskName != fulusBackgroundSyncTaskName) return true;
 
     WidgetsFlutterBinding.ensureInitialized();
-    final preferences = await SharedPreferences.getInstance();
-    final syncEnabled =
-        preferences.getBool('fulus_sync_enabled') ?? false;
-    if (!syncEnabled) return true;
-
     final diagnosticLogger = DiagnosticLogger();
     ProviderContainer? container;
     try {
