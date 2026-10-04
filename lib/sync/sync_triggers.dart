@@ -69,6 +69,9 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       onNotReady: _onNotReady,
       isRestoreReconciliationInProgress: () => _restoreGate.isInProgress,
     );
+    _connectivityGate = SyncConnectivityRunGate(
+      run: () => _runIfOnlineOnce(requireReady: true),
+    );
     _readinessRecovery = SyncReadinessRecovery(
       isActive: () => _started && _isEnabled(),
       canRun: () => _syncCycleRun == null && !_connectivityGate.isRunning,
@@ -96,7 +99,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   late final SyncReadinessRecovery _readinessRecovery;
   bool _started = false;
   bool _disposed = false;
-  Future<bool>? _connectivityRun;
+  late final SyncConnectivityRunGate _connectivityGate;
   final SyncRestoreReconciliationGate _restoreGate =
       SyncRestoreReconciliationGate();
 
@@ -349,19 +352,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   }
 
   Future<bool> _runIfOnline({bool requireReady = true}) async {
-    final active = _connectivityRun;
-    if (active != null) {
-      return await active;
-    }
-    final run = _runIfOnlineOnce(requireReady: requireReady);
-    _connectivityRun = run;
-    try {
-      return await run;
-    } finally {
-      if (identical(_connectivityRun, run)) {
-        _connectivityRun = null;
-      }
-    }
+    return _connectivityGate.run();
   }
 
   Future<bool> _runIfOnlineOnce({required bool requireReady}) async {
