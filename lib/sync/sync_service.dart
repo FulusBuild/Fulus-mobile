@@ -209,9 +209,8 @@ class SyncService {
 
   /// Requests an immediate synchronization cycle.
   Future<void> request() {
-    if (_disposed) {
-      throw StateError('SyncService has been disposed and cannot request sync.');
-    }
+    _ensureActive();
+    if (!_config.isEnabled) return Future<void>.value();
     return _runtime.request();
   }
 
