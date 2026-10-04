@@ -330,13 +330,7 @@ class _FulusCloudConnectionScreenState
 
     final syncService = ref.read(syncServiceProvider);
     await syncService.enable();
-    try {
-      await syncService.reconcileForReadiness();
-      syncService.markReady();
-    } catch (error) {
-      syncService.markReadinessError(error);
-      rethrow;
-    }
+    await syncService.reconcileForReadiness();
 
     if (mounted) {
       showFulusSnackbar(
