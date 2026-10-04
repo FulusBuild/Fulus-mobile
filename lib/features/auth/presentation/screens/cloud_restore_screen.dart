@@ -32,6 +32,7 @@ class CloudRestoreScreen extends ConsumerStatefulWidget {
 
 class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
   bool _busy = false;
+  bool _restoreGateArmed = false;
   String? _error;
   String _status = 'Ready to restore your business.';
 
@@ -186,6 +187,13 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         );
       }
 
+      // SyncConfig immediately notifies SyncTriggers when enabled. Arm the
+      // restore gate first so the normal readiness trigger cannot start a
+      // competing cloud initialization between enabling sync and the explicit
+      // post-restore reconciliation below.
+      final syncTriggers = ref.read(syncTriggersProvider);
+      syncTriggers.beginRestoreReconciliation();
+      _restoreGateArmed = true;
       await ref.read(syncConfigProvider).setEnabled(true);
 
       // Restore is not complete when the local snapshot has been imported.
@@ -196,7 +204,8 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // background trigger to silently finish after this screen has exited.
       setState(() => _status = 'Checking cloud sync…');
       try {
-        await ref.read(syncTriggersProvider).reconcileAfterRestore();
+        await syncTriggers.reconcileAfterRestore();
+        _restoreGateArmed = false;
         connection.markSyncReady();
       } catch (error) {
         connection.clearSyncReady();
@@ -213,6 +222,10 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // ShellGate can reveal the restored business.
       Navigator.of(context).pop(true);
     } on Failure catch (failure) {
+      if (_restoreGateArmed) {
+        ref.read(syncTriggersProvider).cancelRestoreReconciliation();
+        _restoreGateArmed = false;
+      }
       if (mounted) {
         setState(() {
           _busy = false;
@@ -221,6 +234,10 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         });
       }
     } catch (error) {
+      if (_restoreGateArmed) {
+        ref.read(syncTriggersProvider).cancelRestoreReconciliation();
+        _restoreGateArmed = false;
+      }
       if (mounted) {
         setState(() {
           _busy = false;
