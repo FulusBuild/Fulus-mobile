@@ -22,14 +22,21 @@ class SyncService {
 
   bool get isEnabled => _config.isEnabled;
 
-  Future<void> enable() => _config.setEnabled(true);
+  Future<void> enable() {
+    _ensureActive();
+    return _config.setEnabled(true);
+  }
 
-  Future<void> disable() => _config.setEnabled(false);
+  Future<void> disable() {
+    _ensureActive();
+    return _config.setEnabled(false);
+  }
 
   /// Enables sync while reserving the first reconciliation for an explicit
   /// restore completion. The reservation belongs to the public lifecycle
   /// authority; the runtime only receives the compatibility gate operation.
   Future<void> enableForRestore() async {
+    _ensureActive();
     if (_restoreGateArmed) {
       throw StateError('A cloud restore reconciliation is already reserved.');
     }
@@ -96,10 +103,13 @@ class SyncService {
     return _runtime.waitForIdle();
   }
 
-  Future<void> refreshAfterContextChange() =>
-      _runtime.refreshAfterContextChange();
+  Future<void> refreshAfterContextChange() {
+    _ensureActive();
+    return _runtime.refreshAfterContextChange();
+  }
 
   Future<void> reconcileAfterRestore() async {
+    _ensureActive();
     if (!_restoreGateArmed) {
       throw StateError(
         'reconcileAfterRestore() requires an active restore reservation.',
@@ -119,18 +129,32 @@ class SyncService {
     }
   }
 
-  Future<void> reconcileForReadiness() => _runtime.reconcileForReadiness();
+  Future<void> reconcileForReadiness() {
+    _ensureActive();
+    return _runtime.reconcileForReadiness();
+  }
 
   /// Notifies the synchronization authority that a durable local mutation
   /// has been committed. The queue remains responsible for durability; this
   /// callback only wakes the existing sync runtime after the transaction has
   /// committed.
-  Future<void> onLocalMutationCommitted() =>
-      _runtime.onLocalMutationCommitted();
+  Future<void> onLocalMutationCommitted() {
+    _ensureActive();
+    return _runtime.onLocalMutationCommitted();
+  }
 
   /// Requests readiness recovery after the cloud device/session authority is
   /// lost. Recovery scheduling remains an internal runtime concern.
-  void recoverReadiness() => _runtime.recoverReadiness();
+  void recoverReadiness() {
+    if (_disposed) return;
+    _runtime.recoverReadiness();
+  }
+
+  void _ensureActive() {
+    if (_disposed) {
+      throw StateError('SyncService has been disposed.');
+    }
+  }
 
   void dispose() {
     if (_disposed) return;
