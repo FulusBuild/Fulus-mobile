@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart';
 
 import '../core/errors/failure.dart';
 
-import 'sync_config.dart';
 import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
@@ -14,7 +13,7 @@ import 'sync_execution_lease.dart';
 /// Server -> device reconciliation is supplied separately through
 /// [pullFromServer] so the queue algorithm remains platform-independent.
 ///
-/// [isReady] is deliberately separate from [SyncConfig]: the persisted
+/// [isReady] is deliberately separate from [SyncService]: the persisted
 /// switch means "the user enabled sync", while readiness means the current
 /// session has an authenticated membership and an active registered device.
 /// Keeping those states separate prevents startup/lifecycle triggers from
