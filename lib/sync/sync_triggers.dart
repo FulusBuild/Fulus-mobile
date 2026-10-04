@@ -9,6 +9,7 @@ import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
 import 'sync_cycle_runner.dart';
+import 'sync_readiness_gate.dart';
 import 'sync_runtime.dart';
 
 /// Adapts platform lifecycle events into the internal synchronization
@@ -60,6 +61,13 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       onRecoveryFailed: onRecoveryFailed,
       onBeforeSyncCycle: onBeforeSyncCycle,
     );
+    _readinessGate = SyncReadinessGate(
+      isEnabled: _isEnabled,
+      isReady: _isReady,
+      onNotReady: _onNotReady,
+      isRestoreReconciliationInProgress: () =>
+          _restoreReconciliationInProgress,
+    );
   }
 
   final bool Function() _isEnabled;
@@ -71,6 +79,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
   late final SyncCycleRunner _cycleRunner;
+  late final SyncReadinessGate _readinessGate;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -368,34 +377,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     );
   }
 
-  Future<bool> _ensureReady() async {
-    // Restore owns the initial reconciliation. A normal trigger that happens
-    // to fire while restore is enabling sync must stand down.
-    if (_restoreReconciliationInProgress) return false;
-
-    final ready = _isReady;
-    if (ready == null || await ready()) return false;
-    final initialize = _onNotReady;
-    if (initialize == null) return false;
-    final active = _readinessRun;
-    if (active != null) {
-      await active;
-      return await ready();
-    }
-    final run = initialize();
-    _readinessRun = run;
-    try {
-      await run;
-      // onNotReady owns the initial reconciliation. Only report success
-      // when it actually established readiness; initialization may also
-      // legitimately return early (for example while offline or signed out).
-      return await ready();
-    } finally {
-      if (identical(_readinessRun, run)) {
-        _readinessRun = null;
-      }
-    }
-  }
+  Future<bool> _ensureReady() => _readinessGate.ensureReady();
 
   Future<void> _activateSafely() async {
     try {
