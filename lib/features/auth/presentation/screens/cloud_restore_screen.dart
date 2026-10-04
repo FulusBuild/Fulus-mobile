@@ -202,9 +202,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       try {
         await syncService.reconcileAfterRestore();
         _restoreGateArmed = false;
-        syncService.markReady();
       } catch (error) {
-        syncService.markReadinessError(error);
         rethrow;
       }
 
