@@ -88,7 +88,7 @@ class SyncService {
   Future<void> notifyEnqueued() => _triggers.notifyEnqueued();
 
   /// Schedules recovery after the cloud device/session authority is lost.
-  /// This is intentionally exposed as a lifecycle operation, not a trigger API.\n  void scheduleReadinessRecovery() => _triggers.scheduleReadinessRecovery();
+  /// This is intentionally exposed as a lifecycle operation, not a trigger API.\n  void recoverReadiness() => _triggers.scheduleReadinessRecovery();
 
   void dispose() {
     if (_started) {
