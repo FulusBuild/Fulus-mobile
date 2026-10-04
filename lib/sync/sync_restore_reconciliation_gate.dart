@@ -32,15 +32,14 @@ class SyncRestoreReconciliationGate {
       return;
     }
 
-    final run = _run(reconcile);
+    // Publish the active reconciliation before invoking the callback. The
+    // callback may synchronously re-enter the gate before its first await;
+    // re-entry must share the same restore reconciliation.
+    final completer = Completer<void>();
+    final run = completer.future;
     _activeRun = run;
-    try {
-      await run;
-    } finally {
-      if (identical(_activeRun, run)) {
-        _activeRun = null;
-      }
-    }
+    unawaited(_execute(run, completer, reconcile));
+    await run
   }
 
   Future<void> _run(Future<void> Function() reconcile) async {
