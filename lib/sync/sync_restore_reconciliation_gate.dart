@@ -42,12 +42,22 @@ class SyncRestoreReconciliationGate {
     await run
   }
 
-  Future<void> _run(Future<void> Function() reconcile) async {
+  Future<void> _execute(
+    Future<void> run,
+    Completer<void> completer,
+    Future<void> Function() reconcile,
+  ) async {
     _inProgress = true;
     try {
       await reconcile();
+      completer.complete();
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
     } finally {
       _inProgress = false;
+      if (identical(_activeRun, run)) {
+        _activeRun = null;
+      }
     }
   }
 
