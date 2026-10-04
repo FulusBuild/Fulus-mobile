@@ -145,9 +145,8 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    if (_disposed || _started) return;
+    if (_disposed || _started || !_isEnabled()) return;
     _started = true;
-    if (!_isEnabled()) return;
     await _activate();
   }
 
