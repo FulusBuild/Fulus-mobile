@@ -42,7 +42,7 @@ Foreground and WorkManager runtimes share the SQLite lease. The lease is renewed
 
 ### Background path
 
-`WorkManager → bootstrap → SyncTriggers.syncNow → durable queue + pull/reconciliation`
+`WorkManager → bootstrap → SyncService.request → waitForIdle → durable queue + pull/reconciliation`
 
 The worker uses the same production sync stack rather than a separate implementation.
 
