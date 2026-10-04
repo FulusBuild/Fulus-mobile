@@ -21,6 +21,7 @@ import '../data/remote/fulus_business_context.dart';
 import '../data/remote/cloud_restore_api.dart';
 import '../data/remote/endpoints/cloud_restore_api.dart' as employee_restore_api;
 import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
+import '../data/remote/cloud_session_bootstrap_coordinator.dart';
 import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
 import '../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
@@ -465,115 +466,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   late ProviderContainer providerContainer;
   late final EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator;
 
-  Future<void> initializeCloudSync() async {
-    if (fulusConnectionState.isCloudOnboardingInProgress) return;
-    try {
-      final session = await authApi.restoreServerSession(
-      supabaseUrl: SupabaseConfig.url,
-      publishableKey: SupabaseConfig.publishableKey,
-    );
-    if (session == null) {
-      // Sync can only be enabled after a cloud connection was established.
-      // Therefore an enabled sync configuration with no durable refresh
-      // credential means the credential was actually lost (for example after
-      // secure-storage reset), not merely that the network is temporarily
-      // unavailable. Distinguish that case from transient restore failures so
-      // the UI can request one real sign-in rather than waiting forever.
-      if (syncConfig.isEnabled) {
-        final refreshToken = await apiClient.secureRefreshToken();
-        if (refreshToken == null || refreshToken.isEmpty) {
-          fulusConnectionState.markSessionExpired();
-        }
-      }
-      return;
-    }
-    fulusConnectionState.markSessionAuthenticated();
-    await fulusConnectionState.refresh();
-
-    final knownBusinessId =
-        fulusConnectionState.selectedBusinessId ??
-        syncPreferences.getString('fulus_local_cloud_business_id');
-    await employeeCloudSessionCoordinator.refreshExistingAccess(
-      force: true,
-      businessId: knownBusinessId,
-    );
-    if (authRepository.currentUser == null) return;
-
-    final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
-    if (active.isEmpty) return;
-
-    // Preserve a previously selected active business across startup/session
-    // restoration. Only choose automatically when there is exactly one active
-    // membership; with multiple memberships, an already-valid selection is
-    // sufficient and must not be discarded.
-    var selectedBusinessId = fulusConnectionState.selectedBusinessId;
-    if (selectedBusinessId == null) {
-      if (active.length != 1) return;
-      await fulusConnectionState.selectBusiness(active.single.businessId);
-      selectedBusinessId = fulusConnectionState.selectedBusinessId;
-    }
-    if (selectedBusinessId == null) {
-      throw StateError('No active business is available for Cloud Sync.');
-    }
-    if (knownBusinessId == null) {
-      await employeeCloudSessionCoordinator.refreshExistingAccess(
-        force: true,
-        businessId: selectedBusinessId,
-      );
-      if (authRepository.currentUser == null) return;
-    }
-
-    final package = await PackageInfo.fromPlatform();
-    final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
-    await fulusConnectionState.registerDevice(
-      deviceClientId: deviceClientId,
-      deviceName: 'Fulus Mobile',
-      platform: Platform.operatingSystem,
-      appVersion: package.version,
-    );
-
-    // The local Drift database is intentionally single-business: its
-    // cloud-owned tables do not carry business_id, so an incremental pull
-    // cannot safely switch the database from business A to business B.
-    // Bind the local cloud dataset to the active business and require an
-    // authoritative snapshot when that binding changes. This prevents a
-    // multi-business account from mixing rows from different businesses.
-    const localCloudBusinessKey = 'fulus_local_cloud_business_id';
-    final boundBusinessId = syncPreferences.getString(localCloudBusinessKey);
-    if (boundBusinessId == null) {
-      final persisted = await syncPreferences.setString(
-        localCloudBusinessKey,
-        selectedBusinessId,
-      );
-      if (!persisted) {
-        throw StateError('Failed to persist the local Cloud Sync business binding.');
-      }
-    } else if (boundBusinessId != selectedBusinessId) {
-      try {
-        await syncRecovery.recover(businessId: selectedBusinessId);
-      } catch (_) {
-        // Do not leave the connection state pointing at business B while the
-        // local database still contains business A. Recovery is authoritative;
-        // if it cannot complete, roll the selection back and keep sync blocked.
-        await fulusConnectionState.selectBusiness(boundBusinessId);
-        rethrow;
-      }
-      final persisted = await syncPreferences.setString(
-        localCloudBusinessKey,
-        selectedBusinessId,
-      );
-      if (!persisted) {
-        throw StateError('Failed to persist the switched Cloud Sync business binding.');
-      }
-    }
-
-    await syncService.reconcileForReadiness();
-    fulusConnectionState.markSyncReady();
-    } catch (error) {
-      fulusConnectionState.markSyncError(error);
-      rethrow;
-    }
-  }
+  late final CloudSessionBootstrapCoordinator cloudSessionBootstrapCoordinator;
 
   syncTriggers = SyncTriggers(
     syncEngine: syncEngine,
@@ -675,7 +568,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   syncService = SyncService(
     syncTriggers,
     syncConfig,
-    bootstrapCloud: initializeCloudSync,
+    bootstrapCloud: () => cloudSessionBootstrapCoordinator.bootstrap(),
   );
 
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
@@ -690,6 +583,19 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onSessionChanged: (user) {
       providerContainer.read(sessionProvider.notifier).state = user;
     },
+  );
+
+  cloudSessionBootstrapCoordinator = CloudSessionBootstrapCoordinator(
+    authApi: authApi,
+    apiClient: apiClient,
+    syncConfig: syncConfig,
+    syncPreferences: syncPreferences,
+    authRepository: authRepository,
+    secureStorage: secureStorage,
+    connectionState: fulusConnectionState,
+    employeeCloudSessionCoordinator: employeeCloudSessionCoordinator,
+    syncRecovery: syncRecovery,
+    reconcileForReadiness: syncService.reconcileForReadiness,
   );
 
   // Sync starts after runApp(). The trigger is fully wired here, but
