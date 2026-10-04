@@ -175,7 +175,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     _retryTimer?.cancel();
     _retryTimer = null;
     _readinessRecovery.dispose();
-    _restoreGate.dispose();
     _started = false;
   }
 
