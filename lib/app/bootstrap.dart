@@ -474,6 +474,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isReady: () async => syncService.isReady,
     onNotReady: () => syncService.bootstrapCloud(),
     onSyncSuccess: () {
+      fulusConnectionState.clearSyncError();
       // Access is cloud-authoritative. Refresh it opportunistically after
       // successful sync, throttled by the coordinator, so remote permission
       // or role changes become local projection changes without adding a
@@ -526,7 +527,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         );
       }
     },
-    onSyncFailure: (error, _) => syncService.markReadinessError(error),
+    onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
     // The normal cursor pull reconciles changes since the last cursor. A
     // location switch also needs the active location's current stock snapshot
     // when that location has not previously been hydrated on this device.
