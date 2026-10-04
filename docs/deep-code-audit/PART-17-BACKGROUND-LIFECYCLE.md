@@ -45,7 +45,7 @@ The worker:
 - initializes Flutter bindings;
 - checks the persisted sync-enabled flag;
 - calls the normal `bootstrap()`;
-- invokes `syncNow()`;
+- invokes `SyncService.request()`;
 - waits for the actual sync/recovery cycle through `waitForIdle()`;
 - reports failures through the durable diagnostic logger;
 - disposes the trigger/provider container and closes the background database.
