@@ -5,12 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/config/supabase_config.dart';
-import '../../data/remote/api_client.dart';
-import '../../data/remote/cloud_sync_recovery.dart';
-import '../../data/remote/employee_cloud_session_coordinator.dart';
-import '../../data/remote/fulus_connection_state.dart';
-import '../../data/remote/endpoints/auth_api.dart';
-import '../../data/repositories/auth_repository_impl.dart';
+import 'api_client.dart';
+import 'cloud_sync_recovery.dart';
+import 'employee_cloud_session_coordinator.dart';
+import 'fulus_connection_state.dart';
+import 'endpoints/auth_api.dart';
+import '../repositories/auth_repository_impl.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
 
