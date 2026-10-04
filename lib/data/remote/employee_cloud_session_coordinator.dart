@@ -14,7 +14,7 @@ import '../local/database/tables.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
 import '../../sync/sync_execution_lease.dart';
-import '../../sync/sync_triggers.dart';
+import '../../sync/sync_service.dart';
 import 'cross_device_employee_restore.dart';
 import 'endpoints/cloud_restore_api.dart';
 import 'fulus_connection_state.dart';
@@ -35,7 +35,7 @@ class EmployeeCloudSessionCoordinator {
     required FulusConnectionState connection,
     required SecureStorage secureStorage,
     required SyncConfig syncConfig,
-    required SyncTriggers syncTriggers,
+    required SyncService syncService,
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
     required FulusStaffAccessApi staffAccessApi,
@@ -45,7 +45,7 @@ class EmployeeCloudSessionCoordinator {
         _connection = connection,
         _secureStorage = secureStorage,
         _syncConfig = syncConfig,
-        _syncTriggers = syncTriggers,
+        _syncService = syncService,
         _authRepository = authRepository,
         _executionLease = executionLease,
         _staffAccessApi = staffAccessApi,
@@ -56,7 +56,7 @@ class EmployeeCloudSessionCoordinator {
   final FulusConnectionState _connection;
   final SecureStorage _secureStorage;
   final SyncConfig _syncConfig;
-  final SyncTriggers _syncTriggers;
+  final SyncService _syncService;
   final AuthRepository _authRepository;
   final SyncExecutionLease _executionLease;
   final FulusStaffAccessApi _staffAccessApi;
@@ -147,7 +147,7 @@ class EmployeeCloudSessionCoordinator {
       await _syncConfig.setEnabled(true);
       _connection.markSyncReady();
       unawaited(
-        _syncTriggers.reconcileAfterRestore().catchError((_) {
+        _syncService.reconcileAfterRestore().catchError((_) {
           // The sync layer records the failure and its normal connectivity/
           // retry triggers will attempt reconciliation again. Joining the
           // business must remain successful because the restore itself has
@@ -266,7 +266,7 @@ class EmployeeCloudSessionCoordinator {
 
       await _syncConfig.setEnabled(true);
       try {
-        await _syncTriggers.reconcileForReadiness();
+        await _syncService.reconcileForReadiness();
       } catch (_) {
         _connection.clearSyncReady();
         rethrow;
