@@ -56,12 +56,12 @@ class CloudSessionBootstrapCoordinator {
   Future<bool> bootstrap() async {
     if (_connectionState.isCloudOnboardingInProgress) return false;
 
-      final session = await _authApi.restoreServerSession(
+    final session = await _authApi.restoreServerSession(
         supabaseUrl: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
       );
 
-      if (session == null) {
+    if (session == null) {
         // An enabled sync configuration with no durable refresh credential
         // means the credential was actually lost. A transient restore failure
         // must not be turned into a false authentication failure.
@@ -74,8 +74,8 @@ class CloudSessionBootstrapCoordinator {
         return false;
       }
 
-      _connectionState.markSessionAuthenticated();
-      await _connectionState.refresh();
+    _connectionState.markSessionAuthenticated();
+    await _connectionState.refresh();
 
       final knownBusinessId =
           _connectionState.selectedBusinessId ??
@@ -163,7 +163,7 @@ class CloudSessionBootstrapCoordinator {
         }
       }
 
-      await _reconcileForReadiness();
-      return true;
+    await _reconcileForReadiness();
+    return true;
   }
 }
