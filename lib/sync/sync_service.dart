@@ -50,8 +50,14 @@ class SyncService {
     if (_started) return;
     _started = true;
     _config.addListener(_onConfigChanged);
-    if (_config.isEnabled) {
-      await _triggers.start();
+    try {
+      if (_config.isEnabled) {
+        await _triggers.start();
+      }
+    } catch (_) {
+      _config.removeListener(_onConfigChanged);
+      _started = false;
+      rethrow;
     }
   }
 
