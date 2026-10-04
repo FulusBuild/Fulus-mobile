@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, and restore lifecycle ownership consolidated  
+**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, and cycle orchestration extracted from the trigger adapter  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -400,6 +400,8 @@ Current progress:
 - `SyncRuntime` is now the internal runtime contract implemented by `SyncTriggers`; `SyncService` no longer depends on the concrete trigger type.
 - Restore reservation state is owned by `SyncService`. Enabling sync for restore suppresses the normal runtime start until the authoritative post-restore reconciliation settles, then resumes the ordinary runtime for connectivity/retry recovery.
 - Employee cloud restore now uses the same explicit restore lifecycle and does not advertise Sync Ready before post-restore reconciliation succeeds.
+- Complete push/pull cycle sequencing and stale-cursor recovery now live behind the internal `SyncCycleRunner`; `SyncTriggers` retains trigger observation, readiness entry, recovery scheduling, and compatibility serialization rather than owning push/pull policy.
+- The cycle runner preserves the existing SQLite lease, push-before-pull ordering, lease-loss handling, stale-cursor recovery, and post-recovery readiness callbacks.
 
 ### Phase 6 — simplify handlers
 
@@ -458,9 +460,9 @@ PR #152 demonstrated a concrete consequence: the authentication → restore hand
 
 ### FSA-002 — SyncTriggers remains the first refactoring target
 
-SyncTriggers is correctly designed around a single cycle Future, but it still coordinates readiness, restore reconciliation, recovery, lease ownership and multiple trigger classes.
+SyncTriggers is correctly designed around a single cycle Future, but it still coordinates readiness, restore reconciliation, recovery scheduling and multiple trigger classes.
 
-**Progress:** application callers no longer depend on it directly. The next safe step is extraction by behavior, one responsibility at a time, with existing trigger tests retained as regression coverage.
+**Progress:** application callers no longer depend on it directly, and push/pull cycle sequencing plus stale-cursor recovery have been extracted into the internal `SyncCycleRunner`. The remaining safe work is readiness/recovery policy extraction one responsibility at a time, with existing trigger tests retained as regression coverage.
 
 ### FSA-003 — Existing SyncEngine is a strong core
 
