@@ -25,7 +25,7 @@ class SyncRestoreReconciliationGate {
     }
   }
 
-  Future<void> run(Future<void> Function() reconcile) async {
+  Future<void> run(Future<void> Function() reconcile) {
     final active = _activeRun;
     if (active != null) {
       await active;
@@ -38,8 +38,10 @@ class SyncRestoreReconciliationGate {
     final completer = Completer<void>();
     final run = completer.future;
     _activeRun = run;
-    unawaited(_execute(run, completer, reconcile));
-    await run;
+    // Start the callback in a microtask so the published future is visible
+    // before user code can re-enter the gate.
+    unawaited(Future.microtask(() => _execute(run, completer, reconcile)));
+    return run;
   }
 
   Future<void> _execute(
