@@ -54,7 +54,7 @@ class CloudSessionBootstrapCoordinator {
   final CloudSyncRecovery _syncRecovery;
   final Future<void> Function() _reconcileForReadiness;
 
-  Future<void> bootstrap() async {
+  Future<bool> bootstrap() async {
     if (_connectionState.isCloudOnboardingInProgress) return;
 
     try {
@@ -73,7 +73,7 @@ class CloudSessionBootstrapCoordinator {
             _connectionState.markSessionExpired();
           }
         }
-        return;
+        return false;
       }
 
       _connectionState.markSessionAuthenticated();
@@ -87,18 +87,18 @@ class CloudSessionBootstrapCoordinator {
         force: true,
         businessId: knownBusinessId,
       );
-      if (_authRepository.currentUser == null) return;
+      if (_authRepository.currentUser == null) return false;
 
       final active = _connectionState.membershipContext?.memberships
               .where((m) => m.status == 'active')
               .toList(growable: false) ??
           const [];
 
-      if (active.isEmpty) return;
+      if (active.isEmpty) return false;
 
       var selectedBusinessId = _connectionState.selectedBusinessId;
       if (selectedBusinessId == null) {
-        if (active.length != 1) return;
+        if (active.length != 1) return false;
         await _connectionState.selectBusiness(active.single.businessId);
         selectedBusinessId = _connectionState.selectedBusinessId;
       }
@@ -112,7 +112,7 @@ class CloudSessionBootstrapCoordinator {
           force: true,
           businessId: selectedBusinessId,
         );
-        if (_authRepository.currentUser == null) return;
+        if (_authRepository.currentUser == null) return false;
       }
 
       final package = await PackageInfo.fromPlatform();
@@ -166,9 +166,8 @@ class CloudSessionBootstrapCoordinator {
       }
 
       await _reconcileForReadiness();
-      _connectionState.markSyncReady();
+      return true;
     } catch (error) {
-      _connectionState.markSyncError(error);
       rethrow;
     }
   }
