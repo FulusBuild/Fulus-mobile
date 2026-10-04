@@ -1090,6 +1090,38 @@ void main() {
       verifyNever(() => syncEngine.runOnce(manual: any(named: 'manual')));
     });
 
+    test('restore gate is armed before sync enable so readiness stands down', () async {
+      SharedPreferences.setMockInitialValues({});
+      final config = await SyncConfig.load();
+      when(() => connectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(() => connectivity.onConnectivityChanged)
+          .thenAnswer((_) => const Stream.empty());
+      var readinessCalls = 0;
+      when(() => syncEngine.runOnce(manual: any(named: 'manual')))
+          .thenAnswer((_) async => readinessCalls++);
+
+      final triggers = SyncTriggers(
+        syncEngine: syncEngine,
+        executionLease: executionLease,
+        syncConfig: config,
+        syncStatusNotifier: syncStatusNotifier,
+        isReady: () async => false,
+        onNotReady: () async => throw StateError('readiness must not run during restore'),
+        connectivity: connectivity,
+      );
+
+      await triggers.start();
+      triggers.beginRestoreReconciliation();
+      await config.setEnabled(true);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(readinessCalls, 0);
+
+      triggers.cancelRestoreReconciliation();
+      triggers.dispose();
+    });
+
     test('serializes a trigger already started by enabling sync during restore', () async {
       SharedPreferences.setMockInitialValues({});
       final config = await SyncConfig.load();
