@@ -397,7 +397,7 @@ class _FulusCloudConnectionScreenState
     ref.read(fulusConnectionStateProvider).disconnect();
     await ref.read(apiClientProvider).clearServerRefreshToken();
     ref.read(apiClientProvider).setAccessToken(null);
-    await ref.read(syncConfigProvider).setEnabled(false);
+    await ref.read(syncServiceProvider).disable();
     if (mounted) {
       showFulusSnackbar(
         context,
