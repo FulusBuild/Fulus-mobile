@@ -10,7 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:fulus/sync/sync_readiness_recovery.dart';
+import 'package:fulus_mobile/sync/sync_readiness_recovery.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:drift/native.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
