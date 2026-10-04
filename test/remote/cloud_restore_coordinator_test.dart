@@ -5,7 +5,6 @@ import 'package:drift/native.dart';
 import '../../lib/data/local/database/database.dart';
 import '../../lib/data/remote/cloud_restore_coordinator.dart';
 import '../../lib/domain/entities/business_settings.dart';
-import '../../lib/domain/entities/auth_user.dart';
 import '../../lib/sync/sync_execution_lease.dart';
 
 void main() {
@@ -178,19 +177,8 @@ void main() {
     expect(localSettings.currencySymbol, '₦');
   });
 
-  test('preserves the owner row before restoring sales that reference the owner', () async {
+  test('seeds the owner before restoring sales on a fresh installation', () async {
     const ownerId = 'owner-cloud-id';
-    final now = DateTime(2026, 9, 23);
-
-    await db.into(db.users).insert(
-      UsersCompanion.insert(
-        localId: ownerId,
-        fullName: 'Old Owner',
-        role: AuthRole.owner,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
 
     final snapshot = <String, dynamic>{
       'version': 6,

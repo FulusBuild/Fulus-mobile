@@ -56,6 +56,25 @@ class CloudRestoreCoordinator {
         );
       }
 
+      // Restored sales reference the cloud cashier identity through the
+      // local Users foreign key. On a fresh installation the owner row does
+      // not exist yet, so seed the authenticated owner before importing
+      // business rows. _normalizeOwner() still performs the final session
+      // normalization after the complete snapshot has been imported.
+      await _ensureOwnerIdentity(
+        ownerCloudUserId: ownerCloudUserId,
+        ownerEmail: ownerEmail,
+        snapshot: snapshot,
+      );
+
+      // Sales reference the authenticated owner through Users.localId.
+      // Seed that FK target before the snapshot import on a fresh install.
+      await _ensureOwnerIdentity(
+        ownerCloudUserId: ownerCloudUserId,
+        ownerEmail: ownerEmail,
+        snapshot: snapshot,
+      );
+
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: ownerCloudUserId,
@@ -89,7 +108,7 @@ class CloudRestoreCoordinator {
     }
   }
 
-  Future<void> _normalizeOwner({
+  Future<void> _ensureOwnerIdentity({
     required String ownerCloudUserId,
     required String ownerEmail,
     required Map<String, dynamic> snapshot,
@@ -104,40 +123,48 @@ class CloudRestoreCoordinator {
     final cloudRole = membership is Map
         ? membership['role_name']?.toString().toLowerCase()
         : null;
-    // The local auth model has no `admin` role. Map a cloud administrator to
-    // the least-privileged local management role and preserve their explicit
-    // cloud-derived UserPermissions instead of silently upgrading them to the
-    // structurally unrestricted local owner role.
     final localRole = cloudRole == 'admin' ? AuthRole.manager : AuthRole.owner;
 
-    var owner = await (_db.select(_db.users)
+    final existing = await (_db.select(_db.users)
           ..where((u) => u.localId.equals(ownerCloudUserId)))
         .getSingleOrNull();
+    if (existing != null) return;
 
-    // Restore snapshots intentionally do not export the device-local `users`
-    // table. The importer therefore cannot create the authenticated owner
-    // while it is reconstructing staff (the owner is explicitly excluded from
-    // that staff loop). Create the owner identity here, before normalizing it,
-    // using the stable cloud user id as the local identity id. This makes the
-    // restored session self-contained on a fresh installation rather than
-    // requiring an old local user row to survive the restore.
-    if (owner == null) {
-      final now = DateTime.now();
-      await _db.into(_db.users).insert(
-        UsersCompanion.insert(
-          localId: ownerCloudUserId,
-          fullName: fullName,
-          email: Value(ownerEmail),
-          role: localRole,
-          isActive: const Value(true),
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-      owner = await (_db.select(_db.users)
-            ..where((u) => u.localId.equals(ownerCloudUserId)))
-          .getSingle();
-    }
+    final now = DateTime.now();
+    await _db.into(_db.users).insert(
+      UsersCompanion.insert(
+        localId: ownerCloudUserId,
+        fullName: fullName,
+        email: Value(ownerEmail),
+        role: localRole,
+        isActive: const Value(true),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  Future<void> _normalizeOwner({
+    required String ownerCloudUserId,
+    required String ownerEmail,
+    required Map<String, dynamic> snapshot,
+  }) async {
+    await _ensureOwnerIdentity(
+      ownerCloudUserId: ownerCloudUserId,
+      ownerEmail: ownerEmail,
+      snapshot: snapshot,
+    );
+
+    final profile = snapshot['profile'];
+    final profileName = profile is Map
+        ? profile['full_name']?.toString().trim()
+        : null;
+    final fullName = profileName?.isNotEmpty == true ? profileName! : 'Owner';
+    final membership = snapshot['membership'];
+    final cloudRole = membership is Map
+        ? membership['role_name']?.toString().toLowerCase()
+        : null;
+    final localRole = cloudRole == 'admin' ? AuthRole.manager : AuthRole.owner;
 
     await (_db.update(_db.users)
           ..where((u) => u.localId.equals(ownerCloudUserId)))
