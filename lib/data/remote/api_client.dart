@@ -210,6 +210,12 @@ class ApiClient {
       }
       if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
         await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
+        // Keep the legacy/global copy in lockstep with the active cloud
+        // identity. Startup may still use that copy before the cloud user id
+        // is known, so leaving it one rotation behind causes the next startup
+        // or identity switch to submit a refresh token Supabase has already
+        // consumed.
+        await _secureStorage.setRefreshToken(rotatedRefreshToken);
       }
       final responseUserId =
           (data['user'] is Map) ? (data['user'] as Map)['id']?.toString() : null;
@@ -691,8 +697,24 @@ class _AuthInterceptor extends Interceptor {
 
     setAccessToken(newAccessToken);
     if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-      if (persistAsUser && _activeCloudUserId != null) {
-        await _secureStorage.setUserRefreshToken(_activeCloudUserId!, newRefreshToken);
+      // Supabase rotates refresh tokens. The app historically kept both a
+      // global token and a per-user token, so updating only one copy leaves
+      // the other copy stale. The next restore path then receives
+      // refresh_token_already_used even though the user's password/session
+      // is valid. Keep both copies synchronized to the same current cloud
+      // identity while this compatibility path remains in use.
+      if (responseUserId != null && responseUserId.isNotEmpty) {
+        await _secureStorage.setRefreshToken(newRefreshToken);
+        await _secureStorage.setUserRefreshToken(
+          responseUserId,
+          newRefreshToken,
+        );
+      } else if (persistAsUser && _activeCloudUserId != null) {
+        await _secureStorage.setUserRefreshToken(
+          _activeCloudUserId!,
+          newRefreshToken,
+        );
+        await _secureStorage.setRefreshToken(newRefreshToken);
       } else {
         await _secureStorage.setRefreshToken(newRefreshToken);
       }
