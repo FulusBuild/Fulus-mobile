@@ -8,6 +8,7 @@ import '../core/errors/failure.dart';
 import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
+import 'sync_runtime.dart';
 
 /// Wires Architecture Section 8's trigger conditions to SyncEngine.runOnce.
 /// Server -> device reconciliation is supplied separately through
@@ -18,7 +19,7 @@ import 'sync_execution_lease.dart';
 /// session has an authenticated membership and an active registered device.
 /// Keeping those states separate prevents startup/lifecycle triggers from
 /// racing device registration after restore or token recovery.
-class SyncTriggers with WidgetsBindingObserver {
+class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   SyncTriggers({
     required SyncEngine syncEngine,
     required bool Function() isEnabled,
