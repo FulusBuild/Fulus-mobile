@@ -260,7 +260,7 @@ class EmployeeCloudSessionCoordinator {
         appVersion: package.version,
       );
 
-      await _syncConfig.setEnabled(true);
+      await _syncService.enable();
       try {
         await _syncService.reconcileForReadiness();
       } catch (_) {
