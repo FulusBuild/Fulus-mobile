@@ -79,7 +79,7 @@ import '../sync/sync_engine.dart';
 import '../sync/sync_conflict_resolver.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
-import '../sync/sync_triggers.dart';
+import '../sync/sync_service.dart';
 
 /// The app-wide DI graph's entry points. Each of these is declared with
 /// a body that throws UnimplementedError if it's ever actually invoked —
