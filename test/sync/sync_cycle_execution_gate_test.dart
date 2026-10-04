@@ -81,7 +81,7 @@ void main() {
       runCycle: ({manual = false}) async {
         cycles++;
         if (cycles == 1) {
-          await gate.run();
+          unawaited(gate.run());
         }
         return true;
       },
