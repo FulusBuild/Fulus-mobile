@@ -351,7 +351,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     }
   }
 
-  Future<bool> _runIfOnline({bool requireReady = true}) async {
+  Future<bool> _runIfOnline() async {
     return _connectivityGate.run();
   }
 
