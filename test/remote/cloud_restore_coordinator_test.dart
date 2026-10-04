@@ -178,19 +178,8 @@ void main() {
     expect(localSettings.currencySymbol, '₦');
   });
 
-  test('preserves the owner row before restoring sales that reference the owner', () async {
+  test('seeds the owner before restoring sales on a fresh installation', () async {
     const ownerId = 'owner-cloud-id';
-    final now = DateTime(2026, 9, 23);
-
-    await db.into(db.users).insert(
-      UsersCompanion.insert(
-        localId: ownerId,
-        fullName: 'Old Owner',
-        role: AuthRole.owner,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
 
     final snapshot = <String, dynamic>{
       'version': 6,
