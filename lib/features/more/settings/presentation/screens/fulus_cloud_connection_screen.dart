@@ -252,7 +252,7 @@ class _FulusCloudConnectionScreenState
       await _registerDevice(connection);
       await ref.read(syncConfigProvider).setEnabled(true);
       try {
-        await ref.read(syncTriggersProvider).reconcileForReadiness();
+        await ref.read(syncServiceProvider).reconcileForReadiness();
         connection.markSyncReady();
       } catch (_) {
         connection.clearSyncReady();
@@ -334,7 +334,7 @@ class _FulusCloudConnectionScreenState
     await ref.read(syncQueueProvider).seedExistingBusinessData();
 
     final syncConfig = ref.read(syncConfigProvider);
-    final syncTriggers = ref.read(syncTriggersProvider);
+    final syncTriggers = ref.read(syncServiceProvider);
     await syncConfig.setEnabled(true);
     try {
       await syncTriggers.reconcileForReadiness();
@@ -374,7 +374,7 @@ class _FulusCloudConnectionScreenState
       _error = null;
     });
     try {
-      await ref.read(syncTriggersProvider).syncNow();
+      await ref.read(syncServiceProvider).syncNow();
       if (!mounted) return;
       showFulusSnackbar(
         context,
