@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, cycle orchestration extracted from the trigger adapter, WorkManager migrated to the service boundary, and orchestration gates hardened against synchronous re-entry  
+**Status:** Source-level Phase 5 complete — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, cycle orchestration extracted from the trigger adapter, WorkManager migrated to the service boundary, orchestration gates hardened against synchronous re-entry, and readiness bootstrap routed through the SyncService boundary  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -312,7 +312,7 @@ that configuration lifecycle and explicitly starts/stops the trigger adapter.
 The adapter remains an internal implementation detail and is not an application
 provider/API boundary.
 
-**Next simplification:** extract the remaining readiness/recovery/cycle policy
+**Next simplification:** none at the source-level architecture boundary; remaining work is verification and production evidence
 from `SyncTriggers` into semantic service/engine operations, without changing
 push/pull mechanics or lease guarantees.
 
@@ -478,7 +478,7 @@ PR #152 demonstrated a concrete consequence: the authentication → restore hand
 
 SyncTriggers is now a compatibility/lifecycle adapter rather than an application-facing authority, but it still contains the remaining internal bridges for readiness, restore reconciliation, recovery scheduling, and trigger-driven requests.
 
-**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The remaining work is to close the final adapter-boundary ownership gaps, prove the preserved invariants with source-level regression plus production evidence, and only then mark the source-level simplification complete.
+**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The final adapter-boundary ownership gap is now closed: readiness-triggered cloud bootstrap enters through SyncService.bootstrapCloud(), leaving SyncTriggers as an internal event/runtime adapter. Source-level simplification is therefore complete. Remaining work is verification and production evidence for the preserved runtime invariants.
 
 ### FSA-003 — Existing SyncEngine is a strong core
 
@@ -565,4 +565,4 @@ The existing regression suite already exercises the core sync invariants at the 
 | Device revocation/recovery | Trigger recovery tests present | Runtime authorization-loss scenario |
 | Duplicate delivery / timeout after cloud commit | Engine/idempotency coverage present | Runtime fault-injection or observed replay evidence |
 
-This checkpoint deliberately does not mark the runtime rows as proven. Source-level simplification is complete only when the remaining runtime evidence is collected or explicitly tracked as a production-readiness prerequisite.
+This checkpoint deliberately does not mark the runtime rows as proven. They remain explicit production-readiness evidence requirements; they do not represent another source-level orchestration simplification.
