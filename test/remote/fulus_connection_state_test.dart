@@ -67,6 +67,26 @@ void main() {
     expect(state.isSyncReady, isFalse);
   });
 
+  test('nested cloud onboarding fences stay active until the outer scope ends', () {
+    final state = FulusConnectionState(
+      businessContext: businessContext,
+      deviceRegistration: deviceRegistration,
+    );
+
+    state.beginCloudOnboarding();
+    state.beginCloudOnboarding();
+    expect(state.isCloudOnboardingInProgress, isTrue);
+
+    state.endCloudOnboarding();
+    expect(state.isCloudOnboardingInProgress, isTrue);
+
+    state.endCloudOnboarding();
+    expect(state.isCloudOnboardingInProgress, isFalse);
+
+    state.endCloudOnboarding();
+    expect(state.isCloudOnboardingInProgress, isFalse);
+  });
+
   test('clearing session authentication preserves the selected business but clears readiness', () async {
     when(() => businessContext.fetch()).thenAnswer(
       (_) async => memberships([membership('business-a')]),
