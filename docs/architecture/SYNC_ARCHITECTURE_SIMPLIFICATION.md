@@ -388,7 +388,7 @@ Current progress:
 
 - `SyncService` is the public synchronization boundary.
 - Application callers no longer need `SyncTriggers` lifecycle configuration.
-- `SyncService` owns `SyncConfig` listener registration and starts/stops the internal trigger adapter.
+- `SyncService` owns `SyncConfig` listener registration and starts/stops the internal trigger adapter. Readiness recovery is requested through the semantic `recoverReadiness()` service operation.
 - Restore fencing is exposed through service-level operations rather than trigger-specific UI calls.
 - `SyncTriggers` no longer depends on the `SyncConfig` type.
 
