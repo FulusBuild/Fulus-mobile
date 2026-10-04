@@ -59,8 +59,8 @@ void fulusBackgroundSyncCallback() {
     } finally {
       final current = container;
       if (current != null) {
-        final triggers = current.read(syncServiceProvider);
-        triggers.dispose();
+        final syncService = current.read(syncServiceProvider);
+        syncService.dispose();
         final db = current.read(databaseProvider);
         current.dispose();
         await db.close();
