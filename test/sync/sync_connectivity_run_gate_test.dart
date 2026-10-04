@@ -28,7 +28,7 @@ void main() {
     gate = SyncConnectivityRunGate(run: () async {
       runs++;
       if (runs == 1) {
-        await gate.run();
+        unawaited(gate.run());
       }
       return true;
     });
