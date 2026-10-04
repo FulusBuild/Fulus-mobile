@@ -373,7 +373,7 @@ class _FulusCloudConnectionScreenState
       _error = null;
     });
     try {
-      await ref.read(syncServiceProvider).syncNow();
+      await ref.read(syncServiceProvider).request();
       if (!mounted) return;
       showFulusSnackbar(
         context,
