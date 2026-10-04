@@ -405,6 +405,7 @@ Current progress:
 - Readiness initialization serialization now lives in the internal `SyncReadinessGate`; `SyncTriggers` only supplies lifecycle events and the compatibility bridge to that semantic operation.
 - Deferred device/session readiness recovery timing now lives in the internal `SyncReadinessRecovery`; `SyncTriggers` only supplies the current-cycle boundary and invokes the semantic recovery operation.
 - Restore reconciliation fencing state and in-flight serialization now live in the internal `SyncRestoreReconciliationGate`; `SyncTriggers` only delegates the restore lifecycle boundary and reconciliation callback.
+- Connectivity-gated run coalescing now lives in the internal `SyncConnectivityRunGate`; lifecycle/connectivity events share one in-flight readiness/sync attempt instead of maintaining a second orchestration state in `SyncTriggers`.
 
 ### Phase 6 — simplify handlers
 
