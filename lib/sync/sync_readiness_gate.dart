@@ -44,17 +44,16 @@ class SyncReadinessGate {
       return await ready();
     }
 
-    final run = initialize();
+    // Publish the initialization future before invoking the callback. The
+    // callback may synchronously re-enter readiness before its first await;
+    // re-entry must share the same initialization attempt.
+    final completer = Completer<void>();
+    final run = completer.future;
     _initializationRun = run;
-    try {
-      await run;
-      // Initialization may legitimately return without establishing
-      // readiness, for example while offline or signed out.
-      return await ready();
-    } finally {
-      if (identical(_initializationRun, run)) {
-        _initializationRun = null;
-      }
-    }
+    unawaited(_executeInitialization(run, completer, initialize));
+    await run;
+    // Initialization may legitimately return without establishing
+    // readiness, for example while offline or signed out.
+    return await ready();
   }
 }
