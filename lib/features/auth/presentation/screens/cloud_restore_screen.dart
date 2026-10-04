@@ -103,7 +103,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
       final businessId = active.single.businessId;
       await connection.selectBusiness(businessId);
-      connection.clearSyncReady();
+      ref.read(syncServiceProvider).markNotReady();
 
       // A restore creates a new authoritative local dataset. Discard health
       // metadata from any previous dataset before reconciliation so an old
@@ -202,10 +202,9 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       try {
         await syncService.reconcileAfterRestore();
         _restoreGateArmed = false;
-        connection.markSyncReady();
+        syncService.markReady();
       } catch (error) {
-        connection.clearSyncReady();
-        connection.markSyncError(error);
+        syncService.markReadinessError(error);
         rethrow;
       }
 
