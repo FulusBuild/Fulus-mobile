@@ -576,15 +576,17 @@ This checkpoint deliberately does not mark the runtime rows as proven. They rema
 
 ### FSA-006 — SyncService configuration reaction has an async error boundary gap
 
-SyncService._onConfigChanged() starts the runtime with unawaited(_runtime.start()). Because SyncConfig is a synchronous ChangeNotifier, an exception from runtime startup cannot propagate through enable() as a normal lifecycle failure. This does not prove a data-integrity defect, but it weakens the explicit failure contract.
-
-**Recommendation:** make the service enable/disable lifecycle path explicitly await runtime start/stop, or add a deliberate service-owned error sink. Do not silently swallow startup failures.
+**Resolved.** SyncService now contains the fire-and-forget configuration listener's startup failure inside the service-owned readiness error state. Normal `enable()` still explicitly awaits the same coalesced runtime-start future, so callers receive the startup failure directly. The regression suite also covers an external/legacy configuration enable failure so the listener cannot create an unhandled lifecycle future.
 
 ### FSA-007 — Call-path ownership is not semantic ownership
 
-Routing onNotReady to SyncService.bootstrapCloud() is directionally correct, but a facade callback alone is not sufficient evidence that the service owns the lifecycle. The audit must verify where bootstrap decisions are made, where readiness transitions are committed, and which component is authoritative when bootstrap, restore, device revocation, and business switching overlap.
+**Resolved at source level.** Cloud bootstrap policy now lives in `CloudSessionBootstrapCoordinator`; readiness state and readiness transitions are committed by `SyncService`; restore/readiness reconciliation methods now promote readiness or record readiness failure inside the service instead of requiring screens/coordinators to mutate readiness state afterward. Employee restore, cloud connection, and cloud restore UI now request reconciliation rather than deciding readiness themselves.
 
-**Required before completion:** source-level tests covering bootstrap/readiness ownership, restore overlap, device-revocation recovery, business-switch recovery, startup failure, and configuration-enable failure.
+Source coverage includes bootstrap/readiness ownership, restore overlap, device-authorization recovery, context/business-change reconciliation, startup failure, concurrent bootstrap, restore fencing, and configuration-enable failure. The remaining completion gate is full CI/regression verification plus the explicitly listed real-device production evidence.
+
+### FSA-008 — Background architecture remains conceptually correct
+
+**Resolved/aligned.** WorkManager's worker now enters through `SyncService` without reading the persisted sync-enabled flag directly. `SyncService` owns the disabled-request boundary, so stale scheduled work after sync is disabled becomes a no-op inside the synchronization authority. The scheduler may still observe `SyncConfig` solely to register/cancel periodic OS work; it does not execute synchronization policy.
 
 ### FSA-008 — Background architecture remains conceptually correct
 
