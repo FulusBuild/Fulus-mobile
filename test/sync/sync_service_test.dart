@@ -31,7 +31,16 @@ void main() {
     service.dispose();
   });
 
-  test('cloud bootstrap delegates through service', () async {\n    final config = await SyncConfig.load();\n    var calls = 0;\n    final service = SyncService(runtime, config, bootstrapCloud: () async { calls++; return true; });\n    await service.bootstrapCloud();\n    expect(calls, 1);\n    service.dispose();\n  });\n\n  test('disposed service cannot be bootstrapped or requested again', () async {
+  test('cloud bootstrap delegates through service', () async {
+    final config = await SyncConfig.load();
+    var calls = 0;
+    final service = SyncService(runtime, config, bootstrapCloud: () async { calls++; return true; });
+    await service.bootstrapCloud();
+    expect(calls, 1);
+    service.dispose();
+  });
+
+  test('disposed service cannot be bootstrapped or requested again', () async {
     final config = await SyncConfig.load();
     when(() => runtime.start()).thenAnswer((_) async {});
     when(() => runtime.request()).thenAnswer((_) async {});
@@ -73,7 +82,23 @@ void main() {
     service.dispose();
   });
 
-  test('enable propagates runtime startup failure', () async {\n    final config = await SyncConfig.load();\n    when(() => runtime.start()).thenAnswer((_) async {\n      throw StateError('startup failed');\n    });\n\n    final service = SyncService(runtime, config);\n    await service.bootstrap();\n\n    await expectLater(\n      service.enable(),\n      throwsA(isA<StateError>()),\n    );\n    service.dispose();\n  });\n\n  test('restore enable arms the restore gate before enabling sync', () async {
+  test('enable propagates runtime startup failure', () async {
+    final config = await SyncConfig.load();
+    when(() => runtime.start()).thenAnswer((_) async {
+      throw StateError('startup failed');
+    });
+
+    final service = SyncService(runtime, config);
+    await service.bootstrap();
+
+    await expectLater(
+      service.enable(),
+      throwsA(isA<StateError>()),
+    );
+    service.dispose();
+  });
+
+  test('restore enable arms the restore gate before enabling sync', () async {
     final config = await SyncConfig.load();
     final events = <String>[];
     when(() => runtime.beginRestoreReconciliation()).thenAnswer((_) {
