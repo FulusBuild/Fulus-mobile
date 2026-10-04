@@ -431,12 +431,30 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
 
   Future<void> _runAndCheckStuck() async {
     try {
-      final didRun = await _runSyncCyc  Future<bool> _runSyncCycle({bool manual = false}) async {
+      final didRun = await _runSyncCycle();
+      if (!didRun) return;
+      await _syncStatusNotifier.checkForStuckSyncAndNotify();
+      _onSyncSuccess?.call();
+    } on AuthFailure catch (error, stackTrace) {
+      if (error.requiresDeviceRegistration) {
+        await _onDeviceAuthorizationLost?.call();
+        return;
+      }
+      _onSyncFailure?.call(error, stackTrace);
+      rethrow;
+    } catch (error, stackTrace) {
+      _onSyncFailure?.call(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> _runSyncCycle({bool manual = false}) async {
     final active = _syncCycleRun;
     if (active != null) return active;
 
-    // Publish the in-flight marker before the first await so concurrent
-    // triggers in this runtime serialize onto the same cycle.
+    // Cycle execution and lease ownership are delegated to SyncCycleRunner.
+    // This method retains only same-runtime serialization and follow-up
+    // scheduling for mutations committed while the cycle is in flight.
     late Future<bool> run;
     run = _cycleRunner.run(manual: manual);
     _syncCycleRun = run;
@@ -467,21 +485,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
             }
           }
         });
-      }
-    }
-  }
-
-y while bootstrap replaces local
-      // cloud-owned state. Readiness is restored only after the post-bootstrap
-      // delta pull succeeds, so the UI can never advertise readiness before
-      // authoritative reconciliation has completed.
-      if (recoveredFromStaleCursor) {
-        try {
-          await _onRecoveryReconciled?.call();
-        } catch (error) {
-          await _onRecoveryFailed?.call(error);
-          rethrow;
-        }
       }
     }
   }
