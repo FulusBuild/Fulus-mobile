@@ -279,10 +279,9 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       await _runAndCheckStuck();
   }
 
-  /// Performs the readiness reconciliation without waiting on any normal
-  /// trigger or readiness future. This is used by bootstrap's onNotReady hook
-  /// and therefore must never call reconcileAfterRestore() or await
-  /// the connectivity or readiness orchestration.
+  /// Performs the readiness reconciliation after SyncService has established
+  /// the cloud session/device context. SyncService owns the lifecycle decision;
+  /// this runtime only performs the connectivity-gated reconciliation.
   Future<void> reconcileForReadiness() async {
     if (!_isEnabled()) {
       throw StateError(
