@@ -325,6 +325,17 @@ The second-pass audit identified two semantic gaps that are now addressed in sou
 
 The remaining Phase 5 gate is evidence, not another orchestration rewrite: prove all application lifecycle callers enter through SyncService, prove no second semantic authority remains in SyncTriggers, and run the full regression/CI suite.
 
+## Third-pass ownership closure
+
+The final source pass closed the remaining lifecycle leaks identified by FSA-006/FSA-007/FSA-008:
+
+- `SyncService` contains configuration-listener startup failures and keeps the normal enable path awaitable.
+- Readiness promotion/failure now occurs inside `SyncService.reconcileForReadiness()` and `SyncService.reconcileAfterRestore()`; UI/coordinator callers no longer call `markReady()` after reconciliation.
+- WorkManager no longer reads the persisted sync-enabled flag directly; it bootstraps the app and requests work through `SyncService`, which owns the disabled-request boundary.
+- Redundant cloud-bootstrap error wrapping was removed after the coordinator became the dedicated bootstrap implementation.
+
+This leaves verification, not another source-level ownership extraction, as the remaining simplification gate.
+
 ## 6. Migration strategy
 
 ### Phase 1 — architecture mapping
