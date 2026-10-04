@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 remains in progress — the public facade and runtime boundary are established, lifecycle callers are largely migrated, restore/cycle/readiness gates are extracted, and readiness bootstrap now enters through SyncService, but the second-pass audit found remaining semantic ownership gaps that must be closed before source-level completion  
+**Status:** Phase 5 remains in progress — the public facade, runtime boundary, cloud-session bootstrap coordinator, and service-owned readiness state are now established; the remaining gate is a final semantic ownership/call-path audit plus regression verification before source-level completion  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -312,9 +312,18 @@ that configuration lifecycle and explicitly starts/stops the trigger adapter.
 The adapter remains an internal implementation detail and is not an application
 provider/API boundary.
 
-**Next simplification:** close the remaining semantic ownership gaps identified by the second-pass audit. SyncService must become the authoritative lifecycle/readiness boundary rather than only a facade over bootstrap callbacks, and the cloud bootstrap implementation must stop being an application-root-owned orchestration function.
+**Latest simplification:** cloud/session bootstrap orchestration has been extracted from bootstrap.dart into CloudSessionBootstrapCoordinator, entered only through SyncService.bootstrapCloud(). SyncService now owns the readiness state (notReady → bootstrapping → ready/error) while FulusConnectionState receives only the UI-facing projection. Ordinary sync health errors remain separate from readiness.
 
 ---
+
+### Second-pass ownership closure
+
+The second-pass audit identified two semantic gaps that are now addressed in source:
+
+1. Cloud bootstrap implementation — the large initializeCloudSync() policy function was removed from bootstrap.dart and moved into CloudSessionBootstrapCoordinator. The app root now constructs dependencies and wires the coordinator; it no longer owns the cloud lifecycle algorithm.
+2. Readiness ownership — SyncService now owns readiness state and transitions. FulusConnectionState remains the reactive application projection and continues to own cloud session/business/device facts. Ordinary sync failures do not clear readiness.
+
+The remaining Phase 5 gate is evidence, not another orchestration rewrite: prove all application lifecycle callers enter through SyncService, prove no second semantic authority remains in SyncTriggers, and run the full regression/CI suite.
 
 ## 6. Migration strategy
 
@@ -374,7 +383,7 @@ Migrate, one boundary at a time:
 
 At this stage the facade is becoming the single public entry point without changing sync algorithms.
 
-### Phase 5 — consolidate lifecycle state **(in progress — second-pass audit reopened the completion gate)**
+### Phase 5 — consolidate lifecycle state **(in progress — ownership extraction complete; final verification gate remains)**
 
 After callers stop directly coordinating low-level readiness, simplify:
 
