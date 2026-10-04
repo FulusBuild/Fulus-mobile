@@ -18,6 +18,7 @@ class SyncService {
   final SyncConfig _config;
   bool _started = false;
   bool _restoreGateArmed = false;
+  bool _disposed = false;
 
   bool get isEnabled => _config.isEnabled;
 
@@ -54,6 +55,9 @@ class SyncService {
   /// Starts the synchronization lifecycle for the current application
   /// runtime. This is the only application-facing startup operation.
   Future<void> bootstrap() async {
+    if (_disposed) {
+      throw StateError('SyncService has been disposed and cannot bootstrap.');
+    }
     if (_started) return;
     _started = true;
     _config.addListener(_onConfigChanged);
@@ -78,9 +82,19 @@ class SyncService {
   }
 
   /// Requests an immediate synchronization cycle.
-  Future<void> request() => _runtime.request();
+  Future<void> request() {
+    if (_disposed) {
+      throw StateError('SyncService has been disposed and cannot request sync.');
+    }
+    return _runtime.request();
+  }
 
-  Future<void> waitForIdle() => _runtime.waitForIdle();
+  Future<void> waitForIdle() {
+    if (_disposed) {
+      return Future<void>.value();
+    }
+    return _runtime.waitForIdle();
+  }
 
   Future<void> refreshAfterContextChange() =>
       _runtime.refreshAfterContextChange();
@@ -119,6 +133,8 @@ class SyncService {
   void recoverReadiness() => _runtime.recoverReadiness();
 
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     if (_started) {
       _config.removeListener(_onConfigChanged);
       _started = false;
