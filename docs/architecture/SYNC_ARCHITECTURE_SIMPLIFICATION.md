@@ -419,6 +419,8 @@ The remaining SyncTriggers constructor callbacks were audited against the target
 
 ### Phase 6 — simplify handlers
 
+**Audit status: complete.** No handler contains global sync orchestration that can be safely extracted without weakening entity-boundary authorization, lease-protected stale-completion safety, or SyncEngine retry ownership.
+
 Remove orchestration knowledge from handlers only after the facade is authoritative.
 
 ### Phase 7 — production evidence
