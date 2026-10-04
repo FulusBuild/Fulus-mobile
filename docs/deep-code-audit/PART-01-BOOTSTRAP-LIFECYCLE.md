@@ -45,7 +45,7 @@ The master plan was read from branch docs/deep-code-audit-master-plan. The Part 
 
 ## Trace
 
-Foreground startup: main → ensureInitialized → global error capture → bootstrap → local session restore → dependency graph → ProviderContainer → runApp → foreground sync/background scheduling.
+Foreground startup: main → ensureInitialized → global error capture → bootstrap → local session restore → dependency graph → ProviderContainer → runApp → SyncService bootstrap → background scheduling.
 
 Bootstrap wires the local Drift database, auth repository, API clients, repositories, sync queue, sync handlers, canonical reconciler, sync coordinator, SyncEngine, SyncTriggers, and Riverpod overrides.
 
