@@ -11,6 +11,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fulus_mobile/sync/sync_readiness_recovery.dart';
+import 'package:fulus_mobile/sync/sync_readiness_gate.dart';
+import 'package:fulus_mobile/sync/sync_restore_reconciliation_gate.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:drift/native.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
@@ -1330,6 +1332,47 @@ void main() {
       await connectivityChanges.close();
     });
   });
+
+  test('readiness gate coalesces synchronous re-entry', () async {
+    late SyncReadinessGate gate;
+    var initializations = 0;
+    var ready = false;
+    gate = SyncReadinessGate(
+      isEnabled: () => true,
+      isReady: () async => ready,
+      onNotReady: () async {
+        initializations++;
+        if (initializations == 1) {
+          await gate.ensureReady();
+          ready = true;
+        }
+      },
+      isRestoreReconciliationInProgress: () => false,
+    );
+
+    expect(await gate.ensureReady(), isFalse);
+    expect(initializations, 1);
+  });
+
+  test('restore gate coalesces synchronous re-entry', () async {
+    late SyncRestoreReconciliationGate gate;
+    var reconciliations = 0;
+    gate = SyncRestoreReconciliationGate();
+
+    Future<void> reconcile() async {
+      reconciliations++;
+      if (reconciliations == 1) {
+        await gate.run(reconcile);
+      }
+    }
+
+    await gate.run(reconcile);
+
+    expect(reconciliations, 1);
+    expect(gate.isInProgress, isFalse);
+    expect(gate.activeRun, isNull);
+  });
+
 
   test('readiness recovery scheduler waits for cycle boundary before recovering', () async {
     var active = true;
