@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 4 in progress — facade introduced and lifecycle callers migrated  
+**Status:** Phase 5 in progress — facade introduced, lifecycle callers migrated, and trigger configuration ownership moved behind SyncService  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -173,7 +173,9 @@ UI / Repositories / Lifecycle / WorkManager
                     |
           +---------+---------+
           |                   |
-       Bootstrap           SyncEngine
+   lifecycle/event adapter  SyncEngine
+          |                   |
+       Bootstrap         push / pull / retry
           |                   |
    auth/business/device   push / pull / retry
           |                   |
@@ -299,10 +301,17 @@ Handlers must not decide:
 
 ### SyncTriggers owns only
 
-- observing external events;
-- converting them into `SyncService.request()`.
+- observing Flutter lifecycle and connectivity events;
+- periodic/recovery trigger timing;
+- serializing low-level trigger execution around the durable lease;
+- converting external events into synchronization requests/reconciliation operations.
 
-It should not become a second synchronization orchestrator.
+It no longer owns the persisted sync-enabled configuration. `SyncService` owns
+that configuration lifecycle and explicitly starts/stops the trigger adapter.
+The adapter remains an internal implementation detail during this migration.
+
+The next simplification is to move more lifecycle decisions out of the adapter
+without changing the existing push/pull/recovery mechanics.
 
 ---
 
@@ -364,7 +373,7 @@ Migrate, one boundary at a time:
 
 At this stage the facade is becoming the single public entry point without changing sync algorithms.
 
-### Phase 5 — consolidate lifecycle state
+### Phase 5 — consolidate lifecycle state **(in progress)**
 
 After callers stop directly coordinating low-level readiness, simplify:
 
@@ -374,6 +383,14 @@ After callers stop directly coordinating low-level readiness, simplify:
 - connection/session state.
 
 PR #152's reference-counted fence should not be removed until the new ownership boundary makes it unnecessary and equivalent regression tests exist.
+
+Current progress:
+
+- `SyncService` is the public synchronization boundary.
+- Application callers no longer need `SyncTriggers` lifecycle configuration.
+- `SyncService` owns `SyncConfig` listener registration and starts/stops the internal trigger adapter.
+- Restore fencing is exposed through service-level operations rather than trigger-specific UI calls.
+- `SyncTriggers` no longer depends on the `SyncConfig` type.
 
 ### Phase 6 — simplify handlers
 
