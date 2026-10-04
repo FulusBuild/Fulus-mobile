@@ -200,6 +200,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
 
   late final SyncTriggers syncTriggers;
+  late final SyncService syncService;
 
   final employeeRepository = EmployeeRepositoryImpl(
     db: database,
@@ -225,7 +226,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // pull, or recovery cycle before changing the selected business so an
       // in-flight old-business pull can never write into the newly selected
       // business's local dataset.
-      await syncTriggers.waitForIdle();
+      await syncService.waitForIdle();
       return !(await syncQueue.hasPendingItems());
     },
     beginSwitch: syncQueue.beginBusinessSwitchBarrier,
@@ -407,7 +408,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusConnectionState.clearRegisteredDevice();
       // Let the current sync cycle unwind first; SyncTriggers will then
       // re-enter the readiness path and silently re-register this installation.
-      syncTriggers.scheduleReadinessRecovery();
+      syncService.scheduleReadinessRecovery();
     },
   );
 
@@ -671,13 +672,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  syncService = SyncService(syncTriggers);
+
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
     restoreApi: employeeCloudRestoreApi,
     connection: fulusConnectionState,
     secureStorage: secureStorage,
     syncConfig: syncConfig,
-    syncTriggers: syncTriggers,
+    syncService: syncService,
     authRepository: authRepository,
     executionLease: syncExecutionLease,
     staffAccessApi: fulusStaffAccessApi,
@@ -690,7 +693,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // network/session reconciliation is deliberately outside the first-frame
   // startup path. Queue notifications remain connected immediately so any
   // local mutation after the first frame can wake the sync runtime.
-  syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
+  syncQueue.setOnEnqueued(syncService.notifyEnqueued);
 
   final printerRepository = PrinterRepositoryImpl(db: database);
   final receiptPrinterService = ReceiptPrinterService(printerRepository: printerRepository);
@@ -778,7 +781,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
-      syncServiceProvider.overrideWithValue(SyncService(syncTriggers)),
+      syncServiceProvider.overrideWithValue(syncService),
       employeeCloudSessionCoordinatorProvider.overrideWithValue(
         employeeCloudSessionCoordinator,
       ),
