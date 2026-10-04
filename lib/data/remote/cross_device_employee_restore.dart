@@ -84,6 +84,12 @@ class CrossDeviceEmployeeRestore {
             now.millisecondsSinceEpoch,
           ],
         );
+        await _seedHistoricalCashierIdentities(
+          snapshot,
+          currentUserId: claim.userId,
+          now: now,
+        );
+
         onProgress?.call('Restoring business data…');
         final result = await CloudRestoreImporter(_db).importSnapshot(
           snapshot,
@@ -201,6 +207,49 @@ class CrossDeviceEmployeeRestore {
       });
     } finally {
       await _executionLease.release();
+    }
+  }
+
+  Future<void> _seedHistoricalCashierIdentities(
+    Map<String, dynamic> snapshot, {
+    required String currentUserId,
+    required DateTime now,
+  }) async {
+    final cashierIds = <String>{};
+
+    for (final row in _maps(snapshot['sales'])) {
+      final id = row['cashier_user_id']?.toString();
+      if (id != null && id.isNotEmpty && id != currentUserId) {
+        cashierIds.add(id);
+      }
+    }
+    for (final row in _maps(snapshot['cash_drawer_shifts'])) {
+      final id = row['cashier_user_id']?.toString();
+      if (id != null && id.isNotEmpty && id != currentUserId) {
+        cashierIds.add(id);
+      }
+    }
+
+    for (final cashierId in cashierIds) {
+      await _db.customStatement(
+        '''
+        INSERT INTO users(
+          local_id, username, email, full_name, hashed_password, password_salt,
+          login_pin_hash, login_pin_salt, role, is_active,
+          failed_login_attempts, locked_until, approval_pin_hash,
+          approval_pin_salt, created_at, updated_at
+        )
+        VALUES (?, NULL, NULL, 'Historical staff', NULL, NULL, NULL, NULL, ?, 0,
+                0, NULL, NULL, NULL, ?, ?)
+        ON CONFLICT(local_id) DO NOTHING
+        ''',
+        [
+          cashierId,
+          AuthRole.employee.name,
+          now.millisecondsSinceEpoch,
+          now.millisecondsSinceEpoch,
+        ],
+      );
     }
   }
 
