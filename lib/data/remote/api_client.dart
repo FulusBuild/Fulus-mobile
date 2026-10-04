@@ -208,21 +208,19 @@ class ApiClient {
       if (accessToken == null || accessToken.isEmpty) {
         throw StateError('Supabase refresh returned no access token.');
       }
-      if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
-        await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
-        // Keep the legacy/global copy in lockstep with the active cloud
-        // identity. Startup may still use that copy before the cloud user id
-        // is known, so leaving it one rotation behind causes the next startup
-        // or identity switch to submit a refresh token Supabase has already
-        // consumed.
-        await _secureStorage.setRefreshToken(rotatedRefreshToken);
-      }
       final responseUserId =
           (data['user'] is Map) ? (data['user'] as Map)['id']?.toString() : null;
       if (responseUserId != userId) {
         // Do not ever pair a target local identity with a token issued for a
         // different Supabase user.
         return null;
+      }
+      if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
+        await _secureStorage.setUserRefreshToken(userId, rotatedRefreshToken);
+        // Keep the compatibility/global copy in lockstep with the active
+        // cloud identity. Startup may still use that copy before the cloud
+        // user id is known.
+        await _secureStorage.setRefreshToken(rotatedRefreshToken);
       }
       // Commit the in-memory cloud identity only after Supabase accepted the
       // target employee's refresh token and returned the same cloud identity.
