@@ -321,16 +321,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
 
   Future<bool> _ensureReady() => _readinessGate.ensureReady();
 
-  Future<void> _activateSafely() async {
-    try {
-      await _activate();
-    } catch (error, stackTrace) {
-      if (_started) {
-        _onSyncFailure?.call(error, stackTrace);
-      }
-    }
-  }
-
   Future<bool> _runIfOnlineSafely() async {
     try {
       return await _runIfOnline();
