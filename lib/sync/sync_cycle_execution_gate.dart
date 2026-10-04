@@ -28,7 +28,7 @@ class SyncCycleExecutionGate {
   bool get isRunning => _activeCycle != null;
   Future<void>? get followUp => _followUp;
 
-  Future<bool> run({bool manual = false}) async {
+  Future<bool> run({bool manual = false}) {
     final active = _activeCycle;
     if (active != null) return active;
 
@@ -38,7 +38,11 @@ class SyncCycleExecutionGate {
     final completer = Completer<bool>();
     final future = completer.future;
     _activeCycle = future;
-    unawaited(_executeCycle(future, completer, manual: manual));
+    // Start the callback in a microtask so the published future is visible
+    // before user code can re-enter the gate.
+    unawaited(
+      Future.microtask(() => _executeCycle(future, completer, manual: manual)),
+    );
     return future;
   }
 
