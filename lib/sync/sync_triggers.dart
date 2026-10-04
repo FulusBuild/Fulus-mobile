@@ -182,14 +182,7 @@ class SyncTriggers with WidgetsBindingObserver {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    WidgetsBinding.instance.removeObserver(this);
-    _subscription?.cancel();
-    _subscription = null;
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    _readinessRecoveryTimer?.cancel();
-    _readinessRecoveryTimer = null;
-    _started = false;
+    stop();
   }
 
   void didChangeAppLifecycleState(AppLifecycleState state) {
