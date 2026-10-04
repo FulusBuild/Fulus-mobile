@@ -9,6 +9,8 @@ import 'package:fulus_mobile/sync/sync_triggers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:fulus/sync/sync_readiness_recovery.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:drift/native.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
@@ -1328,4 +1330,35 @@ void main() {
       await connectivityChanges.close();
     });
   });
+
+  test('readiness recovery scheduler waits for cycle boundary before recovering', () async {
+    var active = true;
+    var canRun = false;
+    var recoveries = 0;
+    final errors = <Object>[];
+
+    final scheduler = SyncReadinessRecovery(
+      isActive: () => active,
+      canRun: () => canRun,
+      recover: () async {
+        recoveries++;
+        return true;
+      },
+      onFailure: (error, _) => errors.add(error),
+      interval: const Duration(milliseconds: 5),
+    );
+
+    scheduler.schedule();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(recoveries, 0);
+
+    canRun = true;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(recoveries, 1);
+    expect(errors, isEmpty);
+
+    active = false;
+    scheduler.dispose();
+  });
+
 }
