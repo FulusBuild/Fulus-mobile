@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, and cycle orchestration extracted from the trigger adapter  
+**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, cycle orchestration extracted from the trigger adapter, and WorkManager migrated to the service boundary  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -465,9 +465,9 @@ PR #152 demonstrated a concrete consequence: the authentication → restore hand
 
 ### FSA-002 — SyncTriggers remains the first refactoring target
 
-SyncTriggers is correctly designed around a single cycle Future, but it still coordinates readiness, restore reconciliation, recovery scheduling and multiple trigger classes.
+SyncTriggers is now a compatibility/lifecycle adapter rather than an application-facing authority, but it still contains the remaining internal bridges for readiness, restore reconciliation, recovery scheduling, and trigger-driven requests.
 
-**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The remaining work is to audit the adapter boundary, simplify handler responsibilities, and prove the preserved invariants with production evidence.
+**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The remaining work is to finish the adapter-boundary audit, simplify only handler responsibilities that are genuinely orchestration-related, and prove the preserved invariants with production evidence.
 
 ### FSA-003 — Existing SyncEngine is a strong core
 
