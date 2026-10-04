@@ -12,7 +12,6 @@ import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 import '../local/secure_storage/secure_storage.dart';
-import '../../sync/sync_config.dart';
 import '../../sync/sync_execution_lease.dart';
 import '../../sync/sync_service.dart';
 import 'cross_device_employee_restore.dart';
@@ -34,7 +33,6 @@ class EmployeeCloudSessionCoordinator {
     required CloudRestoreApi restoreApi,
     required FulusConnectionState connection,
     required SecureStorage secureStorage,
-    required SyncConfig syncConfig,
     required SyncService syncService,
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
@@ -44,7 +42,6 @@ class EmployeeCloudSessionCoordinator {
         _restoreApi = restoreApi,
         _connection = connection,
         _secureStorage = secureStorage,
-        _syncConfig = syncConfig,
         _syncService = syncService,
         _authRepository = authRepository,
         _executionLease = executionLease,
@@ -55,7 +52,6 @@ class EmployeeCloudSessionCoordinator {
   final CloudRestoreApi _restoreApi;
   final FulusConnectionState _connection;
   final SecureStorage _secureStorage;
-  final SyncConfig _syncConfig;
   final SyncService _syncService;
   final AuthRepository _authRepository;
   final SyncExecutionLease _executionLease;
@@ -144,7 +140,7 @@ class EmployeeCloudSessionCoordinator {
       // follow-up reconciliation in the background.
       await _upsertIdentityProjection(claim);
 
-      await _syncConfig.setEnabled(true);
+      await _syncService.enable();
       _connection.markSyncReady();
       unawaited(
         _syncService.reconcileAfterRestore().catchError((_) {
@@ -222,7 +218,7 @@ class EmployeeCloudSessionCoordinator {
           .go();
       await _database.delete(_database.sessions).go();
       _connection.disconnect();
-      await _syncConfig.setEnabled(false);
+      await _syncService.disable();
       final restored = await _authRepository.restoreSession();
       _onSessionChanged?.call(restored);
       _connection.notifyAccessProjectionChanged();
