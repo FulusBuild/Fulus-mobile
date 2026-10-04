@@ -124,9 +124,11 @@ class FulusConnectionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Records synchronization health without changing lifecycle readiness.
+  /// Readiness is owned by SyncService; a transient sync failure must not
+  /// masquerade as loss of authentication or device readiness.
   void markSyncError(Object error) {
     _syncError = error;
-    _syncReady = false;
     notifyListeners();
   }
 
