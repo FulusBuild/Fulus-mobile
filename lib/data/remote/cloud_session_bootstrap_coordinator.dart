@@ -56,7 +56,6 @@ class CloudSessionBootstrapCoordinator {
   Future<bool> bootstrap() async {
     if (_connectionState.isCloudOnboardingInProgress) return false;
 
-    try {
       final session = await _authApi.restoreServerSession(
         supabaseUrl: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
