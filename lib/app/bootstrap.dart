@@ -577,7 +577,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   syncTriggers = SyncTriggers(
     syncEngine: syncEngine,
-    syncConfig: syncConfig,
+    isEnabled: () => syncConfig.isEnabled,
     syncStatusNotifier: syncStatusNotifier,
     isReady: () async => fulusConnectionState.isSyncReady,
     onNotReady: initializeCloudSync,
