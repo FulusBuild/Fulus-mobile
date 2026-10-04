@@ -58,6 +58,12 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       _status = 'Signing you in…';
     });
 
+    final connection = ref.read(fulusConnectionStateProvider);
+    // Arm the cloud lifecycle fence before authentication changes the active
+    // cloud session. Otherwise SyncTriggers can observe the newly authenticated
+    // session and start bootstrap/restore before employee provisioning owns the
+    // session lifecycle.
+    connection.beginCloudOnboarding();
     try {
       await ref.read(authApiProvider).connectServer(
             email: email,
@@ -66,7 +72,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
             publishableKey: SupabaseConfig.publishableKey,
           );
 
-      final connection = ref.read(fulusConnectionStateProvider);
       connection.markSessionAuthenticated();
       await connection.refresh();
 
@@ -121,6 +126,11 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           _status = '';
         });
       }
+    } finally {
+      // EmployeeCloudSessionCoordinator.establish() owns a nested fence during
+      // restore. The outer reference covers authentication and membership
+      // resolution and is released only after the whole handoff finishes.
+      connection.endCloudOnboarding();
     }
   }
 

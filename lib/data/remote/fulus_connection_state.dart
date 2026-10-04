@@ -33,7 +33,7 @@ class FulusConnectionState extends ChangeNotifier {
   bool _syncReady = false;
   bool _sessionAuthenticated = false;
   bool _sessionExpired = false;
-  bool _cloudOnboardingInProgress = false;
+  int _cloudOnboardingDepth = 0;
   Object? _syncError;
 
   FulusMembershipContext? get membershipContext => _membershipContext;
@@ -47,17 +47,22 @@ class FulusConnectionState extends ChangeNotifier {
   /// treated as an expired session, so the UI can wait for automatic recovery.
   bool get isSessionExpired => _sessionExpired;
   bool get hasSyncError => _syncError != null;
-  bool get isCloudOnboardingInProgress => _cloudOnboardingInProgress;
+  /// True while any cloud onboarding/restore operation owns the lifecycle
+  /// fence. The counter is intentional: the login screen can arm the fence
+  /// before authentication, while the employee restore coordinator also owns
+  /// it for its own restore scope. Nested ownership must not release the fence
+  /// early and let SyncTriggers start against a partially restored identity.
+  bool get isCloudOnboardingInProgress => _cloudOnboardingDepth > 0;
 
   void beginCloudOnboarding() {
-    _cloudOnboardingInProgress = true;
+    _cloudOnboardingDepth++;
     _syncReady = false;
     notifyListeners();
   }
 
   void endCloudOnboarding() {
-    if (!_cloudOnboardingInProgress) return;
-    _cloudOnboardingInProgress = false;
+    if (_cloudOnboardingDepth == 0) return;
+    _cloudOnboardingDepth--;
     notifyListeners();
   }
   bool get isSyncReady =>
