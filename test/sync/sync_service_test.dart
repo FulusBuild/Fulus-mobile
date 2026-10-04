@@ -31,7 +31,7 @@ void main() {
     service.dispose();
   });
 
-  test('disposed service cannot be bootstrapped or requested again', () async {
+  test('cloud bootstrap delegates through service', () async {\n    final config = await SyncConfig.load();\n    var calls = 0;\n    final service = SyncService(runtime, config, bootstrapCloud: () async { calls++; });\n    await service.bootstrapCloud();\n    expect(calls, 1);\n    service.dispose();\n  });\n\n  test('disposed service cannot be bootstrapped or requested again', () async {
     final config = await SyncConfig.load();
     when(() => runtime.start()).thenAnswer((_) async {});
     when(() => runtime.request()).thenAnswer((_) async {});
