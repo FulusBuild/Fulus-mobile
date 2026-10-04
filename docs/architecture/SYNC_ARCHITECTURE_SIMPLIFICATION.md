@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Source-level Phase 5 complete — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, cycle orchestration extracted from the trigger adapter, WorkManager migrated to the service boundary, orchestration gates hardened against synchronous re-entry, and readiness bootstrap routed through the SyncService boundary  
+**Status:** Phase 5 remains in progress — the public facade and runtime boundary are established, lifecycle callers are largely migrated, restore/cycle/readiness gates are extracted, and readiness bootstrap now enters through SyncService, but the second-pass audit found remaining semantic ownership gaps that must be closed before source-level completion  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -312,9 +312,7 @@ that configuration lifecycle and explicitly starts/stops the trigger adapter.
 The adapter remains an internal implementation detail and is not an application
 provider/API boundary.
 
-**Next simplification:** none at the source-level architecture boundary; remaining work is verification and production evidence
-from `SyncTriggers` into semantic service/engine operations, without changing
-push/pull mechanics or lease guarantees.
+**Next simplification:** close the remaining semantic ownership gaps identified by the second-pass audit. SyncService must become the authoritative lifecycle/readiness boundary rather than only a facade over bootstrap callbacks, and the cloud bootstrap implementation must stop being an application-root-owned orchestration function.
 
 ---
 
@@ -376,7 +374,7 @@ Migrate, one boundary at a time:
 
 At this stage the facade is becoming the single public entry point without changing sync algorithms.
 
-### Phase 5 — consolidate lifecycle state **(in progress)**
+### Phase 5 — consolidate lifecycle state **(in progress — second-pass audit reopened the completion gate)**
 
 After callers stop directly coordinating low-level readiness, simplify:
 
@@ -464,7 +462,7 @@ A smaller codebase is not automatically a simpler architecture.
 
 ## 8. Current findings
 
-### FSA-001 — High architectural complexity, no correctness defect proven
+### FSA-001 — Lifecycle ownership is still split after the facade migration
 
 **Area:** lifecycle/orchestration
 
@@ -472,27 +470,27 @@ The codebase has multiple legitimate components, but lifecycle decisions are dis
 
 PR #152 demonstrated a concrete consequence: the authentication → restore handoff needed nested cloud-onboarding fencing to prevent background sync from observing a partially initialized session.
 
-**Recommendation:** keep SyncService as the public boundary while progressively moving lifecycle policy out of the internal adapter.
+**Recommendation:** keep SyncService as the public boundary, but complete the semantic ownership migration instead of treating callback routing as ownership transfer.
 
-### FSA-002 — SyncTriggers remains the first refactoring target
+### FSA-002 — SyncTriggers is internal, but still contains semantic operations
 
 SyncTriggers is now a compatibility/lifecycle adapter rather than an application-facing authority, but it still contains the remaining internal bridges for readiness, restore reconciliation, recovery scheduling, and trigger-driven requests.
 
-**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The final adapter-boundary ownership gap is now closed: readiness-triggered cloud bootstrap enters through SyncService.bootstrapCloud(), leaving SyncTriggers as an internal event/runtime adapter. Source-level simplification is therefore complete. Remaining work is verification and production evidence for the preserved runtime invariants.
+**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. Second-pass audit finding: routing readiness bootstrap through SyncService.bootstrapCloud() closes the call-path boundary, but it does not yet fully close semantic ownership. The actual bootstrap sequence remains implemented in bootstrap.dart, and readiness state remains projected by FulusConnectionState. SyncService therefore acts as a facade over lifecycle policy rather than the authoritative lifecycle owner. Source-level simplification must not be marked complete until this ownership split is resolved.
 
-### FSA-003 — Existing SyncEngine is a strong core
+### FSA-003 — SyncService does not yet own the complete readiness state
 
-The current engine already provides durable queue draining, retries, conflict handling, auth/device recovery and diagnostics.
+The current engine already provides durable queue draining, retries, conflict handling, auth/device recovery and diagnostics. A second-pass inspection also found that FulusConnectionState still owns the externally visible isSyncReady projection, while bootstrap.dart directly decides when to mark Sync Ready and Sync Error. This means SyncService does not yet own the complete semantic readiness contract described by the target architecture.
 
 **Recommendation:** preserve it and place a facade above it instead of rewriting it.
 
-### FSA-004 — Pull coordinator should remain separate
+### FSA-004 — Cloud bootstrap implementation remains application-root orchestration
 
-The pull coordinator has valuable cursor/process-death semantics and should not be merged into entity handlers.
+initializeCloudSync() in bootstrap.dart still performs the complete cloud bootstrap policy: session restoration, membership resolution, business selection, device registration, local business binding, business-switch recovery, readiness reconciliation, and readiness/error projection. SyncService.bootstrapCloud() currently delegates to that function rather than owning a dedicated bootstrap operation.
 
 **Recommendation:** preserve the separation, but make it an implementation detail of the single sync authority.
 
-### FSA-005 — Background architecture is conceptually correct
+### FSA-005 — Pull coordinator should remain separate
 
 WorkManager and foreground execution converge on the same durable synchronization stack.
 
@@ -566,3 +564,15 @@ The existing regression suite already exercises the core sync invariants at the 
 | Duplicate delivery / timeout after cloud commit | Engine/idempotency coverage present | Runtime fault-injection or observed replay evidence |
 
 This checkpoint deliberately does not mark the runtime rows as proven. They remain explicit production-readiness evidence requirements; they do not represent another source-level orchestration simplification.
+
+### FSA-006 — SyncService configuration reaction has an async error boundary gap
+
+SyncService._onConfigChanged() starts the runtime with unawaited(_runtime.start()). Because SyncConfig is a synchronous ChangeNotifier, an exception from runtime startup cannot propagate through enable() as a normal lifecycle failure. This does not prove a data-integrity defect, but it weakens the explicit failure contract.
+
+**Recommendation:** make the service enable/disable lifecycle path explicitly await runtime start/stop, or add a deliberate service-owned error sink. Do not silently swallow startup failures.
+
+### FSA-007 — Call-path ownership is not semantic ownership
+
+Routing onNotReady to SyncService.bootstrapCloud() is directionally correct, but a facade callback alone is not sufficient evidence that the service owns the lifecycle. The audit must verify where bootstrap decisions are made, where readiness transitions are committed, and which component is authoritative when bootstrap, restore, device revocation, and business switching overlap.
+
+**Required before completion:** source-level tests covering bootstrap/readiness ownership, restore overlap, device-revocation recovery, business-switch recovery, startup failure, and configuration-enable failure.
