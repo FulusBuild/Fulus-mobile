@@ -103,7 +103,7 @@ class SyncService {
     final active = _cloudBootstrapRun;
     if (active != null) return active;
 
-    final run = _bootstrapCloud();
+    final run = _runCloudBootstrap();
     _cloudBootstrapRun = run;
     return run.whenComplete(() {
       if (identical(_cloudBootstrapRun, run)) {
@@ -112,7 +112,7 @@ class SyncService {
     });
   }
 
-  Future<void> _bootstrapCloud() async {
+  Future<void> _runCloudBootstrap() async {
     final bootstrapCloud = _bootstrapCloud;
     if (bootstrapCloud == null) {
       throw StateError('Cloud bootstrap is not configured.');
