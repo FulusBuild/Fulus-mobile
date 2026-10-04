@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, cycle orchestration extracted from the trigger adapter, and WorkManager migrated to the service boundary  
+**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, restore lifecycle ownership consolidated, cycle orchestration extracted from the trigger adapter, WorkManager migrated to the service boundary, and orchestration gates hardened against synchronous re-entry  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -478,7 +478,7 @@ PR #152 demonstrated a concrete consequence: the authentication → restore hand
 
 SyncTriggers is now a compatibility/lifecycle adapter rather than an application-facing authority, but it still contains the remaining internal bridges for readiness, restore reconciliation, recovery scheduling, and trigger-driven requests.
 
-**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The remaining work is to finish the adapter-boundary audit, simplify only handler responsibilities that are genuinely orchestration-related, and prove the preserved invariants with production evidence.
+**Progress:** application callers no longer depend on it directly. Push/pull sequencing and stale-cursor recovery are in `SyncCycleRunner`; readiness initialization, recovery timing, restore fencing, connectivity coalescing, and same-runtime cycle/follow-up serialization are now separate internal primitives. The remaining work is to close the final adapter-boundary ownership gaps, prove the preserved invariants with source-level regression plus production evidence, and only then mark the source-level simplification complete.
 
 ### FSA-003 — Existing SyncEngine is a strong core
 
