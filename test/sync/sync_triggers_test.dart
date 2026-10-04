@@ -1362,7 +1362,7 @@ void main() {
     Future<void> reconcile() async {
       reconciliations++;
       if (reconciliations == 1) {
-        await gate.run(reconcile);
+        unawaited(gate.run(reconcile));
       }
     }
 
