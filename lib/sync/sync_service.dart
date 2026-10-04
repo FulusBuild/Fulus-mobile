@@ -1,3 +1,4 @@
+import 'sync_config.dart';
 import 'sync_triggers.dart';
 
 /// Single public synchronization boundary for the application.
@@ -9,9 +10,16 @@ import 'sync_triggers.dart';
 /// This is a facade-first refactor: behavior stays unchanged while lifecycle
 /// ownership is progressively moved behind one boundary.
 class SyncService {
-  SyncService(this._triggers);
+  SyncService(this._triggers, this._config);
 
   final SyncTriggers _triggers;
+  final SyncConfig _config;
+
+  bool get isEnabled => _config.isEnabled;
+
+  Future<void> enable() => _config.setEnabled(true);
+
+  Future<void> disable() => _config.setEnabled(false);
 
   Future<void> start() => _triggers.start();
 
