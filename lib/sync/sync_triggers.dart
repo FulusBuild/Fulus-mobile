@@ -271,18 +271,11 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
         );
       }
 
-      // A normal trigger may already own the connectivity cycle. It is safe
-      // to wait for that cycle unless it is waiting on this restore through
-      // onNotReady. Bootstrap readiness initialization uses
-      // reconcileForReadiness() instead, so it never creates that cycle.
-      final active = _connectivityGate;
-      if (active.isRunning) {
-        // A normal trigger may already own the reconciliation. Its result
-        // tells restore whether real sync work happened or whether the
-        // trigger stood down because restore was still establishing readiness.
-        await active.run();
-        final didReconcile = true;
-        if (didReconcile) return;
+      // A normal trigger may already own the connectivity cycle. Waiting
+      // for the shared gate preserves the existing serialization boundary.
+      if (_connectivityGate.isRunning) {
+        await _connectivityGate.run();
+        return;
       }
 
       await _runAndCheckStuck();
