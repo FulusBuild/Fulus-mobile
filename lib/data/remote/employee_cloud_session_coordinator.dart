@@ -262,13 +262,7 @@ class EmployeeCloudSessionCoordinator {
       );
 
       await _syncService.enable();
-      try {
-        await _syncService.reconcileForReadiness();
-      } catch (error) {
-        _syncService.markReadinessError(error);
-        rethrow;
-      }
-      _syncService.markReady();
+      await _syncService.reconcileForReadiness();
 
       final employee = await _authRepository.restoreSession();
       if (employee == null ||
