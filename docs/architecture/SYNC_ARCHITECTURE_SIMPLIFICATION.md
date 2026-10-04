@@ -576,3 +576,7 @@ SyncService._onConfigChanged() starts the runtime with unawaited(_runtime.start(
 Routing onNotReady to SyncService.bootstrapCloud() is directionally correct, but a facade callback alone is not sufficient evidence that the service owns the lifecycle. The audit must verify where bootstrap decisions are made, where readiness transitions are committed, and which component is authoritative when bootstrap, restore, device revocation, and business switching overlap.
 
 **Required before completion:** source-level tests covering bootstrap/readiness ownership, restore overlap, device-revocation recovery, business-switch recovery, startup failure, and configuration-enable failure.
+
+### FSA-008 — Background architecture remains conceptually correct
+
+WorkManager and foreground execution still converge on the same durable synchronization stack through SyncService. This part of the target architecture is aligned and should not be redesigned.
