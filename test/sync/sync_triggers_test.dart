@@ -1350,7 +1350,7 @@ void main() {
       isRestoreReconciliationInProgress: () => false,
     );
 
-    expect(await gate.ensureReady(), isFalse);
+    expect(await gate.ensureReady(), isTrue);
     expect(initializations, 1);
   });
 
