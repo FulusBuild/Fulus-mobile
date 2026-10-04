@@ -201,4 +201,27 @@ void main() {
     service.dispose();
   });
 
+  test('concurrent cloud bootstrap requests coalesce into one lifecycle run', () async {
+    final config = await SyncConfig.load();
+    var calls = 0;
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async {
+        calls++;
+        await Future<void>.delayed(Duration.zero);
+        return true;
+      },
+    );
+
+    final first = service.bootstrapCloud();
+    final second = service.bootstrapCloud();
+
+    await Future.wait([first, second]);
+
+    expect(calls, 1);
+    expect(service.isReady, isTrue);
+    service.dispose();
+  });
+
 }
