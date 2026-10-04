@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fulus_mobile/sync/sync_connectivity_run_gate.dart';
