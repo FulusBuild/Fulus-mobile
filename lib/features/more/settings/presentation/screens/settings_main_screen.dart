@@ -202,7 +202,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     await ref.read(authRepositoryProvider).logout();
     await ref.read(apiClientProvider).clearActiveCloudSession();
     ref.read(fulusConnectionStateProvider).disconnect();
-    await ref.read(syncConfigProvider).setEnabled(false);
+    await ref.read(syncServiceProvider).disable();
     ref.read(sessionProvider.notifier).state = null;
 
     if (!context.mounted) return;
