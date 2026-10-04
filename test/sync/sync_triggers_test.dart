@@ -220,6 +220,7 @@ void main() {
       );
       await triggers.start();
       await config.setEnabled(true);
+      await triggers.start();
       await untilCalled(() => syncEngine.runOnce(manual: any(named: 'manual')));
       verify(() => connectivity.checkConnectivity()).called(1);
       verify(() => syncEngine.runOnce(manual: false)).called(1);
@@ -241,6 +242,7 @@ void main() {
       );
       await triggers.start();
       await config.setEnabled(false);
+      triggers.stop();
       await triggers.notifyEnqueued();
       verify(() => connectivity.checkConnectivity()).called(1);
     });
