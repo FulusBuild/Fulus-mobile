@@ -494,8 +494,8 @@ final employeeCloudSessionCoordinatorProvider =
 
 /// A future Settings "Offline, Sync & Backup" screen (Volume 11) reads
 /// this to show the toggle's current state and calls
-/// SyncConfig.setEnabled to flip it — see that class's own doc comment
-/// on why flipping it doesn't itself restart SyncTriggers.
+/// SyncService.enable/disable to change it. SyncConfig is only the persisted
+/// setting and change notification; SyncService owns the lifecycle reaction.
 final syncConfigProvider = ChangeNotifierProvider<SyncConfig>((ref) {
   throw UnimplementedError(
     'syncConfigProvider must be overridden in bootstrap.dart.',
