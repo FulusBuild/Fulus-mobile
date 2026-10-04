@@ -580,7 +580,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     isEnabled: () => syncConfig.isEnabled,
     syncStatusNotifier: syncStatusNotifier,
     isReady: () async => fulusConnectionState.isSyncReady,
-    onNotReady: initializeCloudSync,
+    onNotReady: () => syncService.bootstrapCloud(),
     onSyncSuccess: () {
       fulusConnectionState.clearSyncError();
       // Access is cloud-authoritative. Refresh it opportunistically after
@@ -672,7 +672,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
-  syncService = SyncService(syncTriggers, syncConfig);
+  syncService = SyncService(
+    syncTriggers,
+    syncConfig,
+    bootstrapCloud: initializeCloudSync,
+  );
 
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
