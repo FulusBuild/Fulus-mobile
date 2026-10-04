@@ -22,7 +22,7 @@ import 'sync_execution_lease.dart';
 class SyncTriggers with WidgetsBindingObserver {
   SyncTriggers({
     required SyncEngine syncEngine,
-    required SyncConfig syncConfig,
+    required bool Function() isEnabled,
     required SyncStatusNotifier syncStatusNotifier,
     Future<void> Function()? pullFromServer,
     Future<bool> Function()? isReady,
@@ -41,7 +41,7 @@ class SyncTriggers with WidgetsBindingObserver {
     Future<void> Function()? onDeviceAuthorizationLost,
     SyncExecutionLease? executionLease,
   })  : _syncEngine = syncEngine,
-        _syncConfig = syncConfig,
+        _isEnabled = isEnabled,
         _syncStatusNotifier = syncStatusNotifier,
         _pullFromServer = pullFromServer,
         _onDeviceAuthorizationLost = onDeviceAuthorizationLost,
@@ -60,7 +60,7 @@ class SyncTriggers with WidgetsBindingObserver {
         _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
 
   final SyncEngine _syncEngine;
-  final SyncConfig _syncConfig;
+  final bool Function() _isEnabled;
   final SyncStatusNotifier _syncStatusNotifier;
   final Future<void> Function()? _pullFromServer;
   final Future<bool> Function()? _isReady;
@@ -148,8 +148,7 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void> start() async {
     if (_disposed || _started) return;
     _started = true;
-    _syncConfig.addListener(_onConfigChanged);
-    if (!_syncConfig.isEnabled) return;
+    if (!_isEnabled()) return;
     await _activate();
   }
 
@@ -157,7 +156,7 @@ class SyncTriggers with WidgetsBindingObserver {
     if (_subscription != null) return;
     WidgetsBinding.instance.addObserver(this);
     _retryTimer ??= Timer.periodic(retryInterval, (_) {
-      if (_syncConfig.isEnabled) {
+      if (_isEnabled()) {
         unawaited(_runIfOnlineSafely());
       }
     });
@@ -167,14 +166,11 @@ class SyncTriggers with WidgetsBindingObserver {
     _subscription = _connectivity.onConnectivityChanged.listen((_) {
       unawaited(_runIfOnlineSafely());
     });
-    if (!_syncConfig.isEnabled) return;
+    if (!_isEnabled()) return;
     await _runIfOnline();
   }
 
-  void dispose() {
-    if (_disposed) return;
-    _disposed = true;
-    _syncConfig.removeListener(_onConfigChanged);
+  void stop() {
     WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     _subscription = null;
@@ -185,22 +181,21 @@ class SyncTriggers with WidgetsBindingObserver {
     _started = false;
   }
 
-  void _onConfigChanged() {
-    if (_syncConfig.isEnabled) {
-      unawaited(_activateSafely());
-    } else {
-      WidgetsBinding.instance.removeObserver(this);
-      _subscription?.cancel();
-      _subscription = null;
-      _retryTimer?.cancel();
-      _retryTimer = null;
-      _readinessRecoveryTimer?.cancel();
-      _readinessRecoveryTimer = null;
-    }
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _subscription?.cancel();
+    _subscription = null;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _readinessRecoveryTimer?.cancel();
+    _readinessRecoveryTimer = null;
+    _started = false;
   }
 
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_disposed || !_syncConfig.isEnabled) return;
+    if (_disposed || !_isEnabled()) return;
     if (state == AppLifecycleState.resumed) {
       unawaited(_runIfOnlineSafely());
     }
@@ -212,9 +207,9 @@ class SyncTriggers with WidgetsBindingObserver {
   /// this starts the normal connectivity-gated cycle; when offline, the regular
   /// connectivity/lifecycle triggers will retry without making the switch fail.
   Future<void> refreshAfterContextChange() async {
-    if (_disposed || !_syncConfig.isEnabled) return;
+    if (_disposed || !_isEnabled()) return;
     final didRun = await _runIfOnlineSafely();
-    if (!didRun || !_syncConfig.isEnabled) return;
+    if (!didRun || !_isEnabled()) return;
     await _onContextChangeReconciled?.call();
   }
 
@@ -222,7 +217,7 @@ class SyncTriggers with WidgetsBindingObserver {
     if (_disposed) {
       throw StateError('SyncTriggers has been disposed and cannot sync.');
     }
-    if (!_syncConfig.isEnabled) {
+    if (!_isEnabled()) {
       throw StateError(
         'SyncTriggers.syncNow() was called while sync is disabled. '
         'Callers should only expose a "Sync Now" action when '
@@ -266,7 +261,7 @@ class SyncTriggers with WidgetsBindingObserver {
     if (_disposed) {
       throw StateError('SyncTriggers has been disposed and cannot reconcile.');
     }
-    if (!_syncConfig.isEnabled) {
+    if (!_isEnabled()) {
       throw StateError(
         'Cannot reconcile a restored business while sync is disabled.',
       );
@@ -323,7 +318,7 @@ class SyncTriggers with WidgetsBindingObserver {
   /// and therefore must never call reconcileAfterRestore() or await
   /// _connectivityRun/_readinessRun.
   Future<void> reconcileForReadiness() async {
-    if (!_syncConfig.isEnabled) {
+    if (!_isEnabled()) {
       throw StateError(
         'Cannot reconcile for readiness while sync is disabled.',
       );
@@ -340,7 +335,7 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> notifyEnqueued() async {
-    if (_disposed || !_syncConfig.isEnabled) return;
+    if (_disposed || !_isEnabled()) return;
     // A local mutation can be committed while the push phase is in flight.
     // Do not let that mutation run before the current cycle's pull advances
     // the local cursor; its base cursor may otherwise be stale relative to a
@@ -361,7 +356,7 @@ class SyncTriggers with WidgetsBindingObserver {
     _readinessRecoveryTimer = Timer.periodic(
       const Duration(milliseconds: 250),
       (timer) {
-        if (!_started || !_syncConfig.isEnabled) {
+        if (!_started || !_isEnabled()) {
           timer.cancel();
           _readinessRecoveryTimer = null;
           return;
@@ -454,7 +449,7 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<bool> _runIfOnlineOnce({required bool requireReady}) async {
-    if (!_syncConfig.isEnabled) return false;
+    if (!_isEnabled()) return false;
     if (requireReady) {
       final initialized = await _ensureReady();
       final ready = _isReady;
@@ -529,7 +524,7 @@ class SyncTriggers with WidgetsBindingObserver {
       if (identical(_syncCycleRun, run)) {
         _syncCycleRun = null;
       }
-      if (followUpRequested && _syncConfig.isEnabled && _started) {
+      if (followUpRequested && _isEnabled() && _started) {
         // Start only after the active-cycle marker has been cleared so the
         // follow-up cannot recursively await the cycle that requested it.
         // Keep a Future for this boundary so waitForIdle() cannot report idle
