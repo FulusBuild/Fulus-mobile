@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 1 complete — architecture mapping and complexity classification  
+**Status:** Phase 4 in progress — facade introduced and lifecycle callers migrated  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
