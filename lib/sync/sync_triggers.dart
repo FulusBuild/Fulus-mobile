@@ -13,7 +13,7 @@ import 'sync_execution_lease.dart';
 /// Server -> device reconciliation is supplied separately through
 /// [pullFromServer] so the queue algorithm remains platform-independent.
 ///
-/// [isReady] is deliberately separate from [SyncService]: the persisted
+/// [isReady] is deliberately separate from the service-owned persisted
 /// switch means "the user enabled sync", while readiness means the current
 /// session has an authenticated membership and an active registered device.
 /// Keeping those states separate prevents startup/lifecycle triggers from
