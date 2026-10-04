@@ -1,50 +1,50 @@
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_service.dart';
-import 'package:fulus_mobile/sync/sync_triggers.dart';
+import 'package:fulus_mobile/sync/sync_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MockSyncTriggers extends Mock implements SyncTriggers {}
+class MockSyncRuntime extends Mock implements SyncRuntime {}
 
 void main() {
-  late MockSyncTriggers triggers;
+  late MockSyncRuntime runtime;
 
   setUp(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({});
-    triggers = MockSyncTriggers();
+    runtime = MockSyncRuntime();
   });
 
   test('bootstrap is idempotent and starts enabled synchronization once', () async {
     SharedPreferences.setMockInitialValues({'fulus_sync_enabled': true});
     final config = await SyncConfig.load();
-    when(() => triggers.start()).thenAnswer((_) async {});
+    when(() => runtime.start()).thenAnswer((_) async {});
 
-    final service = SyncService(triggers, config);
+    final service = SyncService(runtime, config);
 
     await service.bootstrap();
     await service.bootstrap();
 
-    verify(() => triggers.start()).called(1);
-    verifyNever(() => triggers.stop());
+    verify(() => runtime.start()).called(1);
+    verifyNever(() => runtime.stop());
     service.dispose();
   });
 
   test('runtime enable and disable are owned by SyncService', () async {
     final config = await SyncConfig.load();
-    when(() => triggers.start()).thenAnswer((_) async {});
-    when(() => triggers.stop()).thenReturn(null);
+    when(() => runtime.start()).thenAnswer((_) async {});
+    when(() => runtime.stop()).thenReturn(null);
 
-    final service = SyncService(triggers, config);
+    final service = SyncService(runtime, config);
     await service.bootstrap();
 
     await service.enable();
     await Future<void>.delayed(Duration.zero);
-    verify(() => triggers.start()).called(1);
+    verify(() => runtime.start()).called(1);
 
     await service.disable();
-    verify(() => triggers.stop()).called(1);
+    verify(() => runtime.stop()).called(1);
 
     service.dispose();
   });
@@ -52,17 +52,17 @@ void main() {
   test('restore enable arms the restore gate before enabling sync', () async {
     final config = await SyncConfig.load();
     final events = <String>[];
-    when(() => triggers.beginRestoreReconciliation()).thenAnswer((_) {
+    when(() => runtime.beginRestoreReconciliation()).thenAnswer((_) {
       events.add('begin');
     });
-    when(() => triggers.start()).thenAnswer((_) async {
+    when(() => runtime.start()).thenAnswer((_) async {
       events.add('start');
     });
-    when(() => triggers.cancelRestoreReconciliation()).thenAnswer((_) {
+    when(() => runtime.cancelRestoreReconciliation()).thenAnswer((_) {
       events.add('cancel');
     });
 
-    final service = SyncService(triggers, config);
+    final service = SyncService(runtime, config);
     await service.bootstrap();
     await service.enableForRestore();
 
