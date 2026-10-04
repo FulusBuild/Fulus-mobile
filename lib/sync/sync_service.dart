@@ -85,10 +85,15 @@ class SyncService {
 
   Future<void> reconcileForReadiness() => _triggers.reconcileForReadiness();
 
-  Future<void> notifyEnqueued() => _triggers.notifyEnqueued();
+  /// Notifies the synchronization authority that a durable local mutation
+  /// has been committed. The queue remains responsible for durability; this
+  /// callback only wakes the existing sync runtime after the transaction has
+  /// committed.
+  Future<void> onLocalMutationCommitted() => _triggers.notifyEnqueued();
 
   /// Schedules recovery after the cloud device/session authority is lost.
-  /// This is intentionally exposed as a lifecycle operation, not a trigger API.\n  void recoverReadiness() => _triggers.scheduleReadinessRecovery();
+  /// This is intentionally exposed as a lifecycle operation, not a trigger API.
+  void recoverReadiness() => _triggers.scheduleReadinessRecovery();
 
   void dispose() {
     if (_started) {
