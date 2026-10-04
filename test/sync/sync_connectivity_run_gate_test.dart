@@ -22,6 +22,21 @@ void main() {
     expect(gate.isRunning, isFalse);
   });
 
+  test('coalesces synchronous re-entry before the callback first awaits', () async {
+    late SyncConnectivityRunGate gate;
+    var runs = 0;
+    gate = SyncConnectivityRunGate(run: () async {
+      runs++;
+      if (runs == 1) {
+        await gate.run();
+      }
+      return true;
+    });
+
+    expect(await gate.run(), isTrue);
+    expect(runs, 1);
+  });
+
   test('clears running state when the attempt fails', () async {
     final gate = SyncConnectivityRunGate(run: () async {
       throw StateError('offline');
