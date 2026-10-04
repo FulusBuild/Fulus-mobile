@@ -31,7 +31,7 @@ void main() {
     service.dispose();
   });
 
-  test('cloud bootstrap delegates through service', () async {\n    final config = await SyncConfig.load();\n    var calls = 0;\n    final service = SyncService(runtime, config, bootstrapCloud: () async { calls++; });\n    await service.bootstrapCloud();\n    expect(calls, 1);\n    service.dispose();\n  });\n\n  test('disposed service cannot be bootstrapped or requested again', () async {
+  test('cloud bootstrap delegates through service', () async {\n    final config = await SyncConfig.load();\n    var calls = 0;\n    final service = SyncService(runtime, config, bootstrapCloud: () async { calls++; return true; });\n    await service.bootstrapCloud();\n    expect(calls, 1);\n    service.dispose();\n  });\n\n  test('disposed service cannot be bootstrapped or requested again', () async {
     final config = await SyncConfig.load();
     when(() => runtime.start()).thenAnswer((_) async {});
     when(() => runtime.request()).thenAnswer((_) async {});
@@ -106,4 +106,74 @@ void main() {
     expect(events, ['begin', 'reconcile', 'start']);
     service.dispose();
   });
+
+  test('cloud bootstrap owns readiness transitions', () async {
+    final config = await SyncConfig.load();
+    final states = <SyncReadinessState>[];
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async => true,
+      onReadinessChanged: (state, _) => states.add(state),
+    );
+
+    await service.bootstrapCloud();
+
+    expect(service.isReady, isTrue);
+    expect(service.readinessState, SyncReadinessState.ready);
+    expect(states, [
+      SyncReadinessState.bootstrapping,
+      SyncReadinessState.ready,
+    ]);
+    service.dispose();
+  });
+
+  test('cloud bootstrap leaves service not ready when prerequisites are unavailable', () async {
+    final config = await SyncConfig.load();
+    final states = <SyncReadinessState>[];
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async => false,
+      onReadinessChanged: (state, _) => states.add(state),
+    );
+
+    await service.bootstrapCloud();
+
+    expect(service.isReady, isFalse);
+    expect(service.readinessState, SyncReadinessState.notReady);
+    expect(states, [
+      SyncReadinessState.bootstrapping,
+      SyncReadinessState.notReady,
+    ]);
+    service.dispose();
+  });
+
+  test('cloud bootstrap records readiness errors centrally', () async {
+    final config = await SyncConfig.load();
+    final states = <SyncReadinessState>[];
+    final error = StateError('cloud bootstrap failed');
+    final service = SyncService(
+      runtime,
+      config,
+      bootstrapCloud: () async => throw error,
+      onReadinessChanged: (state, reported) {
+        states.add(state);
+        if (state == SyncReadinessState.error) {
+          expect(identical(reported, error), isTrue);
+        }
+      },
+    );
+
+    await expectLater(service.bootstrapCloud(), throwsA(same(error)));
+
+    expect(service.isReady, isFalse);
+    expect(service.readinessState, SyncReadinessState.error);
+    expect(states, [
+      SyncReadinessState.bootstrapping,
+      SyncReadinessState.error,
+    ]);
+    service.dispose();
+  });
+
 }
