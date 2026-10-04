@@ -8,6 +8,7 @@ import '../core/errors/failure.dart';
 import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
+import 'sync_cycle_runner.dart';
 import 'sync_runtime.dart';
 
 /// Wires Architecture Section 8's trigger conditions to SyncEngine.runOnce.
@@ -57,7 +58,19 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
         _onBeforeSyncCycle = onBeforeSyncCycle,
         _onContextChangeReconciled = onContextChangeReconciled,
         _connectivity = connectivity ?? Connectivity(),
-        _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
+        _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db) {
+    _cycleRunner = SyncCycleRunner(
+      syncEngine: _syncEngine,
+      executionLease: _executionLease,
+      hasOutboundWork: _hasOutboundWork,
+      onPushSuccess: _onPushSuccess,
+      pullFromServer: _pullFromServer,
+      onCursorTooOldRecovery: _onCursorTooOldRecovery,
+      onRecoveryReconciled: _onRecoveryReconciled,
+      onRecoveryFailed: _onRecoveryFailed,
+      onBeforeSyncCycle: _onBeforeSyncCycle,
+    );
+  }
 
   final SyncEngine _syncEngine;
   final bool Function() _isEnabled;
@@ -76,6 +89,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
   final SyncExecutionLease _executionLease;
+  late final SyncCycleRunner _cycleRunner;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -114,7 +128,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   Future<bool>? _syncCycleRun;
   Future<void>? _followUpRun;
   bool _syncRequestedAfterCycle = false;
-  bool _beforeSyncCycleCompleted = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
@@ -456,55 +469,19 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
 
   Future<void> _runAndCheckStuck() async {
     try {
-      final didRun = await _runSyncCycle();
-      if (!didRun) return;
-      await _syncStatusNotifier.checkForStuckSyncAndNotify();
-      _onSyncSuccess?.call();
-    } on AuthFailure catch (error, stackTrace) {
-      if (error.requiresDeviceRegistration) {
-        await _onDeviceAuthorizationLost?.call();
-        return;
-      }
-      _onSyncFailure?.call(error, stackTrace);
-      rethrow;
-    } catch (error, stackTrace) {
-      _onSyncFailure?.call(error, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<bool> _runSyncCycle({bool manual = false}) async {
+      final didRun = await _runSyncCyc  Future<bool> _runSyncCycle({bool manual = false}) async {
     final active = _syncCycleRun;
     if (active != null) return active;
 
-    final lease = _executionLease;
-    // Publish the in-flight cycle marker before the first await. Otherwise a
-    // second trigger in this same runtime could enter while lease acquisition
-    // is waiting and start a duplicate cycle.
+    // Publish the in-flight marker before the first await so concurrent
+    // triggers in this runtime serialize onto the same cycle.
     late Future<bool> run;
     run = () async {
-      if (!await lease.acquire()) {
-        // Another Fulus runtime owns the durable SQLite sync lease. Treat this
-        // wake-up as a no-op and allow a later foreground or WorkManager
-        // trigger to run once the active cycle has released the lease.
-        return false;
-      }
       try {
-        try {
-          if (!_beforeSyncCycleCompleted) {
-            await _onBeforeSyncCycle?.call();
-            _beforeSyncCycleCompleted = true;
-          }
-          await _performSyncCycle(manual: manual, lease: lease);
-          return true;
-        } on SyncExecutionLeaseLost {
-          // The runtime may have been suspended long enough for another
-          // runtime to take over. Do not surface the takeover as a sync error
-          // and, critically, do not continue into a later pull/recovery phase.
-          return false;
-        }
-      } finally {
-        await lease.release();
+        await _cycleRunner.run(manual: manual);
+        return true;
+      } catch (_) {
+        rethrow;
       }
     }();
     _syncCycleRun = run;
@@ -517,10 +494,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
         _syncCycleRun = null;
       }
       if (followUpRequested && _isEnabled() && _started) {
-        // Start only after the active-cycle marker has been cleared so the
-        // follow-up cannot recursively await the cycle that requested it.
-        // Keep a Future for this boundary so waitForIdle() cannot report idle
-        // before the required follow-up has started and finished.
         final completer = Completer<void>();
         _followUpRun = completer.future;
         Timer.run(() async {
@@ -543,41 +516,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     }
   }
 
-  Future<void> _performSyncCycle({
-    bool manual = false,
-    required SyncExecutionLease lease,
-  }) async {
-    final hadOutboundWork = await _hasOutboundWork?.call() ?? false;
-    await _syncEngine.runOnce(manual: manual);
-    await lease.ensureHeld();
-    await _onPushSuccess?.call(hadOutboundWork);
-    await lease.ensureHeld();
-    final pull = _pullFromServer;
-    if (pull != null) {
-      // Pull failures are intentionally propagated. A reconciliation failure
-      // is a real sync failure and must remain observable to the caller and
-      // diagnostic layer rather than being silently converted into success.
-      var recoveredFromStaleCursor = false;
-      try {
-        await pull();
-        await lease.ensureHeld();
-      } on BusinessRuleFailure catch (error) {
-        if (error.code != 'SYNC_CURSOR_TOO_OLD') rethrow;
-        final recover = _onCursorTooOldRecovery;
-        if (recover == null) rethrow;
-        await lease.ensureHeld();
-        await recover();
-        await lease.ensureHeld();
-        recoveredFromStaleCursor = true;
-        try {
-          await pull();
-          await lease.ensureHeld();
-        } catch (error) {
-          await _onRecoveryFailed?.call(error);
-          rethrow;
-        }
-      }
-      // Recovery deliberately clears Sync Ready while bootstrap replaces local
+y while bootstrap replaces local
       // cloud-owned state. Readiness is restored only after the post-bootstrap
       // delta pull succeeds, so the UI can never advertise readiness before
       // authoritative reconciliation has completed.
