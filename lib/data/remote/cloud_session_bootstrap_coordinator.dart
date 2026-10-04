@@ -13,7 +13,6 @@ import '../../data/remote/endpoints/auth_api.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
-import '../../sync/sync_service.dart';
 
 /// Owns the cloud/session/device/bootstrap lifecycle used by SyncService.
 ///
