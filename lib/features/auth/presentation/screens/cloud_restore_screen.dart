@@ -157,14 +157,25 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
       ref.read(sessionProvider.notifier).state = owner;
 
+      // Bind the local single-business database before enabling sync so
+      // startup reconciliation cannot interpret this fresh restore as an
+      // unbound installation or a different previously selected business.
+      final syncPreferences = await SharedPreferences.getInstance();
+      final persistedBusinessBinding = await syncPreferences.setString(
+        'fulus_local_cloud_business_id',
+        businessId,
+      );
+      if (!persistedBusinessBinding) {
+        throw StateError(
+          'Failed to persist the Cloud Sync business binding.',
+        );
+      }
+
       // The restore snapshot is a complete business image and carries the
       // exact change-feed boundary from the same server-side snapshot.
       // Persist that boundary before reconciliation so the first pull starts
-      // strictly after the imported image. Resetting to cursor 0 is unsafe
-      // once retention has advanced: it can immediately produce
-      // SYNC_CURSOR_TOO_OLD and trigger a redundant destructive recovery.
+      // strictly after the imported image.
       setState(() => _status = 'Preparing cloud sync…');
-      final syncPreferences = await SharedPreferences.getInstance();
       final persistedBoundary = await syncPreferences.setInt(
         'fulus_sync_cursor_$businessId',
         snapshotBoundary.toInt(),
