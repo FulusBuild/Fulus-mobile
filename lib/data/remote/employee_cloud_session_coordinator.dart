@@ -140,7 +140,7 @@ class EmployeeCloudSessionCoordinator {
       // follow-up reconciliation in the background.
       await _upsertIdentityProjection(claim);
 
-      await _syncService.enable();
+      await _syncService.enableForRestore();
       _connection.markSyncReady();
       unawaited(
         _syncService.reconcileAfterRestore().catchError((_) {
