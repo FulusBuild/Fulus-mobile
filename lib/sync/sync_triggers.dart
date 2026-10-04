@@ -69,7 +69,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   final Future<void> Function()? _onNotReady;
   final void Function()? _onSyncSuccess;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
-  final Future<void> Function()? _onBeforeSyncCycle;
   final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
   late final SyncCycleRunner _cycleRunner;
