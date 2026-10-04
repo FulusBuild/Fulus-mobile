@@ -647,7 +647,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
-      syncService.scheduleReadinessRecovery();
+      syncService.recoverReadiness();
     },
     executionLease: syncExecutionLease,
     pullFromServer: () async {
