@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'sync_config.dart';
 import 'sync_triggers.dart';
 
@@ -14,6 +16,7 @@ class SyncService {
 
   final SyncTriggers _triggers;
   final SyncConfig _config;
+  bool _started = false;
 
   bool get isEnabled => _config.isEnabled;
 
@@ -43,7 +46,22 @@ class SyncService {
   ///
   /// Callers should use this bootstrap boundary rather than knowing about
   /// SyncTriggers or its lifecycle observer implementation.
-  Future<void> bootstrap() => _triggers.start();
+  Future<void> bootstrap() async {
+    if (_started) return;
+    _started = true;
+    _config.addListener(_onConfigChanged);
+    if (_config.isEnabled) {
+      await _triggers.start();
+    }
+  }
+
+  void _onConfigChanged() {
+    if (_config.isEnabled) {
+      unawaited(_triggers.start());
+    } else {
+      _triggers.stop();
+    }
+  }
 
   /// Requests an immediate synchronization cycle.
   ///
@@ -71,5 +89,11 @@ class SyncService {
 
   /// Schedules recovery after the cloud device/session authority is lost.\n  /// This is intentionally exposed as a lifecycle operation, not a trigger API.\n  void scheduleReadinessRecovery() => _triggers.scheduleReadinessRecovery();
 
-  void dispose() => _triggers.dispose();
+  void dispose() {
+    if (_started) {
+      _config.removeListener(_onConfigChanged);
+      _started = false;
+    }
+    _triggers.dispose();
+  }
 }
