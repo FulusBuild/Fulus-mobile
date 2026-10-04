@@ -679,7 +679,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     restoreApi: employeeCloudRestoreApi,
     connection: fulusConnectionState,
     secureStorage: secureStorage,
-    syncConfig: syncConfig,
     syncService: syncService,
     authRepository: authRepository,
     executionLease: syncExecutionLease,
