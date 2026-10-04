@@ -58,6 +58,9 @@ void main() {
     when(() => runtime.start()).thenAnswer((_) async {
       events.add('start');
     });
+    when(() => runtime.reconcileAfterRestore()).thenAnswer((_) async {
+      events.add('reconcile');
+    });
     when(() => runtime.cancelRestoreReconciliation()).thenAnswer((_) {
       events.add('cancel');
     });
@@ -66,11 +69,17 @@ void main() {
     await service.bootstrap();
     await service.enableForRestore();
 
-    expect(events, ['begin', 'start']);
+    expect(events, ['begin']);
     expect(service.isEnabled, isTrue);
 
+    await service.reconcileAfterRestore();
+    await Future<void>.delayed(Duration.zero);
+    expect(events, ['begin', 'reconcile', 'start']);
+
+    // A completed restore consumes the reservation; a later cancellation is
+    // intentionally a no-op.
     service.cancelRestore();
-    expect(events, ['begin', 'start', 'cancel']);
+    expect(events, ['begin', 'reconcile', 'start']);
     service.dispose();
   });
 }
