@@ -5,6 +5,8 @@ import 'dart:async';
 /// It serializes readiness initialization and keeps authentication/device
 /// readiness separate from the persisted sync-enabled setting. The actual
 /// bootstrap operation remains supplied by the service/bootstrap boundary.
+/// A readiness attempt is shared by concurrent triggers so only one bootstrap
+/// operation can initialize the current session at a time.
 class SyncReadinessGate {
   SyncReadinessGate({
     required bool Function() isEnabled,
