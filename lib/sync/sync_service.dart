@@ -21,6 +21,24 @@ class SyncService {
 
   Future<void> disable() => _config.setEnabled(false);
 
+  /// Enables sync while reserving the first reconciliation for an explicit
+  /// restore completion. This keeps the restore race protection inside the
+  /// synchronization boundary instead of exposing trigger-specific fencing
+  /// to the UI.
+  Future<void> enableForRestore() async {
+    _triggers.beginRestoreReconciliation();
+    try {
+      await _config.setEnabled(true);
+    } catch (_) {
+      _triggers.cancelRestoreReconciliation();
+      rethrow;
+    }
+  }
+
+  /// Cancels a restore reconciliation reservation when restore setup fails
+  /// before the authoritative post-restore reconciliation can run.
+  void cancelRestore() => _triggers.cancelRestoreReconciliation();
+
   /// Starts the synchronization lifecycle for the current application runtime.
   ///
   /// Callers should use this bootstrap boundary rather than knowing about
