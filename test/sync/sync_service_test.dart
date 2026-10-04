@@ -31,6 +31,30 @@ void main() {
     service.dispose();
   });
 
+  test('disposed service cannot be bootstrapped or requested again', () async {
+    final config = await SyncConfig.load();
+    when(() => runtime.start()).thenAnswer((_) async {});
+    when(() => runtime.request()).thenAnswer((_) async {});
+    when(() => runtime.dispose()).thenReturn(null);
+
+    final service = SyncService(runtime, config);
+    await service.bootstrap();
+    service.dispose();
+    service.dispose();
+
+    expect(
+      () => service.bootstrap(),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      () => service.request(),
+      throwsA(isA<StateError>()),
+    );
+    await service.waitForIdle();
+    verify(() => runtime.dispose()).called(1);
+    verifyNever(() => runtime.request());
+  });
+
   test('runtime enable and disable are owned by SyncService', () async {
     final config = await SyncConfig.load();
     when(() => runtime.start()).thenAnswer((_) async {});
