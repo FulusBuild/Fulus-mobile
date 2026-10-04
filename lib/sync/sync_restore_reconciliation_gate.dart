@@ -28,8 +28,7 @@ class SyncRestoreReconciliationGate {
   Future<void> run(Future<void> Function() reconcile) {
     final active = _activeRun;
     if (active != null) {
-      await active;
-      return;
+      return active;
     }
 
     // Publish the active reconciliation before invoking the callback. The
