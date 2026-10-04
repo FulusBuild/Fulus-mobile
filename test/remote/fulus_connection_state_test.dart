@@ -124,4 +124,39 @@ void main() {
     expect(state.selectedBusinessId, 'business-a');
     expect(state.isSyncReady, isFalse);
   });
+  test('sync health errors do not clear lifecycle readiness', () async {
+    when(() => businessContext.fetch()).thenAnswer(
+      (_) async => memberships([membership('business-a')]),
+    );
+    when(() => deviceRegistration.register(
+          businessId: 'business-a',
+          deviceClientId: 'device-1',
+          deviceName: any(named: 'deviceName'),
+          platform: any(named: 'platform'),
+          appVersion: any(named: 'appVersion'),
+        )).thenAnswer(
+      (_) async => const FulusRegisteredDevice(
+        id: 'registered-1',
+        businessId: 'business-a',
+        deviceClientId: 'device-1',
+        status: 'active',
+      ),
+    );
+
+    final state = FulusConnectionState(
+      businessContext: businessContext,
+      deviceRegistration: deviceRegistration,
+    );
+
+    await state.refresh();
+    state.markSessionAuthenticated();
+    await state.registerDevice(deviceClientId: 'device-1');
+    state.markSyncReady();
+
+    state.markSyncError(StateError('temporary sync failure'));
+
+    expect(state.isSyncReady, isTrue);
+    expect(state.syncError, isA<StateError>());
+  });
+
 }
