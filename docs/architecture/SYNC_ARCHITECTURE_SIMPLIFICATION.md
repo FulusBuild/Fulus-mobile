@@ -396,7 +396,7 @@ Current progress:
 - Restore fencing is exposed through service-level operations rather than trigger-specific UI calls.
 - `SyncTriggers` no longer depends on the `SyncConfig` type.
 - Location/context callers use `SyncService.refreshAfterContextChange()` rather than the internal trigger adapter.
-- Queue mutation notifications are routed through `SyncService.notifyEnqueued()` rather than exposing the trigger adapter.
+- Queue mutation notifications are routed through the semantic `SyncService.onLocalMutationCommitted()` boundary rather than exposing the trigger adapter.
 
 ### Phase 6 — simplify handlers
 
