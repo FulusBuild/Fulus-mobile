@@ -1,6 +1,6 @@
 # Fulus Sync Architecture Simplification Audit
 
-**Status:** Phase 5 in progress — facade introduced, lifecycle callers migrated, and trigger configuration ownership moved behind SyncService  
+**Status:** Phase 5 in progress — facade/runtime boundary established, lifecycle callers migrated, and restore lifecycle ownership consolidated  
 **Baseline:** `main` after PR #152  
 **Audit branch:** `audit/sync-architecture-simplification`
 
@@ -397,6 +397,9 @@ Current progress:
 - `SyncTriggers` no longer depends on the `SyncConfig` type.
 - Location/context callers use `SyncService.refreshAfterContextChange()` rather than the internal trigger adapter.
 - Queue mutation notifications are routed through the semantic `SyncService.onLocalMutationCommitted()` boundary rather than exposing the trigger adapter.
+- `SyncRuntime` is now the internal runtime contract implemented by `SyncTriggers`; `SyncService` no longer depends on the concrete trigger type.
+- Restore reservation state is owned by `SyncService`. Enabling sync for restore suppresses the normal runtime start until the authoritative post-restore reconciliation settles, then resumes the ordinary runtime for connectivity/retry recovery.
+- Employee cloud restore now uses the same explicit restore lifecycle and does not advertise Sync Ready before post-restore reconciliation succeeds.
 
 ### Phase 6 — simplify handlers
 
