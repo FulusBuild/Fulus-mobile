@@ -155,6 +155,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final authApi = AuthApi(apiClient);
   apiClient.setOnSessionExpired(() async {
     fulusConnectionState.markSessionExpired();
+    // Authentication expiry is a lifecycle transition, not a sync failure.
+    // Keep SyncService's readiness authority aligned with the cloud session.
+    syncService.markNotReady();
   });
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
