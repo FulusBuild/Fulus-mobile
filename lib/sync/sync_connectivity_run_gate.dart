@@ -20,10 +20,24 @@ class SyncConnectivityRunGate {
     final active = _active;
     if (active != null) return active;
 
-    final future = _run();
+    // Publish the in-flight future before invoking the callback. The callback
+    // may synchronously re-enter this gate before its first await; publishing
+    // first keeps that re-entry coalesced rather than creating a second run.
+    final completer = Completer<bool>();
+    final future = completer.future;
     _active = future;
+    unawaited(_execute(future, completer));
+    return future;
+  }
+
+  Future<void> _execute(
+    Future<bool> future,
+    Completer<bool> completer,
+  ) async {
     try {
-      return await future;
+      completer.complete(await _run());
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
     } finally {
       if (identical(_active, future)) {
         _active = null;
