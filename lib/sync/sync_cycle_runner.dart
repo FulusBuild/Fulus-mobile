@@ -16,7 +16,7 @@ class SyncCycleRunner {
     required SyncEngine syncEngine,
     required SyncExecutionLease executionLease,
     Future<bool> Function()? hasOutboundWork,
-    Future<void> Function()? onPushSuccess,
+    Future<void> Function(bool hadOutboundWork)? onPushSuccess,
     Future<void> Function()? pullFromServer,
     Future<void> Function()? onCursorTooOldRecovery,
     Future<void> Function()? onRecoveryReconciled,
@@ -35,7 +35,7 @@ class SyncCycleRunner {
   final SyncEngine _syncEngine;
   final SyncExecutionLease _executionLease;
   final Future<bool> Function()? _hasOutboundWork;
-  final Future<void> Function()? _onPushSuccess;
+  final Future<void> Function(bool hadOutboundWork)? _onPushSuccess;
   final Future<void> Function()? _pullFromServer;
   final Future<void> Function()? _onCursorTooOldRecovery;
   final Future<void> Function()? _onRecoveryReconciled;
