@@ -89,7 +89,7 @@ class SyncTriggers with WidgetsBindingObserver {
 
   /// Arms the restore gate before sync is enabled.
   ///
-  /// SyncConfig notifies SyncTriggers immediately when enabled. Restore must
+  /// SyncService enables sync through its persisted configuration listener. Restore must
   /// therefore mark itself as the owner of the initial reconciliation before
   /// flipping that persisted switch, otherwise the normal readiness trigger
   /// can start a competing initialization first.
