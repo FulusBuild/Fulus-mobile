@@ -231,7 +231,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
     } catch (error) {
       if (_restoreGateArmed) {
-        ref.read(syncServiceProvider).cancelRestoreReconciliation();
+        ref.read(syncServiceProvider).cancelRestore();
         _restoreGateArmed = false;
       }
       if (mounted) {
