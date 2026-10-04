@@ -9,6 +9,7 @@ import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
 import 'sync_cycle_runner.dart';
+import 'sync_cycle_execution_gate.dart';
 import 'sync_readiness_gate.dart';
 import 'sync_runtime.dart';
 import 'sync_readiness_recovery.dart';
@@ -74,9 +75,17 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     );
     _readinessRecovery = SyncReadinessRecovery(
       isActive: () => _started && _isEnabled(),
-      canRun: () => _syncCycleRun == null && !_connectivityGate.isRunning,
+      canRun: () => !_cycleExecutionGate.isRunning && !_connectivityGate.isRunning,
       recover: () => _runIfOnline(),
       onFailure: (error, stackTrace) {
+        if (_started) _onSyncFailure?.call(error, stackTrace);
+      },
+    );
+    _cycleExecutionGate = SyncCycleExecutionGate(
+      runCycle: ({manual = false}) => _cycleRunner.run(manual: manual),
+      runFollowUp: _runIfOnline,
+      isActive: () => _started && _isEnabled(),
+      onFollowUpError: (error, stackTrace) {
         if (_started) _onSyncFailure?.call(error, stackTrace);
       },
     );
@@ -91,6 +100,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
   late final SyncCycleRunner _cycleRunner;
+  late final SyncCycleExecutionGate _cycleExecutionGate;
   late final SyncReadinessGate _readinessGate;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
@@ -114,33 +124,21 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   /// Releases a restore gate that was armed but never reached
   /// [reconcileAfterRestore], for example when local restore setup fails.
   void cancelRestoreReconciliation() => _restoreGate.cancel();
-  Future<bool>? _syncCycleRun;
-  Future<void>? _followUpRun;
-  bool _syncRequestedAfterCycle = false;
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
   /// This intentionally does not wait for readiness/connectivity orchestration.
   /// Business switching can itself be invoked by the readiness initializer;
-  /// waiting on [_readinessRun] from inside that initializer would deadlock.
+  /// waiting on readiness from inside that initializer would deadlock.
   /// The safety property needed here is narrower: do not rebind the single-
   /// business local database while an actual sync/recovery cycle is applying
   /// cloud or outbound state.
   Future<void> waitForIdle() async {
     while (true) {
-      final syncCycle = _syncCycleRun;
-      if (syncCycle != null) {
-        await syncCycle;
-        continue;
-      }
+      await _cycleExecutionGate.waitForIdle();
       final restore = _restoreGate.activeRun;
       if (restore != null) {
         await restore;
-        continue;
-      }
-      final followUp = _followUpRun;
-      if (followUp != null) {
-        await followUp;
         continue;
       }
       return;
@@ -284,7 +282,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   /// Performs the readiness reconciliation without waiting on any normal
   /// trigger or readiness future. This is used by bootstrap's onNotReady hook
   /// and therefore must never call reconcileAfterRestore() or await
-  /// _connectivityRun/_readinessRun.
+  /// the connectivity or readiness orchestration.
   Future<void> reconcileForReadiness() async {
     if (!_isEnabled()) {
       throw StateError(
@@ -308,8 +306,8 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     // Do not let that mutation run before the current cycle's pull advances
     // the local cursor; its base cursor may otherwise be stale relative to a
     // successful earlier mutation of the same entity on this device.
-    if (_syncCycleRun != null) {
-      _syncRequestedAfterCycle = true;
+    if (_cycleExecutionGate.isRunning) {
+      _cycleExecutionGate.requestAfterCurrentCycle();
       return;
     }
     await _runIfOnline();
@@ -381,46 +379,8 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     }
   }
 
-  Future<bool> _runSyncCycle({bool manual = false}) async {
-    final active = _syncCycleRun;
-    if (active != null) return active;
-
-    // Cycle execution and lease ownership are delegated to SyncCycleRunner.
-    // This method retains only same-runtime serialization and follow-up
-    // scheduling for mutations committed while the cycle is in flight.
-    late Future<bool> run;
-    run = _cycleRunner.run(manual: manual);
-    _syncCycleRun = run;
-    try {
-      return await run;
-    } finally {
-      final followUpRequested = _syncRequestedAfterCycle;
-      _syncRequestedAfterCycle = false;
-      if (identical(_syncCycleRun, run)) {
-        _syncCycleRun = null;
-      }
-      if (followUpRequested && _isEnabled() && _started) {
-        final completer = Completer<void>();
-        _followUpRun = completer.future;
-        Timer.run(() async {
-          try {
-            await _runIfOnline();
-          } catch (error, stackTrace) {
-            if (_started) {
-              _onSyncFailure?.call(error, stackTrace);
-            }
-          } finally {
-            if (identical(_followUpRun, completer.future)) {
-              _followUpRun = null;
-            }
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-          }
-        });
-      }
-    }
-  }
+  Future<bool> _runSyncCycle({bool manual = false}) =>
+      _cycleExecutionGate.run(manual: manual);
 
   bool _hasConnectivity(List<ConnectivityResult> results) =>
       results.any((r) => r != ConnectivityResult.none);
