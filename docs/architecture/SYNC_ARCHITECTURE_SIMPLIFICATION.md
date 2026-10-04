@@ -409,7 +409,11 @@ Current progress:
 - Same-runtime cycle/follow-up serialization now lives in the internal `SyncCycleExecutionGate`; `SyncTriggers` no longer owns the active-cycle future, follow-up future, or mutation-during-cycle flag.
 
 
-#### Adapter-boundary checkpoint
+#### Adapter-boundary checkpoint 
+
+### Handler audit result
+
+The handler audit found no safe generic extraction to make. Handler-level lease calls are not orchestration: they protect the atomic stale-completion/canonical-recovery decision against a newer local mutation. Removing that dependency would weaken invariant 14/15. Handler authorization checks likewise reject invalid cloud state at the entity boundary; retry classification remains in SyncEngine. These responsibilities remain intentionally split.
 
 The remaining SyncTriggers constructor callbacks were audited against the target ownership model. The callbacks that remain are integration seams for readiness, canonical pull/recovery, status reporting, device authorization recovery, and location-context hydration; they do not expose SyncTriggers to application callers. They are therefore being treated as migration seams rather than blindly extracted into more primitives. Further extraction will only proceed where it removes a real ownership decision without duplicating the existing sync guarantees.
 
