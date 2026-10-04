@@ -53,18 +53,44 @@ export async function buildEmployeeRestoreSnapshot(
   const customers = (codes.has("customers.read") || codes.has("customers.manage") || codes.has("credit.manage"))
     ? await read(admin.from("customers").select("*").eq("business_id", businessId)) : [];
   const sales = codes.has("sales.read")
-    ? await read(admin.from("sales").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("sales").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const saleIds = rows(sales).map((s: any) => s.id);
+
+  // Historical sales can reference cashiers other than the restoring employee.
+  // Export only those cashier identities that are actually referenced by
+  // sales in the employee's accessible locations. This keeps SQLite foreign
+  // keys valid without exposing the whole business roster.
+  const historicalCashierIds = [...new Set(
+    rows(sales)
+      .map((s: any) => s.cashier_user_id)
+      .filter((id: any) => id != null)
+      .map((id: any) => String(id)),
+  )].filter((id) => id !== userId);
+
+  const historicalMemberships = historicalCashierIds.length
+    ? await read(admin.from("business_memberships").select("id,business_id,user_id,role_id,status,permissions_overridden,joined_at,created_at,updated_at,roles(id,name,business_id)")
+        .eq("business_id", businessId).in("user_id", historicalCashierIds))
+    : [];
+  const historicalProfiles = historicalCashierIds.length
+    ? await read(admin.from("profiles").select("*").in("id", historicalCashierIds))
+    : [];
+  const historicalRoles = rows(historicalMemberships)
+    .map((m: any) => Array.isArray(m.roles) ? m.roles[0] : m.roles)
+    .filter((r: any) => r?.id != null);
   const saleItems = codes.has("sales.read") && saleIds.length
     ? await read(admin.from("sale_items").select("*").in("sale_id", saleIds)) : [];
   const salePayments = codes.has("sales.read") && saleIds.length
     ? await read(admin.from("sale_payments").select("*").in("sale_id", saleIds)) : [];
   const expenses = (codes.has("finance.read") || codes.has("finance.manage"))
-    ? await read(admin.from("expenses").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("expenses").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const income = (codes.has("finance.read") || codes.has("finance.manage"))
-    ? await read(admin.from("income_records").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("income_records").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const cashShifts = (codes.has("cash.read") || codes.has("cash.manage"))
-    ? await read(admin.from("cash_drawer_shifts").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("cash_drawer_shifts").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const movements = (codes.has("inventory.read") || codes.has("inventory.adjust") || codes.has("inventory.transfer"))
     ? await read(admin.from("inventory_movements").select("*").eq("business_id", businessId).in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const returns = (codes.has("returns.create") || codes.has("returns.approve"))
@@ -98,11 +124,13 @@ export async function buildEmployeeRestoreSnapshot(
     return_items: rows(returnItems),
     employees: employee ? [employee] : [],
     roles: role ? [role] : [],
-    business_memberships: [membership],
+    business_memberships: [membership, ...rows(historicalMemberships)],
     business_member_permissions: rows(memberPermissions),
-    profiles: profile ? [profile] : [],
+    profiles: [profile, ...rows(historicalProfiles)],
     role_permissions: rows(rolePermissions),
     permissions: rows(permissions),
+    historical_cashier_user_ids: historicalCashierIds,
+    historical_cashier_roles: historicalRoles,
     expense_categories: [],
     tax_remittances: [],
     audit_events: [],
