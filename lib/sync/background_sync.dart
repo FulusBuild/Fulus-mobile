@@ -72,7 +72,7 @@ void fulusBackgroundSyncCallback() {
 /// Owns the Android WorkManager schedule.
 ///
 /// The 15-minute cadence is the platform scheduling floor for periodic work on
-/// Android in normal WorkManager usage. Foreground SyncTriggers remains much
+/// Android in normal WorkManager usage. Foreground SyncService remains much
 /// more responsive (30 seconds + connectivity/resume/mutation triggers).
 class FulusBackgroundSyncScheduler {
   FulusBackgroundSyncScheduler();
