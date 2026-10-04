@@ -49,7 +49,7 @@ Foreground startup: main → ensureInitialized → global error capture → boot
 
 Bootstrap wires the local Drift database, auth repository, API clients, repositories, sync queue, sync handlers, canonical reconciler, sync coordinator, SyncEngine, SyncTriggers, and Riverpod overrides.
 
-Background lifecycle: WorkManager callback → fresh bootstrap → SyncTriggers.syncNow → waitForIdle → SyncTriggers.dispose → ProviderContainer.dispose → database close.
+Background lifecycle: WorkManager callback → fresh bootstrap → SyncService.request → waitForIdle → SyncService.dispose → ProviderContainer.dispose → database close.
 
 Restore lifecycle: BackupRepositoryImpl closes the live DB, atomically replaces the database file, reopens a fresh AppDatabase, then the UI sets a restart-required gate because existing repositories and sync handlers captured the old DB instance.
 
