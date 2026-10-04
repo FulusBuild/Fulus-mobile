@@ -87,6 +87,30 @@ class SyncTriggers with WidgetsBindingObserver {
   Future<void>? _readinessRun;
   bool _restoreReconciliationInProgress = false;
   Future<void>? _restoreReconciliationRun;
+
+  /// Arms the restore gate before sync is enabled.
+  ///
+  /// SyncConfig notifies SyncTriggers immediately when enabled. Restore must
+  /// therefore mark itself as the owner of the initial reconciliation before
+  /// flipping that persisted switch, otherwise the normal readiness trigger
+  /// can start a competing initialization first.
+  void beginRestoreReconciliation() {
+    if (_disposed) {
+      throw StateError('SyncTriggers has been disposed and cannot begin restore.');
+    }
+    if (_restoreReconciliationRun != null) {
+      throw StateError('A cloud restore reconciliation is already in progress.');
+    }
+    _restoreReconciliationInProgress = true;
+  }
+
+  /// Releases a restore gate that was armed but never reached
+  /// [reconcileAfterRestore], for example when local restore setup fails.
+  void cancelRestoreReconciliation() {
+    if (_restoreReconciliationRun == null) {
+      _restoreReconciliationInProgress = false;
+    }
+  }
   Future<bool>? _syncCycleRun;
   Future<void>? _followUpRun;
   bool _syncRequestedAfterCycle = false;
