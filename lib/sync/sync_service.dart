@@ -21,11 +21,26 @@ class SyncService {
 
   Future<void> disable() => _config.setEnabled(false);
 
-  Future<void> start() => _triggers.start();
+  /// Starts the synchronization lifecycle for the current application runtime.
+  ///
+  /// Callers should use this bootstrap boundary rather than knowing about
+  /// SyncTriggers or its lifecycle observer implementation.
+  Future<void> bootstrap() => _triggers.start();
+
+  /// Requests an immediate synchronization cycle.
+  ///
+  /// This is the single public request boundary. Background, connectivity,
+  /// lifecycle, and queue events may all converge on the same underlying
+  /// engine; callers do not need to choose a trigger implementation.
+  Future<void> request() => _triggers.syncNow();
+
+  /// Compatibility alias while callers migrate to [bootstrap].
+  Future<void> start() => bootstrap();
 
   Future<void> waitForIdle() => _triggers.waitForIdle();
 
-  Future<void> syncNow() => _triggers.syncNow();
+  /// Compatibility alias while callers migrate to [request].
+  Future<void> syncNow() => request();
 
   Future<void> refreshAfterContextChange() =>
       _triggers.refreshAfterContextChange();
