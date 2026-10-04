@@ -241,6 +241,14 @@ class CrossDeviceEmployeeRestore {
     );
   }
 
+  List<Map<String, dynamic>> _maps(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
   Set<Permission> _mapPermissions(List<String> codes) {
     final result = <Permission>{};
     for (final code in codes) {
