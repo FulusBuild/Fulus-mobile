@@ -16,7 +16,7 @@ class SyncConnectivityRunGate {
 
   bool get isRunning => _active != null;
 
-  Future<bool> run() async {
+  Future<bool> run() {
     final active = _active;
     if (active != null) return active;
 
@@ -26,7 +26,9 @@ class SyncConnectivityRunGate {
     final completer = Completer<bool>();
     final future = completer.future;
     _active = future;
-    unawaited(_execute(future, completer));
+    // Start the callback in a microtask so the published future is visible
+    // before user code can re-enter the gate.
+    unawaited(Future.microtask(() => _execute(future, completer)));
     return future;
   }
 
