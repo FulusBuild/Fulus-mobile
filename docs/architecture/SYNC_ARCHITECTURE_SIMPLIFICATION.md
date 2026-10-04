@@ -517,6 +517,33 @@ The final architecture should feel simple **from the outside** while remaining s
 > **Complexity should exist in one place, not everywhere.**
 
 
+### Adapter ownership ledger
+
+The remaining internal adapter responsibilities have now been checked individually:
+
+| Responsibility | Owner | Why it remains |
+|---|---|---|
+| Flutter lifecycle observation | SyncTriggers | Platform/event adapter only; it does not decide synchronization semantics |
+| Connectivity observation | SyncTriggers + SyncConnectivityRunGate | Converts platform connectivity events into one coalesced service/runtime attempt |
+| Periodic retry timing | SyncTriggers + SyncReadinessRecovery | Timing is an adapter concern; the recovery operation remains semantic |
+| Readiness initialization | SyncReadinessGate | Serializes the existing readiness bootstrap callback without moving auth/business policy into a primitive |
+| Device/session recovery timing | SyncReadinessRecovery | Defers recovery until the active cycle is clear |
+| Restore reservation/fence | SyncService + SyncRestoreReconciliationGate | Service owns the public lifecycle decision; the gate owns only concurrent restore state |
+| Push/pull ordering | SyncCycleRunner | Semantic cycle policy, independent of event source |
+| Same-runtime cycle serialization | SyncCycleExecutionGate | Prevents duplicate cycles and coalesces mutations during an active cycle |
+| Cross-runtime exclusion | SyncExecutionLease | SQLite durability is required for foreground/background process safety |
+| Entity push/apply translation | SyncHandlers | Domain-specific responsibility; no global orchestration extraction identified |
+| Queue drain/retry classification | SyncEngine | Durable execution authority |
+| Canonical pull/cursor acknowledgement | SyncCoordinator | Cursor and apply-before-ack semantics must remain together |
+| Production status/evidence callbacks | Bootstrap/service integration | These are integration seams for observability and connection-state projection |
+
+No remaining SyncTriggers responsibility is currently justified as a second synchronization authority. Further extraction should require a concrete ownership ambiguity or duplicated guarantee; extracting primitives merely to reduce method count would increase fragmentation rather than simplify the architecture.
+
+### Service lifecycle hardening
+
+SyncService is now terminal after disposal. Bootstrap/request/lifecycle operations cannot re-enter a disposed runtime, and disposal is idempotent. This preserves the same terminal-lifecycle guarantee already established for the internal trigger runtime at the public application boundary.
+
+
 ## Production-evidence checkpoint
 
 The existing regression suite already exercises the core sync invariants at the unit/integration level: durable offline mutation and restart, process-death replay, automatic retry, lifecycle/connectivity recovery, readiness/restore fencing, serialized follow-up cycles, and pull cursor/apply-before-ack safety. The remaining production-readiness gap is runtime evidence rather than another orchestration abstraction.
