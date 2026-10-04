@@ -141,14 +141,16 @@ class EmployeeCloudSessionCoordinator {
       await _upsertIdentityProjection(claim);
 
       await _syncService.enableForRestore();
-      _connection.markSyncReady();
       unawaited(
-        _syncService.reconcileAfterRestore().catchError((_) {
-          // The sync layer records the failure and its normal connectivity/
-          // retry triggers will attempt reconciliation again. Joining the
-          // business must remain successful because the restore itself has
-          // already completed and the cursor is durable.
-        }),
+        _syncService.reconcileAfterRestore().then<void>(
+          (_) => _connection.markSyncReady(),
+          onError: (Object error, StackTrace _) {
+            // The restore itself is already a complete durable local image.
+            // Keep employee onboarding successful, but do not advertise Cloud
+            // Sync Ready until the post-restore reconciliation succeeds.
+            _connection.markSyncError(error);
+          },
+        ),
       );
 
       final employee = await _authRepository.restoreSession();
