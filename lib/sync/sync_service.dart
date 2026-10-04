@@ -178,8 +178,19 @@ class SyncService {
   void _onConfigChanged() {
     if (_config.isEnabled) {
       if (_restoreGateArmed) return;
-      unawaited(_startRuntime());
+      unawaited(
+        _startRuntime().catchError((error, stackTrace) {
+          // SyncConfig is intentionally a persisted setting, but it remains
+          // a ChangeNotifier for non-sync infrastructure such as WorkManager.
+          // If a legacy/external writer changes it outside enable(), keep the
+          // failure inside the SyncService boundary instead of creating an
+          // unhandled future from a fire-and-forget lifecycle callback.
+          markReadinessError(error);
+          return Future<void>.error(error, stackTrace);
+        }),
+      );
     } else {
+      markNotReady();
       _runtime.stop();
     }
   }
