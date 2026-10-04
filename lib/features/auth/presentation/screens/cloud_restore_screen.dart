@@ -199,12 +199,8 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       // serializes a concurrent normal trigger with the restore reconciliation,
       // so the startup/restore race remains inside the sync boundary.
       setState(() => _status = 'Checking cloud sync…');
-      try {
-        await syncService.reconcileAfterRestore();
-        _restoreGateArmed = false;
-      } catch (error) {
-        rethrow;
-      }
+      await syncService.reconcileAfterRestore();
+      _restoreGateArmed = false;
 
       setState(() => _status = 'Restore complete. Opening your business…');
       if (!mounted) return;
