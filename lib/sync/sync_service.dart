@@ -1,22 +1,23 @@
 import 'dart:async';
 
 import 'sync_config.dart';
-import 'sync_triggers.dart';
+import 'sync_runtime.dart';
 
 /// Single public synchronization boundary for the application.
 ///
-/// The implementation intentionally delegates to the existing trigger/engine
-/// stack during the migration. Callers depend on this contract instead of
-/// knowing about SyncTriggers, leases, cursors, retries, or reconciliation.
+/// Application callers depend only on this service. The concrete runtime is
+/// an internal adapter over the proven sync engine and trigger machinery.
 ///
-/// This is a facade-first refactor: behavior stays unchanged while lifecycle
-/// ownership is progressively moved behind one boundary.
+/// This is intentionally a facade-first refactor: the durable outbox,
+/// idempotency, leases, cursor safety, reconciliation and retry machinery are
+/// preserved while lifecycle ownership is consolidated behind one boundary.
 class SyncService {
-  SyncService(this._triggers, this._config);
+  SyncService(this._runtime, this._config);
 
-  final SyncTriggers _triggers;
+  final SyncRuntime _runtime;
   final SyncConfig _config;
   bool _started = false;
+  bool _restoreGateArmed = false;
 
   bool get isEnabled => _config.isEnabled;
 
@@ -25,34 +26,40 @@ class SyncService {
   Future<void> disable() => _config.setEnabled(false);
 
   /// Enables sync while reserving the first reconciliation for an explicit
-  /// restore completion. This keeps the restore race protection inside the
-  /// synchronization boundary instead of exposing trigger-specific fencing
-  /// to the UI.
+  /// restore completion. The reservation belongs to the public lifecycle
+  /// authority; the runtime only receives the compatibility gate operation.
   Future<void> enableForRestore() async {
-    _triggers.beginRestoreReconciliation();
+    if (_restoreGateArmed) {
+      throw StateError('A cloud restore reconciliation is already reserved.');
+    }
+    _restoreGateArmed = true;
     try {
+      _runtime.beginRestoreReconciliation();
       await _config.setEnabled(true);
     } catch (_) {
-      _triggers.cancelRestoreReconciliation();
+      _restoreGateArmed = false;
+      _runtime.cancelRestoreReconciliation();
       rethrow;
     }
   }
 
-  /// Cancels a restore reconciliation reservation when restore setup fails
-  /// before the authoritative post-restore reconciliation can run.
-  void cancelRestore() => _triggers.cancelRestoreReconciliation();
+  /// Cancels a restore reservation when restore setup fails before the
+  /// authoritative post-restore reconciliation can run.
+  void cancelRestore() {
+    if (!_restoreGateArmed) return;
+    _restoreGateArmed = false;
+    _runtime.cancelRestoreReconciliation();
+  }
 
-  /// Starts the synchronization lifecycle for the current application runtime.
-  ///
-  /// Callers should use this bootstrap boundary rather than knowing about
-  /// SyncTriggers or its lifecycle observer implementation.
+  /// Starts the synchronization lifecycle for the current application
+  /// runtime. This is the only application-facing startup operation.
   Future<void> bootstrap() async {
     if (_started) return;
     _started = true;
     _config.addListener(_onConfigChanged);
     try {
-      if (_config.isEnabled) {
-        await _triggers.start();
+      if (_config.isEnabled && !_restoreGateArmed) {
+        await _runtime.start();
       }
     } catch (_) {
       _config.removeListener(_onConfigChanged);
@@ -63,43 +70,53 @@ class SyncService {
 
   void _onConfigChanged() {
     if (_config.isEnabled) {
-      unawaited(_triggers.start());
+      if (_restoreGateArmed) return;
+      unawaited(_runtime.start());
     } else {
-      _triggers.stop();
+      _runtime.stop();
     }
   }
 
   /// Requests an immediate synchronization cycle.
-  ///
-  /// This is the single public request boundary. Background, connectivity,
-  /// lifecycle, and queue events may all converge on the same underlying
-  /// engine; callers do not need to choose a trigger implementation.
-  Future<void> request() => _triggers.syncNow();
+  Future<void> request() => _runtime.request();
 
-  Future<void> waitForIdle() => _triggers.waitForIdle();
+  Future<void> waitForIdle() => _runtime.waitForIdle();
 
   Future<void> refreshAfterContextChange() =>
-      _triggers.refreshAfterContextChange();
+      _runtime.refreshAfterContextChange();
 
-  Future<void> reconcileAfterRestore() => _triggers.reconcileAfterRestore();
+  Future<void> reconcileAfterRestore() async {
+    if (!_restoreGateArmed) {
+      throw StateError(
+        'reconcileAfterRestore() requires an active restore reservation.',
+      );
+    }
+    try {
+      await _runtime.reconcileAfterRestore();
+    } finally {
+      _restoreGateArmed = false;
+    }
+  }
 
-  Future<void> reconcileForReadiness() => _triggers.reconcileForReadiness();
+  Future<void> reconcileForReadiness() => _runtime.reconcileForReadiness();
 
   /// Notifies the synchronization authority that a durable local mutation
   /// has been committed. The queue remains responsible for durability; this
   /// callback only wakes the existing sync runtime after the transaction has
   /// committed.
-  Future<void> onLocalMutationCommitted() => _triggers.notifyEnqueued();
+  Future<void> onLocalMutationCommitted() =>
+      _runtime.onLocalMutationCommitted();
 
-  /// Schedules recovery after the cloud device/session authority is lost.
-  /// This is intentionally exposed as a lifecycle operation, not a trigger API.
-  void recoverReadiness() => _triggers.scheduleReadinessRecovery();
+  /// Requests readiness recovery after the cloud device/session authority is
+  /// lost. Recovery scheduling remains an internal runtime concern.
+  void recoverReadiness() => _runtime.recoverReadiness();
 
   void dispose() {
     if (_started) {
       _config.removeListener(_onConfigChanged);
       _started = false;
     }
-    _triggers.dispose();
+    _restoreGateArmed = false;
+    _runtime.dispose();
   }
 }
