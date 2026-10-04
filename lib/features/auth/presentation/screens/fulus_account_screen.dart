@@ -75,6 +75,11 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
       _error = null;
     });
 
+    final connection = ref.read(fulusConnectionStateProvider);
+    // Arm the cloud lifecycle fence before authentication changes the active
+    // cloud session. CloudRestoreScreen then performs the destructive restore
+    // without a background readiness trigger racing the handoff.
+    connection.beginCloudOnboarding();
     try {
       final hasLocalBusiness =
           await ref.read(businessSettingsRepositoryProvider).hasBeenConfigured();
@@ -90,7 +95,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
             supabaseUrl: SupabaseConfig.url,
             publishableKey: SupabaseConfig.publishableKey,
           );
-      ref.read(fulusConnectionStateProvider).markSessionAuthenticated();
+      connection.markSessionAuthenticated();
 
       if (!mounted) return;
       final restored = await Navigator.of(context).push<bool>(
@@ -109,6 +114,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     } catch (error) {
       if (mounted) setState(() => _error = syncUserMessage(error));
     } finally {
+      connection.endCloudOnboarding();
       if (mounted) setState(() => _busy = false);
     }
   }
