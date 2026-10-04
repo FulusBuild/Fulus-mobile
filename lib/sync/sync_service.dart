@@ -3,6 +3,13 @@ import 'dart:async';
 import 'sync_config.dart';
 import 'sync_runtime.dart';
 
+enum SyncReadinessState {
+  notReady,
+  bootstrapping,
+  ready,
+  error,
+}
+
 /// Single public synchronization boundary for the application.
 ///
 /// Application callers depend only on this service. The concrete runtime is
@@ -15,18 +22,26 @@ class SyncService {
   SyncService(
     this._runtime,
     this._config, {
-    Future<void> Function()? bootstrapCloud,
-  }) : _bootstrapCloud = bootstrapCloud;
+    Future<bool> Function()? bootstrapCloud,
+    void Function(SyncReadinessState state, Object? error)? onReadinessChanged,
+  }) : _bootstrapCloud = bootstrapCloud,
+       _onReadinessChanged = onReadinessChanged;
 
   final SyncRuntime _runtime;
   final SyncConfig _config;
-  final Future<void> Function()? _bootstrapCloud;
+  final Future<bool> Function()? _bootstrapCloud;
+  final void Function(SyncReadinessState state, Object? error)? _onReadinessChanged;
+  SyncReadinessState _readinessState = SyncReadinessState.notReady;
+  Object? _readinessError;
   bool _started = false;
   bool _restoreGateArmed = false;
   bool _disposed = false;
   Future<void>? _runtimeStart;
 
   bool get isEnabled => _config.isEnabled;
+  SyncReadinessState get readinessState => _readinessState;
+  bool get isReady => _readinessState == SyncReadinessState.ready;
+  Object? get readinessError => _readinessError;
 
   Future<void> enable() {
     _ensureActive();
@@ -81,13 +96,50 @@ class SyncService {
   /// application root, but lifecycle/readiness triggers may enter it only
   /// through this service boundary. This keeps SyncTriggers as an event
   /// adapter rather than a second application-facing bootstrap authority.
-  Future<void> bootstrapCloud() {
+  Future<void> bootstrapCloud() async {
     _ensureActive();
     final bootstrapCloud = _bootstrapCloud;
     if (bootstrapCloud == null) {
       throw StateError('Cloud bootstrap is not configured.');
     }
-    return bootstrapCloud();
+
+    _setReadiness(SyncReadinessState.bootstrapping);
+    try {
+      final ready = await bootstrapCloud();
+      if (ready) {
+        markReady();
+      } else {
+        markNotReady();
+      }
+    } catch (error) {
+      markReadinessError(error);
+      rethrow;
+    }
+  }
+
+  /// Records that the cloud lifecycle has completed its authoritative
+  /// readiness boundary. Only SyncService owns this state; connection state
+  /// receives the resulting projection through [onReadinessChanged].
+  void markReady() {
+    _ensureActive();
+    _setReadiness(SyncReadinessState.ready);
+  }
+
+  void markNotReady() {
+    if (_disposed) return;
+    _setReadiness(SyncReadinessState.notReady);
+  }
+
+  void markReadinessError(Object error) {
+    if (_disposed) return;
+    _setReadiness(SyncReadinessState.error, error);
+  }
+
+  void _setReadiness(SyncReadinessState state, [Object? error]) {
+    if (_readinessState == state && identical(_readinessError, error)) return;
+    _readinessState = state;
+    _readinessError = error;
+    _onReadinessChanged?.call(state, error);
   }
 
   Future<void> bootstrap() async {
@@ -205,6 +257,7 @@ class SyncService {
       _started = false;
     }
     _restoreGateArmed = false;
+    _setReadiness(SyncReadinessState.notReady);
     _runtime.dispose();
   }
 }
