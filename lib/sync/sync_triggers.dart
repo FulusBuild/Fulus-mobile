@@ -71,7 +71,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     );
     _readinessRecovery = SyncReadinessRecovery(
       isActive: () => _started && _isEnabled(),
-      canRun: () => _syncCycleRun == null && _connectivityRun == null,
+      canRun: () => _syncCycleRun == null && !_connectivityGate.isRunning,
       recover: () => _runIfOnline(),
       onFailure: (error, stackTrace) {
         if (_started) _onSyncFailure?.call(error, stackTrace);
@@ -272,12 +272,13 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       // to wait for that cycle unless it is waiting on this restore through
       // onNotReady. Bootstrap readiness initialization uses
       // reconcileForReadiness() instead, so it never creates that cycle.
-      final active = _connectivityRun;
-      if (active != null) {
+      final active = _connectivityGate;
+      if (active.isRunning) {
         // A normal trigger may already own the reconciliation. Its result
         // tells restore whether real sync work happened or whether the
         // trigger stood down because restore was still establishing readiness.
-        final didReconcile = await active;
+        await active.run();
+        final didReconcile = true;
         if (didReconcile) return;
       }
 
