@@ -28,6 +28,15 @@ class SyncReadinessGate {
   Future<bool> ensureReady() async {
     if (!_isEnabled()) return false;
 
+    final active = _initializationRun;
+    if (active != null) {
+      // Coalesce before evaluating readiness again. This is important when
+      // the initialization callback itself triggers a synchronous re-entry.
+      await active;
+      final readyAfterWait = _isReady;
+      return readyAfterWait != null && await readyAfterWait();
+    }
+
     // Restore owns the first reconciliation. A normal trigger that happens
     // to fire while restore is enabling sync must stand down.
     if (_isRestoreReconciliationInProgress()) return false;
@@ -37,12 +46,6 @@ class SyncReadinessGate {
 
     final initialize = _onNotReady;
     if (initialize == null) return false;
-
-    final active = _initializationRun;
-    if (active != null) {
-      await active;
-      return await ready();
-    }
 
     // Publish the initialization future before invoking the callback. The
     // callback may synchronously re-enter readiness before its first await;
