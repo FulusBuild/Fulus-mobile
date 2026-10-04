@@ -202,7 +202,7 @@ void main() {
 
     final firstTriggers = SyncTriggers(
       syncEngine: firstEngine,
-      syncConfig: config1,
+      isEnabled: () => config1.isEnabled,
       syncStatusNotifier: firstStatus,
       executionLease: SyncExecutionLease(
         db,
@@ -215,7 +215,7 @@ void main() {
     );
     final secondTriggers = SyncTriggers(
       syncEngine: secondEngine,
-      syncConfig: config2,
+      isEnabled: () => config2.isEnabled,
       syncStatusNotifier: secondStatus,
       executionLease: SyncExecutionLease(
         db,
@@ -275,7 +275,7 @@ void main() {
 
     final firstTriggers = SyncTriggers(
       syncEngine: firstEngine,
-      syncConfig: config1,
+      isEnabled: () => config1.isEnabled,
       syncStatusNotifier: firstStatus,
       executionLease: SyncExecutionLease(
         db,
@@ -288,7 +288,7 @@ void main() {
     );
     final secondTriggers = SyncTriggers(
       syncEngine: secondEngine,
-      syncConfig: config2,
+      isEnabled: () => config2.isEnabled,
       syncStatusNotifier: secondStatus,
       executionLease: SyncExecutionLease(
         db,
