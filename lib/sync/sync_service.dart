@@ -34,13 +34,7 @@ class SyncService {
   /// engine; callers do not need to choose a trigger implementation.
   Future<void> request() => _triggers.syncNow();
 
-  /// Compatibility alias while callers migrate to [bootstrap].
-  Future<void> start() => bootstrap();
-
   Future<void> waitForIdle() => _triggers.waitForIdle();
-
-  /// Compatibility alias while callers migrate to [request].
-  Future<void> syncNow() => request();
 
   Future<void> refreshAfterContextChange() =>
       _triggers.refreshAfterContextChange();
