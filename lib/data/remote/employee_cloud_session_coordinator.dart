@@ -143,12 +143,11 @@ class EmployeeCloudSessionCoordinator {
       await _syncService.enableForRestore();
       unawaited(
         _syncService.reconcileAfterRestore().then<void>(
-          (_) => _syncService.markReady(),
+          (_) {},
           onError: (Object error, StackTrace _) {
-            // The restore itself is already a complete durable local image.
-            // Keep employee onboarding successful, but do not advertise Cloud
-            // Sync Ready until the post-restore reconciliation succeeds.
-            _syncService.markReadinessError(error);
+            // SyncService owns the readiness transition. Employee onboarding
+            // remains successful because the restored local image is durable;
+            // a later trigger can retry the cloud reconciliation.
           },
         ),
       );
