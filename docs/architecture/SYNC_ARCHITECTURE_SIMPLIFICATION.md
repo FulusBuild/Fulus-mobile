@@ -67,13 +67,13 @@ This is also a sound separation of concerns. Cursor acknowledgement after local 
 
 ### Trigger/orchestration layer
 
-`SyncTriggers` currently coordinates:
+`SyncTriggers` is still an internal lifecycle/event adapter, but it currently coordinates more than pure event observation:
 
 - connectivity;
 - app lifecycle;
 - periodic retry;
 - queue-enqueue events;
-- readiness;
+- readiness entry;
 - restore reconciliation;
 - device authorization recovery;
 - stale-cursor recovery;
@@ -81,7 +81,7 @@ This is also a sound separation of concerns. Cursor acknowledgement after local 
 - execution leasing;
 - push/pull cycle sequencing.
 
-This is the **largest simplification candidate**. It is doing more than a pure trigger dispatcher.
+This remains the **largest simplification candidate**. The facade now hides it from application callers, but the adapter itself still contains synchronization lifecycle decisions that should progressively move into the service/engine boundary.
 
 ### Bootstrap
 
@@ -98,7 +98,8 @@ This is the **largest simplification candidate**. It is doing more than a pure t
 - sync coordinator;
 - execution lease;
 - SyncEngine;
-- SyncTriggers.
+- SyncTriggers;
+- SyncService.
 
 The wiring is explicit and testable, but the number of objects participating in lifecycle decisions is high.
 
@@ -106,7 +107,7 @@ The wiring is explicit and testable, but the number of objects participating in 
 
 Current cloud onboarding crosses:
 
-`Auth screen → connection state → business/device resolution → restore coordinator/screen → SyncConfig/SyncTriggers → readiness → sync`
+`Auth screen → connection state → business/device resolution → restore coordinator/screen → SyncService → readiness → sync`
 
 PR #152 fixed a real race at this boundary by making the onboarding fence nested/reference-counted.
 
@@ -114,7 +115,7 @@ That fix is correct and should be retained. It is also architectural evidence th
 
 ### Background lifecycle
 
-`WorkManager → fresh bootstrap → SyncTriggers.syncNow → waitForIdle → dispose`
+`WorkManager → fresh bootstrap → SyncService.request → waitForIdle → dispose`
 
 Foreground and background use the same synchronization implementation, which is good. WorkManager should remain a trigger/recovery mechanism, not become a second sync implementation.
 
@@ -149,7 +150,7 @@ These are distributed-systems guarantees. Removing them would make the architect
 | Current complexity | Target |
 |---|---|
 | Multiple lifecycle authorities | One sync/session orchestration boundary |
-| SyncTriggers makes sync decisions | Triggers only request work |
+| SyncTriggers makes sync decisions | Service owns semantic lifecycle; adapter observes events and delegates |
 | Restore and sync partially own readiness | One bootstrap lifecycle |
 | Connection state used as orchestration state | Internal session/readiness model |
 | Auth screen manually coordinates cloud lifecycle | Cloud session bootstrap service |
@@ -177,11 +178,11 @@ UI / Repositories / Lifecycle / WorkManager
           |                   |
        Bootstrap         push / pull / retry
           |                   |
-   auth/business/device   push / pull / retry
+   auth/business/device   reconciliation
           |                   |
-       restore          reconciliation
-          |                   |
-          +---------+---------+
+       restore                 |
+          |                    |
+          +---------+----------+
                     |
                     v
               Local SQLite
@@ -261,12 +262,12 @@ PR #152 remains necessary during migration because the existing lifecycle still 
 ### SyncService owns
 
 - bootstrap sequencing;
-- readiness;
-- sync request coalescing;
+- readiness contract;
+- public sync requests;
 - sync lifecycle state;
 - interaction between restore and sync;
 - retry/recovery requests;
-- delegation to the existing engine.
+- delegation to the existing engine/adapter during migration.
 
 ### SyncEngine owns
 
@@ -299,19 +300,21 @@ Handlers must not decide:
 - whether restore is running;
 - how the user should be notified.
 
-### SyncTriggers owns only
+### SyncTriggers owns during migration
 
 - observing Flutter lifecycle and connectivity events;
 - periodic/recovery trigger timing;
-- serializing low-level trigger execution around the durable lease;
-- converting external events into synchronization requests/reconciliation operations.
+- the compatibility bridge into the existing sync cycle;
+- internal serialization required to preserve current cycle safety.
 
 It no longer owns the persisted sync-enabled configuration. `SyncService` owns
 that configuration lifecycle and explicitly starts/stops the trigger adapter.
-The adapter remains an internal implementation detail during this migration.
+The adapter remains an internal implementation detail and is not an application
+provider/API boundary.
 
-The next simplification is to move more lifecycle decisions out of the adapter
-without changing the existing push/pull/recovery mechanics.
+**Next simplification:** extract the remaining readiness/recovery/cycle policy
+from `SyncTriggers` into semantic service/engine operations, without changing
+push/pull mechanics or lease guarantees.
 
 ---
 
@@ -388,9 +391,12 @@ Current progress:
 
 - `SyncService` is the public synchronization boundary.
 - Application callers no longer need `SyncTriggers` lifecycle configuration.
-- `SyncService` owns `SyncConfig` listener registration and starts/stops the internal trigger adapter. Readiness recovery is requested through the semantic `recoverReadiness()` service operation.
+- `SyncService` owns `SyncConfig` listener registration and starts/stops the internal trigger adapter. `SyncConfig` is now only a persisted setting plus change notification; it does not own sync lifecycle behavior.
+- Readiness recovery is requested through the semantic `recoverReadiness()` service operation.
 - Restore fencing is exposed through service-level operations rather than trigger-specific UI calls.
 - `SyncTriggers` no longer depends on the `SyncConfig` type.
+- Location/context callers use `SyncService.refreshAfterContextChange()` rather than the internal trigger adapter.
+- Queue mutation notifications are routed through `SyncService.notifyEnqueued()` rather than exposing the trigger adapter.
 
 ### Phase 6 — simplify handlers
 
@@ -445,13 +451,13 @@ The codebase has multiple legitimate components, but lifecycle decisions are dis
 
 PR #152 demonstrated a concrete consequence: the authentication → restore handoff needed nested cloud-onboarding fencing to prevent background sync from observing a partially initialized session.
 
-**Recommendation:** introduce a single SyncService/bootstrap boundary before attempting deeper sync refactoring.
+**Recommendation:** keep SyncService as the public boundary while progressively moving lifecycle policy out of the internal adapter.
 
-### FSA-002 — SyncTriggers is the first refactoring target
+### FSA-002 — SyncTriggers remains the first refactoring target
 
-SyncTriggers is correctly designed around a single cycle Future, but it currently coordinates readiness, restore reconciliation, recovery, lease ownership and multiple trigger classes.
+SyncTriggers is correctly designed around a single cycle Future, but it still coordinates readiness, restore reconciliation, recovery, lease ownership and multiple trigger classes.
 
-**Recommendation:** reduce its public responsibility to event observation + `SyncService.request()`/lifecycle notification.
+**Progress:** application callers no longer depend on it directly. The next safe step is extraction by behavior, one responsibility at a time, with existing trigger tests retained as regression coverage.
 
 ### FSA-003 — Existing SyncEngine is a strong core
 
