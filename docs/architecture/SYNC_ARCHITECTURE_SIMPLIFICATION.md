@@ -403,6 +403,7 @@ Current progress:
 - Complete push/pull cycle sequencing and stale-cursor recovery now live behind the internal `SyncCycleRunner`; `SyncTriggers` retains trigger observation, readiness entry, recovery scheduling, and compatibility serialization rather than owning push/pull policy.
 - The cycle runner preserves the existing SQLite lease, push-before-pull ordering, lease-loss handling, stale-cursor recovery, and post-recovery readiness callbacks.
 - Readiness initialization serialization now lives in the internal `SyncReadinessGate`; `SyncTriggers` only supplies lifecycle events and the compatibility bridge to that semantic operation.
+- Deferred device/session readiness recovery timing now lives in the internal `SyncReadinessRecovery`; `SyncTriggers` only supplies the current-cycle boundary and invokes the semantic recovery operation.
 
 ### Phase 6 — simplify handlers
 
