@@ -39,7 +39,7 @@ class SyncRestoreReconciliationGate {
     final run = completer.future;
     _activeRun = run;
     unawaited(_execute(run, completer, reconcile));
-    await run
+    await run;
   }
 
   Future<void> _execute(
