@@ -60,7 +60,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -80,7 +80,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -101,7 +101,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         hasOutboundWork: () async =>
             (await db.select(db.syncQueueItems).get()).isNotEmpty,
@@ -117,7 +117,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -139,7 +139,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
         onContextChangeReconciled: () async => hydrated = true,
@@ -162,7 +162,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -179,7 +179,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -192,7 +192,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -214,7 +214,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -235,7 +235,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -263,7 +263,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
         retryInterval: const Duration(milliseconds: 10),
@@ -297,7 +297,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
         retryInterval: const Duration(milliseconds: 10),
@@ -333,7 +333,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
         retryInterval: const Duration(milliseconds: 1),
@@ -375,7 +375,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
         retryInterval: const Duration(hours: 1),
@@ -410,7 +410,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -448,7 +448,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -477,7 +477,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         onBeforeSyncCycle: () async => events.add('normalize'),
         connectivity: connectivity,
@@ -505,7 +505,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         hasOutboundWork: () async =>
             (await db.select(db.syncQueueItems).get()).isNotEmpty,
@@ -546,7 +546,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         hasOutboundWork: () async =>
             (await db.select(db.syncQueueItems).get()).isNotEmpty,
@@ -569,7 +569,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -590,7 +590,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => false,
         connectivity: connectivity,
@@ -618,7 +618,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => ready,
         onNotReady: () async {
@@ -644,7 +644,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => false,
         connectivity: connectivity,
@@ -667,7 +667,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => ready,
         onNotReady: () async {
@@ -696,7 +696,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => true,
         pullFromServer: () async {
@@ -757,7 +757,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
         pullFromServer: () async {
@@ -794,7 +794,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -842,7 +842,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -876,7 +876,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => false,
         onNotReady: () async {
@@ -920,7 +920,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => ready,
         onNotReady: () async {
@@ -964,7 +964,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         onSyncSuccess: () => successCalls++,
         pullFromServer: () async {},
@@ -986,7 +986,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         pullFromServer: () async => throw const BusinessRuleFailure(
           'pull blocked',
@@ -1013,7 +1013,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         onSyncFailure: (error, _) => reportedError = error,
       );
@@ -1033,7 +1033,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => false,
         pullFromServer: () async => pulls.add(1),
@@ -1059,7 +1059,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         pullFromServer: () async => pulls.add(1),
         connectivity: connectivity,
@@ -1081,7 +1081,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -1104,7 +1104,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => false,
         onNotReady: () async => throw StateError('readiness must not run during restore'),
@@ -1142,7 +1142,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         pullFromServer: () async => pulls.add(1),
         connectivity: connectivity,
@@ -1181,7 +1181,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => false,
         onNotReady: () async {
@@ -1220,7 +1220,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         connectivity: connectivity,
       );
@@ -1247,7 +1247,7 @@ void main() {
       final triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => true,
         pullFromServer: () async {
@@ -1291,7 +1291,7 @@ void main() {
       triggers = SyncTriggers(
         syncEngine: syncEngine,
         executionLease: executionLease,
-        syncConfig: config,
+        isEnabled: () => config.isEnabled,
         syncStatusNotifier: syncStatusNotifier,
         isReady: () async => ready,
         onNotReady: () async {
