@@ -166,6 +166,8 @@ class CloudSessionBootstrapCoordinator {
 
       await _reconcileForReadiness();
       return true;
+    } catch (error) {
+      rethrow;
     }
   }
 }
