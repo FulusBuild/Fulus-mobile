@@ -235,6 +235,10 @@ class SyncService {
     }
     try {
       await _runtime.reconcileAfterRestore();
+      markReady();
+    } catch (error) {
+      markReadinessError(error);
+      rethrow;
     } finally {
       _restoreGateArmed = false;
       // The restore reservation intentionally suppresses the normal lifecycle
@@ -247,9 +251,15 @@ class SyncService {
     }
   }
 
-  Future<void> reconcileForReadiness() {
+  Future<void> reconcileForReadiness() async {
     _ensureActive();
-    return _runtime.reconcileForReadiness();
+    try {
+      await _runtime.reconcileForReadiness();
+      markReady();
+    } catch (error) {
+      markReadinessError(error);
+      rethrow;
+    }
   }
 
   /// Notifies the synchronization authority that a durable local mutation
