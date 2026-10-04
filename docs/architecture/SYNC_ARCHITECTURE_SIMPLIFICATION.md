@@ -515,3 +515,25 @@ The simplification is successful only if:
 The final architecture should feel simple **from the outside** while remaining sophisticated internally.
 
 > **Complexity should exist in one place, not everywhere.**
+
+
+## Production-evidence checkpoint
+
+The existing regression suite already exercises the core sync invariants at the unit/integration level: durable offline mutation and restart, process-death replay, automatic retry, lifecycle/connectivity recovery, readiness/restore fencing, serialized follow-up cycles, and pull cursor/apply-before-ack safety. The remaining production-readiness gap is runtime evidence rather than another orchestration abstraction.
+
+### Evidence matrix
+
+| Scenario | Existing automated coverage | Remaining evidence |
+|---|---|---|
+| Offline sale -> restart -> queued push | Present | Real-device runtime verification |
+| Process death -> WorkManager replay | Primitive/integration coverage present | Android runtime evidence required |
+| Connectivity loss/recovery | Present | Real-device interruption check |
+| Auth/session recovery | Readiness/recovery coverage present | Fresh-install/relogin runtime check |
+| Two-device convergence | Coordinator/canonical tests present | Real two-device convergence run |
+| Conflicting edits | OCC/canonical tests present | Real two-device conflict run |
+| Location A->B with pending A mutations | Location/sync isolation coverage exists | Runtime switch with pending outbox |
+| Restore -> reconciliation -> readiness | Restore fence/reconciliation tests present | Real restore smoke test |
+| Device revocation/recovery | Trigger recovery tests present | Runtime authorization-loss scenario |
+| Duplicate delivery / timeout after cloud commit | Engine/idempotency coverage present | Runtime fault-injection or observed replay evidence |
+
+This checkpoint deliberately does not mark the runtime rows as proven. Source-level simplification is complete only when the remaining runtime evidence is collected or explicitly tracked as a production-readiness prerequisite.
