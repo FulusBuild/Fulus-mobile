@@ -194,7 +194,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       final syncTriggers = ref.read(syncServiceProvider);
       syncTriggers.beginRestoreReconciliation();
       _restoreGateArmed = true;
-      await ref.read(syncConfigProvider).setEnabled(true);
+      await ref.read(syncServiceProvider).enable();
 
       // Restore is not complete when the local snapshot has been imported.
       // The restored database and the cloud cursor must be reconciled before
