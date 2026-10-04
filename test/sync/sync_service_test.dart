@@ -98,6 +98,23 @@ void main() {
     service.dispose();
   });
 
+  test('external config enable failures are contained by SyncService', () async {
+    final config = await SyncConfig.load();
+    when(() => runtime.start()).thenAnswer((_) async {
+      throw StateError('external startup failed');
+    });
+
+    final service = SyncService(runtime, config);
+    await service.bootstrap();
+
+    await config.setEnabled(true);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(service.readinessState, SyncReadinessState.error);
+    expect(service.readinessError, isA<StateError>());
+    service.dispose();
+  });
+
   test('restore enable arms the restore gate before enabling sync', () async {
     final config = await SyncConfig.load();
     final events = <String>[];
