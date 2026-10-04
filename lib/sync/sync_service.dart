@@ -24,17 +24,26 @@ class SyncService {
   bool _started = false;
   bool _restoreGateArmed = false;
   bool _disposed = false;
+  Future<void>? _runtimeStart;
 
   bool get isEnabled => _config.isEnabled;
 
   Future<void> enable() {
     _ensureActive();
-    return _config.setEnabled(true);
+    return _enableAndStartIfActive();
   }
 
-  Future<void> disable() {
+  Future<void> disable() async {
     _ensureActive();
-    return _config.setEnabled(false);
+    await _config.setEnabled(false);
+    if (_started) _runtime.stop();
+  }
+
+  Future<void> _enableAndStartIfActive() async {
+    await _config.setEnabled(true);
+    if (_started && !_restoreGateArmed) {
+      await _startRuntime();
+    }
   }
 
   /// Enables sync while reserving the first reconciliation for an explicit
@@ -90,7 +99,7 @@ class SyncService {
     _config.addListener(_onConfigChanged);
     try {
       if (_config.isEnabled && !_restoreGateArmed) {
-        await _runtime.start();
+        await _startRuntime();
       }
     } catch (_) {
       _config.removeListener(_onConfigChanged);
@@ -102,10 +111,22 @@ class SyncService {
   void _onConfigChanged() {
     if (_config.isEnabled) {
       if (_restoreGateArmed) return;
-      unawaited(_runtime.start());
+      unawaited(_startRuntime());
     } else {
       _runtime.stop();
     }
+  }
+
+  Future<void> _startRuntime() {
+    final active = _runtimeStart;
+    if (active != null) return active;
+    final run = _runtime.start();
+    _runtimeStart = run;
+    return run.whenComplete(() {
+      if (identical(_runtimeStart, run)) {
+        _runtimeStart = null;
+      }
+    });
   }
 
   /// Requests an immediate synchronization cycle.
