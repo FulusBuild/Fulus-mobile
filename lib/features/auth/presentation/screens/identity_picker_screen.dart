@@ -176,7 +176,7 @@ class _IdentityPickerScreenState extends ConsumerState<IdentityPickerScreen> {
     // can use the normal Fulus email/password login path.
     await ref.read(apiClientProvider).clearActiveCloudSession();
     ref.read(fulusConnectionStateProvider).disconnect();
-    await ref.read(syncConfigProvider).setEnabled(false);
+    await ref.read(syncServiceProvider).disable();
     await ref.read(authRepositoryProvider).logout();
     ref.read(sessionProvider.notifier).state = null;
   }

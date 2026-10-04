@@ -210,7 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 await ref.read(switchActiveLocationProvider)(location.localId);
                 ref.invalidate(activeLocationIdProvider);
                 ref.read(dataRefreshSignalProvider.notifier).state++;
-                unawaited(ref.read(syncTriggersProvider).refreshAfterContextChange());
+                unawaited(ref.read(syncServiceProvider).refreshAfterContextChange());
                 if (context.mounted) Navigator.of(context).pop();
                 if (mounted) {
                   showFulusSnackbar(context, message: 'Now viewing ' + location.name + '.');

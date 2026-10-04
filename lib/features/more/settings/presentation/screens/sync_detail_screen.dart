@@ -134,7 +134,7 @@ class _ConflictCardState extends ConsumerState<_ConflictCard> {
     setState(() => _resolvingId = conflict.id);
     try {
       await ref.read(syncConflictResolverProvider).keepLocalVersion(conflict.id);
-      await ref.read(syncTriggersProvider).syncNow();
+      await ref.read(syncServiceProvider).request();
       if (!mounted) return;
       showFulusSnackbar(context, message: 'Your local version was sent back to Cloud.');
       ref.invalidate(_syncDetailStatusProvider);

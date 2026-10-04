@@ -5,24 +5,29 @@ import 'package:flutter/widgets.dart';
 
 import '../core/errors/failure.dart';
 
-import 'sync_config.dart';
 import 'sync_engine.dart';
 import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
+import 'sync_cycle_runner.dart';
+import 'sync_cycle_execution_gate.dart';
+import 'sync_connectivity_run_gate.dart';
+import 'sync_readiness_gate.dart';
+import 'sync_runtime.dart';
+import 'sync_readiness_recovery.dart';
+import 'sync_restore_reconciliation_gate.dart';
 
-/// Wires Architecture Section 8's trigger conditions to SyncEngine.runOnce.
-/// Server -> device reconciliation is supplied separately through
-/// [pullFromServer] so the queue algorithm remains platform-independent.
+/// Adapts platform lifecycle events into the internal synchronization
+/// authority. Push/pull cycle policy lives in [SyncCycleRunner].
 ///
-/// [isReady] is deliberately separate from [SyncConfig]: the persisted
+/// [isReady] is deliberately separate from the service-owned persisted
 /// switch means "the user enabled sync", while readiness means the current
 /// session has an authenticated membership and an active registered device.
 /// Keeping those states separate prevents startup/lifecycle triggers from
 /// racing device registration after restore or token recovery.
-class SyncTriggers with WidgetsBindingObserver {
+class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   SyncTriggers({
     required SyncEngine syncEngine,
-    required SyncConfig syncConfig,
+    required bool Function() isEnabled,
     required SyncStatusNotifier syncStatusNotifier,
     Future<void> Function()? pullFromServer,
     Future<bool> Function()? isReady,
@@ -40,105 +45,101 @@ class SyncTriggers with WidgetsBindingObserver {
     this.retryInterval = const Duration(seconds: 30),
     Future<void> Function()? onDeviceAuthorizationLost,
     SyncExecutionLease? executionLease,
-  })  : _syncEngine = syncEngine,
-        _syncConfig = syncConfig,
+})  : _isEnabled = isEnabled,
         _syncStatusNotifier = syncStatusNotifier,
-        _pullFromServer = pullFromServer,
-        _onDeviceAuthorizationLost = onDeviceAuthorizationLost,
         _isReady = isReady,
         _onNotReady = onNotReady,
         _onSyncSuccess = onSyncSuccess,
-        _onPushSuccess = onPushSuccess,
-        _hasOutboundWork = hasOutboundWork,
-        _onCursorTooOldRecovery = onCursorTooOldRecovery,
-        _onRecoveryReconciled = onRecoveryReconciled,
-        _onRecoveryFailed = onRecoveryFailed,
         _onSyncFailure = onSyncFailure,
-        _onBeforeSyncCycle = onBeforeSyncCycle,
         _onContextChangeReconciled = onContextChangeReconciled,
         _connectivity = connectivity ?? Connectivity(),
-        _executionLease = executionLease ?? SyncExecutionLease(syncEngine.db);
+        _onDeviceAuthorizationLost = onDeviceAuthorizationLost {
+    _cycleRunner = SyncCycleRunner(
+      syncEngine: syncEngine,
+      executionLease: executionLease ?? SyncExecutionLease(syncEngine.db),
+      hasOutboundWork: hasOutboundWork,
+      onPushSuccess: onPushSuccess,
+      pullFromServer: pullFromServer,
+      onCursorTooOldRecovery: onCursorTooOldRecovery,
+      onRecoveryReconciled: onRecoveryReconciled,
+      onRecoveryFailed: onRecoveryFailed,
+      onBeforeSyncCycle: onBeforeSyncCycle,
+    );
+    _readinessGate = SyncReadinessGate(
+      isEnabled: _isEnabled,
+      isReady: _isReady,
+      onNotReady: _onNotReady,
+      isRestoreReconciliationInProgress: () => _restoreGate.isInProgress,
+    );
+    _connectivityGate = SyncConnectivityRunGate(
+      run: () => _runIfOnlineOnce(requireReady: true),
+    );
+    _readinessRecovery = SyncReadinessRecovery(
+      isActive: () => _started && _isEnabled(),
+      canRun: () => !_cycleExecutionGate.isRunning && !_connectivityGate.isRunning,
+      recover: () => _runIfOnline(),
+      onFailure: (error, stackTrace) {
+        if (_started) _onSyncFailure?.call(error, stackTrace);
+      },
+    );
+    _cycleExecutionGate = SyncCycleExecutionGate(
+      runCycle: ({manual = false}) => _cycleRunner.run(manual: manual),
+      runFollowUp: _runIfOnline,
+      isActive: () => _started && _isEnabled(),
+      onFollowUpError: (error, stackTrace) {
+        if (_started) _onSyncFailure?.call(error, stackTrace);
+      },
+    );
+  }
 
-  final SyncEngine _syncEngine;
-  final SyncConfig _syncConfig;
+  final bool Function() _isEnabled;
   final SyncStatusNotifier _syncStatusNotifier;
-  final Future<void> Function()? _pullFromServer;
   final Future<bool> Function()? _isReady;
   final Future<void> Function()? _onNotReady;
   final void Function()? _onSyncSuccess;
-  final Future<void> Function(bool hadOutboundWork)? _onPushSuccess;
-  final Future<bool> Function()? _hasOutboundWork;
-  final Future<void> Function()? _onCursorTooOldRecovery;
-  final Future<void> Function()? _onRecoveryReconciled;
-  final Future<void> Function(Object error)? _onRecoveryFailed;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
-  final Future<void> Function()? _onBeforeSyncCycle;
   final Future<void> Function()? _onContextChangeReconciled;
   final Connectivity _connectivity;
-  final SyncExecutionLease _executionLease;
+  late final SyncCycleRunner _cycleRunner;
+  late final SyncCycleExecutionGate _cycleExecutionGate;
+  late final SyncReadinessGate _readinessGate;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   Timer? _retryTimer;
-  Timer? _readinessRecoveryTimer;
+  late final SyncReadinessRecovery _readinessRecovery;
   bool _started = false;
   bool _disposed = false;
-  Future<bool>? _connectivityRun;
-  Future<void>? _readinessRun;
-  bool _restoreReconciliationInProgress = false;
-  Future<void>? _restoreReconciliationRun;
+  late final SyncConnectivityRunGate _connectivityGate;
+  final SyncRestoreReconciliationGate _restoreGate =
+      SyncRestoreReconciliationGate();
 
   /// Arms the restore gate before sync is enabled.
-  ///
-  /// SyncConfig notifies SyncTriggers immediately when enabled. Restore must
-  /// therefore mark itself as the owner of the initial reconciliation before
-  /// flipping that persisted switch, otherwise the normal readiness trigger
-  /// can start a competing initialization first.
   void beginRestoreReconciliation() {
     if (_disposed) {
       throw StateError('SyncTriggers has been disposed and cannot begin restore.');
     }
-    if (_restoreReconciliationRun != null) {
-      throw StateError('A cloud restore reconciliation is already in progress.');
-    }
-    _restoreReconciliationInProgress = true;
+    _restoreGate.begin();
   }
 
   /// Releases a restore gate that was armed but never reached
   /// [reconcileAfterRestore], for example when local restore setup fails.
-  void cancelRestoreReconciliation() {
-    if (_restoreReconciliationRun == null) {
-      _restoreReconciliationInProgress = false;
-    }
-  }
-  Future<bool>? _syncCycleRun;
-  Future<void>? _followUpRun;
-  bool _syncRequestedAfterCycle = false;
-  bool _beforeSyncCycleCompleted = false;
+  void cancelRestoreReconciliation() => _restoreGate.cancel();
 
   /// Waits for any in-flight push/pull/recovery cycle to finish.
   ///
   /// This intentionally does not wait for readiness/connectivity orchestration.
   /// Business switching can itself be invoked by the readiness initializer;
-  /// waiting on [_readinessRun] from inside that initializer would deadlock.
+  /// waiting on readiness from inside that initializer would deadlock.
   /// The safety property needed here is narrower: do not rebind the single-
   /// business local database while an actual sync/recovery cycle is applying
   /// cloud or outbound state.
   Future<void> waitForIdle() async {
     while (true) {
-      final syncCycle = _syncCycleRun;
-      if (syncCycle != null) {
-        await syncCycle;
-        continue;
-      }
-      final restore = _restoreReconciliationRun;
+      await _cycleExecutionGate.waitForIdle();
+      final restore = _restoreGate.activeRun;
       if (restore != null) {
         await restore;
-        continue;
-      }
-      final followUp = _followUpRun;
-      if (followUp != null) {
-        await followUp;
         continue;
       }
       return;
@@ -146,10 +147,8 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    if (_disposed || _started) return;
+    if (_disposed || _started || !_isEnabled()) return;
     _started = true;
-    _syncConfig.addListener(_onConfigChanged);
-    if (!_syncConfig.isEnabled) return;
     await _activate();
   }
 
@@ -157,7 +156,7 @@ class SyncTriggers with WidgetsBindingObserver {
     if (_subscription != null) return;
     WidgetsBinding.instance.addObserver(this);
     _retryTimer ??= Timer.periodic(retryInterval, (_) {
-      if (_syncConfig.isEnabled) {
+      if (_isEnabled()) {
         unawaited(_runIfOnlineSafely());
       }
     });
@@ -167,40 +166,28 @@ class SyncTriggers with WidgetsBindingObserver {
     _subscription = _connectivity.onConnectivityChanged.listen((_) {
       unawaited(_runIfOnlineSafely());
     });
-    if (!_syncConfig.isEnabled) return;
+    if (!_isEnabled()) return;
     await _runIfOnline();
   }
 
-  void dispose() {
-    if (_disposed) return;
-    _disposed = true;
-    _syncConfig.removeListener(_onConfigChanged);
+  void stop() {
     WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     _subscription = null;
     _retryTimer?.cancel();
     _retryTimer = null;
-    _readinessRecoveryTimer?.cancel();
-    _readinessRecoveryTimer = null;
+    _readinessRecovery.dispose();
     _started = false;
   }
 
-  void _onConfigChanged() {
-    if (_syncConfig.isEnabled) {
-      unawaited(_activateSafely());
-    } else {
-      WidgetsBinding.instance.removeObserver(this);
-      _subscription?.cancel();
-      _subscription = null;
-      _retryTimer?.cancel();
-      _retryTimer = null;
-      _readinessRecoveryTimer?.cancel();
-      _readinessRecoveryTimer = null;
-    }
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    stop();
   }
 
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_disposed || !_syncConfig.isEnabled) return;
+    if (_disposed || !_isEnabled()) return;
     if (state == AppLifecycleState.resumed) {
       unawaited(_runIfOnlineSafely());
     }
@@ -212,17 +199,23 @@ class SyncTriggers with WidgetsBindingObserver {
   /// this starts the normal connectivity-gated cycle; when offline, the regular
   /// connectivity/lifecycle triggers will retry without making the switch fail.
   Future<void> refreshAfterContextChange() async {
-    if (_disposed || !_syncConfig.isEnabled) return;
+    if (_disposed || !_isEnabled()) return;
     final didRun = await _runIfOnlineSafely();
-    if (!didRun || !_syncConfig.isEnabled) return;
+    if (!didRun || !_isEnabled()) return;
     await _onContextChangeReconciled?.call();
   }
+
+  Future<void> request() => syncNow();
+
+  Future<void> onLocalMutationCommitted() => notifyEnqueued();
+
+  void recoverReadiness() => scheduleReadinessRecovery();
 
   Future<void> syncNow() async {
     if (_disposed) {
       throw StateError('SyncTriggers has been disposed and cannot sync.');
     }
-    if (!_syncConfig.isEnabled) {
+    if (!_isEnabled()) {
       throw StateError(
         'SyncTriggers.syncNow() was called while sync is disabled. '
         'Callers should only expose a "Sync Now" action when '
@@ -266,32 +259,16 @@ class SyncTriggers with WidgetsBindingObserver {
     if (_disposed) {
       throw StateError('SyncTriggers has been disposed and cannot reconcile.');
     }
-    if (!_syncConfig.isEnabled) {
+    if (!_isEnabled()) {
       throw StateError(
         'Cannot reconcile a restored business while sync is disabled.',
       );
     }
 
-    final activeRestore = _restoreReconciliationRun;
-    if (activeRestore != null) {
-      await activeRestore;
-      return;
-    }
-
-    final run = _reconcileAfterRestore();
-    _restoreReconciliationRun = run;
-    try {
-      await run;
-    } finally {
-      if (identical(_restoreReconciliationRun, run)) {
-        _restoreReconciliationRun = null;
-      }
-    }
+    await _restoreGate.run(_reconcileAfterRestore);
   }
 
   Future<void> _reconcileAfterRestore() async {
-    _restoreReconciliationInProgress = true;
-    try {
       final results = await _connectivity.checkConnectivity();
       if (!_hasConnectivity(results)) {
         throw StateError(
@@ -299,31 +276,26 @@ class SyncTriggers with WidgetsBindingObserver {
         );
       }
 
-      // A normal trigger may already own the connectivity cycle. It is safe
-      // to wait for that cycle unless it is waiting on this restore through
-      // onNotReady. Bootstrap readiness initialization uses
-      // reconcileForReadiness() instead, so it never creates that cycle.
-      final active = _connectivityRun;
-      if (active != null) {
-        // A normal trigger may already own the reconciliation. Its result
-        // tells restore whether real sync work happened or whether the
-        // trigger stood down because restore was still establishing readiness.
-        final didReconcile = await active;
-        if (didReconcile) return;
+      // A normal trigger may already own the connectivity cycle. Waiting
+      // for the shared gate preserves the existing serialization boundary.
+      if (_connectivityGate.isRunning) {
+        final didRun = await _connectivityGate.run();
+        if (didRun) return;
       }
 
+      // A connectivity-gated readiness attempt can finish without running a
+      // sync cycle (for example, when readiness was blocked and then yielded
+      // without establishing readiness). Restore still owns the authoritative
+      // first reconciliation, so perform that cycle here rather than treating
+      // the readiness attempt itself as the restore reconciliation.
       await _runAndCheckStuck();
-    } finally {
-      _restoreReconciliationInProgress = false;
-    }
   }
 
-  /// Performs the readiness reconciliation without waiting on any normal
-  /// trigger or readiness future. This is used by bootstrap's onNotReady hook
-  /// and therefore must never call reconcileAfterRestore() or await
-  /// _connectivityRun/_readinessRun.
+  /// Performs the readiness reconciliation after SyncService has established
+  /// the cloud session/device context. SyncService owns the lifecycle decision;
+  /// this runtime only performs the connectivity-gated reconciliation.
   Future<void> reconcileForReadiness() async {
-    if (!_syncConfig.isEnabled) {
+    if (!_isEnabled()) {
       throw StateError(
         'Cannot reconcile for readiness while sync is disabled.',
       );
@@ -340,13 +312,13 @@ class SyncTriggers with WidgetsBindingObserver {
   }
 
   Future<void> notifyEnqueued() async {
-    if (_disposed || !_syncConfig.isEnabled) return;
+    if (_disposed || !_isEnabled()) return;
     // A local mutation can be committed while the push phase is in flight.
     // Do not let that mutation run before the current cycle's pull advances
     // the local cursor; its base cursor may otherwise be stale relative to a
     // successful earlier mutation of the same entity on this device.
-    if (_syncCycleRun != null) {
-      _syncRequestedAfterCycle = true;
+    if (_cycleExecutionGate.isRunning) {
+      _cycleExecutionGate.requestAfterCurrentCycle();
       return;
     }
     await _runIfOnline();
@@ -356,75 +328,9 @@ class SyncTriggers with WidgetsBindingObserver {
   /// is used when the server revokes this installation's device registration.
   /// The recovery must not run inline from SyncEngine because doing so would
   /// recursively await the cycle that is currently executing.
-  void scheduleReadinessRecovery() {
-    if (_readinessRecoveryTimer != null) return;
-    _readinessRecoveryTimer = Timer.periodic(
-      const Duration(milliseconds: 250),
-      (timer) {
-        if (!_started || !_syncConfig.isEnabled) {
-          timer.cancel();
-          _readinessRecoveryTimer = null;
-          return;
-        }
+  void scheduleReadinessRecovery() => _readinessRecovery.schedule();
 
-        // Device revocation can be detected from inside the active sync
-        // cycle. Never await that cycle from inside itself. Poll the lifecycle
-        // boundary from a separate timer and start readiness only after both
-        // the cycle and its outer connectivity orchestration have unwound.
-        if (_syncCycleRun != null || _connectivityRun != null) return;
-
-        timer.cancel();
-        _readinessRecoveryTimer = null;
-        unawaited(
-          _runIfOnline().catchError((Object error, StackTrace stackTrace) {
-            if (_started) {
-              _onSyncFailure?.call(error, stackTrace);
-            }
-            return false;
-          }),
-        );
-      },
-    );
-  }
-
-  Future<bool> _ensureReady() async {
-    // Restore owns the initial reconciliation. A normal trigger that happens
-    // to fire while restore is enabling sync must stand down.
-    if (_restoreReconciliationInProgress) return false;
-
-    final ready = _isReady;
-    if (ready == null || await ready()) return false;
-    final initialize = _onNotReady;
-    if (initialize == null) return false;
-    final active = _readinessRun;
-    if (active != null) {
-      await active;
-      return await ready();
-    }
-    final run = initialize();
-    _readinessRun = run;
-    try {
-      await run;
-      // onNotReady owns the initial reconciliation. Only report success
-      // when it actually established readiness; initialization may also
-      // legitimately return early (for example while offline or signed out).
-      return await ready();
-    } finally {
-      if (identical(_readinessRun, run)) {
-        _readinessRun = null;
-      }
-    }
-  }
-
-  Future<void> _activateSafely() async {
-    try {
-      await _activate();
-    } catch (error, stackTrace) {
-      if (_started) {
-        _onSyncFailure?.call(error, stackTrace);
-      }
-    }
-  }
+  Future<bool> _ensureReady() => _readinessGate.ensureReady();
 
   Future<bool> _runIfOnlineSafely() async {
     try {
@@ -437,24 +343,12 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<bool> _runIfOnline({bool requireReady = true}) async {
-    final active = _connectivityRun;
-    if (active != null) {
-      return await active;
-    }
-    final run = _runIfOnlineOnce(requireReady: requireReady);
-    _connectivityRun = run;
-    try {
-      return await run;
-    } finally {
-      if (identical(_connectivityRun, run)) {
-        _connectivityRun = null;
-      }
-    }
+  Future<bool> _runIfOnline() async {
+    return _connectivityGate.run();
   }
 
   Future<bool> _runIfOnlineOnce({required bool requireReady}) async {
-    if (!_syncConfig.isEnabled) return false;
+    if (!_isEnabled()) return false;
     if (requireReady) {
       final initialized = await _ensureReady();
       final ready = _isReady;
@@ -486,124 +380,8 @@ class SyncTriggers with WidgetsBindingObserver {
     }
   }
 
-  Future<bool> _runSyncCycle({bool manual = false}) async {
-    final active = _syncCycleRun;
-    if (active != null) return active;
-
-    final lease = _executionLease;
-    // Publish the in-flight cycle marker before the first await. Otherwise a
-    // second trigger in this same runtime could enter while lease acquisition
-    // is waiting and start a duplicate cycle.
-    late Future<bool> run;
-    run = () async {
-      if (!await lease.acquire()) {
-        // Another Fulus runtime owns the durable SQLite sync lease. Treat this
-        // wake-up as a no-op and allow a later foreground or WorkManager
-        // trigger to run once the active cycle has released the lease.
-        return false;
-      }
-      try {
-        try {
-          if (!_beforeSyncCycleCompleted) {
-            await _onBeforeSyncCycle?.call();
-            _beforeSyncCycleCompleted = true;
-          }
-          await _performSyncCycle(manual: manual, lease: lease);
-          return true;
-        } on SyncExecutionLeaseLost {
-          // The runtime may have been suspended long enough for another
-          // runtime to take over. Do not surface the takeover as a sync error
-          // and, critically, do not continue into a later pull/recovery phase.
-          return false;
-        }
-      } finally {
-        await lease.release();
-      }
-    }();
-    _syncCycleRun = run;
-    try {
-      return await run;
-    } finally {
-      final followUpRequested = _syncRequestedAfterCycle;
-      _syncRequestedAfterCycle = false;
-      if (identical(_syncCycleRun, run)) {
-        _syncCycleRun = null;
-      }
-      if (followUpRequested && _syncConfig.isEnabled && _started) {
-        // Start only after the active-cycle marker has been cleared so the
-        // follow-up cannot recursively await the cycle that requested it.
-        // Keep a Future for this boundary so waitForIdle() cannot report idle
-        // before the required follow-up has started and finished.
-        final completer = Completer<void>();
-        _followUpRun = completer.future;
-        Timer.run(() async {
-          try {
-            await _runIfOnline();
-          } catch (error, stackTrace) {
-            if (_started) {
-              _onSyncFailure?.call(error, stackTrace);
-            }
-          } finally {
-            if (identical(_followUpRun, completer.future)) {
-              _followUpRun = null;
-            }
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-          }
-        });
-      }
-    }
-  }
-
-  Future<void> _performSyncCycle({
-    bool manual = false,
-    required SyncExecutionLease lease,
-  }) async {
-    final hadOutboundWork = await _hasOutboundWork?.call() ?? false;
-    await _syncEngine.runOnce(manual: manual);
-    await lease.ensureHeld();
-    await _onPushSuccess?.call(hadOutboundWork);
-    await lease.ensureHeld();
-    final pull = _pullFromServer;
-    if (pull != null) {
-      // Pull failures are intentionally propagated. A reconciliation failure
-      // is a real sync failure and must remain observable to the caller and
-      // diagnostic layer rather than being silently converted into success.
-      var recoveredFromStaleCursor = false;
-      try {
-        await pull();
-        await lease.ensureHeld();
-      } on BusinessRuleFailure catch (error) {
-        if (error.code != 'SYNC_CURSOR_TOO_OLD') rethrow;
-        final recover = _onCursorTooOldRecovery;
-        if (recover == null) rethrow;
-        await lease.ensureHeld();
-        await recover();
-        await lease.ensureHeld();
-        recoveredFromStaleCursor = true;
-        try {
-          await pull();
-          await lease.ensureHeld();
-        } catch (error) {
-          await _onRecoveryFailed?.call(error);
-          rethrow;
-        }
-      }
-      // Recovery deliberately clears Sync Ready while bootstrap replaces local
-      // cloud-owned state. Readiness is restored only after the post-bootstrap
-      // delta pull succeeds, so the UI can never advertise readiness before
-      // authoritative reconciliation has completed.
-      if (recoveredFromStaleCursor) {
-        try {
-          await _onRecoveryReconciled?.call();
-        } catch (error) {
-          await _onRecoveryFailed?.call(error);
-          rethrow;
-        }
-      }
-    }
-  }
+  Future<bool> _runSyncCycle({bool manual = false}) =>
+      _cycleExecutionGate.run(manual: manual);
 
   bool _hasConnectivity(List<ConnectivityResult> results) =>
       results.any((r) => r != ConnectivityResult.none);

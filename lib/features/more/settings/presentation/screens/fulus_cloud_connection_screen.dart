@@ -250,14 +250,9 @@ class _FulusCloudConnectionScreenState
       }
 
       await _registerDevice(connection);
-      await ref.read(syncConfigProvider).setEnabled(true);
-      try {
-        await ref.read(syncTriggersProvider).reconcileForReadiness();
-        connection.markSyncReady();
-      } catch (_) {
-        connection.clearSyncReady();
-        rethrow;
-      }
+      final syncService = ref.read(syncServiceProvider);
+      await syncService.enable();
+      await syncService.reconcileForReadiness();
 
       if (mounted) {
         showFulusSnackbar(
@@ -267,10 +262,10 @@ class _FulusCloudConnectionScreenState
         setState(() {});
       }
     } on Failure catch (failure) {
-      connection.clearSyncReady();
+      ref.read(syncServiceProvider).markNotReady();
       if (mounted) setState(() => _error = syncUserMessage(failure));
     } catch (error) {
-      connection.clearSyncReady();
+      ref.read(syncServiceProvider).markNotReady();
       if (mounted) {
         setState(
           () => _error = syncUserMessage(error),
@@ -333,16 +328,9 @@ class _FulusCloudConnectionScreenState
     // ordered queue used by normal writes before the first reconciliation.
     await ref.read(syncQueueProvider).seedExistingBusinessData();
 
-    final syncConfig = ref.read(syncConfigProvider);
-    final syncTriggers = ref.read(syncTriggersProvider);
-    await syncConfig.setEnabled(true);
-    try {
-      await syncTriggers.reconcileForReadiness();
-      connection.markSyncReady();
-    } catch (_) {
-      connection.clearSyncReady();
-      rethrow;
-    }
+    final syncService = ref.read(syncServiceProvider);
+    await syncService.enable();
+    await syncService.reconcileForReadiness();
 
     if (mounted) {
       showFulusSnackbar(
@@ -374,7 +362,7 @@ class _FulusCloudConnectionScreenState
       _error = null;
     });
     try {
-      await ref.read(syncTriggersProvider).syncNow();
+      await ref.read(syncServiceProvider).request();
       if (!mounted) return;
       showFulusSnackbar(
         context,
@@ -398,7 +386,7 @@ class _FulusCloudConnectionScreenState
     ref.read(fulusConnectionStateProvider).disconnect();
     await ref.read(apiClientProvider).clearServerRefreshToken();
     ref.read(apiClientProvider).setAccessToken(null);
-    await ref.read(syncConfigProvider).setEnabled(false);
+    await ref.read(syncServiceProvider).disable();
     if (mounted) {
       showFulusSnackbar(
         context,

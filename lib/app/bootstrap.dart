@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ulid/ulid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
 import '../core/config/supabase_config.dart';
@@ -21,6 +18,7 @@ import '../data/remote/fulus_business_context.dart';
 import '../data/remote/cloud_restore_api.dart';
 import '../data/remote/endpoints/cloud_restore_api.dart' as employee_restore_api;
 import '../data/remote/cloud_sync_bootstrap_coordinator.dart';
+import '../data/remote/cloud_session_bootstrap_coordinator.dart';
 import '../data/remote/cloud_sync_recovery.dart';
 import '../data/remote/fulus_canonical_reconciler_typed.dart';
 import '../data/remote/fulus_cash_drawer_canonical_reconciler.dart';
@@ -118,6 +116,7 @@ import '../sync/sync_execution_lease.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
+import '../sync/sync_service.dart';
 import 'providers.dart';
 
 Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}) async {
@@ -151,8 +150,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     staffAccessApi: fulusStaffAccessApi,
   );
   final authApi = AuthApi(apiClient);
+  late final SyncTriggers syncTriggers;
+  late final SyncService syncService;
   apiClient.setOnSessionExpired(() async {
     fulusConnectionState.markSessionExpired();
+    // Authentication expiry is a lifecycle transition, not a sync failure.
+    // Keep SyncService's readiness authority aligned with the cloud session.
+    syncService.markNotReady();
   });
   final auditRepository = AuditRepositoryImpl(db: database);
   final permissionRepository = PermissionRepositoryImpl(db: database);
@@ -198,8 +202,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     actorUserIdProvider: () => authRepository.currentUser?.id,
   );
 
-  late final SyncTriggers syncTriggers;
-
   final employeeRepository = EmployeeRepositoryImpl(
     db: database,
     authRepository: authRepository,
@@ -224,7 +226,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // pull, or recovery cycle before changing the selected business so an
       // in-flight old-business pull can never write into the newly selected
       // business's local dataset.
-      await syncTriggers.waitForIdle();
+      await syncService.waitForIdle();
       return !(await syncQueue.hasPendingItems());
     },
     beginSwitch: syncQueue.beginBusinessSwitchBarrier,
@@ -406,7 +408,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusConnectionState.clearRegisteredDevice();
       // Let the current sync cycle unwind first; SyncTriggers will then
       // re-enter the readiness path and silently re-register this installation.
-      syncTriggers.scheduleReadinessRecovery();
+      syncService.recoverReadiness();
     },
   );
 
@@ -435,7 +437,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     onStarted: () async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
-        fulusConnectionState.clearSyncReady();
+        syncService.markNotReady();
         await syncStatusNotifier.markRecoveryStarted(businessId);
       }
     },
@@ -448,14 +450,13 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         // immediately trigger another SYNC_CURSOR_TOO_OLD recovery.
         await syncCoordinator.setCursor(businessId, boundary);
         await syncStatusNotifier.markRecoveryBoundaryPersisted(businessId, boundary);
-        fulusConnectionState.clearSyncError();
       }
     },
     onFailed: (error) async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
         await syncStatusNotifier.markRecoveryFailed(businessId, error);
-        fulusConnectionState.markSyncError(error);
+        syncService.markReadinessError(error);
       }
     },
   );
@@ -463,122 +464,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   late ProviderContainer providerContainer;
   late final EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator;
 
-  Future<void> initializeCloudSync() async {
-    if (fulusConnectionState.isCloudOnboardingInProgress) return;
-    try {
-      final session = await authApi.restoreServerSession(
-      supabaseUrl: SupabaseConfig.url,
-      publishableKey: SupabaseConfig.publishableKey,
-    );
-    if (session == null) {
-      // Sync can only be enabled after a cloud connection was established.
-      // Therefore an enabled sync configuration with no durable refresh
-      // credential means the credential was actually lost (for example after
-      // secure-storage reset), not merely that the network is temporarily
-      // unavailable. Distinguish that case from transient restore failures so
-      // the UI can request one real sign-in rather than waiting forever.
-      if (syncConfig.isEnabled) {
-        final refreshToken = await apiClient.secureRefreshToken();
-        if (refreshToken == null || refreshToken.isEmpty) {
-          fulusConnectionState.markSessionExpired();
-        }
-      }
-      return;
-    }
-    fulusConnectionState.markSessionAuthenticated();
-    await fulusConnectionState.refresh();
-
-    final knownBusinessId =
-        fulusConnectionState.selectedBusinessId ??
-        syncPreferences.getString('fulus_local_cloud_business_id');
-    await employeeCloudSessionCoordinator.refreshExistingAccess(
-      force: true,
-      businessId: knownBusinessId,
-    );
-    if (authRepository.currentUser == null) return;
-
-    final active = fulusConnectionState.membershipContext?.memberships.where((m) => m.status == 'active').toList(growable: false) ?? const [];
-    if (active.isEmpty) return;
-
-    // Preserve a previously selected active business across startup/session
-    // restoration. Only choose automatically when there is exactly one active
-    // membership; with multiple memberships, an already-valid selection is
-    // sufficient and must not be discarded.
-    var selectedBusinessId = fulusConnectionState.selectedBusinessId;
-    if (selectedBusinessId == null) {
-      if (active.length != 1) return;
-      await fulusConnectionState.selectBusiness(active.single.businessId);
-      selectedBusinessId = fulusConnectionState.selectedBusinessId;
-    }
-    if (selectedBusinessId == null) {
-      throw StateError('No active business is available for Cloud Sync.');
-    }
-    if (knownBusinessId == null) {
-      await employeeCloudSessionCoordinator.refreshExistingAccess(
-        force: true,
-        businessId: selectedBusinessId,
-      );
-      if (authRepository.currentUser == null) return;
-    }
-
-    final package = await PackageInfo.fromPlatform();
-    final deviceClientId = await secureStorage.ensureDeviceClientId(Ulid().toString());
-    await fulusConnectionState.registerDevice(
-      deviceClientId: deviceClientId,
-      deviceName: 'Fulus Mobile',
-      platform: Platform.operatingSystem,
-      appVersion: package.version,
-    );
-
-    // The local Drift database is intentionally single-business: its
-    // cloud-owned tables do not carry business_id, so an incremental pull
-    // cannot safely switch the database from business A to business B.
-    // Bind the local cloud dataset to the active business and require an
-    // authoritative snapshot when that binding changes. This prevents a
-    // multi-business account from mixing rows from different businesses.
-    const localCloudBusinessKey = 'fulus_local_cloud_business_id';
-    final boundBusinessId = syncPreferences.getString(localCloudBusinessKey);
-    if (boundBusinessId == null) {
-      final persisted = await syncPreferences.setString(
-        localCloudBusinessKey,
-        selectedBusinessId,
-      );
-      if (!persisted) {
-        throw StateError('Failed to persist the local Cloud Sync business binding.');
-      }
-    } else if (boundBusinessId != selectedBusinessId) {
-      try {
-        await syncRecovery.recover(businessId: selectedBusinessId);
-      } catch (_) {
-        // Do not leave the connection state pointing at business B while the
-        // local database still contains business A. Recovery is authoritative;
-        // if it cannot complete, roll the selection back and keep sync blocked.
-        await fulusConnectionState.selectBusiness(boundBusinessId);
-        rethrow;
-      }
-      final persisted = await syncPreferences.setString(
-        localCloudBusinessKey,
-        selectedBusinessId,
-      );
-      if (!persisted) {
-        throw StateError('Failed to persist the switched Cloud Sync business binding.');
-      }
-    }
-
-    await syncTriggers.reconcileForReadiness();
-    fulusConnectionState.markSyncReady();
-    } catch (error) {
-      fulusConnectionState.markSyncError(error);
-      rethrow;
-    }
-  }
+  late final CloudSessionBootstrapCoordinator cloudSessionBootstrapCoordinator;
 
   syncTriggers = SyncTriggers(
     syncEngine: syncEngine,
-    syncConfig: syncConfig,
+    isEnabled: () => syncConfig.isEnabled,
     syncStatusNotifier: syncStatusNotifier,
-    isReady: () async => fulusConnectionState.isSyncReady,
-    onNotReady: initializeCloudSync,
+    isReady: () async => syncService.isReady,
+    onNotReady: () => syncService.bootstrapCloud(),
     onSyncSuccess: () {
       fulusConnectionState.clearSyncError();
       // Access is cloud-authoritative. Refresh it opportunistically after
@@ -598,7 +491,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (fulusConnectionState.isSessionAuthenticated &&
           fulusConnectionState.selectedBusinessId != null &&
           fulusConnectionState.isDeviceAuthorized) {
-        fulusConnectionState.markSyncReady();
+        syncService.markReady();
       }
     },
     onCursorTooOldRecovery: () async {
@@ -613,14 +506,14 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (businessId != null) {
         await syncStatusNotifier.markRecoveryCompleted(businessId);
       }
-      fulusConnectionState.markSyncReady();
+      syncService.markReady();
     },
     onRecoveryFailed: (error) async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
         await syncStatusNotifier.markRecoveryFailed(businessId, error);
       }
-      fulusConnectionState.markSyncError(error);
+      syncService.markReadinessError(error);
     },
     hasOutboundWork: () async =>
         (await database.select(database.syncQueueItems).get()).isNotEmpty,
@@ -645,7 +538,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
-      syncTriggers.scheduleReadinessRecovery();
+      syncService.markNotReady();
+      syncService.recoverReadiness();
     },
     executionLease: syncExecutionLease,
     pullFromServer: () async {
@@ -670,13 +564,34 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  syncService = SyncService(
+    syncTriggers,
+    syncConfig,
+    bootstrapCloud: () => cloudSessionBootstrapCoordinator.bootstrap(),
+    onReadinessChanged: (state, error) {
+      switch (state) {
+        case SyncReadinessState.ready:
+          fulusConnectionState.markSyncReady();
+          break;
+        case SyncReadinessState.error:
+          if (error != null) {
+            fulusConnectionState.markSyncError(error);
+          }
+          break;
+        case SyncReadinessState.bootstrapping:
+        case SyncReadinessState.notReady:
+          fulusConnectionState.clearSyncReady();
+          break;
+      }
+    },
+  );
+
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
     restoreApi: employeeCloudRestoreApi,
     connection: fulusConnectionState,
     secureStorage: secureStorage,
-    syncConfig: syncConfig,
-    syncTriggers: syncTriggers,
+    syncService: syncService,
     authRepository: authRepository,
     executionLease: syncExecutionLease,
     staffAccessApi: fulusStaffAccessApi,
@@ -685,11 +600,24 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  cloudSessionBootstrapCoordinator = CloudSessionBootstrapCoordinator(
+    authApi: authApi,
+    apiClient: apiClient,
+    syncConfig: syncConfig,
+    syncPreferences: syncPreferences,
+    authRepository: authRepository,
+    secureStorage: secureStorage,
+    connectionState: fulusConnectionState,
+    employeeCloudSessionCoordinator: employeeCloudSessionCoordinator,
+    syncRecovery: syncRecovery,
+    reconcileForReadiness: syncService.reconcileForReadiness,
+  );
+
   // Sync starts after runApp(). The trigger is fully wired here, but
   // network/session reconciliation is deliberately outside the first-frame
   // startup path. Queue notifications remain connected immediately so any
   // local mutation after the first frame can wake the sync runtime.
-  syncQueue.setOnEnqueued(syncTriggers.notifyEnqueued);
+  syncQueue.setOnEnqueued(syncService.onLocalMutationCommitted);
 
   final printerRepository = PrinterRepositoryImpl(db: database);
   final receiptPrinterService = ReceiptPrinterService(printerRepository: printerRepository);
@@ -777,7 +705,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       notificationServiceProvider.overrideWithValue(notificationService),
       syncStatusNotifierProvider.overrideWithValue(syncStatusNotifier),
       syncConflictResolverProvider.overrideWithValue(syncConflictResolver),
-      syncTriggersProvider.overrideWithValue(syncTriggers),
+      syncServiceProvider.overrideWithValue(syncService),
       employeeCloudSessionCoordinatorProvider.overrideWithValue(
         employeeCloudSessionCoordinator,
       ),

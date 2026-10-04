@@ -103,7 +103,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
       final businessId = active.single.businessId;
       await connection.selectBusiness(businessId);
-      connection.clearSyncReady();
+      ref.read(syncServiceProvider).markNotReady();
 
       // A restore creates a new authoritative local dataset. Discard health
       // metadata from any previous dataset before reconciliation so an old
@@ -187,31 +187,20 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         );
       }
 
-      // SyncConfig immediately notifies SyncTriggers when enabled. Arm the
-      // restore gate first so the normal readiness trigger cannot start a
-      // competing cloud initialization between enabling sync and the explicit
-      // post-restore reconciliation below.
-      final syncTriggers = ref.read(syncTriggersProvider);
-      syncTriggers.beginRestoreReconciliation();
+      // Reserve the first reconciliation before enabling sync so the normal
+      // readiness trigger cannot race the authoritative restore reconciliation.
+      final syncService = ref.read(syncServiceProvider);
       _restoreGateArmed = true;
-      await ref.read(syncConfigProvider).setEnabled(true);
+      await syncService.enableForRestore();
 
       // Restore is not complete when the local snapshot has been imported.
       // The restored database and the cloud cursor must be reconciled before
       // the app advertises the business as Sync Ready. SyncTriggers already
-      // serializes a concurrent normal trigger with reconcileAfterRestore(),
-      // so this also closes the startup/restore race instead of allowing the
-      // background trigger to silently finish after this screen has exited.
+      // serializes a concurrent normal trigger with the restore reconciliation,
+      // so the startup/restore race remains inside the sync boundary.
       setState(() => _status = 'Checking cloud sync…');
-      try {
-        await syncTriggers.reconcileAfterRestore();
-        _restoreGateArmed = false;
-        connection.markSyncReady();
-      } catch (error) {
-        connection.clearSyncReady();
-        connection.markSyncError(error);
-        rethrow;
-      }
+      await syncService.reconcileAfterRestore();
+      _restoreGateArmed = false;
 
       setState(() => _status = 'Restore complete. Opening your business…');
       if (!mounted) return;
@@ -223,7 +212,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       Navigator.of(context).pop(true);
     } on Failure catch (failure) {
       if (_restoreGateArmed) {
-        ref.read(syncTriggersProvider).cancelRestoreReconciliation();
+        ref.read(syncServiceProvider).cancelRestore();
         _restoreGateArmed = false;
       }
       if (mounted) {
@@ -235,7 +224,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       }
     } catch (error) {
       if (_restoreGateArmed) {
-        ref.read(syncTriggersProvider).cancelRestoreReconciliation();
+        ref.read(syncServiceProvider).cancelRestore();
         _restoreGateArmed = false;
       }
       if (mounted) {

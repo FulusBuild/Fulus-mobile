@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../app/bootstrap.dart';
@@ -27,18 +26,13 @@ void fulusBackgroundSyncCallback() {
     if (taskName != fulusBackgroundSyncTaskName) return true;
 
     WidgetsFlutterBinding.ensureInitialized();
-    final preferences = await SharedPreferences.getInstance();
-    final syncEnabled =
-        preferences.getBool('fulus_sync_enabled') ?? false;
-    if (!syncEnabled) return true;
-
     final diagnosticLogger = DiagnosticLogger();
     ProviderContainer? container;
     try {
       container = await bootstrap(diagnosticLogger: diagnosticLogger);
-      final triggers = container.read(syncTriggersProvider);
-      await triggers.syncNow();
-      await triggers.waitForIdle();
+      final syncService = container.read(syncServiceProvider);
+      await syncService.request();
+      await syncService.waitForIdle();
 
       // A worker can legitimately wake while the account is signed out, no
       // business is selected, or readiness is waiting for user action. That is
@@ -59,8 +53,8 @@ void fulusBackgroundSyncCallback() {
     } finally {
       final current = container;
       if (current != null) {
-        final triggers = current.read(syncTriggersProvider);
-        triggers.dispose();
+        final syncService = current.read(syncServiceProvider);
+        syncService.dispose();
         final db = current.read(databaseProvider);
         current.dispose();
         await db.close();
@@ -72,7 +66,7 @@ void fulusBackgroundSyncCallback() {
 /// Owns the Android WorkManager schedule.
 ///
 /// The 15-minute cadence is the platform scheduling floor for periodic work on
-/// Android in normal WorkManager usage. Foreground SyncTriggers remains much
+/// Android in normal WorkManager usage. Foreground SyncService remains much
 /// more responsive (30 seconds + connectivity/resume/mutation triggers).
 class FulusBackgroundSyncScheduler {
   FulusBackgroundSyncScheduler();

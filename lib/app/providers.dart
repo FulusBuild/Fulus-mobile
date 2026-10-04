@@ -79,7 +79,7 @@ import '../sync/sync_engine.dart';
 import '../sync/sync_conflict_resolver.dart';
 import '../sync/sync_queue.dart';
 import '../sync/sync_status_notifier.dart';
-import '../sync/sync_triggers.dart';
+import '../sync/sync_service.dart';
 
 /// The app-wide DI graph's entry points. Each of these is declared with
 /// a body that throws UnimplementedError if it's ever actually invoked —
@@ -472,13 +472,12 @@ final syncConflictResolverProvider = Provider<SyncConflictResolver>((ref) {
   );
 });
 
-/// Exposed specifically for the future "Sync Now" button (Volume 11)
-/// and a sync-status indicator to call `.syncNow()` — not for the
-/// automatic triggers themselves, which start once in bootstrap.dart
-/// regardless of whether any UI ever reads this provider.
-final syncTriggersProvider = Provider<SyncTriggers>((ref) {
+/// Single public synchronization boundary. Callers request synchronization
+/// without depending on trigger, lease, retry, cursor, or reconciliation
+/// implementation details.
+final syncServiceProvider = Provider<SyncService>((ref) {
   throw UnimplementedError(
-    'syncTriggersProvider must be overridden in bootstrap.dart.',
+    'syncServiceProvider must be overridden in bootstrap.dart.',
   );
 });
 
@@ -495,8 +494,8 @@ final employeeCloudSessionCoordinatorProvider =
 
 /// A future Settings "Offline, Sync & Backup" screen (Volume 11) reads
 /// this to show the toggle's current state and calls
-/// SyncConfig.setEnabled to flip it — see that class's own doc comment
-/// on why flipping it doesn't itself restart SyncTriggers.
+/// SyncService.enable/disable to change it. SyncConfig is only the persisted
+/// setting and change notification; SyncService owns the lifecycle reaction.
 final syncConfigProvider = ChangeNotifierProvider<SyncConfig>((ref) {
   throw UnimplementedError(
     'syncConfigProvider must be overridden in bootstrap.dart.',

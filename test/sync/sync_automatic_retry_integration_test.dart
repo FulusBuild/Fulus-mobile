@@ -83,7 +83,7 @@ void main() {
     Object? reportedError;
     final triggers = SyncTriggers(
       syncEngine: engine,
-      syncConfig: config,
+      isEnabled: () => config.isEnabled,
       syncStatusNotifier: statusNotifier,
       connectivity: connectivity,
       retryInterval: const Duration(milliseconds: 10),

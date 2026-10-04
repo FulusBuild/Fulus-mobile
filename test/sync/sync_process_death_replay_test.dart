@@ -93,7 +93,7 @@ void main() {
     // invoked here.
     final triggers = SyncTriggers(
       syncEngine: secondEngine,
-      syncConfig: config,
+      isEnabled: () => config.isEnabled,
       syncStatusNotifier: statusNotifier,
       connectivity: connectivity,
       isReady: () async => true,

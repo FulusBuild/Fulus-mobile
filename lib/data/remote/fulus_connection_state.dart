@@ -47,6 +47,7 @@ class FulusConnectionState extends ChangeNotifier {
   /// treated as an expired session, so the UI can wait for automatic recovery.
   bool get isSessionExpired => _sessionExpired;
   bool get hasSyncError => _syncError != null;
+  Object? get syncError => _syncError;
   /// True while any cloud onboarding/restore operation owns the lifecycle
   /// fence. The counter is intentional: the login screen can arm the fence
   /// before authentication, while the employee restore coordinator also owns
@@ -124,9 +125,11 @@ class FulusConnectionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Records synchronization health without changing lifecycle readiness.
+  /// Readiness is owned by SyncService; a transient sync failure must not
+  /// masquerade as loss of authentication or device readiness.
   void markSyncError(Object error) {
     _syncError = error;
-    _syncReady = false;
     notifyListeners();
   }
 

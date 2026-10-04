@@ -327,8 +327,7 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(_pendingSignupEmailKey);
 
-    final syncConfig = ref.read(syncConfigProvider);
-    await syncConfig.setEnabled(true);
+    await ref.read(syncServiceProvider).enable();
 
     // Local account/business creation is complete at this point. Do not make
     // entering the app depend on the first cloud reconciliation completing;

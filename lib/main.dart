@@ -63,7 +63,7 @@ Future<void> main() async {
       // Cloud Sync is deliberately started only after the Flutter tree exists.
       // Its network/session reconciliation must never hold the first frame.
       unawaited(
-        container.read(syncTriggersProvider).start().catchError(
+        container.read(syncServiceProvider).bootstrap().catchError(
           (Object error, StackTrace stackTrace) {
             unawaited(
               diagnosticLogger.captureError(
@@ -71,8 +71,8 @@ Future<void> main() async {
                 stackTrace: stackTrace,
                 severity: DiagnosticSeverity.error,
                 category: DiagnosticCategory.synchronization,
-                component: 'SyncTriggers',
-                operation: 'start',
+                component: 'SyncService',
+                operation: 'bootstrap',
                 title: 'Cloud Sync startup failed',
               ),
             );

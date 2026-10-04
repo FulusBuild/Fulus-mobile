@@ -45,11 +45,11 @@ The master plan was read from branch docs/deep-code-audit-master-plan. The Part 
 
 ## Trace
 
-Foreground startup: main → ensureInitialized → global error capture → bootstrap → local session restore → dependency graph → ProviderContainer → runApp → foreground sync/background scheduling.
+Foreground startup: main → ensureInitialized → global error capture → bootstrap → local session restore → dependency graph → ProviderContainer → runApp → SyncService bootstrap → background scheduling.
 
 Bootstrap wires the local Drift database, auth repository, API clients, repositories, sync queue, sync handlers, canonical reconciler, sync coordinator, SyncEngine, SyncTriggers, and Riverpod overrides.
 
-Background lifecycle: WorkManager callback → fresh bootstrap → SyncTriggers.syncNow → waitForIdle → SyncTriggers.dispose → ProviderContainer.dispose → database close.
+Background lifecycle: WorkManager callback → fresh bootstrap → SyncService.request → waitForIdle → SyncService.dispose → ProviderContainer.dispose → database close.
 
 Restore lifecycle: BackupRepositoryImpl closes the live DB, atomically replaces the database file, reopens a fresh AppDatabase, then the UI sets a restart-required gate because existing repositories and sync handlers captured the old DB instance.
 
@@ -59,7 +59,7 @@ Part: 01 — App Bootstrap & Lifecycle
 Severity: Medium
 Status: Closed in code; CI/runtime verification pending
 Files: lib/sync/sync_triggers.dart; test/sync/sync_triggers_test.dart
-Functions/classes: SyncTriggers.dispose, notifyEnqueued, syncNow, didChangeAppLifecycleState
+Functions/classes: SyncTriggers.dispose, notifyEnqueued, syncNow, didChangeAppLifecycleState (internal adapter responsibilities)
 
 Observed behavior:
 dispose removed listeners, observers, subscriptions and timers and set _started to false. It did not make the object terminal. A later SyncQueue enqueue callback could still call notifyEnqueued, which could enter _runIfOnline and start another sync cycle.

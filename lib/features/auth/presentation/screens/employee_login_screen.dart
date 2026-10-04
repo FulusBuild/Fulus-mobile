@@ -138,7 +138,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     try {
       await ref.read(apiClientProvider).clearActiveCloudSession();
       ref.read(fulusConnectionStateProvider).disconnect();
-      await ref.read(syncConfigProvider).setEnabled(false);
+      await ref.read(syncServiceProvider).disable();
       await ref.read(authRepositoryProvider).logout();
       ref.read(sessionProvider.notifier).state = null;
     } catch (_) {
