@@ -250,7 +250,7 @@ class _FulusCloudConnectionScreenState
       }
 
       await _registerDevice(connection);
-      await ref.read(syncConfigProvider).setEnabled(true);
+      await ref.read(syncServiceProvider).enable();
       try {
         await ref.read(syncServiceProvider).reconcileForReadiness();
         connection.markSyncReady();
@@ -333,11 +333,10 @@ class _FulusCloudConnectionScreenState
     // ordered queue used by normal writes before the first reconciliation.
     await ref.read(syncQueueProvider).seedExistingBusinessData();
 
-    final syncConfig = ref.read(syncConfigProvider);
-    final syncTriggers = ref.read(syncServiceProvider);
-    await syncConfig.setEnabled(true);
+    final syncService = ref.read(syncServiceProvider);
+    await syncService.enable();
     try {
-      await syncTriggers.reconcileForReadiness();
+      await syncService.reconcileForReadiness();
       connection.markSyncReady();
     } catch (_) {
       connection.clearSyncReady();
