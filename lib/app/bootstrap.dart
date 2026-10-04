@@ -692,7 +692,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // network/session reconciliation is deliberately outside the first-frame
   // startup path. Queue notifications remain connected immediately so any
   // local mutation after the first frame can wake the sync runtime.
-  syncQueue.setOnEnqueued(syncService.notifyEnqueued);
+  syncQueue.setOnEnqueued(syncService.onLocalMutationCommitted);
 
   final printerRepository = PrinterRepositoryImpl(db: database);
   final receiptPrinterService = ReceiptPrinterService(printerRepository: printerRepository);
