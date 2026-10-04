@@ -11,7 +11,7 @@ import '../../data/remote/employee_cloud_session_coordinator.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/endpoints/auth_api.dart';
 import '../../data/repositories/auth_repository_impl.dart';
-import '../../device_services/device_client_id.dart';
+import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_config.dart';
 import '../../sync/sync_service.dart';
 
@@ -27,7 +27,7 @@ class CloudSessionBootstrapCoordinator {
     required SyncConfig syncConfig,
     required SharedPreferences syncPreferences,
     required AuthRepositoryImpl authRepository,
-    required SecureDeviceClientId secureDeviceClientId,
+    required SecureStorage secureStorage,
     required FulusConnectionState connectionState,
     required EmployeeCloudSessionCoordinator employeeCloudSessionCoordinator,
     required CloudSyncRecovery syncRecovery,
@@ -37,7 +37,7 @@ class CloudSessionBootstrapCoordinator {
         _syncConfig = syncConfig,
         _syncPreferences = syncPreferences,
         _authRepository = authRepository,
-        _secureDeviceClientId = secureDeviceClientId,
+        _secureStorage = secureStorage,
         _connectionState = connectionState,
         _employeeCloudSessionCoordinator = employeeCloudSessionCoordinator,
         _syncRecovery = syncRecovery,
@@ -48,7 +48,7 @@ class CloudSessionBootstrapCoordinator {
   final SyncConfig _syncConfig;
   final SharedPreferences _syncPreferences;
   final AuthRepositoryImpl _authRepository;
-  final SecureDeviceClientId _secureDeviceClientId;
+  final SecureStorage _secureStorage;
   final FulusConnectionState _connectionState;
   final EmployeeCloudSessionCoordinator _employeeCloudSessionCoordinator;
   final CloudSyncRecovery _syncRecovery;
@@ -117,7 +117,7 @@ class CloudSessionBootstrapCoordinator {
 
       final package = await PackageInfo.fromPlatform();
       final deviceClientId =
-          await _secureDeviceClientId.ensureDeviceClientId(Ulid().toString());
+          await _secureStorage.ensureDeviceClientId(Ulid().toString());
 
       await _connectionState.registerDevice(
         deviceClientId: deviceClientId,
