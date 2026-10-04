@@ -408,6 +408,11 @@ Current progress:
 - Connectivity-gated run coalescing now lives in the internal `SyncConnectivityRunGate`; lifecycle/connectivity events share one in-flight readiness/sync attempt instead of maintaining a second orchestration state in `SyncTriggers`.
 - Same-runtime cycle/follow-up serialization now lives in the internal `SyncCycleExecutionGate`; `SyncTriggers` no longer owns the active-cycle future, follow-up future, or mutation-during-cycle flag.
 
+
+#### Adapter-boundary checkpoint
+
+The remaining SyncTriggers constructor callbacks were audited against the target ownership model. The callbacks that remain are integration seams for readiness, canonical pull/recovery, status reporting, device authorization recovery, and location-context hydration; they do not expose SyncTriggers to application callers. They are therefore being treated as migration seams rather than blindly extracted into more primitives. Further extraction will only proceed where it removes a real ownership decision without duplicating the existing sync guarantees.
+
 ### Phase 6 — simplify handlers
 
 Remove orchestration knowledge from handlers only after the facade is authoritative.
