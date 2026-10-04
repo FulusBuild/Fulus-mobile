@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ulid/ulid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/env_config.dart';
 import '../core/config/supabase_config.dart';
@@ -153,6 +150,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     staffAccessApi: fulusStaffAccessApi,
   );
   final authApi = AuthApi(apiClient);
+  late final SyncTriggers syncTriggers;
+  late final SyncService syncService;
   apiClient.setOnSessionExpired(() async {
     fulusConnectionState.markSessionExpired();
     // Authentication expiry is a lifecycle transition, not a sync failure.
@@ -202,9 +201,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     actorUserIdProvider: () => authRepository.currentUser?.id,
   );
-
-  late final SyncTriggers syncTriggers;
-  late final SyncService syncService;
 
   final employeeRepository = EmployeeRepositoryImpl(
     db: database,
