@@ -567,7 +567,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       }
     }
 
-    await syncTriggers.reconcileForReadiness();
+    await syncService.reconcileForReadiness();
     fulusConnectionState.markSyncReady();
     } catch (error) {
       fulusConnectionState.markSyncError(error);
