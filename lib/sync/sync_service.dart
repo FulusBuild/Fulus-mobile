@@ -87,13 +87,8 @@ class SyncService {
 
   Future<void> notifyEnqueued() => _triggers.notifyEnqueued();
 
-  void beginRestoreReconciliation() =>
-      _triggers.beginRestoreReconciliation();
-
-  void cancelRestoreReconciliation() =>
-      _triggers.cancelRestoreReconciliation();
-
-  /// Schedules recovery after the cloud device/session authority is lost.\n  /// This is intentionally exposed as a lifecycle operation, not a trigger API.\n  void scheduleReadinessRecovery() => _triggers.scheduleReadinessRecovery();
+  /// Schedules recovery after the cloud device/session authority is lost.
+  /// This is intentionally exposed as a lifecycle operation, not a trigger API.\n  void scheduleReadinessRecovery() => _triggers.scheduleReadinessRecovery();
 
   void dispose() {
     if (_started) {
