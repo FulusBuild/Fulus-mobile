@@ -67,6 +67,14 @@ class CloudRestoreCoordinator {
         snapshot: snapshot,
       );
 
+      // Sales reference the authenticated owner through Users.localId.
+      // Seed that FK target before the snapshot import on a fresh install.
+      await _ensureOwnerIdentity(
+        ownerCloudUserId: ownerCloudUserId,
+        ownerEmail: ownerEmail,
+        snapshot: snapshot,
+      );
+
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: ownerCloudUserId,
@@ -146,6 +154,17 @@ class CloudRestoreCoordinator {
       ownerEmail: ownerEmail,
       snapshot: snapshot,
     );
+
+    final profile = snapshot['profile'];
+    final profileName = profile is Map
+        ? profile['full_name']?.toString().trim()
+        : null;
+    final fullName = profileName?.isNotEmpty == true ? profileName! : 'Owner';
+    final membership = snapshot['membership'];
+    final cloudRole = membership is Map
+        ? membership['role_name']?.toString().toLowerCase()
+        : null;
+    final localRole = cloudRole == 'admin' ? AuthRole.manager : AuthRole.owner;
 
     await (_db.update(_db.users)
           ..where((u) => u.localId.equals(ownerCloudUserId)))
