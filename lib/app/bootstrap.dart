@@ -408,7 +408,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       fulusConnectionState.clearRegisteredDevice();
       // Let the current sync cycle unwind first; SyncTriggers will then
       // re-enter the readiness path and silently re-register this installation.
-      syncService.scheduleReadinessRecovery();
+      syncService.recoverReadiness();
     },
   );
 
