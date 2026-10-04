@@ -187,24 +187,20 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
         );
       }
 
-      // SyncConfig immediately notifies SyncTriggers when enabled. Arm the
-      // restore gate first so the normal readiness trigger cannot start a
-      // competing cloud initialization between enabling sync and the explicit
-      // post-restore reconciliation below.
-      final syncTriggers = ref.read(syncServiceProvider);
-      syncTriggers.beginRestoreReconciliation();
+      // Reserve the first reconciliation before enabling sync so the normal
+      // readiness trigger cannot race the authoritative restore reconciliation.
+      final syncService = ref.read(syncServiceProvider);
       _restoreGateArmed = true;
-      await ref.read(syncServiceProvider).enable();
+      await syncService.enableForRestore();
 
       // Restore is not complete when the local snapshot has been imported.
       // The restored database and the cloud cursor must be reconciled before
       // the app advertises the business as Sync Ready. SyncTriggers already
-      // serializes a concurrent normal trigger with reconcileAfterRestore(),
-      // so this also closes the startup/restore race instead of allowing the
-      // background trigger to silently finish after this screen has exited.
+      // serializes a concurrent normal trigger with the restore reconciliation,
+      // so the startup/restore race remains inside the sync boundary.
       setState(() => _status = 'Checking cloud sync…');
       try {
-        await syncTriggers.reconcileAfterRestore();
+        await syncService.reconcileAfterRestore();
         _restoreGateArmed = false;
         connection.markSyncReady();
       } catch (error) {
@@ -223,7 +219,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       Navigator.of(context).pop(true);
     } on Failure catch (failure) {
       if (_restoreGateArmed) {
-        ref.read(syncServiceProvider).cancelRestoreReconciliation();
+        ref.read(syncServiceProvider).cancelRestore();
         _restoreGateArmed = false;
       }
       if (mounted) {
