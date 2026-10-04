@@ -36,7 +36,7 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
       ref.read(dataRefreshSignalProvider.notifier).state++;
       // Keep switching local-first/offline-safe, but reconcile the new location's
       // stock projection immediately when cloud sync is enabled and online.
-      unawaited(ref.read(syncTriggersProvider).refreshAfterContextChange());
+      unawaited(ref.read(syncServiceProvider).refreshAfterContextChange());
       if (context.mounted) showFulusSnackbar(context, message: 'Now viewing ${location.name}.');
     } catch (error) {
       if (context.mounted) {
