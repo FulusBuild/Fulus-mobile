@@ -458,7 +458,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId != null) {
         await syncStatusNotifier.markRecoveryFailed(businessId, error);
-        fulusConnectionState.markSyncError(error);
+        syncService.markReadinessError(error);
       }
     },
   );
@@ -472,7 +472,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncEngine: syncEngine,
     isEnabled: () => syncConfig.isEnabled,
     syncStatusNotifier: syncStatusNotifier,
-    isReady: () async => fulusConnectionState.isSyncReady,
+    isReady: () async => syncService.isReady,
     onNotReady: () => syncService.bootstrapCloud(),
     onSyncSuccess: () {
       fulusConnectionState.clearSyncError();
@@ -493,7 +493,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (fulusConnectionState.isSessionAuthenticated &&
           fulusConnectionState.selectedBusinessId != null &&
           fulusConnectionState.isDeviceAuthorized) {
-        fulusConnectionState.markSyncReady();
+        syncService.markReady();
       }
     },
     onCursorTooOldRecovery: () async {
@@ -508,7 +508,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       if (businessId != null) {
         await syncStatusNotifier.markRecoveryCompleted(businessId);
       }
-      fulusConnectionState.markSyncReady();
+      syncService.markReady();
     },
     onRecoveryFailed: (error) async {
       final businessId = fulusConnectionState.selectedBusinessId;
@@ -528,7 +528,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
         );
       }
     },
-    onSyncFailure: (error, _) => fulusConnectionState.markSyncError(error),
+    onSyncFailure: (error, _) => syncService.markReadinessError(error),
     // The normal cursor pull reconciles changes since the last cursor. A
     // location switch also needs the active location's current stock snapshot
     // when that location has not previously been hydrated on this device.
@@ -540,6 +540,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
+      syncService.markNotReady();
       syncService.recoverReadiness();
     },
     executionLease: syncExecutionLease,
@@ -569,6 +570,22 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncTriggers,
     syncConfig,
     bootstrapCloud: () => cloudSessionBootstrapCoordinator.bootstrap(),
+    onReadinessChanged: (state, error) {
+      switch (state) {
+        case SyncReadinessState.ready:
+          fulusConnectionState.markSyncReady();
+          break;
+        case SyncReadinessState.error:
+          if (error != null) {
+            fulusConnectionState.markSyncError(error);
+          }
+          break;
+        case SyncReadinessState.bootstrapping:
+        case SyncReadinessState.notReady:
+          fulusConnectionState.clearSyncReady();
+          break;
+      }
+    },
   );
 
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
