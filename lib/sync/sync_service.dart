@@ -37,6 +37,7 @@ class SyncService {
   bool _restoreGateArmed = false;
   bool _disposed = false;
   Future<void>? _runtimeStart;
+  Future<void>? _cloudBootstrapRun;
 
   bool get isEnabled => _config.isEnabled;
   SyncReadinessState get readinessState => _readinessState;
@@ -97,8 +98,21 @@ class SyncService {
   /// application root, but lifecycle/readiness triggers may enter it only
   /// through this service boundary. This keeps SyncTriggers as an event
   /// adapter rather than a second application-facing bootstrap authority.
-  Future<void> bootstrapCloud() async {
+  Future<void> bootstrapCloud() {
     _ensureActive();
+    final active = _cloudBootstrapRun;
+    if (active != null) return active;
+
+    final run = _bootstrapCloud();
+    _cloudBootstrapRun = run;
+    return run.whenComplete(() {
+      if (identical(_cloudBootstrapRun, run)) {
+        _cloudBootstrapRun = null;
+      }
+    });
+  }
+
+  Future<void> _bootstrapCloud() async {
     final bootstrapCloud = _bootstrapCloud;
     if (bootstrapCloud == null) {
       throw StateError('Cloud bootstrap is not configured.');
