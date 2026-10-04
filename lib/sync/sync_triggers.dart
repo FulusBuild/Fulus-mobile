@@ -10,6 +10,7 @@ import 'sync_status_notifier.dart';
 import 'sync_execution_lease.dart';
 import 'sync_cycle_runner.dart';
 import 'sync_cycle_execution_gate.dart';
+import 'sync_connectivity_run_gate.dart';
 import 'sync_readiness_gate.dart';
 import 'sync_runtime.dart';
 import 'sync_readiness_recovery.dart';
@@ -203,6 +204,12 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     if (!didRun || !_isEnabled()) return;
     await _onContextChangeReconciled?.call();
   }
+
+  Future<void> request() => syncNow();
+
+  Future<void> onLocalMutationCommitted() => notifyEnqueued();
+
+  void recoverReadiness() => scheduleReadinessRecovery();
 
   Future<void> syncNow() async {
     if (_disposed) {
