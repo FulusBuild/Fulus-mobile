@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/errors/failure.dart';
 import '../core/notifications/notification_service.dart';
 import '../data/local/database/database.dart';
+import '../data/local/sync_cursor_store.dart';
 import 'sync_config.dart';
 import 'sync_status.dart';
 
@@ -46,16 +47,19 @@ class SyncStatusNotifier {
     required SyncConfig syncConfig,
     required NotificationService notificationService,
     required SharedPreferences preferences,
+    required SyncCursorStore cursorStore,
     this.attentionThreshold = defaultSyncAttentionThreshold,
   })  : _db = db,
         _syncConfig = syncConfig,
         _notificationService = notificationService,
-        _preferences = preferences;
+        _preferences = preferences,
+        _cursorStore = cursorStore;
 
   final AppDatabase _db;
   final SyncConfig _syncConfig;
   final NotificationService _notificationService;
   final SharedPreferences _preferences;
+  final SyncCursorStore _cursorStore;
   final int attentionThreshold;
 
   /// Tracks whether the current "stuck" episode has already produced a
@@ -72,14 +76,13 @@ class SyncStatusNotifier {
 
   static String _pushKey(String businessId) => 'fulus_sync_last_push_$businessId';
   static String _pullKey(String businessId) => 'fulus_sync_last_pull_$businessId';
-  static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
   static String _recoveryKey(String businessId) => 'fulus_sync_recovery_$businessId';
   static String _recoveryErrorKey(String businessId) => 'fulus_sync_recovery_error_$businessId';
 
   SyncHealthSnapshot healthFor(String businessId) => SyncHealthSnapshot(
         lastPushAt: _readDate(_preferences.getString(_pushKey(businessId))),
         lastPullAt: _readDate(_preferences.getString(_pullKey(businessId))),
-        cursor: _preferences.getInt(_cursorKey(businessId)) ?? 0,
+        cursor: _cursorStore.cursorFor(businessId),
         recoveryState: _preferences.getString(_recoveryKey(businessId)) ?? 'idle',
         lastError: _preferences.getString(_recoveryErrorKey(businessId)),
       );
@@ -96,7 +99,7 @@ class SyncStatusNotifier {
   Future<void> resetForAuthoritativeRestore(String businessId) async {
     await _preferences.remove(_pushKey(businessId));
     await _preferences.remove(_pullKey(businessId));
-    await _preferences.remove(_cursorKey(businessId));
+    await _cursorStore.reset(businessId);
     await _preferences.setString(_recoveryKey(businessId), 'idle');
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
@@ -105,7 +108,7 @@ class SyncStatusNotifier {
   /// reconciling. Sync is not considered fully recovered until the
   /// post-bootstrap delta pull succeeds.
   Future<void> markRecoveryBoundaryPersisted(String businessId, int boundary) async {
-    await _preferences.setInt(_cursorKey(businessId), boundary);
+    await _cursorStore.setAuthoritative(businessId, boundary);
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
 
@@ -150,7 +153,7 @@ class SyncStatusNotifier {
 
   Future<void> recordPullSuccess(String businessId, int cursor) async {
     await _preferences.setString(_pullKey(businessId), DateTime.now().toUtc().toIso8601String());
-    await _preferences.setInt(_cursorKey(businessId), cursor);
+
   }
 
   DateTime? _readDate(String? raw) => raw == null ? null : DateTime.tryParse(raw);
