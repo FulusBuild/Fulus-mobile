@@ -13,6 +13,7 @@ import '../core/onboarding/onboarding_state.dart';
 import '../data/local/database/app_database_lifecycle.dart';
 import '../data/local/database/database.dart';
 import '../data/local/secure_storage/secure_storage.dart';
+import '../data/local/sync_cursor_store.dart';
 import '../data/remote/api_client.dart';
 import '../data/remote/fulus_business_context.dart';
 import '../data/remote/cloud_restore_api.dart';
@@ -174,6 +175,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // both as early as possible, then wait for the slower one before wiring the
   // providers that depend on the preferences instance.
   final syncPreferences = await sharedPreferencesFuture;
+  final syncCursorStore = DatabaseSyncCursorStore(() => database);
+  await syncCursorStore.initialize(legacyPreferences: syncPreferences);
   final syncConfig = SyncConfig(preferences: syncPreferences);
   final onboardingState = OnboardingState(preferences: syncPreferences);
 
@@ -199,7 +202,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       final businessId = fulusConnectionState.selectedBusinessId;
       return businessId == null
           ? null
-          : syncPreferences.getInt('fulus_sync_cursor_$businessId');
+          : syncCursorStore.cursorFor(businessId);
     },
     actorUserIdProvider: () => authRepository.currentUser?.id,
   );
@@ -296,7 +299,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   );
   final syncCoordinator = FulusSyncCoordinator(
     api: fulusSyncApi,
-    preferences: syncPreferences,
+    cursorStore: syncCursorStore,
     applyChange: (change) async {
       final businessId = fulusConnectionState.selectedBusinessId;
       if (businessId == null) {
