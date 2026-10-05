@@ -63,7 +63,7 @@ enum FulusSyncOperationType {
   expenseCategoryCreate(
     'expense_category.create',
     action: 'expense_category_create',
-    shape: FulusSyncOperationWireShape.payloadAction,
+    shape: FulusSyncOperationWireShape.flattenedAction,
     responseEntityFromItem: true,
   ),
   cashDrawerShiftCreate(
