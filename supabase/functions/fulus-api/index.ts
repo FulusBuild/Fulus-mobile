@@ -44,9 +44,14 @@ Deno.serve(async req => {
   // Caller identity is carried explicitly into service actor wrappers; this
   // preserves the database's direct-RPC execute lockdown.
   const serviceDb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: ud, error: ue } = await serviceDb.auth.getUser(ah.slice(7).trim());
-  if (ue || !ud.user) return out({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
-  const uid = ud.user.id;
+  // verify the already-authenticated JWT locally against Supabase's cached
+  // JWKS instead of calling the Auth user endpoint on every API request.
+  // getUser() adds an Auth network dependency to every sync read/write; a
+  // transient Auth outage can otherwise turn a valid, unexpired JWT into a
+  // misleading 401 from this function.
+  const { data: claimsData, error: claimsError } = await serviceDb.auth.getClaims(ah.slice(7).trim());
+  const uid = claimsData?.claims?.sub;
+  if (claimsError || typeof uid !== "string" || uid.isEmpty) return out({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
   const dc = req.headers.get("x-fulus-device-id");
   const { data: members, error: me } = await serviceDb.from("business_memberships").select("business_id,role_id,status,joined_at").eq("user_id", uid).eq("status", "active");
   if (me) return out({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve memberships" } }, 500);
