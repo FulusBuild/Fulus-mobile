@@ -47,6 +47,37 @@ void main() {
     await secondLease.release();
   });
 
+  test('maintenance fence waits for sync and blocks new sync', () async {
+    final activeSync = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(milliseconds: 100),
+    );
+    final maintenance = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(milliseconds: 100),
+    );
+    final blockedSync = SyncExecutionLease(
+      db,
+      acquisitionTimeout: const Duration(milliseconds: 100),
+    );
+    addTearDown(() async {
+      await activeSync.release();
+      await maintenance.releaseMaintenance();
+      await maintenance.release();
+      await blockedSync.release();
+    });
+
+    expect(await activeSync.acquire(), isTrue);
+    expect(await maintenance.acquireMaintenance(), isFalse);
+
+    await activeSync.release();
+    expect(await maintenance.acquireMaintenance(), isTrue);
+    expect(await blockedSync.acquire(), isFalse);
+
+    await maintenance.releaseMaintenance();
+    expect(await blockedSync.acquire(), isTrue);
+  });
+
   test('detects a newer queued mutation for the same entity', () async {
     final lease = SyncExecutionLease(db);
     addTearDown(lease.release);
