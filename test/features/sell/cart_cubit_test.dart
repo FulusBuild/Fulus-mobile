@@ -192,6 +192,26 @@ void main() {
     await db.close();
   });
 
+  group('catalog reactivity', () {
+    test('keeps the Sell catalog live after draft hydration', () async {
+      final before = cubit.state as CartLoaded;
+      expect(before.catalog[plentyProductId]?.currentStock, 500);
+
+      await (db.update(db.productStockLevels)
+            ..where((row) =>
+                row.productLocalId.equals(plentyProductId) &
+                row.locationLocalId.equals(locationId)))
+          .write(const ProductStockLevelsCompanion(currentStock: Value(501)));
+
+      final after = await waitFor(
+        cubit,
+        (s) => s.catalog[plentyProductId]?.currentStock == 501,
+      );
+
+      expect(after.catalog[plentyProductId]?.currentStock, 501);
+    });
+  });
+
   group('addProduct', () {
     test('adds a new product as a line item', () async {
       await cubit.addProduct(plentyProductId);
