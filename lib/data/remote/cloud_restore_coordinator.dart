@@ -27,12 +27,17 @@ class CloudRestoreCoordinator {
     required BusinessSettingsResponseDto settings,
     void Function(String status)? onProgress,
   }) async {
-    if (!await _executionLease.acquire()) {
-      throw StateError('Another Fulus runtime is currently syncing.');
+    if (!await _executionLease.acquireMaintenance()) {
+      throw StateError('Fulus is busy finishing another sync. Please try restoring again.');
     }
     try {
-      return await _db.transaction(() async {
-        await _executionLease.ensureHeldForTransaction();
+      if (!await _executionLease.acquire()) {
+        throw StateError('Another Fulus runtime is currently syncing.');
+      }
+      try {
+        return await _db.transaction(() async {
+          await _executionLease.ensureMaintenanceHeldForTransaction();
+          await _executionLease.ensureHeldForTransaction();
       onProgress?.call('Preparing local database restore…');
 
       // Never silently destroy locally queued work or unresolved conflicts.
@@ -102,9 +107,12 @@ class CloudRestoreCoordinator {
 
       onProgress?.call('Committing restored business…');
       return result;
-      });
+        });
+      } finally {
+        await _executionLease.release();
+      }
     } finally {
-      await _executionLease.release();
+      await _executionLease.releaseMaintenance();
     }
   }
 
