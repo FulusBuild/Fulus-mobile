@@ -100,7 +100,7 @@ class CustomerSyncHandler implements SyncHandler {
           'email': customer.email,
           'address': customer.address,
           'notes': customer.notes,
-          'credit_limit': customer.creditLimit ?? 0,
+          'credit_limit': customer.creditLimit == null ? 0 : moneyToWire(customer.creditLimit!),
           'is_active': false,
         },
       );
