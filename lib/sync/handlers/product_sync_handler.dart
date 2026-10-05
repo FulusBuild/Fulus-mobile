@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -101,8 +102,8 @@ class ProductSyncHandler implements SyncHandler {
       'barcode': product.barcode,
       'category_id': categoryId,
       'supplier_id': supplierId,
-      'cost_price': product.costPrice,
-      'selling_price': product.sellingPrice,
+      'cost_price': moneyToWire(product.costPrice),
+      'selling_price': moneyToWire(product.sellingPrice),
       'low_stock_threshold': product.lowStockThreshold,
       'is_active': product.isActive,
       if (photoPath != null) 'photo_path': photoPath,
