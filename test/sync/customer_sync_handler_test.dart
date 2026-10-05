@@ -51,7 +51,7 @@ void main() {
 
   test('pushes customer through Fulus Cloud and reconciles the server id', () async {
     final customer = await customerRepository.createCustomer(
-      const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
+      CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678', creditLimit: moneyFromMajor(300)),
     );
     stubCloudAuthorization();
     final submittedPayloads = <String, Map<String, dynamic>>{};
