@@ -35,7 +35,6 @@ void main() {
       notificationService: notifications,
       preferences: await SharedPreferences.getInstance(),
       cursorStore: SharedPreferencesSyncCursorStore(await SharedPreferences.getInstance()),
-      cursorStore: SharedPreferencesSyncCursorStore(await SharedPreferences.getInstance()),
     );
 
     await notifier.recordPushSuccess(
@@ -65,6 +64,7 @@ void main() {
       syncConfig: config,
       notificationService: notifications,
       preferences: await SharedPreferences.getInstance(),
+      cursorStore: SharedPreferencesSyncCursorStore(await SharedPreferences.getInstance()),
     );
 
     await notifier.recordPushSuccess(
