@@ -12,7 +12,9 @@ typedef Money = int;
 
 const Money zeroMoney = 0;
 
-/// Converts a user-entered major-unit number at a local input boundary.\n/// Persisted and wire money must never use this floating-point representation.\nMoney moneyFromMajor(num value) => (value * 100).round();
+/// Converts a user-entered major-unit number at a local input boundary.
+/// Persisted and wire money must never use this floating-point representation.
+Money moneyFromMajor(num value) => (value * 100).round();
 
 double moneyToMajor(Money value) => value / 100.0;
 
