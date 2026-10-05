@@ -144,7 +144,6 @@ class EmployeeCloudSessionCoordinator {
       // follow-up reconciliation in the background.
       await _identityStore.project(
         userId: claim.userId,
-        businessId: claim.businessId,
         membershipId: claim.membershipId,
         roleName: claim.roleName,
         fullName: claim.fullName,
