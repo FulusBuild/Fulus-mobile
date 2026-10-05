@@ -70,7 +70,7 @@ class SaleSyncHandler implements SyncHandler {
           .map((payment) => {
             'method': payment.method,
             'amount': moneyToWire(payment.amount),
-            if (payment.tenderedAmount != null) 'tendered_amount': payment.tenderedAmount,
+            if (payment.tenderedAmount != null) 'tendered_amount': moneyToWire(payment.tenderedAmount!),
           })
           .toList(growable: false);
       final locationId = await _resolveLocationServerId(sale.locationId);
@@ -300,7 +300,7 @@ class SaleSyncHandler implements SyncHandler {
       items.add({
         'product_id': productId,
         'quantity': line.quantity,
-        'unit_price': line.unitPrice,
+        'unit_price': moneyToWire(line.unitPrice),
       });
     }
     return items;
