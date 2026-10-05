@@ -1,1 +1,141 @@
-import 'package:flutter_test/flutter_test.dart';\nimport 'package:fulus_mobile/data/remote/fulus_sync_operation_serializer.dart';\n\nvoid main() {\n  const serializer = FulusSyncOperationSerializer();\n\n  group('operation type definitions', () {\n    test('all defined operations round-trip through their wire name', () {\n      for (final type in FulusSyncOperationType.values) {\n        expect(FulusSyncOperationType.tryParse(type.value), same(type));\n      }\n    });\n  });\n\n  group('serialize', () {\n    test('transaction operation flattens payload and selects server action', () {\n      final body = serializer.serialize(\n        businessId: 'business-1',\n        operationType: 'sale.create',\n        operationId: 'op-1',\n        clientReference: 'sale-ref',\n        payload: {'location_id': 'location-1', 'amount_paid': 30000},\n      );\n      expect(body, {\n        'business_id': 'business-1',\n        'operation_id': 'op-1',\n        'client_reference': 'sale-ref',\n        'location_id': 'location-1',\n        'amount_paid': 30000,\n        'action': 'sale_create',\n      });\n    });\n\n    test('command operation keeps payload nested', () {\n      final body = serializer.serialize(\n        businessId: 'business-1',\n        operationType: 'employee.update',\n        operationId: 'op-2',\n        payload: {'server_id': 'employee-1', 'full_name': 'Ada'},\n      );\n      expect(body, {\n        'business_id': 'business-1',\n        'operation_id': 'op-2',\n        'action': 'employee_update',\n        'payload': {'server_id': 'employee-1', 'full_name': 'Ada'},\n      });\n    });\n\n    test('catalog upsert uses typed entity metadata and update id', () {\n      final body = serializer.serialize(\n        businessId: 'business-1',\n        operationType: 'product.update',\n        operationId: 'op-3',\n        payload: {'server_id': 'product-1', 'name': 'Rice'},\n      );\n      expect(body, {\n        'business_id': 'business-1',\n        'operation_id': 'op-3',\n        'action': 'catalog_upsert',\n        'entity': 'products',\n        'item': {'server_id': 'product-1', 'name': 'Rice'},\n        'id': 'product-1',\n      });\n    });\n\n    test('catalog delete sends the server id without an item payload', () {\n      final body = serializer.serialize(\n        businessId: 'business-1',\n        operationType: 'supplier.delete',\n        operationId: 'op-4',\n        payload: {'server_id': 'supplier-1', 'name': 'Vendor'},\n      );\n      expect(body, {\n        'business_id': 'business-1',\n        'operation_id': 'op-4',\n        'action': 'catalog_delete',\n        'entity': 'suppliers',\n        'id': 'supplier-1',\n      });\n    });\n\n    test('unknown operation preserves the legacy envelope', () {\n      final body = serializer.serialize(\n        businessId: 'business-1',\n        operationType: 'future.operation',\n        operationId: 'op-5',\n        payload: {'value': true},\n      );\n      expect(body, {\n        'business_id': 'business-1',\n        'operation_type': 'future.operation',\n        'operation_id': 'op-5',\n        'payload': {'value': true},\n      });\n    });\n  });\n\n  group('normalizeResponse', () {\n    test('maps transaction response ids to the common entity id', () {\n      final result = {'data': {'sale_id': 'sale-1', 'status': 'applied'}};\n      final normalized = serializer.normalizeResponse(result, operationType: 'sale.create');\n      expect(normalized['data'], {\n        'sale_id': 'sale-1',\n        'status': 'applied',\n        'entity_id': 'sale-1',\n      });\n    });\n\n    test('maps catalog item responses to entity id and entity', () {\n      final result = {\n        'data': {'item': {'id': 'product-1', 'name': 'Rice'}},\n      };\n      final normalized = serializer.normalizeResponse(result, operationType: 'product.update');\n      expect(normalized['data'], {\n        'item': {'id': 'product-1', 'name': 'Rice'},\n        'entity_id': 'product-1',\n        'entity': {'id': 'product-1', 'name': 'Rice'},\n      });\n    });\n\n    test('maps expense category responses without treating them as catalog writes', () {\n      final result = {\n        'data': {'item': {'id': 'expense-category-1', 'name': 'Fuel'}},\n      };\n      final normalized = serializer.normalizeResponse(result, operationType: 'expense_category.create');\n      expect(normalized['data'], {\n        'item': {'id': 'expense-category-1', 'name': 'Fuel'},\n        'entity_id': 'expense-category-1',\n        'entity': {'id': 'expense-category-1', 'name': 'Fuel'},\n      });\n    });\n\n    test('leaves responses without a known entity id unchanged', () {\n      final result = {'data': {'status': 'already_applied'}};\n      expect(\n        serializer.normalizeResponse(result, operationType: 'employee.update'),\n        same(result),\n      );\n    });\n  });\n}
+import 'package:flutter_test/flutter_test.dart';
+import 'package:fulus_mobile/data/remote/fulus_sync_operation_serializer.dart';
+
+void main() {
+  const serializer = FulusSyncOperationSerializer();
+
+  group('operation type definitions', () {
+    test('all defined operations round-trip through their wire name', () {
+      for (final type in FulusSyncOperationType.values) {
+        expect(FulusSyncOperationType.tryParse(type.value), same(type));
+      }
+    });
+  });
+
+  group('serialize', () {
+    test('transaction operation flattens payload and selects server action', () {
+      final body = serializer.serialize(
+        businessId: 'business-1',
+        operationType: 'sale.create',
+        operationId: 'op-1',
+        clientReference: 'sale-ref',
+        payload: {'location_id': 'location-1', 'amount_paid': 30000},
+      );
+      expect(body, {
+        'business_id': 'business-1',
+        'operation_id': 'op-1',
+        'client_reference': 'sale-ref',
+        'location_id': 'location-1',
+        'amount_paid': 30000,
+        'action': 'sale_create',
+      });
+    });
+
+    test('command operation keeps payload nested', () {
+      final body = serializer.serialize(
+        businessId: 'business-1',
+        operationType: 'employee.update',
+        operationId: 'op-2',
+        payload: {'server_id': 'employee-1', 'full_name': 'Ada'},
+      );
+      expect(body, {
+        'business_id': 'business-1',
+        'operation_id': 'op-2',
+        'action': 'employee_update',
+        'payload': {'server_id': 'employee-1', 'full_name': 'Ada'},
+      });
+    });
+
+    test('catalog upsert uses typed entity metadata and update id', () {
+      final body = serializer.serialize(
+        businessId: 'business-1',
+        operationType: 'product.update',
+        operationId: 'op-3',
+        payload: {'server_id': 'product-1', 'name': 'Rice'},
+      );
+      expect(body, {
+        'business_id': 'business-1',
+        'operation_id': 'op-3',
+        'action': 'catalog_upsert',
+        'entity': 'products',
+        'item': {'server_id': 'product-1', 'name': 'Rice'},
+        'id': 'product-1',
+      });
+    });
+
+    test('catalog delete sends the server id without an item payload', () {
+      final body = serializer.serialize(
+        businessId: 'business-1',
+        operationType: 'supplier.delete',
+        operationId: 'op-4',
+        payload: {'server_id': 'supplier-1', 'name': 'Vendor'},
+      );
+      expect(body, {
+        'business_id': 'business-1',
+        'operation_id': 'op-4',
+        'action': 'catalog_delete',
+        'entity': 'suppliers',
+        'id': 'supplier-1',
+      });
+    });
+
+    test('unknown operation preserves the legacy envelope', () {
+      final body = serializer.serialize(
+        businessId: 'business-1',
+        operationType: 'future.operation',
+        operationId: 'op-5',
+        payload: {'value': true},
+      );
+      expect(body, {
+        'business_id': 'business-1',
+        'operation_type': 'future.operation',
+        'operation_id': 'op-5',
+        'payload': {'value': true},
+      });
+    });
+  });
+
+  group('normalizeResponse', () {
+    test('maps transaction response ids to the common entity id', () {
+      final result = {'data': {'sale_id': 'sale-1', 'status': 'applied'}};
+      final normalized = serializer.normalizeResponse(result, operationType: 'sale.create');
+      expect(normalized['data'], {
+        'sale_id': 'sale-1',
+        'status': 'applied',
+        'entity_id': 'sale-1',
+      });
+    });
+
+    test('maps catalog item responses to entity id and entity', () {
+      final result = {
+        'data': {'item': {'id': 'product-1', 'name': 'Rice'}},
+      };
+      final normalized = serializer.normalizeResponse(result, operationType: 'product.update');
+      expect(normalized['data'], {
+        'item': {'id': 'product-1', 'name': 'Rice'},
+        'entity_id': 'product-1',
+        'entity': {'id': 'product-1', 'name': 'Rice'},
+      });
+    });
+
+    test('maps expense category responses without treating them as catalog writes', () {
+      final result = {
+        'data': {'item': {'id': 'expense-category-1', 'name': 'Fuel'}},
+      };
+      final normalized = serializer.normalizeResponse(result, operationType: 'expense_category.create');
+      expect(normalized['data'], {
+        'item': {'id': 'expense-category-1', 'name': 'Fuel'},
+        'entity_id': 'expense-category-1',
+        'entity': {'id': 'expense-category-1', 'name': 'Fuel'},
+      });
+    });
+
+    test('leaves responses without a known entity id unchanged', () {
+      final result = {'data': {'status': 'already_applied'}};
+      expect(
+        serializer.normalizeResponse(result, operationType: 'employee.update'),
+        same(result),
+      );
+    });
+  });
+}
