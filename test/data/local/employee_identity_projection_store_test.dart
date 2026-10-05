@@ -1,9 +1,11 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart';
 
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/local/employee_identity_projection_store.dart';
+import 'package:fulus_mobile/domain/entities/auth_user.dart';
 
 void main() {
   late AppDatabase db;
@@ -71,6 +73,7 @@ void main() {
         localId: 'cloud-user-2',
         username: const Value('employee'),
         fullName: 'Existing',
+        role: AuthRole.employee,
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 1, 1),
       ),
