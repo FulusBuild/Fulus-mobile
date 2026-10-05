@@ -517,7 +517,8 @@ void main() {
     expect(item['product_id'], isNull);
     expect(item['description'], 'Phone charger');
     expect(item['quantity'], 1);
-    expect(item['unit_price'], 50000);
+    expect(item['unit_price'], '500.00');
+    expect(item['cost_price_at_sale'], '0.00');
     expect(captured['location_id'], 'server-location-1');
 
     final updated = await saleRepository.getSaleByLocalId(sale.localId);
