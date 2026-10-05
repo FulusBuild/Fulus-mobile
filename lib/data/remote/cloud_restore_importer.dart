@@ -96,6 +96,7 @@ class CloudRestoreImporter {
   Future<CloudRestoreResult> importSnapshot(
     Map<String, dynamic> snapshot, {
     String? ownerCloudUserId,
+    Set<String> preserveUserIds = const <String>{},
     bool transactional = true,
     bool preserveUnexportedLocalTables = false,
     void Function(String status)? onProgress,
@@ -113,6 +114,7 @@ class CloudRestoreImporter {
       await _clearPortableData(
         preserveUnexportedLocalTables: preserveUnexportedLocalTables,
         preserveUserId: ownerCloudUserId,
+        preserveUserIds: preserveUserIds,
       );
 
       final tableInfoCache = <String, _TableInfo>{};
@@ -501,6 +503,7 @@ class CloudRestoreImporter {
   Future<void> _clearPortableData({
     required bool preserveUnexportedLocalTables,
     String? preserveUserId,
+    required Set<String> preserveUserIds,
   }) async {
     const preserved = {
       'attendance_records',
@@ -515,10 +518,13 @@ class CloudRestoreImporter {
       // not business data. Keep that owner row alive during restore because
       // Sales.cashierUserId has a real FK to Users and restored sales may
       // legitimately belong to the owner.
-      if (table == 'users' && preserveUserId != null) {
+      if (table == 'users' && (preserveUserId != null || preserveUserIds.isNotEmpty)) {
+        final preservedIds = <String>{...preserveUserIds};
+        if (preserveUserId != null) preservedIds.add(preserveUserId);
+        final placeholders = List.filled(preservedIds.length, '?').join(', ');
         await _db.customStatement(
-          'DELETE FROM "users" WHERE "local_id" <> ?',
-          [preserveUserId],
+          'DELETE FROM "users" WHERE "local_id" NOT IN ($placeholders)',
+          preservedIds.toList(growable: false),
         );
         continue;
       }

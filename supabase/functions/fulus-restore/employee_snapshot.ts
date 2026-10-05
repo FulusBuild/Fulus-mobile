@@ -53,22 +53,27 @@ export async function buildEmployeeRestoreSnapshot(
   const customers = (codes.has("customers.read") || codes.has("customers.manage") || codes.has("credit.manage"))
     ? await read(admin.from("customers").select("*").eq("business_id", businessId)) : [];
   const sales = codes.has("sales.read")
-    ? await read(admin.from("sales").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("sales").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const saleIds = rows(sales).map((s: any) => s.id);
   const saleItems = codes.has("sales.read") && saleIds.length
     ? await read(admin.from("sale_items").select("*").in("sale_id", saleIds)) : [];
   const salePayments = codes.has("sales.read") && saleIds.length
     ? await read(admin.from("sale_payments").select("*").in("sale_id", saleIds)) : [];
   const expenses = (codes.has("finance.read") || codes.has("finance.manage"))
-    ? await read(admin.from("expenses").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("expenses").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const income = (codes.has("finance.read") || codes.has("finance.manage"))
-    ? await read(admin.from("income_records").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("income_records").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const cashShifts = (codes.has("cash.read") || codes.has("cash.manage"))
-    ? await read(admin.from("cash_drawer_shifts").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("cash_drawer_shifts").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const movements = (codes.has("inventory.read") || codes.has("inventory.adjust") || codes.has("inventory.transfer"))
     ? await read(admin.from("inventory_movements").select("*").eq("business_id", businessId).in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const returns = (codes.has("returns.create") || codes.has("returns.approve"))
-    ? await read(admin.from("returns").select("*").eq("business_id", businessId)) : [];
+    ? await read(admin.from("returns").select("*").eq("business_id", businessId)
+        .in("location_id", locationIds.length ? locationIds : ["00000000-0000-0000-0000-000000000000"])) : [];
   const returnIds = rows(returns).map((r: any) => r.id);
   const returnItems = returnIds.length ? await read(admin.from("return_items").select("*").in("return_id", returnIds)) : [];
 
