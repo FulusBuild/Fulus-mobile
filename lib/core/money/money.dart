@@ -12,6 +12,8 @@ typedef Money = int;
 
 const Money zeroMoney = 0;
 
+/// Converts a user-entered major-unit number at a local input boundary.
+/// Persisted and wire money must never use this floating-point representation.
 Money moneyFromMajor(num value) => (value * 100).round();
 
 double moneyToMajor(Money value) => value / 100.0;
@@ -25,32 +27,30 @@ String moneyToWire(Money value) {
 }
 
 Money moneyFromWire(Object? value) {
-  if (value is int) return value * 100;
-  if (value is double) return moneyFromMajor(value);
-  if (value is num) return moneyFromMajor(value);
-  if (value is String) {
-    final text = value.trim();
-    if (text.isEmpty) throw const FormatException('Empty monetary value');
-
-    final negative = text.startsWith('-');
-    final unsigned = (text.startsWith('-') || text.startsWith('+'))
-        ? text.substring(1)
-        : text;
-    final parts = unsigned.split('.');
-    if (parts.length > 2 || parts.isEmpty || parts[0].isEmpty) {
-      throw FormatException('Invalid monetary value: $value');
-    }
-
-    final major = int.parse(parts[0]);
-    final fractional = parts.length == 1 ? '' : parts[1];
-    if (fractional.length > 2 || fractional.contains(RegExp(r'[^0-9]'))) {
-      throw FormatException('Invalid two-decimal monetary value: $value');
-    }
-    final minorText = fractional.padRight(2, '0');
-    final result = major * 100 + (minorText.isEmpty ? 0 : int.parse(minorText));
-    return negative ? -result : result;
+  // Cloud monetary values are an explicit decimal-string wire contract.
+  // Accepting JSON numbers here is unsafe: PostgreSQL NUMERIC values such as
+  // 300.00 can arrive through JSON as the integer 300, which is ambiguous
+  // between 300 major units and 300 minor units. The previous implementation
+  // guessed that integers were major units and could therefore turn ₦300 into
+  // 30,000 minor units during canonical reconciliation/restore.
+  if (value is! String) {
+    throw FormatException('Unsupported monetary wire value: $value');
   }
-  throw FormatException('Unsupported monetary value: $value');
+
+  final text = value.trim();
+  if (!RegExp(r'^-?\d+\.\d{2}$').hasMatch(text)) {
+    throw FormatException(
+      'Monetary wire values must be decimal strings with exactly two decimals: $value',
+    );
+  }
+
+  final negative = text.startsWith('-');
+  final unsigned = negative ? text.substring(1) : text;
+  final parts = unsigned.split('.');
+  final major = int.parse(parts[0]);
+  final minor = int.parse(parts[1]);
+  final result = major * 100 + minor;
+  return negative ? -result : result;
 }
 
 

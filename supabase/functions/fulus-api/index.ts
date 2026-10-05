@@ -3,7 +3,36 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const MONEY_WIRE_KEYS = new Set([
+  "amount", "credit_limit", "outstanding_balance", "opening_cash",
+  "closing_cash", "cash_difference", "subtotal", "whole_cart_discount",
+  "discount", "tax", "total", "amount_paid", "cash_tendered",
+  "cash_change", "unit_price", "cost_price_at_sale", "line_total",
+  "cost_price", "selling_price", "refund_amount", "salary",
+]);
+
+// PostgreSQL NUMERIC values can arrive through JSON as JavaScript numbers.
+// A whole-valued NUMERIC such as 300.00 can therefore become the ambiguous
+// JSON number 300. The mobile wire contract uses decimal strings so the client
+// never has to guess whether an integer means major or minor units.
+const wireMoneyFields = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(wireMoneyFields);
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (MONEY_WIRE_KEYS.has(key) && typeof child === "number") {
+        if (!Number.isFinite(child)) throw new Error("Invalid monetary value in server response");
+        result[key] = child.toFixed(2);
+      } else {
+        result[key] = wireMoneyFields(child);
+      }
+    }
+    return result;
+  }
+  return value;
+};
+
+const out = (body: unknown, status = 200) => new Response(JSON.stringify(wireMoneyFields(body)), { status, headers: { "content-type": "application/json" } });
 
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, x-fulus-device-id", "access-control-allow-methods": "GET, POST, OPTIONS" } });

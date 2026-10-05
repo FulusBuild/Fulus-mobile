@@ -47,7 +47,7 @@ void main() {
           'email': 'customer@example.com',
           'address': 'Ibadan',
           'notes': 'from another device',
-          'outstanding_balance': 12500.0,
+          'outstanding_balance': '12500.00',
           'duplicate_warning': null,
           'updated_at': '2026-09-15T12:00:00.000Z',
         },
@@ -100,7 +100,7 @@ void main() {
         'row': {
           'id': 'server-customer-3',
           'name': 'Missing timestamp',
-          'outstanding_balance': 0,
+          'outstanding_balance': '0.00',
         },
       },
     });

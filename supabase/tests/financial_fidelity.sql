@@ -72,4 +72,31 @@ begin
     ) <> 0 then
     raise exception 'credit-method validation branch must not insert customer ledger entries';
   end if;
-end $$;
+
+  -- Money wire contract: monetary JSON must be a decimal string, never a
+  -- JSON number whose integer form is ambiguous at the mobile boundary.
+  if public._fulus_money_wire_jsonb(
+    '{"selling_price":300,"amount":300.50,"quantity":100}'::jsonb
+  ) <> '{"selling_price":"300.00","amount":"300.50","quantity":100}'::jsonb then
+    raise exception 'strict money wire normalizer returned an unexpected shape';
+  end if;
+
+  if position(
+    'public._fulus_money_wire_jsonb(v_snapshot)'
+    in pg_get_functiondef(
+      'public.build_fulus_restore_snapshot(uuid,uuid)'::regprocedure
+    )
+  ) = 0 then
+    raise exception 'full restore snapshot is not protected by the strict money wire boundary';
+  end if;
+
+  if position(
+    'public._fulus_money_wire_jsonb(v_snapshot)'
+    in pg_get_functiondef(
+      'public.build_fulus_employee_restore_snapshot(uuid,uuid)'::regprocedure
+    )
+  ) = 0 then
+    raise exception 'employee restore snapshot is not protected by the strict money wire boundary';
+  end if;
+
+end $;

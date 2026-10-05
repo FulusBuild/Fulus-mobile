@@ -71,7 +71,7 @@ void main() {
           'role': 'cashier',
           'department': 'Sales',
           'position': 'Cashier',
-          'salary': 85000,
+          'salary': '85000.00',
           'phone': '+2348000000000',
           'email': 'amina@example.com',
           'date_hired': '2026-01-02',
