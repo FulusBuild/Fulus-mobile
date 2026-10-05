@@ -55,7 +55,7 @@ void main() {
     var applyCount = 0;
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async => applyCount++,
       persistCursor: (_, __) async {
         persistAttempts++;
@@ -79,7 +79,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final coordinator = FulusSyncCoordinator(
       api: MockFulusSyncApi(),
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
       persistCursor: (_, __) async => false,
     );
@@ -100,7 +100,7 @@ void main() {
       changes: [FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
       cursor: 1, nextCursor: 2, hasMore: false,
     ));
-    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async => throw StateError('apply failed'));
+    final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async => throw StateError('apply failed'));
     await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
     expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
@@ -121,7 +121,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (change) async => applied.add(change.sequence),
     );
 
@@ -151,7 +151,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (change) async => applied.add(change.sequence),
     );
 
@@ -173,7 +173,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (change) async => applied.add(change.sequence),
       shouldApplyChange: (_) async => false,
     );
@@ -220,7 +220,7 @@ void main() {
     final eligibilityChecked = Completer<void>();
     final canonicalApplied = Completer<void>();
     final coordinator = FulusSyncCoordinator(
-      api: api, preferences: preferences,
+      api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {
         await (db1.update(db1.customers)..where((c) => c.serverId.equals('customer-server')))
             .write(const CustomersCompanion(name: Value('Canonical overwrite')));
@@ -279,7 +279,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (change) async => applied.add(change.sequence),
     );
 
@@ -307,7 +307,7 @@ void main() {
     ));
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
@@ -324,7 +324,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final coordinator = FulusSyncCoordinator(
       api: MockFulusSyncApi(),
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
@@ -339,7 +339,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final coordinator = FulusSyncCoordinator(
       api: MockFulusSyncApi(),
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
@@ -354,7 +354,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final coordinator = FulusSyncCoordinator(
       api: MockFulusSyncApi(),
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
@@ -372,7 +372,7 @@ void main() {
       changes: [FulusSyncChange(sequence: 3, entityType: 'customer', entityId: 'c3', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)), FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
       cursor: 0, nextCursor: 3, hasMore: false,
     ));
-    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async {});
     await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
     expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
   });
@@ -385,7 +385,7 @@ void main() {
       changes: [FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1)), FulusSyncChange(sequence: 2, entityType: 'customer', entityId: 'c2b', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
       cursor: 0, nextCursor: 2, hasMore: false,
     ));
-    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async {});
     await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
     expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
   });
@@ -397,7 +397,7 @@ void main() {
     when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).thenAnswer((_) async => FulusSyncPullResponse(
       changes: const [], cursor: 0, nextCursor: 0, hasMore: true,
     ));
-    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async {});
     await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
     expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
   });
@@ -410,7 +410,7 @@ void main() {
       changes: [FulusSyncChange(sequence: 6, entityType: 'customer', entityId: 'c6', operation: 'upsert', payload: const {}, createdAt: DateTime.utc(2026, 1, 1))],
       cursor: 5, nextCursor: 6, hasMore: false,
     ));
-    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (_) async {});
+    final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async {});
     await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
     expect(preferences.getInt('fulus_sync_cursor_b1') ?? 0, 0);
   });
@@ -440,7 +440,7 @@ void main() {
     final events = <String>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
       shouldApplyChange: (_) async {
         events.add('eligibility');
