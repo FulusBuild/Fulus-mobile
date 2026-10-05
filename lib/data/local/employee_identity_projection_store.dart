@@ -131,7 +131,7 @@ class LocalEmployeeIdentityStore {
     return employeeId ?? DateTime.now().microsecondsSinceEpoch.toString();
   }
 
-  Future<dynamic> _findEmployeeForUser(String userId) async {
+  Future<EmployeeRow?> _findEmployeeForUser(String userId) async {
     final byAuth = await (_db.select(_db.employees)
           ..where((e) => e.authUserId.equals(userId)))
         .getSingleOrNull();
@@ -227,7 +227,7 @@ class LocalEmployeeIdentityStore {
         employee?['position'],
         employee?['salary'],
         employee?['phone'],
-        employee?['email'] ?? emailFallback(employee, ''),
+        employee?['email'] ?? '',
         dateHired,
         localLocationId,
         now,
@@ -236,10 +236,6 @@ class LocalEmployeeIdentityStore {
     );
   }
 
-  String emailFallback(Map<String, dynamic>? employee, String fallback) {
-    final value = employee?['email']?.toString().trim();
-    return value == null || value.isEmpty ? fallback : value;
-  }
 
   Future<void> _replacePermissions({
     required String userId,
