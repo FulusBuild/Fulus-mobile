@@ -31,6 +31,7 @@ class LocalEmployeeIdentityStore {
     final localEmployeeId = await _resolveLocalEmployeeId(
       userId: userId,
       employeeId: employeeId,
+      membershipId: membershipId,
     );
     final normalizedFullName =
         fullName.trim().isEmpty ? 'Staff member' : fullName.trim();
@@ -117,6 +118,7 @@ class LocalEmployeeIdentityStore {
   Future<String> _resolveLocalEmployeeId({
     required String userId,
     required String? employeeId,
+    required String membershipId,
   }) async {
     if (employeeId != null) {
       final byServer = await (_db.select(_db.employees)
@@ -128,7 +130,7 @@ class LocalEmployeeIdentityStore {
     final existing = await _findEmployeeForUser(userId);
     if (existing != null) return existing.localId;
 
-    return employeeId ?? DateTime.now().microsecondsSinceEpoch.toString();
+    return employeeId ?? membershipId;
   }
 
   Future<EmployeeRow?> _findEmployeeForUser(String userId) async {
@@ -176,6 +178,7 @@ class LocalEmployeeIdentityStore {
     required String? employeeId,
     required String fullName,
     required String roleName,
+    required String email,
     required Map<String, dynamic>? employee,
     required String? localLocationId,
     required int now,
@@ -227,7 +230,7 @@ class LocalEmployeeIdentityStore {
         employee?['position'],
         employee?['salary'],
         employee?['phone'],
-        employee?['email'] ?? '',
+        employee?['email'] ?? email,
         dateHired,
         localLocationId,
         now,
