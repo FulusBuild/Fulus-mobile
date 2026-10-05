@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import 'package:drift/drift.dart';
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
@@ -72,7 +73,7 @@ class ReturnSyncHandler implements SyncHandler {
           'sale_id': saleId,
           'operation_id': item.id,
           'reason': request.returnReason,
-          'refund_amount': request.refundAmount,
+          'refund_amount': moneyToWire(request.refundAmount),
           'refund_method': request.refundMethod,
           'items': items,
         },
