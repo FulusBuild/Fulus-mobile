@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../core/errors/failure.dart';
