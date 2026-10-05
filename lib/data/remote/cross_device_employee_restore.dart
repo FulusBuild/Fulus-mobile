@@ -85,9 +85,15 @@ class CrossDeviceEmployeeRestore {
           ],
         );
         onProgress?.call('Restoring business data…');
+        final historicalCashierIds = _seedHistoricalCashierIds(
+          snapshot,
+          currentUserId: claim.userId,
+        );
+
         final result = await CloudRestoreImporter(_db).importSnapshot(
           snapshot,
           ownerCloudUserId: claim.userId,
+          preserveUserIds: historicalCashierIds,
           transactional: false,
           onProgress: onProgress,
         );
@@ -239,6 +245,36 @@ class CrossDeviceEmployeeRestore {
       tin: data['tin']?.toString(),
       receiptFooter: data['receipt_footer']?.toString(),
     );
+  }
+
+  Set<String> _seedHistoricalCashierIds(
+    Map<String, dynamic> snapshot, {
+    required String currentUserId,
+  }) {
+    final cashierIds = <String>{};
+
+    for (final row in _maps(snapshot['sales'])) {
+      final id = row['cashier_user_id']?.toString();
+      if (id != null && id.isNotEmpty && id != currentUserId) {
+        cashierIds.add(id);
+      }
+    }
+    for (final row in _maps(snapshot['cash_drawer_shifts'])) {
+      final id = row['cashier_user_id']?.toString();
+      if (id != null && id.isNotEmpty && id != currentUserId) {
+        cashierIds.add(id);
+      }
+    }
+
+    return cashierIds;
+  }
+
+  List<Map<String, dynamic>> _maps(Object? value) {
+    if (value is! List) return const <Map<String, dynamic>>[];
+    return value
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
   }
 
   Set<Permission> _mapPermissions(List<String> codes) {
