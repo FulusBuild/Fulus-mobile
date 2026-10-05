@@ -115,7 +115,7 @@ void main() {
           'id': 'product-1',
           'name': 'Rice',
           'sku': 'RICE-1',
-          'price': 1000,
+          'selling_price': 1000,
           'cost_price': 800,
           'stock_quantity': 10,
         },
