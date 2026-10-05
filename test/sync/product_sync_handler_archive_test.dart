@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
@@ -65,6 +66,64 @@ void main() {
   });
 
   tearDown(() async => db.close());
+
+  test('sends new product prices as cloud major-unit values', () async {
+    final now = DateTime(2026, 10, 5);
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'p-money-create',
+        name: 'Money boundary product',
+        sku: 'MONEY-1',
+        costPrice: 12500,
+        sellingPrice: 30000,
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'queue-product-money-create',
+        entityType: 'product',
+        entityLocalId: 'p-money-create',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: now,
+      ),
+    );
+
+    when(() => api.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer(
+      (_) async => {
+        'data': {
+          'entity_id': 'server-money-product',
+          'sync_sequence': 31,
+        },
+      },
+    );
+
+    final item = await db.select(db.syncQueueItems).getSingle();
+    await handler.sync(item);
+
+    final operation = verify(() => api.submitOperation(
+      businessId: 'business-1',
+      operationType: 'product.create',
+      operationId: 'queue-product-money-create',
+      deviceClientId: 'device-client-1',
+      payload: captureAny(named: 'payload'),
+    )).captured.single as Map<String, dynamic>;
+
+    expect(operation['cost_price'], moneyToWire(12500));
+    expect(operation['selling_price'], moneyToWire(30000));
+    expect(operation['cost_price'], '125.00');
+    expect(operation['selling_price'], '300.00');
+  });
 
   test('creates then archives a pre-sync product without reusing the stale create cursor', () async {
     final now = DateTime(2026, 9, 22);
