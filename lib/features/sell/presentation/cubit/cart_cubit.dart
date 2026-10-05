@@ -100,7 +100,12 @@ class CartCubit extends Cubit<CartState> {
         unawaited(_resolveCustomer(draft.customerLocalId));
       }
 
-      await _cancelSubscriptions();
+      // The catalog and settings subscriptions were started before the draft
+      // resolved so Sell can render immediately. Keep them alive after the
+      // durable draft is created; cancelling them here freezes the catalog at
+      // first-open and makes newly added stock/products appear only after an
+      // app restart.
+      await _cancelDraftSubscriptions();
       _draftSub = _draftCartRepository.watchDraftCart(draft.localId).listen((updated) {
         if (updated == null) return;
         _draft = updated;
@@ -158,15 +163,19 @@ class CartCubit extends Cubit<CartState> {
     ));
   }
 
-  Future<void> _cancelSubscriptions() async {
+  Future<void> _cancelDraftSubscriptions() async {
     await _draftSub?.cancel();
     await _itemsSub?.cancel();
     await _paymentsSub?.cancel();
-    await _settingsSub?.cancel();
-    await _catalogSub?.cancel();
     _draftSub = null;
     _itemsSub = null;
     _paymentsSub = null;
+  }
+
+  Future<void> _cancelSubscriptions() async {
+    await _cancelDraftSubscriptions();
+    await _settingsSub?.cancel();
+    await _catalogSub?.cancel();
     _settingsSub = null;
     _catalogSub = null;
   }
