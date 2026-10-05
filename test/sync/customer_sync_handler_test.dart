@@ -54,11 +54,18 @@ void main() {
       const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
     );
     stubCloudAuthorization();
+    final submittedPayloads = <String, Map<String, dynamic>>{};
     when(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'), operationType: any(named: 'operationType'),
           operationId: any(named: 'operationId'), deviceClientId: any(named: 'deviceClientId'),
           clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
-        )).thenAnswer((_) async => {'data': {'entity_id': 'server-customer-1'}});
+        )).thenAnswer((invocation) async {
+      final operationType = invocation.namedArguments[#operationType] as String;
+      submittedPayloads[operationType] = Map<String, dynamic>.from(
+        invocation.namedArguments[#payload] as Map,
+      );
+      return {'data': {'entity_id': 'server-customer-1'}};
+    });
 
     await handler.sync(queueItemFor(customer));
 
