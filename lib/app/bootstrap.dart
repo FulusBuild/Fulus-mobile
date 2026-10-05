@@ -608,6 +608,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     executionLease: syncExecutionLease,
     staffAccessApi: fulusStaffAccessApi,
     identityStore: employeeIdentityStore,
+    syncCursorStore: syncCursorStore,
     onSessionChanged: (user) {
       providerContainer.read(sessionProvider.notifier).state = user;
     },
