@@ -27,6 +27,9 @@ void main() {
       expect(() => moneyFromWire(300), throwsFormatException);
       expect(() => moneyFromWire(300.00), throwsFormatException);
       expect(() => moneyFromWire(300.01), throwsFormatException);
+      expect(() => moneyFromWire('300'), throwsFormatException);
+      expect(() => moneyFromWire('300.0'), throwsFormatException);
+      expect(() => moneyFromWire('+300.00'), throwsFormatException);
     });
 
     test('round trips two-decimal values exactly', () {
