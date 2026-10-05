@@ -216,39 +216,38 @@ Business, location, membership, device, and actor checks are represented on the 
 
 # 5. Where the implementation differs from an ideal greenfield implementation
 
-## 5.1 Two state-management systems — 🟡 SIMPLIFY
+## 5.1 Two state-management systems — 🟢 KEEP WITH A HARD BOUNDARY
 
 Fulus uses both:
 
-- Riverpod;
-- flutter_bloc/Cubit.
+- Riverpod as the primary application state model;
+- flutter_bloc/Cubit for the Sell cart.
 
-The current split is understandable: most application state uses Riverpod while the Sell cart uses a CartCubit.
+A greenfield team could reasonably choose Riverpod for the cart too, but the benchmark does not justify migrating a working, heavily tested checkout controller merely to eliminate one framework dependency.
 
-But the question is:
+The CartCubit owns a real stateful interaction boundary:
 
-> If we started today, would we deliberately introduce two state-management ecosystems?
+- durable draft-cart subscriptions;
+- live product/catalog state;
+- customer resolution;
+- payment state;
+- checkout submission state;
+- location-specific cart lifetime.
 
-Probably not.
+The important benchmark question is therefore not whether Cubit can be removed, but whether retaining it protects a real boundary and whether the second state-management model can be prevented from spreading.
 
-The CartCubit is legitimate stateful interaction logic. The problem is the **framework boundary**, not the cart itself.
+The answer is yes. The cart controller is a deliberate exception, while the rest of the application remains Riverpod-oriented. Migrating it would create a broad lifecycle/UI change with no demonstrated correctness or user benefit.
 
-A principal team would likely choose one of two approaches:
+**Decision: KEEP the current implementation and constrain it.**
 
-### Option A — standardize on Riverpod
+Permanent guardrail:
 
-Keep the cart as a stateful Riverpod notifier/provider.
+- no new flutter_bloc usage outside the Sell cart boundary;
+- no new Cubit/BLoC classes unless a benchmark review establishes a materially different invariant;
+- new application state should default to Riverpod;
+- if the cart is changed substantially in the future, reconsider migration then, using the same invariant/test suite rather than performing a framework-only rewrite.
 
-### Option B — explicitly isolate Cubit
-
-If Cubit is retained because it materially improves checkout state management, document it as the one intentionally isolated exception and prevent the pattern from spreading.
-
-The current state is not a correctness defect.
-
-It is an implementation-complexity finding.
-
-**Decision: SIMPLIFY, not rewrite immediately.**
-
+This is a simplification by restraint: do not create a large refactor just to make the dependency list look cleaner.
 ---
 
 # 6. Sync implementation: the biggest implementation-level finding
@@ -827,7 +826,8 @@ These are exactly the kinds of things a principal team would periodically remove
 ## P2 — simplification
 
 7. **Decide the long-term state-management model**
-   - standardize on Riverpod or explicitly constrain Cubit to checkout.
+   - **Decision: KEEP Riverpod as the primary model and explicitly constrain the existing Sell CartCubit as the single deliberate exception.**
+   - no framework-only migration until the cart's lifecycle/state boundary is materially changed.
 
 8. **Reduce overlapping coordination concepts**
    - only after ownership is proven through call-path analysis.
