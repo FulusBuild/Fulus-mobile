@@ -46,6 +46,21 @@ void main() {
       });
     });
 
+    test('expense category create preserves flattened command wire shape', () {
+      final body = serializer.serialize(
+        businessId: 'business-1',
+        operationType: 'expense_category.create',
+        operationId: 'op-expense-category',
+        payload: {'name': 'Fuel'},
+      );
+      expect(body, {
+        'business_id': 'business-1',
+        'operation_id': 'op-expense-category',
+        'name': 'Fuel',
+        'action': 'expense_category_create',
+      });
+    });
+
     test('catalog upsert uses typed entity metadata and update id', () {
       final body = serializer.serialize(
         businessId: 'business-1',
