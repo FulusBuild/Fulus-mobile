@@ -19,9 +19,14 @@ permissions:
   contents: read
   actions: read
 
+# Production deployment is commit-exact. If main advances while an older
+# deployment is waiting for its exact Mobile CI run, the older deployment
+# must be cancelled rather than treating the deliberately-cancelled CI run
+# as a migration failure. The newer main commit will run the full deployment
+# contract against the latest repository state.
 concurrency:
   group: fulus-production-supabase-migrations
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
