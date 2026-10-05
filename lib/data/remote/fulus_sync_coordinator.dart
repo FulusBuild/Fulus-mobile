@@ -1,5 +1,4 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../local/sync_cursor_store.dart';
 import 'fulus_sync_api.dart';
 
 /// Owns the durable server change cursor and applies server changes before
@@ -8,7 +7,7 @@ import 'fulus_sync_api.dart';
 class FulusSyncCoordinator {
   FulusSyncCoordinator({
     required FulusSyncApi api,
-    required SharedPreferences preferences,
+    required SyncCursorStore cursorStore,
     required Future<void> Function(FulusSyncChange change) applyChange,
     Future<void> Function(List<FulusSyncChange> changes)? applyChanges,
     Future<bool> Function(FulusSyncChange change)? shouldApplyChange,
@@ -17,7 +16,7 @@ class FulusSyncCoordinator {
     Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? applyPreparedChanges,
     Future<bool> Function(String businessId, int cursor)? persistCursor,
   })  : _api = api,
-        _preferences = preferences,
+        _cursorStore = cursorStore,
         _applyChange = applyChange,
         _applyChanges = applyChanges,
         _shouldApplyChange = shouldApplyChange,
@@ -27,7 +26,7 @@ class FulusSyncCoordinator {
         _persistCursorOverride = persistCursor;
 
   final FulusSyncApi _api;
-  final SharedPreferences _preferences;
+  final SyncCursorStore _cursorStore;
   final Future<void> Function(FulusSyncChange change) _applyChange;
   final Future<void> Function(List<FulusSyncChange> changes)? _applyChanges;
   final Future<bool> Function(FulusSyncChange change)? _shouldApplyChange;
@@ -36,10 +35,7 @@ class FulusSyncCoordinator {
   final Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? _applyPreparedChanges;
   final Future<bool> Function(String businessId, int cursor)? _persistCursorOverride;
 
-  static String _cursorKey(String businessId) => 'fulus_sync_cursor_$businessId';
-
-  int cursorFor(String businessId) =>
-      _preferences.getInt(_cursorKey(businessId)) ?? 0;
+  int cursorFor(String businessId) => _cursorStore.cursorFor(businessId);
 
   Future<int> pullAndApply({
     required String businessId,
@@ -190,34 +186,33 @@ class FulusSyncCoordinator {
     if (cursor < 0) {
       throw ArgumentError.value(cursor, 'cursor', 'must be non-negative');
     }
-    final persisted = _persistCursorOverride != null
-        ? await _persistCursorOverride(businessId, cursor)
-        : await _preferences.setInt(_cursorKey(businessId), cursor);
-    if (!persisted) {
-      throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
+    if (_persistCursorOverride != null) {
+      final persisted = await _persistCursorOverride(businessId, cursor);
+      if (!persisted) {
+        throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
+      }
+      return;
     }
+    await _cursorStore.setAuthoritative(businessId, cursor);
   }
 
   Future<void> _persistCursor(String businessId, int cursor) async {
     // SharedPreferences is not transactional across runtimes. Make the
     // acknowledgement monotonic so an older suspended pull can never move a
     // newer durable cursor backwards after another runtime has progressed.
-    final current = cursorFor(businessId);
-    if (current >= cursor) return;
-    final persisted = _persistCursorOverride != null
-        ? await _persistCursorOverride(businessId, cursor)
-        : await _preferences.setInt(_cursorKey(businessId), cursor);
-    if (!persisted) {
-      throw StateError('Failed to persist the Cloud Sync cursor.');
+    if (_persistCursorOverride != null) {
+      final current = cursorFor(businessId);
+      if (current >= cursor) return;
+      final persisted = await _persistCursorOverride(businessId, cursor);
+      if (!persisted) {
+        throw StateError('Failed to persist the Cloud Sync cursor.');
+      }
+      return;
     }
+    await _cursorStore.persistMonotonic(businessId, cursor);
   }
 
   int _maxCursor(int a, int b) => a >= b ? a : b;
 
-  Future<void> resetCursor(String businessId) async {
-    final removed = await _preferences.remove(_cursorKey(businessId));
-    if (!removed && _preferences.containsKey(_cursorKey(businessId))) {
-      throw StateError('Failed to reset the Cloud Sync cursor.');
-    }
-  }
+  Future<void> resetCursor(String businessId) => _cursorStore.reset(businessId);
 }

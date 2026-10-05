@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
 import 'package:fulus_mobile/sync/sync_config.dart';
 import 'package:fulus_mobile/sync/sync_status_notifier.dart';
 import 'package:fulus_mobile/core/notifications/notification_service.dart';
@@ -33,6 +34,7 @@ void main() {
       syncConfig: config,
       notificationService: notifications,
       preferences: await SharedPreferences.getInstance(),
+      cursorStore: SharedPreferencesSyncCursorStore(await SharedPreferences.getInstance()),
     );
 
     await notifier.recordPushSuccess(
@@ -62,6 +64,7 @@ void main() {
       syncConfig: config,
       notificationService: notifications,
       preferences: await SharedPreferences.getInstance(),
+      cursorStore: SharedPreferencesSyncCursorStore(await SharedPreferences.getInstance()),
     );
 
     await notifier.recordPushSuccess(

@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_coordinator.dart';
+import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 
@@ -37,7 +38,7 @@ void main() {
     final appliedBatches = <List<int>>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
       applyChanges: (changes) async {
         appliedBatches.add(changes.map((e) => e.sequence).toList());
@@ -75,7 +76,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (item) async {
         applied.add(item.sequence);
       },
@@ -109,7 +110,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (item) async {
         applied.add(item.sequence);
         if (item.sequence == 1) {
@@ -146,7 +147,7 @@ void main() {
 
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
@@ -184,7 +185,7 @@ void main() {
 
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 

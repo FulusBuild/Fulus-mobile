@@ -620,6 +620,21 @@ class SyncConflictRecords extends Table {
 /// foreground Flutter runtime and an Android WorkManager runtime from pulling
 /// or draining the same local sync state concurrently. Expiry makes the lease
 /// self-healing after process death; the sync engine renews it while active.
+/// Durable acknowledgement boundary for the cloud change feed.
+///
+/// The cursor is business-scoped because one local database can be rebound
+/// across cloud businesses. Keeping it in SQLite makes the acknowledgement
+/// part of the same durable persistence system as the local projections and
+/// outbox rather than a separate preferences store.
+@DataClassName('SyncCursorRow')
+class SyncCursors extends Table {
+  TextColumn get businessId => text()();
+  IntColumn get cursor => integer()();
+
+  @override
+  Set<Column> get primaryKey => {businessId};
+}
+
 class SyncRuntimeLeases extends Table {
   TextColumn get name => text()();
   TextColumn get ownerId => text()();

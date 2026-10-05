@@ -155,6 +155,7 @@ part 'database.g.dart';
     SyncQueueItems,
     SyncConflictRecords,
     SyncRuntimeLeases,
+    SyncCursors,
     BusinessSettings,
     AuditLogs,
     // Stage 11 (Employees) — roster rows participate in durable business sync;
@@ -207,7 +208,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration {
@@ -580,6 +581,12 @@ class AppDatabase extends _$AppDatabase {
           // Cross-runtime Cloud Sync execution lease. This is purely sync
           // coordination metadata; no business data is transformed or removed.
           await m.createTable(syncRuntimeLeases);
+        }
+        if (from < 20) {
+          // Durable cloud change-feed acknowledgement. Keeping this in the
+          // same SQLite database as local projections and the outbox removes
+          // the separate SharedPreferences durability boundary.
+          await m.createTable(syncCursors);
         }
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
