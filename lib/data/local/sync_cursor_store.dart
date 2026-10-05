@@ -21,13 +21,14 @@ abstract interface class SyncCursorStore {
 class DatabaseSyncCursorStore implements SyncCursorStore {
   DatabaseSyncCursorStore(this._database);
 
-  final AppDatabase _database;
+  final AppDatabase Function() _database;
   final Map<String, int> _cache = <String, int>{};
 
   Future<void> initialize({
     SharedPreferences? legacyPreferences,
   }) async {
-    final rows = await _database.select(_database.syncCursors).get();
+    final database = _database();
+    final rows = await database.select(database.syncCursors).get();
     for (final row in rows) {
       _cache[row.businessId] = row.cursor;
     }
@@ -74,14 +75,16 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
 
   @override
   Future<void> reset(String businessId) async {
-    await (_database.delete(_database.syncCursors)
+    final database = _database();
+    await (database.delete(database.syncCursors)
           ..where((row) => row.businessId.equals(businessId)))
         .go();
     _cache.remove(businessId);
   }
 
   Future<void> _write(String businessId, int cursor) async {
-    await _database.into(_database.syncCursors).insertOnConflictUpdate(
+    final database = _database();
+    await database.into(database.syncCursors).insertOnConflictUpdate(
           SyncCursorsCompanion.insert(
             businessId: businessId,
             cursor: cursor,
