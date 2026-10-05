@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_coordinator.dart';
+import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
@@ -26,7 +27,7 @@ void main() {
       ], cursor: 0, nextCursor: 2, hasMore: false,
     ));
     final applied = <int>[];
-    final coordinator = FulusSyncCoordinator(api: api, preferences: preferences, applyChange: (change) async => applied.add(change.sequence));
+    final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (change) async => applied.add(change.sequence));
     final cursor = await coordinator.pullAndApply(businessId: 'b1');
     expect(cursor, 2);
     expect(applied, [1, 2]);
