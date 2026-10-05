@@ -200,7 +200,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
           ? null
           : syncPreferences.getInt('fulus_sync_cursor_$businessId');
     },
-    repairLegacyQueueActors: legacyQueueActorRepair.repair,
+    actorUserIdProvider: () => authRepository.currentUser?.id,
   );
 
   final employeeRepository = EmployeeRepositoryImpl(
