@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/money/money.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
@@ -82,7 +84,12 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
   /// leaving them untouched on submit is then a genuine no-op, not a
   /// silent reset (see the atomic Stock In transaction).
   void _seedFromProduct(Product product) {
-    _costPriceController.text = product.costPrice == 0 ? '' : product.costPrice.toStringAsFixed(2);
+    // Product.costPrice is stored in minor units (kobo/cents). The form is
+    // entered in major units, so never put the raw persisted integer into
+    // the field. A stored ₦500.00 (50,000 kobo) must seed as "500.00", not
+    // "50000.00", otherwise submitting it converts it to ₦50,000.00.
+    _costPriceController.text =
+        product.costPrice == 0 ? '' : moneyToMajor(product.costPrice).toStringAsFixed(2);
     _supplierId = product.supplierId;
   }
 
