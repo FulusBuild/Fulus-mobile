@@ -124,6 +124,7 @@ class EmployeeCloudSessionCoordinator {
         claim.businessId,
         boundary.toInt(),
       );
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_localCloudBusinessKey, claim.businessId);
 
       onProgress?.call('Finishing setup…');
