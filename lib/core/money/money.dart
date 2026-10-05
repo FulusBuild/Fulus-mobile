@@ -27,9 +27,12 @@ String moneyToWire(Money value) {
 }
 
 Money moneyFromWire(Object? value) {
-  if (value is int) return value * 100;
-  if (value is double) return moneyFromMajor(value);
-  if (value is num) return moneyFromMajor(value);
+  // Cloud monetary values are an explicit decimal-string wire contract.
+  // Accepting JSON numbers here is unsafe: PostgreSQL NUMERIC values such as
+  // 300.00 can arrive through JSON as the integer 300, which is ambiguous
+  // between 300 major units and 300 minor units. The previous implementation
+  // guessed that integers were major units and could therefore turn ₦300 into
+  // 30,000 minor units during canonical reconciliation/restore.
   if (value is String) {
     final text = value.trim();
     if (text.isEmpty) throw const FormatException('Empty monetary value');
@@ -43,7 +46,11 @@ Money moneyFromWire(Object? value) {
       throw FormatException('Invalid monetary value: $value');
     }
 
-    final major = int.parse(parts[0]);
+    final major = int.tryParse(parts[0]);
+    if (major == null) {
+      throw FormatException('Invalid monetary value: $value');
+    }
+
     final fractional = parts.length == 1 ? '' : parts[1];
     if (fractional.length > 2 || fractional.contains(RegExp(r'[^0-9]'))) {
       throw FormatException('Invalid two-decimal monetary value: $value');
