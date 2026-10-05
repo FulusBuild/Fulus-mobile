@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -67,7 +68,7 @@ class IncomeSyncHandler implements SyncHandler {
         'client_reference': record.localId,
         'location_id': location.serverId,
         'source': record.source,
-        'amount': record.amount,
+        'amount': moneyToWire(record.amount),
         'income_date': record.incomeDate.toIso8601String(),
         'notes': record.notes,
         },
