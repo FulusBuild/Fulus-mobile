@@ -490,10 +490,12 @@ void main() {
     final sale = await createLocalSale();
     await db.into(db.salePayments).insert(
       SalePaymentsCompanion.insert(
+        localId: 'payment-money-test',
         saleLocalId: sale.localId,
         method: 'cash',
         amount: moneyFromMajor(300),
         tenderedAmount: Value(moneyFromMajor(500)),
+        recordedAt: DateTime.now(),
       ),
     );
 
