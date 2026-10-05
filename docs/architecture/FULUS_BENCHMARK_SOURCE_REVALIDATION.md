@@ -183,3 +183,58 @@ The remaining work is primarily:
 7. then build the deep E2E suite for physical/system-level proof.
 
 Only after those steps should the benchmark be considered closed and the project move into the full deep-E2E production-validation phase.
+## Post-revalidation closure update — 2026-10-05
+
+The findings above were subsequently verified against the repository and production database.
+
+### Migration reproducibility
+
+PR #170 (`fix(db): restore Supabase migration-chain validity`) corrected the invalid PL/pgSQL `FOREACH` syntax in `20261005093000_optimize_money_wire_normalizer.sql`.
+
+Its Supabase Migration Chain workflow and Fulus Mobile CI both completed successfully.
+
+**Decision:** migration-chain reproducibility blocker CLOSED.
+
+### Production migration history reconciliation
+
+Production contains two historical migration-history rows named `optimize_money_wire_normalizer_v2` at versions `20261005130616` and `20261005130721`. Those exact migration files are not part of the current repository history.
+
+This was investigated against the live production schema rather than treated as an automatic corruption signal. Production currently contains both `_fulus_money_wire_jsonb(jsonb)` and `_fulus_money_wire_row_jsonb(jsonb)`, and their definitions match the optimized v2 implementation previously used during the money-wire work.
+
+Therefore this is **historical migration-history drift, not an active schema mismatch**.
+
+No destructive rewrite or deletion of production migration-history rows is warranted. The repository's current migration chain is authoritative for future rebuilds, while the existing production history is retained as historical evidence.
+
+**Decision:** migration history is reconciled as an evidence item; no production history mutation required.
+
+### State-management enforcement
+
+PR #172 adds a CI architecture fitness test that scans `lib/**/*.dart` and rejects new `flutter_bloc` imports outside Sell.
+
+The resulting CI run is green.
+
+**Decision:** the documented state-management boundary is now mechanically enforced.
+
+### Legacy money transport
+
+PR #173 removes the unused legacy sale double-based transport surface from `SalesApi`.
+
+The corrected CI run is green.
+
+**Decision:** the known dead-path money exception is closed.
+
+### Updated benchmark position
+
+The benchmark implementation blockers identified during source revalidation are now closed:
+
+- migration-chain reproducibility: **GREEN**
+- state-management boundary: **GREEN**
+- legacy sale double transport: **GREEN**
+
+The remaining benchmark work is evidence-oriented:
+
+1. review the remaining authenticated Edge Functions for unnecessary Auth network dependencies;
+2. add/measure product-level reliability outcomes;
+3. execute the deep E2E/runtime validation matrix, especially process death, restore, offline convergence, multi-device/location isolation, and financial identity tracing.
+
+The benchmark remains **NOT YET CLOSED** until the runtime/deep-E2E evidence is complete.
