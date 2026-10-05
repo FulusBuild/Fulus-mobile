@@ -23,13 +23,68 @@ class SyncExecutionLease {
         _ownerId = Ulid().toString();
 
   static const String leaseName = 'cloud_sync';
+  static const String maintenanceLeaseName = 'cloud_sync_maintenance';
 
   final AppDatabase _db;
   final Duration _leaseDuration;
   final Duration _acquisitionTimeout;
   final String _ownerId;
   Timer? _renewalTimer;
+  Timer? _maintenanceRenewalTimer;
   bool _held = false;
+  bool _maintenanceHeld = false;
+
+  /// Acquires the restore/maintenance fence before destructive local replacement.
+  /// The fence waits for an active sync lease to finish, then prevents new
+  /// sync leases until the maintenance owner releases it.
+  Future<bool> acquireMaintenance() async {
+    if (_maintenanceHeld) return true;
+    final deadline = DateTime.now().add(_acquisitionTimeout);
+    while (true) {
+      final acquired = await _tryAcquireMaintenance();
+      if (acquired) {
+        _maintenanceHeld = true;
+        _maintenanceRenewalTimer ??= Timer.periodic(
+          _renewInterval,
+          (_) => unawaited(_renewMaintenance()),
+        );
+        return true;
+      }
+      if (!DateTime.now().isBefore(deadline)) return false;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  Future<void> ensureMaintenanceHeldForTransaction() async {
+    if (!_maintenanceHeld) throw const SyncExecutionLeaseLost();
+    final now = DateTime.now();
+    final updated = await (_db.update(_db.syncRuntimeLeases)
+          ..where((row) =>
+              row.name.equals(maintenanceLeaseName) &
+              row.ownerId.equals(_ownerId) &
+              row.expiresAt.isBiggerThanValue(now)))
+        .write(SyncRuntimeLeasesCompanion.custom(
+          expiresAt: _db.syncRuntimeLeases.expiresAt,
+        ));
+    if (updated != 1) {
+      _maintenanceHeld = false;
+      _maintenanceRenewalTimer?.cancel();
+      _maintenanceRenewalTimer = null;
+      throw const SyncExecutionLeaseLost();
+    }
+  }
+
+  Future<void> releaseMaintenance() async {
+    _maintenanceRenewalTimer?.cancel();
+    _maintenanceRenewalTimer = null;
+    if (!_maintenanceHeld) return;
+    await (_db.delete(_db.syncRuntimeLeases)
+          ..where((row) =>
+              row.name.equals(maintenanceLeaseName) &
+              row.ownerId.equals(_ownerId)))
+        .go();
+    _maintenanceHeld = false;
+  }
 
   Future<bool> acquire() async {
     if (_held) return true;
@@ -160,12 +215,22 @@ class SyncExecutionLease {
 
   Future<bool> _tryAcquire() async {
     return _db.transaction(() async {
+      final now = DateTime.now();
+      final maintenance = await (_db.select(_db.syncRuntimeLeases)
+            ..where((row) => row.name.equals(maintenanceLeaseName))
+            ..limit(1))
+          .getSingleOrNull();
+      if (maintenance != null &&
+          maintenance.expiresAt.isAfter(now) &&
+          maintenance.ownerId != _ownerId) {
+        return false;
+      }
+
       final existing = await (_db.select(_db.syncRuntimeLeases)
             ..where((row) => row.name.equals(leaseName))
             ..limit(1))
           .getSingleOrNull();
 
-      final now = DateTime.now();
       final canTakeOver = existing == null || !existing.expiresAt.isAfter(now);
       if (!canTakeOver && existing.ownerId != _ownerId) return false;
 
@@ -194,6 +259,70 @@ class SyncExecutionLease {
       }
       return true;
     });
+  }
+
+  Future<bool> _tryAcquireMaintenance() async {
+    return _db.transaction(() async {
+      final now = DateTime.now();
+      final existingMaintenance = await (_db.select(_db.syncRuntimeLeases)
+            ..where((row) => row.name.equals(maintenanceLeaseName))
+            ..limit(1))
+          .getSingleOrNull();
+      if (existingMaintenance != null &&
+          existingMaintenance.expiresAt.isAfter(now) &&
+          existingMaintenance.ownerId != _ownerId) {
+        return false;
+      }
+
+      final activeSync = await (_db.select(_db.syncRuntimeLeases)
+            ..where((row) => row.name.equals(leaseName))
+            ..limit(1))
+          .getSingleOrNull();
+      if (activeSync != null &&
+          activeSync.expiresAt.isAfter(now) &&
+          activeSync.ownerId != _ownerId) {
+        return false;
+      }
+
+      final expiresAt = now.add(_leaseDuration);
+      if (existingMaintenance == null) {
+        await _db.into(_db.syncRuntimeLeases).insert(
+          SyncRuntimeLeasesCompanion.insert(
+            name: maintenanceLeaseName,
+            ownerId: _ownerId,
+            acquiredAt: now,
+            expiresAt: expiresAt,
+          ),
+        );
+      } else {
+        await (_db.update(_db.syncRuntimeLeases)
+              ..where((row) => row.name.equals(maintenanceLeaseName)))
+            .write(SyncRuntimeLeasesCompanion(
+              ownerId: Value(_ownerId),
+              acquiredAt: Value(existingMaintenance.ownerId == _ownerId
+                  ? existingMaintenance.acquiredAt
+                  : now),
+              expiresAt: Value(expiresAt),
+            ));
+      }
+      return true;
+    });
+  }
+
+  Future<void> _renewMaintenance() async {
+    if (!_maintenanceHeld) return;
+    final updated = await (_db.update(_db.syncRuntimeLeases)
+          ..where((row) =>
+              row.name.equals(maintenanceLeaseName) &
+              row.ownerId.equals(_ownerId)))
+        .write(SyncRuntimeLeasesCompanion(
+          expiresAt: Value(DateTime.now().add(_leaseDuration)),
+        ));
+    if (updated != 1) {
+      _maintenanceHeld = false;
+      _maintenanceRenewalTimer?.cancel();
+      _maintenanceRenewalTimer = null;
+    }
   }
 
   Future<void> _renew() async {
