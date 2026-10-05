@@ -10,6 +10,7 @@ import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../data/remote/cloud_restore_coordinator.dart';
+import '../../../../data/local/sync_cursor_store.dart';
 import '../../../../data/remote/endpoints/cloud_restore_api.dart';
 import '../../../../domain/entities/business_settings.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -174,18 +175,12 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
       // The restore snapshot is a complete business image and carries the
       // exact change-feed boundary from the same server-side snapshot.
-      // Persist that boundary before reconciliation so the first pull starts
-      // strictly after the imported image.
+      // Persist that boundary in the restored SQLite database so the cursor
+      // shares the same durable persistence boundary as the local image.
       setState(() => _status = 'Preparing cloud sync…');
-      final persistedBoundary = await syncPreferences.setInt(
-        'fulus_sync_cursor_$businessId',
-        snapshotBoundary.toInt(),
-      );
-      if (!persistedBoundary) {
-        throw StateError(
-          'Failed to persist the Cloud Sync restore snapshot boundary.',
-        );
-      }
+      await DatabaseSyncCursorStore(
+        () => ref.read(databaseProvider),
+      ).setAuthoritative(businessId, snapshotBoundary.toInt());
 
       // Reserve the first reconciliation before enabling sync so the normal
       // readiness trigger cannot race the authoritative restore reconciliation.
