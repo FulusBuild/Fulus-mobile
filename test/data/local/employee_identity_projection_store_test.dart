@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' hide isNull;
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/employee_identity_projection_store.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
+import 'package:fulus_mobile/domain/entities/permission.dart';
 
 void main() {
   late AppDatabase db;
@@ -55,9 +56,9 @@ void main() {
 
     final permissions = await db.select(db.userPermissions).get();
     expect(permissions.map((row) => row.permission).toSet(), {
-      'viewMoney',
-      'manageStock',
-      'viewReports',
+      Permission.viewMoney,
+      Permission.manageStock,
+      Permission.viewReports,
     });
 
     final session = (await db.select(db.sessions).get()).single;
