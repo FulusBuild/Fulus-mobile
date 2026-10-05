@@ -301,6 +301,7 @@ class SaleSyncHandler implements SyncHandler {
         'product_id': productId,
         'quantity': line.quantity,
         'unit_price': moneyToWire(line.unitPrice),
+        'cost_price_at_sale': moneyToWire(line.costPriceAtSale),
       });
     }
     return items;
