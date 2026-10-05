@@ -5,6 +5,7 @@ import '../../sync/sync_actor_context.dart';
 import '../../core/config/supabase_config.dart';
 import 'api_client.dart';
 import 'fulus_canonical_reconciler_typed.dart';
+import 'fulus_sync_operation_serializer.dart';
 import '../../core/errors/failure.dart';
 import '../../sync/sync_error.dart';
 
@@ -23,6 +24,8 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
   final ApiClient _client;
   final String _functionBaseUrl;
   final String _canonicalStateFunctionUrl;
+  final FulusSyncOperationSerializer _operationSerializer =
+      const FulusSyncOperationSerializer();
 
   Future<List<FulusCanonicalEntityResponse>> fetchCanonicalEntities({
     required String businessId,
@@ -115,94 +118,13 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
     Object? payload,
   }) async {
     try {
-      final rawPayload = payload is Map
-          ? Map<String, dynamic>.from(payload)
-          : <String, dynamic>{};
-      final body = <String, dynamic>{
-        'business_id': businessId,
-        'operation_type': operationType,
-        'operation_id': operationId,
-        if (clientReference != null) 'client_reference': clientReference,
-        'payload': payload,
-      };
-
-      if (operationType == 'sale.create' ||
-          operationType == 'customer.create' ||
-          operationType == 'customer.repayment' ||
-          operationType == 'expense.create' ||
-          operationType == 'return.create' ||
-          operationType == 'stock_movement.create' ||
-          operationType == 'stock_adjustment.create' ||
-          operationType == 'location.create' ||
-          operationType == 'income.create' ||
-          operationType == 'expense_category.create' ||
-          operationType == 'cash_drawer_shift.create' ||
-          operationType == 'cash_drawer_shift.close') {
-        body
-          ..remove('operation_type')
-          ..remove('payload')
-          ..addAll(rawPayload)
-          ..['action'] = switch (operationType) {
-            'sale.create' => 'sale_create',
-            'customer.create' => 'customer_create',
-            'customer.repayment' => 'customer_repayment',
-            'expense.create' => 'expense_create',
-            'return.create' => 'return_create',
-            'stock_movement.create' => 'inventory_adjust',
-            'stock_adjustment.create' => 'inventory_set',
-            'location.create' => 'location_create',
-            'income.create' => 'income_create',
-            'expense_category.create' => 'expense_category_create',
-            'cash_drawer_shift.create' => 'cash_drawer_open',
-            'cash_drawer_shift.close' => 'cash_drawer_close',
-            _ => throw StateError('Unsupported Fulus operation: $operationType'),
-          };
-      }
-
-      if (operationType == 'employee.create' ||
-          operationType == 'employee.update' ||
-          operationType == 'customer.update' ||
-          operationType == 'expense.update') {
-        body
-          ..remove('operation_type')
-          ..remove('payload')
-          ..['action'] = switch (operationType) {
-            'employee.create' => 'employee_create',
-            'employee.update' => 'employee_update',
-            'customer.update' => 'customer_update',
-            'expense.update' => 'expense_update',
-            _ => throw StateError('Unsupported Fulus operation: $operationType'),
-          }
-          ..['payload'] = rawPayload;
-      }
-
-      if (operationType.startsWith('product.') ||
-          operationType.startsWith('category.') ||
-          operationType.startsWith('supplier.')) {
-        final dot = operationType.indexOf('.');
-        final entity = operationType.substring(0, dot);
-        final operation = operationType.substring(dot + 1);
-        final apiEntity = switch (entity) {
-          'product' => 'products',
-          'category' => 'categories',
-          'supplier' => 'suppliers',
-          'expense_category' => 'expense_categories',
-          _ => throw StateError('Unsupported catalog entity: $entity'),
-        };
-        body
-          ..remove('operation_type')
-          ..remove('payload')
-          ..['action'] = operation == 'delete'
-              ? 'catalog_delete'
-              : 'catalog_upsert'
-          ..['entity'] = apiEntity;
-        if (operation == 'delete') {
-          body['id'] = rawPayload['server_id'];
-        } else {
-          body['item'] = rawPayload;
-          if (operation == 'update') body['id'] = rawPayload['server_id'];
-        }
-      }
+      final body = _operationSerializer.serialize(
+        businessId: businessId,
+        operationType: operationType,
+        operationId: operationId,
+        clientReference: clientReference,
+        payload: payload,
+      );
 
       final response = await _requestAsSyncActor(
         'POST',
@@ -211,7 +133,10 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
         deviceClientId: deviceClientId,
       );
       final result = Map<String, dynamic>.from(response.data as Map);
-      return _normalizeOperationResponse(result, operationType: operationType);
+      return _operationSerializer.normalizeResponse(
+        result,
+        operationType: operationType,
+      );
     } on DioException catch (e) {
       throw _mapSyncTransportError(e);
     }
@@ -294,41 +219,11 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
   Map<String, dynamic> _normalizeOperationResponse(
     Map<String, dynamic> result, {
     required String operationType,
-  }) {
-    final rawData = result['data'];
-    if (rawData is! Map) return result;
-    final data = Map<String, dynamic>.from(rawData);
-    if (operationType == 'sale.create' && data['sale_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['sale_id']};
-    } else if (operationType == 'customer.create' &&
-        data['customer_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['customer_id']};
-    } else if ((operationType.startsWith('product.') ||
-            operationType.startsWith('category.') ||
-            operationType.startsWith('supplier.') ||
-            operationType.startsWith('expense_category.')) &&
-        data['item'] is Map) {
-      final item = Map<String, dynamic>.from(data['item'] as Map);
-      result['data'] = {...data, 'entity_id': item['id'], 'entity': item};
-    } else if (operationType == 'expense.create' && data['id'] != null) {
-      result['data'] = {...data, 'entity_id': data['id']};
-    } else if (operationType == 'return.create' && data['return_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['return_id']};
-    } else if ((operationType == 'stock_movement.create' ||
-            operationType == 'stock_adjustment.create') &&
-        data['movement_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['movement_id']};
-    } else if (operationType == 'location.create' && data['location_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['location_id']};
-    } else if (operationType == 'income.create' && data['income_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['income_id']};
-    } else if ((operationType == 'cash_drawer_shift.create' ||
-            operationType == 'cash_drawer_shift.close') &&
-        data['shift_id'] != null) {
-      result['data'] = {...data, 'entity_id': data['shift_id']};
-    }
-    return result;
-  }
+  }) =>
+      _operationSerializer.normalizeResponse(
+        result,
+        operationType: operationType,
+      );
 
   Map<String, String> _headers({
     String? deviceClientId,
