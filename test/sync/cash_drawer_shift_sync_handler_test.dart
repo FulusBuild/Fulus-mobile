@@ -119,6 +119,7 @@ void main() {
           payload: captureAny(named: 'payload'),
         )).captured.single as Map<String, dynamic>;
     expect(captured['location_id'], 'server-location-1');
+    expect(captured['opening_cash'], '100.00');
     verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1', operationId: 'open-op-1')).called(1);
   });
 
@@ -145,6 +146,8 @@ void main() {
           payload: captureAny(named: 'payload'),
         )).captured.single as Map<String, dynamic>;
     expect(captured['base_cursor'], 41);
+    expect(captured['closing_cash'], '185.00');
+    expect(captured['cash_difference'], '5.00');
     verify(() => repository.markSynced(localId: shift.localId, serverId: 'shift-server-1', operationId: 'close-op-1')).called(1);
   });
 

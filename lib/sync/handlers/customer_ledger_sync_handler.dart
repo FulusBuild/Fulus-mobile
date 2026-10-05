@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import 'package:drift/drift.dart';
 
 import '../../data/local/database/database.dart';
@@ -68,7 +69,7 @@ class CustomerLedgerSyncHandler implements SyncHandler {
         payload: {
           'business_id': businessId,
           'customer_id': customerId,
-          'amount': ledger.amount,
+          'amount': moneyToWire(ledger.amount),
           'operation_id': item.id,
           if (ledger.paymentMethod != null) 'payment_method': ledger.paymentMethod,
           if (ledger.note != null) 'note': ledger.note,

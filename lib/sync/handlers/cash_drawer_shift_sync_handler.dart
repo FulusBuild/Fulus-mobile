@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -75,7 +76,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'operation_id': item.id,
         'client_reference': shift.localId,
         'location_id': location.serverId,
-        'opening_cash': shift.openingCash,
+        'opening_cash': moneyToWire(shift.openingCash),
         'opened_at': shift.openedAt.toIso8601String(),
         },
       );
@@ -119,8 +120,8 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'operation_id': item.id,
         'client_reference': shift.localId,
         'shift_id': serverId,
-        'closing_cash': shift.closingCash,
-        'cash_difference': shift.cashDifference,
+        'closing_cash': moneyToWire(shift.closingCash!),
+        'cash_difference': moneyToWire(shift.cashDifference!),
         'closing_note': shift.closingNote,
         'closed_at': shift.closedAt!.toIso8601String(),
         if (item.baseCursor != null) 'base_cursor': item.baseCursor,

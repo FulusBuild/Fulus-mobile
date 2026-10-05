@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/fulus_connection_state.dart';
 import 'package:fulus_mobile/data/remote/fulus_device_registration.dart';
@@ -50,14 +51,21 @@ void main() {
 
   test('pushes customer through Fulus Cloud and reconciles the server id', () async {
     final customer = await customerRepository.createCustomer(
-      const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
+      CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678', creditLimit: moneyFromMajor(300)),
     );
     stubCloudAuthorization();
+    final submittedPayloads = <String, Map<String, dynamic>>{};
     when(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'), operationType: any(named: 'operationType'),
           operationId: any(named: 'operationId'), deviceClientId: any(named: 'deviceClientId'),
           clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
-        )).thenAnswer((_) async => {'data': {'entity_id': 'server-customer-1'}});
+        )).thenAnswer((invocation) async {
+      final operationType = invocation.namedArguments[#operationType] as String;
+      submittedPayloads[operationType] = Map<String, dynamic>.from(
+        invocation.namedArguments[#payload] as Map,
+      );
+      return {'data': {'entity_id': 'server-customer-1'}};
+    });
 
     await handler.sync(queueItemFor(customer));
 
@@ -67,15 +75,17 @@ void main() {
           payload: any(named: 'payload'),
         )).called(1);
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
+    expect(submittedPayloads['customer.create']?['credit_limit'], '300.00');
   });
 
   test('archives an offline-created customer after cloud create', () async {
     final customer = await customerRepository.createCustomer(
-      const CustomerDraft(name: 'Offline Archived', phone: '+2348000000000'),
+      CustomerDraft(name: 'Offline Archived', phone: '+2348000000000', creditLimit: moneyFromMajor(300)),
     );
     await customerRepository.archiveCustomer(customer.localId);
 
     stubCloudAuthorization();
+    final submittedPayloads = <String, Map<String, dynamic>>{};
     when(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'),
           operationType: any(named: 'operationType'),
@@ -85,6 +95,7 @@ void main() {
           payload: any(named: 'payload'),
         )).thenAnswer((invocation) async {
       final operationType = invocation.namedArguments[#operationType] as String;
+      submittedPayloads[operationType] = Map<String, dynamic>.from(invocation.namedArguments[#payload] as Map);
       return {
         'data': {
           'entity_id': 'server-customer-1',
@@ -112,6 +123,8 @@ void main() {
           payload: any(named: 'payload'),
         )).called(1);
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
+    expect(submittedPayloads['customer.create']?['credit_limit'], '300.00');
+    expect(submittedPayloads['customer.update']?['credit_limit'], '300.00');
   });
 
   test('pushes a customer update through Fulus Cloud', () async {

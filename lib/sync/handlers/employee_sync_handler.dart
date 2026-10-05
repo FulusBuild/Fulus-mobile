@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
 import '../../domain/repositories/employee_repository.dart';
@@ -55,7 +56,7 @@ class EmployeeSyncHandler implements SyncHandler {
       payload: {
         'business_id': businessId, 'operation_id': item.id, 'client_reference': employee.id,
         'full_name': employee.fullName, 'role': employee.role, 'department': employee.department,
-        'position': employee.position, 'salary': employee.salary, 'phone': employee.phone,
+        'position': employee.position, 'salary': employee.salary == null ? null : moneyToWire(employee.salary!), 'phone': employee.phone,
         'email': employee.email, 'date_hired': employee.dateHired?.toIso8601String(),
         'location_id': cloudLocationId, 'is_active': employee.isActive,
         if (isUpdate) 'server_id': employee.serverId,

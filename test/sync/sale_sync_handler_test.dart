@@ -463,6 +463,61 @@ void main() {
     expect(acceptedClientReference, sale.clientReference);
   });
 
+  test('serializes product sale money fields and tendered amount at the cloud boundary', () async {
+    await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
+        .write(const LocationsCompanion(serverId: Value('server-location-1')));
+    await (db.update(db.products)..where((p) => p.localId.equals(productId)))
+        .write(const ProductsCompanion(serverId: Value('server-product-1')));
+
+    when(() => connectionState.selectedBusinessId).thenReturn('business-1');
+    when(() => connectionState.registeredDevice).thenReturn(const FulusRegisteredDevice(
+      id: 'device-1',
+      businessId: 'business-1',
+      deviceClientId: 'device-client-1',
+      status: 'active',
+    ));
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+          'data': {'entity_id': 'server-sale-money'},
+        });
+
+    final sale = await createLocalSale();
+    await db.into(db.salePayments).insert(
+      SalePaymentsCompanion.insert(
+        localId: 'payment-money-test',
+        saleLocalId: sale.localId,
+        method: 'cash',
+        amount: moneyFromMajor(300),
+        tenderedAmount: Value(moneyFromMajor(500)),
+        recordedAt: DateTime.now(),
+      ),
+    );
+
+    await handler.sync(queueItemFor(sale));
+
+    final captured = verify(() => fulusSyncApi.submitOperation(
+          businessId: 'business-1',
+          operationType: 'sale.create',
+          operationId: 'q1',
+          deviceClientId: 'device-client-1',
+          clientReference: sale.clientReference,
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+
+    final items = (captured['items'] as List).single as Map<String, dynamic>;
+    final payments = (captured['payments'] as List).single as Map<String, dynamic>;
+    expect(items['unit_price'], '150.00');
+    expect(items['cost_price_at_sale'], '100.00');
+    expect(payments['amount'], '300.00');
+    expect(payments['tendered_amount'], '500.00');
+  });
+
   test('pushes a Quick Sale through Fulus Cloud without a catalog product', () async {
     await (db.update(db.locations)..where((l) => l.localId.equals(locationId)))
         .write(const LocationsCompanion(serverId: Value('server-location-1')));
@@ -517,7 +572,8 @@ void main() {
     expect(item['product_id'], isNull);
     expect(item['description'], 'Phone charger');
     expect(item['quantity'], 1);
-    expect(item['unit_price'], 50000);
+    expect(item['unit_price'], '500.00');
+    expect(item['cost_price_at_sale'], '0.00');
     expect(captured['location_id'], 'server-location-1');
 
     final updated = await saleRepository.getSaleByLocalId(sale.localId);

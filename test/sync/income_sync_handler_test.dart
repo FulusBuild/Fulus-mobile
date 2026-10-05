@@ -115,7 +115,7 @@ void main() {
           payload: captureAny(named: 'payload'),
         )).captured.single as Map<String, dynamic>;
     expect(captured['location_id'], 'server-location-1');
-    expect(captured['amount'], 15000);
+    expect(captured['amount'], '150.00');
 
     final updated = await incomeRecordRepository.getIncomeRecordById(record.localId);
     expect(updated!.serverId, 'server-income-1');

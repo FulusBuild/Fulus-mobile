@@ -64,10 +64,11 @@ void main() {
       clientReference: any(named: 'clientReference'), payload: any(named: 'payload'),
     )).thenAnswer((_) async => {'data': {'entity_id': 'server-expense-1'}});
     await handler.sync(itemFor(expense));
-    verify(() => fulusSyncApi.submitOperation(
+    final captured = verify(() => fulusSyncApi.submitOperation(
       businessId: 'business-1', operationType: 'expense.create', operationId: 'q1',
-      deviceClientId: 'device-client-1', clientReference: expense.localId, payload: any(named: 'payload'),
-    )).called(1);
+      deviceClientId: 'device-client-1', clientReference: expense.localId, payload: captureAny(named: 'payload'),
+    )).captured.single as Map<String, dynamic>;
+    expect(captured['amount'], '30.00');
     final updated = await expenseRepository.getExpenseById(expense.localId);
     expect(updated!.serverId, 'server-expense-1');
   });

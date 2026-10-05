@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -62,7 +63,7 @@ class CustomerSyncHandler implements SyncHandler {
         'email': customer.email,
         'address': customer.address,
         'notes': customer.notes,
-        'credit_limit': customer.creditLimit ?? 0,
+        'credit_limit': customer.creditLimit == null ? 0 : moneyToWire(customer.creditLimit!),
         if (isUpdate) 'server_id': existingServerId,
         if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
         if (isUpdate) 'is_active': customer.deletedAt == null,
@@ -99,7 +100,7 @@ class CustomerSyncHandler implements SyncHandler {
           'email': customer.email,
           'address': customer.address,
           'notes': customer.notes,
-          'credit_limit': customer.creditLimit ?? 0,
+          'credit_limit': customer.creditLimit == null ? 0 : moneyToWire(customer.creditLimit!),
           'is_active': false,
         },
       );
