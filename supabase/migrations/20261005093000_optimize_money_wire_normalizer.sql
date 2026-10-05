@@ -25,7 +25,7 @@ begin
   end if;
 
   -- Normalize direct monetary fields on a root object too.
-  foreach v_money_key in array[
+  foreach v_money_key in array ARRAY[
     'amount','credit_limit','outstanding_balance','opening_cash',
     'closing_cash','cash_difference','subtotal','whole_cart_discount',
     'discount','tax','total','amount_paid','cash_tendered',
@@ -66,7 +66,7 @@ begin
       from pg_catalog.jsonb_array_elements(v_section_value)
     loop
       if pg_catalog.jsonb_typeof(v_row) = 'object' then
-        foreach v_money_key in array[
+        foreach v_money_key in array ARRAY[
           'amount','credit_limit','outstanding_balance','opening_cash',
           'closing_cash','cash_difference','subtotal','whole_cart_discount',
           'discount','tax','total','amount_paid','cash_tendered',
