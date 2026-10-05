@@ -110,6 +110,7 @@ import '../sync/handlers/sale_sync_handler.dart';
 import '../sync/handlers/stock_movement_sync_handler.dart';
 import '../sync/handlers/supplier_sync_handler.dart';
 import '../sync/sync_config.dart';
+import '../sync/legacy_queue_actor_repair.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_conflict_resolver.dart';
 import '../sync/sync_execution_lease.dart';
@@ -199,7 +200,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
           ? null
           : syncPreferences.getInt('fulus_sync_cursor_$businessId');
     },
-    actorUserIdProvider: () => authRepository.currentUser?.id,
+    repairLegacyQueueActors: legacyQueueActorRepair.repair,
   );
 
   final employeeRepository = EmployeeRepositoryImpl(
@@ -368,6 +369,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     }),
   );
 
+
+  final legacyQueueActorRepair = LegacyQueueActorRepair(
+    database,
+    actorUserIdProvider: () => authRepository.currentUser?.id,
+  );
 
   final syncEngine = SyncEngine(
     db: database,
