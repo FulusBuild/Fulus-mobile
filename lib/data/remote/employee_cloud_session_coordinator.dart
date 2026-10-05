@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
@@ -10,10 +9,10 @@ import '../../core/errors/failure.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../local/database/database.dart';
-import '../local/database/tables.dart';
 import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_execution_lease.dart';
 import '../../sync/sync_service.dart';
+import '../local/employee_identity_projection_store.dart';
 import 'cross_device_employee_restore.dart';
 import 'endpoints/cloud_restore_api.dart';
 import 'fulus_connection_state.dart';
@@ -37,6 +36,7 @@ class EmployeeCloudSessionCoordinator {
     required AuthRepository authRepository,
     required SyncExecutionLease executionLease,
     required FulusStaffAccessApi staffAccessApi,
+    required LocalEmployeeIdentityStore identityStore,
     void Function(AuthUser?)? onSessionChanged,
   })  : _database = database,
         _restoreApi = restoreApi,
@@ -46,6 +46,7 @@ class EmployeeCloudSessionCoordinator {
         _authRepository = authRepository,
         _executionLease = executionLease,
         _staffAccessApi = staffAccessApi,
+        _identityStore = identityStore,
         _onSessionChanged = onSessionChanged;
 
   final AppDatabase _database;
@@ -56,6 +57,7 @@ class EmployeeCloudSessionCoordinator {
   final AuthRepository _authRepository;
   final SyncExecutionLease _executionLease;
   final FulusStaffAccessApi _staffAccessApi;
+  final LocalEmployeeIdentityStore _identityStore;
   final void Function(AuthUser?)? _onSessionChanged;
 
   static const _localCloudBusinessKey = 'fulus_local_cloud_business_id';
@@ -138,7 +140,17 @@ class EmployeeCloudSessionCoordinator {
       // join screen. The persisted restore cursor and device registration make
       // the local snapshot safe to use; normal sync triggers can retry the
       // follow-up reconciliation in the background.
-      await _upsertIdentityProjection(claim);
+      await _identityStore.project(
+        userId: claim.userId,
+        membershipId: claim.membershipId,
+        roleName: claim.roleName,
+        fullName: claim.fullName,
+        email: claim.email,
+        locationId: claim.employee?['location_id']?.toString() ?? claim.locationId,
+        permissionCodes: claim.permissionCodes,
+        employeeId: claim.employeeId,
+        employee: claim.employee,
+      );
 
       await _syncService.enableForRestore();
       unawaited(
@@ -175,13 +187,8 @@ class EmployeeCloudSessionCoordinator {
         DateTime.now().difference(lastRefresh) < _accessRefreshInterval) {
       return current;
     }
-    var employee = await (_database.select(_database.employees)
-          ..where((e) => e.authUserId.equals(current.id)))
-        .getSingleOrNull();
-    employee ??= await (_database.select(_database.employees)
-          ..where((e) => e.cloudUserId.equals(current.id)))
-        .getSingleOrNull();
-    if (employee == null) return null;
+    final employeeLocalId = await _identityStore.linkedEmployeeLocalId(current.id);
+    if (employeeLocalId == null) return null;
     final resolvedBusinessId = businessId ?? _connection.selectedBusinessId;
     if (resolvedBusinessId == null) return null;
     StaffClaim claim;
@@ -189,35 +196,7 @@ class EmployeeCloudSessionCoordinator {
       claim = await _staffAccessApi.getMyAccess(businessId: resolvedBusinessId);
     } on AuthFailure {
       final revokedAt = DateTime.now();
-      await (_database.update(_database.users)
-            ..where((u) => u.localId.equals(current.id)))
-          .write(const UsersCompanion(isActive: Value(false)));
-      final employeeByAuth = await (_database.select(_database.employees)
-            ..where((e) => e.authUserId.equals(current.id)))
-          .getSingleOrNull();
-      final employeeByCloud = employeeByAuth == null
-          ? await (_database.select(_database.employees)
-                ..where((e) => e.cloudUserId.equals(current.id)))
-              .getSingleOrNull()
-          : null;
-      final employeeLocalId =
-          employeeByAuth?.localId ?? employeeByCloud?.localId;
-      if (employeeLocalId != null) {
-        await (_database.update(_database.employees)
-              ..where((e) => e.localId.equals(employeeLocalId)))
-            .write(
-          EmployeesCompanion(
-            isActive: const Value(false),
-            deletedAt: Value(revokedAt),
-            syncStatus: const Value(SyncStatus.settled),
-            updatedAt: Value(revokedAt),
-          ),
-        );
-      }
-      await (_database.delete(_database.userPermissions)
-            ..where((p) => p.userId.equals(current.id)))
-          .go();
-      await _database.delete(_database.sessions).go();
+      await _identityStore.revoke(userId: current.id, revokedAt: revokedAt);
       _connection.disconnect();
       await _syncService.disable();
       final restored = await _authRepository.restoreSession();
@@ -228,7 +207,17 @@ class EmployeeCloudSessionCoordinator {
     if (claim.userId != current.id) {
       throw const AuthFailure.forbidden();
     }
-    await _upsertIdentityProjection(claim);
+    await _identityStore.project(
+      userId: claim.userId,
+      membershipId: claim.membershipId,
+      roleName: claim.roleName,
+      fullName: claim.fullName,
+      email: claim.email,
+      locationId: claim.employee?['location_id']?.toString() ?? claim.locationId,
+      permissionCodes: claim.permissionCodes,
+      employeeId: claim.employeeId,
+      employee: claim.employee,
+    );
     _lastAccessRefreshAt = DateTime.now();
     _connection.notifyAccessProjectionChanged();
     final restored = await _authRepository.restoreSession();
@@ -274,193 +263,6 @@ class EmployeeCloudSessionCoordinator {
     } finally {
       _connection.endCloudOnboarding();
     }
-  }
-
-  Future<void> _upsertIdentityProjection(StaffClaim claim) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final localLocationId = await _resolveLocalLocationId(
-      claim.employee?['location_id']?.toString() ?? claim.locationId,
-    );
-    final localEmployeeId = await _resolveLocalEmployeeId(claim);
-    final fullName =
-        claim.fullName.trim().isEmpty ? 'Staff member' : claim.fullName.trim();
-    final role = _localRole(claim.roleName);
-
-    await _database.customStatement(
-      '''
-      INSERT INTO users(
-        local_id, username, email, full_name, hashed_password, password_salt,
-        login_pin_hash, login_pin_salt, role, is_active,
-        failed_login_attempts, locked_until, approval_pin_hash,
-        approval_pin_salt, created_at, updated_at
-      )
-      VALUES (?, NULL, ?, ?, NULL, NULL, NULL, NULL, ?, 1, 0, NULL, NULL, NULL, ?, ?)
-      ON CONFLICT(local_id) DO UPDATE SET
-        email = excluded.email,
-        full_name = excluded.full_name,
-        role = excluded.role,
-        is_active = 1,
-        updated_at = excluded.updated_at
-      ''',
-      [
-        claim.userId,
-        claim.email,
-        fullName,
-        role.name,
-        now,
-        now,
-      ],
-    );
-
-    final employee = claim.employee;
-    final dateHired = employee?['date_hired'] == null
-        ? null
-        : DateTime.tryParse(employee!['date_hired'].toString())
-            ?.millisecondsSinceEpoch;
-
-    await _database.customStatement(
-      '''
-      INSERT INTO employees(
-        id, server_id, membership_id, cloud_user_id, sync_status,
-        auth_user_id, full_name, role, department, position, salary,
-        phone, email, date_hired, location_id, is_active,
-        created_at, updated_at, deleted_at
-      )
-      VALUES (?, ?, ?, ?, 'settled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)
-      ON CONFLICT(id) DO UPDATE SET
-        server_id = excluded.server_id,
-        membership_id = excluded.membership_id,
-        cloud_user_id = excluded.cloud_user_id,
-        sync_status = excluded.sync_status,
-        auth_user_id = excluded.auth_user_id,
-        full_name = excluded.full_name,
-        role = excluded.role,
-        department = excluded.department,
-        position = excluded.position,
-        salary = excluded.salary,
-        phone = excluded.phone,
-        email = excluded.email,
-        date_hired = excluded.date_hired,
-        location_id = excluded.location_id,
-        is_active = 1,
-        deleted_at = NULL,
-        updated_at = excluded.updated_at
-      ''',
-      [
-        localEmployeeId,
-        claim.employeeId,
-        claim.membershipId,
-        claim.userId,
-        claim.userId,
-        employee?['full_name']?.toString().trim().isNotEmpty == true
-            ? employee!['full_name'].toString()
-            : fullName,
-        employee?['role']?.toString() ?? claim.roleName,
-        employee?['department'],
-        employee?['position'],
-        employee?['salary'],
-        employee?['phone'],
-        employee?['email'] ?? claim.email,
-        dateHired,
-        localLocationId,
-        now,
-        now,
-      ],
-    );
-
-    await _database.customStatement(
-      'DELETE FROM user_permissions WHERE user_id = ?',
-      [claim.userId],
-    );
-    for (final permission in _mapPermissions(claim.permissionCodes)) {
-      await _database.customStatement(
-        '''
-        INSERT INTO user_permissions(user_id, permission, granted_by, granted_at)
-        VALUES (?, ?, NULL, ?)
-        ON CONFLICT(user_id, permission) DO NOTHING
-        ''',
-        [claim.userId, permission, now],
-      );
-    }
-
-    await _database.customStatement('DELETE FROM sessions');
-    await _database.customStatement(
-      'INSERT INTO sessions(id, user_id, active_location_id) VALUES (?, ?, ?)',
-      ['current', claim.userId, localLocationId],
-    );
-  }
-
-  Future<String?> _resolveLocalLocationId(String? cloudLocationId) async {
-    if (cloudLocationId == null || cloudLocationId.isEmpty) return null;
-    final byServer = await (_database.select(_database.locations)
-          ..where((l) => l.serverId.equals(cloudLocationId)))
-        .getSingleOrNull();
-    if (byServer != null) return byServer.localId;
-
-    final byLocal = await (_database.select(_database.locations)
-          ..where((l) => l.localId.equals(cloudLocationId)))
-        .getSingleOrNull();
-    if (byLocal != null) return byLocal.localId;
-    throw StateError('Employee location is not available on this device.');
-  }
-
-  Future<String> _resolveLocalEmployeeId(StaffClaim claim) async {
-    if (claim.employeeId != null) {
-      final byServer = await (_database.select(_database.employees)
-            ..where((e) => e.serverId.equals(claim.employeeId!)))
-          .getSingleOrNull();
-      if (byServer != null) return byServer.localId;
-    }
-
-    final byAuth = await (_database.select(_database.employees)
-          ..where((e) => e.authUserId.equals(claim.userId)))
-        .getSingleOrNull();
-    if (byAuth != null) return byAuth.localId;
-
-    final byCloudUser = await (_database.select(_database.employees)
-          ..where((e) => e.cloudUserId.equals(claim.userId)))
-        .getSingleOrNull();
-    if (byCloudUser != null) return byCloudUser.localId;
-
-    return claim.employeeId ?? claim.membershipId;
-  }
-
-  Set<String> _mapPermissions(List<String> codes) {
-    final result = <String>{};
-    for (final code in codes) {
-      switch (code) {
-        case 'audit.read':
-          result.add('viewAuditLog');
-        case 'business.manage':
-        case 'locations.manage':
-          result.add('manageSettings');
-        case 'backup.manage':
-          result.add('manageBackup');
-        case 'business.read':
-          result.add('viewDashboardStats');
-        case 'cash.manage':
-        case 'cash.read':
-        case 'finance.manage':
-        case 'finance.read':
-        case 'sales.read':
-        case 'customers.read':
-        case 'credit.manage':
-          result.add('viewMoney');
-        case 'catalog.manage':
-        case 'inventory.adjust':
-        case 'inventory.transfer':
-        case 'inventory.read':
-          result.add('manageStock');
-        case 'reports.read':
-          result.add('viewReports');
-        case 'employees.manage':
-          result.add('manageEmployees');
-        case 'returns.approve':
-        case 'sales.void':
-          result.add('approveWithoutSupervisor');
-      }
-    }
-    return result;
   }
 
   AuthRole _localRole(String roleName) {

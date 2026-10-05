@@ -37,6 +37,7 @@ import '../data/remote/fulus_return_canonical_reconciler.dart';
 import '../data/remote/fulus_sale_canonical_reconciler.dart';
 import '../data/remote/fulus_staff_access_api.dart';
 import '../data/remote/employee_cloud_session_coordinator.dart';
+import '../data/local/employee_identity_projection_store.dart';
 import '../data/remote/fulus_stock_movement_canonical_reconciler.dart';
 import '../data/remote/fulus_sync_api.dart';
 import '../data/remote/product_image_api.dart';
@@ -592,6 +593,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     },
   );
 
+  final employeeIdentityStore = LocalEmployeeIdentityStore(database);
+
   employeeCloudSessionCoordinator = EmployeeCloudSessionCoordinator(
     database: database,
     restoreApi: employeeCloudRestoreApi,
@@ -601,6 +604,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     authRepository: authRepository,
     executionLease: syncExecutionLease,
     staffAccessApi: fulusStaffAccessApi,
+    identityStore: employeeIdentityStore,
     onSessionChanged: (user) {
       providerContainer.read(sessionProvider.notifier).state = user;
     },
