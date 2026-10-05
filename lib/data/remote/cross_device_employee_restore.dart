@@ -84,7 +84,7 @@ class CrossDeviceEmployeeRestore {
             now.millisecondsSinceEpoch,
           ],
         );
-        await _seedHistoricalCashierIdentities(
+        final historicalCashierIds = await _seedHistoricalCashierIdentities(
           snapshot,
           currentUserId: claim.userId,
           now: now,
@@ -94,6 +94,7 @@ class CrossDeviceEmployeeRestore {
         final result = await CloudRestoreImporter(_db).importSnapshot(
           snapshot,
           ownerCloudUserId: claim.userId,
+          preserveUserIds: historicalCashierIds,
           transactional: false,
           onProgress: onProgress,
         );
@@ -210,7 +211,7 @@ class CrossDeviceEmployeeRestore {
     }
   }
 
-  Future<void> _seedHistoricalCashierIdentities(
+  Future<Set<String>> _seedHistoricalCashierIdentities(
     Map<String, dynamic> snapshot, {
     required String currentUserId,
     required DateTime now,
@@ -251,6 +252,15 @@ class CrossDeviceEmployeeRestore {
         ],
       );
     }
+    return cashierIds;
+  }
+
+  List<Map<String, dynamic>> _maps(Object? value) {
+    if (value is! List) return const <Map<String, dynamic>>[];
+    return value
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
   }
 
   static BusinessSettingsResponseDto settingsFromSnapshot(
