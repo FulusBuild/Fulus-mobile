@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../../data/local/database/database.dart';
 import '../../data/remote/fulus_connection_state.dart';
 import '../../data/remote/fulus_sync_api.dart';
@@ -66,7 +67,7 @@ class ExpenseSyncHandler implements SyncHandler {
       payload: {
         'business_id': businessId,
         'operation_id': item.id,
-        'amount': expense.amount,
+        'amount': moneyToWire(expense.amount),
         'category': category,
         'description': expense.description,
         'location_id': locationId,
