@@ -24,7 +24,7 @@ void main() {
     });
 
     test('round trips two-decimal values exactly', () {
-      for (final value in <Money>[0, 1, 10, 999, 1000, 1001, 1000000, -1001]) {
+      for (final value in <Money>[0, 1, 10, 99, 100, 999, 1000, 1001, 1000000, -1001]) {
         expect(moneyFromWire(moneyToWire(value)), value);
       }
     });
