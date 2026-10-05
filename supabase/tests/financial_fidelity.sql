@@ -84,7 +84,7 @@ begin
   if position(
     'public._fulus_money_wire_jsonb(v_snapshot)'
     in pg_get_functiondef(
-      'public.build_fulus_restore_snapshot_full(uuid,uuid)'::regprocedure
+      'public.build_fulus_restore_snapshot(uuid,uuid)'::regprocedure
     )
   ) = 0 then
     raise exception 'full restore snapshot is not protected by the strict money wire boundary';
