@@ -31,13 +31,8 @@ class CloudRestoreCoordinator {
       throw StateError('Fulus is busy finishing another sync. Please try restoring again.');
     }
     try {
-      if (!await _executionLease.acquire()) {
-        throw StateError('Another Fulus runtime is currently syncing.');
-      }
-      try {
-        return await _db.transaction(() async {
-          await _executionLease.ensureMaintenanceHeldForTransaction();
-          await _executionLease.ensureHeldForTransaction();
+      return await _db.transaction(() async {
+        await _executionLease.ensureMaintenanceHeldForTransaction();
       onProgress?.call('Preparing local database restore…');
 
       // Never silently destroy locally queued work or unresolved conflicts.
@@ -72,14 +67,6 @@ class CloudRestoreCoordinator {
         snapshot: snapshot,
       );
 
-      // Sales reference the authenticated owner through Users.localId.
-      // Seed that FK target before the snapshot import on a fresh install.
-      await _ensureOwnerIdentity(
-        ownerCloudUserId: ownerCloudUserId,
-        ownerEmail: ownerEmail,
-        snapshot: snapshot,
-      );
-
       final result = await CloudRestoreImporter(_db).importSnapshot(
         snapshot,
         ownerCloudUserId: ownerCloudUserId,
@@ -107,10 +94,7 @@ class CloudRestoreCoordinator {
 
       onProgress?.call('Committing restored business…');
       return result;
-        });
-      } finally {
-        await _executionLease.release();
-      }
+      });
     } finally {
       await _executionLease.releaseMaintenance();
     }
