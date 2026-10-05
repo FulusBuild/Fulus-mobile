@@ -76,7 +76,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (item) async {
         applied.add(item.sequence);
       },
@@ -110,7 +110,7 @@ void main() {
     final applied = <int>[];
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (item) async {
         applied.add(item.sequence);
         if (item.sequence == 1) {
@@ -147,7 +147,7 @@ void main() {
 
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
@@ -185,7 +185,7 @@ void main() {
 
     final coordinator = FulusSyncCoordinator(
       api: api,
-      preferences: preferences,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
       applyChange: (_) async {},
     );
 
