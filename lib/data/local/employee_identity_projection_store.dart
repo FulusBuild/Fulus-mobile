@@ -51,6 +51,7 @@ class LocalEmployeeIdentityStore {
         employeeId: employeeId,
         fullName: normalizedFullName,
         roleName: roleName,
+        email: email,
         employee: employee,
         localLocationId: localLocationId,
         now: now,
