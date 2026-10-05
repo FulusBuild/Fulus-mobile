@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ulid/ulid.dart';
@@ -210,7 +209,6 @@ class EmployeeCloudSessionCoordinator {
     }
     await _identityStore.project(
       userId: claim.userId,
-      businessId: claim.businessId,
       membershipId: claim.membershipId,
       roleName: claim.roleName,
       fullName: claim.fullName,
