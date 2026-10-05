@@ -565,7 +565,7 @@ Future<String> _runFinancialConvergenceScenario(
         )
       : <String, dynamic>{};
   if (customer['id'] != customerId ||
-      (customer['outstanding_balance'] as num?)?.toDouble() != 50) {
+      customer['outstanding_balance'] != '50.00') {
     throw StateError(
       'P16 final customer balance invariant failed: $customer',
     );
@@ -579,8 +579,8 @@ Future<String> _runFinancialConvergenceScenario(
         )
       : <String, dynamic>{};
   if (saleRow['id'] != saleId ||
-      (saleRow['total'] as num?)?.toDouble() != 150 ||
-      (saleRow['amount_paid'] as num?)?.toDouble() != 0) {
+      saleRow['total'] != '150.00' ||
+      saleRow['amount_paid'] != '0.00') {
     throw StateError('P16 final sale invariant failed: $saleRow');
   }
 

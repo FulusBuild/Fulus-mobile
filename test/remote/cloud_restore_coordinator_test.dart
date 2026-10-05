@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 
 import '../../lib/data/local/database/database.dart';
@@ -51,6 +51,38 @@ void main() {
     await blocker.release();
 
     await expectLater(restore, completion(isNotNull));
+  });
+
+  test('maintenance fence remains sufficient for restore without a sync lease', () async {
+    final restore = coordinator.restore(
+      snapshot: <String, dynamic>{
+        'version': 6,
+        'membership': {'user_id': 'owner-cloud-id', 'role_name': 'owner'},
+        'profile': {'full_name': 'Owner'},
+        'locations': <dynamic>[],
+      },
+      ownerCloudUserId: 'owner-cloud-id',
+      ownerEmail: 'owner@example.com',
+      settings: const BusinessSettingsResponseDto(
+        id: 'business-id',
+        businessName: 'Store',
+        vatEnabled: false,
+        vatRate: 0,
+        currencySymbol: '₦',
+      ),
+    );
+
+    await restore;
+
+    final maintenanceRow = await (db.select(db.syncRuntimeLeases)
+          ..where((row) => row.name.equals(SyncExecutionLease.maintenanceLeaseName)))
+        .getSingleOrNull();
+    expect(maintenanceRow, isNull);
+
+    final syncRow = await (db.select(db.syncRuntimeLeases)
+          ..where((row) => row.name.equals(SyncExecutionLease.leaseName)))
+        .getSingleOrNull();
+    expect(syncRow, isNull);
   });
 
   test('blocks restore when outbound sync work is pending', () async {
