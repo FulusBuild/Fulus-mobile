@@ -66,6 +66,54 @@ void main() {
 
   tearDown(() async => db.close());
 
+  test('serializes local minor-unit product prices as major-unit cloud values', () async {
+    final now = DateTime(2026, 10, 5);
+    await db.into(db.products).insert(
+      ProductsCompanion.insert(
+        localId: 'p-money-boundary',
+        name: 'Money boundary',
+        sku: 'MONEY-BOUNDARY-1',
+        costPrice: 12500,
+        sellingPrice: 30000,
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: SyncStatus.pending,
+      ),
+    );
+    await db.into(db.syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        id: 'queue-money-boundary',
+        entityType: 'product',
+        entityLocalId: 'p-money-boundary',
+        operation: 'create',
+        priority: 0,
+        enqueuedAt: now,
+      ),
+    );
+    when(() => api.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((_) async => {
+      'data': {'entity_id': 'server-money-boundary'},
+    });
+
+    await handler.sync(await db.select(db.syncQueueItems).getSingle());
+
+    final captured = verify(() => api.submitOperation(
+          businessId: 'business-1',
+          operationType: 'product.create',
+          operationId: 'queue-money-boundary',
+          deviceClientId: 'device-client-1',
+          payload: captureAny(named: 'payload'),
+        )).captured.single as Map<String, dynamic>;
+    expect(captured['cost_price'], '125.00');
+    expect(captured['selling_price'], '300.00');
+  });
+
   test('creates then archives a pre-sync product without reusing the stale create cursor', () async {
     final now = DateTime(2026, 9, 22);
     await db.into(db.products).insert(
