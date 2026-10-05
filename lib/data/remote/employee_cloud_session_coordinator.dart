@@ -13,6 +13,7 @@ import '../local/secure_storage/secure_storage.dart';
 import '../../sync/sync_execution_lease.dart';
 import '../../sync/sync_service.dart';
 import '../local/employee_identity_projection_store.dart';
+import '../local/sync_cursor_store.dart';
 import 'cross_device_employee_restore.dart';
 import 'endpoints/cloud_restore_api.dart';
 import 'fulus_connection_state.dart';
@@ -37,6 +38,7 @@ class EmployeeCloudSessionCoordinator {
     required SyncExecutionLease executionLease,
     required FulusStaffAccessApi staffAccessApi,
     required LocalEmployeeIdentityStore identityStore,
+    required SyncCursorStore syncCursorStore,
     void Function(AuthUser?)? onSessionChanged,
   })  : _database = database,
         _restoreApi = restoreApi,
@@ -47,6 +49,7 @@ class EmployeeCloudSessionCoordinator {
         _executionLease = executionLease,
         _staffAccessApi = staffAccessApi,
         _identityStore = identityStore,
+        _syncCursorStore = syncCursorStore,
         _onSessionChanged = onSessionChanged;
 
   final AppDatabase _database;
@@ -58,6 +61,7 @@ class EmployeeCloudSessionCoordinator {
   final SyncExecutionLease _executionLease;
   final FulusStaffAccessApi _staffAccessApi;
   final LocalEmployeeIdentityStore _identityStore;
+  final SyncCursorStore _syncCursorStore;
   final void Function(AuthUser?)? _onSessionChanged;
 
   static const _localCloudBusinessKey = 'fulus_local_cloud_business_id';
@@ -117,14 +121,10 @@ class EmployeeCloudSessionCoordinator {
         throw StateError('The cloud business has no restorable business data.');
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final saved = await prefs.setInt(
-        'fulus_sync_cursor_' + claim.businessId,
+      await _syncCursorStore.setAuthoritative(
+        claim.businessId,
         boundary.toInt(),
       );
-      if (!saved) {
-        throw StateError('Failed to save the cloud restore boundary.');
-      }
       await prefs.setString(_localCloudBusinessKey, claim.businessId);
 
       onProgress?.call('Finishing setup…');
