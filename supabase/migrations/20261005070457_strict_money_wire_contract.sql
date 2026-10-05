@@ -72,7 +72,7 @@ declare
   v_definition text;
 begin
   foreach v_signature in array array[
-    'public.build_fulus_restore_snapshot_full(uuid,uuid)',
+    'public.build_fulus_restore_snapshot(uuid,uuid)',
     'public.build_fulus_employee_restore_snapshot(uuid,uuid)'
   ]
   loop
