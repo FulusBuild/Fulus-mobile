@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import 'package:drift/drift.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/remote/endpoints/sales_api.dart';
@@ -68,7 +69,7 @@ class SaleSyncHandler implements SyncHandler {
       final paymentLegs = paymentRows
           .map((payment) => {
             'method': payment.method,
-            'amount': payment.amount,
+            'amount': moneyToWire(payment.amount),
             if (payment.tenderedAmount != null) 'tendered_amount': payment.tenderedAmount,
           })
           .toList(growable: false);
@@ -88,9 +89,9 @@ class SaleSyncHandler implements SyncHandler {
             'customer_id': customerId,
             'client_reference': sale.clientReference,
             'sale_date': sale.saleDate.toIso8601String(),
-            'discount': sale.discount,
-            'tax': sale.tax,
-            'amount_paid': sale.amountPaid,
+            'discount': moneyToWire(sale.discount),
+            'tax': moneyToWire(sale.tax),
+            'amount_paid': moneyToWire(sale.amountPaid),
             'payment_method': sale.paymentMethod,
             'notes': sale.notes,
             'items': items,
@@ -284,8 +285,8 @@ class SaleSyncHandler implements SyncHandler {
           'product_id': null,
           'description': description,
           'quantity': line.quantity,
-          'unit_price': line.unitPrice,
-          'cost_price_at_sale': line.costPriceAtSale,
+          'unit_price': moneyToWire(line.unitPrice),
+          'cost_price_at_sale': moneyToWire(line.costPriceAtSale),
         });
         continue;
       }
