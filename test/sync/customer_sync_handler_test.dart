@@ -54,7 +54,6 @@ void main() {
       const CustomerDraft(name: 'Chidinma Okafor', phone: '+2348012345678'),
     );
     stubCloudAuthorization();
-    final submittedPayloads = <String, Map<String, dynamic>>{};
     when(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'), operationType: any(named: 'operationType'),
           operationId: any(named: 'operationId'), deviceClientId: any(named: 'deviceClientId'),
@@ -80,6 +79,7 @@ void main() {
     await customerRepository.archiveCustomer(customer.localId);
 
     stubCloudAuthorization();
+    final submittedPayloads = <String, Map<String, dynamic>>{};
     when(() => fulusSyncApi.submitOperation(
           businessId: any(named: 'businessId'),
           operationType: any(named: 'operationType'),
@@ -117,6 +117,8 @@ void main() {
           payload: any(named: 'payload'),
         )).called(1);
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
+    expect(submittedPayloads['customer.create']?['credit_limit'], '300.00');
+    expect(submittedPayloads['customer.update']?['credit_limit'], '300.00');
   });
 
   test('pushes a customer update through Fulus Cloud', () async {
