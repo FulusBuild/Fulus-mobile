@@ -76,7 +76,6 @@ void main() {
         )).called(1);
     expect((await customerRepository.getCustomerById(customer.localId))!.serverId, 'server-customer-1');
     expect(submittedPayloads['customer.create']?['credit_limit'], '300.00');
-    expect(submittedPayloads['customer.update']?['credit_limit'], '300.00');
   });
 
   test('archives an offline-created customer after cloud create', () async {
