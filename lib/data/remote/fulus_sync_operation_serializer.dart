@@ -279,14 +279,19 @@ class FulusSyncOperationSerializer {
       final rawItem = data['item'];
       if (rawItem is! Map) return result;
       final item = Map<String, dynamic>.from(rawItem);
-      result['data'] = {...data, 'entity_id': item['id'], 'entity': item};
-      return result;
+      return {
+        ...Map<String, dynamic>.from(result),
+        'data': {...data, 'entity_id': item['id'], 'entity': item},
+      };
     }
 
     final entityIdKey = type.responseEntityIdKey!;
     final entityId = data[entityIdKey];
     if (entityId != null) {
-      result['data'] = {...data, 'entity_id': entityId};
+      return {
+        ...Map<String, dynamic>.from(result),
+        'data': {...data, 'entity_id': entityId},
+      };
     }
     return result;
   }
