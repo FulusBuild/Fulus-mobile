@@ -16,7 +16,6 @@ class LocalEmployeeIdentityStore {
 
   Future<void> project({
     required String userId,
-    required String businessId,
     required String membershipId,
     required String roleName,
     required String fullName,
