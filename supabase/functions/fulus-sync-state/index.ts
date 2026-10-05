@@ -3,7 +3,35 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const MONEY_WIRE_KEYS = new Set([\n  "amount", "credit_limit", "outstanding_balance", "opening_cash",\n  "closing_cash", "cash_difference", "subtotal", "whole_cart_discount",\n  "discount", "tax", "total", "amount_paid", "cash_tendered",\n  "cash_change", "unit_price", "cost_price_at_sale", "line_total",\n  "cost_price", "selling_price", "refund_amount", "salary",\n]);\n\n// PostgreSQL NUMERIC values can arrive through JSON as JavaScript numbers.\n// A whole-valued NUMERIC such as 300.00 can therefore become the ambiguous\n// JSON number 300. The mobile wire contract uses decimal strings so the client\n// never has to guess whether an integer means major or minor units.\nconst wireMoneyFields = (value: unknown): unknown => {\n  if (Array.isArray(value)) return value.map(wireMoneyFields);\n  if (value && typeof value === "object") {\n    const result: Record<string, unknown> = {};\n    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {\n      if (MONEY_WIRE_KEYS.has(key) && typeof child === "number") {\n        if (!Number.isFinite(child)) throw new Error("Invalid monetary value in server response");\n        result[key] = child.toFixed(2);\n      } else {\n        result[key] = wireMoneyFields(child);\n      }\n    }\n    return result;\n  }\n  return value;\n};\n
+const MONEY_WIRE_KEYS = new Set([
+  "amount", "credit_limit", "outstanding_balance", "opening_cash",
+  "closing_cash", "cash_difference", "subtotal", "whole_cart_discount",
+  "discount", "tax", "total", "amount_paid", "cash_tendered",
+  "cash_change", "unit_price", "cost_price_at_sale", "line_total",
+  "cost_price", "selling_price", "refund_amount", "salary",
+]);
+
+// PostgreSQL NUMERIC values can arrive through JSON as JavaScript numbers.
+// A whole-valued NUMERIC such as 300.00 can therefore become the ambiguous
+// JSON number 300. The mobile wire contract uses decimal strings so the client
+// never has to guess whether an integer means major or minor units.
+const wireMoneyFields = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(wireMoneyFields);
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (MONEY_WIRE_KEYS.has(key) && typeof child === "number") {
+        if (!Number.isFinite(child)) throw new Error("Invalid monetary value in server response");
+        result[key] = child.toFixed(2);
+      } else {
+        result[key] = wireMoneyFields(child);
+      }
+    }
+    return result;
+  }
+  return value;
+};
+
 const out = (body: unknown, status = 200) =>
   new Response(JSON.stringify(wireMoneyFields(body)), {
     status,
