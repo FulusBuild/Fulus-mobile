@@ -150,7 +150,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
     staffAccessApi: fulusStaffAccessApi,
-    identityStore: employeeIdentityStore,
   );
   final authApi = AuthApi(apiClient);
   late final SyncTriggers syncTriggers;
@@ -605,6 +604,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     authRepository: authRepository,
     executionLease: syncExecutionLease,
     staffAccessApi: fulusStaffAccessApi,
+    identityStore: employeeIdentityStore,
     onSessionChanged: (user) {
       providerContainer.read(sessionProvider.notifier).state = user;
     },
