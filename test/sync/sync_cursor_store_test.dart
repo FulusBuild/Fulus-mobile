@@ -1,0 +1,77 @@
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:fulus_mobile/data/local/database/database.dart';
+import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
+
+void main() {
+  late AppDatabase db;
+  late DatabaseSyncCursorStore store;
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    store = DatabaseSyncCursorStore(() => db);
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  test('persists and reads business cursors from SQLite', () async {
+    await store.initialize();
+
+    expect(store.cursorFor('business-1'), 0);
+
+    await store.persistMonotonic('business-1', 7);
+    expect(store.cursorFor('business-1'), 7);
+
+    final rows = await db.select(db.syncCursors).get();
+    expect(rows.single.businessId, 'business-1');
+    expect(rows.single.cursor, 7);
+  });
+
+  test('monotonic persistence never moves a cursor backwards', () async {
+    await store.initialize();
+
+    await store.persistMonotonic('business-1', 10);
+    await store.persistMonotonic('business-1', 4);
+
+    expect(store.cursorFor('business-1'), 10);
+  });
+
+  test('legacy SharedPreferences cursors migrate into SQLite', () async {
+    SharedPreferences.setMockInitialValues({
+      'fulus_sync_cursor_business-1': 12,
+      'fulus_sync_cursor_business-2': 3,
+    });
+    final preferences = await SharedPreferences.getInstance();
+
+    await store.initialize(legacyPreferences: preferences);
+
+    expect(store.cursorFor('business-1'), 12);
+    expect(store.cursorFor('business-2'), 3);
+    expect(preferences.getInt('fulus_sync_cursor_business-1'), isNull);
+    expect(preferences.getInt('fulus_sync_cursor_business-2'), isNull);
+  });
+
+  test('authoritative restore boundary can replace an existing cursor', () async {
+    await store.initialize();
+    await store.persistMonotonic('business-1', 20);
+
+    await store.setAuthoritative('business-1', 8);
+
+    expect(store.cursorFor('business-1'), 8);
+  });
+
+  test('reset removes only the selected business cursor', () async {
+    await store.initialize();
+    await store.persistMonotonic('business-1', 8);
+    await store.persistMonotonic('business-2', 9);
+
+    await store.reset('business-1');
+
+    expect(store.cursorFor('business-1'), 0);
+    expect(store.cursorFor('business-2'), 9);
+  });
+}
