@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/money/money.dart';
 import '../../../domain/entities/sale.dart';
 import '../api_client.dart';
 
@@ -80,29 +79,6 @@ class SalesApi {
       final dto = SaleResponseDto.fromJson(items.first as Map<String, dynamic>);
       return _toDomain(dto, locationLocalId: locationLocalId);
     } on DioException catch (e) {
-      throw _client.mapError(e);
-    }
-  }
-
-  Future<Sale> updateSale({
-    required String serverId,
-    required Money amountPaid,
-    required String locationLocalId,
-  }) async {
-    try {
-      final response = await _client.dio.patch(
-        '/api/sales/$serverId',
-        data: {'amount_paid': moneyToMajor(amountPaid)},
-      );
-      final dto = SaleResponseDto.fromJson(response.data as Map<String, dynamic>);
-      return _toDomain(dto, locationLocalId: locationLocalId);
-    } on DioException catch (e) {
-      // No special-casing needed here — update_sale has no idempotency
-      // key mechanism (verified directly: it PATCHes an existing,
-      // already-server-known resource by its real server ID, not a
-      // create-with-client-reference call), so a 409 here, if the
-      // backend ever produced one for this endpoint, would be a genuine
-      // conflict, correctly handled by the general mapError path.
       throw _client.mapError(e);
     }
   }
