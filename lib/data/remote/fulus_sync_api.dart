@@ -216,15 +216,6 @@ class FulusSyncApi implements FulusCanonicalEntityFetcher, FulusCanonicalBatchEn
     return mapped;
   }
 
-  Map<String, dynamic> _normalizeOperationResponse(
-    Map<String, dynamic> result, {
-    required String operationType,
-  }) =>
-      _operationSerializer.normalizeResponse(
-        result,
-        operationType: operationType,
-      );
-
   Map<String, String> _headers({
     String? deviceClientId,
     String? accessToken,
