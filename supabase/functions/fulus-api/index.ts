@@ -51,7 +51,7 @@ Deno.serve(async req => {
   // misleading 401 from this function.
   const { data: claimsData, error: claimsError } = await serviceDb.auth.getClaims(ah.slice(7).trim());
   const uid = claimsData?.claims?.sub;
-  if (claimsError || typeof uid !== "string" || uid.isEmpty) return out({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
+  if (claimsError || typeof uid !== "string" || uid.length === 0) return out({ error: { code: "UNAUTHENTICATED", message: "Invalid access token" } }, 401);
   const dc = req.headers.get("x-fulus-device-id");
   const { data: members, error: me } = await serviceDb.from("business_memberships").select("business_id,role_id,status,joined_at").eq("user_id", uid).eq("status", "active");
   if (me) return out({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to resolve memberships" } }, 500);
