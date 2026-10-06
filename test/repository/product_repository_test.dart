@@ -377,7 +377,6 @@ void main() {
         ),
       );
       await seedActiveLocation();
-      await seedLocation();
       await seedProduct('p1');
       await repository.hydrateActiveLocationStockFromServer();
 
@@ -456,7 +455,6 @@ void main() {
         ),
       );
       await seedActiveLocation();
-      await seedLocation();
       await seedProduct('low');
       await seedProduct('healthy');
       await repository.hydrateActiveLocationStockFromServer();
