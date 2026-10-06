@@ -110,6 +110,7 @@ class ProductRepositoryImpl implements ProductRepository {
     var page = 1;
     var totalPages = 1;
     do {
+      await _executionLease.ensureHeld();
       final response = await _productsApi.listProducts(page: page);
       totalPages = response.totalPages;
 
@@ -123,6 +124,9 @@ class ProductRepositoryImpl implements ProductRepository {
         if (product == null) continue;
 
         await _db.transaction(() async {
+          // Re-check ownership at the writer boundary so an expired/taken-over
+          // sync lease cannot apply a stale stock snapshot after network I/O.
+          await _executionLease.ensureHeldForTransaction();
           final stockLevel = await (_db.select(_db.productStockLevels)
                 ..where((s) =>
                     s.productLocalId.equals(product.localId) &
