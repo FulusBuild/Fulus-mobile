@@ -93,7 +93,9 @@ The current checkout preserves tendered cash separately from applied payment. Cl
 
 ## X-009 — Financial integer-money contract
 
-Status: **Closed in source; runtime/production evidence pending.**\n\nThe coordinated migration from local floating-point monetary values to integer minor units is implemented. The cloud contract remains NUMERIC(14,2), with explicit decimal-string JSON boundaries and exact local integer arithmetic.
+Status: **Closed in source; runtime/production evidence pending.**
+
+The coordinated migration from local floating-point monetary values to integer minor units is implemented. The cloud contract remains NUMERIC(14,2), with explicit decimal-string JSON boundaries and exact local integer arithmetic.
 
 The migration must cover catalog prices, sales, payments, customer/supplier ledgers, expenses, income, returns, tax remittance, drawer state, drafts, reports and receipts. It must also define tendered cash versus applied payment versus change.
 
