@@ -788,6 +788,7 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: stock movement change feed carries valid timestamps');
 
+    int? latestProductChangeSequence;
     if (productChangeSequence > 0) {
       final staleCursor = productChangeSequence - 1;
       final staleUpdate = await _submitCatalog(
@@ -885,6 +886,23 @@ Future<void> main() async {
         );
       }
       stdout.writeln('PASS: concurrent catalog edits serialize with one conflict');
+      final successfulConcurrentSequences = concurrentCatalogResults
+          .where((response) {
+            final status = response.statusCode ?? 0;
+            return status >= 200 && status < 300;
+          })
+          .map((response) => _actionData(response)?['sync_sequence'])
+          .whereType<num>()
+          .map((sequence) => sequence.toInt())
+          .where((sequence) => sequence > 0)
+          .toList(growable: false);
+      if (successfulConcurrentSequences.length != 1) {
+        throw StateError(
+          'Concurrent catalog OCC race returned no unique authoritative success sequence: ' +
+          concurrentCatalogResults.map((response) => response.data).toList().toString(),
+        );
+      }
+      latestProductChangeSequence = successfulConcurrentSequences.single;
     }
 
     final stockProductId = serverId;
@@ -1050,9 +1068,12 @@ Future<void> main() async {
         concurrentCatalogResults.map((response) => response.data).toList().toString(),
       );
     }
-    final preDeleteSequence = successfulConcurrentSequences.single;
-    if (preDeleteSequence <= 0) {
-      throw StateError('Unable to establish the product cursor before tombstone test.');
+    final preDeleteSequence = latestProductChangeSequence;
+    if (preDeleteSequence == null || preDeleteSequence <= 0) {
+      throw StateError(
+        'Unable to establish the product cursor before tombstone test from the '
+        'authoritative concurrent update response.',
+      );
     }
 
     final delete = await _submitCatalog(
