@@ -40,7 +40,7 @@ class _FakeLocationRepository implements LocationRepository {
   @override
   Future<void> markSynced({required String localId, required String serverId, String? operationId}) => throw UnimplementedError();
   @override
-  Future<void> syncFromServer() => throw UnimplementedError();
+  Future<void> hydrateActiveLocationStockFromServer() => throw UnimplementedError();
 }
 
 FulusCanonicalEntityResponse _response(Map<String, dynamic> data) =>
