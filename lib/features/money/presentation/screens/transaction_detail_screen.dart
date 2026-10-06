@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/export/export_service.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/screens/photo_capture_screen.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -158,7 +159,7 @@ class _DetailBody extends ConsumerWidget {
               if (t.counterpartyName != null) ['With', t.counterpartyName!],
               if (t.reference != null) ['Reference', t.reference!],
               if (t.note != null) ['Note', t.note!],
-              for (final leg in t.paymentBreakdown ?? const <({String method, double amount})>[])
+              for (final leg in t.paymentBreakdown ?? const <({String method, Money amount})>[])
                 [leg.method, formatMoney(leg.amount, symbol: currencySymbol)],
               for (final line in t.lineItems ?? const <String>[]) ['Item', line],
             ],
