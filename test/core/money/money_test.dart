@@ -41,5 +41,59 @@ void main() {
     test('rejects more than two fractional digits', () {
       expect(() => moneyFromWire('10.001'), throwsFormatException);
     });
+
+
+    test('preserves benchmark price-times-quantity magnitude exactly', () {
+      const unitPrice = 30000; // ₦300.00
+      const quantity = 100;
+      final total = unitPrice * quantity;
+      expect(total, 3000000); // ₦30,000.00
+      expect(moneyToWire(total), '30000.00');
+      expect(moneyFromWire('30000.00'), total);
+    });
+
+    test('preserves amounts below one major unit', () {
+      for (final value in <Money>[1, 9, 10, 99]) {
+        expect(moneyFromWire(moneyToWire(value)), value);
+      }
+    });
+
+    test('preserves large and negative financial adjustments exactly', () {
+      const values = <Money>[
+        9007199254740991,
+        92233720368547700,
+        -1,
+        -99,
+        -1001,
+        -9007199254740991,
+      ];
+
+      for (final value in values) {
+        expect(moneyFromWire(moneyToWire(value)), value);
+      }
+    });
+
+    test('preserves split-payment and credit identities in minor units', () {
+      const total = 100000; // ₦1,000.00
+      const cash = 30000;
+      const card = 20000;
+      const credit = 50000;
+
+      expect(cash + card + credit, total);
+      expect(cash + card, 50000); // amount collected
+      expect(total - (cash + card), credit); // balance due
+    });
+
+    test('preserves cash tender and change identity in minor units', () {
+      const tendered = 100000; // ₦1,000.00
+      const applied = 75000; // ₦750.00
+      final change = tendered - applied;
+
+      expect(change, 25000);
+      expect(moneyToWire(tendered), '1000.00');
+      expect(moneyToWire(applied), '750.00');
+      expect(moneyToWire(change), '250.00');
+    });
+
   });
 }
