@@ -116,7 +116,7 @@ Future<void> main() async {
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
-        {'method': 'cash', 'amount': 321},
+        {'method': 'cash', 'amount': '321.00'},
       ],
       'items': [
         {
@@ -478,7 +478,7 @@ Future<void> main() async {
       'amount_paid': '0.00',
       'payment_method': 'credit',
       'payments': [
-        {'method': 'credit', 'amount': 150},
+        {'method': 'credit', 'amount': '150.00'},
       ],
       'notes': 'Cloud Sync V1 mutation matrix credit sale',
       'items': [
