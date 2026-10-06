@@ -44,6 +44,26 @@ Future<void> main() async {
 
   _printIdentityFingerprint('business_id', businessId);
   _printIdentityFingerprint('device_client_id', deviceClientId);
+  final moneyWireProbe = await dio.post('', data: {
+    'action': 'sync_operation',
+    'business_id': businessId,
+    'operation_id': 'e2e-money-wire-invalid-$suffix',
+    'operation_type': 'money_wire_probe',
+    'payload': {'amount': 300},
+  });
+  final moneyWireStatus = moneyWireProbe.statusCode ?? 0;
+  final moneyWireError = moneyWireProbe.data is Map
+      ? (moneyWireProbe.data as Map)['error']
+      : null;
+  final moneyWireCode = moneyWireError is Map ? moneyWireError['code'] : null;
+  if (moneyWireStatus != 400 || moneyWireCode != 'INVALID_MONEY_WIRE') {
+    throw StateError(
+      'Strict money wire rejected neither numeric monetary input nor returned '
+      'the expected contract error: HTTP $moneyWireStatus '
+      '${moneyWireProbe.data}',
+    );
+  }
+  stdout.writeln('PASS: numeric monetary request rejected by strict money wire contract');
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final createOperationId = 'e2e-create-$suffix';
