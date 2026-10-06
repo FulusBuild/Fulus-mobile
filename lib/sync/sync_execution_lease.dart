@@ -112,6 +112,19 @@ class SyncExecutionLease {
     }
   }
 
+  /// Stops renewing the SQLite maintenance row while the live database
+  /// connection is deliberately closed for a physical file replacement.
+  ///
+  /// The sidecar FileLock remains held. That is the cross-process invariant
+  /// that survives replacement of the SQLite database file itself.
+  void suspendMaintenanceRenewalForDatabaseReplacement() {
+    if (!_maintenanceHeld) {
+      throw StateError('Cannot suspend a maintenance fence that is not held.');
+    }
+    _maintenanceRenewalTimer?.cancel();
+    _maintenanceRenewalTimer = null;
+  }
+
   Future<void> releaseMaintenance() async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
