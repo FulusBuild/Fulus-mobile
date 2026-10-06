@@ -439,22 +439,20 @@ class MoneyFormatter {
 
   String format(Money value) {
     final label = _safeLabel();
-    final amount = _thousands(moneyToMajor(value));
+    final amount = _thousands(value);
     if (label.isEmpty) return amount;
     return spaceBeforeAmount ? '$label $amount' : '$label$amount';
   }
 
-  String _thousands(num value) {
-    final fixed = value.toStringAsFixed(2);
-    final parts = fixed.split('.');
-    final whole = parts[0];
-    final negative = whole.startsWith('-');
-    final digits = negative ? whole.substring(1) : whole;
+  String _thousands(Money value) {
+    final negative = value < 0;
+    final absolute = value.abs();
+    final digits = (absolute ~/ 100).toString();
+    final minor = (absolute % 100).toString().padLeft(2, '0');
     final buffer = StringBuffer();
     for (var i = 0; i < digits.length; i++) {
       if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
       buffer.write(digits[i]);
     }
-    return '${negative ? '-' : ''}$buffer.${parts[1]}';
-  }
-}
+    return '${negative ? '-' : ''}$buffer.$minor';
+  }}
