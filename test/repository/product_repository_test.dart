@@ -6,6 +6,7 @@ import 'package:fulus_mobile/domain/entities/product.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
 import '../helpers/db_seed_helpers.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
+import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,7 @@ void main() {
   late AppDatabase db;
   late MockProductsApi productsApi;
   late SyncQueue syncQueue;
+  late SyncExecutionLease executionLease;
   late ProductRepositoryImpl repository;
 
   const locationId = 'loc-1';
@@ -86,7 +88,8 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     productsApi = MockProductsApi();
     syncQueue = SyncQueue(db);
-    repository = ProductRepositoryImpl(db: db, productsApi: productsApi, syncQueue: syncQueue);
+    executionLease = SyncExecutionLease(db);
+    repository = ProductRepositoryImpl(db: db, productsApi: productsApi, syncQueue: syncQueue, executionLease: executionLease);
   });
 
   tearDown(() async {
