@@ -25,6 +25,7 @@ void main() {
       'selling_price',
       'refund_amount',
       'salary',
+      'tendered_amount',
     ];
 
     for (final field in wireFields) {
