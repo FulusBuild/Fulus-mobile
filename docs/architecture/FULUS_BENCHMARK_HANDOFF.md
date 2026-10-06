@@ -1229,3 +1229,21 @@ The latest CI run exposed analyzer warnings in the new formatter/cardinality cha
 **P1-3 and P1-4 remain evidence gates, not unresolved source defects:** physical Android restore/reopen and Android process-death/WorkManager behavior require an actual Android runtime. The repository must not claim those observations without running them.
 
 **Important:** P1 source closure does not mean production SLO achievement. Production/runtime evidence remains separately tracked as required by the benchmark.
+
+
+# 2026-10-06 — P1 fitness continuation
+
+The core money fitness suite was expanded to cover the benchmark's mandatory exact-arithmetic cases:
+
+- price × quantity magnitude preservation (₦300.00 × 100 = ₦30,000.00);
+- values below one major unit;
+- large positive and negative adjustments;
+- split-payment / credit identities;
+- cash tender / applied / change identity;
+- exact wire round-tripping for those values.
+
+These are source-level fitness proofs; live Android financial journey evidence remains separately classified as runtime evidence.
+
+Current PR head after this test hardening: `8301f0eba3fd1a446013d467f2b7d6fb7b1ffc9f`.
+
+P1 status remains deliberately evidence-based: P1-1, P1-2, P1-5, P1-6 and P1-7 are source/test-complete pending CI; P1-3 and P1-4 require physical Android lifecycle evidence and are not claimed closed without that evidence.
