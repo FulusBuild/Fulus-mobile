@@ -138,6 +138,7 @@ class ProductRepositoryImpl implements ProductRepository {
                     s.syncStatus.equalsValue(SyncStatus.settled)))
               .write(
                 item.toStockLevelCompanion(
+                  productLocalId: product.localId,
                   locationLocalId: location.localId,
                 ),
               );
