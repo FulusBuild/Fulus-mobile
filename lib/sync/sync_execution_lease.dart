@@ -251,7 +251,18 @@ class SyncExecutionLease {
   }
 
   Future<RandomAccessFile?> _tryAcquireProcessLock({required bool shared}) async {
-    final dbPath = await AppDatabase.resolveDatabasePath();
+    // Resolve the actual SQLite file through the open connection rather than
+    // path_provider. This keeps the lease usable by pure in-memory tests and
+    // by temporary file-backed databases without requiring Flutter bindings.
+    final rows = await _db.customSelect('PRAGMA database_list').get();
+    if (rows.isEmpty) return null;
+    final dbPath = rows.first.data['file'];
+    if (dbPath is! String || dbPath.isEmpty) {
+      // In-memory SQLite has no filesystem identity. Its existing SQLite lease
+      // remains the synchronization mechanism; the external fence is only
+      // needed when a real database file can be replaced.
+      return null;
+    }
     final lockFile = File('$dbPath.sync-runtime.lock');
     final handle = await lockFile.open(mode: FileMode.append);
     try {
