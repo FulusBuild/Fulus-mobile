@@ -188,3 +188,20 @@ The major architectural changes introduced since that baseline were checked agai
 The remaining work is primarily runtime and production evidence, not another broad source rewrite.
 
 The benchmark must not be declared fully closed until the remaining Android, live multi-device, restore, upgrade, and production-configuration evidence is observed.
+
+## 2026-10-06 — PR #179 benchmark-hardening continuation
+
+This continuation followed **Inventory → Trace → Inspect → Prove → Classify → Fix → Test → Cross-check → CI → Record**.
+
+### Current findings on PR #179
+
+- **P0 build:** the CI failure was an orphaned duplicate source tail after the closing brace of `lib/data/repositories/product_repository_impl.dart`. Removing only that invalid tail restored code generation/static analysis; no intended repository logic was removed.
+- **P0 money wire:** `FulusSyncApi.submitOperation()` serializes known `sale.create` operations to the flattened `sale_create` action. Sale payments can carry `tendered_amount`, so the strict request validator must treat that key as monetary. The validator, response normalizers, fitness field list, and migration are now aligned; the live contract test explicitly exercises numeric `tendered_amount` on the flattened submit-operation wire.
+- **P0 restore fence:** the SQLite maintenance row is not a physical fence because restore replaces the database file containing that row. The implementation therefore uses the sidecar filesystem `FileLock` as the physical cross-process fence, while retaining the SQLite lease for logical sync/maintenance coordination. The maintenance-row renewal timer is suspended before the live DB is closed; the sidecar lock remains held across the file replacement until the fresh DB is reopened and the fence is released.
+- **P1 stock hydration:** active-location stock hydration now participates in the shared execution lease for its whole network/projection path. Each page checks ownership before network I/O, and the stock projection transaction revalidates ownership at the SQLite writer boundary. A regression forces lease loss during network I/O and requires the hydration to abort without applying stale stock.
+
+### CI/evidence state
+
+The repository already proved code generation and static analysis after the initial source fix. The first post-fix CI failure was the obsolete same-process restore-fence test; that test has been replaced with a separate OS-process probe. Final CI status must be rechecked after the latest hardening commits.
+
+Runtime caveat remains unchanged: this source hardening does not claim physical Android process-death/restore evidence or full live multi-device convergence without those observations.
