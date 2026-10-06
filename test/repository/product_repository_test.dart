@@ -34,6 +34,20 @@ void main() {
     ));
   });
 
+  Future<void> seedProduct(String id, {SyncStatus syncStatus = SyncStatus.settled}) async {
+    await db.into(db.products).insert(ProductsCompanion.insert(
+      localId: 'local-$id',
+      serverId: Value(id),
+      name: 'Product $id',
+      sku: 'SKU-$id',
+      costPrice: 500,
+      sellingPrice: 1000,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      syncStatus: syncStatus,
+    ));
+  }
+
   Future<void> seedActiveLocation() async {
     await seedUser(db, localId: 'test-active-user', role: AuthRole.owner);
     await db.into(db.sessions).insert(SessionsCompanion.insert(
@@ -96,20 +110,6 @@ void main() {
   });
 
   group('hydrateActiveLocationStockFromServer', () {
-    Future<void> seedProduct(String id, {SyncStatus syncStatus = SyncStatus.settled}) async {
-      await db.into(db.products).insert(ProductsCompanion.insert(
-        localId: 'local-$id',
-        serverId: Value(id),
-        name: 'Product $id',
-        sku: 'SKU-$id',
-        costPrice: 500,
-        sellingPrice: 1000,
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: syncStatus,
-      ));
-    }
-
     test('hydrates only the active location stock projection', () async {
       await db.into(db.locations).insert(LocationsCompanion.insert(
         localId: locationId,
