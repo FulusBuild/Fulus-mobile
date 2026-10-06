@@ -944,3 +944,50 @@ The remaining Android/runtime evidence is explicitly not converted into a source
 | CI | Final fatal analyzer warning in restore regression | Fixed | Removed redundant `restoredDb!` assertion |
 
 The benchmark now treats P05-002/P05-003 as source-fixed. Physical Android/runtime and production-configuration gates remain separate evidence items.
+
+
+## 2026-10-06 — P2 source revalidation
+
+P2 was re-audited against current `main` at class/function/source level. The historical P2 list is no longer an accurate description of the remaining source work.
+
+### 1. State-management boundary — 🟢 CLOSED
+
+Current source deliberately keeps Riverpod as the primary state-management model and confines `flutter_bloc/Cubit` to the Sell feature boundary. The repository contains `test/architecture/state_management_boundary_test.dart`, which recursively rejects `package:flutter_bloc/flutter_bloc.dart` imports outside `lib/features/sell/`.
+
+The dependency remains in `pubspec.yaml`, but this is an explicit bounded exception rather than an uncontrolled second application-wide state system.
+
+**Decision: KEEP / CONSTRAIN.** Do not perform a framework migration merely for aesthetic consistency.
+
+### 2. Coordination-object entropy — 🟡 GUARDRAIL, NOT A PROVEN DEFECT
+
+The current sync path has separate owners for public lifecycle (`SyncService`), platform/event adaptation (`SyncTriggers`), cycle policy (`SyncCycleRunner`), durable queue execution (`SyncEngine`), cross-runtime exclusion (`SyncExecutionLease`), and restore reconciliation lifecycle (`SyncRestoreReconciliationGate`). Source inspection shows these boundaries are semantically differentiated rather than duplicate wrappers.
+
+`SyncService` is the application-facing synchronization boundary; `SyncTriggers` implements the internal runtime adapter; `SyncCycleRunner` owns push/pull/recovery sequencing; `SyncEngine` owns durable queue draining; and `SyncExecutionLease` owns cross-runtime exclusion. The current code therefore does not justify another broad consolidation refactor.
+
+**Decision: STRENGTHEN THE GUARDRAIL.** Do not add a coordinator unless it owns a distinct invariant. Revisit consolidation only when call-path evidence demonstrates overlapping ownership.
+
+### 3. Historical comments — 🟡 REAL MAINTAINABILITY DEBT, NOT CORRECTNESS DEBT
+
+Repository search still finds production comments explicitly labelled as bug fixes and historical audit context. Examples occur in domain entities, repositories, onboarding, backup, and error handling. These comments are not evidence of an architectural correctness defect, but they increase source noise and mix development history with durable invariant documentation.
+
+**Decision: GRADUAL CLEANUP.** Preserve comments that explain a current invariant or non-obvious failure mode; move development chronology to audit/ADR history when files are naturally touched. No mass comment rewrite is justified.
+
+### 4. Architecture fitness tests — 🟡 PARTIAL
+
+The repository has strong scenario tests and now has at least one explicit architecture-boundary fitness test for state management. It also has concrete tests around money wire contracts, sync execution, restore fencing, cursor behavior, cardinality, and other invariants.
+
+However, the proposed implementation-benchmark suite is not yet a single comprehensive architecture fitness layer. Several desired rules remain represented by source structure and scenario tests rather than dedicated automated architecture checks, including domain/import boundaries, generic SyncEngine dependency restrictions, first-frame/cloud-wait restrictions, and atomic outbox-enqueue rules.
+
+**Decision: STRENGTHEN.** Add focused architecture fitness tests where a rule is stable, mechanically checkable, and valuable. Do not create a large brittle static-analysis framework for rules better proven by behavior tests.
+
+### P2 verdict
+
+**Source status: 🟢/🟡 substantially closed.**
+
+- State management: 🟢 closed.
+- Database cardinality: 🟢 source-fixed by schema v21 and regression tests; historical P05-002/P05-003 findings are superseded.
+- Coordination simplification: 🟡 guardrail only; no source defect currently proven.
+- Historical comments: 🟡 maintainability cleanup, not a blocker.
+- Architecture fitness: 🟡 partially implemented; this is the main remaining P2 implementation item.
+
+**No P2 correctness blocker was found. No broad refactor is justified from this audit.**
