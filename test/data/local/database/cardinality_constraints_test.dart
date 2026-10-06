@@ -106,8 +106,10 @@ void main() {
       );
       db1 = AppDatabase.forTesting(openExecutor());
       db2 = AppDatabase.forTesting(openExecutor());
+      final firstDb = db1;
+      final secondDb = db2;
 
-      await db1!.into(db1!.locations).insert(LocationsCompanion.insert(
+      await firstDb.into(db1.locations).insert(LocationsCompanion.insert(
         localId: 'location-2',
         name: 'Second',
         createdAt: DateTime(2026, 1, 1),
@@ -136,7 +138,7 @@ void main() {
 
       expect(attempts.where((accepted) => accepted).length, 1);
       expect(
-        await (db1!.select(db1!.draftCarts)
+        await (firstDb.select(firstDb.draftCarts)
               ..where((row) => row.locationId.equals('location-2')))
             .get(),
         hasLength(1),
@@ -162,8 +164,10 @@ void main() {
       );
       db1 = AppDatabase.forTesting(openExecutor());
       db2 = AppDatabase.forTesting(openExecutor());
+      final firstDb = db1;
+      final secondDb = db2;
 
-      await db1!.into(db1!.locations).insert(LocationsCompanion.insert(
+      await firstDb.into(db1.locations).insert(LocationsCompanion.insert(
         localId: 'location-3',
         name: 'Third',
         createdAt: DateTime(2026, 1, 1),
@@ -199,7 +203,7 @@ void main() {
 
       expect(attempts.where((accepted) => accepted).length, 1);
       expect(
-        await (db1!.select(db1!.cashDrawerShifts)
+        await (firstDb.select(firstDb.cashDrawerShifts)
               ..where((row) =>
                   row.locationId.equals('location-3') &
                   row.closedAt.isNull()))
