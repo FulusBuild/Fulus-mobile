@@ -30,6 +30,24 @@ The workflow runs:
 5. **Production migration history**
    - remote migration history must be an exact prefix of the repository migration chain
 
+## Deep financial evidence matrix
+
+The separate workflow also runs a focused regression matrix before live production exercises:
+
+- Money arithmetic and strict wire representation
+- Sale repository behavior
+- Customer credit/repayment behavior
+- Return/refund behavior
+- Cash drawer reconciliation
+- Offline sale durability
+- Sync process-death replay primitives
+- Restore/reconciliation fencing
+- Two-runtime financial convergence regression
+
+These are deliberately grouped in this evidence workflow rather than added to the main Mobile CI gate. They provide a repeatable preflight for the same invariants that the physical Android scenarios must prove.
+
+The matrix is **not** a substitute for physical Android evidence. In particular, sync_process_death_replay_test.dart proves the reusable recovery logic, while the release gate still requires an actual Android force-stop/process-death → reopen/WorkManager → network recovery run.
+
 ## Manual Android evidence
 
 A green workflow does **not** close these gates:
