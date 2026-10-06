@@ -94,7 +94,7 @@ void main() {
 
   test('separate SQLite connections cannot create two draft carts concurrently', () async {
     final directory = await Directory.systemTemp.createTemp('fulus-cardinality-');
-    final path = '\${directory.path}/fulus.db';
+    final path = '${directory.path}/fulus.db';
     AppDatabase? db1;
     AppDatabase? db2;
     try {
@@ -106,10 +106,10 @@ void main() {
       );
       db1 = AppDatabase.forTesting(openExecutor());
       db2 = AppDatabase.forTesting(openExecutor());
-      final firstDb = db1;
-      final secondDb = db2;
+      final firstDb = db1!;
+      final secondDb = db2!;
 
-      await firstDb.into(db1.locations).insert(LocationsCompanion.insert(
+      await firstDb.into(firstDb.locations).insert(LocationsCompanion.insert(
         localId: 'location-2',
         name: 'Second',
         createdAt: DateTime(2026, 1, 1),
@@ -132,8 +132,8 @@ void main() {
       }
 
       final attempts = await Future.wait([
-        createCart(db1!, 'cart-concurrent-1'),
-        createCart(db2!, 'cart-concurrent-2'),
+        createCart(firstDb, 'cart-concurrent-1'),
+        createCart(secondDb, 'cart-concurrent-2'),
       ]);
 
       expect(attempts.where((accepted) => accepted).length, 1);
@@ -152,7 +152,7 @@ void main() {
 
   test('separate SQLite connections cannot create two open shifts concurrently', () async {
     final directory = await Directory.systemTemp.createTemp('fulus-cardinality-');
-    final path = '\${directory.path}/fulus.db';
+    final path = '${directory.path}/fulus.db';
     AppDatabase? db1;
     AppDatabase? db2;
     try {
@@ -164,10 +164,10 @@ void main() {
       );
       db1 = AppDatabase.forTesting(openExecutor());
       db2 = AppDatabase.forTesting(openExecutor());
-      final firstDb = db1;
-      final secondDb = db2;
+      final firstDb = db1!;
+      final secondDb = db2!;
 
-      await firstDb.into(db1.locations).insert(LocationsCompanion.insert(
+      await firstDb.into(firstDb.locations).insert(LocationsCompanion.insert(
         localId: 'location-3',
         name: 'Third',
         createdAt: DateTime(2026, 1, 1),
@@ -197,8 +197,8 @@ void main() {
       }
 
       final attempts = await Future.wait([
-        openShift(db1!, 'shift-concurrent-1', 'user-1'),
-        openShift(db2!, 'shift-concurrent-2', 'user-2'),
+        openShift(firstDb, 'shift-concurrent-1', 'user-1'),
+        openShift(secondDb, 'shift-concurrent-2', 'user-2'),
       ]);
 
       expect(attempts.where((accepted) => accepted).length, 1);
