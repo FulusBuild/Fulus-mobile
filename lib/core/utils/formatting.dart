@@ -17,8 +17,10 @@
 /// this is the shared copy every *other* feature now converges on.
 library;
 
-String formatMoney(num amount, {String symbol = '₦', bool showSign = false}) {
-  final money = amount is int ? amount / 100.0 : amount.toDouble();
+import 'package:fulus_mobile/core/money/money.dart';
+
+String formatMoney(Money amount, {String symbol = '₦', bool showSign = false}) {
+  final money = moneyToMajor(amount);
   final isNegative = money < 0;
   final fixed = money.abs().toStringAsFixed(2);
   final parts = fixed.split('.');
