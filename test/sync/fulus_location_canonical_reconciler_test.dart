@@ -4,7 +4,7 @@ import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/domain/entities/location.dart';
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 
-class _FakeLocationRepository implements LocationRepository {
+class _FakeProductRepository implements ProductRepository {
   String? serverId;
   String? name;
   DateTime? updatedAt;
@@ -48,7 +48,7 @@ FulusCanonicalEntityResponse _response(Map<String, dynamic> data) =>
 
 void main() {
   test('applies canonical location upsert', () async {
-    final repository = _FakeLocationRepository();
+    final repository = _FakeProductRepository();
     final reconciler = FulusLocationCanonicalReconciler(repository);
     await reconciler.apply(_response({
       'entity_type': 'location',
@@ -63,7 +63,7 @@ void main() {
   });
 
   test('applies canonical location delete', () async {
-    final repository = _FakeLocationRepository();
+    final repository = _FakeProductRepository();
     final reconciler = FulusLocationCanonicalReconciler(repository);
     await reconciler.apply(_response({'entity_type': 'location', 'entity_id': 'loc-1', 'operation': 'delete'}));
     expect(repository.deletes, 1);
@@ -71,7 +71,7 @@ void main() {
   });
 
   test('rejects a canonical response for another entity', () async {
-    final repository = _FakeLocationRepository();
+    final repository = _FakeProductRepository();
     final reconciler = FulusLocationCanonicalReconciler(repository);
     expect(
       () => reconciler.apply(_response({'entity_type': 'customer', 'entity_id': 'c-1', 'operation': 'upsert'})),
