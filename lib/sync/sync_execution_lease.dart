@@ -74,6 +74,24 @@ class SyncExecutionLease {
     }
   }
 
+  /// Releases a maintenance fence using a freshly reopened database.
+  ///
+  /// Restore replaces the SQLite file that backed this lease, so the original
+  /// [AppDatabase] cannot be used after close. The owner identity remains
+  /// stable for the lifetime of this lease object; the new connection is only
+  /// the persistence handle used to remove that owner's fence.
+  Future<void> releaseMaintenanceOn(AppDatabase db) async {
+    _maintenanceRenewalTimer?.cancel();
+    _maintenanceRenewalTimer = null;
+    if (!_maintenanceHeld) return;
+    await (db.delete(db.syncRuntimeLeases)
+          ..where((row) =>
+              row.name.equals(maintenanceLeaseName) &
+              row.ownerId.equals(_ownerId)))
+        .go();
+    _maintenanceHeld = false;
+  }
+
   Future<void> releaseMaintenance() async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
