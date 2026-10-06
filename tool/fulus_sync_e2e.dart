@@ -65,6 +65,22 @@ Future<void> main() async {
     );
   }
   stdout.writeln('PASS: numeric monetary request rejected by strict money wire contract');
+  final validMoneyWireProbe = await dio.post('', data: {
+    'action': 'sync_operation',
+    'business_id': businessId,
+    'operation_id': 'e2e-money-wire-valid-' + suffix,
+    'operation_type': 'money_wire_probe',
+    'payload': {'amount': '300.00'},
+  });
+  if ((validMoneyWireProbe.statusCode ?? 0) != 201 &&
+      (validMoneyWireProbe.statusCode ?? 0) != 200) {
+    throw StateError(
+      'Strict money wire rejected canonical decimal input: HTTP '
+      + (validMoneyWireProbe.statusCode ?? 0).toString()
+      + ' ' + validMoneyWireProbe.data.toString(),
+    );
+  }
+  stdout.writeln('PASS: canonical decimal monetary request accepted by strict money wire contract');
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final createOperationId = 'e2e-create-$suffix';
   final deleteOperationId = 'e2e-delete-$suffix';
