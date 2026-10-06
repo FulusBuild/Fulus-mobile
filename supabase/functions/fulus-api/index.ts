@@ -304,7 +304,14 @@ Deno.serve(async req => {
         },
       }, error.code === "42501" ? 403 : 500);
     }
-    return out({ data, server_authoritative: true });
+    // The restore RPC already emits every money-bearing field as a decimal string.
+    // Do not run the generic recursive money normalizer over the complete snapshot:
+    // production restores can be several megabytes, and cloning that payload before
+    // JSON serialization adds avoidable Edge Function CPU/memory pressure.
+    return new Response(
+      JSON.stringify({ data, server_authoritative: true }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
   }
 
   if (action === "revoke_own_device") {
