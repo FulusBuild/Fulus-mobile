@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,87 +92,124 @@ void main() {
     ));
   });
 
-  test('concurrent draft-cart creation cannot create two rows', () async {
-    await db.into(db.locations).insert(LocationsCompanion.insert(
-      localId: 'location-2',
-      name: 'Second',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-      syncStatus: SyncStatus.settled,
-    ));
+  test('separate SQLite connections cannot create two draft carts concurrently', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-cardinality-');
+    final path = '\${directory.path}/fulus.db';
+    AppDatabase? db1;
+    AppDatabase? db2;
+    try {
+      QueryExecutor openExecutor() => NativeDatabase(
+        File(path),
+        setup: (database) {
+          database.execute('PRAGMA busy_timeout=1000');
+        },
+      );
+      db1 = AppDatabase.forTesting(openExecutor());
+      db2 = AppDatabase.forTesting(openExecutor());
 
-    Future<bool> createCart(String id) async {
-      try {
-        await db.into(db.draftCarts).insert(DraftCartsCompanion.insert(
-          localId: id,
-          locationId: 'location-2',
-          createdAt: DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 1),
-        ));
-        return true;
-      } catch (_) {
-        return false;
-      }
-    }
+      await db1!.into(db1!.locations).insert(LocationsCompanion.insert(
+        localId: 'location-2',
+        name: 'Second',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
 
-    final attempts = await Future.wait([
-      createCart('cart-concurrent-1'),
-      createCart('cart-concurrent-2'),
-    ]);
-
-    expect(attempts.where((accepted) => accepted).length, 1);
-    expect(
-      await (db.select(db.draftCarts)
-            ..where((row) => row.locationId.equals('location-2')))
-          .get(),
-      hasLength(1),
-    );
-  });
-
-  test('concurrent open-shift creation cannot create two active rows', () async {
-    await db.into(db.locations).insert(LocationsCompanion.insert(
-      localId: 'location-3',
-      name: 'Third',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-      syncStatus: SyncStatus.settled,
-    ));
-
-    Future<bool> openShift(String id, String cashier) async {
-      try {
-        await db.into(db.cashDrawerShifts).insert(
-          CashDrawerShiftsCompanion.insert(
+      Future<bool> createCart(AppDatabase database, String id) async {
+        try {
+          await database.into(database.draftCarts).insert(DraftCartsCompanion.insert(
             localId: id,
-            serverId: const Value(null),
+            locationId: 'location-2',
             createdAt: DateTime(2026, 1, 1),
             updatedAt: DateTime(2026, 1, 1),
-            syncStatus: SyncStatus.settled,
-            cashierUserId: cashier,
-            locationId: 'location-3',
-            openedAt: DateTime(2026, 1, 1, 8),
-            closedAt: const Value(null),
-          ),
-        );
-        return true;
-      } catch (_) {
-        return false;
+          ));
+          return true;
+        } catch (_) {
+          return false;
+        }
       }
+
+      final attempts = await Future.wait([
+        createCart(db1!, 'cart-concurrent-1'),
+        createCart(db2!, 'cart-concurrent-2'),
+      ]);
+
+      expect(attempts.where((accepted) => accepted).length, 1);
+      expect(
+        await (db1!.select(db1!.draftCarts)
+              ..where((row) => row.locationId.equals('location-2')))
+            .get(),
+        hasLength(1),
+      );
+    } finally {
+      await db2?.close();
+      await db1?.close();
+      await directory.delete(recursive: true);
     }
-
-    final attempts = await Future.wait([
-      openShift('shift-concurrent-1', 'user-1'),
-      openShift('shift-concurrent-2', 'user-2'),
-    ]);
-
-    expect(attempts.where((accepted) => accepted).length, 1);
-    expect(
-      await (db.select(db.cashDrawerShifts)
-            ..where((row) =>
-                row.locationId.equals('location-3') &
-                row.closedAt.isNull()))
-          .get(),
-      hasLength(1),
-    );
   });
 
+  test('separate SQLite connections cannot create two open shifts concurrently', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-cardinality-');
+    final path = '\${directory.path}/fulus.db';
+    AppDatabase? db1;
+    AppDatabase? db2;
+    try {
+      QueryExecutor openExecutor() => NativeDatabase(
+        File(path),
+        setup: (database) {
+          database.execute('PRAGMA busy_timeout=1000');
+        },
+      );
+      db1 = AppDatabase.forTesting(openExecutor());
+      db2 = AppDatabase.forTesting(openExecutor());
+
+      await db1!.into(db1!.locations).insert(LocationsCompanion.insert(
+        localId: 'location-3',
+        name: 'Third',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+
+      Future<bool> openShift(AppDatabase database, String id, String cashier) async {
+        try {
+          await database.into(database.cashDrawerShifts).insert(
+            CashDrawerShiftsCompanion.insert(
+              localId: id,
+              serverId: const Value(null),
+              createdAt: DateTime(2026, 1, 1),
+              updatedAt: DateTime(2026, 1, 1),
+              syncStatus: SyncStatus.settled,
+              cashierUserId: cashier,
+              locationId: 'location-3',
+              openedAt: DateTime(2026, 1, 1, 8),
+              closedAt: const Value(null),
+            ),
+          );
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      final attempts = await Future.wait([
+        openShift(db1!, 'shift-concurrent-1', 'user-1'),
+        openShift(db2!, 'shift-concurrent-2', 'user-2'),
+      ]);
+
+      expect(attempts.where((accepted) => accepted).length, 1);
+      expect(
+        await (db1!.select(db1!.cashDrawerShifts)
+              ..where((row) =>
+                  row.locationId.equals('location-3') &
+                  row.closedAt.isNull()))
+            .get(),
+        hasLength(1),
+      );
+    } finally {
+      await db2?.close();
+      await db1?.close();
+      await directory.delete(recursive: true);
+    }
+  });
 }
