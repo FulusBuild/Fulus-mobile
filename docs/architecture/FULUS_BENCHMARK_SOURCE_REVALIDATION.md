@@ -212,3 +212,16 @@ Runtime caveat remains unchanged: this source hardening does not claim physical 
 - P1 DB cardinality hardening: schema v21 now enforces one draft cart per location and one open cash-drawer shift per location with non-destructive duplicate preflight during upgrade. Sequential and concurrent persistence regressions are present; this supersedes the historical P05-002/P05-003 source findings.
 - CI analyzer cleanup: removed the final redundant non-null assertion in the restore-fence regression (`restoredDb!`).
 - Remaining gates are evidence/configuration only: Android WorkManager/process-death, physical restore/reopen/upgrade, multi-device runtime convergence, UI runtime evidence, and production Auth leaked-password protection.
+
+
+## 2026-10-06 — P2 source revalidation record
+
+P2 was source-audited against current `main` at class/function level. The review confirms that the implementation benchmark's historical P2 list contains both already-closed items and remaining simplification/evidence work.
+
+- **State management — source closed.** Riverpod is the primary model; `flutter_bloc/Cubit` is confined to `lib/features/sell/`. `test/architecture/state_management_boundary_test.dart` mechanically enforces that boundary.
+- **DB cardinality — source closed.** Schema v21 enforces one draft cart per location and one open cash-drawer shift per location using database uniqueness/partial uniqueness, with duplicate preflight and sequential/concurrent regressions. Historical P05-002/P05-003 are superseded.
+- **Coordination layers — no new defect proven.** `SyncService`, `SyncTriggers`, `SyncCycleRunner`, `SyncEngine`, `SyncExecutionLease`, and `SyncRestoreReconciliationGate` have distinct ownership boundaries in the current call path. The correct action is a permanent no-new-coordinator guardrail, not another blanket simplification pass.
+- **Historical comments — maintainability debt remains.** Source still contains development-history comments. They should be cleaned opportunistically while preserving current invariant/why documentation; this is not a production correctness blocker.
+- **Architecture fitness — partial.** Scenario-level reliability tests are extensive and the state-management boundary has a dedicated architecture test. A broader set of mechanically enforceable implementation rules is still not covered by dedicated architecture fitness tests.
+
+**P2 source verdict: 🟢/🟡. No P2 correctness blocker proven. Remaining P2 work is primarily architecture-fitness expansion and opportunistic source-history cleanup.**
