@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/supplier.dart';
@@ -56,7 +57,7 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
         ),
         data: (suppliers) {
           final filtered = _filter(suppliers);
-          final outstanding = suppliers.fold<double>(0, (sum, supplier) => sum + supplier.outstandingBalance);
+          final outstanding = suppliers.fold<Money>(zeroMoney, (sum, supplier) => sum + supplier.outstandingBalance);
           return LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
@@ -120,7 +121,7 @@ class _SupplierOverview extends StatelessWidget {
   const _SupplierOverview({required this.count, required this.outstanding, required this.currencySymbol});
 
   final int count;
-  final double outstanding;
+  final Money outstanding;
   final String currencySymbol;
 
   @override
