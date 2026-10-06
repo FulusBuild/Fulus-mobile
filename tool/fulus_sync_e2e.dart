@@ -81,6 +81,33 @@ Future<void> main() async {
     );
   }
   stdout.writeln('PASS: canonical decimal monetary request accepted by strict money wire contract');
+  final submitOperationMoneyWireProbe = await dio.post('', data: {
+    'action': 'sale_create',
+    'business_id': businessId,
+    'operation_id': 'e2e-money-wire-submit-invalid-\$suffix',
+    'client_reference': 'e2e-money-wire-submit-invalid-\$suffix',
+    'payments': [
+      {'method': 'cash', 'amount': '1.00', 'tendered_amount': 2},
+    ],
+    'items': const [],
+  });
+  final submitOperationMoneyWireStatus = submitOperationMoneyWireProbe.statusCode ?? 0;
+  final submitOperationMoneyWireError = submitOperationMoneyWireProbe.data is Map
+      ? (submitOperationMoneyWireProbe.data as Map)['error']
+      : null;
+  final submitOperationMoneyWireCode = submitOperationMoneyWireError is Map
+      ? submitOperationMoneyWireError['code']
+      : null;
+  if (submitOperationMoneyWireStatus != 400 ||
+      submitOperationMoneyWireCode != 'INVALID_MONEY_WIRE') {
+    throw StateError(
+      'Strict money wire did not protect the real sale.submitOperation path: HTTP '
+      '\$submitOperationMoneyWireStatus \${submitOperationMoneyWireProbe.data}',
+    );
+  }
+  stdout.writeln(
+    'PASS: numeric tendered_amount rejected on the flattened sale.submitOperation path',
+  );
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final createOperationId = 'e2e-create-$suffix';
   final deleteOperationId = 'e2e-delete-$suffix';
@@ -152,7 +179,7 @@ Future<void> main() async {
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
-        {'method': 'cash', 'amount': '321.00'},
+        {'method': 'cash', 'amount': '321.00', 'tendered_amount': '321.00'},
       ],
       'items': [
         {
@@ -183,7 +210,7 @@ Future<void> main() async {
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
-        {'method': 'cash', 'amount': 321},
+        {'method': 'cash', 'amount': '321.00', 'tendered_amount': '321.00'},
       ],
       'items': [
         {
