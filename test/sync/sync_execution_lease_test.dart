@@ -128,7 +128,7 @@ void main() {
           'stdout=${blockedProbe.stdout} stderr=${blockedProbe.stderr}',
     );
 
-    await maintenance.releaseMaintenanceOn(restoredDb!);
+    await maintenance.releaseMaintenanceOn(restoredDb);
     fenceReleased = true;
 
     final releasedProbe = await runProbe('acquire');
