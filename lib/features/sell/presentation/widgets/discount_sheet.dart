@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -158,7 +159,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
                 // Responsive UI audit — Flexible+ellipsis on the value side.
                 Flexible(
                   child: Text(
-                    formatMoney(resultingTotal, symbol: widget.currencySymbol),
+                    formatMoney(moneyFromMajor(resultingTotal), symbol: widget.currencySymbol),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
@@ -205,7 +206,7 @@ class _DiscountSheetState extends State<DiscountSheet> {
       return;
     }
     if (amount > widget.baseAmount) {
-      setState(() => _error = "Discount can't be more than ${formatMoney(widget.baseAmount, symbol: widget.currencySymbol)}.");
+      setState(() => _error = "Discount can't be more than ${formatMoney(moneyFromMajor(widget.baseAmount), symbol: widget.currencySymbol)}.");
       return;
     }
     setState(() {
