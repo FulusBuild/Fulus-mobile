@@ -544,7 +544,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // hydration instead of inventing a second sync mechanism.
     onContextChangeReconciled: () async {
       if (!syncConfig.isEnabled) return;
-      await productRepository.hydrateActiveLocationStockFromServer();
+      final acquired = await syncExecutionLease.acquire();
+      if (!acquired) {
+        throw const SyncExecutionLeaseLost();
+      }
+      try {
+        await productRepository.hydrateActiveLocationStockFromServer();
+      } finally {
+        await syncExecutionLease.release();
+      }
     },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
