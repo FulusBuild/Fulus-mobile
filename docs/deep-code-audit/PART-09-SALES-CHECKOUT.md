@@ -144,18 +144,18 @@ The return path was cross-checked for transaction boundaries, quantity eligibili
 ### P09-001
 
 **Severity:** High
-**Status:** Deferred to Part 10
+**Status:** Fixed in source; runtime verification pending
 **Area:** Sale payment/tender contract
 
-Observed behavior: Cash overpayment is allowed locally to represent change. Local payment rows and Sale.amountPaid retain the tendered cash, while the cloud V2 command requires payment legs to equal the sale total and server amount_paid is capped at the total.
+Historical behavior allowed cash overpayment to be represented as applied payment. Current checkout preserves the physical tender separately, caps applied cash at the remaining balance, and the cloud RPC persists tender/change independently.
 
 Expected invariant: A valid cash sale with change must remain syncable without losing tender/change information, and local/cloud cash-ledger semantics must agree.
 
-Impact: A legitimate cash checkout can succeed locally while becoming a permanently rejected sync item.
+Impact: The historical local/cloud mismatch is closed in source; live offline→sync proof remains.
 
 Evidence: CartCubit.addPayment, Sale.changeDue, DraftCartRepositoryImpl.completeSale, fulus_api_create_sale_atomic_v2, and create_sale_atomic were traced end-to-end.
 
-Fix ownership: Part 10, together with X-005/X-007, before changing persisted monetary semantics.
+Fix: CartCubit, draft-cart payment persistence, Sale/SalePayment, and cloud sale V2 now share the same tender/applied/change contract.
 
 ### P09-002
 
@@ -173,8 +173,8 @@ Cross-check: Product creation establishes a local stock-level row, so the previo
 
 ## Cross-cutting handoff
 
-- X-005: integer-safe money remains owned by Part 10.
-- X-007: local/cloud sale arithmetic and payment semantics remain open; Part 09 supplies the concrete cash-change reproduction.
+- X-005: integer-safe money is closed in source; runtime evidence remains.
+- X-007/X-008: local/cloud sale and tender/change contracts are closed in source; runtime evidence remains.
 - Part 11: stock event semantics should cross-check the tracksStock contract and the new local sale guard.
 - Part 12: customer-credit allocation/reversal should cross-check split credit payment semantics.
 - Part 13: cloud sale validation/idempotency contract is authoritative for retry safety.
@@ -192,7 +192,7 @@ Cross-check: Product creation establishes a local stock-level row, so the previo
 ## Remaining uncertainty
 
 - Exact Android/device evidence for cash-tender/change during an offline-to-online transition remains pending.
-- Part 10 must define the canonical integer unit and persisted representation before P09-001 can be closed.
+- Part 10's integer unit and persisted representation are now implemented; runtime upgrade/convergence evidence remains.
 - Part 11 should independently verify sale/return stock-event semantics after this local guard.
 
 ## Handoff
