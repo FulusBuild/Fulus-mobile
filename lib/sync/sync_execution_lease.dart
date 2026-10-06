@@ -258,6 +258,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
+      await _releaseHeldProcessLock();
       throw const SyncExecutionLeaseLost();
     }
   }
