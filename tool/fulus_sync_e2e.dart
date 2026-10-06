@@ -523,11 +523,13 @@ Future<void> main() async {
     stdout.writeln('PASS: customer.create');
 
     final creditSaleOperationId = 'e2e-credit-sale-' + suffix;
-    final creditSaleFeedBefore = await _customerBalanceFeedSequence(
-      dio,
-      businessId: businessId,
-      customerId: customerId,
-    );
+    final creditSaleFeedBefore = (customerData?['sync_sequence'] as num?)?.toInt();
+    if (creditSaleFeedBefore == null || creditSaleFeedBefore <= 0) {
+      throw StateError(
+        'customer.create returned no authoritative sync sequence: ' +
+        customerResponse.data.toString(),
+      );
+    }
     final creditSale = await dio.post('', data: {
       'action': 'sale_create',
       'business_id': businessId,
@@ -570,11 +572,13 @@ Future<void> main() async {
       label: 'credit sale customer balance',
     );
 
-    final salePaymentFeedBefore = await _customerBalanceFeedSequence(
-      dio,
-      businessId: businessId,
-      customerId: customerId,
-    );
+    final salePaymentFeedBefore = (creditSaleData?['sync_sequence'] as num?)?.toInt();
+    if (salePaymentFeedBefore == null || salePaymentFeedBefore <= 0) {
+      throw StateError(
+        'credit sale returned no authoritative sync sequence: ' +
+        creditSale.data.toString(),
+      );
+    }
     final salePayment = await dio.post('', data: {
       'action': 'sale_payment',
       'business_id': businessId,
@@ -603,11 +607,13 @@ Future<void> main() async {
       label: 'sale payment customer balance',
     );
 
-    final repaymentFeedBefore = await _customerBalanceFeedSequence(
-      dio,
-      businessId: businessId,
-      customerId: customerId,
-    );
+    final repaymentFeedBefore = (salePaymentData?['sync_sequence'] as num?)?.toInt();
+    if (repaymentFeedBefore == null || repaymentFeedBefore <= 0) {
+      throw StateError(
+        'sale.payment returned no authoritative sync sequence: ' +
+        salePayment.data.toString(),
+      );
+    }
     final repayment = await dio.post('', data: {
       'action': 'customer_repayment',
       'business_id': businessId,
@@ -738,12 +744,7 @@ Future<void> main() async {
     _expect2xx(drawerClose, 'cash_drawer.close');
     stdout.writeln('PASS: cash_drawer.close');
 
-    final productChangeSequence = await _findChangeSequence(
-      dio,
-      businessId: businessId,
-      entityType: 'product',
-      entityId: serverId,
-    );
+    final productChangeSequence = createSequence.toInt();
 
     // Regression for the real-device failure: every stock movement change
     // must carry replayable timestamps. The server migration now enriches
@@ -833,12 +834,15 @@ Future<void> main() async {
       // Adversarial OCC race: two concurrent requests edit the same entity
       // from the same observed cursor. Exactly one must commit; the second
       // must re-check the feed after waiting on the entity row lock.
-      final concurrentBaseCursor = await _findChangeSequence(
-        dio,
-        businessId: businessId,
-        entityType: 'product',
-        entityId: serverId,
-      );
+      final validUpdateData = _actionData(validUpdate);
+      final concurrentBaseCursor =
+          (validUpdateData?['sync_sequence'] as num?)?.toInt();
+      if (concurrentBaseCursor == null || concurrentBaseCursor <= 0) {
+        throw StateError(
+          'valid product.update returned no authoritative sync sequence: ' +
+          validUpdate.data.toString(),
+        );
+      }
       final concurrentCatalogResults = await Future.wait([
         _submitCatalog(
           dio,
@@ -1030,12 +1034,23 @@ Future<void> main() async {
 
     // Tombstone race: delete on device A, then prove device B cannot
     // resurrect its stale local copy with a pre-delete cursor.
-    final preDeleteSequence = await _findChangeSequence(
-      dio,
-      businessId: businessId,
-      entityType: 'product',
-      entityId: serverId,
-    );
+    final successfulConcurrentSequences = concurrentCatalogResults
+        .where((response) {
+          final status = response.statusCode ?? 0;
+          return status >= 200 && status < 300;
+        })
+        .map((response) => _actionData(response)?['sync_sequence'])
+        .whereType<num>()
+        .map((sequence) => sequence.toInt())
+        .where((sequence) => sequence > 0)
+        .toList(growable: false);
+    if (successfulConcurrentSequences.length != 1) {
+      throw StateError(
+        'Concurrent catalog OCC race returned no unique authoritative success sequence: ' +
+        concurrentCatalogResults.map((response) => response.data).toList().toString(),
+      );
+    }
+    final preDeleteSequence = successfulConcurrentSequences.single;
     if (preDeleteSequence <= 0) {
       throw StateError('Unable to establish the product cursor before tombstone test.');
     }
@@ -1270,81 +1285,6 @@ Future<Response<dynamic>> _submitCatalog(
   );
 }
 
-Future<int> _findChangeSequence(
-  Dio dio, {
-  required String businessId,
-  required String entityType,
-  required String entityId,
-}) async {
-  // The mutation endpoint can acknowledge the write before the change-feed
-  // projection is visible. Poll the retained feed briefly rather than turning
-  // that normal propagation window into a flaky CI failure.
-  for (var attempt = 0; attempt < 8; attempt++) {
-    var cursor = 0;
-    const limit = 500;
-    var recoveredFromRetention = false;
-    var latestSequence = 0;
-    for (;;) {
-      final response = await dio.get(
-        '',
-        queryParameters: {
-          'business_id': businessId,
-          'cursor': cursor,
-          'limit': limit,
-        },
-      );
-      final status = response.statusCode ?? 0;
-      if (status == 410 && !recoveredFromRetention) {
-        final root = response.data;
-        final error = root is Map ? root['error'] : null;
-        final oldest = error is Map ? error['oldest_sequence'] : null;
-        final bootstrapRequired = error is Map && error['bootstrap_required'] == true;
-        if (bootstrapRequired && oldest is num) {
-          cursor = max(0, oldest.toInt() - 1);
-          recoveredFromRetention = true;
-          continue;
-        }
-      }
-      if (status < 200 || status >= 300) {
-        throw StateError(
-          'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
-        );
-      }
-      final root = response.data;
-      final data = root is Map ? root['data'] : null;
-      if (data is! Map) {
-        throw StateError('E2E change-feed response did not contain data.');
-      }
-      final changes = data['changes'];
-      if (changes is! List) {
-        throw StateError('E2E change-feed response did not contain changes.');
-      }
-      for (final raw in changes) {
-        if (raw is Map &&
-            raw['entity_type'] == entityType &&
-            raw['entity_id'] == entityId) {
-          final sequence = raw['sequence'];
-          if (sequence is num) {
-            final value = sequence.toInt();
-            latestSequence = max(latestSequence, value);
-          }
-        }
-      }
-      final next = data['next_cursor'];
-      final hasMore = data['has_more'] == true;
-      if (!hasMore || next is! num || next.toInt() <= cursor) break;
-      cursor = next.toInt();
-    }
-    if (latestSequence > 0) return latestSequence;
-    if (attempt < 7) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-    }
-  }
-  throw StateError(
-    'E2E could not locate the test entity in the retained change feed.',
-  );
-}
-
 Future<Response<dynamic>> _submitSyncOperation(
   Dio dio, {
   required String businessId,
@@ -1489,22 +1429,6 @@ Future<void> _revokeEphemeralDevice({
 }
 
 
-
-Future<int> _customerBalanceFeedSequence(
-  Dio dio, {
-  required String businessId,
-  required String customerId,
-}) async {
-  // Find the latest authoritative customer event directly from the retained
-  // feed. The restore snapshot boundary is a recovery boundary, not a reliable
-  // "latest event for this entity" marker on a long-lived E2E business.
-  return _findChangeSequence(
-    dio,
-    businessId: businessId,
-    entityType: 'customer',
-    entityId: customerId,
-  );
-}
 
 Future<void> _verifyCustomerBalanceFeedChange(
   Dio dio, {
