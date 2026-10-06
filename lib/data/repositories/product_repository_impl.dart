@@ -135,7 +135,7 @@ class ProductRepositoryImpl implements ProductRepository {
                 ..where((s) =>
                     s.productLocalId.equals(product.localId) &
                     s.locationLocalId.equals(location.localId) &
-                    s.syncStatus.equals(SyncStatus.settled)))
+                    s.syncStatus.equalsValue(SyncStatus.settled)))
               .write(
                 item.toStockLevelCompanion(
                   locationLocalId: location.localId,
