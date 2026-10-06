@@ -788,6 +788,7 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: stock movement change feed carries valid timestamps');
 
+    // Sequence is captured from authoritative mutation responses, avoiding retained-feed rescans.
     int? latestProductChangeSequence;
     if (productChangeSequence > 0) {
       final staleCursor = productChangeSequence - 1;
