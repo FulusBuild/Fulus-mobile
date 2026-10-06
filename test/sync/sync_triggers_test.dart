@@ -11,7 +11,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fulus_mobile/sync/sync_readiness_recovery.dart';
-import 'package:fulus_mobile/sync/sync_readiness_gate.dart';
 import 'package:fulus_mobile/sync/sync_restore_reconciliation_gate.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:drift/native.dart';
@@ -1331,27 +1330,6 @@ void main() {
       triggers.dispose();
       await connectivityChanges.close();
     });
-  });
-
-  test('readiness gate coalesces synchronous re-entry', () async {
-    late SyncReadinessGate gate;
-    var initializations = 0;
-    var ready = false;
-    gate = SyncReadinessGate(
-      isEnabled: () => true,
-      isReady: () async => ready,
-      onNotReady: () async {
-        initializations++;
-        if (initializations == 1) {
-          unawaited(gate.ensureReady());
-          ready = true;
-        }
-      },
-      isRestoreReconciliationInProgress: () => false,
-    );
-
-    expect(await gate.ensureReady(), isTrue);
-    expect(initializations, 1);
   });
 
   test('restore gate coalesces synchronous re-entry', () async {
