@@ -230,6 +230,40 @@ Deno.serve(async req => {
 
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return out({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON" } }, 400); }
+
+  // Monetary request fields are a strict decimal-string wire contract.
+  // Reject JSON numbers before any RPC conversion: a value such as 300 is
+  // ambiguous between 300 major units and 300 minor units. This validation
+  // also applies recursively to sale items and generic payloads.
+  const invalidMoneyField = (value: unknown): string | null => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const invalid = invalidMoneyField(item);
+        if (invalid) return invalid;
+      }
+      return null;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        if (MONEY_WIRE_KEYS.has(key) && child != null) {
+          if (typeof child !== "string" || !/^-?\d+\.\d{2}$/.test(child.trim())) return key;
+        }
+        const invalid = invalidMoneyField(child);
+        if (invalid) return invalid;
+      }
+    }
+    return null;
+  };
+  const invalidMoney = invalidMoneyField(b);
+  if (invalidMoney) {
+    return out({
+      error: {
+        code: "INVALID_MONEY_WIRE",
+        message: `Monetary field "${invalidMoney}" must be a decimal string with exactly two decimals`,
+      },
+    }, 400);
+  }
+
   const action = typeof b.action === "string" ? b.action : null;
 
   if (action === "create_business") {
