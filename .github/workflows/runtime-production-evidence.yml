@@ -113,25 +113,3 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: bash tool/verify_supabase_migration_history.sh
 
-  physical-android-gate:
-    name: Physical Android evidence gate
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    needs:
-      - money-contract
-      - live-auth-contract
-      - live-sync-contract
-      - live-multi-device
-      - production-migration-history
-    steps:
-      - name: Report physical evidence remains manual
-        run: |
-          echo "Automated evidence jobs completed."
-          echo "Physical Android proof is intentionally not represented as a green CI claim."
-          echo "Required manual scenarios:"
-          echo "1. Offline sale -> force-stop/process death -> reopen -> WorkManager recovery -> one remote effect."
-          echo "2. Fresh-install restore -> restart/reopen -> canonical convergence."
-          echo "3. Location A -> B with pending/in-flight A mutation -> verify isolation."
-          echo "4. Signed APK install/upgrade with representative existing money data."
-          echo "5. Cold/warm navigation and first-frame verification."
-          exit 0
