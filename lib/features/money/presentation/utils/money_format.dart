@@ -1,3 +1,5 @@
+import '../../../../core/money/money.dart';
+
 /// Thousands-separated currency formatting. Money is never compacted into K/M/B.
 /// No `intl` dependency added
 /// — per this codebase's own "avoid new dependencies unless genuinely
