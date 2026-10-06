@@ -9,13 +9,14 @@ const _dbPath = String.fromEnvironment('FULUS_SYNC_PROBE_DB_PATH');
 const _mode = String.fromEnvironment('FULUS_SYNC_PROBE_MODE');
 
 void main() {
-  test('cross-process sync lease probe', () async {
-    if (_dbPath.isEmpty || _mode.isEmpty) {
-      fail('FULUS_SYNC_PROBE_DB_PATH and FULUS_SYNC_PROBE_MODE are required');
-    }
-    if (_mode != 'blocked' && _mode != 'acquire') {
-      fail('FULUS_SYNC_PROBE_MODE must be blocked or acquire');
-    }
+  final configured = _dbPath.isNotEmpty && _mode.isNotEmpty;
+
+  test(
+    'cross-process sync lease probe',
+    () async {
+      if (_mode != 'blocked' && _mode != 'acquire') {
+        fail('FULUS_SYNC_PROBE_MODE must be blocked or acquire');
+      }
 
     final db = AppDatabase.forTesting(
       NativeDatabase(
@@ -38,9 +39,13 @@ void main() {
         _mode == 'acquire',
         reason: 'mode=$_mode acquired=$acquired',
       );
-    } finally {
-      await lease.release();
-      await db.close();
-    }
-  });
+      } finally {
+        await lease.release();
+        await db.close();
+      }
+    },
+    skip: configured
+        ? null
+        : 'Probe is only executed by the cross-process parent test.',
+  );
 }
