@@ -82,7 +82,17 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
     // being "the app's working database again" is not the same claim as
     // "every existing repository now uses it."
     final fresh = AppDatabase.open();
-    _onReopened(fresh);
+    try {
+      _onReopened(fresh);
+    } catch (_) {
+      // The callback updates the application's database handle. If that
+      // handoff fails, do not leak the freshly opened connection while the
+      // maintenance fence remains held; the restore caller must be able to
+      // roll the file back and retry the reopen safely.
+      await fresh.close();
+      rethrow;
+    }
+
     final lease = _maintenanceLease;
     _maintenanceLease = null;
     if (lease != null) {
