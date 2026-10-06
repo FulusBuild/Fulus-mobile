@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
@@ -31,6 +32,7 @@ class SyncExecutionLease {
   final String _ownerId;
   Timer? _renewalTimer;
   Timer? _maintenanceRenewalTimer;
+  RandomAccessFile? _processLockFile;
   bool _held = false;
   bool _maintenanceHeld = false;
 
@@ -41,14 +43,19 @@ class SyncExecutionLease {
     if (_maintenanceHeld) return true;
     final deadline = DateTime.now().add(_acquisitionTimeout);
     while (true) {
-      final acquired = await _tryAcquireMaintenance();
-      if (acquired) {
-        _maintenanceHeld = true;
-        _maintenanceRenewalTimer ??= Timer.periodic(
-          _renewInterval,
-          (_) => unawaited(_renewMaintenance()),
-        );
-        return true;
+      final lock = await _tryAcquireProcessLock(shared: false);
+      if (lock != null) {
+        final acquired = await _tryAcquireMaintenance();
+        if (acquired) {
+          _maintenanceHeld = true;
+          _processLockFile = lock;
+          _maintenanceRenewalTimer ??= Timer.periodic(
+            _renewInterval,
+            (_) => unawaited(_renewMaintenance()),
+          );
+          return true;
+        }
+        await _releaseProcessLock(lock);
       }
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -84,24 +91,32 @@ class SyncExecutionLease {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
     if (!_maintenanceHeld) return;
-    await (db.delete(db.syncRuntimeLeases)
-          ..where((row) =>
-              row.name.equals(maintenanceLeaseName) &
-              row.ownerId.equals(_ownerId)))
-        .go();
-    _maintenanceHeld = false;
+    try {
+      await (db.delete(db.syncRuntimeLeases)
+            ..where((row) =>
+                row.name.equals(maintenanceLeaseName) &
+                row.ownerId.equals(_ownerId)))
+          .go();
+    } finally {
+      _maintenanceHeld = false;
+      await _releaseHeldProcessLock();
+    }
   }
 
   Future<void> releaseMaintenance() async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
     if (!_maintenanceHeld) return;
-    await (_db.delete(_db.syncRuntimeLeases)
-          ..where((row) =>
-              row.name.equals(maintenanceLeaseName) &
-              row.ownerId.equals(_ownerId)))
-        .go();
-    _maintenanceHeld = false;
+    try {
+      await (_db.delete(_db.syncRuntimeLeases)
+            ..where((row) =>
+                row.name.equals(maintenanceLeaseName) &
+                row.ownerId.equals(_ownerId)))
+          .go();
+    } finally {
+      _maintenanceHeld = false;
+      await _releaseHeldProcessLock();
+    }
   }
 
   Future<bool> acquire() async {
@@ -109,14 +124,19 @@ class SyncExecutionLease {
 
     final deadline = DateTime.now().add(_acquisitionTimeout);
     while (true) {
-      final acquired = await _tryAcquire();
-      if (acquired) {
-        _held = true;
-        _renewalTimer ??= Timer.periodic(
-          _renewInterval,
-          (_) => unawaited(_renew()),
-        );
-        return true;
+      final lock = await _tryAcquireProcessLock(shared: true);
+      if (lock != null) {
+        final acquired = await _tryAcquire();
+        if (acquired) {
+          _held = true;
+          _processLockFile = lock;
+          _renewalTimer ??= Timer.periodic(
+            _renewInterval,
+            (_) => unawaited(_renew()),
+          );
+          return true;
+        }
+        await _releaseProcessLock(lock);
       }
 
       if (!DateTime.now().isBefore(deadline)) return false;
@@ -216,14 +236,47 @@ class SyncExecutionLease {
     _renewalTimer = null;
     if (!_held) return;
 
-    await (_db.delete(_db.syncRuntimeLeases)
-          ..where(
-            (row) =>
-                row.name.equals(leaseName) &
-                row.ownerId.equals(_ownerId),
-          ))
-        .go();
-    _held = false;
+    try {
+      await (_db.delete(_db.syncRuntimeLeases)
+            ..where(
+              (row) =>
+                  row.name.equals(leaseName) &
+                  row.ownerId.equals(_ownerId),
+            ))
+          .go();
+    } finally {
+      _held = false;
+      await _releaseHeldProcessLock();
+    }
+  }
+
+  Future<RandomAccessFile?> _tryAcquireProcessLock({required bool shared}) async {
+    final dbPath = await AppDatabase.resolveDatabasePath();
+    final lockFile = File('$dbPath.sync-runtime.lock');
+    final handle = await lockFile.open(mode: FileMode.append);
+    try {
+      await handle.lock(shared ? FileLock.shared : FileLock.exclusive);
+      return handle;
+    } on FileSystemException {
+      await handle.close();
+      return null;
+    }
+  }
+
+  Future<void> _releaseProcessLock(RandomAccessFile handle) async {
+    try {
+      await handle.unlock();
+    } finally {
+      await handle.close();
+    }
+  }
+
+  Future<void> _releaseHeldProcessLock() async {
+    final handle = _processLockFile;
+    _processLockFile = null;
+    if (handle != null) {
+      await _releaseProcessLock(handle);
+    }
   }
 
   Duration get _renewInterval {
