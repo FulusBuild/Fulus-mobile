@@ -113,19 +113,35 @@ class ProductRepositoryImpl implements ProductRepository {
             .getSingleOrNull();
         if (product == null) continue;
 
-        final stockLevel = await (_db.select(_db.productStockLevels)
-              ..where((s) =>
-                  s.productLocalId.equals(product.localId) &
-                  s.locationLocalId.equals(location.localId)))
-            .getSingleOrNull();
-        // Never let a context-switch snapshot overwrite a locally pending
-        // stock mutation. The normal sync path owns settlement of pending
-        // stock state.
-        if (stockLevel?.syncStatus == SyncStatus.pending) continue;
+        await _db.transaction(() async {
+          final stockLevel = await (_db.select(_db.productStockLevels)
+                ..where((s) =>
+                    s.productLocalId.equals(product.localId) &
+                    s.locationLocalId.equals(location.localId)))
+              .getSingleOrNull();
+          // Never let a context-switch snapshot overwrite a locally pending
+          // stock mutation. The conditional update makes the check and write
+          // one SQLite operation boundary, so a pending local mutation cannot
+          // be replaced by a stale snapshot between the two statements.
+          if (stockLevel == null) {
+            await _db.into(_db.productStockLevels).insert(
+              item.toStockLevelCompanion(locationLocalId: location.localId),
+            );
+            return;
+          }
+          if (stockLevel.syncStatus == SyncStatus.pending) return;
 
-        await _db.into(_db.productStockLevels).insertOnConflictUpdate(
-          item.toStockLevelCompanion(locationLocalId: location.localId),
-        );
+          await (_db.update(_db.productStockLevels)
+                ..where((s) =>
+                    s.productLocalId.equals(product.localId) &
+                    s.locationLocalId.equals(location.localId) &
+                    s.syncStatus.equals(SyncStatus.settled)))
+              .write(
+                item.toStockLevelCompanion(
+                  locationLocalId: location.localId,
+                ),
+              );
+        });
       }
       page++;
     } while (page <= totalPages);
