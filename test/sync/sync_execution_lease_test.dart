@@ -117,11 +117,11 @@ void main() {
         'flutter',
         [
           'test',
-          'test/sync/sync_execution_lease_process_probe_test.dart',
           '--reporter',
           'expanded',
           '--dart-define=FULUS_SYNC_PROBE_DB_PATH=$path',
           '--dart-define=FULUS_SYNC_PROBE_MODE=$mode',
+          'test/sync/sync_execution_lease_process_probe_test.dart',
         ],
         workingDirectory: Directory.current.path,
       );
