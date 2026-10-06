@@ -164,8 +164,8 @@ void main() {
       );
       db1 = AppDatabase.forTesting(openExecutor());
       db2 = AppDatabase.forTesting(openExecutor());
-      final firstDb = db1!;
-      final secondDb = db2!;
+      final firstDb = db1;
+      final secondDb = db2;
 
       await firstDb.into(firstDb.locations).insert(LocationsCompanion.insert(
         localId: 'location-3',
