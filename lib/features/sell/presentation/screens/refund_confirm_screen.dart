@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/errors/failure.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../domain/entities/auth_user.dart';
@@ -169,8 +170,8 @@ class _RefundConfirmScreenState extends ConsumerState<RefundConfirmScreen> {
   /// discount field survives onto the persisted Sale/SaleItem the way
   /// it does on an in-progress CartItem, so there's nothing to subtract
   /// here even for an item that was discounted at sale time.
-  double _estimatedRefund(_ConfirmData data) {
-    double total = 0;
+  Money _estimatedRefund(_ConfirmData data) {
+    Money total = zeroMoney;
     for (final item in data.sale.items) {
       final qty = _selectedQuantities[item.productLocalId];
       if (qty == null || qty <= 0) continue;
