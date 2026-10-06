@@ -944,3 +944,55 @@ The remaining Android/runtime evidence is explicitly not converted into a source
 | CI | Final fatal analyzer warning in restore regression | Fixed | Removed redundant `restoredDb!` assertion |
 
 The benchmark now treats P05-002/P05-003 as source-fixed. Physical Android/runtime and production-configuration gates remain separate evidence items.
+
+
+## 2026-10-06 — P3 coordination ownership audit
+
+P3 was audited as an ownership/call-path problem, not as a mandate to delete coordinators.
+
+### Ownership map
+
+| Component | Actual owner | Distinct invariant | Verdict |
+|---|---|---|---|
+| `SyncService` | Application-facing sync lifecycle | One public lifecycle/readiness boundary | 🟢 KEEP |
+| `SyncTriggers` | Platform/event adapter | Converts lifecycle/connectivity/mutation events into runtime attempts | 🟢 KEEP |
+| `SyncCycleRunner` | One semantic sync cycle | Push → lease validation → pull → cursor recovery ordering | 🟢 KEEP |
+| `SyncEngine` | Durable outbound execution | Queue draining, handler dispatch, retry/idempotency | 🟢 KEEP |
+| `SyncExecutionLease` | Cross-runtime exclusion | Prevents concurrent destructive/sync execution across runtimes | 🟢 KEEP |
+| `SyncCycleExecutionGate` | Same-runtime cycle serialization | Coalesces in-flight cycles and post-cycle mutation wakeups | 🟢 KEEP |
+| `SyncConnectivityRunGate` | Same-runtime connectivity attempt serialization | Coalesces simultaneous lifecycle/connectivity/recovery attempts | 🟢 KEEP |
+| `SyncReadinessRecovery` | Deferred recovery timing | Waits until an active cycle yields before retrying readiness | 🟢 KEEP |
+| `SyncRestoreReconciliationGate` | Restore concurrency fence | Prevents normal readiness work from racing authoritative restore reconciliation | 🟢 KEEP |
+| `SyncReadinessGate` | Readiness initialization | Duplicated `SyncService` cloud-bootstrap coalescing | 🔴 REMOVED |
+
+### P3 finding
+
+The strongest proven redundancy was the old `SyncReadinessGate`.
+
+`SyncService` already owned:
+
+- the authoritative `SyncReadinessState`;
+- cloud-bootstrap lifecycle;
+- concurrent cloud-bootstrap coalescing through `_cloudBootstrapRun`;
+- readiness transitions and errors.
+
+`SyncTriggers` additionally maintained `SyncReadinessGate._initializationRun` around the same `SyncService.bootstrapCloud()` operation.
+
+That created two readiness-initialization mechanisms for one semantic operation. P3 therefore removes the duplicate gate and makes `SyncService.ensureReady()` the explicit service-owned readiness boundary. The trigger runtime now performs no second readiness state machine.
+
+### What was deliberately not merged
+
+The other gates are not interchangeable:
+
+- cycle serialization is different from cross-runtime leasing;
+- connectivity-attempt coalescing is different from actual cycle serialization;
+- restore fencing is different from ordinary readiness;
+- deferred readiness recovery is timing policy, not readiness ownership.
+
+Deleting those merely to reduce class count would remove explicit concurrency invariants rather than simplify the architecture.
+
+### Greenfield benchmark conclusion
+
+This is closer to the benchmark target: fewer coordination state machines, with each remaining object tied to a distinct invariant. The P3 standard is therefore **not "fewest classes"; it is "fewest owners necessary to make the invariants explicit."**
+
+The change is covered by service-level readiness-coalescing tests and the existing sync trigger/restore/recovery tests.
