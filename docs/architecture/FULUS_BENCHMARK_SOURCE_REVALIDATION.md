@@ -212,3 +212,46 @@ Runtime caveat remains unchanged: this source hardening does not claim physical 
 - P1 DB cardinality hardening: schema v21 now enforces one draft cart per location and one open cash-drawer shift per location with non-destructive duplicate preflight during upgrade. Sequential and concurrent persistence regressions are present; this supersedes the historical P05-002/P05-003 source findings.
 - CI analyzer cleanup: removed the final redundant non-null assertion in the restore-fence regression (`restoredDb!`).
 - Remaining gates are evidence/configuration only: Android WorkManager/process-death, physical restore/reopen/upgrade, multi-device runtime convergence, UI runtime evidence, and production Auth leaked-password protection.
+
+
+## 2026-10-06 — P3 source revalidation
+
+P3 was revalidated against the current source by tracing the coordination objects from `lib/app/bootstrap.dart` through their callers, delegated operations, concurrency state, and tests.
+
+### Result
+
+**P3 is partially implemented and source-verified. One genuine redundant state machine was removed.**
+
+The old `SyncReadinessGate` duplicated the readiness-bootstrap coalescing already provided by `SyncService._cloudBootstrapRun`. It has been removed. `SyncService.ensureReady()` is now the explicit readiness bootstrap boundary, and a regression test proves concurrent readiness requests share one bootstrap.
+
+The remaining coordination objects were individually checked:
+
+- `SyncService`: lifecycle/readiness authority.
+- `SyncTriggers`: event/platform adapter.
+- `SyncCycleRunner`: semantic push/pull cycle.
+- `SyncEngine`: durable outbound execution.
+- `SyncExecutionLease`: cross-runtime exclusion.
+- `SyncCycleExecutionGate`: same-runtime cycle serialization/follow-up.
+- `SyncConnectivityRunGate`: same-runtime connectivity-attempt coalescing.
+- `SyncReadinessRecovery`: deferred readiness-recovery timing.
+- `SyncRestoreReconciliationGate`: restore reconciliation concurrency fence.
+
+No evidence currently justifies merging the remaining gates without first changing or weakening one of these invariants.
+
+### P3 classification
+
+| Finding | Result |
+|---|---|
+| Duplicate readiness state machine | **Fixed** |
+| Duplicate cycle ownership | **Not found** |
+| Duplicate cross-runtime exclusion | **Not found** |
+| Duplicate connectivity-attempt ownership | **Not found** |
+| Duplicate restore fence ownership | **Not found** |
+| Duplicate readiness recovery timing | **Not found** |
+| Overall coordination-layer entropy | **Reduced, but still intentionally non-zero** |
+
+This means P3 should continue as a controlled simplification exercise rather than a broad coordinator rewrite.
+
+### Remaining P3 proof
+
+CI must prove the branch after removal of `SyncReadinessGate`. If CI remains green, the source-level P3 finding is closed for this coordination cluster. Any further P3 simplification should require a newly demonstrated duplicated invariant or ownership ambiguity.
