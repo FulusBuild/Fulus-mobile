@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 import '../../core/money/money.dart';
 
@@ -160,7 +161,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
     }).length;
 
     final customers = await (_db.select(_db.customers)..where((c) => c.deletedAt.isNull())).get();
-    final pendingCredit = customers.fold<double>(0, (s, c) => s + c.outstandingBalance);
+    final pendingCredit = customers.fold<Money>(zeroMoney, (s, c) => s + c.outstandingBalance);
 
     // Real count now — SyncQueueItems is exactly "work not yet synced,"
     // one row per queued create/update/delete (SyncQueue, sync_queue.dart),
