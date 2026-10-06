@@ -26,7 +26,7 @@ String formatMoney(Money amount, {String symbol = '₦', bool showSign = false})
   }
 
   final sign = negative ? '-' : (showSign ? '+' : '');
-  return '\$sign\$symbol\${buffer.toString()}.$decimalPart';
+  return '$sign$symbol${buffer.toString()}.$decimalPart';
 }
 
 /// Compact "today / yesterday / 12 Mar" style date label for a
