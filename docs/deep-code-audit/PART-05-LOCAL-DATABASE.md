@@ -65,7 +65,7 @@ Several identifier columns are intentionally plain text rather than FKs and requ
 ### P05-001 — Floating-point monetary persistence
 
 **Severity:** High  
-**Status:** Deferred to Part 10 — Financial & Ledger Integrity
+**Status:** Closed in source; runtime upgrade/convergence evidence pending
 
 **Observed behavior**
 
