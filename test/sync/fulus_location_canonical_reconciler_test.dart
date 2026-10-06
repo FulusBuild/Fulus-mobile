@@ -40,7 +40,7 @@ class _FakeLocationRepository implements LocationRepository {
   @override
   Future<void> markSynced({required String localId, required String serverId, String? operationId}) => throw UnimplementedError();
   @override
-  Future<void> hydrateActiveLocationStockFromServer() => throw UnimplementedError();
+  Future<void> syncFromServer() => throw UnimplementedError();
 }
 
 FulusCanonicalEntityResponse _response(Map<String, dynamic> data) =>
@@ -48,7 +48,7 @@ FulusCanonicalEntityResponse _response(Map<String, dynamic> data) =>
 
 void main() {
   test('applies canonical location upsert', () async {
-    final repository = _FakeProductRepository();
+    final repository = _FakeLocationRepository();
     final reconciler = FulusLocationCanonicalReconciler(repository);
     await reconciler.apply(_response({
       'entity_type': 'location',
@@ -63,7 +63,7 @@ void main() {
   });
 
   test('applies canonical location delete', () async {
-    final repository = _FakeProductRepository();
+    final repository = _FakeLocationRepository();
     final reconciler = FulusLocationCanonicalReconciler(repository);
     await reconciler.apply(_response({'entity_type': 'location', 'entity_id': 'loc-1', 'operation': 'delete'}));
     expect(repository.deletes, 1);
@@ -71,7 +71,7 @@ void main() {
   });
 
   test('rejects a canonical response for another entity', () async {
-    final repository = _FakeProductRepository();
+    final repository = _FakeLocationRepository();
     final reconciler = FulusLocationCanonicalReconciler(repository);
     expect(
       () => reconciler.apply(_response({'entity_type': 'customer', 'entity_id': 'c-1', 'operation': 'upsert'})),
