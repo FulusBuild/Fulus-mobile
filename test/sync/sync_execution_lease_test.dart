@@ -120,13 +120,10 @@ void main() {
           'test/sync/sync_execution_lease_process_probe_test.dart',
           '--reporter',
           'expanded',
+          '--dart-define=FULUS_SYNC_PROBE_DB_PATH=$path',
+          '--dart-define=FULUS_SYNC_PROBE_MODE=$mode',
         ],
         workingDirectory: Directory.current.path,
-        environment: {
-          ...Platform.environment,
-          'FULUS_SYNC_PROBE_DB_PATH': path,
-          'FULUS_SYNC_PROBE_MODE': mode,
-        },
       );
     }
 
