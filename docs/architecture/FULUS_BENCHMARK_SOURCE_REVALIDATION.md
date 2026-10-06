@@ -205,3 +205,10 @@ This continuation followed **Inventory → Trace → Inspect → Prove → Class
 The repository already proved code generation and static analysis after the initial source fix. The first post-fix CI failure was the obsolete same-process restore-fence test; that test has been replaced with a separate OS-process probe. Final CI status must be rechecked after the latest hardening commits.
 
 Runtime caveat remains unchanged: this source hardening does not claim physical Android process-death/restore evidence or full live multi-device convergence without those observations.
+
+
+2026-10-06 — PR #179 cardinality/analyzer continuation
+
+- P1 DB cardinality hardening: schema v21 now enforces one draft cart per location and one open cash-drawer shift per location with non-destructive duplicate preflight during upgrade. Sequential and concurrent persistence regressions are present; this supersedes the historical P05-002/P05-003 source findings.
+- CI analyzer cleanup: removed the final redundant non-null assertion in the restore-fence regression (`restoredDb!`).
+- Remaining gates are evidence/configuration only: Android WorkManager/process-death, physical restore/reopen/upgrade, multi-device runtime convergence, UI runtime evidence, and production Auth leaked-password protection.
