@@ -47,7 +47,7 @@ void main() {
     await secondLease.release();
   });
 
-  test('maintenance fence waits for sync and blocks new sync', () async {
+  test('same runtime maintenance fence waits for active sync and blocks new sync', () async {
     final activeSync = SyncExecutionLease(
       db,
       acquisitionTimeout: const Duration(milliseconds: 100),
