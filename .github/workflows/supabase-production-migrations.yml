@@ -127,6 +127,9 @@ jobs:
       - name: Link production project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
+      - name: Repair known legacy production migration history
+        run: bash tool/repair_supabase_migration_history.sh
+
       - name: Verify exact production migration history
         run: bash tool/verify_supabase_migration_history.sh
 
