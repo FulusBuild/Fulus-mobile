@@ -103,6 +103,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       migration_changed: ${{ steps.scope.outputs.migration_changed }}
+      cloud_changed: ${{ steps.scope.outputs.cloud_changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -123,6 +124,12 @@ jobs:
             echo "migration_changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "migration_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- 'supabase/functions/**' 'supabase/migrations/**' 'supabase/config.toml' | grep -q .; then
+            echo "cloud_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cloud_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
   dependencies:
@@ -219,7 +226,22 @@ jobs:
   fulus_e2e:
     name: Fulus live sync contract test
     needs: [test, change_scope]
-    if: needs.test.result == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_fulus_e2e == true))
+    # PRs do not deploy Edge Functions to production. When cloud code changes,
+    # running this live contract test against the previous production deployment
+    # would test the wrong revision and can report a false failure. Production
+    # deployment runs the same contract after deploying the reviewed main SHA.
+    if: >-
+      needs.test.result == 'success' &&
+      (
+        (
+          github.event_name == 'pull_request' &&
+          needs.change_scope.outputs.cloud_changed != 'true'
+        ) ||
+        (
+          github.event_name == 'workflow_dispatch' &&
+          inputs.run_fulus_e2e == true
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
