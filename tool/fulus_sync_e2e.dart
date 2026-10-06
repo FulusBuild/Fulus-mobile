@@ -1221,7 +1221,7 @@ Future<int> _findChangeSequence(
     const limit = 500;
     var recoveredFromRetention = false;
     var latestSequence = 0;
-    for (var page = 0; page < 20; page++) {
+    for (;;) {
       final response = await dio.get(
         '',
         queryParameters: {
