@@ -77,6 +77,7 @@ void main() {
       db: db,
       productsApi: MockProductsApi(),
       syncQueue: syncQueue,
+      executionLease: SyncExecutionLease(db),
     );
     saleRepository = SaleRepositoryImpl(
       db: db,
