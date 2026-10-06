@@ -42,21 +42,29 @@ class SyncExecutionLease {
   Future<bool> acquireMaintenance() async {
     if (_maintenanceHeld) return true;
     final deadline = DateTime.now().add(_acquisitionTimeout);
+    final processLockFile = await _resolveProcessLockFile();
     while (true) {
-      final lock = await _tryAcquireProcessLock(shared: false);
-      if (lock != null) {
-        final acquired = await _tryAcquireMaintenance();
-        if (acquired) {
-          _maintenanceHeld = true;
-          _processLockFile = lock;
-          _maintenanceRenewalTimer ??= Timer.periodic(
-            _renewInterval,
-            (_) => unawaited(_renewMaintenance()),
-          );
-          return true;
+      RandomAccessFile? lock;
+      if (processLockFile != null) {
+        lock = await _tryAcquireProcessLock(processLockFile, shared: false);
+        if (lock == null) {
+          if (!DateTime.now().isBefore(deadline)) return false;
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          continue;
         }
-        await _releaseProcessLock(lock);
       }
+
+      final acquired = await _tryAcquireMaintenance();
+      if (acquired) {
+        _maintenanceHeld = true;
+        _processLockFile = lock;
+        _maintenanceRenewalTimer ??= Timer.periodic(
+          _renewInterval,
+          (_) => unawaited(_renewMaintenance()),
+        );
+        return true;
+      }
+      if (lock != null) await _releaseProcessLock(lock);
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
@@ -123,21 +131,29 @@ class SyncExecutionLease {
     if (_held) return true;
 
     final deadline = DateTime.now().add(_acquisitionTimeout);
+    final processLockFile = await _resolveProcessLockFile();
     while (true) {
-      final lock = await _tryAcquireProcessLock(shared: true);
-      if (lock != null) {
-        final acquired = await _tryAcquire();
-        if (acquired) {
-          _held = true;
-          _processLockFile = lock;
-          _renewalTimer ??= Timer.periodic(
-            _renewInterval,
-            (_) => unawaited(_renew()),
-          );
-          return true;
+      RandomAccessFile? lock;
+      if (processLockFile != null) {
+        lock = await _tryAcquireProcessLock(processLockFile, shared: true);
+        if (lock == null) {
+          if (!DateTime.now().isBefore(deadline)) return false;
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          continue;
         }
-        await _releaseProcessLock(lock);
       }
+
+      final acquired = await _tryAcquire();
+      if (acquired) {
+        _held = true;
+        _processLockFile = lock;
+        _renewalTimer ??= Timer.periodic(
+          _renewInterval,
+          (_) => unawaited(_renew()),
+        );
+        return true;
+      }
+      if (lock != null) await _releaseProcessLock(lock);
 
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -250,7 +266,7 @@ class SyncExecutionLease {
     }
   }
 
-  Future<RandomAccessFile?> _tryAcquireProcessLock({required bool shared}) async {
+  Future<File?> _resolveProcessLockFile() async {
     // Resolve the actual SQLite file through the open connection rather than
     // path_provider. This keeps the lease usable by pure in-memory tests and
     // by temporary file-backed databases without requiring Flutter bindings.
@@ -263,7 +279,13 @@ class SyncExecutionLease {
       // needed when a real database file can be replaced.
       return null;
     }
-    final lockFile = File('$dbPath.sync-runtime.lock');
+    return File('$dbPath.sync-runtime.lock');
+  }
+
+  Future<RandomAccessFile?> _tryAcquireProcessLock(
+    File lockFile, {
+    required bool shared,
+  }) async {
     final handle = await lockFile.open(mode: FileMode.append);
     try {
       await handle.lock(shared ? FileLock.shared : FileLock.exclusive);
