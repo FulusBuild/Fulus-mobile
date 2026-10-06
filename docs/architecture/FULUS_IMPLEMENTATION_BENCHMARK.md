@@ -1,8 +1,8 @@
 # Fulus Implementation Benchmark
 
 **Status:** Active engineering benchmark  
-**Baseline:** `main` at `2fe9203ecaccb9509f67f15ff9bf982922a873a3`  
-**Date:** 2026-10-05  
+**Baseline:** `main` at `034a03a7f9325aea8f178e8f5773477512697657`  
+**Date:** 2026-10-06  
 **Question:** If a strong principal-engineering team were given Fulus from scratch, would they implement the system in substantially the same way?
 
 ---
@@ -324,16 +324,16 @@ This is a permanent guardrail.
 
 # 7. SyncEngine has one implementation smell that a greenfield team would likely remove
 
-## 7.1 Entity-specific database knowledge inside the generic sync engine — 🟠 REFACTOR CANDIDATE
+## 7.1 Entity-specific database knowledge inside the generic sync engine — 🟢 FIXED / VERIFIED
 
-The sync engine contains legacy queue actor backfill logic that knows about:
+The historical sync engine contained legacy queue actor backfill logic that knew about:
 
 - sales;
 - cash drawer shifts;
 - returns;
 - customer ledger entries.
 
-That means a supposedly generic synchronization engine has knowledge of domain-specific database tables.
+That knowledge was moved behind the injected `repairLegacyQueueActors` boundary in PR #164. The current `SyncEngine` invokes the callback but no longer contains the entity-specific repair implementation.
 
 This is not a synchronization correctness failure.
 
@@ -353,7 +353,7 @@ It should not increasingly answer:
 
 > "How do I know the schema of every business entity?"
 
-**Decision: STRENGTHEN / REFACTOR.**
+**Decision: KEEP. The generic engine boundary is now revalidated.**
 
 Do not change behavior until equivalent tests are in place.
 
@@ -373,7 +373,7 @@ That is the right direction.
 
 ---
 
-## 8.2 But `typedef Money = int` is weaker than the ideal implementation — 🟠
+## 8.2 `typedef Money = int` remains a type-safety limitation — 🟡
 
 The current type is:
 
@@ -406,7 +406,7 @@ The important lesson is:
 
 This is directly relevant to the ₦300 → ₦30,000 defect.
 
-**Decision: REDESIGN the money type boundary, not the financial architecture.**
+**Decision: STRENGTHEN later with a value object if it materially reduces misuse; do not reopen the already-correct integer/wire architecture.**
 
 ---
 
@@ -445,7 +445,7 @@ The goal is **not** to create one class per operation just for ceremony.
 
 The goal is to prevent the central API client from becoming the place where every domain's wire contract accumulates.
 
-**Decision: STRENGTHEN when touching this area; no emergency rewrite.**
+**Decision: STRENGTHEN when touching this area; no emergency rewrite. Typed sync-operation serialization is already present, so the remaining procedural surface is narrower than the historical audit baseline.**
 
 ---
 
@@ -519,7 +519,7 @@ This does **not** mean SharedPreferences is currently wrong.
 
 It means it is a place where the implementation is more complicated because state is split across persistence mechanisms.
 
-**Decision: REVIEW as part of future sync simplification.**
+**Decision: KEEP. The production cursor now shares the SQLite durability boundary with local projections and the outbox.**
 
 ---
 
