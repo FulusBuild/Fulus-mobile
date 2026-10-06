@@ -1210,3 +1210,22 @@ After those:
 7. merge
 
 Do not start a giant deep E2E project. The user explicitly decided that was broader than necessary. Use focused evidence for the remaining guarantees.
+
+
+---
+
+# 2026-10-06 — P1 closure continuation
+
+The following P1 engineering work is now implemented in source/tests:
+
+- **P1-1 Product hydration serialization:** active-location stock hydration remains stock-only, participates in the shared execution lease, checks lease ownership during paging, and revalidates ownership at the SQLite writer boundary.
+- **P1-2 Same-runtime maintenance fencing:** the maintenance regression explicitly covers an active sync lease and verifies that maintenance waits, then blocks a new sync lease while maintenance is held.
+- **P1-5 Money fitness:** strict wire fields include `tendered_amount`; canonical decimal-string parsing is covered; large integer minor-unit formatting is covered at the JavaScript-safe boundary; both shared money formatters are integer-arithmetic based.
+- **P1-6 DB invariants:** schema-level uniqueness protects one draft cart/location and one open cash drawer/location, with non-destructive migration preflight and separate-connection concurrency tests.
+- **P1-7 Reliability SLO definition:** `docs/architecture/FULUS_RELIABILITY_SLOS.md` defines measurable local-first, sync, reconciliation, restore, money-precision, and cardinality SLOs plus their evidence boundaries.
+
+The latest CI run exposed analyzer warnings in the new formatter/cardinality changes. Those warnings were corrected rather than suppressed. The next CI run must be green before these source/test closures are considered CI-proven.
+
+**P1-3 and P1-4 remain evidence gates, not unresolved source defects:** physical Android restore/reopen and Android process-death/WorkManager behavior require an actual Android runtime. The repository must not claim those observations without running them.
+
+**Important:** P1 source closure does not mean production SLO achievement. Production/runtime evidence remains separately tracked as required by the benchmark.
