@@ -455,4 +455,5 @@ class MoneyFormatter {
       buffer.write(digits[i]);
     }
     return '${negative ? '-' : ''}$buffer.$minor';
-  }}
+  }
+}
