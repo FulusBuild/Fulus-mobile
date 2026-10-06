@@ -78,6 +78,63 @@ void main() {
     expect(await blockedSync.acquire(), isTrue);
   });
 
+  test('maintenance fence survives replacement of the SQLite file', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-maintenance-fence-');
+    final path = directory.path + '/fulus.db';
+    QueryExecutor openExecutor() => NativeDatabase(
+      File(path),
+      setup: (database) {
+        database.execute('PRAGMA journal_mode=WAL');
+        database.execute('PRAGMA busy_timeout=1000');
+      },
+    );
+
+    final db1 = AppDatabase.forTesting(openExecutor());
+    final syncLease = SyncExecutionLease(
+      db1,
+      acquisitionTimeout: const Duration(milliseconds: 250),
+    );
+    final maintenance = SyncExecutionLease(
+      db1,
+      acquisitionTimeout: const Duration(milliseconds: 250),
+    );
+    addTearDown(() async {
+      await syncLease.release();
+      await maintenance.releaseMaintenance();
+      await db1.close();
+      await directory.delete(recursive: true);
+    });
+
+    expect(await syncLease.acquire(), isTrue);
+    expect(await maintenance.acquireMaintenance(), isFalse);
+    await syncLease.release();
+    expect(await maintenance.acquireMaintenance(), isTrue);
+
+    // Simulate the destructive restore boundary: the old database connection
+    // is closed and its SQLite file is replaced while the external maintenance
+    // lock remains held.
+    await db1.close();
+    await File(path).rename(path + '.backup');
+
+    final restoredDb = AppDatabase.forTesting(openExecutor());
+    final restoredSync = SyncExecutionLease(
+      restoredDb,
+      acquisitionTimeout: const Duration(milliseconds: 250),
+    );
+    addTearDown(() async {
+      await restoredSync.release();
+      await restoredDb.close();
+    });
+
+    // The replacement database has no maintenance row, so SQLite state alone
+    // cannot provide this guarantee. The external file lock must still fence
+    // the fresh runtime from starting sync.
+    expect(await restoredSync.acquire(), isFalse);
+
+    await maintenance.releaseMaintenanceOn(restoredDb);
+    expect(await restoredSync.acquire(), isTrue);
+    await restoredSync.release();
+  });
   test('detects a newer queued mutation for the same entity', () async {
     final lease = SyncExecutionLease(db);
     addTearDown(lease.release);
