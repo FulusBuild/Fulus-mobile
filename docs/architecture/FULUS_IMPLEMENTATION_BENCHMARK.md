@@ -936,3 +936,11 @@ This document is an engineering benchmark, not a claim that any external organiz
 This PR follows: **Inventory → Trace → Inspect → Prove → Classify → Fix → Test → Cross-check → CI → Record**.
 
 The remaining Android/runtime evidence is explicitly not converted into a source-level green claim.
+
+
+2026-10-06 — PR #179 cardinality hardening continuation
+
+| P1 | Local cardinality invariants were repository-only | Fixed in source; CI proof pending | Schema v21 adds unique draft-cart-per-location and partial unique open-shift-per-location indexes with duplicate preflight; sequential/concurrent persistence regressions added |
+| CI | Final fatal analyzer warning in restore regression | Fixed | Removed redundant `restoredDb!` assertion |
+
+The benchmark now treats P05-002/P05-003 as source-fixed. Physical Android/runtime and production-configuration gates remain separate evidence items.
