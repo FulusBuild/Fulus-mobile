@@ -11,7 +11,6 @@ import 'sync_execution_lease.dart';
 import 'sync_cycle_runner.dart';
 import 'sync_cycle_execution_gate.dart';
 import 'sync_connectivity_run_gate.dart';
-import 'sync_readiness_gate.dart';
 import 'sync_runtime.dart';
 import 'sync_readiness_recovery.dart';
 import 'sync_restore_reconciliation_gate.dart';
@@ -65,12 +64,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
       onRecoveryFailed: onRecoveryFailed,
       onBeforeSyncCycle: onBeforeSyncCycle,
     );
-    _readinessGate = SyncReadinessGate(
-      isEnabled: _isEnabled,
-      isReady: _isReady,
-      onNotReady: _onNotReady,
-      isRestoreReconciliationInProgress: () => _restoreGate.isInProgress,
-    );
     _connectivityGate = SyncConnectivityRunGate(
       run: () => _runIfOnlineOnce(requireReady: true),
     );
@@ -102,7 +95,6 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   final Connectivity _connectivity;
   late final SyncCycleRunner _cycleRunner;
   late final SyncCycleExecutionGate _cycleExecutionGate;
-  late final SyncReadinessGate _readinessGate;
   final Duration retryInterval;
   final Future<void> Function()? _onDeviceAuthorizationLost;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -330,7 +322,22 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   /// recursively await the cycle that is currently executing.
   void scheduleReadinessRecovery() => _readinessRecovery.schedule();
 
-  Future<bool> _ensureReady() => _readinessGate.ensureReady();
+  Future<bool> _ensureReady() async {
+    if (!_isEnabled()) return false;
+
+    // SyncService owns readiness state and coalesces cloud bootstrap. This
+    // runtime adapter deliberately keeps no second initialization future.
+    if (_restoreGate.isInProgress) return false;
+
+    final ready = _isReady;
+    if (ready == null || await ready()) return false;
+
+    final initialize = _onNotReady;
+    if (initialize == null) return false;
+
+    await initialize();
+    return await ready();
+  }
 
   Future<bool> _runIfOnlineSafely() async {
     try {
