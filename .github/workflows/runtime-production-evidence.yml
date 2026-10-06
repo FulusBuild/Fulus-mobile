@@ -1,0 +1,137 @@
+name: Fulus Runtime & Production Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fulus-runtime-production-evidence
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.9"
+  SUPABASE_URL: "https://bejcuvoxemwomcatgyxz.supabase.co"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_POaHTyngxKH1wEfo9q7v2Q_ddDPrI80"
+
+jobs:
+  money-contract:
+    name: Money boundary contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Run focused money contract tests
+        run: |
+          flutter test \
+            test/core/money/money_test.dart \
+            test/core/money/money_wire_contract_fitness_test.dart
+
+  live-auth-contract:
+    name: Live account creation contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Run live signup contract
+        env:
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+        run: dart run tool/fulus_auth_e2e.dart
+
+  live-sync-contract:
+    name: Live sync contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Run live sync contract
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: ${{ env.SUPABASE_URL }}
+          FULUS_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: dart run tool/fulus_sync_e2e.dart
+
+  live-multi-device:
+    name: Live multi-device convergence
+    needs: live-sync-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Run live multi-device convergence
+        env:
+          FULUS_API_URL: ${{ secrets.FULUS_E2E_API_URL }}
+          FULUS_E2E_EMAIL: ${{ secrets.FULUS_E2E_EMAIL }}
+          FULUS_E2E_PASSWORD: ${{ secrets.FULUS_E2E_PASSWORD }}
+          FULUS_AUTH_URL: ${{ env.SUPABASE_URL }}
+          FULUS_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+          FULUS_BUSINESS_ID: ${{ secrets.FULUS_E2E_BUSINESS_ID }}
+          FULUS_DEVICE_ID: ${{ secrets.FULUS_E2E_DEVICE_ID }}
+        run: dart run tool/fulus_multi_device_e2e.dart
+
+  production-migration-history:
+    name: Production migration history
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Verify production migration history
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: bash tool/verify_supabase_migration_history.sh
+
+  physical-android-gate:
+    name: Physical Android evidence gate
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - money-contract
+      - live-auth-contract
+      - live-sync-contract
+      - live-multi-device
+      - production-migration-history
+    steps:
+      - name: Report physical evidence remains manual
+        run: |
+          echo "Automated evidence jobs completed."
+          echo "Physical Android proof is intentionally not represented as a green CI claim."
+          echo "Required manual scenarios:"
+          echo "1. Offline sale -> force-stop/process death -> reopen -> WorkManager recovery -> one remote effect."
+          echo "2. Fresh-install restore -> restart/reopen -> canonical convergence."
+          echo "3. Location A -> B with pending/in-flight A mutation -> verify isolation."
+          echo "4. Signed APK install/upgrade with representative existing money data."
+          echo "5. Cold/warm navigation and first-frame verification."
+          exit 0
