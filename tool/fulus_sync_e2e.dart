@@ -90,7 +90,7 @@ Future<void> main() async {
       'client_reference': incomeOperationId,
       'location_id': e2eLocationId,
       'source': 'E2E miscellaneous income $suffix',
-      'amount': 12345,
+      'amount': '12345.00',
       'income_date': DateTime.now().toUtc().toIso8601String(),
       'notes': 'Cloud Sync V1 income contract',
     });
@@ -110,9 +110,9 @@ Future<void> main() async {
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
       'sale_date': quickSaleDate,
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 321,
+      'discount': '0.00',
+      'tax': '0.00',
+      'amount_paid': '321.00',
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
@@ -123,8 +123,8 @@ Future<void> main() async {
           'product_id': null,
           'description': 'E2E Quick Sale $suffix',
           'quantity': 1,
-          'unit_price': 321,
-          'cost_price_at_sale': 0,
+          'unit_price': '321.00',
+          'cost_price_at_sale': '0.00',
         },
       ],
     });
@@ -141,9 +141,9 @@ Future<void> main() async {
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
       'sale_date': quickSaleDate,
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 321,
+      'discount': '0.00',
+      'tax': '0.00',
+      'amount_paid': '321.00',
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
@@ -154,8 +154,8 @@ Future<void> main() async {
           'product_id': null,
           'description': 'E2E Quick Sale $suffix',
           'quantity': 1,
-          'unit_price': 321,
-          'cost_price_at_sale': 0,
+          'unit_price': '321.00',
+          'cost_price_at_sale': '0.00',
         },
       ],
     });
@@ -212,8 +212,8 @@ Future<void> main() async {
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
-      'cost_price': 100,
-      'selling_price': 150,
+      'cost_price': '100.00',
+      'selling_price': '150.00',
       'low_stock_threshold': 5,
       'is_active': true,
       'category_id': categoryId,
@@ -448,7 +448,7 @@ Future<void> main() async {
       'operation_id': customerOperationId,
       'name': 'Fulus E2E Customer ' + suffix,
       'phone': '08000000000',
-      'credit_limit': 100000,
+      'credit_limit': '100000.00',
       'notes': 'Cloud Sync V1 mutation matrix',
     });
     _expect2xx(customerResponse, 'customer.create');
@@ -473,9 +473,9 @@ Future<void> main() async {
       'location_id': e2eLocationId,
       'customer_id': customerId,
       'sale_date': DateTime.now().toUtc().toIso8601String(),
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 0,
+      'discount': '0.00',
+      'tax': '0.00',
+      'amount_paid': '0.00',
       'payment_method': 'credit',
       'payments': [
         {'method': 'credit', 'amount': 150},
@@ -486,8 +486,8 @@ Future<void> main() async {
           'product_id': serverId,
           'description': 'E2E mutation matrix product',
           'quantity': 1,
-          'unit_price': 150,
-          'cost_price_at_sale': 100,
+          'unit_price': '150.00',
+          'cost_price_at_sale': '100.00',
         },
       ],
     });
@@ -517,7 +517,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-sale-payment-' + suffix,
       'sale_id': creditSaleId,
-      'amount': 50,
+      'amount': '50.00',
       'payment_method': 'cash',
     });
     _expect2xx(salePayment, 'sale.payment');
@@ -550,7 +550,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-repayment-' + suffix,
       'customer_id': customerId,
-      'amount': 50,
+      'amount': '50.00',
       'payment_method': 'cash',
       'note': 'Cloud Sync V1 mutation matrix repayment',
     });
@@ -581,7 +581,7 @@ Future<void> main() async {
         'server_id': customerId,
         'name': 'Fulus E2E Customer Updated ' + suffix,
         'phone': '08000000000',
-        'credit_limit': 125000,
+        'credit_limit': '125000.00',
         'notes': 'Cloud Sync V1 customer update',
         'is_active': true,
       },
@@ -603,7 +603,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-expense-' + suffix,
       'location_id': e2eLocationId,
-      'amount': 25,
+      'amount': '25.00',
       'category': 'E2E Category ' + suffix,
       'description': 'Cloud Sync V1 mutation matrix expense',
       'expense_date': DateTime.now().toUtc().toIso8601String(),
@@ -624,7 +624,7 @@ Future<void> main() async {
       'payload': {
         'server_id': expenseId,
         'location_id': e2eLocationId,
-        'amount': 30,
+        'amount': '30.00',
         'category': 'E2E Category ' + suffix,
         'description': 'Cloud Sync V1 mutation matrix expense updated',
         'expense_date': DateTime.now().toUtc().toIso8601String(),
@@ -651,7 +651,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-drawer-open-' + suffix,
       'location_id': firstLocationId,
-      'opening_cash': 1000,
+      'opening_cash': '1000.00',
       'opened_at': DateTime.now().toUtc().toIso8601String(),
     });
     _expect2xx(drawerOpen, 'cash_drawer.open');
@@ -667,8 +667,8 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-drawer-close-' + suffix,
       'shift_id': shiftId,
-      'closing_cash': 1000,
-      'cash_difference': 0,
+      'closing_cash': '1000.00',
+      'cash_difference': '0.00',
       'closing_note': 'Cloud Sync V1 mutation matrix close',
       'closed_at': DateTime.now().toUtc().toIso8601String(),
     });
