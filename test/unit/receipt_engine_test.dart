@@ -64,6 +64,14 @@ void main() {
     });
   });
 
+  group('MoneyFormatter money boundary', () {
+    test('formats minor-unit Money as major currency without magnitude drift', () {
+      final formatter = MoneyFormatter('₦');
+      expect(formatter.format(moneyFromMajor(300)), 'NGN 300.00');
+      expect(formatter.format(moneyFromMajor(30000)), 'NGN 30,000.00');
+    });
+  });
+
   group('renderThermal', () {
     test('produces non-empty ESC/POS bytes with the expected metadata', () {
       final receipt = engine.renderThermal(sample());
