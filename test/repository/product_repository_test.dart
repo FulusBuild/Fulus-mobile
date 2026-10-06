@@ -377,7 +377,7 @@ void main() {
         ),
       );
       await seedActiveLocation();
-      await repository.syncFromServer();
+      await repository.hydrateActiveLocationStockFromServer();
 
       final emitted = await repository.watchProducts(locationId: locationId).first;
 
@@ -454,7 +454,7 @@ void main() {
         ),
       );
       await seedActiveLocation();
-      await repository.syncFromServer();
+      await repository.hydrateActiveLocationStockFromServer();
 
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;
 
