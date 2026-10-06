@@ -99,19 +99,23 @@ void main() {
       syncStatus: SyncStatus.settled,
     ));
 
+    Future<bool> createCart(String id) async {
+      try {
+        await db.into(db.draftCarts).insert(DraftCartsCompanion.insert(
+          localId: id,
+          locationId: 'location-2',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+        ));
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
     final attempts = await Future.wait([
-      db.into(db.draftCarts).insert(DraftCartsCompanion.insert(
-        localId: 'cart-concurrent-1',
-        locationId: 'location-2',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-      )).then((_) => true).catchError((_) => false),
-      db.into(db.draftCarts).insert(DraftCartsCompanion.insert(
-        localId: 'cart-concurrent-2',
-        locationId: 'location-2',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-      )).then((_) => true).catchError((_) => false),
+      createCart('cart-concurrent-1'),
+      createCart('cart-concurrent-2'),
     ]);
 
     expect(attempts.where((accepted) => accepted).length, 1);
@@ -132,20 +136,25 @@ void main() {
       syncStatus: SyncStatus.settled,
     ));
 
-    Future<bool> openShift(String id, String cashier) {
-      return db.into(db.cashDrawerShifts).insert(
-        CashDrawerShiftsCompanion.insert(
-          localId: id,
-          serverId: const Value(null),
-          createdAt: DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
-          cashierUserId: cashier,
-          locationId: 'location-3',
-          openedAt: DateTime(2026, 1, 1, 8),
-          closedAt: const Value(null),
-        ),
-      ).then((_) => true).catchError((_) => false);
+    Future<bool> openShift(String id, String cashier) async {
+      try {
+        await db.into(db.cashDrawerShifts).insert(
+          CashDrawerShiftsCompanion.insert(
+            localId: id,
+            serverId: const Value(null),
+            createdAt: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+            syncStatus: SyncStatus.settled,
+            cashierUserId: cashier,
+            locationId: 'location-3',
+            openedAt: DateTime(2026, 1, 1, 8),
+            closedAt: const Value(null),
+          ),
+        );
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     final attempts = await Future.wait([
