@@ -244,7 +244,7 @@ Do not mark this fully green until the adversarial scenario is proven.
 
 ---
 
-## 4.9 Money representation — 🟡
+## 4.9 Money representation — 🟢/🟡
 
 The reported corruption exposed an architectural boundary violation: local minor-unit integers were being mixed with cloud major-unit representations.
 
@@ -260,7 +260,7 @@ and the reverse exactly once.
 
 Local/domain/SQLite money should remain integer minor units.
 
-The remaining hardening is important: the wire contract should not permit an integer to ambiguously mean either major or minor units. The current parser remains permissive for integer wire values, so the final benchmark should require an explicit decimal-string contract and tests for all money-bearing entities.
+The current parser rejects JSON numbers and non-canonical strings. Local SQLite monetary columns are INTEGER minor units, and the database/API restore normalizers emit decimal strings. The remaining requirement is runtime/production evidence across all money-bearing journeys.
 
 **Mandatory money fitness tests:**
 
@@ -296,7 +296,7 @@ Local and cloud projections must preserve these identities.
 
 ---
 
-## 4.11 Restore and recovery — 🔴 BLOCKER
+## 4.11 Restore and recovery — 🟡 SOURCE-COMPLETE / RUNTIME-PROOF PENDING
 
 This is the clearest architectural weakness.
 
@@ -640,9 +640,9 @@ Unless a future benchmark proves a real requirement:
 | Source of truth | 🟢 | Keep |
 | Identity/access | 🟢/🟡 | Keep / strengthen |
 | Location isolation | 🟡 | Strengthen |
-| Money representation | 🟡 | Strengthen |
+| Money representation | 🟢/🟡 | Keep / prove |
 | Financial semantics | 🟡 | Strengthen |
-| Restore/recovery | 🔴 | Redesign |
+| Restore/recovery | 🟡 | Keep / prove |
 | Database invariants | 🟡 | Strengthen |
 | Security | 🟢/🟡 | Keep / strengthen |
 | Observability | 🟡 | Strengthen |
@@ -749,4 +749,4 @@ If these questions cannot be answered, the default decision is **do not add it**
 
 This document is a living benchmark. When architecture changes, update the implementation, add/update the relevant fitness test, re-run the affected benchmark domain, and record the decision.
 
-**Last benchmark baseline: 2026-10-05**
+**Last benchmark baseline: 2026-10-06 (`034a03a7f9325aea8f178e8f5773477512697657`)**
