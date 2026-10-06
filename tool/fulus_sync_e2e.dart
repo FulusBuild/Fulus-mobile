@@ -523,7 +523,7 @@ Future<void> main() async {
     stdout.writeln('PASS: customer.create');
 
     final creditSaleOperationId = 'e2e-credit-sale-' + suffix;
-    final creditSaleFeedBefore = (customerData['sync_sequence'] as num?)?.toInt();
+    final creditSaleFeedBefore = (customerData?['sync_sequence'] as num?)?.toInt();
     if (creditSaleFeedBefore == null || creditSaleFeedBefore <= 0) {
       throw StateError(
         'customer.create returned no authoritative sync sequence: ' +
@@ -607,7 +607,7 @@ Future<void> main() async {
       label: 'sale payment customer balance',
     );
 
-    final repaymentFeedBefore = (salePaymentData?['sync_sequence'] as num?)?.toInt();
+    final repaymentFeedBefore = (salePaymentData['sync_sequence'] as num?)?.toInt();
     if (repaymentFeedBefore == null || repaymentFeedBefore <= 0) {
       throw StateError(
         'sale.payment returned no authoritative sync sequence: ' +
