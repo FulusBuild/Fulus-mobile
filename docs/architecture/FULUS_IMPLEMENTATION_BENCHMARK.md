@@ -920,3 +920,19 @@ That is the implementation work Fulus should do next.
 - Thoughtworks — evolutionary architecture and fitness functions.
 
 This document is an engineering benchmark, not a claim that any external organization would implement Fulus exactly this way.
+
+
+## PR #179 — 2026-10-06 benchmark-hardening record
+
+### Current disposition
+
+| Priority | Finding | Disposition | Proof |
+|---|---|---|---|
+| P0 | build_runner syntax blocker in product repository | Fixed | Generated-code CI stage passed after removing the orphaned source tail |
+| P0 | strict money validator missed flattened submit-operation sale tendered cash | Fixed in source; live proof added | `tendered_amount` is covered by the request validator, normalizers, migration, and live contract assertion |
+| P0 | SQLite maintenance lease did not itself survive physical DB replacement | Fixed in source; cross-process proof added | Sidecar filesystem lock survives pathname replacement; child-process regression verifies blocked/unblocked states |
+| P1 | active-location stock hydration could cross a lease-loss/network boundary | Fixed in source; regression added | Lease checked before page fetch and inside stock write transaction; test forces expiry during network wait |
+
+This PR follows: **Inventory → Trace → Inspect → Prove → Classify → Fix → Test → Cross-check → CI → Record**.
+
+The remaining Android/runtime evidence is explicitly not converted into a source-level green claim.
