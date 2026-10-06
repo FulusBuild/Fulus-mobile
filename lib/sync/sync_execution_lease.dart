@@ -85,6 +85,7 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
+      await _releaseHeldProcessLock();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -179,6 +180,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
+      await _releaseHeldProcessLock();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -426,6 +428,7 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
+      unawaited(_releaseHeldProcessLock());
     }
   }
 
@@ -446,6 +449,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
+      unawaited(_releaseHeldProcessLock());
     }
   }
 }
