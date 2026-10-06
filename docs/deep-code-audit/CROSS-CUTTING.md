@@ -80,30 +80,16 @@ Required evidence:
 
 ## X-007 — Local/cloud sale arithmetic contract
 
-Status: Deferred to Parts 09/10.
+Status: **Closed in source; runtime evidence pending.**
 
-Part 07 found that the local Sale/SaleDraft arithmetic does not fully match the authoritative Supabase sale transaction. Local totals can become negative when an excessive whole-cart discount is accepted, while the cloud transaction clamps total to zero. Local overpayment is represented through amountPaid > total and changeDue, while the cloud transaction clamps amount_paid to total.
-
-Required evidence/fix ownership:
-1. Define the canonical meaning of amountPaid versus tendered cash.
-2. Define change as an explicit financial concept if overpayment is supported.
-3. Define the canonical integer money unit in Part 10.
-4. Align local checkout calculations with the cloud transaction.
-5. Add exact local/cloud regression coverage before changing the financial schema.
+The current Sale/SaleDraft, CartCubit, draft-cart repository, and cloud sale RPC agree on integer money, discount bounds, applied payment, credit, tendered cash, and change semantics. Exact local/cloud regression coverage exists.
 
 
 ## X-008 — Sale tender/change contract
 
-Status: Open; owned by Parts 09 and 10.
+Status: **Closed in source; runtime evidence pending.**
 
-The normal checkout permits cash tender above the remaining balance so change can be returned. Local SalePayment/Sale.amountPaid currently retain the tendered amount, while the cloud V2 sale command requires all payment legs to equal the sale total and the authoritative sale amount_paid is capped at the total.
-
-Required evidence/fix:
-1. Define tendered cash separately from applied payment.
-2. Define change and its cash-ledger treatment.
-3. Preserve split-payment and credit semantics.
-4. Align local checkout, receipts, cash drawer, cloud sale RPC, and canonical reconciliation.
-5. Complete integer-money migration and exact regressions in Part 10.
+The current checkout preserves tendered cash separately from applied payment. Cloud V2 persists cash_tendered/cash_change and records only applied cash in the cash ledger. Split-payment and credit semantics are covered by exact regressions. Remaining proof is physical offline→sync execution.
 
 ## X-009 — Financial integer-money contract
 
