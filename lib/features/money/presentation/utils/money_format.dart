@@ -11,8 +11,8 @@
 /// task isn't touching. This formatter is Money-feature-local; a
 /// future pass could promote it to `core/utils` for those two screens
 /// to share.
-String formatMoney(num amount, {String symbol = '₦', bool showSign = false}) {
-  final money = amount is int ? amount / 100.0 : amount.toDouble();
+String formatMoney(Money amount, {String symbol = '₦', bool showSign = false}) {
+  final money = moneyToMajor(amount);
   final isNegative = money < 0;
   final fixed = money.abs().toStringAsFixed(2);
   final parts = fixed.split('.');
