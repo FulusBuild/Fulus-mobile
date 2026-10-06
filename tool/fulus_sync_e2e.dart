@@ -44,6 +44,7 @@ Future<void> main() async {
 
   _printIdentityFingerprint('business_id', businessId);
   _printIdentityFingerprint('device_client_id', deviceClientId);
+  final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final moneyWireProbe = await dio.post('', data: {
     'action': 'sync_operation',
     'business_id': businessId,
@@ -64,7 +65,6 @@ Future<void> main() async {
     );
   }
   stdout.writeln('PASS: numeric monetary request rejected by strict money wire contract');
-  final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final createOperationId = 'e2e-create-$suffix';
   final deleteOperationId = 'e2e-delete-$suffix';
