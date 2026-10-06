@@ -235,14 +235,6 @@ class AppDatabase extends _$AppDatabase {
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_drawer_shifts_open_location '
           'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
         );
-        await customStatement(
-          'CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_carts_location_id '
-          'ON draft_carts(location_id)',
-        );
-        await customStatement(
-          'CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_drawer_shifts_open_location '
-          'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
-        );
       },
       // The first real onUpgrade implementation this project has needed
       // — schemaVersion 1 -> 2. Covers every table that's new relative
