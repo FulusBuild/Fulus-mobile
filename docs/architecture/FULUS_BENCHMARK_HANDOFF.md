@@ -1247,3 +1247,49 @@ These are source-level fitness proofs; live Android financial journey evidence r
 Current PR head after this test hardening: `8301f0eba3fd1a446013d467f2b7d6fb7b1ffc9f`.
 
 P1 status remains deliberately evidence-based: P1-1, P1-2, P1-5, P1-6 and P1-7 are source/test-complete pending CI; P1-3 and P1-4 require physical Android lifecycle evidence and are not claimed closed without that evidence.
+
+
+---
+
+# 2026-10-06 — Current-state correction after CI verification
+
+The historical sections above intentionally preserve earlier failure evidence, but they are no longer the current blocker list.
+
+## Verified current PR state
+
+- PR #179 remains open and mergeable.
+- Current head: `dc6caede5be5b1a3c78379f54c2ef42ed527f1ff`.
+- **Fulus Mobile CI: successful.**
+- **Fulus Supabase Migration Chain: successful.**
+- Build/code generation, static analysis, and Flutter tests all passed on the current head.
+- The PR live production E2E jobs are skipped when cloud source changes are present because the PR does not deploy those Edge Functions to production. This prevents testing the new client contract against an older production deployment.
+- The separate Vercel status is red because of a Vercel build-rate-limit/plan restriction; it is not a GitHub Actions application/test failure.
+
+## Current source disposition
+
+The three historical P0 implementation findings are now source-fixed on this PR:
+
+1. **ProductRepository parser/build failure:** the orphaned duplicate source tail was removed; current code generation and analysis pass.
+2. **Strict money wire:** request validation now runs recursively before action dispatch/queue acceptance and includes `tendered_amount`; the flattened sale-create path is covered by the contract regression.
+3. **Native restore fence:** the SQLite maintenance row is retained for logical coordination, while a sidecar filesystem lock provides the physical cross-process fence and remains held across database replacement/reopen. The child-process regression covers the replacement boundary.
+
+These source fixes are CI-proven on the current head.
+
+## Remaining evidence gates
+
+The next work is no longer another P0 source repair. The remaining benchmark gates are runtime/production evidence:
+
+- physical Android restore/reopen;
+- process death during sync;
+- process death during restore;
+- WorkManager restart/recovery;
+- multi-device canonical convergence;
+- location-switch with pending/in-flight mutation;
+- production authorization/configuration checks where not already covered by CI;
+- financial offline-to-sync runtime evidence.
+
+Do **not** mark these closed from source inspection alone.
+
+## Merge decision
+
+PR #179 can proceed to final diff/source review now that GitHub Actions is green. Merge should remain separate from the Android evidence gate if the team wants those runtime observations tracked independently. The source-hardening work itself is no longer blocked by the historical parser, money-wire, or restore-fence findings.
