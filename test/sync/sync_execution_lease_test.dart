@@ -47,7 +47,7 @@ void main() {
     await secondLease.release();
   });
 
-  test('maintenance fence waits for sync and blocks new sync', () async {
+  test('same runtime maintenance fence waits for active sync and blocks new sync', () async {
     final activeSync = SyncExecutionLease(
       db,
       acquisitionTimeout: const Duration(milliseconds: 100),
@@ -78,6 +78,79 @@ void main() {
     expect(await blockedSync.acquire(), isTrue);
   });
 
+  test('maintenance fence survives SQLite file replacement across processes', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-maintenance-fence-');
+    final path = directory.path + '/fulus.db';
+    QueryExecutor openExecutor() => NativeDatabase(
+      File(path),
+      setup: (database) {
+        database.execute('PRAGMA journal_mode=WAL');
+        database.execute('PRAGMA busy_timeout=1000');
+      },
+    );
+
+    final db1 = AppDatabase.forTesting(openExecutor());
+    final maintenance = SyncExecutionLease(
+      db1,
+      acquisitionTimeout: const Duration(milliseconds: 750),
+    );
+    AppDatabase? restoredDb;
+    var fenceReleased = false;
+    addTearDown(() async {
+      if (!fenceReleased && restoredDb != null) {
+        await maintenance.releaseMaintenanceOn(restoredDb);
+      }
+      await restoredDb?.close();
+      await db1.close();
+      await directory.delete(recursive: true);
+    });
+
+    expect(await maintenance.acquireMaintenance(), isTrue);
+
+    await db1.close();
+    await File(path).rename('$path.previous');
+
+    restoredDb = AppDatabase.forTesting(openExecutor());
+
+    final probeConfig = File('.dart_tool/fulus_sync_probe_config');
+
+    Future<ProcessResult> runProbe(String mode) async {
+      await probeConfig.writeAsString('$path\n$mode\n');
+      try {
+        return await Process.run(
+        'flutter',
+        [
+          'test',
+          '--reporter',
+          'expanded',
+          'test/sync/sync_execution_lease_process_probe_test.dart',
+        ],
+          workingDirectory: Directory.current.path,
+        );
+      } finally {
+        await probeConfig.delete();
+      }
+    }
+
+    final blockedProbe = await runProbe('blocked');
+    expect(
+      blockedProbe.exitCode,
+      0,
+      reason: 'A separate OS process bypassed the maintenance FileLock: '
+          'stdout=${blockedProbe.stdout} stderr=${blockedProbe.stderr}',
+    );
+
+    await maintenance.releaseMaintenanceOn(restoredDb);
+    fenceReleased = true;
+
+    final releasedProbe = await runProbe('acquire');
+    expect(
+      releasedProbe.exitCode,
+      0,
+      reason: 'A separate OS process could not acquire after release: '
+          'stdout=${releasedProbe.stdout} stderr=${releasedProbe.stderr}',
+    );
+  });
   test('detects a newer queued mutation for the same entity', () async {
     final lease = SyncExecutionLease(db);
     addTearDown(lease.release);

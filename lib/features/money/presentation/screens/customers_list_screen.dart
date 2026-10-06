@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/customer.dart';
@@ -65,7 +66,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         ),
         data: (customers) {
           final filtered = _filter(customers);
-          final outstanding = customers.fold<double>(0, (sum, customer) => sum + customer.outstandingBalance);
+          final outstanding = customers.fold<Money>(zeroMoney, (sum, customer) => sum + customer.outstandingBalance);
           return LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
@@ -116,7 +117,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
   });
 
   final List<Customer> customers;
-  final double outstanding;
+  final Money outstanding;
   final String currencySymbol;
 
   @override

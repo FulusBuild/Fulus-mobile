@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
@@ -31,6 +32,7 @@ class SyncExecutionLease {
   final String _ownerId;
   Timer? _renewalTimer;
   Timer? _maintenanceRenewalTimer;
+  RandomAccessFile? _processLockFile;
   bool _held = false;
   bool _maintenanceHeld = false;
 
@@ -40,16 +42,29 @@ class SyncExecutionLease {
   Future<bool> acquireMaintenance() async {
     if (_maintenanceHeld) return true;
     final deadline = DateTime.now().add(_acquisitionTimeout);
+    final processLockFile = await _resolveProcessLockFile();
     while (true) {
+      RandomAccessFile? lock;
+      if (processLockFile != null) {
+        lock = await _tryAcquireProcessLock(processLockFile, shared: false);
+        if (lock == null) {
+          if (!DateTime.now().isBefore(deadline)) return false;
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          continue;
+        }
+      }
+
       final acquired = await _tryAcquireMaintenance();
       if (acquired) {
         _maintenanceHeld = true;
+        _processLockFile = lock;
         _maintenanceRenewalTimer ??= Timer.periodic(
           _renewInterval,
           (_) => unawaited(_renewMaintenance()),
         );
         return true;
       }
+      if (lock != null) await _releaseProcessLock(lock);
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
@@ -70,36 +85,89 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
+      await _releaseHeldProcessLock();
       throw const SyncExecutionLeaseLost();
     }
+  }
+
+  /// Releases a maintenance fence using a freshly reopened database.
+  ///
+  /// Restore replaces the SQLite file that backed this lease, so the original
+  /// [AppDatabase] cannot be used after close. The owner identity remains
+  /// stable for the lifetime of this lease object; the new connection is only
+  /// the persistence handle used to remove that owner's fence.
+  Future<void> releaseMaintenanceOn(AppDatabase db) async {
+    _maintenanceRenewalTimer?.cancel();
+    _maintenanceRenewalTimer = null;
+    if (!_maintenanceHeld) return;
+    try {
+      await (db.delete(db.syncRuntimeLeases)
+            ..where((row) =>
+                row.name.equals(maintenanceLeaseName) &
+                row.ownerId.equals(_ownerId)))
+          .go();
+    } finally {
+      _maintenanceHeld = false;
+      await _releaseHeldProcessLock();
+    }
+  }
+
+  /// Stops renewing the SQLite maintenance row while the live database
+  /// connection is deliberately closed for a physical file replacement.
+  ///
+  /// The sidecar FileLock remains held. That is the cross-process invariant
+  /// that survives replacement of the SQLite database file itself.
+  void suspendMaintenanceRenewalForDatabaseReplacement() {
+    if (!_maintenanceHeld) {
+      throw StateError('Cannot suspend a maintenance fence that is not held.');
+    }
+    _maintenanceRenewalTimer?.cancel();
+    _maintenanceRenewalTimer = null;
   }
 
   Future<void> releaseMaintenance() async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
     if (!_maintenanceHeld) return;
-    await (_db.delete(_db.syncRuntimeLeases)
-          ..where((row) =>
-              row.name.equals(maintenanceLeaseName) &
-              row.ownerId.equals(_ownerId)))
-        .go();
-    _maintenanceHeld = false;
+    try {
+      await (_db.delete(_db.syncRuntimeLeases)
+            ..where((row) =>
+                row.name.equals(maintenanceLeaseName) &
+                row.ownerId.equals(_ownerId)))
+          .go();
+    } finally {
+      _maintenanceHeld = false;
+      await _releaseHeldProcessLock();
+    }
   }
 
   Future<bool> acquire() async {
     if (_held) return true;
 
     final deadline = DateTime.now().add(_acquisitionTimeout);
+    final processLockFile = await _resolveProcessLockFile();
     while (true) {
+      RandomAccessFile? lock;
+      if (processLockFile != null) {
+        lock = await _tryAcquireProcessLock(processLockFile, shared: true);
+        if (lock == null) {
+          if (!DateTime.now().isBefore(deadline)) return false;
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          continue;
+        }
+      }
+
       final acquired = await _tryAcquire();
       if (acquired) {
         _held = true;
+        _processLockFile = lock;
         _renewalTimer ??= Timer.periodic(
           _renewInterval,
           (_) => unawaited(_renew()),
         );
         return true;
       }
+      if (lock != null) await _releaseProcessLock(lock);
 
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -125,6 +193,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
+      await _releaseHeldProcessLock();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -189,6 +258,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
+      await _releaseHeldProcessLock();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -198,14 +268,64 @@ class SyncExecutionLease {
     _renewalTimer = null;
     if (!_held) return;
 
-    await (_db.delete(_db.syncRuntimeLeases)
-          ..where(
-            (row) =>
-                row.name.equals(leaseName) &
-                row.ownerId.equals(_ownerId),
-          ))
-        .go();
-    _held = false;
+    try {
+      await (_db.delete(_db.syncRuntimeLeases)
+            ..where(
+              (row) =>
+                  row.name.equals(leaseName) &
+                  row.ownerId.equals(_ownerId),
+            ))
+          .go();
+    } finally {
+      _held = false;
+      await _releaseHeldProcessLock();
+    }
+  }
+
+  Future<File?> _resolveProcessLockFile() async {
+    // Resolve the actual SQLite file through the open connection rather than
+    // path_provider. This keeps the lease usable by pure in-memory tests and
+    // by temporary file-backed databases without requiring Flutter bindings.
+    final rows = await _db.customSelect('PRAGMA database_list').get();
+    if (rows.isEmpty) return null;
+    final dbPath = rows.first.data['file'];
+    if (dbPath is! String || dbPath.isEmpty) {
+      // In-memory SQLite has no filesystem identity. Its existing SQLite lease
+      // remains the synchronization mechanism; the external fence is only
+      // needed when a real database file can be replaced.
+      return null;
+    }
+    return File('$dbPath.sync-runtime.lock');
+  }
+
+  Future<RandomAccessFile?> _tryAcquireProcessLock(
+    File lockFile, {
+    required bool shared,
+  }) async {
+    final handle = await lockFile.open(mode: FileMode.append);
+    try {
+      await handle.lock(shared ? FileLock.shared : FileLock.exclusive);
+      return handle;
+    } on FileSystemException {
+      await handle.close();
+      return null;
+    }
+  }
+
+  Future<void> _releaseProcessLock(RandomAccessFile handle) async {
+    try {
+      await handle.unlock();
+    } finally {
+      await handle.close();
+    }
+  }
+
+  Future<void> _releaseHeldProcessLock() async {
+    final handle = _processLockFile;
+    _processLockFile = null;
+    if (handle != null) {
+      await _releaseProcessLock(handle);
+    }
   }
 
   Duration get _renewInterval {
@@ -322,6 +442,7 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
+      unawaited(_releaseHeldProcessLock());
     }
   }
 
@@ -342,6 +463,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
+      unawaited(_releaseHeldProcessLock());
     }
   }
 }

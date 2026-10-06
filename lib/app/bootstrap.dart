@@ -196,6 +196,8 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final cashDrawerShiftsApi = CashDrawerShiftsApi(apiClient);
   final locationsApi = LocationsApi(apiClient);
   final businessSettingsApi = BusinessSettingsApi(apiClient);
+  final syncExecutionLease = SyncExecutionLease(database);
+
   final syncQueue = SyncQueue(
     database,
     baseCursorProvider: () {
@@ -222,7 +224,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue);
+  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue, executionLease: syncExecutionLease);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
 
   fulusConnectionState.setBusinessSwitchGuard(
@@ -249,7 +251,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final financeStatsRepository = FinanceStatsRepositoryImpl(db: database, customerCreditRepository: customerCreditRepository);
   final cashDrawerShiftRepository = CashDrawerShiftRepositoryImpl(db: database, syncQueue: syncQueue, authRepository: authRepository);
   final locationRepository = LocationRepositoryImpl(db: database, locationsApi: locationsApi, syncQueue: syncQueue);
-  final syncExecutionLease = SyncExecutionLease(database);
   final businessSettingsRepository = BusinessSettingsRepositoryImpl(db: database, businessSettingsApi: businessSettingsApi, authRepository: authRepository, permissionRepository: permissionRepository, executionLease: syncExecutionLease);
   final resolveActiveLocation = ResolveActiveLocation(locationRepository: locationRepository, authRepository: authRepository, businessSettingsRepository: businessSettingsRepository);
 
@@ -544,7 +545,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // hydration instead of inventing a second sync mechanism.
     onContextChangeReconciled: () async {
       if (!syncConfig.isEnabled) return;
-      await productRepository.syncFromServer();
+      await productRepository.hydrateActiveLocationStockFromServer();
     },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();

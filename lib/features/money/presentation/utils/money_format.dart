@@ -1,3 +1,5 @@
+import '../../../../core/money/money.dart';
+
 /// Thousands-separated currency formatting. Money is never compacted into K/M/B.
 /// No `intl` dependency added
 /// — per this codebase's own "avoid new dependencies unless genuinely
@@ -11,13 +13,11 @@
 /// task isn't touching. This formatter is Money-feature-local; a
 /// future pass could promote it to `core/utils` for those two screens
 /// to share.
-String formatMoney(num amount, {String symbol = '₦', bool showSign = false}) {
-  final money = amount is int ? amount / 100.0 : amount.toDouble();
-  final isNegative = money < 0;
-  final fixed = money.abs().toStringAsFixed(2);
-  final parts = fixed.split('.');
-  final wholePart = parts[0];
-  final decimalPart = parts[1];
+String formatMoney(Money amount, {String symbol = '₦', bool showSign = false}) {
+  final negative = amount < 0;
+  final absolute = amount.abs();
+  final wholePart = (absolute ~/ 100).toString();
+  final decimalPart = (absolute % 100).toString().padLeft(2, '0');
 
   final buffer = StringBuffer();
   for (var i = 0; i < wholePart.length; i++) {
@@ -25,7 +25,7 @@ String formatMoney(num amount, {String symbol = '₦', bool showSign = false}) {
     buffer.write(wholePart[i]);
   }
 
-  final sign = isNegative ? '-' : (showSign ? '+' : '');
+  final sign = negative ? '-' : (showSign ? '+' : '');
   return '$sign$symbol${buffer.toString()}.$decimalPart';
 }
 

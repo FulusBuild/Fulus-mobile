@@ -794,6 +794,21 @@ These are exactly the kinds of things a principal team would periodically remove
 
 ---
 
+# 20.5. Product location hydration boundary
+
+The location-switch path previously called `ProductRepository.syncFromServer()`, which directly upserted both product catalog fields and stock levels from the inventory listing endpoint. That created a second authority for canonical product state outside the change-feed reconciliation path.
+
+The implementation has now been narrowed:
+
+- the operation is explicitly named `hydrateActiveLocationStockFromServer()`;
+- it only hydrates the active location's stock projection;
+- canonical product/catalog fields remain owned by `FulusSyncCoordinator` and `FulusProductCanonicalReconciler`;
+- products absent from canonical local state are not created by the hydration path;
+- pending local stock projections are never overwritten;
+- regression tests prove the projection-only and pending-state behavior.
+
+This is the preferred greenfield boundary: a targeted read-model hydration may exist when a location switch needs a snapshot, but it must not become a second synchronization authority.
+
 # 21. Implementation benchmark priority list
 
 ## P0 — correctness and boundary integrity
@@ -905,3 +920,27 @@ That is the implementation work Fulus should do next.
 - Thoughtworks — evolutionary architecture and fitness functions.
 
 This document is an engineering benchmark, not a claim that any external organization would implement Fulus exactly this way.
+
+
+## PR #179 — 2026-10-06 benchmark-hardening record
+
+### Current disposition
+
+| Priority | Finding | Disposition | Proof |
+|---|---|---|---|
+| P0 | build_runner syntax blocker in product repository | Fixed | Generated-code CI stage passed after removing the orphaned source tail |
+| P0 | strict money validator missed flattened submit-operation sale tendered cash | Fixed in source; live proof added | `tendered_amount` is covered by the request validator, normalizers, migration, and live contract assertion |
+| P0 | SQLite maintenance lease did not itself survive physical DB replacement | Fixed in source; cross-process proof added | Sidecar filesystem lock survives pathname replacement; child-process regression verifies blocked/unblocked states |
+| P1 | active-location stock hydration could cross a lease-loss/network boundary | Fixed in source; regression added | Lease checked before page fetch and inside stock write transaction; test forces expiry during network wait |
+
+This PR follows: **Inventory → Trace → Inspect → Prove → Classify → Fix → Test → Cross-check → CI → Record**.
+
+The remaining Android/runtime evidence is explicitly not converted into a source-level green claim.
+
+
+2026-10-06 — PR #179 cardinality hardening continuation
+
+| P1 | Local cardinality invariants were repository-only | Fixed in source; CI proof pending | Schema v21 adds unique draft-cart-per-location and partial unique open-shift-per-location indexes with duplicate preflight; sequential/concurrent persistence regressions added |
+| CI | Final fatal analyzer warning in restore regression | Fixed | Removed redundant `restoredDb!` assertion |
+
+The benchmark now treats P05-002/P05-003 as source-fixed. Physical Android/runtime and production-configuration gates remain separate evidence items.

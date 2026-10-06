@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fulus_mobile/core/money/money.dart';
 
-import '../../../../core/money/money.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart' show dataRefreshSignalProvider, sessionPermissionsProvider, sessionProvider;
@@ -378,10 +378,10 @@ class _MoneyQuickActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final customers = ref.watch(moneyCustomersProvider).asData?.value ?? const [];
-    final customerCredit = customers.fold<double>(0, (sum, customer) => sum + customer.outstandingBalance);
+    final customerCredit = customers.fold<Money>(zeroMoney, (sum, customer) => sum + customer.outstandingBalance);
     final supplierPayments = summary.expenseBreakdown
         .where((row) => row.type == MoneyTransactionType.supplierPayment)
-        .fold<double>(0, (sum, row) => sum + row.amount);
+        .fold<Money>(zeroMoney, (sum, row) => sum + row.amount);
 
     final actions = <_MoneyAction>[
       _MoneyAction(

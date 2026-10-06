@@ -105,74 +105,23 @@ This finding was deliberately handed to Part 10 rather than duplicated as an ad-
 
 ---
 
-### P05-002 — Draft-cart cardinality is not database-enforced
+### P05-002 — Draft-cart cardinality is database-enforced
 
 **Severity:** Medium  
-**Status:** Open; remediation requires safe migration strategy
+**Status:** Fixed in source; CI/runtime verification pending
 
-**Observed behavior**
+Schema version 21 adds a unique index on `draft_carts(location_id)`. The upgrade preflights existing duplicates and fails explicitly rather than silently discarding cart state. Sequential and concurrent persistence regressions prove that at most one draft cart can be created for a location.
 
-`DraftCarts` documents an invariant of at most one cart per location, but the table has no unique constraint/index on `locationId`. `DraftCartRepositoryImpl.getOrCreateDraftCart` performs a read-then-insert sequence:
+**Remaining evidence:** CI and representative upgrade/runtime verification.
 
-1. query for an existing cart;
-2. if none exists, construct a new ULID;
-3. insert the cart.
-
-**Expected invariant**
-
-There must be at most one active draft cart for a location.
-
-**Impact**
-
-The invariant currently depends on repository sequencing rather than the persistence layer. Concurrent callers, future code paths, restore/import code, or another isolate could create multiple carts for one location. That can produce divergent carts and make the Sell screen resolve different draft IDs.
-
-**Fix**
-
-A database-level uniqueness constraint/index should ultimately enforce the invariant, with an explicit migration policy for devices that already contain duplicate draft carts. The migration must not silently discard cart items, payments, customer selection, discounts, or tax.
-
-Because a safe duplicate-reconciliation policy is not proven yet, no destructive migration was applied in Part 05.
-
-**Regression test required**
-
-Add a persistence-level uniqueness test after the migration design is approved, plus a repository concurrency regression proving two callers cannot establish two active carts.
-
-**Cross-check**
-
-`DraftCartRepositoryImpl.completeSale` already uses a transaction for sale creation + cart clearing, but that transaction does not establish uniqueness of cart creation.
-
----
-
-### P05-003 — Active cash-drawer shift cardinality is not database-enforced
+### P05-003 — Active cash-drawer shift cardinality is database-enforced
 
 **Severity:** High  
-**Status:** Open; cross-cutting with Part 09/10/16
+**Status:** Fixed in source; CI/runtime verification pending
 
-**Observed behavior**
+Schema version 21 adds a partial unique index on `cash_drawer_shifts(location_id) WHERE closed_at IS NULL`. The upgrade preflights duplicate open shifts and fails explicitly rather than silently merging financial state. Sequential and concurrent persistence regressions prove that only one open shift can exist per location while closed shifts remain allowed.
 
-`CashDrawerShiftRepositoryImpl.openShift` checks `getActiveShift(locationId)` and then inserts a new shift inside a transaction. `CashDrawerShifts` has no partial unique index enforcing one non-deleted, open shift per location.
-
-**Expected invariant**
-
-A location cannot have two simultaneously open cash-drawer shifts.
-
-**Impact**
-
-The application-level check is vulnerable to a concurrent create path unless the database itself serializes the read/check/insert in a way that is proven for every execution context. Duplicate open shifts would corrupt drawer attribution and closing/reconciliation semantics.
-
-**Fix**
-
-Part 10/16 should define and prove the exact invariant and then add a partial unique index such as one enforcing `location_id` uniqueness where `closed_at IS NULL AND deleted_at IS NULL`, together with a safe migration policy for any existing duplicate open shifts.
-
-No destructive repair was applied in Part 05 because closing or merging historical/open shifts automatically would alter financial state.
-
-**Regression test required**
-
-Persistence-level duplicate-open-shift rejection plus repository concurrent-open tests.
-
----
-
-## Migration audit
-
+**Remaining evidence:** CI and representative upgrade/runtime verification.
 ### Proven
 
 - Schema version is 16.

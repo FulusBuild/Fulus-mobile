@@ -750,3 +750,17 @@ If these questions cannot be answered, the default decision is **do not add it**
 This document is a living benchmark. When architecture changes, update the implementation, add/update the relevant fitness test, re-run the affected benchmark domain, and record the decision.
 
 **Last benchmark baseline: 2026-10-06 (`034a03a7f9325aea8f178e8f5773477512697657`)**
+
+
+## PR #179 — 2026-10-06 benchmark-hardening record
+
+The benchmark continuation re-proved the current source against the governing invariants.
+
+- **P0 build:** removed the orphaned duplicate tail from `product_repository_impl.dart`; generated-code and analyzer stages subsequently passed.
+- **P0 strict money wire:** the real `FulusSyncApi.submitOperation()` path serializes `sale.create` to flattened `sale_create`. `tendered_amount` is now included in the strict monetary key set and its response normalization contract, with a migration and live-E2E assertion that a numeric value is rejected with `INVALID_MONEY_WIRE`.
+- **P0 restore fencing:** the SQLite maintenance row remains logical coordination metadata; the physical fence is the sidecar filesystem `FileLock`, shared by sync and exclusive for restore. The physical lock survives replacement of the database file. A separate child-process regression proves exclusion across the replacement boundary.
+- **P1 active-location stock hydration:** ownership is checked before each page and again at the SQLite writer boundary, preventing a lease-lost network response from applying stale stock.
+
+The architecture remains local-first with a durable outbox, canonical reconciliation, and execution leases. No wholesale rewrite was introduced.
+
+**Remaining proof boundary:** physical Android restore/process-death and live multi-device runtime evidence remain separate evidence tasks; this source-hardening pass does not claim those observations without running them.

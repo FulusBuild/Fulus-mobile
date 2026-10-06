@@ -45,6 +45,69 @@ Future<void> main() async {
   _printIdentityFingerprint('business_id', businessId);
   _printIdentityFingerprint('device_client_id', deviceClientId);
   final suffix = '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(10000)}';
+  final moneyWireProbe = await dio.post('', data: {
+    'action': 'sync_operation',
+    'business_id': businessId,
+    'operation_id': 'e2e-money-wire-invalid-$suffix',
+    'operation_type': 'money_wire_probe',
+    'payload': {'amount': 300},
+  });
+  final moneyWireStatus = moneyWireProbe.statusCode ?? 0;
+  final moneyWireError = moneyWireProbe.data is Map
+      ? (moneyWireProbe.data as Map)['error']
+      : null;
+  final moneyWireCode = moneyWireError is Map ? moneyWireError['code'] : null;
+  if (moneyWireStatus != 400 || moneyWireCode != 'INVALID_MONEY_WIRE') {
+    throw StateError(
+      'Strict money wire rejected neither numeric monetary input nor returned '
+      'the expected contract error: HTTP $moneyWireStatus '
+      '${moneyWireProbe.data}',
+    );
+  }
+  stdout.writeln('PASS: numeric monetary request rejected by strict money wire contract');
+  final validMoneyWireProbe = await dio.post('', data: {
+    'action': 'sync_operation',
+    'business_id': businessId,
+    'operation_id': 'e2e-money-wire-valid-' + suffix,
+    'operation_type': 'money_wire_probe',
+    'payload': {'amount': '300.00'},
+  });
+  if ((validMoneyWireProbe.statusCode ?? 0) != 201 &&
+      (validMoneyWireProbe.statusCode ?? 0) != 200) {
+    throw StateError(
+      'Strict money wire rejected canonical decimal input: HTTP '
+      + (validMoneyWireProbe.statusCode ?? 0).toString()
+      + ' ' + validMoneyWireProbe.data.toString(),
+    );
+  }
+  stdout.writeln('PASS: canonical decimal monetary request accepted by strict money wire contract');
+  final submitOperationMoneyWireProbe = await dio.post('', data: {
+    'action': 'sale_create',
+    'business_id': businessId,
+    'operation_id': 'e2e-money-wire-submit-invalid-\$suffix',
+    'client_reference': 'e2e-money-wire-submit-invalid-\$suffix',
+    'payments': [
+      {'method': 'cash', 'amount': '1.00', 'tendered_amount': 2},
+    ],
+    'items': const [],
+  });
+  final submitOperationMoneyWireStatus = submitOperationMoneyWireProbe.statusCode ?? 0;
+  final submitOperationMoneyWireError = submitOperationMoneyWireProbe.data is Map
+      ? (submitOperationMoneyWireProbe.data as Map)['error']
+      : null;
+  final submitOperationMoneyWireCode = submitOperationMoneyWireError is Map
+      ? submitOperationMoneyWireError['code']
+      : null;
+  if (submitOperationMoneyWireStatus != 400 ||
+      submitOperationMoneyWireCode != 'INVALID_MONEY_WIRE') {
+    throw StateError(
+      'Strict money wire did not protect the real sale.submitOperation path: HTTP '
+      '\$submitOperationMoneyWireStatus \${submitOperationMoneyWireProbe.data}',
+    );
+  }
+  stdout.writeln(
+    'PASS: numeric tendered_amount rejected on the flattened sale.submitOperation path',
+  );
   final idempotencyOperationId = 'e2e-idempotency-$suffix';
   final createOperationId = 'e2e-create-$suffix';
   final deleteOperationId = 'e2e-delete-$suffix';
@@ -90,7 +153,7 @@ Future<void> main() async {
       'client_reference': incomeOperationId,
       'location_id': e2eLocationId,
       'source': 'E2E miscellaneous income $suffix',
-      'amount': 12345,
+      'amount': '12345.00',
       'income_date': DateTime.now().toUtc().toIso8601String(),
       'notes': 'Cloud Sync V1 income contract',
     });
@@ -110,21 +173,21 @@ Future<void> main() async {
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
       'sale_date': quickSaleDate,
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 321,
+      'discount': '0.00',
+      'tax': '0.00',
+      'amount_paid': '321.00',
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
-        {'method': 'cash', 'amount': 321},
+        {'method': 'cash', 'amount': '321.00', 'tendered_amount': '321.00'},
       ],
       'items': [
         {
           'product_id': null,
           'description': 'E2E Quick Sale $suffix',
           'quantity': 1,
-          'unit_price': 321,
-          'cost_price_at_sale': 0,
+          'unit_price': '321.00',
+          'cost_price_at_sale': '0.00',
         },
       ],
     });
@@ -141,21 +204,21 @@ Future<void> main() async {
       'client_reference': quickSaleOperationId,
       'location_id': e2eLocationId,
       'sale_date': quickSaleDate,
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 321,
+      'discount': '0.00',
+      'tax': '0.00',
+      'amount_paid': '321.00',
       'payment_method': 'cash',
       'notes': 'Cloud Sync V1 Quick Sale contract',
       'payments': [
-        {'method': 'cash', 'amount': 321},
+        {'method': 'cash', 'amount': '321.00', 'tendered_amount': '321.00'},
       ],
       'items': [
         {
           'product_id': null,
           'description': 'E2E Quick Sale $suffix',
           'quantity': 1,
-          'unit_price': 321,
-          'cost_price_at_sale': 0,
+          'unit_price': '321.00',
+          'cost_price_at_sale': '0.00',
         },
       ],
     });
@@ -212,8 +275,8 @@ Future<void> main() async {
     final createPayload = {
       'name': 'Fulus E2E Test Product $suffix',
       'sku': sku,
-      'cost_price': 100,
-      'selling_price': 150,
+      'cost_price': '100.00',
+      'selling_price': '150.00',
       'low_stock_threshold': 5,
       'is_active': true,
       'category_id': categoryId,
@@ -448,7 +511,7 @@ Future<void> main() async {
       'operation_id': customerOperationId,
       'name': 'Fulus E2E Customer ' + suffix,
       'phone': '08000000000',
-      'credit_limit': 100000,
+      'credit_limit': '100000.00',
       'notes': 'Cloud Sync V1 mutation matrix',
     });
     _expect2xx(customerResponse, 'customer.create');
@@ -473,12 +536,12 @@ Future<void> main() async {
       'location_id': e2eLocationId,
       'customer_id': customerId,
       'sale_date': DateTime.now().toUtc().toIso8601String(),
-      'discount': 0,
-      'tax': 0,
-      'amount_paid': 0,
+      'discount': '0.00',
+      'tax': '0.00',
+      'amount_paid': '0.00',
       'payment_method': 'credit',
       'payments': [
-        {'method': 'credit', 'amount': 150},
+        {'method': 'credit', 'amount': '150.00'},
       ],
       'notes': 'Cloud Sync V1 mutation matrix credit sale',
       'items': [
@@ -486,8 +549,8 @@ Future<void> main() async {
           'product_id': serverId,
           'description': 'E2E mutation matrix product',
           'quantity': 1,
-          'unit_price': 150,
-          'cost_price_at_sale': 100,
+          'unit_price': '150.00',
+          'cost_price_at_sale': '100.00',
         },
       ],
     });
@@ -517,7 +580,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-sale-payment-' + suffix,
       'sale_id': creditSaleId,
-      'amount': 50,
+      'amount': '50.00',
       'payment_method': 'cash',
     });
     _expect2xx(salePayment, 'sale.payment');
@@ -550,7 +613,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-repayment-' + suffix,
       'customer_id': customerId,
-      'amount': 50,
+      'amount': '50.00',
       'payment_method': 'cash',
       'note': 'Cloud Sync V1 mutation matrix repayment',
     });
@@ -581,7 +644,7 @@ Future<void> main() async {
         'server_id': customerId,
         'name': 'Fulus E2E Customer Updated ' + suffix,
         'phone': '08000000000',
-        'credit_limit': 125000,
+        'credit_limit': '125000.00',
         'notes': 'Cloud Sync V1 customer update',
         'is_active': true,
       },
@@ -603,7 +666,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-expense-' + suffix,
       'location_id': e2eLocationId,
-      'amount': 25,
+      'amount': '25.00',
       'category': 'E2E Category ' + suffix,
       'description': 'Cloud Sync V1 mutation matrix expense',
       'expense_date': DateTime.now().toUtc().toIso8601String(),
@@ -624,7 +687,7 @@ Future<void> main() async {
       'payload': {
         'server_id': expenseId,
         'location_id': e2eLocationId,
-        'amount': 30,
+        'amount': '30.00',
         'category': 'E2E Category ' + suffix,
         'description': 'Cloud Sync V1 mutation matrix expense updated',
         'expense_date': DateTime.now().toUtc().toIso8601String(),
@@ -651,7 +714,7 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-drawer-open-' + suffix,
       'location_id': firstLocationId,
-      'opening_cash': 1000,
+      'opening_cash': '1000.00',
       'opened_at': DateTime.now().toUtc().toIso8601String(),
     });
     _expect2xx(drawerOpen, 'cash_drawer.open');
@@ -667,8 +730,8 @@ Future<void> main() async {
       'business_id': businessId,
       'operation_id': 'e2e-drawer-close-' + suffix,
       'shift_id': shiftId,
-      'closing_cash': 1000,
-      'cash_difference': 0,
+      'closing_cash': '1000.00',
+      'cash_difference': '0.00',
       'closing_note': 'Cloud Sync V1 mutation matrix close',
       'closed_at': DateTime.now().toUtc().toIso8601String(),
     });
@@ -1213,69 +1276,70 @@ Future<int> _findChangeSequence(
   required String entityType,
   required String entityId,
 }) async {
-  var cursor = 0;
-  const limit = 500;
-  var recoveredFromRetention = false;
-  var latestSequence = 0;
-  for (var page = 0; page < 20; page++) {
-    final response = await dio.get(
-      '',
-      queryParameters: {
-        'business_id': businessId,
-        'cursor': cursor,
-        'limit': limit,
-      },
-    );
-    final status = response.statusCode ?? 0;
-    if (status == 410 && !recoveredFromRetention) {
-      final root = response.data;
-      final error = root is Map ? root['error'] : null;
-      final oldest = error is Map ? error['oldest_sequence'] : null;
-      final bootstrapRequired = error is Map && error['bootstrap_required'] == true;
-      if (bootstrapRequired && oldest is num) {
-        // The E2E has already exercised the 410 guard in preflight. For this
-        // assertion we need to inspect the retained feed after a successful
-        // mutation, so resume from the first retained sequence rather than
-        // treating an intentionally compacted history as a test failure.
-        cursor = max(0, oldest.toInt() - 1);
-        recoveredFromRetention = true;
-        continue;
-      }
-    }
-    if (status < 200 || status >= 300) {
-      throw StateError(
-        'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
+  // The mutation endpoint can acknowledge the write before the change-feed
+  // projection is visible. Poll the retained feed briefly rather than turning
+  // that normal propagation window into a flaky CI failure.
+  for (var attempt = 0; attempt < 8; attempt++) {
+    var cursor = 0;
+    const limit = 500;
+    var recoveredFromRetention = false;
+    var latestSequence = 0;
+    for (;;) {
+      final response = await dio.get(
+        '',
+        queryParameters: {
+          'business_id': businessId,
+          'cursor': cursor,
+          'limit': limit,
+        },
       );
-    }
-    final root = response.data;
-    final data = root is Map ? root['data'] : null;
-    if (data is! Map) {
-      throw StateError('E2E change-feed response did not contain data.');
-    }
-    final changes = data['changes'];
-    if (changes is! List) {
-      throw StateError('E2E change-feed response did not contain changes.');
-    }
-    for (final raw in changes) {
-      if (raw is Map &&
-          raw['entity_type'] == entityType &&
-          raw['entity_id'] == entityId) {
-        final sequence = raw['sequence'];
-        if (sequence is num) {
-          final value = sequence.toInt();
-          // The conflict check rejects any entity change strictly newer than
-          // base_cursor. Keep scanning the full retained feed so callers get
-          // the entity's latest change, not its first historical change.
-          latestSequence = max(latestSequence, value);
+      final status = response.statusCode ?? 0;
+      if (status == 410 && !recoveredFromRetention) {
+        final root = response.data;
+        final error = root is Map ? root['error'] : null;
+        final oldest = error is Map ? error['oldest_sequence'] : null;
+        final bootstrapRequired = error is Map && error['bootstrap_required'] == true;
+        if (bootstrapRequired && oldest is num) {
+          cursor = max(0, oldest.toInt() - 1);
+          recoveredFromRetention = true;
+          continue;
         }
       }
+      if (status < 200 || status >= 300) {
+        throw StateError(
+          'E2E change-feed read failed with HTTP $status: ' + response.data.toString(),
+        );
+      }
+      final root = response.data;
+      final data = root is Map ? root['data'] : null;
+      if (data is! Map) {
+        throw StateError('E2E change-feed response did not contain data.');
+      }
+      final changes = data['changes'];
+      if (changes is! List) {
+        throw StateError('E2E change-feed response did not contain changes.');
+      }
+      for (final raw in changes) {
+        if (raw is Map &&
+            raw['entity_type'] == entityType &&
+            raw['entity_id'] == entityId) {
+          final sequence = raw['sequence'];
+          if (sequence is num) {
+            final value = sequence.toInt();
+            latestSequence = max(latestSequence, value);
+          }
+        }
+      }
+      final next = data['next_cursor'];
+      final hasMore = data['has_more'] == true;
+      if (!hasMore || next is! num || next.toInt() <= cursor) break;
+      cursor = next.toInt();
     }
-    final next = data['next_cursor'];
-    final hasMore = data['has_more'] == true;
-    if (!hasMore || next is! num || next.toInt() <= cursor) break;
-    cursor = next.toInt();
+    if (latestSequence > 0) return latestSequence;
+    if (attempt < 7) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
   }
-  if (latestSequence > 0) return latestSequence;
   throw StateError(
     'E2E could not locate the test entity in the retained change feed.',
   );

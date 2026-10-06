@@ -207,8 +207,10 @@ class AppDatabase extends _$AppDatabase {
   /// of sync with this one.
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
+  /// Schema v21 makes the two repository-level cardinality invariants database-enforced.
+  /// The migration preflights duplicates rather than silently discarding business state.
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration {
@@ -330,6 +332,43 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
         }
+        if (from < 21) {
+          final duplicateDraftCarts = await customSelect(
+            'SELECT location_id, COUNT(*) AS count '
+            'FROM draft_carts GROUP BY location_id HAVING COUNT(*) > 1',
+          ).get();
+          if (duplicateDraftCarts.isNotEmpty) {
+            throw StateError(
+              'Cannot safely upgrade: duplicate draft carts exist for '
+              'one or more locations. Resolve the duplicate local drafts '
+              'before retrying the upgrade.',
+            );
+          }
+
+          final duplicateOpenShifts = await customSelect(
+            'SELECT location_id, COUNT(*) AS count '
+            'FROM cash_drawer_shifts '
+            'WHERE closed_at IS NULL '
+            'GROUP BY location_id HAVING COUNT(*) > 1',
+          ).get();
+          if (duplicateOpenShifts.isNotEmpty) {
+            throw StateError(
+              'Cannot safely upgrade: multiple open cash drawer shifts '
+              'exist for one or more locations. Resolve them before retrying.',
+            );
+          }
+
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_carts_location_id '
+            'ON draft_carts(location_id)',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'idx_cash_drawer_shifts_open_location '
+            'ON cash_drawer_shifts(location_id) WHERE closed_at IS NULL',
+          );
+        }
+
         if (from < 4) {
           // Sales.cashierUserId — purely additive and nullable, so a
           // plain addColumn is the right tool (same reasoning as the

@@ -1,4 +1,5 @@
 import '../../../domain/repositories/database_lifecycle.dart';
+import '../../../sync/sync_execution_lease.dart';
 import 'database.dart';
 
 /// The concrete `AppDatabase`-backed `DatabaseLifecycle` INTEGRATION.md
@@ -44,12 +45,35 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
 
   final AppDatabase Function() _getDatabase;
   final void Function(AppDatabase) _onReopened;
+  SyncExecutionLease? _maintenanceLease;
 
   @override
   Future<String> currentDatabasePath() => AppDatabase.resolveDatabasePath();
 
   @override
-  Future<void> closeForMaintenance() => _getDatabase().close();
+  Future<void> closeForMaintenance() async {
+    if (_maintenanceLease != null) {
+      throw StateError('Database maintenance is already in progress.');
+    }
+    final database = _getDatabase();
+    final lease = SyncExecutionLease(database);
+    final acquired = await lease.acquireMaintenance();
+    if (!acquired) {
+      throw StateError('Fulus Cloud sync is still active. Please try the restore again.');
+    }
+    _maintenanceLease = lease;
+    try {
+      // The SQLite lease row cannot be renewed after this connection closes.
+      // Keep the physical sidecar FileLock held instead while the database
+      // pathname is replaced.
+      lease.suspendMaintenanceRenewalForDatabaseReplacement();
+      await database.close();
+    } catch (_) {
+      await lease.releaseMaintenance();
+      _maintenanceLease = null;
+      rethrow;
+    }
+  }
 
   @override
   Future<void> reopenAfterMaintenance() async {
@@ -58,6 +82,21 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
     // being "the app's working database again" is not the same claim as
     // "every existing repository now uses it."
     final fresh = AppDatabase.open();
-    _onReopened(fresh);
+    try {
+      _onReopened(fresh);
+    } catch (_) {
+      // The callback updates the application's database handle. If that
+      // handoff fails, do not leak the freshly opened connection while the
+      // maintenance fence remains held; the restore caller must be able to
+      // roll the file back and retry the reopen safely.
+      await fresh.close();
+      rethrow;
+    }
+
+    final lease = _maintenanceLease;
+    _maintenanceLease = null;
+    if (lease != null) {
+      await lease.releaseMaintenanceOn(fresh);
+    }
   }
 }

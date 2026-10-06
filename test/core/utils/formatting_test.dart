@@ -15,5 +15,11 @@ void main() {
       expect(formatMoney(moneyFromMajor(-2500)), '-₦2,500.00');
     });
 
+    test('formats signs and large integer minor units without floating-point drift', () {
+      expect(formatMoney(9007199254740991), '₦90,071,992,547,409.91');
+      expect(formatMoney(1250, showSign: true), '+₦12.50');
+      expect(formatMoney(-1250, showSign: true), '-₦12.50');
+    });
+
   });
 }

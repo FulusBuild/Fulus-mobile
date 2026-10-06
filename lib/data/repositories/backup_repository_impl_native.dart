@@ -218,7 +218,11 @@ class BackupRepositoryImpl implements BackupRepository {
         await _lifecycle.reopenAfterMaintenance();
       } catch (_) {
         if (installed && await previous.exists()) {
-          await _lifecycle.closeForMaintenance();
+          // The maintenance fence is still held when reopening fails. Do not
+          // call closeForMaintenance() again: that would try to acquire a
+          // second fence and fail with "maintenance is already in progress".
+          // Roll the database file back under the existing physical fence,
+          // then ask the lifecycle to reopen the known-good previous file.
           final live = File(dbPath);
           if (await live.exists()) await live.delete();
           await previous.rename(dbPath);
