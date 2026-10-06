@@ -125,7 +125,7 @@ class ProductRepositoryImpl implements ProductRepository {
           // be replaced by a stale snapshot between the two statements.
           if (stockLevel == null) {
             await _db.into(_db.productStockLevels).insert(
-              item.toStockLevelCompanion(locationLocalId: location.localId),
+              item.toStockLevelCompanion(productLocalId: product.localId, locationLocalId: location.localId),
             );
             return;
           }
