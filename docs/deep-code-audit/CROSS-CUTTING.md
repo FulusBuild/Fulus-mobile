@@ -43,9 +43,9 @@ Employee provisioning previously entered the owner/admin full-business restore R
 
 ## X-005 — Local financial representation
 
-Status: Open; owned by Parts 05 and 10.
+Status: **Closed in source; runtime/production evidence pending.**
 
-The local schema persists monetary values as SQLite REAL in multiple financial tables. This is incompatible with the stated integer-safe financial invariant unless every persisted value is guaranteed to be an exact integer-valued REAL and every arithmetic boundary preserves that property. Source inspection does not provide that proof.
+The current local schema persists monetary values as SQLite INTEGER minor units across products, customers, sales, sale items, payments, expenses, income, returns, and cash-drawer state. Database migration v17 converts the historical REAL values at the migration boundary with explicit two-decimal rounding. Source inspection now proves the integer-safe representation; runtime upgrade/convergence evidence remains.
 
 Relevant parts:
 - Part 05 — Local Database & Persistence
@@ -107,7 +107,7 @@ Required evidence/fix:
 
 ## X-009 — Financial integer-money contract
 
-Part 10 owns the coordinated migration from local floating-point monetary values to integer minor units. The existing cloud contract is NUMERIC(14,2), so conversion boundaries must remain explicit and lossless.
+Status: **Closed in source; runtime/production evidence pending.**\n\nThe coordinated migration from local floating-point monetary values to integer minor units is implemented. The cloud contract remains NUMERIC(14,2), with explicit decimal-string JSON boundaries and exact local integer arithmetic.
 
 The migration must cover catalog prices, sales, payments, customer/supplier ledgers, expenses, income, returns, tax remittance, drawer state, drafts, reports and receipts. It must also define tendered cash versus applied payment versus change.
 
