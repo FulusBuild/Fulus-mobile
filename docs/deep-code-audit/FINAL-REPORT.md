@@ -2,7 +2,7 @@
 
 ## Status
 
-**Source audit:** Parts 01–20 inspected/reconciled.
+**Source audit:** Parts 01–20 inspected/reconciled; current-main source revalidation completed 2026-10-06.
 
 **Overall production-readiness closure:** **Not yet closed.**
 
@@ -31,12 +31,12 @@ These were addressed in source/production where documented. The audit did not we
 | 02 | Authentication & Sessions | Audited; source fixes applied; runtime/production verification tracked |
 | 03 | Employee / Access | Audited; source fixes applied; authorization cross-checks performed |
 | 04 | Business / Location | Audited; source fix applied; runtime/production evidence tracked |
-| 05 | Local Database | Audited; financial/local cardinality cross-cutting items remain |
+| 05 | Local Database | Audited; integer-money migration now closed in source; cardinality hardening remains |
 | 06 | Repositories | Audited; composite transaction and error-boundary fixes tracked |
 | 07 | Domain Logic | Audited; local/cloud arithmetic contract remains cross-cutting |
 | 08 | Product / Catalog | Audited; image/scope/tracking invariants cross-checked |
-| 09 | Sales / Checkout | Audited; tender/change contract remains coordinated with Part 10 |
-| 10 | Financial Integrity | Audited; integer-money migration remains a major open cross-cutting item |
+| 09 | Sales / Checkout | Audited; tender/change contract implemented, live proof pending |
+| 10 | Financial Integrity | Audited; integer-money migration implemented, runtime proof pending |
 | 11 | Inventory / Stock | Audited; tracking and transaction boundaries fixed |
 | 12 | Customers / Credit | Audited; repayment/return defects fixed; live convergence evidence pending |
 | 13 | Cloud APIs | Audited; grants/actor/location/idempotency hardening cross-checked |
@@ -68,7 +68,7 @@ Fresh-install restore and post-restore sync/cursor continuation still require ph
 The financial multi-device E2E and final CI execution still require observed successful workflow completion.
 
 ### Financial integer-money contract
-Cross-cutting X-005/X-009 remains open. The local schema's REAL monetary representation requires a coordinated evidence-backed decision/migration before claiming the integer-safe financial invariant fully closed.
+X-005/X-009 are closed at the source level. The local schema is now INTEGER minor-unit money, the v17 migration converts historical REAL values, and the strict decimal-string wire contract is enforced. Runtime upgrade/convergence evidence remains.
 
 ## 4. Security evidence
 
