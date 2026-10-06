@@ -114,9 +114,19 @@ void main() {
 
     Future<ProcessResult> runProbe(String mode) {
       return Process.run(
-        'dart',
-        ['run', 'tool/sync_execution_lease_process_probe.dart', path, mode],
+        'flutter',
+        [
+          'test',
+          'test/sync/sync_execution_lease_process_probe_test.dart',
+          '--reporter',
+          'expanded',
+        ],
         workingDirectory: Directory.current.path,
+        environment: {
+          ...Platform.environment,
+          'FULUS_SYNC_PROBE_DB_PATH': path,
+          'FULUS_SYNC_PROBE_MODE': mode,
+        },
       );
     }
 
