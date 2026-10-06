@@ -87,27 +87,45 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<void> hydrateActiveLocationStockFromServer() async {
-    final activeLocationId = await (_db.select(_db.sessions)..where((s) => s.id.equals('current'))).getSingleOrNull().then((row) => row?.activeLocationId);
-    final location = activeLocationId == null ? null : await (_db.select(_db.locations)..where((l) => l.localId.equals(activeLocationId))).getSingleOrNull();
+    final activeLocationId = await (_db.select(_db.sessions)
+          ..where((s) => s.id.equals('current')))
+        .getSingleOrNull()
+        .then((row) => row?.activeLocationId);
+    if (activeLocationId == null) return;
+
+    final location = await (_db.select(_db.locations)
+          ..where((l) => l.localId.equals(activeLocationId)))
+        .getSingleOrNull();
+    if (location == null) return;
+
     var page = 1;
     var totalPages = 1;
     do {
       final response = await _productsApi.listProducts(page: page);
       totalPages = response.totalPages;
+
       for (final item in response.items) {
-        final categoryLocalId = await _resolveCategoryLocalId(item.categoryId);
-        final supplierLocalId = await _resolveSupplierLocalId(item.supplierId);
-        await _db.into(_db.products).insertOnConflictUpdate(
-          item.toDriftCompanion().copyWith(
-            categoryId: Value(categoryLocalId),
-            supplierId: Value(supplierLocalId),
-          ),
+        // This endpoint is a location-snapshot hydration path, not a second
+        // catalog synchronization authority. Canonical product fields are
+        // reconciled only through the change feed.
+        final product = await (_db.select(_db.products)
+              ..where((p) => p.serverId.equals(item.id)))
+            .getSingleOrNull();
+        if (product == null) continue;
+
+        final stockLevel = await (_db.select(_db.productStockLevels)
+              ..where((s) =>
+                  s.productLocalId.equals(product.localId) &
+                  s.locationLocalId.equals(location.localId)))
+            .getSingleOrNull();
+        // Never let a context-switch snapshot overwrite a locally pending
+        // stock mutation. The normal sync path owns settlement of pending
+        // stock state.
+        if (stockLevel?.syncStatus == SyncStatus.pending) continue;
+
+        await _db.into(_db.productStockLevels).insertOnConflictUpdate(
+          item.toStockLevelCompanion(locationLocalId: location.localId),
         );
-        if (location != null) {
-          await _db.into(_db.productStockLevels).insertOnConflictUpdate(
-            item.toStockLevelCompanion(locationLocalId: location.localId),
-          );
-        }
       }
       page++;
     } while (page <= totalPages);
