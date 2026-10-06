@@ -817,7 +817,7 @@ class _SalesChartPainter extends CustomPainter {
       final y = chart.bottom - chart.height * (i / 3);
       canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
       final value = maxValue * (i / 3);
-      final label = value == 0 ? '0' : formatMoney(value, symbol: currencySymbol);
+      final label = value == 0 ? '0' : formatMoney(moneyFromMajor(value), symbol: currencySymbol);
       final tp = TextPainter(text: TextSpan(text: label, style: textStyle), textDirection: TextDirection.ltr)..layout(maxWidth: left - 6);
       tp.paint(canvas, Offset(left - tp.width - 6, y - tp.height / 2));
     }
