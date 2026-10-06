@@ -125,9 +125,9 @@ extension ProductResponseDtoToCompanion on ProductResponseDto {
   /// ProductResponseDto itself — the backend has no location concept at
   /// all, see ProductRepositoryImpl's own doc comment on how the single
   /// local Location gets resolved for this phase).
-  ProductStockLevelsCompanion toStockLevelCompanion({required String locationLocalId}) {
+  ProductStockLevelsCompanion toStockLevelCompanion({required String productLocalId, required String locationLocalId}) {
     return ProductStockLevelsCompanion.insert(
-      productLocalId: id,
+      productLocalId: productLocalId,
       locationLocalId: locationLocalId,
       currentStock: Value(currentStock),
       updatedAt: DateTime.now(),
