@@ -94,8 +94,13 @@ void main() {
       db1,
       acquisitionTimeout: const Duration(milliseconds: 750),
     );
+    AppDatabase? restoredDb;
+    var fenceReleased = false;
     addTearDown(() async {
-      await maintenance.releaseMaintenance();
+      if (!fenceReleased && restoredDb != null) {
+        await maintenance.releaseMaintenanceOn(restoredDb!);
+      }
+      await restoredDb?.close();
       await db1.close();
       await directory.delete(recursive: true);
     });
@@ -105,8 +110,7 @@ void main() {
     await db1.close();
     await File(path).rename('$path.previous');
 
-    final restoredDb = AppDatabase.forTesting(openExecutor());
-    addTearDown(restoredDb.close);
+    restoredDb = AppDatabase.forTesting(openExecutor());
 
     Future<ProcessResult> runProbe(String mode) {
       return Process.run(
@@ -124,7 +128,8 @@ void main() {
           'stdout=${blockedProbe.stdout} stderr=${blockedProbe.stderr}',
     );
 
-    await maintenance.releaseMaintenanceOn(restoredDb);
+    await maintenance.releaseMaintenanceOn(restoredDb!);
+    fenceReleased = true;
 
     final releasedProbe = await runProbe('acquire');
     expect(
