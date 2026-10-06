@@ -207,6 +207,8 @@ class AppDatabase extends _$AppDatabase {
   /// of sync with this one.
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
+  /// Schema v21 makes the two repository-level cardinality invariants database-enforced.
+  /// The migration preflights duplicates rather than silently discarding business state.
   @override
   int get schemaVersion => 21;
 
