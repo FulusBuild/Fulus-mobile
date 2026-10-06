@@ -98,7 +98,7 @@ void main() {
     var fenceReleased = false;
     addTearDown(() async {
       if (!fenceReleased && restoredDb != null) {
-        await maintenance.releaseMaintenanceOn(restoredDb!);
+        await maintenance.releaseMaintenanceOn(restoredDb);
       }
       await restoredDb?.close();
       await db1.close();
