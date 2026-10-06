@@ -299,8 +299,8 @@ Future<String> _runFinancialConvergenceScenario(
     'item': {
       'name': 'P16 Return Product $suffix',
       'sku': 'P16-$suffix',
-      'cost_price': 50,
-      'selling_price': 150,
+      'cost_price': '50.00',
+      'selling_price': '150.00',
       'low_stock_threshold': 0,
       'is_active': true,
       // The production catalog path currently preserves stock tracking;
