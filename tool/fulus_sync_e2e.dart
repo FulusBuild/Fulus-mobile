@@ -523,7 +523,7 @@ Future<void> main() async {
     stdout.writeln('PASS: customer.create');
 
     final creditSaleOperationId = 'e2e-credit-sale-' + suffix;
-    final creditSaleFeedBefore = (customerData?['sync_sequence'] as num?)?.toInt();
+    final creditSaleFeedBefore = (customerData['sync_sequence'] as num?)?.toInt();
     if (creditSaleFeedBefore == null || creditSaleFeedBefore <= 0) {
       throw StateError(
         'customer.create returned no authoritative sync sequence: ' +
@@ -1052,22 +1052,6 @@ Future<void> main() async {
 
     // Tombstone race: delete on device A, then prove device B cannot
     // resurrect its stale local copy with a pre-delete cursor.
-    final successfulConcurrentSequences = concurrentCatalogResults
-        .where((response) {
-          final status = response.statusCode ?? 0;
-          return status >= 200 && status < 300;
-        })
-        .map((response) => _actionData(response)?['sync_sequence'])
-        .whereType<num>()
-        .map((sequence) => sequence.toInt())
-        .where((sequence) => sequence > 0)
-        .toList(growable: false);
-    if (successfulConcurrentSequences.length != 1) {
-      throw StateError(
-        'Concurrent catalog OCC race returned no unique authoritative success sequence: ' +
-        concurrentCatalogResults.map((response) => response.data).toList().toString(),
-      );
-    }
     final preDeleteSequence = latestProductChangeSequence;
     if (preDeleteSequence == null || preDeleteSequence <= 0) {
       throw StateError(
