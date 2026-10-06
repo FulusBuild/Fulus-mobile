@@ -245,7 +245,7 @@ Future<String> _runFinancialConvergenceScenario(
     'operation_id': 'e2e-p16-customer-$suffix',
     'name': 'Fulus P16 Customer $suffix',
     'phone': '08000000001',
-    'credit_limit': 100000,
+     'credit_limit': '100000.00',
     'notes': 'P16 financial convergence',
   });
   _expect2xx(customerCreate, 'P16 customer.create');
@@ -270,12 +270,12 @@ Future<String> _runFinancialConvergenceScenario(
     'location_id': await _firstLocationId(dio, businessId),
     'customer_id': customerId,
     'sale_date': saleDate,
-    'discount': 0,
-    'tax': 0,
-    'amount_paid': 0,
+     'discount': '0.00',
+     'tax': '0.00',
+     'amount_paid': '0.00',
     'payment_method': 'credit',
     'payments': [
-      {'method': 'credit', 'amount': 100},
+      {'method': 'credit', 'amount': '100.00'},
     ],
     'notes': 'P16 seed customer credit',
     'items': [
@@ -283,8 +283,8 @@ Future<String> _runFinancialConvergenceScenario(
         'product_id': null,
         'description': 'P16 seed credit $suffix',
         'quantity': 1,
-        'unit_price': 100,
-        'cost_price_at_sale': 0,
+         'unit_price': '100.00',
+         'cost_price_at_sale': '0.00',
       },
     ],
   });
@@ -346,12 +346,12 @@ Future<String> _runFinancialConvergenceScenario(
     'location_id': saleLocationId,
     'customer_id': customerId,
     'sale_date': saleDate,
-    'discount': 0,
-    'tax': 0,
-    'amount_paid': 0,
+     'discount': '0.00',
+     'tax': '0.00',
+     'amount_paid': '0.00',
     'payment_method': 'credit',
     'payments': [
-      {'method': 'credit', 'amount': 150},
+      {'method': 'credit', 'amount': '150.00'},
     ],
     'notes': 'P16 concurrent financial sale',
     'items': [
@@ -359,8 +359,8 @@ Future<String> _runFinancialConvergenceScenario(
         'product_id': productId,
         'description': 'P16 financial sale $suffix',
         'quantity': 1,
-        'unit_price': 150,
-        'cost_price_at_sale': 0,
+         'unit_price': '150.00',
+         'cost_price_at_sale': '0.00',
       },
     ],
   });
@@ -369,7 +369,7 @@ Future<String> _runFinancialConvergenceScenario(
     'business_id': businessId,
     'operation_id': repaymentOperation,
     'customer_id': customerId,
-    'amount': 50,
+     'amount': '50.00',
     'payment_method': 'cash',
     'note': 'P16 independent device repayment',
   });
@@ -406,12 +406,12 @@ Future<String> _runFinancialConvergenceScenario(
     'location_id': await _firstLocationId(primaryDio, businessId),
     'customer_id': customerId,
     'sale_date': saleDate,
-    'discount': 0,
-    'tax': 0,
-    'amount_paid': 0,
+     'discount': '0.00',
+     'tax': '0.00',
+     'amount_paid': '0.00',
     'payment_method': 'credit',
     'payments': [
-      {'method': 'credit', 'amount': 150},
+      {'method': 'credit', 'amount': '150.00'},
     ],
     'notes': 'P16 concurrent financial sale',
     'items': [
@@ -419,8 +419,8 @@ Future<String> _runFinancialConvergenceScenario(
         'product_id': productId,
         'description': 'P16 financial sale $suffix',
         'quantity': 1,
-        'unit_price': 150,
-        'cost_price_at_sale': 0,
+         'unit_price': '150.00',
+         'cost_price_at_sale': '0.00',
       },
     ],
   });
@@ -435,7 +435,7 @@ Future<String> _runFinancialConvergenceScenario(
     'business_id': businessId,
     'operation_id': repaymentOperation,
     'customer_id': customerId,
-    'amount': 50,
+     'amount': '50.00',
     'payment_method': 'cash',
     'note': 'P16 independent device repayment',
   });
@@ -458,7 +458,7 @@ Future<String> _runFinancialConvergenceScenario(
     'operation_id': returnOperation,
     'sale_id': saleId,
     'reason': 'P16 credit return',
-    'refund_amount': 150,
+     'refund_amount': '150.00',
     'refund_method': 'credit',
     'items': [
       {'product_id': productId, 'quantity': 1},
@@ -476,7 +476,7 @@ Future<String> _runFinancialConvergenceScenario(
     'operation_id': returnOperation,
     'sale_id': saleId,
     'reason': 'P16 credit return',
-    'refund_amount': 150,
+     'refund_amount': '150.00',
     'refund_method': 'credit',
     'items': [
       {'product_id': productId, 'quantity': 1},
