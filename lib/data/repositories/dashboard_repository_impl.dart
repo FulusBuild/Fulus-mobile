@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:fulus_mobile/core/money/money.dart';
 
-import '../../core/money/money.dart';
 
 import '../../domain/entities/dashboard_summary.dart';
 import '../../domain/repositories/dashboard_repository.dart';
