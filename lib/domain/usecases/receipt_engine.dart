@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:fulus_mobile/core/money/money.dart';
 
 import '../entities/receipt.dart';
 
