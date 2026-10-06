@@ -40,7 +40,7 @@ The catalog mutation function requires catalog.manage, validates active register
 
 ## Cross-cutting findings / known risks
 
-- **P05-001 / X-005:** product cost/selling price still participate in the broader SQLite REAL monetary representation. Part 10 owns the coordinated integer-money migration.
+- **P05-001 / X-005:** product cost/selling price are now INTEGER minor units in the current SQLite schema; runtime upgrade/convergence evidence remains.
 - **P05 migration weakness:** legacy product SKU/barcode duplicates can leave a device without the DB uniqueness index if the migration intentionally skips index creation. This was already recorded in Part 05 and is not duplicated as a new Part 08 finding.
 - **P03/P04/X-003/X-004:** catalog visibility and mutations still depend on the broader employee/business/location authorization chain; no additional catalog-specific bypass was proven in this pass.
 - Category and supplier create operations lack server idempotency keys according to the existing endpoint contract. This is a documented backend limitation in the source and is a Part 13/API concern, not a new Part 08 finding.

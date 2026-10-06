@@ -43,9 +43,9 @@ Employee provisioning previously entered the owner/admin full-business restore R
 
 ## X-005 — Local financial representation
 
-Status: Open; owned by Parts 05 and 10.
+Status: **Closed in source; runtime/production evidence pending.**
 
-The local schema persists monetary values as SQLite REAL in multiple financial tables. This is incompatible with the stated integer-safe financial invariant unless every persisted value is guaranteed to be an exact integer-valued REAL and every arithmetic boundary preserves that property. Source inspection does not provide that proof.
+The current local schema persists monetary values as SQLite INTEGER minor units across products, customers, sales, sale items, payments, expenses, income, returns, and cash-drawer state. Database migration v17 converts the historical REAL values at the migration boundary with explicit two-decimal rounding. Source inspection now proves the integer-safe representation; runtime upgrade/convergence evidence remains.
 
 Relevant parts:
 - Part 05 — Local Database & Persistence
@@ -80,34 +80,22 @@ Required evidence:
 
 ## X-007 — Local/cloud sale arithmetic contract
 
-Status: Deferred to Parts 09/10.
+Status: **Closed in source; runtime evidence pending.**
 
-Part 07 found that the local Sale/SaleDraft arithmetic does not fully match the authoritative Supabase sale transaction. Local totals can become negative when an excessive whole-cart discount is accepted, while the cloud transaction clamps total to zero. Local overpayment is represented through amountPaid > total and changeDue, while the cloud transaction clamps amount_paid to total.
-
-Required evidence/fix ownership:
-1. Define the canonical meaning of amountPaid versus tendered cash.
-2. Define change as an explicit financial concept if overpayment is supported.
-3. Define the canonical integer money unit in Part 10.
-4. Align local checkout calculations with the cloud transaction.
-5. Add exact local/cloud regression coverage before changing the financial schema.
+The current Sale/SaleDraft, CartCubit, draft-cart repository, and cloud sale RPC agree on integer money, discount bounds, applied payment, credit, tendered cash, and change semantics. Exact local/cloud regression coverage exists.
 
 
 ## X-008 — Sale tender/change contract
 
-Status: Open; owned by Parts 09 and 10.
+Status: **Closed in source; runtime evidence pending.**
 
-The normal checkout permits cash tender above the remaining balance so change can be returned. Local SalePayment/Sale.amountPaid currently retain the tendered amount, while the cloud V2 sale command requires all payment legs to equal the sale total and the authoritative sale amount_paid is capped at the total.
-
-Required evidence/fix:
-1. Define tendered cash separately from applied payment.
-2. Define change and its cash-ledger treatment.
-3. Preserve split-payment and credit semantics.
-4. Align local checkout, receipts, cash drawer, cloud sale RPC, and canonical reconciliation.
-5. Complete integer-money migration and exact regressions in Part 10.
+The current checkout preserves tendered cash separately from applied payment. Cloud V2 persists cash_tendered/cash_change and records only applied cash in the cash ledger. Split-payment and credit semantics are covered by exact regressions. Remaining proof is physical offline→sync execution.
 
 ## X-009 — Financial integer-money contract
 
-Part 10 owns the coordinated migration from local floating-point monetary values to integer minor units. The existing cloud contract is NUMERIC(14,2), so conversion boundaries must remain explicit and lossless.
+Status: **Closed in source; runtime/production evidence pending.**
+
+The coordinated migration from local floating-point monetary values to integer minor units is implemented. The cloud contract remains NUMERIC(14,2), with explicit decimal-string JSON boundaries and exact local integer arithmetic.
 
 The migration must cover catalog prices, sales, payments, customer/supplier ledgers, expenses, income, returns, tax remittance, drawer state, drafts, reports and receipts. It must also define tendered cash versus applied payment versus change.
 

@@ -10,7 +10,7 @@ Audited monetary persistence, arithmetic, sales/payment totals, customer and sup
 
 ## Financial data inventory
 
-Local Drift currently persists monetary values as SQLite REAL in:
+Historical Drift versions persisted monetary values as SQLite REAL in:
 - Products.costPrice / sellingPrice
 - Customers.outstandingBalance / creditLimit
 - Sales.subtotal / wholeCartDiscount / discount / tax / total / amountPaid
@@ -64,7 +64,7 @@ Part 09 established the concrete contract gap:
 - cloud V2 requires payment legs to equal the sale total and does not persist an overpayment;
 - cash-drawer expected-cash calculation currently sums the stored cash payment amount.
 
-Until tendered cash, applied payment, change, and cash-ledger treatment are explicitly separated, a legitimate cash transaction with change cannot have a single unambiguous persisted financial representation.
+The current implementation explicitly separates tendered cash, applied payment, change, and cash-ledger treatment. The remaining requirement is live Android/offline-to-sync proof.
 
 This must be resolved as part of the integer-money migration, not by clamping amountPaid in one layer.
 
@@ -94,10 +94,10 @@ Supplier ledger and tax-remittance ledgers are intentionally local-only today. T
 ### P10-001
 
 **Severity:** High
-**Status:** Open — coordinated migration required
+**Status:** Closed in source; runtime upgrade/convergence evidence pending
 **Area:** Monetary representation
 
-Local financial persistence and domain APIs use IEEE-754 Dart/SQLite floating-point values while the cloud financial schema uses NUMERIC(14,2).
+Historical local financial persistence used IEEE-754 Dart/SQLite floating-point values while the cloud financial schema uses NUMERIC(14,2). The current local domain and SQLite schema use integer minor units.
 
 Affected paths include catalog prices, sales, payments, customer balances, expenses, income, supplier/customer ledgers, returns, tax remittance, cash drawer state, and draft checkout.
 
@@ -107,24 +107,24 @@ Impact:
 - ad-hoc tolerances become part of financial correctness;
 - local/cloud serialization can normalize the same logical amount differently.
 
-Required fix:
-1. Define one integer minor-unit representation for the local financial domain.
-2. Define conversion boundaries to/from the existing two-decimal cloud NUMERIC contract.
-3. Migrate persisted REAL columns without data loss.
-4. Update entities, repositories, DTOs, sync handlers, reports, receipts, drawer calculations, and tests together.
-5. Add migration fixtures and exact arithmetic regressions before changing production schema behavior.
+Completed source work:
+1. Integer minor-unit representation is defined.
+2. Decimal-string conversion boundaries are explicit.
+3. Migration v17 converts historical REAL columns.
+4. Entities, repositories, DTOs, sync handlers, reports, receipts, drawer calculations, and tests use the canonical representation.
+5. Exact arithmetic and wire fitness regressions exist.
 
 ### P10-002
 
 **Severity:** High
-**Status:** Open — coordinated with Part 09
+**Status:** Fixed in source; runtime verification pending
 **Area:** Cash tender/change and cash ledger
 
-Tendered cash, applied payment, change, Sale.amountPaid, SalePayments.amount, and cash-drawer expected cash do not yet have one canonical semantic contract.
+The current source gives tendered cash, applied payment, change, Sale.amountPaid, SalePayments.amount, and cash-drawer expected cash one canonical semantic contract.
 
-Impact: cash-with-change can be represented locally in a way the cloud V2 sale contract rejects; drawer accounting also lacks an explicit change-out event.
+The historical cloud mismatch is closed in source; live cash-change evidence remains.
 
-Required fix: define tendered cash, applied payment, change, and cash-ledger entries explicitly, then align checkout, receipt, cash drawer, cloud RPC, canonical reconciliation, and integer money.
+Completed source alignment: tendered cash, applied payment, change, cash-ledger entries, checkout, receipt, drawer, cloud RPC, canonical reconciliation, and integer money are aligned.
 
 ### P10-003
 
@@ -140,8 +140,8 @@ Regression: added repository-level coverage.
 
 ## Cross-cutting handoff
 
-- X-005: now concretely owned by Part 10; integer money requires coordinated local/domain/DTO/schema migration.
-- X-007 / X-008: sale arithmetic and tender/change semantics require the Part 10 financial contract.
+- X-005: integer money is implemented; runtime evidence remains.
+- X-007 / X-008: sale arithmetic and tender/change semantics are implemented; runtime evidence remains.
 - P05-002/P05-003: persistence cardinality races remain separate migration work; P05-003 can affect drawer integrity and should be reconciled with this part.
 - Part 11: inventory valuation and stock-event accounting must consume the same integer-money contract for product cost and sale cost.
 - Part 12: customer-credit repayment/reversal must use the same integer unit and cash/change semantics.

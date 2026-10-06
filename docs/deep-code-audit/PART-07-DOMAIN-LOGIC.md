@@ -62,7 +62,7 @@ Verified or cross-referenced: sale payment status/balance/change calculations; s
 
 ## Cross-part references
 
-P05-001 / X-005: monetary storage remains REAL and is owned by Part 10 for coordinated integer-money migration.
+P05-001 / X-005: historical REAL monetary storage has been migrated to INTEGER minor units; source invariant is closed and runtime upgrade/convergence evidence remains.
 P05-002 / X-006: draft-cart cardinality remains a persistence/repository concern.
 P05-003 / X-006: cash-drawer cardinality remains a persistence/financial concern.
 P07-001 must be resolved together with Sales & Checkout (Part 09) and Financial & Ledger Integrity (Part 10).
