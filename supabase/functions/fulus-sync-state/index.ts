@@ -9,6 +9,7 @@ const MONEY_WIRE_KEYS = new Set([
   "discount", "tax", "total", "amount_paid", "cash_tendered",
   "cash_change", "unit_price", "cost_price_at_sale", "line_total",
   "cost_price", "selling_price", "refund_amount", "salary",
+  "tendered_amount",
 ]);
 
 // PostgreSQL NUMERIC values can arrive through JSON as JavaScript numbers.
