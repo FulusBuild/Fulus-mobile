@@ -112,19 +112,24 @@ void main() {
 
     restoredDb = AppDatabase.forTesting(openExecutor());
 
-    Future<ProcessResult> runProbe(String mode) {
-      return Process.run(
+    final probeConfig = File('.dart_tool/fulus_sync_probe_config');
+
+    Future<ProcessResult> runProbe(String mode) async {
+      await probeConfig.writeAsString('$path\n$mode\n');
+      try {
+        return await Process.run(
         'flutter',
         [
           'test',
           '--reporter',
           'expanded',
-          '--dart-define=FULUS_SYNC_PROBE_DB_PATH=$path',
-          '--dart-define=FULUS_SYNC_PROBE_MODE=$mode',
           'test/sync/sync_execution_lease_process_probe_test.dart',
         ],
-        workingDirectory: Directory.current.path,
-      );
+          workingDirectory: Directory.current.path,
+        );
+      } finally {
+        await probeConfig.delete();
+      }
     }
 
     final blockedProbe = await runProbe('blocked');
