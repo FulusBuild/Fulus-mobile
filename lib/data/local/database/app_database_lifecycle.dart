@@ -63,6 +63,10 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
     }
     _maintenanceLease = lease;
     try {
+      // The SQLite lease row cannot be renewed after this connection closes.
+      // Keep the physical sidecar FileLock held instead while the database
+      // pathname is replaced.
+      lease.suspendMaintenanceRenewalForDatabaseReplacement();
       await database.close();
     } catch (_) {
       await lease.releaseMaintenance();
