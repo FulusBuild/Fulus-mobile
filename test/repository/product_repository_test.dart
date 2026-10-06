@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
@@ -214,6 +216,43 @@ void main() {
           .getSingle();
       expect(row.currentStock, 7);
       expect(row.syncStatus, SyncStatus.pending);
+    });
+
+    test('aborts hydration when its execution lease is lost during network I/O', () async {
+      await db.into(db.locations).insert(LocationsCompanion.insert(
+        localId: locationId,
+        name: 'Main Store',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await seedActiveLocation();
+      await seedProduct('p1');
+
+      final responseReady = Completer<ProductListResponseDto>();
+      final requestStarted = Completer<void>();
+      when(() => productsApi.listProducts(page: 1)).thenAnswer((_) async {
+        requestStarted.complete();
+        return responseReady.future;
+      });
+
+      final hydration = repository.hydrateActiveLocationStockFromServer();
+      await requestStarted.future;
+      await (db.update(db.syncRuntimeLeases)
+            ..where((row) => row.name.equals(SyncExecutionLease.leaseName)))
+          .write(SyncRuntimeLeasesCompanion(
+        expiresAt: Value(DateTime.now().subtract(const Duration(seconds: 1))),
+      ));
+      responseReady.complete(ProductListResponseDto(
+        items: [product('p1', currentStock: 20)],
+        total: 1,
+        page: 1,
+        pageSize: 200,
+        totalPages: 1,
+      ));
+
+      await expectLater(hydration, throwsA(isA<SyncExecutionLeaseLost>()));
+      expect(await db.select(db.productStockLevels).get(), isEmpty);
     });
 
     test('follows pagination without touching catalog fields', () async {
