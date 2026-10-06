@@ -20,12 +20,10 @@ library;
 import 'package:fulus_mobile/core/money/money.dart';
 
 String formatMoney(Money amount, {String symbol = '₦', bool showSign = false}) {
-  final money = moneyToMajor(amount);
-  final isNegative = money < 0;
-  final fixed = money.abs().toStringAsFixed(2);
-  final parts = fixed.split('.');
-  final wholePart = parts[0];
-  final decimalPart = parts[1];
+  final negative = amount < 0;
+  final absolute = amount.abs();
+  final wholePart = (absolute ~/ 100).toString();
+  final decimalPart = (absolute % 100).toString().padLeft(2, '0');
 
   final buffer = StringBuffer();
   for (var i = 0; i < wholePart.length; i++) {
@@ -33,8 +31,8 @@ String formatMoney(Money amount, {String symbol = '₦', bool showSign = false})
     buffer.write(wholePart[i]);
   }
 
-  final sign = isNegative ? '-' : (showSign ? '+' : '');
-  return '$sign$symbol${buffer.toString()}.$decimalPart';
+  final sign = negative ? '-' : (showSign ? '+' : '');
+  return '\$sign\$symbol\${buffer.toString()}.$decimalPart';
 }
 
 /// Compact "today / yesterday / 12 Mar" style date label for a
