@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/onboarding/onboarding_state.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/utils/formatting.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -168,7 +169,7 @@ class _SaleSuccessScreenState extends ConsumerState<SaleSuccessScreen> {
                                     ),
                                     const SizedBox(height: AppSpacing.xs),
                                     Text(
-                                      formatMoney(widget.changeDue, symbol: widget.currencySymbol),
+                                      formatMoney(moneyFromMajor(widget.changeDue), symbol: widget.currencySymbol),
                                       style: AppTypography.heading.copyWith(color: AppColors.primaryOf(context)),
                                     ),
                                   ],
