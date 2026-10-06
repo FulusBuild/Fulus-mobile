@@ -4,7 +4,7 @@ import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/domain/entities/location.dart';
 import 'package:fulus_mobile/domain/repositories/location_repository.dart';
 
-class _FakeProductRepository implements ProductRepository {
+class _FakeLocationRepository implements LocationRepository {
   String? serverId;
   String? name;
   DateTime? updatedAt;
