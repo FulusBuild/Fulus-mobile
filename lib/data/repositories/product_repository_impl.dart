@@ -86,7 +86,7 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<void> syncFromServer() async {
+  Future<void> hydrateActiveLocationStockFromServer() async {
     final activeLocationId = await (_db.select(_db.sessions)..where((s) => s.id.equals('current'))).getSingleOrNull().then((row) => row?.activeLocationId);
     final location = activeLocationId == null ? null : await (_db.select(_db.locations)..where((l) => l.localId.equals(activeLocationId))).getSingleOrNull();
     var page = 1;
