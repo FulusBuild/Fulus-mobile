@@ -34,6 +34,32 @@ jobs:
             test/core/money/money_test.dart \
             test/core/money/money_wire_contract_fitness_test.dart
 
+  deep-financial-regression:
+    name: Deep financial regression matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Run financial and lifecycle regression matrix
+        run: |
+          flutter test \
+            test/core/money/money_test.dart \
+            test/core/money/money_wire_contract_fitness_test.dart \
+            test/repository/sale_repository_test.dart \
+            test/repository/customer_credit_repository_test.dart \
+            test/repository/return_repository_test.dart \
+            test/repository/cash_drawer_shift_repository_test.dart \
+            test/sync/offline_sale_local_flow_test.dart \
+            test/sync/sync_process_death_replay_test.dart \
+            test/sync/sync_restore_reconciliation_gate_test.dart \
+            test/sync/p16_multi_device_financial_convergence_test.dart
+
   live-auth-contract:
     name: Live account creation contract
     runs-on: ubuntu-latest
