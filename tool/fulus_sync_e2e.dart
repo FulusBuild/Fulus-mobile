@@ -523,13 +523,14 @@ Future<void> main() async {
     stdout.writeln('PASS: customer.create');
 
     final creditSaleOperationId = 'e2e-credit-sale-' + suffix;
-    final creditSaleFeedBefore = (customerData?['sync_sequence'] as num?)?.toInt();
-    if (creditSaleFeedBefore == null || creditSaleFeedBefore <= 0) {
-      throw StateError(
-        'customer.create returned no authoritative sync sequence: ' +
-        customerResponse.data.toString(),
-      );
-    }
+    final creditSaleFeedBefore = await _verifyCustomerBalanceFeedChange(
+      dio,
+      businessId: businessId,
+      customerId: customerId,
+      previousSequence: createSequence.toInt(),
+      expectedBalance: 0,
+      label: 'customer.create baseline',
+    );
     final creditSale = await dio.post('', data: {
       'action': 'sale_create',
       'business_id': businessId,
@@ -563,7 +564,7 @@ Future<void> main() async {
       throw StateError('credit sale returned no sale_id: ' + creditSale.data.toString());
     }
     stdout.writeln('PASS: sale.create credit mutation matrix');
-    await _verifyCustomerBalanceFeedChange(
+    final salePaymentFeedBefore = await _verifyCustomerBalanceFeedChange(
       dio,
       businessId: businessId,
       customerId: customerId,
@@ -571,14 +572,6 @@ Future<void> main() async {
       expectedBalance: 150,
       label: 'credit sale customer balance',
     );
-
-    final salePaymentFeedBefore = (creditSaleData?['sync_sequence'] as num?)?.toInt();
-    if (salePaymentFeedBefore == null || salePaymentFeedBefore <= 0) {
-      throw StateError(
-        'credit sale returned no authoritative sync sequence: ' +
-        creditSale.data.toString(),
-      );
-    }
     final salePayment = await dio.post('', data: {
       'action': 'sale_payment',
       'business_id': businessId,
@@ -598,7 +591,7 @@ Future<void> main() async {
     }
     stdout.writeln('PASS: sale.payment');
 
-    await _verifyCustomerBalanceFeedChange(
+    final repaymentFeedBefore = await _verifyCustomerBalanceFeedChange(
       dio,
       businessId: businessId,
       customerId: customerId,
@@ -606,14 +599,6 @@ Future<void> main() async {
       expectedBalance: 100,
       label: 'sale payment customer balance',
     );
-
-    final repaymentFeedBefore = (salePaymentData['sync_sequence'] as num?)?.toInt();
-    if (repaymentFeedBefore == null || repaymentFeedBefore <= 0) {
-      throw StateError(
-        'sale.payment returned no authoritative sync sequence: ' +
-        salePayment.data.toString(),
-      );
-    }
     final repayment = await dio.post('', data: {
       'action': 'customer_repayment',
       'business_id': businessId,
@@ -1436,7 +1421,7 @@ Future<void> _revokeEphemeralDevice({
 
 
 
-Future<void> _verifyCustomerBalanceFeedChange(
+Future<int> _verifyCustomerBalanceFeedChange(
   Dio dio, {
   required String businessId,
   required String customerId,
@@ -1503,6 +1488,7 @@ Future<void> _verifyCustomerBalanceFeedChange(
     );
   }
   stdout.writeln('PASS: $label emitted customer balance sync change');
+  return latestSequence;
 }
 
 int? _parseSequence(Object? value) {
