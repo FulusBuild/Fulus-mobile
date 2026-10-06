@@ -436,9 +436,9 @@ class MoneyFormatter {
     return _knownFallbacks[candidate] ?? '';
   }
 
-  String format(num value) {
+  String format(Money value) {
     final label = _safeLabel();
-    final amount = _thousands(value is int ? value / 100.0 : value);
+    final amount = _thousands(moneyToMajor(value));
     if (label.isEmpty) return amount;
     return spaceBeforeAmount ? '$label $amount' : '$label$amount';
   }
