@@ -794,6 +794,21 @@ These are exactly the kinds of things a principal team would periodically remove
 
 ---
 
+# 20.5. Product location hydration boundary
+
+The location-switch path previously called `ProductRepository.syncFromServer()`, which directly upserted both product catalog fields and stock levels from the inventory listing endpoint. That created a second authority for canonical product state outside the change-feed reconciliation path.
+
+The implementation has now been narrowed:
+
+- the operation is explicitly named `hydrateActiveLocationStockFromServer()`;
+- it only hydrates the active location's stock projection;
+- canonical product/catalog fields remain owned by `FulusSyncCoordinator` and `FulusProductCanonicalReconciler`;
+- products absent from canonical local state are not created by the hydration path;
+- pending local stock projections are never overwritten;
+- regression tests prove the projection-only and pending-state behavior.
+
+This is the preferred greenfield boundary: a targeted read-model hydration may exist when a location switch needs a snapshot, but it must not become a second synchronization authority.
+
 # 21. Implementation benchmark priority list
 
 ## P0 — correctness and boundary integrity
