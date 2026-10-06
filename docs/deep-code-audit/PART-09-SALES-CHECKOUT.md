@@ -107,9 +107,9 @@ Regression: test/repository/sale_repository_test.dart proves a non-stock-tracked
 
 ### Known High finding: cash tender/change versus applied payment
 
-The normal UI permits a cash payment larger than the remaining balance. Local checkout currently stores that full cash amount in SalePayment and therefore can produce Sale.amountPaid > Sale.total and changeDue > 0.
+The current UI permits cash tender larger than the remaining balance, but local checkout now stores only the applied amount in SalePayment while preserving the physical tendered amount separately, so change does not inflate amountPaid.
 
-The cloud V2 sale command has a different contract: the sum of payment legs must equal the server-calculated sale total, and server amount_paid is bounded to the total. Therefore a normal cash-tender-with-change checkout can be committed locally but rejected permanently by cloud sync because payment_total > total.
+The cloud V2 sale command now receives the applied payment legs, persists cash tender/change separately, and validates payment_total against the authoritative sale total. The historical mismatch is therefore closed in source.
 
 This is the concrete local/cloud contract mismatch already identified as P07-001/X-007. It requires a coordinated definition of:
 1. tendered cash;
