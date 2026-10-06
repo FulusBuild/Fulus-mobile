@@ -2,20 +2,17 @@
 
 ## X-001 — Restore / sync maintenance boundary
 
-Status: Partially proven / deferred for cross-part ownership.
+Status: **Source/protocol fixed; cross-process regression added; Android physical restore evidence remains pending.**
 
-Restore closes the live Drift database and reopens a fresh AppDatabase, while running sync services retain direct references to the original database instance. The UI restart gate prevents normal business use after a successful restore, but source inspection does not prove that an active sync cycle cannot overlap closeForMaintenance.
+Restore now acquires an exclusive filesystem sidecar `FileLock` before closing or replacing the live SQLite file. Normal sync acquires a shared lock on the same sidecar before entering its SQLite execution lease. The sidecar therefore remains valid even when the SQLite file containing the logical lease row is replaced.
 
-Relevant parts:
-- Part 01 — App Bootstrap & Lifecycle
-- Part 15 — Backup, Restore & Cross-Device Provisioning
-- Part 17 — Background Execution & OS Lifecycle
+Before the live database connection is closed, maintenance-row renewal is suspended because that row cannot safely be renewed through a closed connection. The physical sidecar lock remains held until the fresh database connection is reopened and the maintenance owner releases it.
 
-Required evidence before a fix:
-1. Reproduce restore while push, pull, or recovery is actively using the DB.
-2. Determine whether closeForMaintenance can race an active sync transaction/cycle.
-3. Define the smallest shared maintenance gate.
-4. Add regression coverage proving restore and sync cannot overlap unsafely.
+A separate OS-process regression exercises the replacement boundary: the old database is replaced, the new database is opened without the old maintenance row, a child process is still blocked by the sidecar fence, and the same child process can acquire after the fence is released.
+
+Remaining evidence:
+1. Android physical restore while push/pull/background work is active.
+2. Android process death during the restore lifecycle.
 
 ## X-002 — Local identity / cloud Auth identity namespace
 
