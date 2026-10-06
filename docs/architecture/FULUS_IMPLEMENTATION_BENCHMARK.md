@@ -498,9 +498,7 @@ The benchmark rule is:
 
 # 12. SharedPreferences as synchronization state — 🟡 REVIEW
 
-The sync cursor is persisted through SharedPreferences.
-
-Fulus compensates for the non-transactional nature of this store with monotonic cursor checks.
+Production sync cursors are persisted through DatabaseSyncCursorStore in SQLite. SharedPreferences remains only as a legacy migration/test adapter.
 
 That is thoughtful.
 
