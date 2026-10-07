@@ -69,7 +69,7 @@ class IncomeSyncHandler implements SyncHandler {
         'location_id': location.serverId,
         'source': record.source,
         'amount': moneyToWire(record.amount),
-        'income_date': record.incomeDate.toIso8601String(),
+        'income_date': record.incomeDate.toUtc().toIso8601String(),
         'notes': record.notes,
         },
       );
