@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../core/errors/failure.dart';
 import '../local/sync_cursor_store.dart';
 import 'fulus_sync_api.dart';
@@ -76,6 +78,7 @@ class FulusSyncCoordinator {
   final Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? _applyPreparedChanges;
   final Future<bool> Function(String businessId, int cursor)? _persistCursorOverride;
   final DateTime Function() _now;
+  final Random _random = Random();
 
   /// Operational default only; the safety invariant is independent of this value.
   final int maxAutomaticBlockedAttempts;
@@ -343,10 +346,16 @@ class FulusSyncCoordinator {
   Duration _blockedBackoff(int attemptCount) {
     final exponent = attemptCount <= 1 ? 0 : attemptCount - 1;
     final seconds = blockedRetryBaseDelay.inSeconds * (1 << exponent);
-    return Duration(
+    final cap = Duration(
       seconds: seconds > blockedRetryMaxDelay.inSeconds
           ? blockedRetryMaxDelay.inSeconds
           : seconds,
+    );
+    if (cap == Duration.zero) return Duration.zero;
+    // Full jitter spreads devices that observed the same canonical failure
+    // instead of making them wake and retry at the same deterministic instant.
+    return Duration(
+      milliseconds: _random.nextInt(cap.inMilliseconds + 1),
     );
   }
 
