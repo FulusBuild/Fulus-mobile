@@ -19,6 +19,15 @@ class AppColors {
   static const warningLight = Color(0xFFFFF7ED);
   static const error = Color(0xFFDC2626);
   static const errorLight = Color(0xFFFEF2F2);
+  static const sales = Color(0xFF16A34A);
+  static const salesLight = Color(0xFFDCFCE7);
+  static const stock = Color(0xFFF97316);
+  static const stockLight = Color(0xFFFFF7ED);
+  static const customers = Color(0xFF7C3AED);
+  static const customersLight = Color(0xFFF3E8FF);
+  static const reports = Color(0xFF0891B2);
+  static const reportsLight = Color(0xFFCFFAFE);
+
   static const info = Color(0xFF0891B2);
   static const infoLight = Color(0xFFECFEFF);
   static const textPrimaryLight = Color(0xFF0F172A);
