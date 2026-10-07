@@ -65,8 +65,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               if (canManageSettings) ...[
                 const FulusSectionHeader(
                   title: 'Business',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                   subtitle: 'Business details and workspace configuration',
                 ),
                 FutureBuilder<BusinessProfile?>(
@@ -92,8 +92,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               if (canManageSettings || canManageBackup) ...[
                 const FulusSectionHeader(
                   title: 'Data & Backup',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                   subtitle: 'Devices, data, and automatic protection',
                 ),
                 _tileGrid([
@@ -131,8 +131,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               if (isOwner) ...[
                 const FulusSectionHeader(
                   title: 'Automatic backup & sync',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                   subtitle: 'Keep this business backed up and available across devices',
                 ),
                 _tileGrid([
@@ -147,8 +147,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               ],
               const FulusSectionHeader(
                 title: 'Security',
-                titleColor: Colors.white,
-                subtitleColor: Colors.white70,
+                titleColor: AppColors.textPrimaryOf(context),
+                subtitleColor: AppColors.textSecondaryOf(context),
                 subtitle: 'Protect approvals and access to Fulus',
               ),
               _tileGrid([
@@ -163,8 +163,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               const SizedBox(height: AppSpacing.lg),
               const FulusSectionHeader(
                 title: 'Account',
-                titleColor: Colors.white,
-                subtitleColor: Colors.white70,
+                titleColor: AppColors.textPrimaryOf(context),
+                subtitleColor: AppColors.textSecondaryOf(context),
                 subtitle: 'Your local business account',
               ),
               _tileGrid([
