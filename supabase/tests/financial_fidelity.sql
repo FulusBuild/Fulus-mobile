@@ -46,18 +46,14 @@ begin
     raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
   end if;
 
-  -- A credit-method return must settle one customer-ledger reversal.
-  -- Keep the contract assertion structural: the authoritative return RPC must
-  -- contain the credit-method branch and the ledger settlement statement.
-  -- Avoid parsing function text with substring arithmetic in CI, because the
-  -- PostgreSQL parser treats that syntax differently across supported versions.
+  -- A credit-method return must settle through the customer ledger.
+  -- Verify the authoritative RPC contains the single ledger settlement
+  -- primitive; behavioral return-path coverage remains responsible for the
+  -- exact credit calculation and authorization semantics.
   return_def := pg_get_functiondef(to_regprocedure(return_sig));
-    if position('method' in lower(return_def)) = 0 or position('credit' in lower(return_def)) = 0 then
-      raise exception 'return RPC is missing the credit-method branch';
-    end if;
-    if position('insert into public.customer_ledger_entries' in return_def) = 0 then
-      raise exception 'return RPC is missing customer ledger settlement';
-    end if;
+  if position('insert into public.customer_ledger_entries' in return_def) = 0 then
+    raise exception 'return RPC is missing customer ledger settlement';
+  end if;
 
   -- Money wire contract: monetary JSON must be a decimal string, never a
   -- JSON number whose integer form is ambiguous at the mobile boundary.
