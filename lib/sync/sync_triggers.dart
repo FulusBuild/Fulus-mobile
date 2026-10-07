@@ -18,19 +18,15 @@ import 'sync_restore_reconciliation_gate.dart';
 /// Adapts platform lifecycle events into the internal synchronization
 /// authority. Push/pull cycle policy lives in [SyncCycleRunner].
 ///
-/// [isReady] is deliberately separate from the service-owned persisted
-/// switch means "the user enabled sync", while readiness means the current
-/// session has an authenticated membership and an active registered device.
-/// Keeping those states separate prevents startup/lifecycle triggers from
-/// racing device registration after restore or token recovery.
+/// Readiness is owned by [SyncService]. This runtime adapter only asks the
+/// lifecycle authority to establish readiness when a trigger needs it.
 class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   SyncTriggers({
     required SyncEngine syncEngine,
     required bool Function() isEnabled,
     required SyncStatusNotifier syncStatusNotifier,
     Future<void> Function()? pullFromServer,
-    Future<bool> Function()? isReady,
-    Future<void> Function()? onNotReady,
+    Future<SyncReadinessEnsureResult> Function()? ensureReady,
     void Function()? onSyncSuccess,
     Future<void> Function(bool hadOutboundWork)? onPushSuccess,
     Future<bool> Function()? hasOutboundWork,
@@ -46,8 +42,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     SyncExecutionLease? executionLease,
 })  : _isEnabled = isEnabled,
         _syncStatusNotifier = syncStatusNotifier,
-        _isReady = isReady,
-        _onNotReady = onNotReady,
+        _ensureReadyCallback = ensureReady,
         _onSyncSuccess = onSyncSuccess,
         _onSyncFailure = onSyncFailure,
         _onContextChangeReconciled = onContextChangeReconciled,
@@ -87,8 +82,7 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
 
   final bool Function() _isEnabled;
   final SyncStatusNotifier _syncStatusNotifier;
-  final Future<bool> Function()? _isReady;
-  final Future<void> Function()? _onNotReady;
+  final Future<SyncReadinessEnsureResult> Function()? _ensureReadyCallback;
   final void Function()? _onSyncSuccess;
   final void Function(Object error, StackTrace stackTrace)? _onSyncFailure;
   final Future<void> Function()? _onContextChangeReconciled;
@@ -214,14 +208,13 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
         'SyncStatusNotifier reports sync as enabled.',
       );
     }
-    final ready = _isReady;
-    if (ready != null && !await ready()) {
-      final initialized = await _ensureReady();
-      if (initialized || await ready()) {
-        // Readiness initialization owns the first reconciliation. If it
-        // completed successfully, there is nothing else to run here.
-        if (initialized) return;
-      }
+    final readiness = await _ensureReady();
+    if (readiness == SyncReadinessEnsureResult.initialized) {
+      // The readiness bootstrap owns its first reconciliation. Do not run a
+      // second sync cycle immediately after it.
+      return;
+    }
+    if (readiness == SyncReadinessEnsureResult.notReady) {
       throw StateError(
         'Fulus Cloud is not ready: authentication, business membership, '
         'and active device registration are required before syncing.',
@@ -322,21 +315,14 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   /// recursively await the cycle that is currently executing.
   void scheduleReadinessRecovery() => _readinessRecovery.schedule();
 
-  Future<bool> _ensureReady() async {
-    if (!_isEnabled()) return false;
+  Future<SyncReadinessEnsureResult> _ensureReady() async {
+    if (!_isEnabled()) return SyncReadinessEnsureResult.notReady;
+    if (_restoreGate.isInProgress) return SyncReadinessEnsureResult.notReady;
 
-    // SyncService owns readiness state and coalesces cloud bootstrap. This
-    // runtime adapter deliberately keeps no second initialization future.
-    if (_restoreGate.isInProgress) return false;
+    final ensureReady = _ensureReadyCallback;
+    if (ensureReady == null) return SyncReadinessEnsureResult.notReady;
 
-    final ready = _isReady;
-    if (ready == null || await ready()) return false;
-
-    final initialize = _onNotReady;
-    if (initialize == null) return false;
-
-    await initialize();
-    return await ready();
+    return ensureReady();
   }
 
   Future<bool> _runIfOnlineSafely() async {
@@ -357,10 +343,9 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
   Future<bool> _runIfOnlineOnce({required bool requireReady}) async {
     if (!_isEnabled()) return false;
     if (requireReady) {
-      final initialized = await _ensureReady();
-      final ready = _isReady;
-      if (ready != null && !await ready()) return false;
-      if (initialized) return true;
+      final readiness = await _ensureReady();
+      if (readiness == SyncReadinessEnsureResult.notReady) return false;
+      if (readiness == SyncReadinessEnsureResult.initialized) return true;
     }
     final results = await _connectivity.checkConnectivity();
     if (!_hasConnectivity(results)) return false;
