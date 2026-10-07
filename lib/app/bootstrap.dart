@@ -209,7 +209,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
           ? null
           : syncCursorStore.cursorFor(businessId);
     },
-    actorUserIdProvider: () => authRepository.currentUser?.id,
+    // Outbox actor identity is the Supabase Auth UID, not the local Users.localId.\n    // FulusSyncApi uses this durable actor key to select the per-user refresh\n    // token, so persisting the local ULID here would make background sync\n    // unable to authenticate as the queued actor. Legacy rows are repaired\n    // separately once cloud identity is available.\n    actorUserIdProvider: () => apiClient.activeCloudUserId,
   );
 
   final employeeRepository = EmployeeRepositoryImpl(
