@@ -229,10 +229,9 @@ class _AppLockStatusTileState extends ConsumerState<_AppLockStatusTile> {
       future: _future,
       builder: (context, snap) {
         final active = snap.data ?? false;
-        return FulusActionTile(
+        return FulusFlatGridCell(
           icon: FulusIcons.lock,
-          label: 'App Lock',
-          subtitle: active ? 'On — a PIN is required to open Fulus' : 'Off',
+          label: 'Lock',
           onTap: () async {
             await showModalBottomSheet<void>(
               context: context,
