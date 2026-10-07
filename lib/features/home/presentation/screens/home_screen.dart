@@ -104,7 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
 
     return Scaffold(
-      backgroundColor: _HomeColors.navy,
+      backgroundColor: AppColors.backgroundOf(context),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -137,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               Text(
-                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)} 👋',
+                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTypography.heading.copyWith(
@@ -145,13 +145,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                showBusinessWide
-                                    ? 'Here’s what’s happening with your business today.'
-                                    : 'Here’s what’s happening on your shift today.',
-                                style: AppTypography.caption.copyWith(color: _HomeColors.muted),
-                              ),
+
                             ],
                           ),
                         ),
@@ -315,7 +309,7 @@ class _HomeHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(FulusIcons.locations, size: 16, color: _HomeColors.muted),
+                    Icon(FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
@@ -323,7 +317,7 @@ class _HomeHeader extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _HomeColors.muted,
+                          color: AppColors.textSecondaryOf(context),
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -337,7 +331,7 @@ class _HomeHeader extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.all(AppSpacing.xs),
                         constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        icon: const Icon(FulusIcons.swap, size: 20, color: _HomeColors.muted),
+                        icon: const Icon(FulusIcons.swap, size: 20, color: AppColors.textSecondaryOf(context)),
                       ),
                   ],
                 ),
@@ -598,8 +592,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
     return Semantics(
       label: 'Today’s sales, $value, $count',
       child: Material(
-        color: _HomeColors.green,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: AppColors.sales,
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
@@ -653,73 +647,46 @@ class _HomeCompactCard extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.label,
-    required this.value,
-    required this.secondary,
     required this.onTap,
   });
 
   final Color color;
   final IconData icon;
   final String label;
-  final String value;
-  final String secondary;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = AppColors.onColor(color);
+    final tint = color.withValues(alpha: 0.12);
     return Semantics(
       button: onTap != null,
       enabled: onTap != null,
-      label: '$label, $value',
+      label: label,
       child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: tint,
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: FulusMetricCardColumn(
-              icon: icon,
-              iconColor: foreground,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Icon(icon, size: 32, color: color),
+                const Spacer(),
                 Text(
                   label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: foreground.withValues(alpha: 0.95),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    style: TextStyle(
-                      color: foreground,
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  secondary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: foreground.withValues(alpha: 0.9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
-          )
+          ),
         ),
       ),
     );
@@ -782,47 +749,38 @@ class _HomeReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const color = AppColors.reports;
     return Semantics(
       button: canViewReports,
       enabled: canViewReports,
       label: 'Reports',
       child: Material(
-        color: _HomeColors.teal,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: canViewReports ? () => context.goNamed('moreReports') : null,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: FulusMetricCardColumn(
-              icon: FulusIcons.reports,
-              iconColor: Colors.white,
-              children: const [
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(FulusIcons.reports, size: 32, color: color),
+                const Spacer(),
                 Text(
                   'Reports',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
+      class _HomeColors {
+  static const green = AppColors.sales;
 }
-class _HomeColors {
-  static const green = Color(0xFF0BBE6E);
-  static const navy = Color(0xFF061B3A);
-  static const orange = Color(0xFFFF9F1C);
-  static const purple = Color(0xFF7B3FF2);
-  static const teal = Color(0xFF0DA8C4);
-  static const muted = Color(0xFFB7C7DB);
-}
+
 
 final _businessProfileProvider = StreamProvider.autoDispose<BusinessProfile?>((ref) => ref.watch(businessSettingsRepositoryProvider).watchSettings());
