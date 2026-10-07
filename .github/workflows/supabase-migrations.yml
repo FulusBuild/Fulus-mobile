@@ -61,6 +61,22 @@ jobs:
           test -n "$db_url"
           psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/customer_repayment.sql
 
+      - name: Run financial fidelity contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_url="$(supabase status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
+          test -n "$db_url"
+          psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/financial_fidelity.sql
+
+      - name: Run employee restore location-isolation contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_url="$(supabase status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
+          test -n "$db_url"
+          psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/employee_restore_location_isolation.sql
+
       - name: Run cloud API authorization contract tests
         shell: bash
         run: |
