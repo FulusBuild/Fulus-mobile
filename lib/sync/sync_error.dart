@@ -43,9 +43,11 @@ class SyncCanonicalChangeBlocked implements Exception {
       : 'Cloud backup is retrying one server change safely.';
 
   @override
-  String toString() =>
-      'SyncCanonicalChangeBlocked(sequence=$sequence, '
-      'attempts=$attemptCount, exhausted=$exhausted, retryAt=$retryAt)';
+  String toString() {
+    final detail = cause == null ? '' : ', cause=$cause';
+    return 'SyncCanonicalChangeBlocked(sequence=$sequence, '
+        'attempts=$attemptCount, exhausted=$exhausted, retryAt=$retryAt$detail)';
+  }
 }
 
 class SyncFailure implements Exception {
