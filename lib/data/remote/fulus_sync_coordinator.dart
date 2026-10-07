@@ -223,6 +223,12 @@ class FulusSyncCoordinator {
           final failure = error is SyncCanonicalChangeApplyFailure ? error : null;
           final failedChange = failure?.change ?? unapplied.first;
           final cause = failure?.cause ?? error;
+          if (cause is SyncFailure &&
+              (cause.shouldRetry ||
+                  cause.kind == SyncErrorKind.authExpired ||
+                  cause.kind == SyncErrorKind.permission)) {
+            rethrow;
+          }
           final previous = _cursorStore.blockedChangeFor(businessId);
           final changeId = _changeId(failedChange);
           final sameChange = previous?.sequence == failedChange.sequence &&
