@@ -74,23 +74,6 @@ class NotificationsScreen extends ConsumerWidget {
 }
 
 
-class _NotificationSummaryIcon extends StatelessWidget {
-  const _NotificationSummaryIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 46,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.selectedTintOf(context),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Icon(FulusIcons.notifications, color: AppColors.primaryOf(context)),
-    );
-  }
-}
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.notification, required this.onRead});
 
