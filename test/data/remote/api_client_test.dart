@@ -44,6 +44,13 @@ void main() {
     when(() => storage.deleteRefreshToken()).thenAnswer((_) async {
       storedRefreshToken = null;
     });
+    when(() => storage.deleteRefreshTokenIfMatches(any()))
+        .thenAnswer((invocation) async {
+      final expected = invocation.positionalArguments.first as String;
+      if (storedRefreshToken == expected) {
+        storedRefreshToken = null;
+      }
+    });
     when(() => storage.getUserRefreshToken(any()))
         .thenAnswer((invocation) async {
       return storedUserRefreshTokens[invocation.positionalArguments.first as String];
