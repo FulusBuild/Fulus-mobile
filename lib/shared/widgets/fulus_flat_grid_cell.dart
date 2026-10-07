@@ -32,32 +32,40 @@ class FulusFlatGridCell extends StatelessWidget {
         onPressed: onTap,
         semanticsLabel: label,
         child: Container(
-            constraints: const BoxConstraints(minHeight: 88),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: AppColors.dividerOf(context), width: 0.5),
-                bottom: BorderSide(color: AppColors.dividerOf(context), width: 0.5),
+          constraints: const BoxConstraints(minHeight: 88),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            border: Border(
+              right: BorderSide(
+                color: AppColors.dividerOf(context),
+                width: 0.5,
+              ),
+              bottom: BorderSide(
+                color: AppColors.dividerOf(context),
+                width: 0.5,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(icon, size: 30, color: color),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w600,
-                  ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(icon, size: 30, color: color),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
