@@ -69,7 +69,6 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
 
     return FulusScreen(
       title: 'Locations',
-      subtitle: 'Choose where you are working',
 
       body: locationsAsync.when(
         data: (locations) {
@@ -92,7 +91,6 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
                 child: FulusActionTile(
                   icon: FulusIcons.add,
                   label: 'Add location',
-                  subtitle: 'Create another place for this business',
                   onTap: _switchingLocationId == null ? () => _addLocation(context, ref) : null,
                 ),
               );
