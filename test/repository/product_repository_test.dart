@@ -14,30 +14,6 @@ void main() {
 
   const locationId = 'loc-1';
 
-  Future<void> seedProduct(String id, {SyncStatus syncStatus = SyncStatus.settled}) async {
-    await db.into(db.products).insert(ProductsCompanion.insert(
-      localId: 'local-$id',
-      serverId: Value(id),
-      name: 'Product $id',
-      sku: 'SKU-$id',
-      costPrice: 500,
-      sellingPrice: 1000,
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-      syncStatus: syncStatus,
-    ));
-  }
-  Future<void> seedLocation() {
-    return db.into(db.locations).insert(LocationsCompanion.insert(
-      localId: locationId,
-      name: 'Main Store',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-      syncStatus: SyncStatus.settled,
-    ));
-  }
-
-
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
