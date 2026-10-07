@@ -104,8 +104,7 @@ class _ProductDetailBody extends ConsumerWidget {
 
         return FulusScreen(
           title: product.name,
-          subtitle: 'Product details and stock activity',
-          actions: [
+              actions: [
             if (canManageStock)
               FulusIconButton(
                 icon: FulusIcons.edit,
@@ -152,7 +151,7 @@ class _ProductDetailBody extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.lg),
                           ],
-                          _PriceAndStockCard(item: item!, category: category, currencySymbol: currencySymbol),
+                          _PriceAndStockSection(item: item!, category: category, currencySymbol: currencySymbol),
                           const SizedBox(height: AppSpacing.lg),
                           if (canManageStock && product.tracksStock)
                             FulusListRow(
@@ -194,8 +193,8 @@ class _ProductDetailBody extends ConsumerWidget {
   }
 }
 
-class _PriceAndStockCard extends StatelessWidget {
-  const _PriceAndStockCard({required this.item, required this.category, required this.currencySymbol});
+class _PriceAndStockSection extends StatelessWidget {
+  const _PriceAndStockSection({required this.item, required this.category, required this.currencySymbol});
 
   final ProductWithStock item;
   final Category? category;
