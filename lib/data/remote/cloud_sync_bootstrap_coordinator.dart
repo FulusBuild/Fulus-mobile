@@ -81,6 +81,21 @@ class CloudSyncBootstrapCoordinator {
         preserveUnexportedLocalTables: true,
       );
 
+      final snapshotBusiness = snapshot['business'];
+      final snapshotBusinessId = snapshotBusiness is Map
+          ? snapshotBusiness['id']?.toString()
+          : null;
+      if (snapshotBusinessId == null || snapshotBusinessId != businessId) {
+        throw StateError('Cloud restore snapshot is bound to a different business.');
+      }
+      await _db.into(_db.localCloudBindings).insertOnConflictUpdate(
+        LocalCloudBindingsCompanion.insert(
+          id: 'singleton',
+          businessId: snapshotBusinessId,
+          updatedAt: DateTime.now(),
+        ),
+      );
+
       // users/sessions are device-local authentication state and are not part
       // of the cloud snapshot. Recreate the active identity after the importer
       // has replaced cloud-owned business rows.
