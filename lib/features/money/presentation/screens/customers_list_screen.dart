@@ -31,7 +31,9 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 
     return FulusScreen(
       title: 'Customers',
-
+      subtitle: 'Your credit book and customer relationships',
+      backgroundColor: const Color(0xFF061B3A),
+      headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
           icon: FulusIcons.personAdd,
@@ -72,16 +74,18 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
+                  _CustomerOverviewHeader(
+                    customers: customers,
+                    outstanding: outstanding,
+                    currencySymbol: currencySymbol,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   FulusSearchField(
                     hintText: 'Search by name or phone',
                     onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  FulusSectionHeader(
-                    title: '${customers.length} ${customers.length == 1 ? 'customer' : 'customers'}',
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  _CustomerList(
+                  _CustomerListCard(
                     filtered: filtered,
                     currencySymbol: currencySymbol,
                     openedFromMore: widget.openedFromMore,
@@ -105,8 +109,54 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
   }
 }
 
-class _CustomerList extends StatelessWidget {
-  const _CustomerList({
+class _CustomerOverviewHeader extends StatelessWidget {
+  const _CustomerOverviewHeader({
+    required this.customers,
+    required this.outstanding,
+    required this.currencySymbol,
+  });
+
+  final List<Customer> customers;
+  final Money outstanding;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFF1473E6);
+    final foreground = AppColors.onColor(color);
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: 108,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: FulusCustomerOverviewColumn(
+            icon: FulusIcons.customers,
+            iconColor: foreground,
+            children: [
+              Text(
+                'Total Customers  ${customers.length}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: foreground.withValues(alpha: 0.9), fontSize: 14),
+              ),
+            ],
+          )
+        ),
+      ),
+    );
+  }
+}
+
+class _CustomerListCard extends StatelessWidget {
+  const _CustomerListCard({
     required this.filtered,
     required this.currencySymbol,
     required this.openedFromMore,
@@ -118,8 +168,10 @@ class _CustomerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
+    return FulusCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
           for (var i = 0; i < filtered.length; i++) ...[
             _CustomerRow(
               customer: filtered[i],
@@ -157,19 +209,20 @@ class _CustomerRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (outstanding > zeroMoney)
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: Text(
-                formatMoney(outstanding, symbol: currencySymbol),
-                style: AppTypography.body.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimaryOf(context),
-                ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              formatMoney(outstanding, symbol: currencySymbol),
+              style: AppTypography.body.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+                fontWeight: FontWeight.w700,
+                color: outstanding > 0 ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
               ),
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(outstanding > 0 ? 'Outstanding' : 'Settled', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
         ],
       ),
       onTap: () => context.pushNamed(openedFromMore ? 'moreCustomerProfile' : 'moneyCustomerProfile', pathParameters: {'id': customer.localId}, extra: customer),
