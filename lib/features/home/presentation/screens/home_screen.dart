@@ -535,11 +535,13 @@ class _HomeMockupDashboard extends StatelessWidget {
             final gap = AppSpacing.sm;
             final width = (constraints.maxWidth - gap) / 2;
             final textScale = MediaQuery.textScalerOf(context).scale(1);
+            // Keep the action cells compact like the Moniepoint POS grid.
+            // Increase only when accessibility text scaling requires it.
             final tileHeight = textScale > 1.6
-                ? 148.0
+                ? 120.0
                 : textScale > 1.15
-                    ? 132.0
-                    : 120.0;
+                    ? 104.0
+                    : 92.0;
 
             return Wrap(
               spacing: gap,
