@@ -195,11 +195,15 @@ class EmployeeCloudSessionCoordinator {
     StaffClaim claim;
     try {
       claim = await _staffAccessApi.getMyAccess(businessId: resolvedBusinessId);
-    } on AuthFailure {
+    } on AuthFailure catch (failure) {
+      if (!failure.isAccessRevoked) rethrow;
+
       final revokedAt = DateTime.now();
       await _identityStore.revoke(userId: current.id, revokedAt: revokedAt);
       _connection.disconnect();
-      await _syncService.disable();
+      // Sync is business/device scoped, not employee scoped. A membership
+      // revocation must not disable durable outbox draining for the rest of
+      // the device's active business identities.
       final restored = await _authRepository.restoreSession();
       _onSessionChanged?.call(restored);
       _connection.notifyAccessProjectionChanged();
