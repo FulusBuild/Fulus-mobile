@@ -57,6 +57,7 @@ import '../data/remote/endpoints/locations_api.dart';
 import '../data/remote/endpoints/returns_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
+import '../data/remote/endpoints/products_api.dart';
 import '../data/remote/endpoints/suppliers_api.dart';
 import '../data/repositories/approval_pin_repository_impl.dart';
 import '../data/repositories/audit_repository_impl.dart';
@@ -223,7 +224,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(db: database, syncQueue: syncQueue, executionLease: syncExecutionLease);
+  final productRepository = ProductRepositoryImpl(db: database, syncQueue: syncQueue);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
 
   fulusConnectionState.setBusinessSwitchGuard(
