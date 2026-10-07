@@ -490,11 +490,11 @@ class _QuickSaleTile extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .16),
+                color: AppColors.primaryOf(context).withValues(alpha: .10),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               alignment: Alignment.center,
-              child: const Icon(FulusIcons.quickActions, color: Colors.white, size: 28),
+              child: Icon(FulusIcons.quickActions, color: AppColors.primaryOf(context), size: 28),
             ),
             const Spacer(),
             Text(
@@ -502,7 +502,7 @@ class _QuickSaleTile extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.body.copyWith(
-                color: Colors.white,
+                color: AppColors.textPrimaryOf(context),
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -510,7 +510,7 @@ class _QuickSaleTile extends StatelessWidget {
             Text(
               'Sell anything',
               style: AppTypography.caption.copyWith(
-                color: Colors.white.withValues(alpha: .82),
+                color: AppColors.textSecondaryOf(context),
               ),
             ),
           ],
@@ -649,7 +649,7 @@ class _CartSummaryBar extends StatelessWidget {
     return SafeArea(top: false, child: Padding(
       padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
       child: Material(
-        color: const Color(0xFF1677FF),
+        color: AppColors.primary,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: () {
@@ -666,13 +666,13 @@ class _CartSummaryBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           child: SizedBox(height: 54, child: Row(children: [
             const SizedBox(width: AppSpacing.md),
-            const Icon(FulusIcons.shoppingCart, color: Colors.white, size: 20),
+            Icon(FulusIcons.shoppingCart, color: AppColors.onColor(AppColors.primary), size: 20),
             const SizedBox(width: AppSpacing.sm),
-            Text(state.itemCount.toString() + ' items', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text(state.itemCount.toString() + ' items', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
             const Spacer(),
-            Text(formatMoney(state.total, symbol: state.currencySymbol), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            Text(formatMoney(state.total, symbol: state.currencySymbol), style: AppTypography.heading.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w800)),
             const SizedBox(width: AppSpacing.sm),
-            const Text('View Cart', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text('View Cart', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
             const SizedBox(width: AppSpacing.md),
           ])),
         ),
