@@ -27,7 +27,6 @@ class ArchivedCustomersScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: 'Archived customers',
-      subtitle: 'Customers you have moved out of the active credit book',
       body: archivedAsync.when(
         loading: () => const FulusDelayedSkeleton(
           skeleton: Column(
