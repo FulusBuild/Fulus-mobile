@@ -580,17 +580,18 @@ class _HomeActionCell extends StatelessWidget {
         color: color.withValues(alpha: 0.10),
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Center(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 38, color: color),
-              const Spacer(),
+              Icon(icon, size: 36, color: color),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textPrimaryOf(context),
                   fontWeight: FontWeight.w700,
