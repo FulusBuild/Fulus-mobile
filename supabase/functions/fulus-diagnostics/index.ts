@@ -21,6 +21,9 @@ Deno.serve(async req => {
   if (eventSize > 32768) return out({ error: { code: "DIAGNOSTIC_EVENT_TOO_LARGE", message: "Diagnostic event is too large" } }, 413);
   const deviceClientId = req.headers.get("x-fulus-device-id") ?? (typeof body.device_client_id === "string" ? body.device_client_id : null);
   const businessId = typeof body.business_id === "string" ? body.business_id : null;
+  if (!businessId) {
+    return out({ error: { code: "BUSINESS_CONTEXT_REQUIRED", message: "Diagnostic events must be bound to a business" } }, 400);
+  }
   if (businessId) {
     const { data: member, error: me } = await db.from("business_memberships").select("business_id").eq("business_id", businessId).eq("user_id", ud.user.id).eq("status", "active").maybeSingle();
     if (me) return out({ error: { code: "MEMBERSHIP_LOOKUP_FAILED", message: "Unable to verify business" } }, 500);
@@ -54,7 +57,22 @@ Deno.serve(async req => {
     event_timestamp: typeof event.timestamp === "string" ? event.timestamp : new Date().toISOString(),
     payload,
   };
-  const { error } = await db.from("diagnostic_events").upsert(row, { onConflict: "id" });
+  const { data: existing, error: existingError } = await db
+    .from("diagnostic_events")
+    .select("user_id")
+    .eq("id", event.id)
+    .maybeSingle();
+  if (existingError) {
+    return out({ error: { code: "DIAGNOSTIC_LOOKUP_FAILED", message: "Unable to verify diagnostic event identity" } }, 500);
+  }
+  if (existing) {
+    if (existing.user_id !== ud.user.id) {
+      return out({ error: { code: "DIAGNOSTIC_ID_COLLISION", message: "Diagnostic event id is already owned by another user" } }, 409);
+    }
+    return out({ data: { accepted: true, id: event.id, duplicate: true } }, 202);
+  }
+
+  const { error } = await db.from("diagnostic_events").insert(row);
   if (error) return out({ error: { code: "DIAGNOSTIC_WRITE_FAILED", message: "Unable to store diagnostic event" } }, 500);
   return out({ data: { accepted: true, id: event.id } }, 202);
 });
