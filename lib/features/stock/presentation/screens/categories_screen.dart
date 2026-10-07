@@ -27,7 +27,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Categories',
-      subtitle: 'Organize products for faster selling and stock management',
       body: StreamBuilder<List<Category>>(
         stream: _categoriesStream.withFulusLoadingTimeout(),
         builder: (context, snapshot) {
@@ -60,35 +59,28 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                           const SizedBox(height: AppSpacing.xl),
                           const FulusSectionHeader(
                             title: 'Product categories',
-                            subtitle: 'These categories appear as filters in Sell and Stock.',
                           ),
                           if (categories.isEmpty)
-                            FulusCard(
-                              child: FulusEmptyState(
-                                icon: FulusIcons.sell,
-                                headline: 'No categories yet',
-                                body: 'Create your first category to make products easier to find while selling and managing stock.',
-                                actionLabel: 'Add category',
-                                onAction: () => _openAddSheet(context),
-                              ),
+                            FulusEmptyState(
+                              icon: FulusIcons.sell,
+                              headline: 'No categories yet',
+                              body: 'Create your first category to make products easier to find while selling and managing stock.',
+                              actionLabel: 'Add category',
+                              onAction: () => _openAddSheet(context),
                             )
                           else
-                            FulusCard(
-                              padding: EdgeInsets.zero,
-                              child: Column(
-                                children: [
-                                  for (var i = 0; i < categories.length; i++) ...[
-                                    _CategoryRow(category: categories[i]),
-                                    if (i < categories.length - 1) const FulusListDivider(),
-                                  ],
+                            Column(
+                              children: [
+                                for (var i = 0; i < categories.length; i++) ...[
+                                  _CategoryRow(category: categories[i]),
+                                  if (i < categories.length - 1) const FulusListDivider(),
                                 ],
-                              ),
+                              ],
                             ),
                           const SizedBox(height: AppSpacing.lg),
-                          FulusActionTile(
-                            icon: FulusIcons.add,
-                            label: 'Add category',
-                            subtitle: 'Create a group for faster selling and stock management.',
+                          FulusListRow(
+                            leading: const Icon(FulusIcons.add),
+                            title: const Text('Add category'),
                             onTap: () => _openAddSheet(context),
                           ),
                         ],
@@ -109,52 +101,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       context: context,
       isScrollControlled: true,
       builder: (_) => const _AddCategorySheet(),
-    );
-  }
-}
-
-class _CategoryOverview extends StatelessWidget {
-  const _CategoryOverview({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusCard(
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.selectedTintOf(context),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(FulusIcons.category, color: AppColors.primaryOf(context), size: 28),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$count ${count == 1 ? 'category' : 'categories'}',
-                  style: AppTypography.subheading.copyWith(
-                    color: AppColors.textPrimaryOf(context),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Keep your catalogue organized and easier to browse.',
-                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
