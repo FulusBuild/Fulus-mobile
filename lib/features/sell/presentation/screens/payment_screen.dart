@@ -89,9 +89,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
         return FulusScreen(
           title: 'Payment',
-          backgroundColor: const Color(0xFF061B3A),
-          headerBackgroundColor: const Color(0xFF061B3A),
-          body: LayoutBuilder(
+                    body: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 720;
               final contentWidth = wide ? 720.0 : double.infinity;
