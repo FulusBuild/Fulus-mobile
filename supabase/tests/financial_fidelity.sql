@@ -5,6 +5,7 @@ do $$
 declare
   sale_sig text := 'public.fulus_api_create_sale_atomic_v2(uuid,uuid,uuid,uuid,text,timestamptz,numeric,numeric,numeric,text,text,uuid,jsonb,jsonb)';
   return_sig text := 'public.fulus_api_create_return_atomic_v2(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
+  return_impl_sig text := 'public.fulus_api_create_return_atomic_v2_unchecked(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
   income_scale int;
   income_precision int;
 begin
@@ -48,10 +49,10 @@ begin
   -- Return amounts must be allocated from the authoritative net sale total,
   -- not raw pre-discount line prices. The function must also cap cumulative
   -- refunds at the sale total so repeated/partial returns cannot over-refund.
-  if position('sale.total / sale_subtotal' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
+  if position('sale.total / sale_subtotal' in pg_get_functiondef(to_regprocedure(return_impl_sig))) = 0 then
     raise exception 'return RPC does not allocate refunds from the net sale total';
   end if;
-  if position('previously_refunded' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
+  if position('previously_refunded' in pg_get_functiondef(to_regprocedure(return_impl_sig))) = 0 then
     raise exception 'return RPC does not cap cumulative refunds against prior returns';
   end if;
 
