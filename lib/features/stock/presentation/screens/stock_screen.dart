@@ -153,18 +153,6 @@ class _StockBody extends ConsumerWidget {
                   ),
                 ),
                 SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: FulusStatusPill(
-                          label: '$lowStockCount low',
-                          tone: FulusStatusTone.warning,
-                        ),
-                      ),
-                    ),
-                  ),
-                SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
                     child: Row(
