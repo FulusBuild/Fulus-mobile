@@ -18,7 +18,6 @@ class LegacyQueueActorRepair {
         .get();
     if (rows.isEmpty) return;
 
-    // The fallback must be the cloud/Supabase actor namespace. Do not\n    // derive it from Users.localId: local identities are ULIDs for owner\n    // accounts and are not valid keys for scoped cloud refresh credentials.\n    final fallbackActor = actorUserIdProvider?.call();
     await _db.transaction(() async {
       for (final item in rows) {
         String? actor;
@@ -60,7 +59,7 @@ class LegacyQueueActorRepair {
             break;
         }
 
-        actor ??= fallbackActor;
+        actor ??= actorUserIdProvider?.call();
         if (actor != null && actor.isNotEmpty) {
           await (_db.update(_db.syncQueueItems)
                 ..where((q) => q.id.equals(item.id)))
