@@ -27,8 +27,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
     return FulusScreen(
       title: 'Employees',
       subtitle: 'People, access and attendance',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
+      
       actions: [
         FulusIconButton(
           icon: FulusIcons.add,
@@ -59,7 +58,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               icon: FulusIcons.staff,
               headline: 'No team members yet',
               body: 'Add your first team member to manage attendance and access.',
-              headlineColor: Colors.white,
+              
               bodyColor: Colors.white70,
               actionLabel: 'Add team member',
               onAction: () => _openEmployeeSheet(context),
