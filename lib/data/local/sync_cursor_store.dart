@@ -76,6 +76,8 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
     final rows = await database.select(database.syncCursors).get();
     for (final row in rows) {
       _cache[row.businessId] = row.cursor;
+      final firstSeenAt = _repairLegacyBlockedDateTime(row.blockedFirstSeenAt);
+      final lastAttemptedAt = _repairLegacyBlockedDateTime(row.blockedLastAttemptedAt);
       _blockedCache[row.businessId] = row.blockedSequence == null
           ? null
           : SyncBlockedChange(
@@ -84,12 +86,30 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
               entityType: row.blockedEntityType ?? '',
               entityId: row.blockedEntityId ?? '',
               operation: row.blockedOperation ?? '',
-              firstSeenAt: row.blockedFirstSeenAt ?? DateTime.now().toUtc(),
-              lastAttemptedAt: row.blockedLastAttemptedAt ?? DateTime.now().toUtc(),
+              firstSeenAt: firstSeenAt ?? DateTime.now().toUtc(),
+              lastAttemptedAt: lastAttemptedAt ?? DateTime.now().toUtc(),
               attemptCount: row.blockedAttemptCount,
               errorCode: row.blockedErrorCode,
               errorMessage: row.blockedErrorMessage ?? 'Unknown canonical apply failure.',
             );
+
+      // Older builds wrote DateTime milliseconds directly into Drift's
+      // second-based DateTime columns via raw SQL. Drift then decoded those
+      // values as seconds, producing dates tens of thousands of years ahead
+      // (for example, the retryAt seen in the field diagnostic). Repair those
+      // rows once at startup so a previously blocked change can resume.
+      if (row.blockedSequence != null &&
+          (firstSeenAt != row.blockedFirstSeenAt ||
+              lastAttemptedAt != row.blockedLastAttemptedAt)) {
+        await (database.update(database.syncCursors)
+              ..where((item) => item.businessId.equals(row.businessId)))
+            .write(
+          SyncCursorsCompanion(
+            blockedFirstSeenAt: Value(firstSeenAt),
+            blockedLastAttemptedAt: Value(lastAttemptedAt),
+          ),
+        );
+      }
     }
 
     if (legacyPreferences == null) return;
@@ -109,6 +129,22 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
       }
       await legacyPreferences.remove(key);
     }
+  }
+
+  /// Repairs the timestamp format written by pre-fix builds.
+  ///
+  /// Drift's default dateTime() storage uses Unix seconds. The affected
+  /// builds inserted millisecondsSinceEpoch through raw SQL, so the value was
+  /// later decoded as seconds and became a far-future DateTime. Only dates
+  /// beyond a deliberately conservative operational horizon are repaired.
+  DateTime? _repairLegacyBlockedDateTime(DateTime? value) {
+    if (value == null) return null;
+    if (value.year <= 2100) return value;
+
+    return DateTime.fromMillisecondsSinceEpoch(
+      value.millisecondsSinceEpoch ~/ 1000,
+      isUtc: true,
+    );
   }
 
   @override
