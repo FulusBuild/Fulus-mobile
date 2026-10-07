@@ -67,7 +67,6 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                           leading: FulusAvatar(name: employee.fullName),
                           title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: employee.role == null ? null : Text(employee.role!),
-                          trailing: Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
                           onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
                         );
                       },
