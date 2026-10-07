@@ -473,7 +473,7 @@ class _HomeMockupDashboard extends StatelessWidget {
       if (canViewDashboardStats)
         const _HomeActionCell(color: AppColors.sales, icon: FulusIcons.receipt, label: 'Receipts', route: 'receiptHistory'),
       if (canViewMoney)
-        const _HomeActionCell(color: AppColors.customers, icon: FulusIcons.customers, label: 'Customer', route: 'moneyCustomers'),
+        const _HomeActionCell(color: AppColors.customers, icon: FulusIcons.customers, label: 'Customers', route: 'moneyCustomers'),
       if (canViewReports)
         const _HomeActionCell(color: AppColors.reports, icon: FulusIcons.reports, label: 'Reports', route: 'moreReports'),
     ];
@@ -496,7 +496,7 @@ class _HomeMockupDashboard extends StatelessWidget {
               runSpacing: gap,
               children: [
                 for (final action in actions)
-                  SizedBox(width: width, height: width.clamp(112.0, 180.0), child: action),
+                  SizedBox(width: width, height: 112, child: action),
               ],
             );
           },
