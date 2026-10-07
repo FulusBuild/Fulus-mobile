@@ -801,20 +801,22 @@ class _MoreScreen extends ConsumerWidget {
     final canCustomers = isOwner || permissions.contains(Permission.viewMoney);
     final canEmployees = isOwner || permissions.contains(Permission.manageEmployees);
     final canReports = isOwner || permissions.contains(Permission.viewReports);
-    final canSettings = isOwner || permissions.contains(Permission.manageSettings) || permissions.contains(Permission.manageBackup);
+    final canSettings = isOwner ||
+        permissions.contains(Permission.manageSettings) ||
+        permissions.contains(Permission.manageBackup);
     final canManageSettings = isOwner || permissions.contains(Permission.manageSettings);
 
     Widget tileGrid(List<Widget> tiles) {
       return LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 640 ? 3 : 2;
-          final width = (constraints.maxWidth - (AppSpacing.sm * (columns - 1))) / columns;
+          final width =
+              (constraints.maxWidth - (AppSpacing.sm * (columns - 1))) / columns;
           return Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              for (final tile in tiles)
-                SizedBox(width: width, child: tile),
+              for (final tile in tiles) SizedBox(width: width, child: tile),
             ],
           );
         },
@@ -827,90 +829,72 @@ class _MoreScreen extends ConsumerWidget {
         if (canSettings)
           FulusIconButton(
             icon: FulusIcons.settings,
-            tooltip: 'Business settings',
+            tooltip: 'Settings',
             onPressed: () => context.goNamed('moreSettings'),
           ),
       ],
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: [
-          const FulusSectionHeader(
-            title: 'Manage',
-            subtitle: 'People and places in your business',
-          ),
           tileGrid([
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.customers,
+              iconColor: AppColors.customers,
               label: 'Customers',
-              subtitle: 'Customers and credit',
               onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.staff,
+              iconColor: AppColors.primary,
               label: 'Employees',
-              subtitle: 'Roles and access',
               onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.locations,
+              iconColor: AppColors.info,
               label: 'Locations',
-              subtitle: 'Manage business locations',
               onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.settings,
-              label: 'Business Settings',
-              subtitle: 'Business details and preferences',
+              iconColor: AppColors.primary,
+              label: 'Settings',
               onTap: canSettings ? () => context.goNamed('moreSettings') : null,
             ),
-          ]),
-          const SizedBox(height: AppSpacing.lg),
-          const FulusSectionHeader(
-            title: 'Understand',
-            subtitle: 'See what your business is doing',
-          ),
-          tileGrid([
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.reports,
+              iconColor: AppColors.reports,
               label: 'Reports',
-              subtitle: 'Sales, stock and insights',
               onTap: canReports ? () => context.goNamed('moreReports') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.notifications,
+              iconColor: AppColors.warning,
               label: 'Alerts',
-              subtitle: 'Things that need attention',
               onTap: () => context.goNamed('moreNotifications'),
             ),
-          ]),
-          const SizedBox(height: AppSpacing.lg),
-          const FulusSectionHeader(
-            title: 'Business Tools',
-            subtitle: 'Backup, cloud and devices',
-          ),
-          tileGrid([
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.backup,
+              iconColor: AppColors.success,
               label: 'Backup',
-              subtitle: 'Back up and restore data',
               onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.sync,
+              iconColor: AppColors.info,
               label: 'Sync',
-              subtitle: 'Cloud sync status',
               onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.print,
+              iconColor: AppColors.primary,
               label: 'Printers',
-              subtitle: 'Receipt printing',
               onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
             ),
-            FulusActionTile(
+            FulusFlatGridCell(
               icon: FulusIcons.bugReport,
+              iconColor: AppColors.error,
               label: 'Diagnostics',
-              subtitle: 'Check app health',
               onTap: () => context.goNamed('moreDiagnostics'),
             ),
           ]),
