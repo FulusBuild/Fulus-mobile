@@ -212,3 +212,12 @@ Runtime caveat remains unchanged: this source hardening does not claim physical 
 - P1 DB cardinality hardening: schema v21 now enforces one draft cart per location and one open cash-drawer shift per location with non-destructive duplicate preflight during upgrade. Sequential and concurrent persistence regressions are present; this supersedes the historical P05-002/P05-003 source findings.
 - CI analyzer cleanup: removed the final redundant non-null assertion in the restore-fence regression (`restoredDb!`).
 - Remaining gates are evidence/configuration only: Android WorkManager/process-death, physical restore/reopen/upgrade, multi-device runtime convergence, UI runtime evidence, and production Auth leaked-password protection.
+
+
+## 2026-10-07 — P3 current-main revalidation
+
+P3 was re-applied against the post-PR #183 `main` baseline. The readiness ownership finding remains valid: `SyncService` owns readiness state and cloud-bootstrap coalescing, so the separate `SyncReadinessGate` was redundant.
+
+Current source changes: `SyncService.ensureReady()` is the readiness boundary; `SyncTriggers` retains only the adapter logic needed to invoke that boundary; the duplicate readiness gate and its direct regression test are removed. No cycle, lease, connectivity, restore, or recovery invariant was removed.
+
+**P3 source result: 🟢 for this coordination cluster, pending CI verification.**
