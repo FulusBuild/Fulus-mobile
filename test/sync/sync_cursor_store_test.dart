@@ -158,8 +158,8 @@ void main() {
     final row = await (db.select(db.syncCursors)
           ..where((item) => item.businessId.equals('business-1')))
         .getSingle();
-    expect(row.blockedFirstSeenAt, expected);
-    expect(row.blockedLastAttemptedAt, expected);
+    expect(row.blockedFirstSeenAt?.millisecondsSinceEpoch, expected.millisecondsSinceEpoch);
+    expect(row.blockedLastAttemptedAt?.millisecondsSinceEpoch, expected.millisecondsSinceEpoch);
   });
 
   test('stores blocked DateTime values in Drift-compatible timestamp units', () async {
@@ -187,8 +187,8 @@ void main() {
     await reloaded.initialize();
     final persisted = reloaded.blockedChangeFor('business-1')!;
 
-    expect(persisted.firstSeenAt, firstSeen);
-    expect(persisted.lastAttemptedAt, lastAttempted);
+    expect(persisted.firstSeenAt?.millisecondsSinceEpoch, firstSeen.millisecondsSinceEpoch);
+    expect(persisted.lastAttemptedAt?.millisecondsSinceEpoch, lastAttempted.millisecondsSinceEpoch);
   });
 
 }
