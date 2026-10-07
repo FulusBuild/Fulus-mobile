@@ -99,4 +99,4 @@ begin
     raise exception 'employee restore snapshot is not protected by the strict money wire boundary';
   end if;
 
-end $;
+end $$;
