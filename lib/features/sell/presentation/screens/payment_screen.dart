@@ -490,7 +490,7 @@ class _AmountDueHeader extends StatelessWidget {
             child: Text(
               formatMoney(state.total, symbol: state.currencySymbol),
               style: AppTypography.display.copyWith(
-                color: AppColors.textPrimaryOf(context),
+                color: Colors.white,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -532,7 +532,7 @@ class _PaymentRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+          Text(label, style: AppTypography.body.copyWith(color: Colors.white.withValues(alpha: .86))),
           Flexible(
             child: Text(
               formatMoney(value, symbol: symbol),
@@ -540,7 +540,7 @@ class _PaymentRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: (emphasized ? AppTypography.subheading : AppTypography.body).copyWith(
-                color: AppColors.textPrimaryOf(context),
+                color: Colors.white,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
