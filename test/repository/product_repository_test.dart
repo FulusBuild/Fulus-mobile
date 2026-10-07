@@ -191,7 +191,7 @@ void main() {
 
       expect(emitted, hasLength(1));
       expect(emitted.single.currentStock, 20);
-      expect(emitted.single.product.localId, 'local-p1');
+      expect(emitted.single.product.localId, 'p1');
     });
 
     test('watchProducts treats a product with no stock-level row as zero', () async {
@@ -299,7 +299,7 @@ void main() {
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;
 
       expect(emitted, hasLength(1));
-      expect(emitted.single.product.localId, 'local-low');
+      expect(emitted.single.product.localId, 'low');
     });
 
     test('watchLowStockProducts excludes a product with no stock-level row', () async {
