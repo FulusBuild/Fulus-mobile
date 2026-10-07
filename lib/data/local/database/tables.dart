@@ -631,6 +631,20 @@ class SyncCursors extends Table {
   TextColumn get businessId => text()();
   IntColumn get cursor => integer()();
 
+  /// When canonical application fails, the cursor deliberately remains before
+  /// this sequence. These fields make that barrier durable across process death
+  /// without creating a second synchronization state machine.
+  IntColumn get blockedSequence => integer().nullable()();
+  TextColumn get blockedChangeId => text().nullable()();
+  TextColumn get blockedEntityType => text().nullable()();
+  TextColumn get blockedEntityId => text().nullable()();
+  TextColumn get blockedOperation => text().nullable()();
+  DateTimeColumn get blockedFirstSeenAt => dateTime().nullable()();
+  DateTimeColumn get blockedLastAttemptedAt => dateTime().nullable()();
+  IntColumn get blockedAttemptCount => integer().withDefault(const Constant(0))();
+  TextColumn get blockedErrorCode => text().nullable()();
+  TextColumn get blockedErrorMessage => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {businessId};
 }
