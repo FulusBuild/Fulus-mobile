@@ -133,7 +133,7 @@ class SyncExecutionLease {
           .go();
     } finally {
       _maintenanceHeld = false;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
     }
   }
 
@@ -184,7 +184,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -249,7 +249,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -269,7 +269,7 @@ class SyncExecutionLease {
           .go();
     } finally {
       _held = false;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
     }
   }
 
@@ -290,7 +290,7 @@ class SyncExecutionLease {
     try {
       await marker.create(exclusive: true);
       await marker.writeAsString(
-        'owner=\$_ownerId\\ncreated=\${DateTime.now().toUtc().toIso8601String()}\\n',
+        'owner=$_ownerId\ncreated=${DateTime.now().toUtc().toIso8601String()}\n',
         flush: true,
       );
       _maintenanceMarkerFile = marker;
