@@ -44,9 +44,7 @@ class SyncFailure implements Exception {
     }
     if (error is AuthFailure) {
       return SyncFailure(
-        kind: error.requiresDeviceRegistration
-            ? SyncErrorKind.authExpired
-            : SyncErrorKind.authExpired,
+        kind: SyncErrorKind.authExpired,
         message: error.message,
         cause: error,
       );
