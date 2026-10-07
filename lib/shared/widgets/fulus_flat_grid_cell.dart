@@ -33,25 +33,26 @@ class FulusFlatGridCell extends StatelessWidget {
           onTap: onTap,
           child: Container(
             constraints: const BoxConstraints(minHeight: 112),
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             decoration: BoxDecoration(
               border: Border.all(
-                color: AppColors.borderOf(context).withValues(alpha: 0.85),
+                color: AppColors.borderOf(context).withValues(alpha: 0.7),
                 width: 0.8,
               ),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(icon, size: AppIconSize.emphasis, color: color),
-                const Spacer(),
+                Icon(icon, size: 30, color: color),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   label,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.body.copyWith(
                     color: foreground,
                     fontWeight: FontWeight.w600,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
