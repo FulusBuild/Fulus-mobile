@@ -31,15 +31,18 @@ class BackupRepositoryImpl implements BackupRepository {
     required DatabaseLifecycle lifecycle,
     required AppDatabase database,
     Future<String?> Function()? boundBusinessIdProvider,
+    Future<void> Function()? probeReopenedDatabase,
     BackupEngine engine = const BackupEngine(),
   })  : _lifecycle = lifecycle,
         _database = database,
         _boundBusinessIdProvider = boundBusinessIdProvider,
+        _probeReopenedDatabase = probeReopenedDatabase,
         _engine = engine;
 
   final DatabaseLifecycle _lifecycle;
   final AppDatabase _database;
   final Future<String?> Function()? _boundBusinessIdProvider;
+  final Future<void> Function()? _probeReopenedDatabase;
   final BackupEngine _engine;
 
   /// Backup & Restore discoverability fix: this used to resolve under
@@ -265,6 +268,7 @@ class BackupRepositoryImpl implements BackupRepository {
       // instead of leaving the app pointing at an unusable file.
       try {
         await _lifecycle.reopenAfterMaintenance();
+        await _probeReopenedDatabase?.call();
       } catch (_) {
         if (installed && await previous.exists()) {
           // The maintenance fence is still held when reopening fails. Do not
