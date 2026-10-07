@@ -206,14 +206,17 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
     _blockedCache.remove(businessId);
   }
 
+  int _max(int a, int b) => a >= b ? a : b;
+
   Future<void> _write(String businessId, int cursor) async {
     final database = _database();
     await database.customStatement(
       'INSERT INTO sync_cursors (business_id, cursor) VALUES (?, ?) '
-      'ON CONFLICT(business_id) DO UPDATE SET cursor = excluded.cursor',
+      'ON CONFLICT(business_id) DO UPDATE SET '
+      'cursor = MAX(sync_cursors.cursor, excluded.cursor)',
       [businessId, cursor],
     );
-    _cache[businessId] = cursor;
+    _cache[businessId] = _max(_cache[businessId] ?? 0, cursor);
   }
 }
 
