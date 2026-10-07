@@ -124,8 +124,8 @@ void main() {
 
   test('stores blocked DateTime values in Drift-compatible timestamp units', () async {
     await store.initialize();
-    final firstSeen = DateTime.utc(2026, 10, 7, 21, 58, 50, 78639);
-    final lastAttempted = DateTime.utc(2026, 10, 7, 22, 0, 12, 123456);
+    final firstSeen = DateTime.utc(2026, 10, 7, 21, 58, 50);
+    final lastAttempted = DateTime.utc(2026, 10, 7, 22, 0, 12);
 
     await store.recordBlockedChange(
       businessId: 'business-1',
