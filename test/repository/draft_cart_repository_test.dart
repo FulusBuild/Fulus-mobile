@@ -11,7 +11,6 @@ import 'package:fulus_mobile/domain/entities/sale.dart';
 import 'package:fulus_mobile/domain/entities/sale_draft.dart';
 import 'package:fulus_mobile/domain/repositories/auth_repository.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
-import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -73,7 +72,6 @@ void main() {
     final productRepository = ProductRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
-      executionLease: SyncExecutionLease(db),
     );
     saleRepository = SaleRepositoryImpl(
       db: db,
