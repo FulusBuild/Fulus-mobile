@@ -89,4 +89,36 @@ begin
 end
 $$;
 
+do $
+declare
+  v_count integer;
+  v_check text;
+begin
+  select count(*) into v_count
+  from pg_policies
+  where schemaname='storage'
+    and tablename='objects'
+    and policyname in (
+      'product images update for business members',
+      'product images delete for business members'
+    );
+
+  if v_count > 0 then
+    raise exception 'FAIL: product image storage still exposes update/delete policies';
+  end if;
+
+  select count(*) into v_count
+  from pg_policies
+  where schemaname='storage'
+    and tablename='objects'
+    and policyname='product images upload for catalog managers'
+    and cmd='INSERT'
+    and with_check like '%catalog.manage%';
+
+  if v_count <> 1 then
+    raise exception 'FAIL: product image insert policy is not bound to catalog.manage';
+  end if;
+end
+$;
+
 select 'PASS: SECURITY DEFINER, function grants, RLS, and V2 location-authorization invariants hold' as result;
