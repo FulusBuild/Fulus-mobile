@@ -393,7 +393,7 @@ class _MoneyQuickActions extends ConsumerWidget {
         subtitle: 'Today',
         onTap: () => context.pushNamed('moneyAddExpense'),
       ),
-      if (customerCredit.isPositive) _MoneyAction(
+      if (customerCredit > 0) _MoneyAction(
         color: const Color(0xFF7C3AED),
         icon: FulusIcons.customers,
         label: 'Customer Credit',
@@ -401,7 +401,7 @@ class _MoneyQuickActions extends ConsumerWidget {
         subtitle: '',
         onTap: () => context.pushNamed('moneyCustomers'),
       ),
-      if (supplierPayments.isPositive) _MoneyAction(
+      if (supplierPayments > 0) _MoneyAction(
         color: const Color(0xFF0891B2),
         icon: FulusIcons.localShipping,
         label: 'Supplier Payments',
