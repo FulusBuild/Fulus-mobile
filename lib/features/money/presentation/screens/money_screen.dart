@@ -90,9 +90,9 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF061B3A),
+      backgroundColor: AppColors.backgroundOf(context),
       body: DefaultTextStyle.merge(
-        style: AppTypography.body.copyWith(color: Colors.white),
+        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
         child: SafeArea(
           child: RefreshIndicator(
           onRefresh: _refresh,
@@ -120,14 +120,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         onReceipts: () => context.pushNamed('receiptHistory'),
                         onDebug: kDebugMode ? _toggleSimulatedError : null,
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        'Here’s what is happening with your money today.',
-                        style: AppTypography.body.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
                       FutureBuilder<Money>(
                         future: _balanceFuture,
                         builder: (context, snapshot) {
@@ -174,8 +167,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
-                        titleColor: Colors.white,
-                        subtitleColor: Colors.white70,
+                        titleColor: AppColors.textPrimaryOf(context),
+                        subtitleColor: AppColors.textSecondaryOf(context),
                         action: 'See all',
                         onActionTap: () =>
                             context.pushNamed('moneyHistory'),
@@ -292,7 +285,7 @@ class _MoneyHeader extends StatelessWidget {
                   Text(
                     'Money',
                     style: AppTypography.subheading.copyWith(
-                      color: Colors.white,
+                      color: AppColors.textPrimaryOf(context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -311,7 +304,7 @@ class _MoneyHeader extends StatelessWidget {
                   Text(
                     'Money',
                     style: AppTypography.subheading.copyWith(
-                      color: Colors.white,
+                      color: AppColors.textPrimaryOf(context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
