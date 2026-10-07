@@ -3,7 +3,6 @@ import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
-import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +44,6 @@ void main() {
     repository = ProductRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
-      executionLease: SyncExecutionLease(db),
     );
   });
 
