@@ -471,7 +471,7 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
-      unawaited(_releaseHeldProcessLock());
+      unawaited(_releaseHeldMaintenanceMarker());
     }
   }
 
@@ -492,7 +492,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
-      unawaited(_releaseHeldProcessLock());
+      unawaited(_releaseHeldMaintenanceMarker());
     }
   }
 }
