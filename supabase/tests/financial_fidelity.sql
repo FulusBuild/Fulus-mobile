@@ -51,7 +51,7 @@ begin
   -- primitive; behavioral return-path coverage remains responsible for the
   -- exact credit calculation and authorization semantics.
   return_def := pg_get_functiondef(to_regprocedure(return_sig));
-  if position('insert into public.customer_ledger_entries' in return_def) = 0 then
+  if position('insert into public.customer_ledger_entries' in lower(return_def)) = 0 then
     raise exception 'return RPC is missing customer ledger settlement';
   end if;
 
