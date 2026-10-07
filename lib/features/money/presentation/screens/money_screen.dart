@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fulus_mobile/core/money/money.dart';
 
@@ -12,7 +11,6 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/mock_money_repository.dart';
 import '../../domain/money_summary.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
@@ -65,14 +63,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   Future<void> _refresh() async {
     setState(() => _load(_builtForPeriod ?? ref.read(moneyPeriodProvider)));
     await Future.wait([_balanceFuture, _summaryFuture, _transactionsFuture]);
-  }
-
-  void _toggleSimulatedError() {
-    final repo = ref.read(moneyRepositoryProvider);
-    if (repo is MockMoneyRepository) {
-      repo.debugSimulateFailure = !repo.debugSimulateFailure;
-    }
-    _refresh();
   }
 
   @override
@@ -250,7 +240,6 @@ class _BalanceHero extends StatelessWidget {
       decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(AppRadius.xl)),
       child: Builder(builder: (context) {
         final foreground = AppColors.onColor(AppColors.success);
-        final muted = foreground.withValues(alpha: 0.9);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Icon(FulusIcons.wallet, color: foreground, size: 40), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const SizedBox(height: AppSpacing.sm),
