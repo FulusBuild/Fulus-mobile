@@ -812,11 +812,17 @@ class _MoreScreen extends ConsumerWidget {
           final columns = constraints.maxWidth >= 640 ? 3 : 2;
           final width =
               (constraints.maxWidth - (AppSpacing.sm * (columns - 1))) / columns;
+          final tileHeight = constraints.maxWidth >= 640 ? 176.0 : 168.0;
           return Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              for (final tile in tiles) SizedBox(width: width, child: tile),
+              for (final tile in tiles)
+                SizedBox(
+                  width: width,
+                  height: tileHeight,
+                  child: tile,
+                ),
             ],
           );
         },
@@ -834,7 +840,7 @@ class _MoreScreen extends ConsumerWidget {
           ),
       ],
       body: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
           _MoreGroup(
             title: 'Manage',
