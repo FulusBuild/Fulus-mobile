@@ -14,6 +14,7 @@ class FulusActionTile extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.accent,
+    this.flat = false,
   });
 
   final IconData icon;
@@ -24,6 +25,7 @@ class FulusActionTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final Color? accent;
+  final bool flat;
 
   @override
   Widget build(BuildContext context) {
@@ -37,37 +39,53 @@ class FulusActionTile extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 112, minWidth: 0),
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          color: flat ? AppColors.surfaceOf(context) : color.withValues(alpha: 0.12),
+          border: flat ? Border.all(color: AppColors.borderOf(context)) : null,
+          borderRadius: BorderRadius.circular(flat ? 0 : AppRadius.lg),
         ),
-        child: Stack(
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: Icon(icon, size: AppIconSize.emphasis, color: color),
-            ),
-            Align(
-              alignment: Alignment.bottomLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 32),
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.body.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w600,
+        child: flat
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: AppIconSize.base, color: color),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body.copyWith(
+                      color: foreground,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
+                ],
+              )
+            : Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Icon(icon, size: AppIconSize.emphasis, color: color),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 32),
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.body.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (trailing != null)
+                    Align(alignment: Alignment.topRight, child: trailing!),
+                ],
               ),
-            ),
-            if (trailing != null)
-              Align(
-                alignment: Alignment.topRight,
-                child: trailing!,
-              ),
-          ],
-        ),
       ),
     );
   }
