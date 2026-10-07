@@ -6,7 +6,6 @@ import '../../domain/entities/product.dart';
 import '../../domain/entities/product_stock_snapshot.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../sync/sync_queue.dart';
-import '../../sync/sync_execution_lease.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 import 'product_mapper.dart';
@@ -15,14 +14,11 @@ class ProductRepositoryImpl implements ProductRepository {
   ProductRepositoryImpl({
     required AppDatabase db,
     required SyncQueue syncQueue,
-    required SyncExecutionLease executionLease,
   })  : _db = db,
-        _syncQueue = syncQueue,
-        _executionLease = executionLease;
+        _syncQueue = syncQueue;
 
   final AppDatabase _db;
   final SyncQueue _syncQueue;
-  final SyncExecutionLease _executionLease;
 
   ProductWithStock _mapRow(TypedResult row) {
     final product = row.readTable(_db.products);
