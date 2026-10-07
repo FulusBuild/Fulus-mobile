@@ -54,9 +54,15 @@ class FulusDiagnosticUploader {
     try {
       final events = await _logger.getForExport();
       for (final event in events) {
-        if (_uploadedIds.contains(event.id)) continue;
+        if (_uploadedIds.contains(event.id) ||
+            event.lifecycleStatus == DiagnosticLifecycleStatus.synced) {
+          continue;
+        }
         final accepted = await _upload(event);
-        if (accepted) _uploadedIds.add(event.id);
+        if (accepted) {
+          _uploadedIds.add(event.id);
+          await _logger.markSynced(event.id);
+        }
       }
     } catch (_) {
       // Remote diagnostics is strictly best-effort. The local diagnostic
