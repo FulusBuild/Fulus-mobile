@@ -55,8 +55,7 @@ class FulusScreen extends StatelessWidget {
           )
         : padding;
     final scaffoldBackground = backgroundColor ?? AppColors.backgroundOf(context);
-    final darkSurface = scaffoldBackground.computeLuminance() < 0.25;
-    final contentForeground = darkSurface ? Colors.white : AppColors.textPrimaryOf(context);
+    final contentForeground = AppColors.textPrimaryOf(context);
     final content = DefaultTextStyle.merge(
       style: AppTypography.body.copyWith(color: contentForeground),
       child: applyPadding ? Padding(padding: adaptivePadding, child: body) : body,
@@ -72,11 +71,11 @@ class FulusScreen extends StatelessWidget {
             if (hasHeader)
               _PageHeader(
                 title: title!,
-                subtitle: subtitle,
+                subtitle: null,
                 actions: actions,
                 leading: leading,
                 showBack: canPop && leading == null,
-                backgroundColor: headerBackgroundColor,
+                backgroundColor: null,
               ),
             Expanded(
               child: Align(
@@ -159,9 +158,8 @@ class _PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final darkHeader = backgroundColor != null && backgroundColor!.computeLuminance() < 0.25;
-    final muted = darkHeader ? Colors.white70 : AppColors.mutedOf(context);
-    final foreground = darkHeader ? Colors.white : AppColors.textPrimaryOf(context);
+    final muted = AppColors.textSecondaryOf(context);
+    final foreground = AppColors.textPrimaryOf(context);
     final width = FulusLayout.width(context);
     final isWide = width >= FulusLayout.wideBreakpoint;
     final inset = FulusLayout.horizontalInset(context);
@@ -172,7 +170,7 @@ class _PageHeader extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.backgroundOf(context),
+        color: AppColors.backgroundOf(context),
         border: Border(bottom: BorderSide(color: AppColors.borderOf(context).withValues(alpha: 0.65))),
       ),
       child: Center(
@@ -210,7 +208,7 @@ class _PageHeader extends StatelessWidget {
                               ),
                               child: _HeaderText(
                                 title: title,
-                                subtitle: subtitle,
+                                subtitle: null,
                                 isWide: isWide,
                                 foreground: foreground,
                                 muted: muted,
@@ -250,7 +248,7 @@ class _PageHeader extends StatelessWidget {
                     padding: EdgeInsets.only(left: leading != null || showBack ? AppSpacing.xs : 0),
                     child: _HeaderText(
                       title: title,
-                      subtitle: subtitle,
+                      subtitle: null,
                       isWide: isWide,
                       foreground: foreground,
                       muted: muted,
