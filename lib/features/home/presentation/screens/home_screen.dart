@@ -133,17 +133,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.lg),
-                              Text(
-                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.heading.copyWith(
-                                  color: AppColors.textPrimaryOf(context),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-
+                              const SizedBox(height: AppSpacing.sm),
                             ],
                           ),
                         ),
@@ -612,13 +602,15 @@ class _HomeSalesHeroCard extends StatelessWidget {
 
     return Semantics(
       label: 'Today’s sales, $value, $count',
-      child: Material(
-        color: AppColors.sales,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: AppColors.sales,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
