@@ -29,7 +29,6 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
 
     return FulusScreen(
       title: 'Suppliers',
-      subtitle: 'People and businesses you buy from',
       actions: [
         FulusIconButton(
           icon: FulusIcons.localShipping,
