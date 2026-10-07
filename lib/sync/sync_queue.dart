@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../data/local/database/database.dart';
+import 'sync_execution_lease.dart';
 
 /// Sync lanes are ordered around dependencies as well as business urgency.
 /// Reference data must reach the server before a sale can reference it by
@@ -477,6 +478,13 @@ class SyncQueue {
     await _db.transaction(() async {
       if (_businessSwitchBarrier) {
         throw StateError('Business context is switching; local mutation was rejected before durable enqueue.');
+      }
+      // Restore is a physical database replacement, so the durable SQLite
+      // maintenance row alone is insufficient after the live file has been
+      // swapped. The filesystem marker is the cross-isolate/process fence
+      // that survives that replacement.
+      if (await SyncExecutionLease.hasMaintenanceFence(_db)) {
+        throw StateError('Database maintenance is in progress; local mutation was rejected.');
       }
       // Read the durable local session inside the same SQLite
       // transaction as the outbox insert. This prevents an employee switch
