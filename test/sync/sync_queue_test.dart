@@ -17,7 +17,7 @@ void main() {
 
   tearDown(() => db.close());
 
-  test('prefers the durable session identity over a stale in-memory actor', () async {
+  test('prefers the active cloud actor over the durable local session identity', () async {
     final now = DateTime.now();
     await db.into(db.users).insert(
       UsersCompanion.insert(
@@ -42,10 +42,10 @@ void main() {
     await actorQueue.enqueue(SyncTask.createProduct('product-session-actor'));
 
     final row = (await db.select(db.syncQueueItems).get()).single;
-    expect(row.actorUserId, 'employee-a');
+    expect(row.actorUserId, 'employee-b');
   });
 
-  test('captures the signed-in employee on the durable outbox row', () async {
+  test('falls back to the durable local identity before cloud binding', () async {
     final actorQueue = SyncQueue(
       db,
       actorUserIdProvider: () => 'employee-a',
