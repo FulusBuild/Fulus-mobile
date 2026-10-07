@@ -67,9 +67,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               final wide = constraints.maxWidth >= 760;
               final inset = wide ? AppSpacing.lg : AppSpacing.sm;
               return ListView(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  FulusSectionHeader(title: employees.length.toString() + ' active ' + (employees.length == 1 ? 'employee' : 'employees')),
                   const SizedBox(height: AppSpacing.xs),
                   for (var i = 0; i < employees.length; i++) ...[
                     _EmployeeTile(employee: employees[i]),
