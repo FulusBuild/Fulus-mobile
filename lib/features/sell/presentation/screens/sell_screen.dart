@@ -595,6 +595,7 @@ class _ProductRow extends StatelessWidget {
             ),
             ],
           ),
+        ),
           if (out)
             const Positioned(
               top: 8,
