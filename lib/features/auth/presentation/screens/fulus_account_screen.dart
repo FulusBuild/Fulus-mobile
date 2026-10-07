@@ -426,6 +426,16 @@ class _FulusAccountScreenState extends ConsumerState<FulusAccountScreen> {
                           loading: _busy,
                           onPressed: _busy ? null : (creating ? _createAccount : _signIn),
                         ),
+                        if (!creating) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Your App Lock or approval PIN is separate from your Fulus password.',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textSecondaryOf(context),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
