@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fulus_mobile/core/theme/app_theme.dart';
 import 'package:fulus_mobile/core/theme/design_tokens.dart';
 import 'package:fulus_mobile/core/ux/consumer_polish.dart';
+import 'package:fulus_mobile/shared/widgets/fulus_action_tile.dart';
 
 void main() {
   testWidgets('FulusPressable exposes button semantics and activates on tap', (tester) async {
@@ -58,6 +59,31 @@ void main() {
     await expectLater(tester, meetsGuideline(textContrastGuideline));
 
     handle.dispose();
+  });
+
+  testWidgets('action tile remains usable at large accessibility text', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: FulusActionTile(
+                icon: Icons.point_of_sale,
+                label: 'Customers',
+                onTap: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Customers'), findsOneWidget);
   });
 
   test('Phase 7 interaction tokens keep motion restrained', () {
