@@ -501,6 +501,12 @@ class SyncQueue {
             ..where((q) => q.operation.equals(task.operation))
             ..limit(1))
           .getSingleOrNull();
+      // When an UPDATE is replaced, preserve the revision against which the
+      // original mutation was created. Re-reading the current cursor here
+      // would silently rebase a later local edit over a remote change that
+      // arrived while the older update was in flight, defeating OCC.
+      final preservedBaseCursor =
+          existing?.operation == 'update' ? existing?.baseCursor : null;
       if (existing != null) {
         final blocked = (existing.lastError ?? '').startsWith('[BLOCKED]') ||
             (existing.lastError ?? '').startsWith('[CONFLICT]');
@@ -546,7 +552,9 @@ class SyncQueue {
           operation: task.operation,
           priority: task.priority,
           enqueuedAt: DateTime.now(),
-          baseCursor: Value(_baseCursorProvider?.call()),
+          baseCursor: Value(
+            preservedBaseCursor ?? _baseCursorProvider?.call(),
+          ),
           actorUserId: Value(actorUserId),
         ),
       );
