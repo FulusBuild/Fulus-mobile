@@ -663,7 +663,7 @@ class _CartSummaryBar extends StatelessWidget {
             const Spacer(),
             Text(formatMoney(state.total, symbol: state.currencySymbol), style: AppTypography.heading.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w800)),
             const SizedBox(width: AppSpacing.sm),
-            Text('View Cart', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
+            Text('Charge', style: AppTypography.body.copyWith(color: AppColors.onColor(AppColors.primary), fontWeight: FontWeight.w700)),
             const SizedBox(width: AppSpacing.md),
           ])),
         ),

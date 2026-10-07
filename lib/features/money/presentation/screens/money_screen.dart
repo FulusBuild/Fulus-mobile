@@ -282,7 +282,7 @@ class _MoneyQuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions = <_MoneyAction>[
       _MoneyAction(
-        color: AppColors.primary,
+        color: AppColors.success,
         icon: FulusIcons.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol),
@@ -314,15 +314,19 @@ class _MoneyActionCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadius.xl);
     return Material(
       color: action.color.withValues(alpha: 0.10),
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
+        borderRadius: radius,
         onTap: action.onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 112),
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          constraints: const BoxConstraints.tightFor(height: 112),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            border: Border.all(color: action.color.withValues(alpha: 0.20), width: 0.8),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
