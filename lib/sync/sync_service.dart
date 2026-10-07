@@ -100,11 +100,13 @@ class SyncService {
   /// Ensures the cloud session/device context is ready and returns the
   /// service-owned readiness result. Sync trigger adapters call this boundary
   /// rather than maintaining a second readiness initialization state machine.
-  Future<bool> ensureReady() async {
+  Future<SyncReadinessEnsureResult> ensureReady() async {
     _ensureActive();
-    if (isReady) return true;
+    if (isReady) return SyncReadinessEnsureResult.alreadyReady;
     await bootstrapCloud();
-    return isReady;
+    return isReady
+        ? SyncReadinessEnsureResult.initialized
+        : SyncReadinessEnsureResult.notReady;
   }
 
   Future<void> bootstrapCloud() {
