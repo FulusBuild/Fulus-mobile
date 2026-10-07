@@ -64,6 +64,7 @@ class _FulusBottomNavigationBar extends StatelessWidget {
   final bool showMoneyTab;
 
   void _select(int branch) {
+    FulusHaptics.selection();
     navigationShell.goBranch(
       branch,
       initialLocation: navigationShell.currentIndex == branch,
