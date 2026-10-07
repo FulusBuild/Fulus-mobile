@@ -141,7 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTypography.heading.copyWith(
-                                  color: Colors.white,
+                                  color: AppColors.textPrimaryOf(context),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -602,7 +602,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimaryOf(context),
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
@@ -615,7 +615,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     value,
                     maxLines: 1,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimaryOf(context),
                       fontSize: 42,
                       fontWeight: FontWeight.w900,
                     ),
@@ -627,7 +627,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimaryOf(context),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -709,14 +709,14 @@ class _HomeSellCard extends StatelessWidget {
             padding: EdgeInsets.all(AppSpacing.md),
             child: FulusMetricCardColumn(
               icon: FulusIcons.sell,
-              iconColor: Colors.white,
+              iconColor: AppColors.primaryOf(context),
               children: [
                 Text(
                   'Sell',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimaryOf(context),
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                   ),
@@ -726,7 +726,7 @@ class _HomeSellCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: AppColors.textSecondaryOf(context),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
