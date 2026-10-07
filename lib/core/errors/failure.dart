@@ -66,6 +66,7 @@ sealed class AuthFailure extends Failure {
 
   const factory AuthFailure.sessionExpired() = _SessionExpired;
   const factory AuthFailure.forbidden() = _Forbidden;
+  const factory AuthFailure.accessRevoked() = _AccessRevoked;
   const factory AuthFailure.deviceNotRegistered() = _DeviceNotRegistered;
   const factory AuthFailure.invalidCredentials() = _InvalidCredentials;
   const factory AuthFailure.accountLocked({required DateTime lockedUntil}) =
@@ -103,6 +104,14 @@ final class _Forbidden extends AuthFailure {
 
   @override
   bool get isAccessRevoked => false;
+}
+
+final class _AccessRevoked extends AuthFailure {
+  const _AccessRevoked()
+      : super('Your access to this business has been revoked.');
+
+  @override
+  bool get isAccessRevoked => true;
 }
 
 final class _DeviceNotRegistered extends AuthFailure {
