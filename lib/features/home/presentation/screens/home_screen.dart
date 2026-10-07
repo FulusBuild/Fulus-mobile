@@ -44,7 +44,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
-  late Future<SecondaryNoticeSelection> _noticesFuture;
 
   @override
   void initState() {
@@ -61,22 +60,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           isOwner: showBusinessWide,
           locationId: locationId,
         ));
-    _noticesFuture = showBusinessWide
-        ? locationFuture.then((locationId) => repo.getSecondaryNotices(
-              locationId: locationId,
-              max: 3,
-            ))
-        : Future.value(
-            const SecondaryNoticeSelection(
-              shown: <SecondaryNotice>[],
-              overflowCount: 0,
-            ),
-          );
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture]);
+    await _heroFuture;
   }
 
   @override
@@ -144,7 +132,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         sliver: SliverToBoxAdapter(
                           child: _HomeDashboardHydration(
                             heroFuture: _heroFuture,
-                            noticesFuture: _noticesFuture,
                             currencySymbol: currencySymbol,
                             canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
@@ -371,7 +358,6 @@ class _HomeHeader extends StatelessWidget {
 class _HomeDashboardHydration extends StatefulWidget {
   const _HomeDashboardHydration({
     required this.heroFuture,
-    required this.noticesFuture,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
@@ -380,7 +366,6 @@ class _HomeDashboardHydration extends StatefulWidget {
   });
 
   final Future<HomeHeroState> heroFuture;
-  final Future<SecondaryNoticeSelection> noticesFuture;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
@@ -395,28 +380,21 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   HomeHeroState? _hero;
   SecondaryNoticeSelection? _noticeSelection;
   bool _heroError = false;
-  bool _noticesError = false;
 
   @override
   void initState() {
     super.initState();
     // Start all independent local reads together. None waits for another
     // FutureBuilder to build before its own future is observed.
-    widget.heroFuture.then(_setHero, onError: _setHeroError);
-    widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
-  }
+    widget.heroFuture.then(_setHero, onError: _setHeroError);  }
 
   @override
   void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.heroFuture != widget.heroFuture ||
-        oldWidget.noticesFuture != widget.noticesFuture) {
+    if (oldWidget.heroFuture != widget.heroFuture) {
       _hero = null;
-      _noticeSelection = null;
       _heroError = false;
-      _noticesError = false;
       widget.heroFuture.then(_setHero, onError: _setHeroError);
-      widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
     }
   }
 
@@ -424,24 +402,14 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     if (mounted) setState(() { _hero = value; _heroError = false; });
   }
 
-  void _setNotices(SecondaryNoticeSelection value) {
-    if (mounted) setState(() { _noticeSelection = value; _noticesError = false; });
-  }
-
   void _setHeroError(Object _, StackTrace __) {
     if (mounted) setState(() => _heroError = true);
-  }
-
-  void _setNoticesError(Object _, StackTrace __) {
-    if (mounted) setState(() => _noticesError = true);
   }
 
   @override
   Widget build(BuildContext context) {
     return _HomeMockupDashboard(
       hero: _hero,
-      notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
-      noticesError: _noticesError,
       heroError: _heroError,
       currencySymbol: widget.currencySymbol,
       canViewDashboardStats: widget.canViewDashboardStats,
@@ -454,8 +422,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
 class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
-    required this.notices,
-    required this.noticesError,
     required this.heroError,
     required this.currencySymbol,
     required this.canViewDashboardStats,
@@ -464,8 +430,6 @@ class _HomeMockupDashboard extends StatelessWidget {
   });
 
   final HomeHeroState? hero;
-  final List<SecondaryNotice> notices;
-  final bool noticesError;
   final bool heroError;
   final String currencySymbol;
   final bool canViewDashboardStats;
