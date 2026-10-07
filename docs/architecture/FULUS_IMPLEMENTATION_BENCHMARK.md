@@ -952,4 +952,17 @@ P3 was re-applied to the current `main` baseline after PR #183. The source-level
 
 The remaining coordination objects are retained because each protects a distinct invariant: cycle serialization, connectivity-attempt coalescing, cross-runtime leasing, restore reconciliation fencing, or deferred recovery timing. This is a controlled simplification, not a coordinator-count reduction exercise.
 
-**P3 result: 🟢 source simplification for the readiness cluster, pending CI verification.**
+**P3 result: 🟢 source simplification for the readiness cluster, CI verified on post-merge main.**
+
+
+## 2026-10-07 — P2 source revalidation carried onto current main
+
+The earlier P2 revalidation was correct but its standalone PR was based on an older main. This record carries the same verified P2 findings onto the current post-PR #184 baseline.
+
+- **State management — 🟢 closed.** Riverpod remains primary; `flutter_bloc/Cubit` is confined to `lib/features/sell/`, enforced by `test/architecture/state_management_boundary_test.dart`.
+- **DB cardinality — 🟢 closed.** Schema v21 enforces one draft cart per location and one open cash-drawer shift per location, with duplicate preflight and sequential/concurrent regression coverage.
+- **Coordination layers — 🟡 guardrail.** No additional correctness defect is proven. Existing coordination objects retain distinct invariants. The P3 readiness cluster has now been revalidated on current main.
+- **Historical comments — 🟡 maintainability debt.** Clean opportunistically when files are touched; do not mass-rewrite current invariant documentation.
+- **Architecture fitness — 🟡 partial.** Existing invariant/scenario tests are strong, but focused mechanically-checkable architecture rules remain candidates for additional fitness tests.
+
+**P2 current-main verdict: 🟢/🟡 substantially closed. No P2 correctness blocker proven.**
