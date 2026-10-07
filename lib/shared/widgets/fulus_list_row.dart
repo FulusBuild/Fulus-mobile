@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// The default way to show more than 3–4 of anything — Component
 /// Library 5.4. Row height floors at 48dp but grows with content
@@ -43,15 +44,10 @@ class FulusListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        splashColor: AppColors.primaryOf(context).withValues(alpha: 0.10),
-        highlightColor: AppColors.primaryOf(context).withValues(alpha: 0.06),
-        hoverColor: AppColors.primaryOf(context).withValues(alpha: 0.04),
-        child: ConstrainedBox(
+    return FulusPressable(
+      onPressed: onTap,
+      semanticsLabel: 'List row',
+      child: Container( ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
