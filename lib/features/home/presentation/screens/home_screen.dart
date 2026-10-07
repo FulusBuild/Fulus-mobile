@@ -529,7 +529,7 @@ class _HomeMockupDashboard extends StatelessWidget {
           error: heroError,
           currencySymbol: currencySymbol,
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.xl),
         LayoutBuilder(
           builder: (context, constraints) {
             final gap = AppSpacing.sm;
@@ -571,13 +571,13 @@ class _HomeActionCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.xl);
+    final radius = BorderRadius.circular(AppRadius.sm);
 
     return FulusPressable(
       semanticsLabel: label,
       onPressed: () => context.goNamed(route),
       child: Material(
-        color: color.withValues(alpha: 0.10),
+        color: AppColors.surfaceOf(context),
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: Center(
