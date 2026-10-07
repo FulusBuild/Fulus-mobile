@@ -40,11 +40,14 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
   AppDatabaseLifecycle({
     required AppDatabase Function() getDatabase,
     required void Function(AppDatabase) onReopened,
+    void Function()? onMaintenanceClosed,
   })  : _getDatabase = getDatabase,
-        _onReopened = onReopened;
+        _onReopened = onReopened,
+        _onMaintenanceClosed = onMaintenanceClosed;
 
   final AppDatabase Function() _getDatabase;
   final void Function(AppDatabase) _onReopened;
+  final void Function()? _onMaintenanceClosed;
   SyncExecutionLease? _maintenanceLease;
 
   @override
@@ -68,6 +71,12 @@ class AppDatabaseLifecycle implements DatabaseLifecycle {
       // pathname is replaced.
       lease.suspendMaintenanceRenewalForDatabaseReplacement();
       await database.close();
+      // Closing the live database is the irreversible DI boundary: existing
+      // repositories still reference the closed instance until process
+      // restart. Latch the restart requirement before any restore file
+      // replacement or reopen attempt can fail, so rollback/failure paths
+      // cannot return the UI to normal business use accidentally.
+      _onMaintenanceClosed?.call();
     } catch (_) {
       await lease.releaseMaintenance();
       _maintenanceLease = null;
