@@ -265,7 +265,8 @@ void main() {
     });
 
     test('watchLowStockProducts only returns products at or below their threshold', () async {
-      await db.into(db.products).insertAll([
+      await db.batch((batch) {
+        batch.insertAll(db.products, [
         ProductsCompanion.insert(
           localId: 'low',
           serverId: const Value('low'),
@@ -291,7 +292,9 @@ void main() {
           syncStatus: SyncStatus.settled,
         ),
       ]);
-      await db.into(db.productStockLevels).insertAll([
+      });
+      await db.batch((batch) {
+        batch.insertAll(db.productStockLevels, [
         ProductStockLevelsCompanion.insert(
           productLocalId: 'low',
           locationLocalId: locationId,
@@ -307,6 +310,7 @@ void main() {
           syncStatus: SyncStatus.settled,
         ),
       ]);
+      });
 
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;
 
