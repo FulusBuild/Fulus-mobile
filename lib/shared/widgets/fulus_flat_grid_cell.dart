@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/ux/consumer_polish.dart';
 
 /// Flat secondary-navigation cell used when a screen has more destinations
 /// than its primary workspace tiles.
@@ -27,11 +28,10 @@ class FulusFlatGridCell extends StatelessWidget {
       button: onTap != null,
       enabled: onTap != null,
       label: label,
-      child: Material(
-        color: AppColors.surfaceOf(context),
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
+      child: FulusPressable(
+        onPressed: onTap,
+        semanticsLabel: label,
+        child: Container(
             constraints: const BoxConstraints(minHeight: 88),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             decoration: BoxDecoration(
