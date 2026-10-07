@@ -220,4 +220,6 @@ P3 was re-applied against the post-PR #183 `main` baseline. The readiness owners
 
 Current source changes: `SyncService.ensureReady()` is the readiness boundary; `SyncTriggers` retains only the adapter logic needed to invoke that boundary; the duplicate readiness gate and its direct regression test are removed. No cycle, lease, connectivity, restore, or recovery invariant was removed.
 
-**P3 source result: 🟢 for this coordination cluster, pending CI verification.**
+**P3 source result: 🟢 verified and corrected.**
+
+The revalidation exposed one residual ownership leak not caught by the earlier gate-removal change. `SyncTriggers` still checked `isReady` and invoked `onNotReady`, while the composition root supplied `SyncService.isReady` and `SyncService.bootstrapCloud`. This was a real duplicate decision path. PR #186 fixes it by making `SyncService.ensureReady()` return a typed readiness resolution and making `SyncTriggers` consume only that boundary. The distinction between already-ready and bootstrap-completed is preserved so the trigger does not create a redundant immediate sync cycle.
