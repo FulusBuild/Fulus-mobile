@@ -148,6 +148,7 @@ void main() {
     final productRepository = ProductRepositoryImpl(
       db: db,
       syncQueue: syncQueue,
+      executionLease: SyncExecutionLease(db),
     );
     final customerRepository = CustomerRepositoryImpl(db: db, syncQueue: syncQueue);
     // Left unseeded deliberately: no business_settings row means
