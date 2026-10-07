@@ -525,10 +525,7 @@ class _ProductRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.borderOf(context).withValues(alpha: .7),
-          ),
-        ),
+                  ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -592,13 +589,6 @@ class _ProductRow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (out)
-              Text(
-                'Out of stock',
-                style: AppTypography.label.copyWith(
-                  color: AppColors.errorOf(context),
-                ),
-              ),
           ],
         ),
       ),
