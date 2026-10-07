@@ -520,8 +520,12 @@ class _ProductRow extends StatelessWidget {
     return FulusPressable(
       onPressed: !enabled || out ? null : () => _add(context),
       semanticsLabel: product.name,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Opacity(
+        opacity: out ? 0.5 : 1,
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(12),
@@ -587,6 +591,17 @@ class _ProductRow extends StatelessWidget {
               style: AppTypography.body.copyWith(
                 color: AppColors.primaryOf(context),
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+            ],
+          ),
+          if (out)
+            const Positioned(
+              top: 8,
+              right: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                child: SizedBox(width: 8, height: 8),
               ),
             ),
           ],
