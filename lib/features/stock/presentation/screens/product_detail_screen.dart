@@ -155,11 +155,10 @@ class _ProductDetailBody extends ConsumerWidget {
                           _PriceAndStockCard(item: item!, category: category, currencySymbol: currencySymbol),
                           const SizedBox(height: AppSpacing.lg),
                           if (canManageStock && product.tracksStock)
-                            FulusActionTile(
-                              icon: FulusIcons.swap,
-                              label: 'Record stock',
-                              subtitle: 'Add, remove or adjust this product quantity.',
+                            FulusListRow(
                               onTap: () => context.pushNamed('stockRecordMovement', extra: product),
+                              leading: Icon(FulusIcons.swap, color: AppColors.primaryOf(context)),
+                              title: const Text('Record stock'),
                             ),
                           const SizedBox(height: AppSpacing.xl),
                           const FulusSectionHeader(
@@ -167,27 +166,19 @@ class _ProductDetailBody extends ConsumerWidget {
                             subtitle: 'Recent stock activity for this product',
                           ),
                           if (movements.isEmpty)
-                            FulusCard(
-                              child: FulusEmptyState(
-                                headline: 'No activity yet',
-                                body: 'Stock movements for this product will show up here.',
-                                icon: FulusIcons.history,
-                              ),
+                            const FulusEmptyState(
+                              headline: 'No activity yet',
+                              body: 'Stock movements for this product will show up here.',
+                              icon: FulusIcons.history,
                             )
                           else
-                            FulusCard(
-                              padding: EdgeInsets.zero,
-                              child: Column(
-                                children: [
-                                  for (var i = 0; i < movements.length; i++) ...[
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                                      child: StockMovementTile(movement: movements[i]),
-                                    ),
-                                    if (i < movements.length - 1) const FulusListDivider(),
-                                  ],
+                            Column(
+                              children: [
+                                for (var i = 0; i < movements.length; i++) ...[
+                                  StockMovementTile(movement: movements[i]),
+                                  if (i < movements.length - 1) const FulusListDivider(),
                                 ],
-                              ),
+                              ],
                             ),
                         ],
                       ),
@@ -216,8 +207,7 @@ class _PriceAndStockCard extends StatelessWidget {
     final hasMargin = product.costPrice > 0;
     final margin = product.sellingPrice - product.costPrice;
 
-    return FulusCard(
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
