@@ -208,11 +208,12 @@ class AppDatabase extends _$AppDatabase {
   /// of sync with this one.
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
+  /// Schema v23 persists the local cloud-business binding inside SQLite.
   /// Schema v22 persists a canonical-change failure barrier alongside the
   /// business cursor. The cursor and blocked change therefore survive process
   /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration {
