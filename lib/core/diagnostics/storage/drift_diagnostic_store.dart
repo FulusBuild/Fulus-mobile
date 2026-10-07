@@ -133,6 +133,17 @@ class DriftDiagnosticStore implements DiagnosticStore {
   }
 
   @override
+  Future<void> markSynced(String id) async {
+    try {
+      await (_db.update(_db.diagnosticEvents)..where((t) => t.id.equals(id))).write(
+        const DiagnosticEventsCompanion(lifecycleStatus: Value(DiagnosticLifecycleStatus.synced)),
+      );
+    } catch (_) {
+      // Upload bookkeeping is best-effort and must never affect diagnostics.
+    }
+  }
+
+  @override
   Future<void> markViewed(String id) async {
     try {
       await (_db.update(_db.diagnosticEvents)..where((t) => t.id.equals(id))).write(
