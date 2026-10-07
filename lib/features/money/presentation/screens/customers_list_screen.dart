@@ -178,3 +178,8 @@ class _CustomerRow extends StatelessWidget {
               ),
             ),
           
+        ],
+      ),
+    );
+  }
+}
