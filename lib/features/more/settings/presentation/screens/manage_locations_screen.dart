@@ -176,7 +176,7 @@ class _LocationCard extends StatelessWidget {
               ),
             )
           : Icon(
-              isActive ? FulusIcons.check : FulusIcons.chevronRight,
+              isActive ? FulusIcons.check : null,
               color: isActive ? primary : AppColors.mutedOf(context),
             ),
       onTap: onTap,
