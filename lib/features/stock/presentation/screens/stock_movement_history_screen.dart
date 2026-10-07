@@ -21,9 +21,6 @@ class StockMovementHistoryScreen extends ConsumerWidget {
 
     return FulusScreen(
       title: productId == null ? 'Stock activity' : 'Product activity',
-      subtitle: productId == null
-          ? 'Recent changes to stock across your business'
-          : 'Recent stock changes for this product',
       applyPadding: false,
       actions: [
         FulusIconButton(
