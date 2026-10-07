@@ -392,46 +392,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   }
 }
 
-class _ReportCompactCard extends StatelessWidget {
-  const _ReportCompactCard({required this.icon, required this.label, required this.color, required this.onTap});
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = AppColors.onColor(color);
-    return Semantics(
-      button: true,
-      label: label,
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: SizedBox(
-            height: 100,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: FulusReportCardColumn(
-                icon: icon,
-                iconColor: foreground,
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ExportPayload {
   const _ExportPayload({required this.name, required this.title, required this.headers, required this.rows});
