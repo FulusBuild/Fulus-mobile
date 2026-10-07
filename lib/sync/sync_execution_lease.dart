@@ -475,7 +475,7 @@ class SyncExecutionLease {
     } else {
       final marker = _maintenanceMarkerFile;
       if (marker != null) {
-        unawaited(marker.setLastModified(DateTime.now()));
+        unawaited(marker.setLastModified(DateTime.now()).then<void>((_) {}));
       }
     }
   }
