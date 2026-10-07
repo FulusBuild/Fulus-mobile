@@ -141,7 +141,6 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 title: 'Security',
                 titleColor: AppColors.textPrimaryOf(context),
                 subtitleColor: AppColors.textSecondaryOf(context),
-                subtitle: 'Protect approvals and access to Fulus',
               ),
               _tileGrid([
                 FulusFlatGridCell(
@@ -156,7 +155,6 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 title: 'Account',
                 titleColor: AppColors.textPrimaryOf(context),
                 subtitleColor: AppColors.textSecondaryOf(context),
-                subtitle: 'Your local business account',
               ),
               _tileGrid([
                 FulusFlatGridCell(
