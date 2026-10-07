@@ -369,9 +369,6 @@ class _EmployeeTile extends StatelessWidget {
     leading: FulusAvatar(name: employee.fullName),
     title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
     subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
-    trailing: employee.phone == null || employee.phone!.isEmpty
-        ? null
-        : Text(employee.phone!, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
   );
 }
 
