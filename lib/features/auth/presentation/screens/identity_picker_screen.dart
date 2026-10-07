@@ -441,7 +441,6 @@ class _IdentityRow extends StatelessWidget {
               ),
             ),
           ),
-          Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context), size: AppIconSize.compact),
         ],
       ),
     );
