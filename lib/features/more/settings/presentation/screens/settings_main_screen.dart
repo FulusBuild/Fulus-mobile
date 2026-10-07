@@ -226,7 +226,6 @@ class _AppLockStatusTileState extends ConsumerState<_AppLockStatusTile> {
     return FutureBuilder<bool>(
       future: _future,
       builder: (context, snap) {
-        final _active = snap.data ?? false;
         return FulusFlatGridCell(
           icon: FulusIcons.lock,
           label: 'Lock',
