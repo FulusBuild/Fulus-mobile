@@ -7,7 +7,7 @@
 -- historical migrations: Supabase applies migrations in order and the
 -- deployed function definition is the authoritative runtime contract.
 
-create or replace function public.fulus_api_create_return_atomic_v2(
+create or replace function public.fulus_api_create_return_atomic_v2_unchecked(
   target_user_id uuid,
   target_business_id uuid,
   target_sale_id uuid,
