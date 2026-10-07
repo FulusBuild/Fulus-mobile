@@ -152,6 +152,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     deviceRegistration: fulusDeviceRegistration,
     staffAccessApi: fulusStaffAccessApi,
   );
+  diagnosticLogger.setBusinessIdProvider(
+    () => fulusConnectionState.selectedBusinessId,
+  );
   final authApi = AuthApi(apiClient);
   late final SyncTriggers syncTriggers;
   late final SyncService syncService;
