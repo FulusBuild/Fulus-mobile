@@ -525,10 +525,15 @@ class _HomeActionCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: InkWell(
         onTap: () => context.goNamed(route),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -575,6 +580,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
       label: 'Today’s sales, $value, $count',
       child: Material(
         color: AppColors.sales,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
