@@ -63,17 +63,16 @@ class ArchivedCustomersScreen extends ConsumerWidget {
                     )
                   else
                     Column(
-                        children: [
-                          for (var index = 0; index < customers.length; index++) ...[
-                            if (index > 0) const FulusListDivider(),
-                            _ArchivedCustomerRow(
-                              customer: customers[index],
-                              currencySymbol: currencySymbol,
-                              openedFromMore: openedFromMore,
-                            ),
-                          ],
+                      children: [
+                        for (var index = 0; index < customers.length; index++) ...[
+                          if (index > 0) const FulusListDivider(),
+                          _ArchivedCustomerRow(
+                            customer: customers[index],
+                            currencySymbol: currencySymbol,
+                            openedFromMore: openedFromMore,
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                 ],
               );
