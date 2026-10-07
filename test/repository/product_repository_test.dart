@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
-import 'package:fulus_mobile/data/remote/endpoints/products_api.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
 import 'package:fulus_mobile/domain/entities/auth_user.dart';
@@ -14,29 +11,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockProductsApi extends Mock implements ProductsApi {}
-
 void main() {
   late AppDatabase db;
-  late MockProductsApi productsApi;
   late SyncQueue syncQueue;
-  late SyncExecutionLease executionLease;
   late ProductRepositoryImpl repository;
 
   const locationId = 'loc-1';
-
-  setUpAll(() {
-    // Needed wherever a test uses `any()`/`captureAny()` for a
-    // ProductCreateDto argument (e.g. verifyNever(() =>
-    // productsApi.createProduct(any()))) — mocktail needs a real
-    // instance to stand in for the matcher, never actually used.
-    registerFallbackValue(const ProductCreateDto(
-      name: 'fallback',
-      sku: 'fallback-sku',
-      costPrice: 0,
-      sellingPrice: 0,
-    ));
-  });
 
   Future<void> seedProduct(String id, {SyncStatus syncStatus = SyncStatus.settled}) async {
     await db.into(db.products).insert(ProductsCompanion.insert(
@@ -52,15 +32,6 @@ void main() {
     ));
   }
 
-  Future<void> seedActiveLocation() async {
-    await seedUser(db, localId: 'test-active-user', role: AuthRole.owner);
-    await db.into(db.sessions).insert(SessionsCompanion.insert(
-      id: 'current',
-      userId: 'test-active-user',
-      activeLocationId: const Value(locationId),
-    ));
-  }
-
   Future<void> seedLocation() {
     return db.into(db.locations).insert(LocationsCompanion.insert(
           localId: locationId,
@@ -71,27 +42,10 @@ void main() {
         ));
   }
 
-  ProductResponseDto product(String id, {int currentStock = 0, int lowStockThreshold = 10}) {
-    return ProductResponseDto(
-      id: id,
-      name: 'Product $id',
-      sku: 'SKU-$id',
-      costPrice: 500,
-      sellingPrice: 1000,
-      lowStockThreshold: lowStockThreshold,
-      currentStock: currentStock,
-      isActive: true,
-      isLowStock: currentStock <= lowStockThreshold,
-      stockValue: 500 * currentStock,
-    );
-  }
-
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    productsApi = MockProductsApi();
     syncQueue = SyncQueue(db);
-    executionLease = SyncExecutionLease(db);
-    repository = ProductRepositoryImpl(db: db, productsApi: productsApi, syncQueue: syncQueue, executionLease: executionLease);
+    repository = ProductRepositoryImpl(db: db, syncQueue: syncQueue);
   });
 
   tearDown(() async {
@@ -111,186 +65,6 @@ void main() {
       expect(response.items, isEmpty);
       expect(response.total, 0);
       expect(response.totalPages, 0);
-    });
-  });
-
-  group('hydrateActiveLocationStockFromServer', () {
-    test('hydrates only the active location stock projection', () async {
-      await db.into(db.locations).insert(LocationsCompanion.insert(
-        localId: locationId,
-        name: 'Main Store',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
-      ));
-      await seedActiveLocation();
-      await seedProduct('p1');
-
-      when(() => productsApi.listProducts(page: 1)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [product('p1', currentStock: 20)],
-          total: 1,
-          page: 1,
-          pageSize: 200,
-          totalPages: 1,
-        ),
-      );
-
-      await repository.hydrateActiveLocationStockFromServer();
-
-      final row = await (db.select(db.productStockLevels)
-            ..where((s) =>
-                s.productLocalId.equals('local-p1') &
-                s.locationLocalId.equals(locationId)))
-          .getSingle();
-      expect(row.currentStock, 20);
-      final productRow = await (db.select(db.products)
-            ..where((p) => p.localId.equals('local-p1')))
-          .getSingle();
-      expect(productRow.name, 'Product p1');
-    });
-
-    test('does not create catalog rows for products absent from canonical local state', () async {
-      await db.into(db.locations).insert(LocationsCompanion.insert(
-        localId: locationId,
-        name: 'Main Store',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
-      ));
-      await seedActiveLocation();
-
-      when(() => productsApi.listProducts(page: 1)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [product('p1', currentStock: 20)],
-          total: 1,
-          page: 1,
-          pageSize: 200,
-          totalPages: 1,
-        ),
-      );
-
-      await repository.hydrateActiveLocationStockFromServer();
-
-      expect(await db.select(db.products).get(), isEmpty);
-      expect(await db.select(db.productStockLevels).get(), isEmpty);
-    });
-
-    test('does not overwrite pending local stock state', () async {
-      await db.into(db.locations).insert(LocationsCompanion.insert(
-        localId: locationId,
-        name: 'Main Store',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
-      ));
-      await seedActiveLocation();
-      await seedProduct('p1');
-
-      await db.into(db.productStockLevels).insert(
-        ProductStockLevelsCompanion.insert(
-          productLocalId: 'local-p1',
-          locationLocalId: locationId,
-          currentStock: const Value(7),
-          updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.pending,
-        ),
-      );
-
-      when(() => productsApi.listProducts(page: 1)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [product('p1', currentStock: 20)],
-          total: 1,
-          page: 1,
-          pageSize: 200,
-          totalPages: 1,
-        ),
-      );
-
-      await repository.hydrateActiveLocationStockFromServer();
-
-      final row = await (db.select(db.productStockLevels)
-            ..where((s) =>
-                s.productLocalId.equals('local-p1') &
-                s.locationLocalId.equals(locationId)))
-          .getSingle();
-      expect(row.currentStock, 7);
-      expect(row.syncStatus, SyncStatus.pending);
-    });
-
-    test('aborts hydration when its execution lease is lost during network I/O', () async {
-      await db.into(db.locations).insert(LocationsCompanion.insert(
-        localId: locationId,
-        name: 'Main Store',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
-      ));
-      await seedActiveLocation();
-      await seedProduct('p1');
-
-      final responseReady = Completer<ProductListResponseDto>();
-      final requestStarted = Completer<void>();
-      when(() => productsApi.listProducts(page: 1)).thenAnswer((_) async {
-        requestStarted.complete();
-        return responseReady.future;
-      });
-
-      final hydration = repository.hydrateActiveLocationStockFromServer();
-      await requestStarted.future;
-      await (db.update(db.syncRuntimeLeases)
-            ..where((row) => row.name.equals(SyncExecutionLease.leaseName)))
-          .write(SyncRuntimeLeasesCompanion(
-        expiresAt: Value(DateTime.now().subtract(const Duration(seconds: 1))),
-      ));
-      responseReady.complete(ProductListResponseDto(
-        items: [product('p1', currentStock: 20)],
-        total: 1,
-        page: 1,
-        pageSize: 200,
-        totalPages: 1,
-      ));
-
-      await expectLater(hydration, throwsA(isA<SyncExecutionLeaseLost>()));
-      expect(await db.select(db.productStockLevels).get(), isEmpty);
-    });
-
-    test('follows pagination without touching catalog fields', () async {
-      await db.into(db.locations).insert(LocationsCompanion.insert(
-        localId: locationId,
-        name: 'Main Store',
-        createdAt: DateTime(2026, 1, 1),
-        updatedAt: DateTime(2026, 1, 1),
-        syncStatus: SyncStatus.settled,
-      ));
-      await seedActiveLocation();
-      await seedProduct('p1');
-      await seedProduct('p2');
-
-      when(() => productsApi.listProducts(page: 1)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [product('p1', currentStock: 20)],
-          total: 2,
-          page: 1,
-          pageSize: 1,
-          totalPages: 2,
-        ),
-      );
-      when(() => productsApi.listProducts(page: 2)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [product('p2', currentStock: 30)],
-          total: 2,
-          page: 2,
-          pageSize: 1,
-          totalPages: 2,
-        ),
-      );
-
-      await repository.hydrateActiveLocationStockFromServer();
-
-      expect((await db.select(db.productStockLevels).get()).map((r) => r.currentStock).toSet(), {20, 30});
-      verify(() => productsApi.listProducts(page: 1)).called(1);
-      verify(() => productsApi.listProducts(page: 2)).called(1);
     });
   });
 
@@ -409,18 +183,24 @@ void main() {
     });
 
     test('watchProducts joins in currentStock for the given location', () async {
-      when(() => productsApi.listProducts(page: 1)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [product('p1', currentStock: 20)],
-          total: 100,
-          page: 1,
-          pageSize: 200,
-          totalPages: 1,
-        ),
-      );
-      await seedActiveLocation();
-      await seedProduct('p1');
-      await repository.hydrateActiveLocationStockFromServer();
+      await db.into(db.products).insert(ProductsCompanion.insert(
+        localId: 'p1',
+        serverId: const Value('p1'),
+        name: 'Product p1',
+        sku: 'SKU-p1',
+        costPrice: 500,
+        sellingPrice: 1000,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
+      await db.into(db.productStockLevels).insert(ProductStockLevelsCompanion.insert(
+        productLocalId: 'p1',
+        locationLocalId: locationId,
+        currentStock: const Value(20),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ));
 
       final emitted = await repository.watchProducts(locationId: locationId).first;
 
@@ -484,22 +264,48 @@ void main() {
     });
 
     test('watchLowStockProducts only returns products at or below their threshold', () async {
-      when(() => productsApi.listProducts(page: 1)).thenAnswer(
-        (_) async => ProductListResponseDto(
-          items: [
-            product('low', currentStock: 2, lowStockThreshold: 10),
-            product('healthy', currentStock: 50, lowStockThreshold: 10),
-          ],
-          total: 200,
-          page: 1,
-          pageSize: 200,
-          totalPages: 1,
+      await db.into(db.products).insertAll([
+        ProductsCompanion.insert(
+          localId: 'low',
+          serverId: const Value('low'),
+          name: 'Low',
+          sku: 'SKU-low',
+          costPrice: 500,
+          sellingPrice: 1000,
+          lowStockThreshold: const Value(10),
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
         ),
-      );
-      await seedActiveLocation();
-      await seedProduct('low');
-      await seedProduct('healthy');
-      await repository.hydrateActiveLocationStockFromServer();
+        ProductsCompanion.insert(
+          localId: 'healthy',
+          serverId: const Value('healthy'),
+          name: 'Healthy',
+          sku: 'SKU-healthy',
+          costPrice: 500,
+          sellingPrice: 1000,
+          lowStockThreshold: const Value(10),
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ),
+      ]);
+      await db.into(db.productStockLevels).insertAll([
+        ProductStockLevelsCompanion.insert(
+          productLocalId: 'low',
+          locationLocalId: locationId,
+          currentStock: const Value(2),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ),
+        ProductStockLevelsCompanion.insert(
+          productLocalId: 'healthy',
+          locationLocalId: locationId,
+          currentStock: const Value(50),
+          updatedAt: DateTime(2026, 1, 1),
+          syncStatus: SyncStatus.settled,
+        ),
+      ]);
 
       final emitted = await repository.watchLowStockProducts(locationId: locationId).first;
 
@@ -582,7 +388,6 @@ void main() {
       ));
 
       expect(result.name, 'New Product');
-      verifyNever(() => productsApi.createProduct(any()));
 
       final rows = await db.select(db.products).get();
       expect(rows.single.name, 'New Product');
