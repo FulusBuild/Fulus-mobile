@@ -150,7 +150,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             padding: const EdgeInsets.only(top: AppSpacing.xs),
                             child: Text(
                               'Select a customer in Cart to sell on credit.',
-                              style: AppTypography.caption.copyWith(color: Colors.white70),
+                              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                             ),
                           ),
                         if (!canComplete) ...[
@@ -160,14 +160,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF0B294F),
                               borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                              border: Border.all(color: AppColors.borderOf(context).withValues(alpha: 0.35)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
                                   'Amount received',
-                                  style: AppTypography.label.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
+                                  style: AppTypography.label.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
                                 Container(
@@ -178,7 +178,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                     AppSpacing.md,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: AppColors.textPrimaryOf(context),
                                     borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
                                   child: Column(
@@ -215,7 +215,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   _method == 'cash'
                                       ? 'Enter the cash received. Paying more than the balance shows the change due.'
                                       : 'Enter the amount paid. The remaining balance updates after each payment.',
-                                  style: AppTypography.caption.copyWith(color: Colors.white70),
+                                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                                 ),
                               ],
                             ),
@@ -413,7 +413,7 @@ class _SectionLabel extends StatelessWidget {
         Text(
           title,
           style: AppTypography.subheading.copyWith(
-            color: Colors.white,
+            color: AppColors.textPrimaryOf(context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -477,10 +477,10 @@ class _AmountDueHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Total',
-                  style: AppTypography.caption.copyWith(color: Colors.white70),
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ),
-              Icon(FulusIcons.lock, size: AppIconSize.compact, color: Colors.white70),
+              Icon(FulusIcons.lock, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -490,7 +490,7 @@ class _AmountDueHeader extends StatelessWidget {
             child: Text(
               formatMoney(state.total, symbol: state.currencySymbol),
               style: AppTypography.display.copyWith(
-                color: Colors.white,
+                color: AppColors.textPrimaryOf(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -532,7 +532,7 @@ class _PaymentRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: Colors.white70)),
+          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
           Flexible(
             child: Text(
               formatMoney(value, symbol: symbol),
@@ -540,7 +540,7 @@ class _PaymentRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: (emphasized ? AppTypography.subheading : AppTypography.body).copyWith(
-                color: Colors.white,
+                color: AppColors.textPrimaryOf(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
