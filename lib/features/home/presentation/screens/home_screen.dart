@@ -126,6 +126,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               _HomeHeader(
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                                 locationName: _activeLocationName(ref),
+                                greeting: 'Good ${_greeting()}, ${_displayName(ref)}',
                                 onSwitchLocation: widget.isOwner ? () => _showLocationSwitcher(context) : null,
                                 onSwitchAccount: () => Navigator.of(context).push<void>(
                                   MaterialPageRoute(
@@ -248,6 +249,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+  }
+
   String _displayName(WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
@@ -260,76 +268,100 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.businessName,
     required this.locationName,
+    required this.greeting,
     required this.onSwitchLocation,
     required this.onSwitchAccount,
   });
 
   final String businessName;
   final String? locationName;
+  final String greeting;
   final VoidCallback? onSwitchLocation;
   final VoidCallback onSwitchAccount;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const FulusBrandLogo(
-          size: 56,
-          padding: 2,
-          showBackground: false,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                businessName.isEmpty ? 'Fulus' : businessName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.subheading.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (locationName != null && locationName!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
-                    const SizedBox(width: 4),
+        Row(
+          children: [
+            const FulusBrandLogo(
+              size: 40,
+              padding: 0,
+              showBackground: false,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      businessName.isEmpty ? 'Fulus' : businessName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.subheading.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (locationName != null && locationName!.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    Text('·', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+                    const SizedBox(width: AppSpacing.xs),
                     Flexible(
-                      child: Text(
-                        locationName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textSecondaryOf(context),
-                          fontWeight: FontWeight.w600,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        onTap: onSwitchLocation,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  locationName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.textSecondaryOf(context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (onSwitchLocation != null) ...[
+                                const SizedBox(width: 2),
+                                Icon(FulusIcons.swap, size: 16, color: AppColors.textSecondaryOf(context)),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 2),
-                    if (onSwitchLocation != null)
-                      IconButton(
-                        tooltip: 'Switch location',
-                        onPressed: onSwitchLocation,
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.all(AppSpacing.xs),
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        icon: Icon(FulusIcons.swap, size: 20, color: AppColors.textSecondaryOf(context)),
-                      ),
                   ],
-                ),
-              ],
-            ],
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            FulusIconButton(
+              icon: FulusIcons.switchAccount,
+              tooltip: 'Switch employee',
+              onPressed: onSwitchAccount,
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        FulusIconButton(
-          icon: FulusIcons.switchAccount,
-          tooltip: 'Switch employee',
-          onPressed: onSwitchAccount,
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          greeting,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.title.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -497,25 +529,17 @@ class _HomeMockupDashboard extends StatelessWidget {
           error: heroError,
           currencySymbol: currencySymbol,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(
-          'Transactions',
-          style: AppTypography.subheading.copyWith(
-            color: AppColors.textPrimaryOf(context),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.md),
         LayoutBuilder(
           builder: (context, constraints) {
             final gap = AppSpacing.sm;
             final width = (constraints.maxWidth - gap) / 2;
             final textScale = MediaQuery.textScalerOf(context).scale(1);
             final tileHeight = textScale > 1.6
-                ? 176.0
+                ? 148.0
                 : textScale > 1.15
-                    ? 160.0
-                    : 148.0;
+                    ? 132.0
+                    : 120.0;
 
             return Wrap(
               spacing: gap,
@@ -647,6 +671,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
