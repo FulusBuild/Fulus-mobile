@@ -33,7 +33,7 @@ class FulusActionTile extends StatelessWidget {
       onPressed: onTap,
       semanticsLabel: label,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 112, maxHeight: 120),
+        constraints: const BoxConstraints(minHeight: 112),
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.selectedTintOf(context),
