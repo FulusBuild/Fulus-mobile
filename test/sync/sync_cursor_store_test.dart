@@ -115,8 +115,40 @@ void main() {
     await reloaded.initialize();
 
     expect(reloaded.cursorFor('business-1'), 17);
-    expect(reloaded.blockedChangeFor('business-1')!.attemptCount, 3);
-    expect(reloaded.blockedChangeFor('business-1')!.errorMessage, 'canonical payload is invalid');
+    final persisted = reloaded.blockedChangeFor('business-1')!;
+    expect(persisted.attemptCount, 3);
+    expect(persisted.errorMessage, 'canonical payload is invalid');
+    expect(persisted.firstSeenAt, now);
+    expect(persisted.lastAttemptedAt, now);
+  });
+
+  test('stores blocked DateTime values in Drift-compatible timestamp units', () async {
+    await store.initialize();
+    final firstSeen = DateTime.utc(2026, 10, 7, 21, 58, 50, 78639);
+    final lastAttempted = DateTime.utc(2026, 10, 7, 22, 0, 12, 123456);
+
+    await store.recordBlockedChange(
+      businessId: 'business-1',
+      change: SyncBlockedChange(
+        sequence: 10789,
+        changeId: '10789:stock_movement:movement:upsert',
+        entityType: 'stock_movement',
+        entityId: 'movement',
+        operation: 'upsert',
+        firstSeenAt: firstSeen,
+        lastAttemptedAt: lastAttempted,
+        attemptCount: 1,
+        errorCode: 'validation',
+        errorMessage: 'canonical apply failed',
+      ),
+    );
+
+    final reloaded = DatabaseSyncCursorStore(() => db);
+    await reloaded.initialize();
+    final persisted = reloaded.blockedChangeFor('business-1')!;
+
+    expect(persisted.firstSeenAt, firstSeen);
+    expect(persisted.lastAttemptedAt, lastAttempted);
   });
 
 }
