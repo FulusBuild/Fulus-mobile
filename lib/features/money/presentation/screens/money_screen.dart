@@ -318,7 +318,7 @@ class _MoneyActionCell extends StatelessWidget {
       semanticsLabel: action.label + ', ' + action.value,
       onPressed: action.onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 112),
+        constraints: const BoxConstraints(minHeight: 104),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: action.color.withValues(alpha: 0.10),
@@ -345,6 +345,7 @@ class _MoneyActionCell extends StatelessWidget {
                 style: AppTypography.heading.copyWith(
                   color: AppColors.textPrimaryOf(context),
                   fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
