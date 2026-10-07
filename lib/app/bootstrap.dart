@@ -668,6 +668,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     database: database,
     boundBusinessIdProvider: () async =>
         (await database.select(database.localCloudBindings).getSingleOrNull())?.businessId,
+    probeReopenedDatabase: () async {
+      await database.customSelect('SELECT 1 FROM locations LIMIT 1').get();
+    },
   );
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
