@@ -334,7 +334,7 @@ class SyncQueue {
             ..where((s) => s.id.equals('current')))
           .getSingleOrNull();
       final seedActorUserId =
-          session?.userId ?? _actorUserIdProvider?.call();
+          _actorUserIdProvider?.call() ?? session?.userId;
       final existingKeys = existingRows
           .map((row) => '${row.entityType}|${row.entityLocalId}|${row.operation}')
           .toSet();
@@ -493,7 +493,7 @@ class SyncQueue {
       final session = await (_db.select(_db.sessions)
             ..where((s) => s.id.equals('current')))
           .getSingleOrNull();
-      final actorUserId = session?.userId ?? _actorUserIdProvider?.call();
+      final actorUserId = _actorUserIdProvider?.call() ?? session?.userId;
 
       final existing = await (_db.select(_db.syncQueueItems)
             ..where((q) => q.entityType.equals(task.entityType))
