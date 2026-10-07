@@ -13,8 +13,13 @@ import 'database/database.dart';
 abstract interface class SyncCursorStore {
   int cursorFor(String businessId);
 
+  /// Reads the durable cursor before a sync pull. The in-memory cache is only
+  /// an optimization and must not be trusted across Flutter isolates.
+  Future<int> durableCursorFor(String businessId);
+
   SyncBlockedChange? blockedChangeFor(String businessId);
 
+  @override
   Future<void> recordBlockedChange({
     required String businessId,
     required SyncBlockedChange change,
@@ -109,6 +114,19 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
 
   @override
   int cursorFor(String businessId) => _cache[businessId] ?? 0;
+
+  @override
+  Future<int> durableCursorFor(String businessId) async {
+    final row = await (_database().select(_database().syncCursors)
+          ..where((item) => item.businessId.equals(businessId))
+          ..limit(1))
+        .getSingleOrNull();
+    final durable = row?.cursor ?? 0;
+    final cached = _cache[businessId] ?? 0;
+    final current = _max(durable, cached);
+    _cache[businessId] = current;
+    return current;
+  }
 
   @override
   SyncBlockedChange? blockedChangeFor(String businessId) =>
@@ -238,6 +256,9 @@ class SharedPreferencesSyncCursorStore implements SyncCursorStore {
 
   @override
   int cursorFor(String businessId) => _preferences.getInt(_key(businessId)) ?? 0;
+
+  @override
+  Future<int> durableCursorFor(String businessId) async => cursorFor(businessId);
 
   @override
   SyncBlockedChange? blockedChangeFor(String businessId) {
