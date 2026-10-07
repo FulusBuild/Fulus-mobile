@@ -26,10 +26,7 @@ class FulusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.lg);
     final borderColor = AppColors.borderOf(context).withValues(alpha: outlined ? 0.9 : 0.65);
-    return Semantics(
-      button: onTap != null,
-      enabled: onTap != null,
-      child: Container(
+    return Container(
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
           borderRadius: radius,
@@ -46,13 +43,11 @@ class FulusCard extends StatelessWidget {
                   ? AppColors.darkTextPrimary
                   : AppColors.textPrimaryLight,
             ),
-            child: InkWell(
-            onTap: onTap,
-            borderRadius: radius,
-            child: ConstrainedBox(
+            child: FulusPressable(
+              onPressed: onTap,
+              child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: AppTouchTarget.minimum),
               child: Padding(padding: padding, child: child),
-            ),
             ),
           ),
         ),
