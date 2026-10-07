@@ -137,38 +137,25 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
     required SyncBlockedChange change,
   }) async {
     final database = _database();
-    await database.customStatement(
-      'INSERT INTO sync_cursors '
-      '(business_id, cursor, blocked_sequence, blocked_change_id, '
-      'blocked_entity_type, blocked_entity_id, blocked_operation, '
-      'blocked_first_seen_at, blocked_last_attempted_at, blocked_attempt_count, '
-      'blocked_error_code, blocked_error_message) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-      'ON CONFLICT(business_id) DO UPDATE SET '
-      'blocked_sequence = excluded.blocked_sequence, '
-      'blocked_change_id = excluded.blocked_change_id, '
-      'blocked_entity_type = excluded.blocked_entity_type, '
-      'blocked_entity_id = excluded.blocked_entity_id, '
-      'blocked_operation = excluded.blocked_operation, '
-      'blocked_first_seen_at = excluded.blocked_first_seen_at, '
-      'blocked_last_attempted_at = excluded.blocked_last_attempted_at, '
-      'blocked_attempt_count = excluded.blocked_attempt_count, '
-      'blocked_error_code = excluded.blocked_error_code, '
-      'blocked_error_message = excluded.blocked_error_message',
-      [
-        businessId,
-        cursorFor(businessId),
-        change.sequence,
-        change.changeId,
-        change.entityType,
-        change.entityId,
-        change.operation,
-        change.firstSeenAt.millisecondsSinceEpoch,
-        change.lastAttemptedAt.millisecondsSinceEpoch,
-        change.attemptCount,
-        change.errorCode,
-        change.errorMessage,
-      ],
+    // Use Drift's typed companion rather than raw SQL for DateTime columns.
+    // Drift stores dateTime() as Unix seconds by default; passing
+    // millisecondsSinceEpoch directly through customStatement() produces a
+    // value that is decoded as a date tens of thousands of years in the future.
+    await database.into(database.syncCursors).insertOnConflictUpdate(
+      SyncCursorsCompanion(
+        businessId: Value(businessId),
+        cursor: Value(cursorFor(businessId)),
+        blockedSequence: Value(change.sequence),
+        blockedChangeId: Value(change.changeId),
+        blockedEntityType: Value(change.entityType),
+        blockedEntityId: Value(change.entityId),
+        blockedOperation: Value(change.operation),
+        blockedFirstSeenAt: Value(change.firstSeenAt),
+        blockedLastAttemptedAt: Value(change.lastAttemptedAt),
+        blockedAttemptCount: Value(change.attemptCount),
+        blockedErrorCode: Value(change.errorCode),
+        blockedErrorMessage: Value(change.errorMessage),
+      ),
     );
     _blockedCache[businessId] = change;
   }
