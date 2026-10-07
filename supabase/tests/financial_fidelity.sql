@@ -52,7 +52,7 @@ begin
   -- Avoid parsing function text with substring arithmetic in CI, because the
   -- PostgreSQL parser treats that syntax differently across supported versions.
   return_def := pg_get_functiondef(to_regprocedure(return_sig));
-    if position('if method=''credit'' then' in return_def) = 0 then
+    if return_def !~* 'method[[:space:]]*=[[:space:]]*''credit''' then
       raise exception 'return RPC is missing the credit-method branch';
     end if;
     if position('insert into public.customer_ledger_entries' in return_def) = 0 then
