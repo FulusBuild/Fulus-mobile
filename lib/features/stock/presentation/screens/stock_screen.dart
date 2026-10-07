@@ -7,7 +7,6 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/permission.dart';
-import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
 import '../widgets/product_list_tile.dart';
