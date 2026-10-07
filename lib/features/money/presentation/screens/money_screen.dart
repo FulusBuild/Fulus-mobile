@@ -314,37 +314,41 @@ class _MoneyActionCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.xl);
     return FulusPressable(
       semanticsLabel: action.label + ', ' + action.value,
       onPressed: action.onTap,
       child: Container(
-          constraints: const BoxConstraints(minHeight: 112),
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: action.color.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
-              const Spacer(),
-              Text(action.label, style: AppTypography.body.copyWith(
+        constraints: const BoxConstraints(minHeight: 112),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: action.color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
+            const Spacer(),
+            Text(
+              action.label,
+              style: AppTypography.body.copyWith(
                 color: AppColors.textPrimaryOf(context),
                 fontWeight: FontWeight.w600,
-              )),
-              const SizedBox(height: AppSpacing.xs),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(action.value, style: AppTypography.heading.copyWith(
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                action.value,
+                style: AppTypography.heading.copyWith(
                   color: AppColors.textPrimaryOf(context),
                   fontWeight: FontWeight.w700,
-                )),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
