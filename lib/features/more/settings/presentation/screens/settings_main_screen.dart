@@ -55,10 +55,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
     return FulusScreen(
       title: 'Settings',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
-      subtitle: 'Keep your business safe and up to date',
-      body: LayoutBuilder(
+            body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
           final inset = wide ? AppSpacing.lg : AppSpacing.xs;
