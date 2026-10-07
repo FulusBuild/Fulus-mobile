@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/errors/failure.dart';
 import '../core/notifications/notification_service.dart';
 import '../core/diagnostics/diagnostic_logger.dart';
+import '../core/diagnostics/models/diagnostic_enums.dart';
 import '../data/local/database/database.dart';
 import '../data/local/sync_cursor_store.dart';
 import 'sync_config.dart';
