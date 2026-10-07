@@ -64,6 +64,7 @@ class _FulusBottomNavigationBar extends StatelessWidget {
   final bool showMoneyTab;
 
   void _select(int branch) {
+    FulusHaptics.selection();
     navigationShell.goBranch(
       branch,
       initialLocation: navigationShell.currentIndex == branch,
@@ -162,10 +163,7 @@ class _FulusBottomNavigationItem extends StatelessWidget {
                 // previous and destination workspace visible together in slow motion.
                 duration: Duration.zero,
                 curve: AppMotion.curveStandard,
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.selectedTintOf(context) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
+                decoration: const BoxDecoration(),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
