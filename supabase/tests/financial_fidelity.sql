@@ -45,6 +45,16 @@ begin
     raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
   end if;
 
+  -- Return amounts must be allocated from the authoritative net sale total,
+  -- not raw pre-discount line prices. The function must also cap cumulative
+  -- refunds at the sale total so repeated/partial returns cannot over-refund.
+  if position('sale.total / sale_subtotal' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
+    raise exception 'return RPC does not allocate refunds from the net sale total';
+  end if;
+  if position('previously_refunded' in pg_get_functiondef(to_regprocedure(return_sig))) = 0 then
+    raise exception 'return RPC does not cap cumulative refunds against prior returns';
+  end if;
+
   -- Credit-return behavior is covered by the authoritative return RPC
   -- implementation and the customer-ledger mutation contract tests.
 
