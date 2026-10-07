@@ -121,9 +121,11 @@ import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
 import '../sync/sync_service.dart';
 import 'providers.dart';
+import 'restore_restart_gate.dart';
 
 Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}) async {
   var database = AppDatabase.open();
+  final restoreRestartState = RestoreRestartState();
   diagnosticLogger.attachStore(DriftDiagnosticStore(database));
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
@@ -669,7 +671,11 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // Keep the CSV import use case in the root provider container.
   // This is intentionally wired here because the provider has no default implementation.
   final receiptRepository = ReceiptRepositoryImpl(db: database);
-  final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
+  final appDatabaseLifecycle = AppDatabaseLifecycle(
+    getDatabase: () => database,
+    onReopened: (fresh) => database = fresh,
+    onMaintenanceClosed: restoreRestartState.requireRestart,
+  );
   final backupRepository = BackupRepositoryImpl(
     lifecycle: appDatabaseLifecycle,
     database: database,
@@ -737,6 +743,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       employeeRepositoryProvider.overrideWithValue(employeeRepository),
       receiptRepositoryProvider.overrideWithValue(receiptRepository),
       backupRepositoryProvider.overrideWithValue(backupRepository),
+      restoreRestartStateProvider.overrideWithValue(restoreRestartState),
       dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
       reportsRepositoryProvider.overrideWithValue(reportsRepository),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),
