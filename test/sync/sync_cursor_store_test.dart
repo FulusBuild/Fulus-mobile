@@ -122,6 +122,46 @@ void main() {
     expect(persisted.lastAttemptedAt, now);
   });
 
+  test('repairs blocked timestamps written as milliseconds by older builds', () async {
+    final expected = DateTime.utc(2026, 10, 7, 21, 58, 50);
+    final legacyMilliseconds = expected.millisecondsSinceEpoch;
+
+    await db.customStatement(
+      'INSERT INTO sync_cursors '
+      '(business_id, cursor, blocked_sequence, blocked_change_id, '
+      'blocked_entity_type, blocked_entity_id, blocked_operation, '
+      'blocked_first_seen_at, blocked_last_attempted_at, blocked_attempt_count, '
+      'blocked_error_code, blocked_error_message) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        'business-1',
+        17,
+        18,
+        '18:sale:s18:upsert',
+        'sale',
+        's18',
+        'upsert',
+        legacyMilliseconds,
+        legacyMilliseconds,
+        5,
+        'validation',
+        'canonical apply failed',
+      ],
+    );
+
+    await store.initialize();
+
+    final repaired = store.blockedChangeFor('business-1')!;
+    expect(repaired.firstSeenAt, expected);
+    expect(repaired.lastAttemptedAt, expected);
+
+    final row = await (db.select(db.syncCursors)
+          ..where((item) => item.businessId.equals('business-1')))
+        .getSingle();
+    expect(row.blockedFirstSeenAt, expected);
+    expect(row.blockedLastAttemptedAt, expected);
+  });
+
   test('stores blocked DateTime values in Drift-compatible timestamp units', () async {
     await store.initialize();
     final firstSeen = DateTime.utc(2026, 10, 7, 21, 58, 50);
