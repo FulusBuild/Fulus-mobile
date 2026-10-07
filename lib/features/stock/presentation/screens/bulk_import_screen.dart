@@ -58,7 +58,6 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Bulk import products',
-      subtitle: 'Add many products from a CSV file',
       body: ListView(
         children: [
           FulusCard(
