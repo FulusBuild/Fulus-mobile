@@ -451,6 +451,7 @@ class _AuthInterceptor extends Interceptor {
   String? _supabaseUrl;
   String? _publishableKey;
   Future<_RefreshResult>? _refreshRun;
+  String? _refreshTokenUsedForCurrentRun;
 
   void configureServerAuth({
     required String supabaseUrl,
@@ -555,7 +556,7 @@ class _AuthInterceptor extends Interceptor {
       // invalidates the durable refresh token. Network/server failures must
       // preserve it so the next connectivity-triggered recovery can retry.
       if (_isRefreshTokenRejected(refreshError)) {
-        await _expireSession();
+        await _expireSession(expectedRefreshToken: _refreshTokenUsedForCurrentRun);
       }
       handler.next(refreshError);
     } catch (refreshError) {
@@ -613,7 +614,7 @@ class _AuthInterceptor extends Interceptor {
       return null;
     } on DioException catch (error) {
       if (_isRefreshTokenRejected(error)) {
-        await _expireSession();
+        await _expireSession(expectedRefreshToken: _refreshTokenUsedForCurrentRun);
       }
       return null;
     } finally {
@@ -642,6 +643,7 @@ class _AuthInterceptor extends Interceptor {
     if (refreshToken == null || refreshToken.isEmpty) {
       throw const _NoStoredRefreshToken();
     }
+    _refreshTokenUsedForCurrentRun = refreshToken;
     return _performRefreshToken(
       refreshToken,
       persistAsUser: persistAsUser,
@@ -728,8 +730,21 @@ class _AuthInterceptor extends Interceptor {
     return status == 400 || status == 401;
   }
 
-  Future<void> _expireSession() async {
-    await _secureStorage.deleteRefreshToken();
+  Future<void> _expireSession({String? expectedRefreshToken}) async {
+    if (expectedRefreshToken == null) {
+      await _secureStorage.deleteRefreshToken();
+      if (_activeCloudUserId != null) {
+        await _secureStorage.deleteUserRefreshToken(_activeCloudUserId!);
+      }
+    } else {
+      await _secureStorage.deleteRefreshTokenIfMatches(expectedRefreshToken);
+      if (_activeCloudUserId != null) {
+        await _secureStorage.deleteUserRefreshTokenIfMatches(
+          _activeCloudUserId!,
+          expectedRefreshToken,
+        );
+      }
+    }
     setAccessToken(null);
     await _onSessionExpired();
   }
