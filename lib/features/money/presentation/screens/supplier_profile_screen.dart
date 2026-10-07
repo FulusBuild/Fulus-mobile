@@ -53,6 +53,7 @@ class _SupplierProfileScreenState extends ConsumerState<SupplierProfileScreen> {
 
     return FulusScreen(
       title: 'Supplier',
+      subtitle: 'Supplier details and payment history',
       body: FutureBuilder<Supplier?>(
         future: _future,
         builder: (context, snapshot) {
@@ -98,7 +99,8 @@ class _SupplierProfileBody extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Column(
+                    FulusCard(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -149,8 +151,8 @@ class _SupplierProfileBody extends ConsumerWidget {
                             ),
                           ],
                           const SizedBox(height: AppSpacing.lg),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                          FulusCard(
+                            padding: const EdgeInsets.all(AppSpacing.md),
                             child: LayoutBuilder(
                               builder: (context, metricConstraints) {
                                 final compact = metricConstraints.maxWidth < 430;
@@ -233,7 +235,9 @@ class _SupplierProfileBody extends ConsumerWidget {
             body: 'Stock bought on credit and payments made will show up here.',
           );
         }
-        return Column(
+        return FulusCard(
+          padding: EdgeInsets.zero,
+          child: Column(
             children: [
               for (var i = 0; i < entries.length; i++) ...[
                 if (i > 0) const FulusListDivider(indented: false),
