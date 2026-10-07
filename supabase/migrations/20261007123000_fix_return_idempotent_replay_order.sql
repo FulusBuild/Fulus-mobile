@@ -64,6 +64,38 @@ begin
     raise exception using errcode='22023',message='Return requires items';
   end if;
 
+  request_hash := md5(jsonb_build_object(
+    'sale_id',target_sale_id,
+    'client_reference',target_client_reference,
+    'reason',target_reason,
+    'refund_amount',target_refund_amount,
+    'refund_method',method,
+    'device_id',target_device_id,
+    'items',target_items
+  )::text);
+
+  insert into public.idempotency_keys(
+    business_id,device_id,user_id,key,operation_type,request_hash
+  )
+  values(
+    target_business_id,target_device_id,target_user_id,target_client_reference,
+    'return.create.v2',request_hash
+  )
+  on conflict(business_id,key) do nothing;
+
+  select * into idem
+  from public.idempotency_keys
+  where business_id=target_business_id and key=target_client_reference
+  for update;
+
+  if idem.operation_type<>'return.create.v2' or idem.request_hash<>request_hash then
+    raise exception using errcode='P0009',message='Operation id was already used with a different request';
+  end if;
+
+  if idem.completed_at is not null and idem.response_body is not null then
+    return idem.response_body;
+  end if;
+
   select * into sale
   from public.sales
   where id=target_sale_id and business_id=target_business_id
@@ -81,70 +113,6 @@ begin
 
   if previously_refunded >= greatest(round(coalesce(sale.total,0),2),0) then
     raise exception using errcode='22023',message='Sale has no refundable balance remaining';
-  end if;
-
-  request_hash := md5(jsonb_build_object(
-    'sale_id',target_sale_id,
-    'client_reference',target_client_reference,
-    'reason',target_reason,
-    'refund_amount',target_refund_amount,
-    'refund_method',method,
-    'device_id',target_device_id,
-    'items',target_items
-  )::text);
-
-  insert into public.idempotency_keys(
-    business_id,device_id,user_id,key,operation_type,request_hash
-  )
-  values(
-    target_business_id,target_device_id,target_user_id,target_client_reference,
-    'return.create.v2',request_hash
-  )
-  on conflict(business_id,key) do nothing;
-
-  select * into idem
-  from public.idempotency_keys
-  where business_id=target_business_id and key=target_client_reference
-  for update;
-
-  if idem.operation_type<>'return.create.v2' or idem.request_hash<>request_hash then
-    raise exception using errcode='P0009',message='Operation id was already used with a different request';
-  end if;
-
-  if idem.completed_at is not null and idem.response_body is not null then
-    return idem.response_body;
-  end if;
-
-  request_hash := md5(jsonb_build_object(
-    'sale_id',target_sale_id,
-    'client_reference',target_client_reference,
-    'reason',target_reason,
-    'refund_amount',target_refund_amount,
-    'refund_method',method,
-    'device_id',target_device_id,
-    'items',target_items
-  )::text);
-
-  insert into public.idempotency_keys(
-    business_id,device_id,user_id,key,operation_type,request_hash
-  )
-  values(
-    target_business_id,target_device_id,target_user_id,target_client_reference,
-    'return.create.v2',request_hash
-  )
-  on conflict(business_id,key) do nothing;
-
-  select * into idem
-  from public.idempotency_keys
-  where business_id=target_business_id and key=target_client_reference
-  for update;
-
-  if idem.operation_type<>'return.create.v2' or idem.request_hash<>request_hash then
-    raise exception using errcode='P0009',message='Operation id was already used with a different request';
-  end if;
-
-  if idem.completed_at is not null and idem.response_body is not null then
-    return idem.response_body;
   end if;
 
   -- The Edge Function invokes this SECURITY DEFINER RPC as the service actor.
