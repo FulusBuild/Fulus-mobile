@@ -125,7 +125,6 @@ class _SellScreenState extends ConsumerState<SellScreen> {
         if (locationSnapshot.hasError || !locationSnapshot.hasData || locationSnapshot.data!.isEmpty) {
           return FulusScreen(
             title: 'Sell',
-            subtitle: 'Add products to today’s sale',
             body: FulusErrorState(
               message: "Couldn't open Sell right now.",
               reassurance: 'Your products and sales are still safe on this device.',
