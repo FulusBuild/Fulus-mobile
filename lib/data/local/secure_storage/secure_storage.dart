@@ -39,6 +39,7 @@ class SecureStorage {
   // can lose another user's rotated token when two isolates refresh different
   // accounts concurrently. Per-user keys make each credential update atomic
   // at the storage-key level and remove that cross-user lost-update class.
+  static const _deletedUserRefreshToken = '__fulus_deleted_refresh_token__';
   static String _userRefreshTokenKey(String userId) =>
       'fulus_user_refresh_token_$userId';
   static const _approvalPinVerifiersKey = 'fulus_approval_pin_verifiers';
@@ -61,6 +62,7 @@ class SecureStorage {
 
   Future<String?> getUserRefreshToken(String userId) async {
     final direct = await _storage.read(key: _userRefreshTokenKey(userId));
+    if (direct == _deletedUserRefreshToken) return null;
     if (direct != null && direct.isNotEmpty) return direct;
 
     // One-time compatibility migration from the old shared JSON map. Reads
@@ -76,7 +78,7 @@ class SecureStorage {
   }
 
   Future<void> deleteUserRefreshToken(String userId) =>
-      _storage.delete(key: _userRefreshTokenKey(userId));
+      _storage.write(key: _userRefreshTokenKey(userId), value: _deletedUserRefreshToken);
 
   Future<void> deleteUserRefreshTokenIfMatches(
     String userId,
@@ -84,7 +86,10 @@ class SecureStorage {
   ) async {
     final current = await _storage.read(key: _userRefreshTokenKey(userId));
     if (current == expected) {
-      await _storage.delete(key: _userRefreshTokenKey(userId));
+      await _storage.write(
+        key: _userRefreshTokenKey(userId),
+        value: _deletedUserRefreshToken,
+      );
       return;
     }
 
@@ -99,7 +104,10 @@ class SecureStorage {
       // Do not write the shared map back: doing so would reintroduce the
       // cross-user read/modify/write race this version eliminates. The
       // dedicated key is the authoritative store after migration.
-      await _storage.delete(key: _userRefreshTokenKey(userId));
+      await _storage.write(
+        key: _userRefreshTokenKey(userId),
+        value: _deletedUserRefreshToken,
+      );
     }
   }
 
