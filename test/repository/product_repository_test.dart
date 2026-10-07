@@ -2,8 +2,6 @@ import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
 import 'package:fulus_mobile/data/repositories/product_repository_impl.dart';
 import 'package:fulus_mobile/domain/entities/product.dart';
-import 'package:fulus_mobile/domain/entities/auth_user.dart';
-import '../helpers/db_seed_helpers.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -31,20 +29,14 @@ void main() {
     ));
   }
 
-  Future<void> seedLocation() {
-    return db.into(db.locations).insert(LocationsCompanion.insert(
-          localId: locationId,
-          name: 'Main Store',
-          createdAt: DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 1),
-          syncStatus: SyncStatus.settled,
-        ));
-  }
-
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
-    repository = ProductRepositoryImpl(db: db, syncQueue: syncQueue);
+    repository = ProductRepositoryImpl(
+      db: db,
+      syncQueue: syncQueue,
+      executionLease: SyncExecutionLease(db),
+    );
   });
 
   tearDown(() async {
