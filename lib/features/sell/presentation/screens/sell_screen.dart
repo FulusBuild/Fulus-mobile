@@ -118,9 +118,6 @@ class _SellScreenState extends ConsumerState<SellScreen> {
         if (locationSnapshot.connectionState != ConnectionState.done) {
           return const FulusScreen(
             title: 'Sell',
-            subtitle: 'Add products to today’s sale',
-            backgroundColor: Color(0xFF061B3A),
-            headerBackgroundColor: Color(0xFF061B3A),
             applyPadding: false,
             body: _SellLocationSkeleton(),
           );
@@ -277,9 +274,6 @@ class _SellContent extends ConsumerWidget {
 
     return FulusScreen(
       title: 'Sell',
-      subtitle: 'Add products to today’s sale',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
@@ -325,9 +319,7 @@ class _SellContent extends ConsumerWidget {
                     final compact = constraints.maxWidth < 360 ||
                         MediaQuery.textScalerOf(context).scale(1) > 1.15;
                     final scanButton = FulusButton(
-                      variant: FulusButtonVariant.secondary,
-                      foregroundColor: Colors.white,
-                      borderColor: Colors.white70,
+                      variant: FulusButtonVariant.primary,
                       icon: FulusIcons.scan,
                       label: 'Scan',
                       onPressed: cartReady ? onScan : null,
