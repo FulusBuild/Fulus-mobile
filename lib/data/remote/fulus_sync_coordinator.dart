@@ -73,7 +73,7 @@ class FulusSyncCoordinator {
     required String businessId,
     int batchSize = 100,
   }) async {
-    var cursor = cursorFor(businessId);
+    var cursor = await _cursorStore.durableCursorFor(businessId);
     final blocked = _cursorStore.blockedChangeFor(businessId);
     if (blocked != null && blocked.sequence <= cursor) {
       // A process may have died after cursor acknowledgement but before the
@@ -100,7 +100,7 @@ class FulusSyncCoordinator {
       // Another runtime may have completed a newer pull while this runtime
       // was suspended. Never issue a request from a stale cursor when the
       // durable acknowledgement has already advanced.
-      cursor = _maxCursor(cursor, cursorFor(businessId));
+      cursor = _maxCursor(cursor, await _cursorStore.durableCursorFor(businessId));
       final page = await _api.pullChanges(
         businessId: businessId,
         cursor: cursor,
@@ -264,7 +264,7 @@ class FulusSyncCoordinator {
 
       if (!page.hasMore) return cursor;
       if (unapplied.isEmpty) {
-        final durableCursor = cursorFor(businessId);
+        final durableCursor = await _cursorStore.durableCursorFor(businessId);
         if (durableCursor > cursor) {
           cursor = durableCursor;
           continue;
@@ -303,7 +303,7 @@ class FulusSyncCoordinator {
     // acknowledgement monotonic so an older suspended pull can never move a
     // newer durable cursor backwards after another runtime has progressed.
     if (_persistCursorOverride != null) {
-      final current = cursorFor(businessId);
+      final current = await _cursorStore.durableCursorFor(businessId);
       if (current >= cursor) return;
       final persisted = await _persistCursorOverride(businessId, cursor);
       if (!persisted) {
