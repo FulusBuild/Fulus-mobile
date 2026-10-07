@@ -357,26 +357,32 @@ class _SellContent extends ConsumerWidget {
                   },
                 ),
               ),
-              SizedBox(
-                height: 48,
-                child: ListView(
-                  padding: EdgeInsets.symmetric(horizontal: inset),
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    FulusChip(
-                      label: 'All',
-                      selected: selectedCategoryId == null,
-                      onTap: () => onCategoryChanged(null),
-                    ),
-                    for (final id in categoryIds)
-                      FulusChip(
-                        label: categoryById[id]?.name ?? id,
-                        selected: selectedCategoryId == id,
-                        onTap: () => onCategoryChanged(id),
-                      ),
-                  ],
+              if (query.trim().isEmpty && cartReady)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                  child: _QuickSaleBar(onTap: () => QuickSaleSheet.show(context)),
                 ),
-              ),
+              if (categoryIds.isNotEmpty)
+                SizedBox(
+                  height: 48,
+                  child: ListView(
+                    padding: EdgeInsets.symmetric(horizontal: inset),
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      FulusChip(
+                        label: 'All',
+                        selected: selectedCategoryId == null,
+                        onTap: () => onCategoryChanged(null),
+                      ),
+                      for (final id in categoryIds)
+                        FulusChip(
+                          label: categoryById[id]?.name ?? id,
+                          selected: selectedCategoryId == id,
+                          onTap: () => onCategoryChanged(id),
+                        ),
+                    ],
+                  ),
+                ),
               Expanded(
                 child: _ProductList(
                   catalog: catalog,
@@ -450,12 +456,9 @@ class _ProductList extends StatelessWidget {
         mainAxisSpacing: AppSpacing.sm,
         childAspectRatio: 0.82,
       ),
-      itemCount: products.length + (q.isEmpty ? 1 : 0),
+      itemCount: products.length,
       itemBuilder: (context, index) {
-        if (q.isEmpty && index == 0) {
-          return _QuickSaleTile(enabled: cartReady);
-        }
-        final product = products[q.isEmpty ? index - 1 : index];
+        final product = products[index];
         return _ProductRow(
           entry: product,
           currency: currency,
@@ -466,54 +469,37 @@ class _ProductList extends StatelessWidget {
   }
 }
 
-class _QuickSaleTile extends StatelessWidget {
-  const _QuickSaleTile({required this.enabled});
+class _QuickSaleBar extends StatelessWidget {
+  const _QuickSaleBar({required this.onTap});
 
-  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return FulusPressable(
-      onPressed: enabled ? () => QuickSaleSheet.show(context) : null,
-      semanticsLabel: 'Quick Sale. Sell something not in the catalogue.',
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.primaryOf(context),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          boxShadow: AppElevation.cardOf(context),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppColors.primaryOf(context).withValues(alpha: .10),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              alignment: Alignment.center,
-              child: Icon(FulusIcons.quickActions, color: AppColors.primaryOf(context), size: 28),
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(AppRadius.xl),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: const SizedBox(
+          height: 52,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(FulusIcons.quickActions, color: Colors.white, size: 24),
+                SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Quick Sale',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+                Spacer(),
+                Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+              ],
             ),
-            const Spacer(),
-            Text(
-              'Quick Sale',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textPrimaryOf(context),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Sell anything',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondaryOf(context),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
