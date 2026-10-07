@@ -315,17 +315,14 @@ class _MoneyActionCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadius.xl);
-    return Material(
-      color: action.color.withValues(alpha: 0.10),
-      borderRadius: radius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: radius,
-        onTap: action.onTap,
-        child: Container(
-          constraints: const BoxConstraints.tightFor(height: 112),
+    return FulusPressable(
+      semanticsLabel: action.label + ', ' + action.value,
+      onPressed: action.onTap,
+      child: Container(
+          constraints: const BoxConstraints(minHeight: 112),
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
+            color: action.color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
           child: Column(
