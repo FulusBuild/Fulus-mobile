@@ -81,7 +81,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                   return _EmployeeTile(employee: employees[index - 1]);
                 },
               );
-              );
             },
           );
         },
