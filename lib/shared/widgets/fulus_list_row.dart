@@ -47,7 +47,7 @@ class FulusListRow extends StatelessWidget {
     return FulusPressable(
       onPressed: onTap,
       semanticsLabel: 'List row',
-      child: Container( ConstrainedBox(
+      child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
