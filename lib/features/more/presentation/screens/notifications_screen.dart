@@ -73,33 +73,6 @@ class NotificationsScreen extends ConsumerWidget {
   }
 }
 
-class _NotificationSummary extends StatelessWidget {
-  const _NotificationSummary({required this.notifications});
-  final List<AppNotification> notifications;
-
-  @override
-  Widget build(BuildContext context) {
-    final unread = notifications.where((notification) => !notification.isRead).length;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              unread == 0 ? 'All caught up' : '${unread} unread',
-              style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
-            ),
-          ),
-          Text(
-            '${notifications.length} updates',
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 
 class _NotificationSummaryIcon extends StatelessWidget {
   const _NotificationSummaryIcon();
