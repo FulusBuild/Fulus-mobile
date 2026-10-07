@@ -117,7 +117,7 @@ class _CustomerOverviewHeader extends StatelessWidget {
     children: [
       Text('${customers.length} customers', style: AppTypography.title),
       const Spacer(),
-      if (outstanding.isPositive) Text(
+      if (outstanding > 0) Text(
         formatMoney(outstanding, symbol: currencySymbol),
         style: AppTypography.body.copyWith(color: AppColors.warningOf(context), fontWeight: FontWeight.w600),
       ),
