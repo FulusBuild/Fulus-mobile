@@ -73,14 +73,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           FulusListRow(
-            leading: const Icon(FulusIcons.category),
-            title: const Text('Categories'),
-            onTap: () {
-              Navigator.of(sheetContext).pop();
-              context.pushNamed('stockCategories');
-            },
-          ),
-          FulusListRow(
             leading: const Icon(FulusIcons.upload),
             title: const Text('Import products'),
             onTap: () {
@@ -199,22 +191,20 @@ class _StockBody extends ConsumerWidget {
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
                     child: Row(
                       children: [
-                        Expanded(child: FulusChipRow(children: [
-                          FulusChip(
-                            compact: true,
-                            label: 'All',
-                            selected: !filter.lowStockOnly && !filter.outOfStockOnly,
-                            onTap: () => ref.read(stockFilterProvider.notifier).state =
-                                filter.copyWith(lowStockOnly: false, outOfStockOnly: false),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: filter.outOfStockOnly
+                                ? FulusChip(
+                                    compact: true,
+                                    label: 'Out of stock · $outOfStock',
+                                    selected: true,
+                                    onTap: () => ref.read(stockFilterProvider.notifier).state =
+                                        filter.copyWith(outOfStockOnly: false),
+                                  )
+                                : const SizedBox.shrink(),
                           ),
-                          FulusChip(
-                            compact: true,
-                            label: 'Out of stock · $outOfStock',
-                            selected: filter.outOfStockOnly,
-                            onTap: () => ref.read(stockFilterProvider.notifier).state =
-                                filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false),
-                          ),
-                        ])),
+                        ),
                         FulusIconButton(
                           icon: FulusIcons.sort,
                           tooltip: 'Sort products',
