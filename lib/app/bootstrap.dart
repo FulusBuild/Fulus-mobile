@@ -373,6 +373,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       ));
     },
     withApplyTransaction: (action) => database.transaction(() async {
+      final selectedBusinessId = fulusConnectionState.selectedBusinessId;
+      if (selectedBusinessId == null) {
+        throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
+      }
+      final binding = await (database.select(database.localCloudBindings)
+            ..where((row) => row.id.equals('singleton')))
+          .getSingleOrNull();
+      if (binding == null || binding.businessId != selectedBusinessId) {
+        throw StateError('Local database is bound to a different Fulus Cloud business.');
+      }
       // This must be the first database operation in the transaction. The
       // conditional UPDATE acquires SQLite's writer lock before eligibility
       // checks and canonical reconciliation, fencing lease takeover from the
@@ -650,7 +660,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // This is intentionally wired here because the provider has no default implementation.
   final receiptRepository = ReceiptRepositoryImpl(db: database);
   final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
-  final backupRepository = BackupRepositoryImpl(lifecycle: appDatabaseLifecycle);
+  final backupRepository = BackupRepositoryImpl(
+    lifecycle: appDatabaseLifecycle,
+    database: database,
+    boundBusinessIdProvider: () async =>
+        (await database.select(database.localCloudBindings).getSingleOrNull())?.businessId,
+  );
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
 
