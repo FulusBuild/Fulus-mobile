@@ -220,4 +220,13 @@ P3 was re-applied against the post-PR #183 `main` baseline. The readiness owners
 
 Current source changes: `SyncService.ensureReady()` is the readiness boundary; `SyncTriggers` retains only the adapter logic needed to invoke that boundary; the duplicate readiness gate and its direct regression test are removed. No cycle, lease, connectivity, restore, or recovery invariant was removed.
 
-**P3 source result: 🟢 for this coordination cluster, pending CI verification.**
+**P3 source result: 🟢 for this coordination cluster, CI verified on post-merge main.**
+
+
+## 2026-10-07 — P2/P3 current-main record
+
+PR #180's P2 findings were revalidated against the current post-PR #184 baseline and carried forward here because the original PR branch had diverged from main.
+
+P2 remains **🟢/🟡 substantially closed**: state-management and database-cardinality boundaries are source-fixed; coordination entropy is a guardrail rather than a proven defect; historical comments are maintainability debt; architecture-fitness coverage remains the principal implementation gap.
+
+P3 readiness simplification is **🟢 source-verified and CI-verified** on current main. The merged change removed the duplicate readiness state-machine class and retained the distinct cycle, connectivity, lease, restore, and recovery coordination boundaries.
