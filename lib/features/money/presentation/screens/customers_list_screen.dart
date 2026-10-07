@@ -68,17 +68,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
               final inset = wide ? AppSpacing.lg : AppSpacing.sm;
               return CustomScrollView(
                 slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 0),
-                    sliver: SliverToBoxAdapter(
-                      child: Text(
-                        '${customers.length} customers',
-                        style: AppTypography.title.copyWith(
-                          color: AppColors.textPrimaryOf(context),
-                        ),
-                      ),
-                    ),
-                  ),
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: _CustomerSearchHeader(
