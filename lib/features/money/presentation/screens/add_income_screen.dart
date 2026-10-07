@@ -73,7 +73,6 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add income',
-      subtitle: 'Record money received outside a sale',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -87,8 +86,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      FulusCard(
-                        child: Row(
+                      Row(
                           children: [
                             Container(
                               width: 48,
@@ -120,8 +118,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      FulusCard(
-                        child: Column(
+                      Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             FulusTextField(
