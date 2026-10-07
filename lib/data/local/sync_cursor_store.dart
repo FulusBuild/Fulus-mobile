@@ -193,7 +193,13 @@ class DatabaseSyncCursorStore implements SyncCursorStore {
     if (cursor < 0) {
       throw ArgumentError.value(cursor, 'cursor', 'must be non-negative');
     }
-    await _write(businessId, cursor);
+    final database = _database();
+    await database.customStatement(
+      'INSERT INTO sync_cursors (business_id, cursor) VALUES (?, ?) '
+      'ON CONFLICT(business_id) DO UPDATE SET cursor = excluded.cursor',
+      [businessId, cursor],
+    );
+    _cache[businessId] = cursor;
   }
 
   @override
