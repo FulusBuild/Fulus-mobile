@@ -712,4 +712,52 @@ void main() {
     expect(coordinator.blockedChangeFor('b1'), isNull);
   });
 
+  test('explicit release permits a new retry without acknowledging the blocked change', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => FulusSyncPullResponse(
+              changes: [
+                FulusSyncChange(
+                  sequence: 6,
+                  entityType: 'sale',
+                  entityId: 's6',
+                  operation: 'upsert',
+                  payload: const {},
+                  createdAt: DateTime.utc(2026, 1, 1),
+                ),
+              ],
+              cursor: 0,
+              nextCursor: 6,
+              hasMore: false,
+            ));
+
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 1,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => DateTime.utc(2026, 1, 2),
+      applyChange: (change) async {
+        throw SyncCanonicalChangeApplyFailure(change, StateError('still broken'));
+      },
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+    expect(coordinator.cursorFor('b1'), 0);
+
+    await coordinator.releaseBlockedChangeForRetry('b1');
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+    expect(coordinator.cursorFor('b1'), 0);
+    verify(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).called(2);
+  });
+
 }
