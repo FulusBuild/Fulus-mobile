@@ -49,8 +49,7 @@ begin
   -- validation branch must not perform the reversal itself; the settlement
   -- branch below owns the single credit-method insert. The other insert in
   -- the function belongs to non-credit refunds that partially reverse credit.
-  if (
-    length(
+  if length(
       substring(
         pg_get_functiondef(to_regprocedure(return_sig))
         from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
