@@ -418,6 +418,29 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   }
 }
 
+class _ReportFlatCell extends StatelessWidget {
+  const _ReportFlatCell({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: (MediaQuery.sizeOf(context).width - 44) / 2,
+    height: 92,
+    child: Material(
+      color: AppColors.surfaceOf(context),
+      child: InkWell(
+        onTap: onTap,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 28, color: AppColors.primaryOf(context)),
+          const SizedBox(height: AppSpacing.xs),
+          Text(label, style: AppTypography.body.copyWith(fontWeight: FontWeight.w500)),
+        ]),
+      ),
+    ),
+  );
+}
+
 class _ReportCompactCard extends StatelessWidget {
   const _ReportCompactCard({
     required this.icon,
