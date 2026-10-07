@@ -392,6 +392,202 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   }
 }
 
+class _ReportCompactCard extends StatelessWidget {
+  const _ReportCompactCard({required this.icon, required this.label, required this.color, required this.onTap});
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = AppColors.onColor(color);
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: SizedBox(
+            height: 100,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: FulusReportCardColumn(
+                icon: icon,
+                iconColor: foreground,
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportPayload {
+  const _ExportPayload({required this.name, required this.title, required this.headers, required this.rows});
+  final String name;
+  final String title;
+  final List<String> headers;
+  final List<List<Object?>> rows;
+}
+
+class _ReportScaffold extends StatelessWidget {
+  const _ReportScaffold({required this.insights, required this.children});
+  final List<ReportInsight> insights;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        ...children,
+        if (insights.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text('What this means', style: AppTypography.heading.copyWith(color: AppColors.textPrimaryOf(context))),
+          const SizedBox(height: AppSpacing.sm),
+          for (final insight in insights)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Text(
+                '• ${insight.text}',
+                style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.label, required this.value, this.onTap});
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => FulusStatCard(label: label, value: value, onTap: onTap);
+}
+
+class _ReportTabBuilder<T> extends StatefulWidget {
+  const _ReportTabBuilder({
+    required this.future,
+    required this.onRetry,
+    required this.isEmpty,
+    required this.emptyHeadline,
+    required this.emptyBody,
+    required this.builder,
+  });
+  final Future<T> future;
+  final VoidCallback onRetry;
+  final bool Function(T data) isEmpty;
+  final String emptyHeadline;
+  final String emptyBody;
+  final Widget Function(BuildContext context, T data) builder;
+
+  @override
+  State<_ReportTabBuilder<T>> createState() => _ReportTabBuilderState<T>();
+}
+
+class _ReportTabBuilderState<T> extends State<_ReportTabBuilder<T>> {
+  T? _visibleData;
+
+  @override
+  void initState() {
+    super.initState();
+    _watch(widget.future);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReportTabBuilder<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.future != widget.future) _watch(widget.future);
+  }
+
+  void _watch(Future<T> future) {
+    future.then((data) {
+      if (mounted) setState(() => _visibleData = data);
+    }, onError: (_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<T>(
+      future: widget.future,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          if (_visibleData != null) {
+            return Column(
+              children: [
+                const _ReportRefreshNotice(error: true),
+                Expanded(child: widget.builder(context, _visibleData as T)),
+              ],
+            );
+          }
+          return FulusErrorState(
+            message: "Couldn't load this report.",
+            reassurance: 'Nothing recorded was changed — this is only about loading the numbers.',
+            onRetry: widget.onRetry,
+          );
+        }
+        if (!snap.hasData) {
+          if (_visibleData != null) {
+            return Column(
+              children: [
+                const _ReportRefreshNotice(),
+                Expanded(child: widget.builder(context, _visibleData as T)),
+              ],
+            );
+          }
+          return const _ReportLoadingSkeleton();
+        }
+        final data = snap.data as T;
+        if (widget.isEmpty(data)) {
+          return FulusEmptyState(
+            icon: Icons.bar_chart_outlined,
+            headline: widget.emptyHeadline,
+            body: widget.emptyBody,
+          );
+        }
+        return widget.builder(context, data);
+      },
+    );
+  }
+}
+
+class _ReportRefreshNotice extends StatelessWidget {
+  const _ReportRefreshNotice({this.error = false});
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+        child: FulusCard(
+          child: Row(
+            children: [
+              if (error)
+                Icon(Icons.warning_amber_outlined, size: AppIconSize.compact, color: AppColors.warningOf(context))
+              else
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(error ? "Couldn't refresh this report." : 'Updating report…')),
+            ],
+          ),
+        ),
+      );
+}
+
 class _SalesTab extends StatelessWidget {
   const _SalesTab({
     required this.future,
