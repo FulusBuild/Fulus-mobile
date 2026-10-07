@@ -31,9 +31,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 
     return FulusScreen(
       title: 'Customers',
-      subtitle: 'Your credit book and customer relationships',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
+
       actions: [
         FulusIconButton(
           icon: FulusIcons.personAdd,
@@ -122,33 +120,42 @@ class _CustomerOverviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const color = Color(0xFF1473E6);
-    final foreground = AppColors.onColor(color);
     return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      color: AppColors.customers.withValues(alpha: 0.10),
       child: SizedBox(
-        height: 108,
+        height: 128,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: FulusCustomerOverviewColumn(
-            icon: FulusIcons.customers,
-            iconColor: foreground,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Total Customers  ${customers.length}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
+              const Icon(
+                FulusIcons.customers,
+                color: AppColors.customers,
+                size: AppIconSize.emphasis,
               ),
+              const Spacer(),
               Text(
-                'Customer credit ${formatMoney(outstanding, symbol: currencySymbol)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: foreground.withValues(alpha: 0.9), fontSize: 14),
+                customers.length.toString() + ' customers',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatMoney(outstanding, symbol: currencySymbol),
+                  style: AppTypography.heading.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
-          )
+          ),
         ),
       ),
     );
