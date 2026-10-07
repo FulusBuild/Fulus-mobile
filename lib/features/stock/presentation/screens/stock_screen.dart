@@ -155,97 +155,74 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: AppSpacing.sm,
-                      mainAxisSpacing: AppSpacing.sm,
-                      childAspectRatio: 1.15,
+                    child: Row(
                       children: [
-                        _StockSummaryTile(
-                          color: const Color(0xFF1473E6),
-                          icon: FulusIcons.stock,
-                          label: 'Products',
-                          value: '${products.length}',
-                        ),
-                        _StockSummaryTile(
-                          color: const Color(0xFF0BBE6E),
-                          icon: FulusIcons.category,
-                          label: 'Categories',
-                          value: '${categories.length}',
-                          subtitle: '',
-                          onTap: () => context.pushNamed('stockCategories'),
-                        ),
-                        _StockSummaryTile(
-                          color: const Color(0xFFFF8C00),
+                        Expanded(child: FulusFlatGridCell(
                           icon: FulusIcons.stockIn,
                           label: 'Stock In',
-                          value: movementsAsync.asData?.value.where((m) => m.movementType == StockMovementType.stockIn).length.toString() ?? '—',
-                          subtitle: '',
+                          iconColor: AppColors.stock,
                           onTap: () => context.pushNamed('stockRecordMovement'),
-                        ),
-                        _StockSummaryTile(
-                          color: const Color(0xFF7B3FF2),
+                        )),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: FulusFlatGridCell(
                           icon: FulusIcons.stockMovement,
-                          label: 'Stock Movement',
-                          value: movementsAsync.asData?.value.length.toString() ?? '—',
-                          subtitle: '',
+                          label: 'Movement',
+                          iconColor: AppColors.primaryOf(context),
                           onTap: () => context.pushNamed('stockHistory'),
-                        ),
+                        )),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: FulusFlatGridCell(
+                          icon: FulusIcons.category,
+                          label: 'Categories',
+                          iconColor: AppColors.customers,
+                          onTap: () => context.pushNamed('stockCategories'),
+                        )),
                       ],
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
-                      child: Material(
-                        color: AppColors.warning.withValues(alpha: 0.10),
-                        child: InkWell(
-                          onTap: () => ref.read(stockFilterProvider.notifier).state =
-                              filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  FulusIcons.warning,
-                                  color: AppColors.warning,
-                                  size: AppIconSize.emphasis,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    lowStockCount == 1
-                                        ? '1 item low in stock'
-                                        : '$lowStockCount items low in stock',
-                                    style: AppTypography.body.copyWith(
-                                      color: AppColors.textPrimaryOf(context),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FulusChip(
+                        compact: true,
+                        label: 'Low stock · $lowStockCount',
+                        selected: false,
+                        onTap: lowStockCount == 0 ? null : () =>
+                            ref.read(stockFilterProvider.notifier).state =
+                                filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
                       ),
                     ),
                   ),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: FulusChipRow(children: [
-                            FulusChip(compact: true, label: 'All', selected: !filter.lowStockOnly && !filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false)),
-                            FulusChip(compact: true, label: 'Low stock · $lowStockCount', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
-                            FulusChip(compact: true, label: 'Out of stock · $outOfStock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
-                          ]),
+                        Expanded(child: FulusChipRow(children: [
+                          FulusChip(
+                            compact: true,
+                            label: 'All',
+                            selected: !filter.lowStockOnly && !filter.outOfStockOnly,
+                            onTap: () => ref.read(stockFilterProvider.notifier).state =
+                                filter.copyWith(lowStockOnly: false, outOfStockOnly: false),
+                          ),
+                          FulusChip(
+                            compact: true,
+                            label: 'Out of stock · $outOfStock',
+                            selected: filter.outOfStockOnly,
+                            onTap: () => ref.read(stockFilterProvider.notifier).state =
+                                filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false),
+                          ),
+                        ])),
+                        FulusIconButton(
+                          icon: FulusIcons.sort,
+                          tooltip: 'Sort products',
+                          onPressed: () => _showSortSheet(context, ref, filter),
                         ),
-                        FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
                       ],
                     ),
                   ),
