@@ -55,7 +55,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 
     return FulusScreen(
       title: 'Customer',
-      subtitle: 'Customer details, purchases and credit history',
       body: FutureBuilder<Customer?>(
         future: _future,
         builder: (context, snapshot) {
@@ -194,7 +193,6 @@ class _ProfileBody extends ConsumerWidget {
                           FulusActionTile(
                             icon: Icons.payments_outlined,
                             label: 'Record repayment',
-                            subtitle: 'Record money received from this customer.',
                             onTap: () async {
                               final result = await context.pushNamed<bool>(
                                 openedFromMore ? 'moreRecordRepayment' : 'moneyRecordRepayment',
