@@ -47,6 +47,8 @@ class _ThrowingStore implements DiagnosticStore {
   @override
   Future<void> markViewed(String id) => throw Exception('store is broken');
   @override
+  Future<void> markSynced(String id) => throw Exception('store is broken');
+  @override
   Future<List<DiagnosticEvent>> getForExport({DiagnosticFilter filter = const DiagnosticFilter()}) =>
       throw Exception('store is broken');
   @override
@@ -87,6 +89,8 @@ class _InMemoryStore implements DiagnosticStore {
       );
   @override
   Future<void> markViewed(String id) async {}
+  @override
+  Future<void> markSynced(String id) async {}
   @override
   Future<List<DiagnosticEvent>> getForExport({DiagnosticFilter filter = const DiagnosticFilter()}) async => saved;
   @override

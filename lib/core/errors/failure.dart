@@ -59,8 +59,14 @@ sealed class AuthFailure extends Failure {
   /// it is not a user-session expiry or a permission failure.
   bool get requiresDeviceRegistration => false;
 
+  /// True only when the server explicitly says the employee is no longer
+  /// an active member of the target business. Session expiry and device
+  /// registration failures are recoverable and must not revoke the employee.
+  bool get isAccessRevoked => false;
+
   const factory AuthFailure.sessionExpired() = _SessionExpired;
   const factory AuthFailure.forbidden() = _Forbidden;
+  const factory AuthFailure.accessRevoked() = _AccessRevoked;
   const factory AuthFailure.deviceNotRegistered() = _DeviceNotRegistered;
   const factory AuthFailure.invalidCredentials() = _InvalidCredentials;
   const factory AuthFailure.accountLocked({required DateTime lockedUntil}) =
@@ -95,6 +101,17 @@ final class _SessionExpired extends AuthFailure {
 /// a genuine access attempt.
 final class _Forbidden extends AuthFailure {
   const _Forbidden() : super('You don\'t have permission to do that.');
+
+  @override
+  bool get isAccessRevoked => false;
+}
+
+final class _AccessRevoked extends AuthFailure {
+  const _AccessRevoked()
+      : super('Your access to this business has been revoked.');
+
+  @override
+  bool get isAccessRevoked => true;
 }
 
 final class _DeviceNotRegistered extends AuthFailure {

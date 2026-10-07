@@ -17,7 +17,7 @@ void main() {
 
   tearDown(() => db.close());
 
-  test('prefers the durable session identity over a stale in-memory actor', () async {
+  test('prefers the active cloud actor over the durable local session identity', () async {
     final now = DateTime.now();
     await db.into(db.users).insert(
       UsersCompanion.insert(
@@ -42,10 +42,10 @@ void main() {
     await actorQueue.enqueue(SyncTask.createProduct('product-session-actor'));
 
     final row = (await db.select(db.syncQueueItems).get()).single;
-    expect(row.actorUserId, 'employee-a');
+    expect(row.actorUserId, 'employee-b');
   });
 
-  test('captures the signed-in employee on the durable outbox row', () async {
+  test('falls back to the durable local identity before cloud binding', () async {
     final actorQueue = SyncQueue(
       db,
       actorUserIdProvider: () => 'employee-a',
@@ -93,6 +93,29 @@ void main() {
     expect(rows.single.entityType, 'product');
     expect(rows.single.entityLocalId, 'product-1');
     expect(rows.single.operation, 'update');
+  });
+
+  test('preserves the original base cursor when replacing an in-flight update', () async {
+    var cursor = 10;
+    final cursorQueue = SyncQueue(
+      db,
+      baseCursorProvider: () => cursor,
+    );
+
+    await cursorQueue.enqueue(SyncTask.updateProduct('product-1'));
+    final first = (await db.select(db.syncQueueItems).get()).single;
+    expect(first.baseCursor, 10);
+
+    // A remote change arrives while the first update is in flight. The
+    // replacement must still compare against the revision observed by the
+    // original local edit, not silently rebase onto cursor 15.
+    cursor = 15;
+    await cursorQueue.enqueue(SyncTask.updateProduct('product-1'));
+
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.id, isNot(first.id));
+    expect(rows.single.baseCursor, 10);
   });
 
   test('normalizes legacy dependency priorities before automatic drain', () async {

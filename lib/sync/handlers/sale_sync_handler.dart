@@ -88,7 +88,7 @@ class SaleSyncHandler implements SyncHandler {
             'location_id': locationId,
             'customer_id': customerId,
             'client_reference': sale.clientReference,
-            'sale_date': sale.saleDate.toIso8601String(),
+            'sale_date': sale.saleDate.toUtc().toIso8601String(),
             'discount': moneyToWire(sale.discount),
             'tax': moneyToWire(sale.tax),
             'amount_paid': moneyToWire(sale.amountPaid),

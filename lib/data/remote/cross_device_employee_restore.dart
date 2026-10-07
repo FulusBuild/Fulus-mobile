@@ -185,6 +185,21 @@ class CrossDeviceEmployeeRestore {
           );
         }
 
+        final snapshotBusiness = snapshot['business'];
+        final snapshotBusinessId = snapshotBusiness is Map
+            ? snapshotBusiness['id']?.toString()
+            : null;
+        if (snapshotBusinessId == null || snapshotBusinessId != claim.businessId) {
+          throw StateError('Employee restore snapshot is bound to a different business.');
+        }
+        await _db.into(_db.localCloudBindings).insertOnConflictUpdate(
+          LocalCloudBindingsCompanion.insert(
+            id: 'singleton',
+            businessId: snapshotBusinessId,
+            updatedAt: now,
+          ),
+        );
+
         await _db.delete(_db.sessions).go();
         await _db.into(_db.sessions).insert(
               SessionsCompanion.insert(

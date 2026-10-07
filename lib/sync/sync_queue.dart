@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:ulid/ulid.dart';
 
 import '../data/local/database/database.dart';
+import 'sync_execution_lease.dart';
 
 /// Sync lanes are ordered around dependencies as well as business urgency.
 /// Reference data must reach the server before a sale can reference it by
@@ -333,7 +334,7 @@ class SyncQueue {
             ..where((s) => s.id.equals('current')))
           .getSingleOrNull();
       final seedActorUserId =
-          session?.userId ?? _actorUserIdProvider?.call();
+          _actorUserIdProvider?.call() ?? session?.userId;
       final existingKeys = existingRows
           .map((row) => '${row.entityType}|${row.entityLocalId}|${row.operation}')
           .toSet();
@@ -478,6 +479,13 @@ class SyncQueue {
       if (_businessSwitchBarrier) {
         throw StateError('Business context is switching; local mutation was rejected before durable enqueue.');
       }
+      // Restore is a physical database replacement, so the durable SQLite
+      // maintenance row alone is insufficient after the live file has been
+      // swapped. The filesystem marker is the cross-isolate/process fence
+      // that survives that replacement.
+      if (await SyncExecutionLease.hasMaintenanceFence(_db)) {
+        throw StateError('Database maintenance is in progress; local mutation was rejected.');
+      }
       // Read the durable local session inside the same SQLite
       // transaction as the outbox insert. This prevents an employee switch
       // racing an enqueue from attributing a mutation to the employee who
@@ -485,7 +493,7 @@ class SyncQueue {
       final session = await (_db.select(_db.sessions)
             ..where((s) => s.id.equals('current')))
           .getSingleOrNull();
-      final actorUserId = session?.userId ?? _actorUserIdProvider?.call();
+      final actorUserId = _actorUserIdProvider?.call() ?? session?.userId;
 
       final existing = await (_db.select(_db.syncQueueItems)
             ..where((q) => q.entityType.equals(task.entityType))
@@ -493,6 +501,12 @@ class SyncQueue {
             ..where((q) => q.operation.equals(task.operation))
             ..limit(1))
           .getSingleOrNull();
+      // When an UPDATE is replaced, preserve the revision against which the
+      // original mutation was created. Re-reading the current cursor here
+      // would silently rebase a later local edit over a remote change that
+      // arrived while the older update was in flight, defeating OCC.
+      final preservedBaseCursor =
+          existing?.operation == 'update' ? existing?.baseCursor : null;
       if (existing != null) {
         final blocked = (existing.lastError ?? '').startsWith('[BLOCKED]') ||
             (existing.lastError ?? '').startsWith('[CONFLICT]');
@@ -538,7 +552,9 @@ class SyncQueue {
           operation: task.operation,
           priority: task.priority,
           enqueuedAt: DateTime.now(),
-          baseCursor: Value(_baseCursorProvider?.call()),
+          baseCursor: Value(
+            preservedBaseCursor ?? _baseCursorProvider?.call(),
+          ),
           actorUserId: Value(actorUserId),
         ),
       );

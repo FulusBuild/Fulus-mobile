@@ -151,6 +151,37 @@ void main() {
           'stdout=${releasedProbe.stdout} stderr=${releasedProbe.stderr}',
     );
   });
+  test('maintenance marker blocks a second isolate connection to the same database file', () async {
+    final dir = await Directory.systemTemp.createTemp('fulus-lease-');
+    addTearDown(() async {
+      await dir.delete(recursive: true);
+    });
+    final path = File('${dir.path}/fulus.db');
+
+    final firstDb = AppDatabase.forTesting(NativeDatabase(path));
+    final secondDb = AppDatabase.forTesting(NativeDatabase(path));
+    addTearDown(() async {
+      await firstDb.close();
+      await secondDb.close();
+    });
+
+    final maintenance = SyncExecutionLease(
+      firstDb,
+      acquisitionTimeout: const Duration(milliseconds: 200),
+    );
+    final blocked = SyncExecutionLease(
+      secondDb,
+      acquisitionTimeout: const Duration(milliseconds: 200),
+    );
+
+    expect(await maintenance.acquireMaintenance(), isTrue);
+    expect(await blocked.acquire(), isFalse);
+
+    await maintenance.releaseMaintenance();
+    expect(await blocked.acquire(), isTrue);
+    await blocked.release();
+  });
+
   test('detects a newer queued mutation for the same entity', () async {
     final lease = SyncExecutionLease(db);
     addTearDown(lease.release);
@@ -413,6 +444,34 @@ void main() {
 
     firstTriggers.dispose();
     secondTriggers.dispose();
+  });
+
+  test('maintenance marker heartbeat continues while SQLite renewal is suspended', () async {
+    final directory = await Directory.systemTemp.createTemp('fulus-maintenance-heartbeat-');
+    final path = '${directory.path}/fulus.db';
+    final file = File(path);
+    final maintenanceDb = AppDatabase.forTesting(NativeDatabase(file));
+    final maintenance = SyncExecutionLease(
+      maintenanceDb,
+      leaseDuration: const Duration(seconds: 3),
+      acquisitionTimeout: const Duration(milliseconds: 500),
+    );
+    addTearDown(() async {
+      await maintenance.releaseMaintenance();
+      await maintenanceDb.close();
+      await directory.delete(recursive: true);
+    });
+
+    expect(await maintenance.acquireMaintenance(), isTrue);
+
+    final marker = File('$path.sync-runtime.maintenance');
+    final before = await marker.lastModified();
+
+    maintenance.suspendMaintenanceRenewalForDatabaseReplacement();
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+
+    final after = await marker.lastModified();
+    expect(after.isAfter(before), isTrue);
   });
 
 }

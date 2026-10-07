@@ -77,7 +77,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'client_reference': shift.localId,
         'location_id': location.serverId,
         'opening_cash': moneyToWire(shift.openingCash),
-        'opened_at': shift.openedAt.toIso8601String(),
+        'opened_at': shift.openedAt.toUtc().toIso8601String(),
         },
       );
     } on BusinessRuleFailure {
@@ -123,7 +123,7 @@ class CashDrawerShiftSyncHandler implements SyncHandler {
         'closing_cash': moneyToWire(shift.closingCash!),
         'cash_difference': moneyToWire(shift.cashDifference!),
         'closing_note': shift.closingNote,
-        'closed_at': shift.closedAt!.toIso8601String(),
+        'closed_at': shift.closedAt!.toUtc().toIso8601String(),
         if (item.baseCursor != null) 'base_cursor': item.baseCursor,
         },
       );

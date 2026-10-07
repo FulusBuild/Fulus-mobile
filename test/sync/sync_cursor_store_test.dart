@@ -31,6 +31,19 @@ void main() {
     expect(rows.single.cursor, 7);
   });
 
+  test('durable cursor refresh sees another runtime advancing SQLite', () async {
+    await store.initialize();
+    await store.persistMonotonic('business-1', 5);
+
+    await db.customStatement(
+      "UPDATE sync_cursors SET cursor = 12 WHERE business_id = 'business-1'",
+    );
+
+    expect(store.cursorFor('business-1'), 5);
+    expect(await store.durableCursorFor('business-1'), 12);
+    expect(store.cursorFor('business-1'), 12);
+  });
+
   test('monotonic persistence never moves a cursor backwards', () async {
     await store.initialize();
 
@@ -74,4 +87,36 @@ void main() {
     expect(store.cursorFor('business-1'), 0);
     expect(store.cursorFor('business-2'), 9);
   });
+  test('persists canonical block state without changing the durable cursor', () async {
+    await store.initialize();
+    await store.persistMonotonic('business-1', 17);
+
+    final now = DateTime.utc(2026, 1, 2);
+    await store.recordBlockedChange(
+      businessId: 'business-1',
+      change: SyncBlockedChange(
+        sequence: 18,
+        changeId: '18:sale:s18:upsert',
+        entityType: 'sale',
+        entityId: 's18',
+        operation: 'upsert',
+        firstSeenAt: now,
+        lastAttemptedAt: now,
+        attemptCount: 3,
+        errorCode: 'validation',
+        errorMessage: 'canonical payload is invalid',
+      ),
+    );
+
+    expect(store.cursorFor('business-1'), 17);
+    expect(store.blockedChangeFor('business-1')!.sequence, 18);
+
+    final reloaded = DatabaseSyncCursorStore(() => db);
+    await reloaded.initialize();
+
+    expect(reloaded.cursorFor('business-1'), 17);
+    expect(reloaded.blockedChangeFor('business-1')!.attemptCount, 3);
+    expect(reloaded.blockedChangeFor('business-1')!.errorMessage, 'canonical payload is invalid');
+  });
+
 }

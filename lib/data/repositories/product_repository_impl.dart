@@ -6,27 +6,19 @@ import '../../domain/entities/product.dart';
 import '../../domain/entities/product_stock_snapshot.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../sync/sync_queue.dart';
-import '../../sync/sync_execution_lease.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
-import '../remote/endpoints/products_api.dart';
 import 'product_mapper.dart';
 
 class ProductRepositoryImpl implements ProductRepository {
   ProductRepositoryImpl({
     required AppDatabase db,
-    required ProductsApi productsApi,
     required SyncQueue syncQueue,
-    required SyncExecutionLease executionLease,
   })  : _db = db,
-        _productsApi = productsApi,
-        _syncQueue = syncQueue,
-        _executionLease = executionLease;
+        _syncQueue = syncQueue;
 
   final AppDatabase _db;
-  final ProductsApi _productsApi;
   final SyncQueue _syncQueue;
-  final SyncExecutionLease _executionLease;
 
   ProductWithStock _mapRow(TypedResult row) {
     final product = row.readTable(_db.products);
@@ -87,81 +79,6 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<Set<String>> getAllBarcodes() async {
     final rows = await (_db.selectOnly(_db.products)..addColumns([_db.products.barcode])..where(_db.products.deletedAt.isNull() & _db.products.barcode.isNotNull())).get();
     return rows.map((r) => r.read(_db.products.barcode)!).toSet();
-  }
-
-  @override
-  Future<void> hydrateActiveLocationStockFromServer() async {
-    final acquired = await _executionLease.acquire();
-    if (!acquired) {
-      throw StateError('Unable to acquire Cloud Sync execution lease for product stock hydration.');
-    }
-    try {
-    final activeLocationId = await (_db.select(_db.sessions)
-          ..where((s) => s.id.equals('current')))
-        .getSingleOrNull()
-        .then((row) => row?.activeLocationId);
-    if (activeLocationId == null) return;
-
-    final location = await (_db.select(_db.locations)
-          ..where((l) => l.localId.equals(activeLocationId)))
-        .getSingleOrNull();
-    if (location == null) return;
-
-    var page = 1;
-    var totalPages = 1;
-    do {
-      await _executionLease.ensureHeld();
-      final response = await _productsApi.listProducts(page: page);
-      totalPages = response.totalPages;
-
-      for (final item in response.items) {
-        // This endpoint is a location-snapshot hydration path, not a second
-        // catalog synchronization authority. Canonical product fields are
-        // reconciled only through the change feed.
-        final product = await (_db.select(_db.products)
-              ..where((p) => p.serverId.equals(item.id)))
-            .getSingleOrNull();
-        if (product == null) continue;
-
-        await _db.transaction(() async {
-          // Re-check ownership at the writer boundary so an expired/taken-over
-          // sync lease cannot apply a stale stock snapshot after network I/O.
-          await _executionLease.ensureHeldForTransaction();
-          final stockLevel = await (_db.select(_db.productStockLevels)
-                ..where((s) =>
-                    s.productLocalId.equals(product.localId) &
-                    s.locationLocalId.equals(location.localId)))
-              .getSingleOrNull();
-          // Never let a context-switch snapshot overwrite a locally pending
-          // stock mutation. The conditional update makes the check and write
-          // one SQLite operation boundary, so a pending local mutation cannot
-          // be replaced by a stale snapshot between the two statements.
-          if (stockLevel == null) {
-            await _db.into(_db.productStockLevels).insert(
-              item.toStockLevelCompanion(productLocalId: product.localId, locationLocalId: location.localId),
-            );
-            return;
-          }
-          if (stockLevel.syncStatus == SyncStatus.pending) return;
-
-          await (_db.update(_db.productStockLevels)
-                ..where((s) =>
-                    s.productLocalId.equals(product.localId) &
-                    s.locationLocalId.equals(location.localId) &
-                    s.syncStatus.equalsValue(SyncStatus.settled)))
-              .write(
-                item.toStockLevelCompanion(
-                  productLocalId: product.localId,
-                  locationLocalId: location.localId,
-                ),
-              );
-        });
-      }
-      page++;
-    } while (page <= totalPages);
-    } finally {
-      await _executionLease.release();
-    }
   }
 
   @override

@@ -63,7 +63,7 @@ class CustomerSyncHandler implements SyncHandler {
         'email': customer.email,
         'address': customer.address,
         'notes': customer.notes,
-        'credit_limit': customer.creditLimit == null ? 0 : moneyToWire(customer.creditLimit!),
+        'credit_limit': moneyToWire(customer.creditLimit ?? moneyFromMajor(0)),
         if (isUpdate) 'server_id': existingServerId,
         if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
         if (isUpdate) 'is_active': customer.deletedAt == null,
@@ -100,7 +100,7 @@ class CustomerSyncHandler implements SyncHandler {
           'email': customer.email,
           'address': customer.address,
           'notes': customer.notes,
-          'credit_limit': customer.creditLimit == null ? 0 : moneyToWire(customer.creditLimit!),
+          'credit_limit': moneyToWire(customer.creditLimit ?? moneyFromMajor(0)),
           'is_active': false,
         },
       );

@@ -35,6 +35,8 @@ abstract class DiagnosticStore {
   /// the id doesn't exist (defensive, never throws).
   Future<void> markViewed(String id);
 
+  Future<void> markSynced(String id);
+
   /// Every event matching [filter], unpaginated — used only by the
   /// share/export flow (a bounded, user-initiated action), never by the
   /// list screen's own ordinary display path.

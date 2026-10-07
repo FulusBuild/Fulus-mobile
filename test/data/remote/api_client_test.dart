@@ -44,6 +44,13 @@ void main() {
     when(() => storage.deleteRefreshToken()).thenAnswer((_) async {
       storedRefreshToken = null;
     });
+    when(() => storage.deleteRefreshTokenIfMatches(any()))
+        .thenAnswer((invocation) async {
+      final expected = invocation.positionalArguments.first as String;
+      if (storedRefreshToken == expected) {
+        storedRefreshToken = null;
+      }
+    });
     when(() => storage.getUserRefreshToken(any()))
         .thenAnswer((invocation) async {
       return storedUserRefreshTokens[invocation.positionalArguments.first as String];
@@ -58,6 +65,16 @@ void main() {
         .thenAnswer((invocation) async {
       storedUserRefreshTokens
           .remove(invocation.positionalArguments.first as String);
+    });
+    when(() => storage.deleteUserRefreshTokenIfMatches(any(), any()))
+        .thenAnswer((invocation) async {
+      final userId = invocation.positionalArguments.first as String;
+      final expected = invocation.positionalArguments[1] as String;
+      if (storedUserRefreshTokens[userId] == expected) {
+        storedUserRefreshTokens.remove(userId);
+      }
+      // Match the production compare-before-delete contract: a stale
+      // isolate must not delete a newer rotated token.
     });
     when(() => storage.getDeviceClientId()).thenAnswer((_) async => null);
 

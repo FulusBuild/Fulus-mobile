@@ -10,6 +10,7 @@ import 'package:fulus_mobile/data/remote/fulus_sync_coordinator.dart';
 import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
 import 'package:fulus_mobile/data/local/database/database.dart';
 import 'package:fulus_mobile/data/local/database/tables.dart';
+import 'package:fulus_mobile/sync/sync_error.dart';
 import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 
@@ -101,7 +102,7 @@ void main() {
       cursor: 1, nextCursor: 2, hasMore: false,
     ));
     final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async => throw StateError('apply failed'));
-    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
+    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<SyncCanonicalChangeBlocked>()));
     expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
 
@@ -478,5 +479,286 @@ void main() {
     expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
 
+
+  test('persists a poison canonical change without advancing the cursor', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    final changes = [
+      FulusSyncChange(
+        sequence: 1,
+        entityType: 'customer',
+        entityId: 'c1',
+        operation: 'upsert',
+        payload: const {},
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+      FulusSyncChange(
+        sequence: 2,
+        entityType: 'sale',
+        entityId: 's2',
+        operation: 'upsert',
+        payload: const {},
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ];
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => FulusSyncPullResponse(
+              changes: changes,
+              cursor: 0,
+              nextCursor: 2,
+              hasMore: false,
+            ));
+
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 3,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => DateTime.utc(2026, 1, 2),
+      applyChange: (change) async {
+        if (change.sequence == 2) {
+          throw SyncCanonicalChangeApplyFailure(
+            change,
+            StateError('malformed canonical sale'),
+          );
+        }
+      },
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+
+    expect(coordinator.cursorFor('b1'), 0);
+    final blocked = coordinator.blockedChangeFor('b1');
+    expect(blocked, isNotNull);
+    expect(blocked!.sequence, 2);
+    expect(blocked.attemptCount, 1);
+    expect(blocked.errorMessage, contains('malformed canonical sale'));
+  });
+
+  test('a durable poison barrier survives a new coordinator instance and stops after its retry budget', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => FulusSyncPullResponse(
+              changes: [
+                FulusSyncChange(
+                  sequence: 9,
+                  entityType: 'sale',
+                  entityId: 's9',
+                  operation: 'upsert',
+                  payload: const {},
+                  createdAt: DateTime.utc(2026, 1, 1),
+                ),
+              ],
+              cursor: 0,
+              nextCursor: 9,
+              hasMore: false,
+            ));
+
+    final now = DateTime.utc(2026, 1, 2);
+    final first = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 2,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => now,
+      applyChange: (change) async {
+        throw SyncCanonicalChangeApplyFailure(
+          change,
+          StateError('poison'),
+        );
+      },
+    );
+
+    await expectLater(
+      first.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+    expect(preferences.getString('fulus_sync_blocked_b1'), isNotNull);
+
+    final second = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 2,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => now,
+      applyChange: (change) async {
+        throw SyncCanonicalChangeApplyFailure(
+          change,
+          StateError('poison'),
+        );
+      },
+    );
+
+    await expectLater(
+      second.pullAndApply(businessId: 'b1'),
+      throwsA(
+        isA<SyncCanonicalChangeBlocked>()
+            .having((e) => e.attemptCount, 'attempt count', 2),
+      ),
+    );
+
+    final third = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 2,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => now,
+      applyChange: (_) async {},
+    );
+
+    await expectLater(
+      third.pullAndApply(businessId: 'b1'),
+      throwsA(
+        isA<SyncCanonicalChangeBlocked>()
+            .having((e) => e.exhausted, 'exhausted', isTrue),
+      ),
+    );
+    verify(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).called(2);
+  });
+
+  test('successful retry clears the poison barrier and then acknowledges the change', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => FulusSyncPullResponse(
+              changes: [
+                FulusSyncChange(
+                  sequence: 4,
+                  entityType: 'customer',
+                  entityId: 'c4',
+                  operation: 'upsert',
+                  payload: const {},
+                  createdAt: DateTime.utc(2026, 1, 1),
+                ),
+              ],
+              cursor: 0,
+              nextCursor: 4,
+              hasMore: false,
+            ));
+
+    var fail = true;
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 3,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => DateTime.utc(2026, 1, 2),
+      applyChange: (change) async {
+        if (fail) {
+          throw SyncCanonicalChangeApplyFailure(change, StateError('temporary poison'));
+        }
+      },
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+    expect(coordinator.cursorFor('b1'), 0);
+
+    fail = false;
+    final cursor = await coordinator.pullAndApply(businessId: 'b1');
+
+    expect(cursor, 4);
+    expect(coordinator.cursorFor('b1'), 4);
+    expect(coordinator.blockedChangeFor('b1'), isNull);
+    expect(preferences.getInt('fulus_sync_cursor_b1'), 4);
+  });
+
+  test('authoritative recovery clears a blocked canonical change', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final store = SharedPreferencesSyncCursorStore(preferences);
+    final change = FulusSyncChange(
+      sequence: 12,
+      entityType: 'sale',
+      entityId: 's12',
+      operation: 'upsert',
+      payload: const {},
+      createdAt: DateTime.utc(2026, 1, 1),
+    );
+
+    await store.recordBlockedChange(
+      businessId: 'b1',
+      change: SyncBlockedChange(
+        sequence: change.sequence,
+        changeId: '12:sale:s12:upsert',
+        entityType: change.entityType,
+        entityId: change.entityId,
+        operation: change.operation,
+        firstSeenAt: DateTime.utc(2026, 1, 1),
+        lastAttemptedAt: DateTime.utc(2026, 1, 1),
+        attemptCount: 5,
+        errorCode: null,
+        errorMessage: 'poison',
+      ),
+    );
+
+    final coordinator = FulusSyncCoordinator(
+      api: MockFulusSyncApi(),
+      cursorStore: store,
+      applyChange: (_) async {},
+    );
+
+    await coordinator.setCursor('b1', 12);
+
+    expect(coordinator.cursorFor('b1'), 12);
+    expect(coordinator.blockedChangeFor('b1'), isNull);
+  });
+
+  test('explicit release permits a new retry without acknowledging the blocked change', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final api = MockFulusSyncApi();
+    when(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100))
+        .thenAnswer((_) async => FulusSyncPullResponse(
+              changes: [
+                FulusSyncChange(
+                  sequence: 6,
+                  entityType: 'sale',
+                  entityId: 's6',
+                  operation: 'upsert',
+                  payload: const {},
+                  createdAt: DateTime.utc(2026, 1, 1),
+                ),
+              ],
+              cursor: 0,
+              nextCursor: 6,
+              hasMore: false,
+            ));
+
+    final coordinator = FulusSyncCoordinator(
+      api: api,
+      cursorStore: SharedPreferencesSyncCursorStore(preferences),
+      maxAutomaticBlockedAttempts: 1,
+      blockedRetryBaseDelay: Duration.zero,
+      now: () => DateTime.utc(2026, 1, 2),
+      applyChange: (change) async {
+        throw SyncCanonicalChangeApplyFailure(change, StateError('still broken'));
+      },
+    );
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+    expect(coordinator.cursorFor('b1'), 0);
+
+    await coordinator.releaseBlockedChangeForRetry('b1');
+
+    await expectLater(
+      coordinator.pullAndApply(businessId: 'b1'),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
+    );
+    expect(coordinator.cursorFor('b1'), 0);
+    verify(() => api.pullChanges(businessId: 'b1', cursor: 0, limit: 100)).called(2);
+  });
 
 }

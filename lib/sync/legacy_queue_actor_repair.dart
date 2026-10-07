@@ -18,7 +18,6 @@ class LegacyQueueActorRepair {
         .get();
     if (rows.isEmpty) return;
 
-    final fallbackActor = actorUserIdProvider?.call();
     await _db.transaction(() async {
       for (final item in rows) {
         String? actor;
@@ -60,7 +59,7 @@ class LegacyQueueActorRepair {
             break;
         }
 
-        actor ??= fallbackActor;
+        actor ??= actorUserIdProvider?.call();
         if (actor != null && actor.isNotEmpty) {
           await (_db.update(_db.syncQueueItems)
                 ..where((q) => q.id.equals(item.id)))

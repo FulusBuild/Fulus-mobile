@@ -626,10 +626,36 @@ class SyncConflictRecords extends Table {
 /// across cloud businesses. Keeping it in SQLite makes the acknowledgement
 /// part of the same durable persistence system as the local projections and
 /// outbox rather than a separate preferences store.
+/// Durable identity binding for the cloud business represented by this local database.
+/// It lives inside SQLite so the binding is replaced atomically with cloud restore data.
+@DataClassName('LocalCloudBindingRow')
+class LocalCloudBindings extends Table {
+  TextColumn get id => text()();
+  TextColumn get businessId => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('SyncCursorRow')
 class SyncCursors extends Table {
   TextColumn get businessId => text()();
   IntColumn get cursor => integer()();
+
+  /// When canonical application fails, the cursor deliberately remains before
+  /// this sequence. These fields make that barrier durable across process death
+  /// without creating a second synchronization state machine.
+  IntColumn get blockedSequence => integer().nullable()();
+  TextColumn get blockedChangeId => text().nullable()();
+  TextColumn get blockedEntityType => text().nullable()();
+  TextColumn get blockedEntityId => text().nullable()();
+  TextColumn get blockedOperation => text().nullable()();
+  DateTimeColumn get blockedFirstSeenAt => dateTime().nullable()();
+  DateTimeColumn get blockedLastAttemptedAt => dateTime().nullable()();
+  IntColumn get blockedAttemptCount => integer().withDefault(const Constant(0))();
+  TextColumn get blockedErrorCode => text().nullable()();
+  TextColumn get blockedErrorMessage => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {businessId};

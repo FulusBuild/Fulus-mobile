@@ -620,6 +620,7 @@ Unless a future benchmark proves a real requirement:
 | P1 | WorkManager/process-death proof | Evidence | Queue survives real process death |
 | P1 | Multi-device convergence proof | Evidence | Canonical state converges without duplication |
 | P1 | Foreground/background contention | Evidence | One safe sync execution at a time |
+| P2 | Poison canonical change recovery | Strengthen | Failed canonical change is durable, bounded, never silently skipped, and has explicit recovery |
 | P2 | DB concurrency constraints | Strengthen | Race tests cannot create duplicate active state |
 | P2 | User/business SLOs | Strengthen | Critical outcome metrics exist |
 | P2 | Release upgrade test | Evidence | Previous release upgrades safely |

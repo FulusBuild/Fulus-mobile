@@ -23,6 +23,25 @@ class SyncExecutionLease {
         _acquisitionTimeout = acquisitionTimeout,
         _ownerId = Ulid().toString();
 
+  static Future<bool> hasMaintenanceFence(AppDatabase db) async {
+    final rows = await db.customSelect('PRAGMA database_list').get();
+    if (rows.isEmpty) return false;
+    final dbPath = rows.first.data['file'];
+    if (dbPath is! String || dbPath.isEmpty) return false;
+    final marker = File('$dbPath.sync-runtime.maintenance');
+    try {
+      if (!await marker.exists()) return false;
+      final age = DateTime.now().difference(await marker.lastModified());
+      if (age > const Duration(minutes: 10)) {
+        await marker.delete();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   static const String leaseName = 'cloud_sync';
   static const String maintenanceLeaseName = 'cloud_sync_maintenance';
 
@@ -32,7 +51,8 @@ class SyncExecutionLease {
   final String _ownerId;
   Timer? _renewalTimer;
   Timer? _maintenanceRenewalTimer;
-  RandomAccessFile? _processLockFile;
+  Timer? _maintenanceMarkerHeartbeatTimer;
+  File? _maintenanceMarkerFile;
   bool _held = false;
   bool _maintenanceHeld = false;
 
@@ -42,29 +62,29 @@ class SyncExecutionLease {
   Future<bool> acquireMaintenance() async {
     if (_maintenanceHeld) return true;
     final deadline = DateTime.now().add(_acquisitionTimeout);
-    final processLockFile = await _resolveProcessLockFile();
+    final marker = await _resolveMaintenanceMarkerFile();
     while (true) {
-      RandomAccessFile? lock;
-      if (processLockFile != null) {
-        lock = await _tryAcquireProcessLock(processLockFile, shared: false);
-        if (lock == null) {
-          if (!DateTime.now().isBefore(deadline)) return false;
-          await Future<void>.delayed(const Duration(milliseconds: 100));
-          continue;
-        }
+      if (marker != null && !await _tryAcquireMaintenanceMarker(marker)) {
+        if (!DateTime.now().isBefore(deadline)) return false;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        continue;
       }
 
       final acquired = await _tryAcquireMaintenance();
       if (acquired) {
         _maintenanceHeld = true;
-        _processLockFile = lock;
+        _maintenanceMarkerFile = marker;
         _maintenanceRenewalTimer ??= Timer.periodic(
           _renewInterval,
           (_) => unawaited(_renewMaintenance()),
         );
+        _maintenanceMarkerHeartbeatTimer ??= Timer.periodic(
+          _renewInterval,
+          (_) => unawaited(_touchMaintenanceMarker()),
+        );
         return true;
       }
-      if (lock != null) await _releaseProcessLock(lock);
+      if (marker != null) await _releaseMaintenanceMarker(marker);
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
@@ -85,7 +105,9 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
-      await _releaseHeldProcessLock();
+      _maintenanceMarkerHeartbeatTimer?.cancel();
+      _maintenanceMarkerHeartbeatTimer = null;
+      await _releaseHeldMaintenanceMarker();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -99,6 +121,8 @@ class SyncExecutionLease {
   Future<void> releaseMaintenanceOn(AppDatabase db) async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
+    _maintenanceMarkerHeartbeatTimer?.cancel();
+    _maintenanceMarkerHeartbeatTimer = null;
     if (!_maintenanceHeld) return;
     try {
       await (db.delete(db.syncRuntimeLeases)
@@ -108,15 +132,17 @@ class SyncExecutionLease {
           .go();
     } finally {
       _maintenanceHeld = false;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
     }
   }
 
   /// Stops renewing the SQLite maintenance row while the live database
   /// connection is deliberately closed for a physical file replacement.
   ///
-  /// The sidecar FileLock remains held. That is the cross-process invariant
-  /// that survives replacement of the SQLite database file itself.
+  /// The sidecar marker heartbeat deliberately continues. The SQLite row
+  /// cannot be renewed after the connection closes, but the filesystem marker
+  /// remains the cross-process invariant that survives replacement of the
+  /// database file itself.
   void suspendMaintenanceRenewalForDatabaseReplacement() {
     if (!_maintenanceHeld) {
       throw StateError('Cannot suspend a maintenance fence that is not held.');
@@ -128,6 +154,8 @@ class SyncExecutionLease {
   Future<void> releaseMaintenance() async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
+    _maintenanceMarkerHeartbeatTimer?.cancel();
+    _maintenanceMarkerHeartbeatTimer = null;
     if (!_maintenanceHeld) return;
     try {
       await (_db.delete(_db.syncRuntimeLeases)
@@ -137,7 +165,7 @@ class SyncExecutionLease {
           .go();
     } finally {
       _maintenanceHeld = false;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
     }
   }
 
@@ -145,30 +173,23 @@ class SyncExecutionLease {
     if (_held) return true;
 
     final deadline = DateTime.now().add(_acquisitionTimeout);
-    final processLockFile = await _resolveProcessLockFile();
+    final marker = await _resolveMaintenanceMarkerFile();
     while (true) {
-      RandomAccessFile? lock;
-      if (processLockFile != null) {
-        lock = await _tryAcquireProcessLock(processLockFile, shared: true);
-        if (lock == null) {
-          if (!DateTime.now().isBefore(deadline)) return false;
-          await Future<void>.delayed(const Duration(milliseconds: 100));
-          continue;
-        }
+      if (marker != null && await _maintenanceMarkerExists(marker)) {
+        if (!DateTime.now().isBefore(deadline)) return false;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        continue;
       }
 
       final acquired = await _tryAcquire();
       if (acquired) {
         _held = true;
-        _processLockFile = lock;
         _renewalTimer ??= Timer.periodic(
           _renewInterval,
           (_) => unawaited(_renew()),
         );
         return true;
       }
-      if (lock != null) await _releaseProcessLock(lock);
-
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
@@ -193,7 +214,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -258,7 +279,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
       throw const SyncExecutionLeaseLost();
     }
   }
@@ -278,54 +299,84 @@ class SyncExecutionLease {
           .go();
     } finally {
       _held = false;
-      await _releaseHeldProcessLock();
+      await _releaseHeldMaintenanceMarker();
     }
   }
 
-  Future<File?> _resolveProcessLockFile() async {
-    // Resolve the actual SQLite file through the open connection rather than
-    // path_provider. This keeps the lease usable by pure in-memory tests and
-    // by temporary file-backed databases without requiring Flutter bindings.
+  Future<File?> _resolveMaintenanceMarkerFile() async {
     final rows = await _db.customSelect('PRAGMA database_list').get();
     if (rows.isEmpty) return null;
     final dbPath = rows.first.data['file'];
-    if (dbPath is! String || dbPath.isEmpty) {
-      // In-memory SQLite has no filesystem identity. Its existing SQLite lease
-      // remains the synchronization mechanism; the external fence is only
-      // needed when a real database file can be replaced.
-      return null;
-    }
-    return File('$dbPath.sync-runtime.lock');
+    if (dbPath is! String || dbPath.isEmpty) return null;
+    return File('$dbPath.sync-runtime.maintenance');
   }
 
-  Future<RandomAccessFile?> _tryAcquireProcessLock(
-    File lockFile, {
-    required bool shared,
-  }) async {
-    final handle = await lockFile.open(mode: FileMode.append);
+  /// Dart FileLock is advisory and process-scoped on Linux/Android, so
+  /// separate isolates in the same app process can both acquire an exclusive
+  /// lock. The marker uses the filesystem namespace itself: exclusive file
+  /// creation is atomic and its existence is visible to every isolate/process,
+  /// including a new connection after the SQLite file has been replaced.
+  Future<bool> _tryAcquireMaintenanceMarker(File marker) async {
     try {
-      await handle.lock(shared ? FileLock.shared : FileLock.exclusive);
-      return handle;
+      await marker.create(exclusive: true);
+      await marker.writeAsString(
+        'owner=$_ownerId\ncreated=${DateTime.now().toUtc().toIso8601String()}\n',
+        flush: true,
+      );
+      _maintenanceMarkerFile = marker;
+      return true;
+    } on PathExistsException {
+      try {
+        final age = DateTime.now().difference(await marker.lastModified());
+        if (age > const Duration(minutes: 10)) {
+          await marker.delete();
+          return false;
+        }
+      } catch (_) {}
+      return false;
     } on FileSystemException {
-      await handle.close();
-      return null;
+      return false;
     }
   }
 
-  Future<void> _releaseProcessLock(RandomAccessFile handle) async {
+  Future<bool> _maintenanceMarkerExists(File marker) async {
     try {
-      await handle.unlock();
-    } finally {
-      await handle.close();
+      if (!await marker.exists()) return false;
+      final age = DateTime.now().difference(await marker.lastModified());
+      if (age > const Duration(minutes: 10)) {
+        await marker.delete();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return true;
     }
   }
 
-  Future<void> _releaseHeldProcessLock() async {
-    final handle = _processLockFile;
-    _processLockFile = null;
-    if (handle != null) {
-      await _releaseProcessLock(handle);
+  Future<void> _releaseMaintenanceMarker(File marker) async {
+    try {
+      if (await marker.exists()) {
+        final contents = await marker.readAsString();
+        final ownerLine = contents
+            .split('\n')
+            .firstWhere(
+              (line) => line.startsWith('owner='),
+              orElse: () => '',
+            );
+        if (ownerLine == 'owner=$_ownerId') {
+          await marker.delete();
+        }
+      }
+    } catch (_) {}
+    if (identical(_maintenanceMarkerFile, marker)) {
+      _maintenanceMarkerFile = null;
     }
+  }
+
+  Future<void> _releaseHeldMaintenanceMarker() async {
+    final marker = _maintenanceMarkerFile;
+    _maintenanceMarkerFile = null;
+    if (marker != null) await _releaseMaintenanceMarker(marker);
   }
 
   Duration get _renewInterval {
@@ -429,6 +480,18 @@ class SyncExecutionLease {
     });
   }
 
+  Future<void> _touchMaintenanceMarker() async {
+    final marker = _maintenanceMarkerFile;
+    if (!_maintenanceHeld || marker == null) return;
+    try {
+      await marker.setLastModified(DateTime.now());
+    } catch (_) {
+      // Do not silently remove the fence on a transient filesystem error.
+      // The owner still has the SQLite maintenance lease while the DB is open;
+      // during replacement the marker itself remains the only physical fence.
+    }
+  }
+
   Future<void> _renewMaintenance() async {
     if (!_maintenanceHeld) return;
     final updated = await (_db.update(_db.syncRuntimeLeases)
@@ -442,7 +505,7 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
-      unawaited(_releaseHeldProcessLock());
+      unawaited(_releaseHeldMaintenanceMarker());
     }
   }
 
@@ -463,7 +526,7 @@ class SyncExecutionLease {
       _held = false;
       _renewalTimer?.cancel();
       _renewalTimer = null;
-      unawaited(_releaseHeldProcessLock());
+      unawaited(_releaseHeldMaintenanceMarker());
     }
   }
 }

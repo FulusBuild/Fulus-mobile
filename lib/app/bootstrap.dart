@@ -54,10 +54,10 @@ import '../data/remote/endpoints/expense_categories_api.dart';
 import '../data/remote/endpoints/expenses_api.dart';
 import '../data/remote/endpoints/income_api.dart';
 import '../data/remote/endpoints/locations_api.dart';
-import '../data/remote/endpoints/products_api.dart';
 import '../data/remote/endpoints/returns_api.dart';
 import '../data/remote/endpoints/sales_api.dart';
 import '../data/remote/endpoints/stock_movements_api.dart';
+import '../data/remote/endpoints/products_api.dart';
 import '../data/remote/endpoints/suppliers_api.dart';
 import '../data/repositories/approval_pin_repository_impl.dart';
 import '../data/repositories/audit_repository_impl.dart';
@@ -121,9 +121,11 @@ import '../sync/sync_status_notifier.dart';
 import '../sync/sync_triggers.dart';
 import '../sync/sync_service.dart';
 import 'providers.dart';
+import 'restore_restart_gate.dart';
 
 Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}) async {
   var database = AppDatabase.open();
+  final restoreRestartState = RestoreRestartState();
   diagnosticLogger.attachStore(DriftDiagnosticStore(database));
   unawaited(diagnosticLogger.applyRetentionPolicy());
   final secureStorage = SecureStorage();
@@ -151,6 +153,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     businessContext: fulusBusinessContext,
     deviceRegistration: fulusDeviceRegistration,
     staffAccessApi: fulusStaffAccessApi,
+  );
+  diagnosticLogger.setBusinessIdProvider(
+    () => fulusConnectionState.selectedBusinessId,
   );
   final authApi = AuthApi(apiClient);
   late final SyncTriggers syncTriggers;
@@ -206,7 +211,12 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
           ? null
           : syncCursorStore.cursorFor(businessId);
     },
-    actorUserIdProvider: () => authRepository.currentUser?.id,
+    // Outbox actor identity is the Supabase Auth UID, not the local Users.localId.
+    // FulusSyncApi uses this durable actor key to select the per-user refresh
+    // token, so persisting the local ULID here would make background sync
+    // unable to authenticate as the queued actor. Legacy rows are repaired
+    // separately once cloud identity is available.
+    actorUserIdProvider: () => apiClient.activeCloudUserId,
   );
 
   final employeeRepository = EmployeeRepositoryImpl(
@@ -224,7 +234,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseRepository = ExpenseRepositoryImpl(db: database, syncQueue: syncQueue, auditRepository: auditRepository);
   final incomeRecordRepository = IncomeRecordRepositoryImpl(db: database, syncQueue: syncQueue);
   final stockMovementRepository = StockMovementRepositoryImpl(db: database, syncQueue: syncQueue);
-  final productRepository = ProductRepositoryImpl(db: database, productsApi: productsApi, syncQueue: syncQueue, executionLease: syncExecutionLease);
+  final productRepository = ProductRepositoryImpl(db: database, syncQueue: syncQueue);
   final draftCartRepository = DraftCartRepositoryImpl(db: database, productRepository: productRepository, saleRepository: saleRepository, syncQueue: syncQueue, diagnosticLogger: diagnosticLogger);
 
   fulusConnectionState.setBusinessSwitchGuard(
@@ -356,7 +366,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
                         change.entityId == item.change.entityId,
                   ))
               .toList(growable: false);
-      await canonicalReconciler.applyPreparedChanges(preparedChanges);
+      // Preserve the exact ordered change that fails while retaining one
+      // SQLite transaction for the whole prepared page.
+      for (final item in preparedChanges) {
+        try {
+          await canonicalReconciler.applyPreparedChanges([item]);
+        } catch (error) {
+          throw SyncCanonicalChangeApplyFailure(item.change, error);
+        }
+      }
     },
     shouldApplyChange: (change) async {
       return !(await syncQueue.hasPendingMutationForServerEntity(
@@ -370,6 +388,16 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       // checks and canonical reconciliation, fencing lease takeover from the
       // entire apply transaction.
       await syncExecutionLease.ensureHeldForTransaction();
+      final selectedBusinessId = fulusConnectionState.selectedBusinessId;
+      if (selectedBusinessId == null) {
+        throw StateError('Fulus Cloud business context is not ready for canonical reconciliation.');
+      }
+      final binding = await (database.select(database.localCloudBindings)
+            ..where((row) => row.id.equals('singleton')))
+          .getSingleOrNull();
+      if (binding == null || binding.businessId != selectedBusinessId) {
+        throw StateError('Local database is bound to a different Fulus Cloud business.');
+      }
       await action();
     }),
   );
@@ -377,7 +405,9 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final legacyQueueActorRepair = LegacyQueueActorRepair(
     database,
-    actorUserIdProvider: () => authRepository.currentUser?.id,
+    // Legacy queue rows must be repaired into the same cloud UID namespace
+    // used by FulusSyncApi, never the local Users.localId namespace.
+    actorUserIdProvider: () => apiClient.activeCloudUserId,
   );
 
   final syncEngine = SyncEngine(
@@ -434,7 +464,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
 
   final notificationRepository = NotificationRepositoryImpl(db: database);
   final notificationService = NotificationService(notificationRepository: notificationRepository);
-  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences, cursorStore: syncCursorStore);
+  final syncStatusNotifier = SyncStatusNotifier(db: database, syncConfig: syncConfig, notificationService: notificationService, preferences: syncPreferences, cursorStore: syncCursorStore, diagnosticLogger: diagnosticLogger);
   final syncBootstrapCoordinator = CloudSyncBootstrapCoordinator(
     database,
     executionLease: syncExecutionLease,
@@ -542,10 +572,6 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     // when that location has not previously been hydrated on this device.
     // Reuse the existing product endpoint/repository path for that targeted
     // hydration instead of inventing a second sync mechanism.
-    onContextChangeReconciled: () async {
-      if (!syncConfig.isEnabled) return;
-      await productRepository.hydrateActiveLocationStockFromServer();
-    },
     onDeviceAuthorizationLost: () async {
       fulusConnectionState.clearRegisteredDevice();
       syncService.markNotReady();
@@ -645,8 +671,20 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   // Keep the CSV import use case in the root provider container.
   // This is intentionally wired here because the provider has no default implementation.
   final receiptRepository = ReceiptRepositoryImpl(db: database);
-  final appDatabaseLifecycle = AppDatabaseLifecycle(getDatabase: () => database, onReopened: (fresh) => database = fresh);
-  final backupRepository = BackupRepositoryImpl(lifecycle: appDatabaseLifecycle);
+  final appDatabaseLifecycle = AppDatabaseLifecycle(
+    getDatabase: () => database,
+    onReopened: (fresh) => database = fresh,
+    onMaintenanceClosed: restoreRestartState.requireRestart,
+  );
+  final backupRepository = BackupRepositoryImpl(
+    lifecycle: appDatabaseLifecycle,
+    database: database,
+    boundBusinessIdProvider: () async =>
+        (await database.select(database.localCloudBindings).getSingleOrNull())?.businessId,
+    probeReopenedDatabase: () async {
+      await database.customSelect('SELECT 1 FROM locations LIMIT 1').get();
+    },
+  );
   final dashboardRepository = DashboardRepositoryImpl(db: database);
   final reportsRepository = ReportsRepositoryImpl(db: database);
 
@@ -705,6 +743,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
       employeeRepositoryProvider.overrideWithValue(employeeRepository),
       receiptRepositoryProvider.overrideWithValue(receiptRepository),
       backupRepositoryProvider.overrideWithValue(backupRepository),
+      restoreRestartStateProvider.overrideWith((_) => restoreRestartState),
       dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
       reportsRepositoryProvider.overrideWithValue(reportsRepository),
       fulusBusinessContextProvider.overrideWithValue(fulusBusinessContext),

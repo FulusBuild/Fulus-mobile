@@ -324,7 +324,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: { code: "AUTHORIZATION_CHECK_FAILED", message: "Unable to resolve employee access" } }, 500);
     }
     if (!membership) {
-      return json({ error: { code: "FORBIDDEN", message: "You are not an active member of this business" } }, 403);
+      return json({ error: { code: "NOT_ACTIVE_MEMBER", message: "You are not an active member of this business" } }, 403);
     }
 
     const roleName = (membership.roles as { name?: string } | null)?.name ?? "employee";

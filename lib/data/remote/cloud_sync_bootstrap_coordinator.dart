@@ -19,7 +19,10 @@ class CloudSyncBootstrapCoordinator {
   final AppDatabase _db;
   final SyncExecutionLease _executionLease;
 
-  Future<int> bootstrap({required Map<String, dynamic> snapshot}) async {
+  Future<int> bootstrap({
+    required Map<String, dynamic> snapshot,
+    required String businessId,
+  }) async {
     final boundary = snapshot['sync_boundary'];
     if (boundary is! num || boundary.toInt() < 0) {
       throw const FormatException('Fulus Cloud bootstrap snapshot has no valid sync boundary.');
@@ -79,6 +82,21 @@ class CloudSyncBootstrapCoordinator {
         ownerCloudUserId: ownerId,
         transactional: false,
         preserveUnexportedLocalTables: true,
+      );
+
+      final snapshotBusiness = snapshot['business'];
+      final snapshotBusinessId = snapshotBusiness is Map
+          ? snapshotBusiness['id']?.toString()
+          : null;
+      if (snapshotBusinessId == null || snapshotBusinessId != businessId) {
+        throw StateError('Cloud restore snapshot is bound to a different business.');
+      }
+      await _db.into(_db.localCloudBindings).insertOnConflictUpdate(
+        LocalCloudBindingsCompanion.insert(
+          id: 'singleton',
+          businessId: snapshotBusinessId,
+          updatedAt: DateTime.now(),
+        ),
       );
 
       // users/sessions are device-local authentication state and are not part

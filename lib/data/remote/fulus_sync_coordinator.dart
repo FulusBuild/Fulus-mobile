@@ -1,5 +1,17 @@
+import 'dart:math';
+
+import '../../sync/sync_error.dart';
 import '../local/sync_cursor_store.dart';
 import 'fulus_sync_api.dart';
+
+/// Lets the production batched apply path report exactly which ordered
+/// canonical change failed without weakening the single local transaction.
+class SyncCanonicalChangeApplyFailure implements Exception {
+  const SyncCanonicalChangeApplyFailure(this.change, this.cause);
+
+  final FulusSyncChange change;
+  final Object cause;
+}
 
 /// Owns the durable server change cursor and applies server changes before
 /// advancing that cursor. A process death can therefore replay a change, but
@@ -15,7 +27,12 @@ class FulusSyncCoordinator {
     Future<Object> Function(List<FulusSyncChange> changes)? prepareChanges,
     Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? applyPreparedChanges,
     Future<bool> Function(String businessId, int cursor)? persistCursor,
+    this.maxAutomaticBlockedAttempts = 5,
+    this.blockedRetryBaseDelay = const Duration(seconds: 30),
+    this.blockedRetryMaxDelay = const Duration(minutes: 15),
+    DateTime Function()? now,
   })  : _api = api,
+        _now = now ?? DateTime.now,
         _cursorStore = cursorStore,
         _applyChange = applyChange,
         _applyChanges = applyChanges,
@@ -34,19 +51,56 @@ class FulusSyncCoordinator {
   final Future<Object> Function(List<FulusSyncChange> changes)? _prepareChanges;
   final Future<void> Function(Object preparedChanges, List<FulusSyncChange> applicable)? _applyPreparedChanges;
   final Future<bool> Function(String businessId, int cursor)? _persistCursorOverride;
+  final DateTime Function() _now;
+  final Random _random = Random();
+
+  /// Operational default only; the safety invariant is independent of this value.
+  final int maxAutomaticBlockedAttempts;
+  final Duration blockedRetryBaseDelay;
+  final Duration blockedRetryMaxDelay;
 
   int cursorFor(String businessId) => _cursorStore.cursorFor(businessId);
+
+  SyncBlockedChange? blockedChangeFor(String businessId) =>
+      _cursorStore.blockedChangeFor(businessId);
+
+  /// Explicit operator/recovery lever. It does not acknowledge or skip the
+  /// blocked change; it only permits one more normal attempt.
+  Future<void> releaseBlockedChangeForRetry(String businessId) =>
+      _cursorStore.clearBlockedChange(businessId);
 
   Future<int> pullAndApply({
     required String businessId,
     int batchSize = 100,
   }) async {
-    var cursor = cursorFor(businessId);
+    var cursor = await _cursorStore.durableCursorFor(businessId);
+    final blocked = _cursorStore.blockedChangeFor(businessId);
+    if (blocked != null && blocked.sequence <= cursor) {
+      // A process may have died after cursor acknowledgement but before the
+      // cleanup write. The durable cursor is authoritative in this case.
+      await _cursorStore.clearBlockedChange(businessId);
+    } else if (blocked != null) {
+      final retryAt = blocked.lastAttemptedAt.add(
+        _blockedBackoff(blocked.attemptCount),
+      );
+      if (blocked.attemptCount >= maxAutomaticBlockedAttempts ||
+          _now().isBefore(retryAt)) {
+        throw SyncCanonicalChangeBlocked(
+          sequence: blocked.sequence,
+          entityType: blocked.entityType,
+          entityId: blocked.entityId,
+          operation: blocked.operation,
+          attemptCount: blocked.attemptCount,
+          retryAt: retryAt,
+          exhausted: blocked.attemptCount >= maxAutomaticBlockedAttempts,
+        );
+      }
+    }
     while (true) {
       // Another runtime may have completed a newer pull while this runtime
       // was suspended. Never issue a request from a stale cursor when the
       // durable acknowledgement has already advanced.
-      cursor = _maxCursor(cursor, cursorFor(businessId));
+      cursor = _maxCursor(cursor, await _cursorStore.durableCursorFor(businessId));
       final page = await _api.pullChanges(
         businessId: businessId,
         cursor: cursor,
@@ -93,6 +147,7 @@ class FulusSyncCoordinator {
         final applyPreparedChanges = _applyPreparedChanges;
         final withApplyTransaction = _withApplyTransaction;
 
+        try {
         if (prepareChanges != null || applyPreparedChanges != null) {
           if (prepareChanges == null || applyPreparedChanges == null) {
             throw StateError(
@@ -150,6 +205,50 @@ class FulusSyncCoordinator {
             await applyPage();
           }
         }
+        } catch (error) {
+          final failure = error is SyncCanonicalChangeApplyFailure ? error : null;
+          final failedChange = failure?.change ?? unapplied.first;
+          final cause = failure?.cause ?? error;
+          if (cause is SyncFailure &&
+              (cause.shouldRetry ||
+                  cause.kind == SyncErrorKind.authExpired ||
+                  cause.kind == SyncErrorKind.permission)) {
+            rethrow;
+          }
+          final previous = _cursorStore.blockedChangeFor(businessId);
+          final changeId = _changeId(failedChange);
+          final sameChange = previous?.sequence == failedChange.sequence &&
+              previous?.changeId == changeId;
+          final attemptCount = sameChange ? previous!.attemptCount + 1 : 1;
+          final now = _now();
+          final blockedChange = SyncBlockedChange(
+            sequence: failedChange.sequence,
+            changeId: changeId,
+            entityType: failedChange.entityType,
+            entityId: failedChange.entityId,
+            operation: failedChange.operation,
+            firstSeenAt: sameChange ? previous!.firstSeenAt : now,
+            lastAttemptedAt: now,
+            attemptCount: attemptCount,
+            errorCode: cause is SyncFailure ? cause.kind.name : null,
+            errorMessage: cause.toString(),
+          );
+          await _cursorStore.recordBlockedChange(
+            businessId: businessId,
+            change: blockedChange,
+          );
+          final retryAt = now.add(_blockedBackoff(attemptCount));
+          throw SyncCanonicalChangeBlocked(
+            sequence: failedChange.sequence,
+            entityType: failedChange.entityType,
+            entityId: failedChange.entityId,
+            operation: failedChange.operation,
+            attemptCount: attemptCount,
+            retryAt: retryAt,
+            exhausted: attemptCount >= maxAutomaticBlockedAttempts,
+            cause: cause,
+          );
+        }
         // A change intentionally held behind a pending local mutation is still
         // acknowledged in the feed. Its authoritative state is recovered by
         // the eventual push result or explicit conflict resolution. Leaving the
@@ -159,12 +258,13 @@ class FulusSyncCoordinator {
           cursor = _maxCursor(cursor, change.sequence);
           await _persistCursor(businessId, cursor);
         }
+        await _cursorStore.clearBlockedChange(businessId);
         cursor = _maxCursor(cursor, cursorFor(businessId));
       }
 
       if (!page.hasMore) return cursor;
       if (unapplied.isEmpty) {
-        final durableCursor = cursorFor(businessId);
+        final durableCursor = await _cursorStore.durableCursorFor(businessId);
         if (durableCursor > cursor) {
           cursor = durableCursor;
           continue;
@@ -191,9 +291,11 @@ class FulusSyncCoordinator {
       if (!persisted) {
         throw StateError('Failed to persist the Cloud Sync snapshot boundary cursor.');
       }
+      await _cursorStore.clearBlockedChange(businessId);
       return;
     }
     await _cursorStore.setAuthoritative(businessId, cursor);
+    await _cursorStore.clearBlockedChange(businessId);
   }
 
   Future<void> _persistCursor(String businessId, int cursor) async {
@@ -201,7 +303,7 @@ class FulusSyncCoordinator {
     // acknowledgement monotonic so an older suspended pull can never move a
     // newer durable cursor backwards after another runtime has progressed.
     if (_persistCursorOverride != null) {
-      final current = cursorFor(businessId);
+      final current = await _cursorStore.durableCursorFor(businessId);
       if (current >= cursor) return;
       final persisted = await _persistCursorOverride(businessId, cursor);
       if (!persisted) {
@@ -213,6 +315,25 @@ class FulusSyncCoordinator {
   }
 
   int _maxCursor(int a, int b) => a >= b ? a : b;
+
+  Duration _blockedBackoff(int attemptCount) {
+    final exponent = attemptCount <= 1 ? 0 : attemptCount - 1;
+    final seconds = blockedRetryBaseDelay.inSeconds * (1 << exponent);
+    final cap = Duration(
+      seconds: seconds > blockedRetryMaxDelay.inSeconds
+          ? blockedRetryMaxDelay.inSeconds
+          : seconds,
+    );
+    if (cap == Duration.zero) return Duration.zero;
+    // Full jitter spreads devices that observed the same canonical failure
+    // instead of making them wake and retry at the same deterministic instant.
+    return Duration(
+      milliseconds: _random.nextInt(cap.inMilliseconds + 1),
+    );
+  }
+
+  String _changeId(FulusSyncChange change) =>
+      '${change.sequence}:${change.entityType}:${change.entityId}:${change.operation}';
 
   Future<void> resetCursor(String businessId) => _cursorStore.reset(businessId);
 }

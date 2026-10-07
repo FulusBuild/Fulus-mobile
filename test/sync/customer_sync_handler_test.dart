@@ -78,6 +78,31 @@ void main() {
     expect(submittedPayloads['customer.create']?['credit_limit'], '300.00');
   });
 
+  test('serializes a null credit limit as a decimal money string', () async {
+    final customer = await customerRepository.createCustomer(
+      const CustomerDraft(name: 'No Credit Limit', phone: '+2348000000000'),
+    );
+    stubCloudAuthorization();
+    Map<String, dynamic>? submittedPayload;
+    when(() => fulusSyncApi.submitOperation(
+          businessId: any(named: 'businessId'),
+          operationType: any(named: 'operationType'),
+          operationId: any(named: 'operationId'),
+          deviceClientId: any(named: 'deviceClientId'),
+          clientReference: any(named: 'clientReference'),
+          payload: any(named: 'payload'),
+        )).thenAnswer((invocation) async {
+      submittedPayload = Map<String, dynamic>.from(
+        invocation.namedArguments[#payload] as Map,
+      );
+      return {'data': {'entity_id': 'server-customer-null-limit'}};
+    });
+
+    await handler.sync(queueItemFor(customer));
+
+    expect(submittedPayload?['credit_limit'], '0.00');
+  });
+
   test('archives an offline-created customer after cloud create', () async {
     final customer = await customerRepository.createCustomer(
       CustomerDraft(name: 'Offline Archived', phone: '+2348000000000', creditLimit: moneyFromMajor(300)),

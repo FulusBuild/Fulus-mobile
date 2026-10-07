@@ -59,14 +59,20 @@ class LocationRepositoryImpl implements LocationRepository {
 
   @override
   Future<Location> getOrCreateDefaultLocation({required String name}) async {
-    final query = _db.select(_db.locations)
-      ..where((l) => l.deletedAt.isNull())
-      ..orderBy([(l) => OrderingTerm.asc(l.createdAt)])
-      ..limit(1);
-    final existing = await query.getSingleOrNull();
-    if (existing != null) return existing.toDomain();
+    return _db.transaction(() async {
+      final query = _db.select(_db.locations)
+        ..where((l) => l.deletedAt.isNull())
+        ..orderBy([(l) => OrderingTerm.asc(l.createdAt)])
+        ..limit(1);
+      final existing = await query.getSingleOrNull();
+      if (existing != null) return existing.toDomain();
 
-    return createLocation(LocationDraft(name: name));
+      final localId = Ulid().toString();
+      final location = LocationDraft(name: name).toLocationEntity(localId: localId);
+      await _db.into(_db.locations).insert(location.toDriftCompanion());
+      await _syncQueue.enqueue(SyncTask.createLocation(localId));
+      return location;
+    });
   }
 
   @override

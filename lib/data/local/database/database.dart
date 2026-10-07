@@ -155,6 +155,7 @@ part 'database.g.dart';
     SyncQueueItems,
     SyncConflictRecords,
     SyncRuntimeLeases,
+    LocalCloudBindings,
     SyncCursors,
     BusinessSettings,
     AuditLogs,
@@ -207,10 +208,14 @@ class AppDatabase extends _$AppDatabase {
   /// of sync with this one.
   static Future<String> resolveDatabasePath() => resolveDatabaseFilePath();
 
-  /// Schema v21 makes the two repository-level cardinality invariants database-enforced.
-  /// The migration preflights duplicates rather than silently discarding business state.
+  /// Schema v23 persists the local cloud-business binding inside SQLite.
+  /// Schema v22 persists a canonical-change failure barrier alongside the
+  /// business cursor. The cursor and blocked change therefore survive process
+  /// death as one durable synchronization state.
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 23;
+
+  static const int schemaVersionForRestoreValidation = 23;
 
   @override
   MigrationStrategy get migration {
@@ -332,6 +337,25 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
         }
+        if (from < 22) {
+          // Durable canonical-change poison/barrier metadata was added to
+          // SyncCursors in v22. The table already exists on every v21 install;
+          // add the columns explicitly for upgrades from the pre-barrier schema.
+          await m.addColumn(syncCursors, syncCursors.blockedSequence);
+          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
+          await m.addColumn(syncCursors, syncCursors.blockedOperation);
+          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
+          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
+          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
+        }
+        if (from < 23) {
+          await m.createTable(localCloudBindings);
+        }
+
         if (from < 21) {
           final duplicateDraftCarts = await customSelect(
             'SELECT location_id, COUNT(*) AS count '
@@ -627,6 +651,19 @@ class AppDatabase extends _$AppDatabase {
           // the separate SharedPreferences durability boundary.
           await m.createTable(syncCursors);
         }
+        if (from < 22) {
+          await m.addColumn(syncCursors, syncCursors.blockedSequence);
+          await m.addColumn(syncCursors, syncCursors.blockedChangeId);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityType);
+          await m.addColumn(syncCursors, syncCursors.blockedEntityId);
+          await m.addColumn(syncCursors, syncCursors.blockedOperation);
+          await m.addColumn(syncCursors, syncCursors.blockedFirstSeenAt);
+          await m.addColumn(syncCursors, syncCursors.blockedLastAttemptedAt);
+          await m.addColumn(syncCursors, syncCursors.blockedAttemptCount);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorCode);
+          await m.addColumn(syncCursors, syncCursors.blockedErrorMessage);
+        }
+
         if (from < 11) {
           // Perf pass: sale_items has no index on sale_local_id, so
           // every "get the line items for this sale" lookup — receipt

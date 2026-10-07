@@ -64,6 +64,11 @@ class DiagnosticLogger {
   final DiagnosticRedactor _redactor;
   final FallbackDiagnosticStore _fallbackStore;
   final DeviceContextProvider _deviceContextProvider;
+  String? Function()? _businessIdProvider;
+
+  void setBusinessIdProvider(String? Function()? provider) {
+    _businessIdProvider = provider;
+  }
 
   /// Truncation bound for a captured stack trace — generous enough to
   /// keep real value (a truncated trace still shows where the failure
@@ -157,6 +162,34 @@ class DiagnosticLogger {
   /// header comment. A call site that has just caught an exception and
   /// needs to rethrow it should do `unawaited(logger.captureError(...));
   /// rethrow;`, not block the user-facing error path on disk I/O.
+  Future<void> captureInfo({
+    required DiagnosticCategory category,
+    required String title,
+    required String message,
+    Map<String, String>? technicalContext,
+  }) async {
+    try {
+      final businessId = _businessIdProvider?.call();
+      final context = <EvidenceItem>[
+        ...?technicalContext?.entries.map((e) => EvidenceItem(e.key, e.value)),
+        if (businessId != null && businessId.isNotEmpty)
+          EvidenceItem('business_id', businessId),
+      ];
+      final event = DiagnosticEvent(
+        id: Ulid().toString(),
+        severity: DiagnosticSeverity.info,
+        category: category,
+        title: title,
+        message: message,
+        technicalContext: context,
+        device: _deviceContextProvider.current,
+      );
+      await _persist(_redactor.redactEvent(event));
+    } catch (error) {
+      _lastResortPrint('failed to capture diagnostic health event: $error');
+    }
+  }
+
   Future<DiagnosticEvent> captureError({
     required Object error,
     required StackTrace stackTrace,
@@ -185,6 +218,14 @@ class DiagnosticLogger {
       final classification = _rootCauseEngine.classify(signal);
       final resolvedSeverity = classification.severityOverride ?? severity;
 
+      final businessId = _businessIdProvider?.call();
+      final technicalEvidence = <EvidenceItem>[
+        ...?technicalContext?.entries
+            .map((e) => EvidenceItem(e.key, e.value)),
+        if (businessId != null && businessId.isNotEmpty)
+          EvidenceItem('business_id', businessId),
+      ];
+
       final event = DiagnosticEvent(
         id: Ulid().toString(),
         severity: resolvedSeverity,
@@ -199,7 +240,7 @@ class DiagnosticLogger {
         stackTrace: _truncateStackTrace(stackTrace.toString()),
         cause: classification.cause,
         evidence: classification.evidence,
-        technicalContext: technicalContext?.entries.map((e) => EvidenceItem(e.key, e.value)).toList(),
+        technicalContext: technicalEvidence,
         breadcrumbs: _breadcrumbTrail.snapshot(),
         failureStage: failureStage,
         device: _deviceContextProvider.current,
@@ -305,6 +346,14 @@ class DiagnosticLogger {
       await _primaryStore?.markViewed(id);
     } catch (_) {
       // Cosmetic only; never surface diagnostic-store failures.
+    }
+  }
+
+  Future<void> markSynced(String id) async {
+    try {
+      await _primaryStore?.markSynced(id);
+    } catch (_) {
+      // Upload bookkeeping is diagnostic-only.
     }
   }
 

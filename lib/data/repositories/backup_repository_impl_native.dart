@@ -9,6 +9,7 @@ import '../../core/errors/module_failures.dart';
 import '../../domain/entities/backup_record.dart';
 import '../../domain/repositories/backup_repository.dart';
 import '../../domain/repositories/database_lifecycle.dart';
+import '../../data/local/database/database.dart';
 import '../../domain/usecases/backup_engine.dart';
 
 /// Backend's own backup_service.py uses Python's `sqlite3.backup()` (the
@@ -28,11 +29,20 @@ import '../../domain/usecases/backup_engine.dart';
 class BackupRepositoryImpl implements BackupRepository {
   BackupRepositoryImpl({
     required DatabaseLifecycle lifecycle,
+    required AppDatabase database,
+    Future<String?> Function()? boundBusinessIdProvider,
+    Future<void> Function()? probeReopenedDatabase,
     BackupEngine engine = const BackupEngine(),
   })  : _lifecycle = lifecycle,
+        _database = database,
+        _boundBusinessIdProvider = boundBusinessIdProvider,
+        _probeReopenedDatabase = probeReopenedDatabase,
         _engine = engine;
 
   final DatabaseLifecycle _lifecycle;
+  final AppDatabase _database;
+  final Future<String?> Function()? _boundBusinessIdProvider;
+  final Future<void> Function()? _probeReopenedDatabase;
   final BackupEngine _engine;
 
   /// Backup & Restore discoverability fix: this used to resolve under
@@ -150,7 +160,15 @@ class BackupRepositoryImpl implements BackupRepository {
       throw BackupException('Backup "$fileName" not found.');
     }
 
+    final pending = await _database.select(_database.syncQueueItems).get();
+    if (pending.isNotEmpty) {
+      throw BackupException(
+        'Restore is blocked while ${pending.length} unsynced operation(s) are pending. Sync them first.',
+      );
+    }
+
     final dbPath = await _lifecycle.currentDatabasePath();
+    final currentBoundBusinessId = await _boundBusinessIdProvider?.call();
 
     String? safetyFileName;
     if (await File(dbPath).exists()) {
@@ -179,6 +197,48 @@ class BackupRepositoryImpl implements BackupRepository {
       if (result.isEmpty || result.first.values.first.toString().toLowerCase() != 'ok') {
         throw const BackupException('Backup failed SQLite integrity validation.');
       }
+
+      final versionRows = stagedDb.select('PRAGMA user_version');
+      final userVersion = versionRows.isEmpty
+          ? -1
+          : int.tryParse(versionRows.first.values.first.toString()) ?? -1;
+      if (userVersion < 0 || userVersion > AppDatabase.schemaVersionForRestoreValidation) {
+        throw BackupException(
+          'Backup schema version $userVersion is not supported by this app.',
+        );
+      }
+
+      final required = stagedDb.select(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name IN ('locations','sync_queue_items')",
+      );
+      final names = required.map((row) => row.values.first.toString()).toSet();
+      if (names.length != 2) {
+        throw const BackupException('That database is not a complete Fulus backup.');
+      }
+
+      if (currentBoundBusinessId != null && currentBoundBusinessId.isNotEmpty) {
+        final bindingTable = stagedDb.select(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name = 'local_cloud_bindings'",
+        );
+        if (bindingTable.isEmpty) {
+          throw const BackupException(
+            'That backup has no Fulus Cloud business binding and cannot replace this cloud-bound device.',
+          );
+        }
+        final bindingRows = stagedDb.select(
+          "SELECT business_id FROM local_cloud_bindings WHERE id = 'singleton' LIMIT 1",
+        );
+        final stagedBusinessId =
+            bindingRows.isEmpty ? null : bindingRows.first.values.first?.toString();
+        if (stagedBusinessId != currentBoundBusinessId) {
+          throw BackupException(
+            'That backup belongs to a different Fulus business and cannot replace this device data.',
+          );
+        }
+      }
+
+      stagedDb.select('SELECT 1 FROM locations LIMIT 1');
     } finally {
       stagedDb.close();
     }
@@ -216,6 +276,7 @@ class BackupRepositoryImpl implements BackupRepository {
       // instead of leaving the app pointing at an unusable file.
       try {
         await _lifecycle.reopenAfterMaintenance();
+        await _probeReopenedDatabase?.call();
       } catch (_) {
         if (installed && await previous.exists()) {
           // The maintenance fence is still held when reopening fails. Do not

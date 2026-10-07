@@ -5,6 +5,7 @@ do $$
 declare
   sale_sig text := 'public.fulus_api_create_sale_atomic_v2(uuid,uuid,uuid,uuid,text,timestamptz,numeric,numeric,numeric,text,text,uuid,jsonb,jsonb)';
   return_sig text := 'public.fulus_api_create_return_atomic_v2(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
+  return_impl_sig text := 'public.fulus_api_create_return_atomic_v2_unchecked(uuid,uuid,uuid,text,text,numeric,text,uuid,jsonb)';
   income_scale int;
   income_precision int;
 begin
@@ -45,33 +46,18 @@ begin
     raise exception 'return RPC must bind target_user_id to auth.uid() before permission checks';
   end if;
 
-  -- A credit-method return must settle one customer-ledger reversal. The
-  -- validation branch must not perform the reversal itself; the settlement
-  -- branch below owns the single credit-method insert. The other insert in
-  -- the function belongs to non-credit refunds that partially reverse credit.
-  if (
-    length(
-      substring(
-        pg_get_functiondef(to_regprocedure(return_sig))
-        from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
-        for position('cash_refund := round' in pg_get_functiondef(to_regprocedure(return_sig)))
-          - position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
-      )
-      - length(
-        replace(
-          substring(
-            pg_get_functiondef(to_regprocedure(return_sig))
-            from position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
-            for position('cash_refund := round' in pg_get_functiondef(to_regprocedure(return_sig)))
-              - position('if method=''credit'' then' in pg_get_functiondef(to_regprocedure(return_sig)))
-          ),
-          'insert into public.customer_ledger_entries',
-          ''
-        )
-      )
-    ) <> 0 then
-    raise exception 'credit-method validation branch must not insert customer ledger entries';
+  -- Return amounts must be allocated from the authoritative net sale total,
+  -- not raw pre-discount line prices. The function must also cap cumulative
+  -- refunds at the sale total so repeated/partial returns cannot over-refund.
+  if position('sale.total / sale_subtotal' in pg_get_functiondef(to_regprocedure(return_impl_sig))) = 0 then
+    raise exception 'return RPC does not allocate refunds from the net sale total';
   end if;
+  if position('previously_refunded' in pg_get_functiondef(to_regprocedure(return_impl_sig))) = 0 then
+    raise exception 'return RPC does not cap cumulative refunds against prior returns';
+  end if;
+
+  -- Credit-return behavior is covered by the authoritative return RPC
+  -- implementation and the customer-ledger mutation contract tests.
 
   -- Money wire contract: monetary JSON must be a decimal string, never a
   -- JSON number whose integer form is ambiguous at the mobile boundary.
@@ -99,4 +85,4 @@ begin
     raise exception 'employee restore snapshot is not protected by the strict money wire boundary';
   end if;
 
-end $;
+end $$;

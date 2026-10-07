@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_api.dart';
 import 'package:fulus_mobile/data/remote/fulus_sync_coordinator.dart';
 import 'package:fulus_mobile/data/local/sync_cursor_store.dart';
+import 'package:fulus_mobile/sync/sync_error.dart';
 
 class MockFulusSyncApi extends Mock implements FulusSyncApi {}
 
@@ -48,7 +49,7 @@ void main() {
 
     await expectLater(
       coordinator.pullAndApply(businessId: 'b1'),
-      throwsA(isA<StateError>()),
+      throwsA(isA<SyncCanonicalChangeBlocked>()),
     );
 
     expect(appliedBatches, [[1, 2, 3]]);
