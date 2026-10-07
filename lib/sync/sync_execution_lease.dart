@@ -51,6 +51,7 @@ class SyncExecutionLease {
   final String _ownerId;
   Timer? _renewalTimer;
   Timer? _maintenanceRenewalTimer;
+  Timer? _maintenanceMarkerHeartbeatTimer;
   File? _maintenanceMarkerFile;
   bool _held = false;
   bool _maintenanceHeld = false;
@@ -77,6 +78,10 @@ class SyncExecutionLease {
           _renewInterval,
           (_) => unawaited(_renewMaintenance()),
         );
+        _maintenanceMarkerHeartbeatTimer ??= Timer.periodic(
+          _renewInterval,
+          (_) => unawaited(_touchMaintenanceMarker()),
+        );
         return true;
       }
       if (marker != null) await _releaseMaintenanceMarker(marker);
@@ -100,6 +105,8 @@ class SyncExecutionLease {
       _maintenanceHeld = false;
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
+      _maintenanceMarkerHeartbeatTimer?.cancel();
+      _maintenanceMarkerHeartbeatTimer = null;
       await _releaseHeldMaintenanceMarker();
       throw const SyncExecutionLeaseLost();
     }
@@ -114,6 +121,8 @@ class SyncExecutionLease {
   Future<void> releaseMaintenanceOn(AppDatabase db) async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
+    _maintenanceMarkerHeartbeatTimer?.cancel();
+    _maintenanceMarkerHeartbeatTimer = null;
     if (!_maintenanceHeld) return;
     try {
       await (db.delete(db.syncRuntimeLeases)
@@ -130,8 +139,10 @@ class SyncExecutionLease {
   /// Stops renewing the SQLite maintenance row while the live database
   /// connection is deliberately closed for a physical file replacement.
   ///
-  /// The sidecar FileLock remains held. That is the cross-process invariant
-  /// that survives replacement of the SQLite database file itself.
+  /// The sidecar marker heartbeat deliberately continues. The SQLite row
+  /// cannot be renewed after the connection closes, but the filesystem marker
+  /// remains the cross-process invariant that survives replacement of the
+  /// database file itself.
   void suspendMaintenanceRenewalForDatabaseReplacement() {
     if (!_maintenanceHeld) {
       throw StateError('Cannot suspend a maintenance fence that is not held.');
@@ -143,6 +154,8 @@ class SyncExecutionLease {
   Future<void> releaseMaintenance() async {
     _maintenanceRenewalTimer?.cancel();
     _maintenanceRenewalTimer = null;
+    _maintenanceMarkerHeartbeatTimer?.cancel();
+    _maintenanceMarkerHeartbeatTimer = null;
     if (!_maintenanceHeld) return;
     try {
       await (_db.delete(_db.syncRuntimeLeases)
@@ -467,6 +480,18 @@ class SyncExecutionLease {
     });
   }
 
+  Future<void> _touchMaintenanceMarker() async {
+    final marker = _maintenanceMarkerFile;
+    if (!_maintenanceHeld || marker == null) return;
+    try {
+      await marker.setLastModified(DateTime.now());
+    } catch (_) {
+      // Do not silently remove the fence on a transient filesystem error.
+      // The owner still has the SQLite maintenance lease while the DB is open;
+      // during replacement the marker itself remains the only physical fence.
+    }
+  }
+
   Future<void> _renewMaintenance() async {
     if (!_maintenanceHeld) return;
     final updated = await (_db.update(_db.syncRuntimeLeases)
@@ -481,11 +506,6 @@ class SyncExecutionLease {
       _maintenanceRenewalTimer?.cancel();
       _maintenanceRenewalTimer = null;
       unawaited(_releaseHeldMaintenanceMarker());
-    } else {
-      final marker = _maintenanceMarkerFile;
-      if (marker != null) {
-        unawaited(marker.setLastModified(DateTime.now()).then<void>((_) {}));
-      }
     }
   }
 
