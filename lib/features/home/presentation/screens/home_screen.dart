@@ -491,12 +491,21 @@ class _HomeMockupDashboard extends StatelessWidget {
           builder: (context, constraints) {
             final gap = AppSpacing.sm;
             final width = (constraints.maxWidth - gap) / 2;
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            // Give action tiles more vertical room as accessibility text grows.
+            // This keeps the 2x text setting usable without clipping while
+            // preserving the compact 112dp design at normal scale.
+            final tileHeight = textScale > 1.6
+                ? 144.0
+                : textScale > 1.15
+                    ? 128.0
+                    : 112.0;
             return Wrap(
               spacing: gap,
               runSpacing: gap,
               children: [
                 for (final action in actions)
-                  SizedBox(width: width, height: 112, child: action),
+                  SizedBox(width: width, height: tileHeight, child: action),
               ],
             );
           },
