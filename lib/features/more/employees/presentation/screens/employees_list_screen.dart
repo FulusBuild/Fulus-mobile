@@ -72,10 +72,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                   FulusSectionHeader(title: employees.length.toString() + ' active ' + (employees.length == 1 ? 'employee' : 'employees')),
                   const SizedBox(height: AppSpacing.xs),
                   for (var i = 0; i < employees.length; i++) ...[
-                    _EmployeeTile(
-                      employee: employees[i],
-                      onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
-                    ),
+                    _EmployeeTile(employee: employees[i]),
                     if (i < employees.length - 1) const FulusListDivider(),
                   ],
                 ],
@@ -100,44 +97,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         text: invitation,
         title: 'Invite to Fulus',
         subject: 'Fulus team invitation',
-      ),
-    );
-  }
-}
-
-class _TeamOverview extends StatelessWidget {
-  const _TeamOverview({required this.employees});
-  final List<Employee> employees;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.primary.withValues(alpha: 0.10),
-      child: SizedBox(
-        height: 128,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                FulusIcons.staff,
-                color: AppColors.primary,
-                size: AppIconSize.emphasis,
-              ),
-              const Spacer(),
-              Text(
-                employees.length.toString() +
-                    ' active ' +
-                    (employees.length == 1 ? 'employee' : 'employees'),
-                style: AppTypography.heading.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -397,13 +356,12 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
   }
 }
 
-class _EmployeeTile extends ConsumerWidget {
-  const _EmployeeTile({required this.employee, required this.onEdit});
+class _EmployeeTile extends StatelessWidget {
+  const _EmployeeTile({required this.employee});
   final Employee employee;
-  final VoidCallback onEdit;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return FulusListRow(
       onTap: () => context.pushNamed(
         'moreEmployeeDetail',
@@ -413,39 +371,6 @@ class _EmployeeTile extends ConsumerWidget {
       title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
     );
-  }
-
-  Future<void> _markToday(BuildContext context, WidgetRef ref) async {
-    final status = await showFulusBottomSheet<AttendanceStatus>(
-      context: context,
-      title: 'Mark attendance',
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final status in AttendanceStatus.values)
-            FulusListRow(
-              onTap: () => Navigator.of(context).pop(status),
-              leading: Icon(FulusIcons.check, color: AppColors.primaryOf(context)),
-              title: Text(status.name),
-            ),
-        ],
-      ),
-    );
-    if (status == null) return;
-    try {
-      await ref.read(employeeRepositoryProvider).markAttendance(
-            employeeId: employee.id,
-            date: DateTime.now(),
-            status: status,
-          );
-      if (context.mounted) {
-        showFulusSnackbar(context, message: 'Attendance marked as ${status.name}.');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't mark attendance. Try again.");
-      }
-    }
   }
 }
 class _EmployeesLoadingSkeleton extends StatelessWidget {
