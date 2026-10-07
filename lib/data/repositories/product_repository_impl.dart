@@ -6,6 +6,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/entities/product_stock_snapshot.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../sync/sync_queue.dart';
+import '../../sync/sync_execution_lease.dart';
 import '../local/database/database.dart';
 import '../local/database/tables.dart';
 import 'product_mapper.dart';
