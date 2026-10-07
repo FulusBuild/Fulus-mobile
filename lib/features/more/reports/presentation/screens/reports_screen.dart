@@ -298,8 +298,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     return FulusScreen(
       title: 'Reports',
       backgroundColor: AppColors.backgroundOf(context),
-      headerBackgroundColor: const Color(0xFF061B3A),
-      subtitle: 'Understand sales, stock, customers, money and team activity',
+
       actions: [
         FulusIconButton(icon: Icons.ios_share, tooltip: 'Export report', onPressed: _export),
       ],
