@@ -626,6 +626,18 @@ class SyncConflictRecords extends Table {
 /// across cloud businesses. Keeping it in SQLite makes the acknowledgement
 /// part of the same durable persistence system as the local projections and
 /// outbox rather than a separate preferences store.
+/// Durable identity binding for the cloud business represented by this local database.
+/// It lives inside SQLite so the binding is replaced atomically with cloud restore data.
+@DataClassName('LocalCloudBindingRow')
+class LocalCloudBindings extends Table {
+  TextColumn get id => text()();
+  TextColumn get businessId => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('SyncCursorRow')
 class SyncCursors extends Table {
   TextColumn get businessId => text()();
