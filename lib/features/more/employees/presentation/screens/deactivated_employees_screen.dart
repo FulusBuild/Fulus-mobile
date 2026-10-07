@@ -64,40 +64,11 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                       itemBuilder: (context, i) {
                         final employee = employees[i];
                         return FulusListRow(
+                          leading: FulusAvatar(name: employee.fullName),
+                          title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: employee.role == null ? null : Text(employee.role!),
+                          trailing: Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
                           onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-                          child: Row(
-                            children: [
-                              FulusAvatar(name: employee.fullName),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      employee.fullName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.body.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimaryOf(context),
-                                      ),
-                                    ),
-                                    if (employee.role != null)
-                                      Text(
-                                        employee.role!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTypography.caption.copyWith(
-                                          color: AppColors.textSecondaryOf(context),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
-                            ],
-                          ),
                         );
                       },
                     );
