@@ -79,6 +79,14 @@ class FulusSyncCoordinator {
 
   int cursorFor(String businessId) => _cursorStore.cursorFor(businessId);
 
+  SyncBlockedChange? blockedChangeFor(String businessId) =>
+      _cursorStore.blockedChangeFor(businessId);
+
+  /// Explicit operator/recovery lever. It does not acknowledge or skip the
+  /// blocked change; it only permits one more normal attempt.
+  Future<void> releaseBlockedChangeForRetry(String businessId) =>
+      _cursorStore.clearBlockedChange(businessId);
+
   Future<int> pullAndApply({
     required String businessId,
     int batchSize = 100,
