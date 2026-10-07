@@ -34,6 +34,13 @@ class SecureStorage {
 
   static const _refreshTokenKey = 'fulus_refresh_token';
   static const _userRefreshTokensKey = 'fulus_user_refresh_tokens';
+  // Each cloud identity gets its own secure-storage entry. Keeping a whole
+  // user->token map under one key requires an unlocked read/modify/write and
+  // can lose another user's rotated token when two isolates refresh different
+  // accounts concurrently. Per-user keys make each credential update atomic
+  // at the storage-key level and remove that cross-user lost-update class.
+  static String _userRefreshTokenKey(String userId) =>
+      'fulus_user_refresh_token_$userId';
   static const _approvalPinVerifiersKey = 'fulus_approval_pin_verifiers';
   static const _deviceClientIdKey = 'fulus_device_client_id';
 
@@ -49,38 +56,51 @@ class SecureStorage {
   /// Stores a Supabase refresh token for a specific Fulus account. Shared
   /// devices can hold several employee identities, so cloud credentials must
   /// follow the signed-in identity instead of one global token.
-  Future<void> setUserRefreshToken(String userId, String token) async {
-    final raw = await _storage.read(key: _userRefreshTokensKey);
-    final decoded = raw == null || raw.isEmpty
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    decoded[userId] = token;
-    await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
-  }
+  Future<void> setUserRefreshToken(String userId, String token) =>
+      _storage.write(key: _userRefreshTokenKey(userId), value: token);
 
   Future<String?> getUserRefreshToken(String userId) async {
+    final direct = await _storage.read(key: _userRefreshTokenKey(userId));
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    // One-time compatibility migration from the old shared JSON map. Reads
+    // can safely race because the legacy value is immutable from this version
+    // onward; once discovered, the token is copied into its dedicated key.
     final raw = await _storage.read(key: _userRefreshTokensKey);
     if (raw == null || raw.isEmpty) return null;
     final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
     final token = decoded[userId];
-    return token is String && token.isNotEmpty ? token : null;
+    if (token is! String || token.isEmpty) return null;
+    await _storage.write(key: _userRefreshTokenKey(userId), value: token);
+    return token;
   }
 
-  Future<void> deleteUserRefreshToken(String userId) async {
+  Future<void> deleteUserRefreshToken(String userId) =>
+      _storage.delete(key: _userRefreshTokenKey(userId));
+
+  Future<void> deleteUserRefreshTokenIfMatches(
+    String userId,
+    String expected,
+  ) async {
+    final current = await _storage.read(key: _userRefreshTokenKey(userId));
+    if (current == expected) {
+      await _storage.delete(key: _userRefreshTokenKey(userId));
+      return;
+    }
+
+    // Preserve the old compare-before-delete safety during migration. A
+    // legacy-only token is removed only if it still matches exactly; this
+    // prevents an older runtime from deleting a newer rotated credential.
     final raw = await _storage.read(key: _userRefreshTokensKey);
     if (raw == null || raw.isEmpty) return;
     final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    decoded.remove(userId);
-    await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
-  }
-
-  Future<void> deleteUserRefreshTokenIfMatches(String userId, String expected) async {
-    final raw = await _storage.read(key: _userRefreshTokensKey);
-    if (raw == null || raw.isEmpty) return;
-    final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    if (decoded[userId] != expected) return;
-    decoded.remove(userId);
-    await _storage.write(key: _userRefreshTokensKey, value: jsonEncode(decoded));
+    if (decoded[userId] == expected) {
+      decoded.remove(userId);
+      // Do not write the shared map back: doing so would reintroduce the
+      // cross-user read/modify/write race this version eliminates. The
+      // dedicated key is the authoritative store after migration.
+      await _storage.delete(key: _userRefreshTokenKey(userId));
+    }
   }
 
   Future<void> setDeviceClientId(String id) =>
