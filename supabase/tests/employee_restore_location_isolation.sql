@@ -38,11 +38,6 @@ select id, 'Restore Location B', 'RESTORE-B', 'active'
 from public.businesses
 where name = 'Employee Restore Isolation Business';
 
-insert into public.profiles (id, full_name)
-select id, 'Restore Worker'
-from auth.users
-where email = 'restore-worker@example.test';
-
 insert into _employee_restore_test_ids
 select
   (select id from auth.users where email = 'restore-owner@example.test'),
