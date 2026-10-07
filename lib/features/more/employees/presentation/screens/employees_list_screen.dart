@@ -26,9 +26,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Employees',
-      subtitle: 'People, access and attendance',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
+
       actions: [
         FulusIconButton(
           icon: FulusIcons.add,
@@ -77,7 +75,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   FulusSectionHeader(
                     title: 'Active team',
-                    subtitle: '${employees.length} ${employees.length == 1 ? 'member' : 'members'}',
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusCard(
@@ -127,26 +124,29 @@ class _TeamOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const color = Color(0xFF1473E6);
-    final foreground = AppColors.onColor(color);
     return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      color: AppColors.primary.withValues(alpha: 0.10),
       child: SizedBox(
-        height: 132,
+        height: 128,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: FulusMetricCardColumn(
-            icon: FulusIcons.staff,
-            iconColor: foreground,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Employees  ${employees.length}',
-                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
+              const Icon(
+                FulusIcons.staff,
+                color: AppColors.primary,
+                size: AppIconSize.emphasis,
               ),
-              const Text(
-                'People, access and attendance',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+              const Spacer(),
+              Text(
+                employees.length.toString() +
+                    ' active ' +
+                    (employees.length == 1 ? 'employee' : 'employees'),
+                style: AppTypography.heading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
