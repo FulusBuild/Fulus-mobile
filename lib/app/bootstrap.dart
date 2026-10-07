@@ -356,7 +356,15 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
                         change.entityId == item.change.entityId,
                   ))
               .toList(growable: false);
-      await canonicalReconciler.applyPreparedChanges(preparedChanges);
+      // Preserve the exact ordered change that fails while retaining one
+      // SQLite transaction for the whole prepared page.
+      for (final item in preparedChanges) {
+        try {
+          await canonicalReconciler.applyPreparedChanges([item]);
+        } catch (error) {
+          throw SyncCanonicalChangeApplyFailure(item.change, error);
+        }
+      }
     },
     shouldApplyChange: (change) async {
       return !(await syncQueue.hasPendingMutationForServerEntity(
