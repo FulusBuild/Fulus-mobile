@@ -497,8 +497,6 @@ class _HomeMockupDashboard extends StatelessWidget {
                 color: _HomeColors.orange,
                 icon: FulusIcons.receipt,
                 label: 'Receipts',
-                value: 'History',
-                secondary: 'view receipts',
                 onTap: () => context.goNamed('receiptHistory'),
               ),
             ),
@@ -509,8 +507,6 @@ class _HomeMockupDashboard extends StatelessWidget {
                   color: _HomeColors.purple,
                   icon: FulusIcons.customers,
                   label: 'Customer',
-                  value: 'View customers',
-                  secondary: 'view customers',
                   onTap: () => context.pushNamed('moneyCustomers'),
                 ),
               ),
@@ -614,7 +610,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
                   child: Text(
                     value,
                     maxLines: 1,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimaryOf(context),
                       fontSize: 42,
                       fontWeight: FontWeight.w900,
