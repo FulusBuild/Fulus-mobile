@@ -14,6 +14,16 @@ void main() {
 
   const locationId = 'loc-1';
 
+  Future<void> seedLocation() async {
+    await db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: locationId,
+      name: 'Main Store',
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      syncStatus: SyncStatus.settled,
+    ));
+  }
+
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     syncQueue = SyncQueue(db);
