@@ -168,7 +168,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               children: [
                                 Text(
                                   'Amount received',
-                                  style: AppTypography.label.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
+                                  style: AppTypography.label.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
                                 Container(
@@ -216,7 +216,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   _method == 'cash'
                                       ? 'Enter the cash received. Paying more than the balance shows the change due.'
                                       : 'Enter the amount paid. The remaining balance updates after each payment.',
-                                  style: AppTypography.caption.copyWith(color: Colors.white70),
+                                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                                 ),
                               ],
                             ),
@@ -478,10 +478,10 @@ class _AmountDueHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Total',
-                  style: AppTypography.caption.copyWith(color: Colors.white70),
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ),
-              Icon(FulusIcons.lock, size: AppIconSize.compact, color: Colors.white70),
+              Icon(FulusIcons.lock, size: AppIconSize.compact, color: AppColors.textSecondaryOf(context)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -533,7 +533,7 @@ class _PaymentRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: Colors.white70)),
+          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
           Flexible(
             child: Text(
               formatMoney(value, symbol: symbol),
