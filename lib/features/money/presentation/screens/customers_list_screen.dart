@@ -63,7 +63,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         ),
         data: (customers) {
           final filtered = _filter(customers);
-          final outstanding = customers.fold<Money>(zeroMoney, (sum, customer) => sum + customer.outstandingBalance);
           return LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
