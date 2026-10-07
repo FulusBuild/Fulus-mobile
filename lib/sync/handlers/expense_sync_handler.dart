@@ -71,7 +71,7 @@ class ExpenseSyncHandler implements SyncHandler {
         'category': category,
         'description': expense.description,
         'location_id': locationId,
-        'expense_date': expense.expenseDate.toIso8601String(),
+        'expense_date': expense.expenseDate.toUtc().toIso8601String(),
         if (isUpdate) 'server_id': serverId,
         if (isUpdate && item.baseCursor != null) 'base_cursor': item.baseCursor,
         if (expense.paymentMethod != null) 'payment_method': expense.paymentMethod,
