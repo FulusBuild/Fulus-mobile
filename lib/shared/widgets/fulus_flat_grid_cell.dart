@@ -24,11 +24,7 @@ class FulusFlatGridCell extends StatelessWidget {
     final foreground = AppColors.textPrimaryOf(context);
     final color = iconColor ?? AppColors.primaryOf(context);
 
-    return Semantics(
-      button: onTap != null,
-      enabled: onTap != null,
-      label: label,
-      child: FulusPressable(
+    return FulusPressable(
         onPressed: onTap,
         semanticsLabel: label,
         child: Container(
