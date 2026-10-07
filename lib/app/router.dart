@@ -836,69 +836,110 @@ class _MoreScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: [
-          tileGrid([
-            FulusFlatGridCell(
-              icon: FulusIcons.customers,
-              iconColor: AppColors.customers,
-              label: 'Customers',
-              onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.staff,
-              iconColor: AppColors.primary,
-              label: 'Employees',
-              onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.locations,
-              iconColor: AppColors.info,
-              label: 'Locations',
-              onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.settings,
-              iconColor: AppColors.primary,
-              label: 'Settings',
-              onTap: canSettings ? () => context.goNamed('moreSettings') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.reports,
-              iconColor: AppColors.reports,
-              label: 'Reports',
-              onTap: canReports ? () => context.goNamed('moreReports') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.notifications,
-              iconColor: AppColors.warning,
-              label: 'Alerts',
-              onTap: () => context.goNamed('moreNotifications'),
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.backup,
-              iconColor: AppColors.success,
-              label: 'Backup',
-              onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.sync,
-              iconColor: AppColors.info,
-              label: 'Sync',
-              onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.print,
-              iconColor: AppColors.primary,
-              label: 'Printers',
-              onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
-            ),
-            FulusFlatGridCell(
-              icon: FulusIcons.bugReport,
-              iconColor: AppColors.error,
-              label: 'Diagnostics',
-              onTap: () => context.goNamed('moreDiagnostics'),
-            ),
-          ]),
+          _MoreGroup(
+            title: 'Manage',
+            child: tileGrid([
+              FulusFlatGridCell(
+                icon: FulusIcons.customers,
+                iconColor: AppColors.customers,
+                label: 'Customers',
+                onTap: canCustomers ? () => context.pushNamed('moreCustomers') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.staff,
+                iconColor: AppColors.primary,
+                label: 'Employees',
+                onTap: canEmployees ? () => context.goNamed('moreEmployees') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.locations,
+                iconColor: AppColors.info,
+                label: 'Locations',
+                onTap: canManageSettings ? () => context.goNamed('moreSettingsLocations') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.settings,
+                iconColor: AppColors.primary,
+                label: 'Settings',
+                onTap: canSettings ? () => context.goNamed('moreSettings') : null,
+              ),
+            ]),
+          ),
+          _MoreGroup(
+            title: 'Understand',
+            child: tileGrid([
+              FulusFlatGridCell(
+                icon: FulusIcons.reports,
+                iconColor: AppColors.reports,
+                label: 'Reports',
+                onTap: canReports ? () => context.goNamed('moreReports') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.notifications,
+                iconColor: AppColors.warning,
+                label: 'Alerts',
+                onTap: () => context.goNamed('moreNotifications'),
+              ),
+            ]),
+          ),
+          _MoreGroup(
+            title: 'Tools',
+            child: tileGrid([
+              FulusFlatGridCell(
+                icon: FulusIcons.backup,
+                iconColor: AppColors.success,
+                label: 'Backup',
+                onTap: canSettings ? () => context.goNamed('moreSettingsBackup') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.sync,
+                iconColor: AppColors.info,
+                label: 'Sync',
+                onTap: canManageSettings ? () => context.goNamed('moreSyncDetail') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.print,
+                iconColor: AppColors.primary,
+                label: 'Printers',
+                onTap: canManageSettings ? () => context.pushNamed('morePrinters') : null,
+              ),
+              FulusFlatGridCell(
+                icon: FulusIcons.bugReport,
+                iconColor: AppColors.error,
+                label: 'Diagnostics',
+                onTap: () => context.goNamed('moreDiagnostics'),
+              ),
+            ]),
+          ),
           const SizedBox(height: AppSpacing.xxl),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoreGroup extends StatelessWidget {
+  const _MoreGroup({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondaryOf(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          child,
         ],
       ),
     );
