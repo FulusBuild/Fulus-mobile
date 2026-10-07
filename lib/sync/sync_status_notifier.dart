@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/errors/failure.dart';
 import '../core/notifications/notification_service.dart';
+import '../core/diagnostics/diagnostic_logger.dart';
 import '../data/local/database/database.dart';
 import '../data/local/sync_cursor_store.dart';
 import 'sync_config.dart';
@@ -48,12 +49,14 @@ class SyncStatusNotifier {
     required NotificationService notificationService,
     required SharedPreferences preferences,
     required SyncCursorStore cursorStore,
+    DiagnosticLogger? diagnosticLogger,
     this.attentionThreshold = defaultSyncAttentionThreshold,
   })  : _db = db,
         _syncConfig = syncConfig,
         _notificationService = notificationService,
         _preferences = preferences,
-        _cursorStore = cursorStore;
+        _cursorStore = cursorStore,
+        _diagnosticLogger = diagnosticLogger;
 
   final AppDatabase _db;
   final SyncConfig _syncConfig;
@@ -61,6 +64,8 @@ class SyncStatusNotifier {
   final SharedPreferences _preferences;
   final SyncCursorStore _cursorStore;
   final int attentionThreshold;
+  final DiagnosticLogger? _diagnosticLogger;
+  DateTime? _lastHealthEmissionAt;
 
   /// Tracks whether the current "stuck" episode has already produced a
   /// notification — in-memory only, deliberately not persisted. A
@@ -78,6 +83,8 @@ class SyncStatusNotifier {
   static String _pullKey(String businessId) => 'fulus_sync_last_pull_$businessId';
   static String _recoveryKey(String businessId) => 'fulus_sync_recovery_$businessId';
   static String _recoveryErrorKey(String businessId) => 'fulus_sync_recovery_error_$businessId';
+  static String _recoveryStartedKey(String businessId) => 'fulus_sync_recovery_started_$businessId';
+  static String _recoveryDurationKey(String businessId) => 'fulus_sync_recovery_duration_ms_$businessId';
 
   SyncHealthSnapshot healthFor(String businessId) => SyncHealthSnapshot(
         lastPushAt: _readDate(_preferences.getString(_pushKey(businessId))),
@@ -89,6 +96,7 @@ class SyncStatusNotifier {
 
   Future<void> markRecoveryStarted(String businessId) async {
     await _preferences.setString(_recoveryKey(businessId), 'recovering');
+    await _preferences.setString(_recoveryStartedKey(businessId), DateTime.now().toUtc().toIso8601String());
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
 
@@ -115,11 +123,21 @@ class SyncStatusNotifier {
   /// Marks stale-cursor recovery fully reconciled after the post-bootstrap
   /// delta pull has completed successfully.
   Future<void> markRecoveryCompleted(String businessId) async {
+    final started = _readDate(_preferences.getString(_recoveryStartedKey(businessId)));
+    if (started != null) {
+      await _preferences.setInt(_recoveryDurationKey(businessId), DateTime.now().toUtc().difference(started).inMilliseconds);
+    }
+    await _preferences.remove(_recoveryStartedKey(businessId));
     await _preferences.setString(_recoveryKey(businessId), 'idle');
     await _preferences.remove(_recoveryErrorKey(businessId));
   }
 
   Future<void> markRecoveryFailed(String businessId, Object error) async {
+    final started = _readDate(_preferences.getString(_recoveryStartedKey(businessId)));
+    if (started != null) {
+      await _preferences.setInt(_recoveryDurationKey(businessId), DateTime.now().toUtc().difference(started).inMilliseconds);
+    }
+    await _preferences.remove(_recoveryStartedKey(businessId));
     await _preferences.setString(_recoveryKey(businessId), 'blocked');
     final message = error is Failure ? error.message : error.toString();
     await _preferences.setString(_recoveryErrorKey(businessId), message);
@@ -223,8 +241,48 @@ class SyncStatusNotifier {
   /// since "should I show a notification right now" is a point-in-time
   /// decision, not something UI needs to react to continuously the way
   /// [watch] is.
+  Future<void> emitHealthDiagnostic(String businessId) async {
+    final logger = _diagnosticLogger;
+    if (logger == null) return;
+    final now = DateTime.now().toUtc();
+    final last = _lastHealthEmissionAt;
+    if (last != null && now.difference(last) < const Duration(minutes: 15)) return;
+    _lastHealthEmissionAt = now;
+
+    final items = await _db.select(_db.syncQueueItems).get();
+    final attention = items.where((item) => item.syncAttempts >= attentionThreshold).length;
+    final oldest = items.isEmpty
+        ? null
+        : items.map((item) => item.enqueuedAt).reduce((a, b) => a.isBefore(b) ? a : b);
+    final blocked = await _cursorStore.blockedChangeFor(businessId);
+    final lastPush = _readDate(_preferences.getString(_pushKey(businessId)));
+    final lastPull = _readDate(_preferences.getString(_pullKey(businessId)));
+    final recoveryState = _preferences.getString(_recoveryKey(businessId)) ?? 'idle';
+    final recoveryDuration = _preferences.getInt(_recoveryDurationKey(businessId));
+
+    await logger.captureInfo(
+      category: DiagnosticCategory.synchronization,
+      title: 'Sync health',
+      message: 'Periodic sync health snapshot.',
+      technicalContext: {
+        'pending_count': items.length.toString(),
+        'attention_count': attention.toString(),
+        'oldest_pending_age_seconds': oldest == null ? '0' : now.difference(oldest).inSeconds.toString(),
+        'max_attempts': items.isEmpty ? '0' : items.map((item) => item.syncAttempts).reduce((a, b) => a > b ? a : b).toString(),
+        'blocked_count': blocked == null ? '0' : '1',
+        'last_successful_push_at': lastPush?.toUtc().toIso8601String() ?? '',
+        'last_successful_pull_at': lastPull?.toUtc().toIso8601String() ?? '',
+        'last_restore_result': recoveryState,
+        'last_restore_duration_ms': recoveryDuration?.toString() ?? '',
+      },
+    );
+  }
+
   Future<void> checkForStuckSyncAndNotify() async {
     if (!_syncConfig.isEnabled) return;
+
+    final businessId = _preferences.getString('fulus_local_cloud_business_id');
+    if (businessId != null) await emitHealthDiagnostic(businessId);
 
     final items = await _db.select(_db.syncQueueItems).get();
     final attentionCount =
