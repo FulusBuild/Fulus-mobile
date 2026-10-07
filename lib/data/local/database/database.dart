@@ -215,6 +215,8 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 23;
 
+  static const int schemaVersionForRestoreValidation = 23;
+
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
