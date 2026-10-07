@@ -9,7 +9,6 @@ import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 
 void main() {
   late AppDatabase db;
