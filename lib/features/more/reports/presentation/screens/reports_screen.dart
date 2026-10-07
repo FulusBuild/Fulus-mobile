@@ -307,49 +307,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(fulusHorizontalInset(context), AppSpacing.sm, fulusHorizontalInset(context), AppSpacing.xs),
-            child: Column(
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: AppSpacing.sm,
-                  mainAxisSpacing: AppSpacing.sm,
-                  childAspectRatio: 1.35,
-                  children: [
-                    _ReportCompactCard(
-                      icon: FulusIcons.salesReport,
-                      label: 'Sales Report',
-                      color: const Color(0xFF0BBE6E),
-                      onTap: () => setState(() => _tabs.animateTo(0)),
-                    ),
-                    _ReportCompactCard(
-                      icon: FulusIcons.stockReport,
-                      label: 'Stock Report',
-                      color: const Color(0xFF1473E6),
-                      onTap: () => setState(() => _tabs.animateTo(1)),
-                    ),
-                    _ReportCompactCard(
-                      icon: FulusIcons.expenseReport,
-                      label: 'Expense Report',
-                      color: const Color(0xFFFF8C00),
-                      onTap: () => setState(() => _tabs.animateTo(3)),
-                    ),
-                    _ReportCompactCard(
-                      icon: FulusIcons.customerReport,
-                      label: 'Customer Report',
-                      color: const Color(0xFF7B3FF2),
-                      onTap: () => setState(() => _tabs.animateTo(2)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                FulusActionTile(
-                  icon: FulusIcons.staff,
-                  label: 'Team Report',
-                  subtitle: 'Attendance and employee performance',
-                  onTap: () => setState(() => _tabs.animateTo(4)),
-                ),
+                _ReportFlatCell(icon: FulusIcons.salesReport, label: 'Sales', onTap: () => setState(() => _tabs.animateTo(0))),
+                _ReportFlatCell(icon: FulusIcons.stockReport, label: 'Stock', onTap: () => setState(() => _tabs.animateTo(1))),
+                _ReportFlatCell(icon: FulusIcons.expenseReport, label: 'Expense', onTap: () => setState(() => _tabs.animateTo(3))),
+                _ReportFlatCell(icon: FulusIcons.customerReport, label: 'Customer', onTap: () => setState(() => _tabs.animateTo(2))),
+                _ReportFlatCell(icon: FulusIcons.staff, label: 'Team', onTap: () => setState(() => _tabs.animateTo(4))),
               ],
             ),
           ),
