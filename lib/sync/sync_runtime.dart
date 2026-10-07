@@ -4,6 +4,12 @@
 /// deliberately contains synchronization operations rather than lifecycle
 /// implementation details such as connectivity subscriptions, timers, leases,
 /// cursors, or handler dispatch.
+enum SyncReadinessEnsureResult {
+  alreadyReady,
+  initialized,
+  notReady,
+}
+
 abstract interface class SyncRuntime {
   Future<void> start();
   void stop();
