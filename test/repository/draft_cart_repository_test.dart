@@ -14,7 +14,6 @@ import 'package:fulus_mobile/sync/sync_queue.dart';
 import 'package:fulus_mobile/sync/sync_execution_lease.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 
 import '../helpers/db_seed_helpers.dart';
 
