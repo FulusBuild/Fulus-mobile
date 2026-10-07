@@ -118,9 +118,6 @@ class _SellScreenState extends ConsumerState<SellScreen> {
         if (locationSnapshot.connectionState != ConnectionState.done) {
           return const FulusScreen(
             title: 'Sell',
-            subtitle: 'Add products to today’s sale',
-            backgroundColor: Color(0xFF061B3A),
-            headerBackgroundColor: Color(0xFF061B3A),
             applyPadding: false,
             body: _SellLocationSkeleton(),
           );
@@ -277,9 +274,6 @@ class _SellContent extends ConsumerWidget {
 
     return FulusScreen(
       title: 'Sell',
-      subtitle: 'Add products to today’s sale',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       body: BlocBuilder<CartCubit, CartState>(
         builder: (context, state) {
@@ -365,8 +359,15 @@ class _SellContent extends ConsumerWidget {
                   },
                 ),
               ),
+              FulusButton(
+                variant: FulusButtonVariant.primary,
+                icon: FulusIcons.quickActions,
+                label: 'Quick Sale',
+                onPressed: cartReady ? () => QuickSaleSheet.show(context) : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
               SizedBox(
-                height: 48,
+                height: 44,
                 child: ListView(
                   padding: EdgeInsets.symmetric(horizontal: inset),
                   scrollDirection: Axis.horizontal,
@@ -474,60 +475,6 @@ class _ProductList extends StatelessWidget {
   }
 }
 
-class _QuickSaleTile extends StatelessWidget {
-  const _QuickSaleTile({required this.enabled});
-
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return FulusPressable(
-      onPressed: enabled ? () => QuickSaleSheet.show(context) : null,
-      semanticsLabel: 'Quick Sale. Sell something not in the catalogue.',
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.primaryOf(context),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          boxShadow: AppElevation.cardOf(context),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .16),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(FulusIcons.quickActions, color: Colors.white, size: 28),
-            ),
-            const Spacer(),
-            Text(
-              'Quick Sale',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Sell anything',
-              style: AppTypography.caption.copyWith(
-                color: Colors.white.withValues(alpha: .82),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ProductRow extends StatelessWidget {
   const _ProductRow({required this.entry, required this.currency, required this.enabled});
   final ProductWithStock entry;
@@ -547,9 +494,7 @@ class _ProductRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.borderOf(context).withValues(alpha: .7),
-          ),
+          border: null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
