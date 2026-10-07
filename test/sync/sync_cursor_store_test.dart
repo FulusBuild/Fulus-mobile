@@ -187,8 +187,8 @@ void main() {
     await reloaded.initialize();
     final persisted = reloaded.blockedChangeFor('business-1')!;
 
-    expect(persisted.firstSeenAt?.millisecondsSinceEpoch, firstSeen.millisecondsSinceEpoch);
-    expect(persisted.lastAttemptedAt?.millisecondsSinceEpoch, lastAttempted.millisecondsSinceEpoch);
+    expect(persisted.firstSeenAt.millisecondsSinceEpoch, firstSeen.millisecondsSinceEpoch);
+    expect(persisted.lastAttemptedAt.millisecondsSinceEpoch, lastAttempted.millisecondsSinceEpoch);
   });
 
 }
