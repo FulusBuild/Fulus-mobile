@@ -141,16 +141,19 @@ class _StockBody extends ConsumerWidget {
             }
 
             return CustomScrollView(
-              slivers: [                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
-                    child: FulusSearchField(
-                      controller: searchController,
-                      hintText: 'Search products, SKU, barcode…',
-                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+              slivers: [                if (lowStockCount > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FulusStatusPill(
+                          label: '$lowStockCount low',
+                          tone: FulusStatusTone.warning,
+                        ),
+                      ),
                     ),
                   ),
-                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
