@@ -156,24 +156,21 @@ class _StockBody extends ConsumerWidget {
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
                     child: Row(
                       children: [
-                        Expanded(child: FulusFlatGridCell(
+                        Expanded(child: FulusActionTile(
                           icon: FulusIcons.stockIn,
                           label: 'Stock In',
-                          iconColor: AppColors.stock,
                           onTap: () => context.pushNamed('stockRecordMovement'),
                         )),
                         const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: FulusFlatGridCell(
+                        Expanded(child: FulusActionTile(
                           icon: FulusIcons.stockMovement,
                           label: 'Movement',
-                          iconColor: AppColors.primaryOf(context),
                           onTap: () => context.pushNamed('stockHistory'),
                         )),
                         const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: FulusFlatGridCell(
+                        Expanded(child: FulusActionTile(
                           icon: FulusIcons.category,
                           label: 'Categories',
-                          iconColor: AppColors.customers,
                           onTap: () => context.pushNamed('stockCategories'),
                         )),
                       ],
