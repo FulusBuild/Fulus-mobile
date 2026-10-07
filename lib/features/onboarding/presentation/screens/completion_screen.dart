@@ -27,7 +27,7 @@ class CompletionScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-              const OnboardingStepHeader(step: 7, total: 7, title: 'Your business is ready', subtitle: 'Keep using the same clear tools as your business grows.'),
+              const OnboardingStepHeader(step: 7, total: 7, title: 'Your business is ready'),
             Center(
               child: Container(
                 width: 72,
