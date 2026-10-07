@@ -102,7 +102,7 @@ void main() {
       cursor: 1, nextCursor: 2, hasMore: false,
     ));
     final coordinator = FulusSyncCoordinator(api: api, cursorStore: SharedPreferencesSyncCursorStore(preferences), applyChange: (_) async => throw StateError('apply failed'));
-    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<StateError>()));
+    await expectLater(coordinator.pullAndApply(businessId: 'b1'), throwsA(isA<SyncCanonicalChangeBlocked>()));
     expect(preferences.getInt('fulus_sync_cursor_b1'), 1);
   });
 
