@@ -778,6 +778,9 @@ class _HomeReportCard extends StatelessWidget {
         ),
       class _HomeColors {
   static const green = AppColors.sales;
+  static const orange = AppColors.stock;
+  static const purple = AppColors.customers;
+  static const navy = AppColors.primary;
 }
 
 
