@@ -87,35 +87,34 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.selectedTintOf(context),
-                              ),
-                              child: Icon(Icons.south_west_rounded, color: AppColors.primaryOf(context)),
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.selectedTintOf(context),
                             ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Other income',
-                                    style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
-                                  ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    'Add a clear source so the entry is easy to audit later.',
-                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                                  ),
-                                ],
-                              ),
+                            child: Icon(Icons.south_west_rounded, color: AppColors.primaryOf(context)),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Other income',
+                                  style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  'Add a clear source so the entry is easy to audit later.',
+                                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Column(
