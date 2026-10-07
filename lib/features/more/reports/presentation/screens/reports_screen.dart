@@ -320,8 +320,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                     FulusFlatGridCell(icon: FulusIcons.customerReport, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _tabs.animateTo(2))),
                     FulusFlatGridCell(icon: FulusIcons.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => setState(() => _tabs.animateTo(4))),
                   ],
-                );
-              ],
+                ),
             ),
           ),
           Padding(
