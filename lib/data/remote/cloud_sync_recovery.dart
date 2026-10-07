@@ -56,7 +56,10 @@ class CloudSyncRecovery {
       }
 
       final snapshot = await _restoreApi.fetchSnapshot(businessId: businessId);
-      final boundary = await _bootstrapCoordinator.bootstrap(snapshot: snapshot);
+      final boundary = await _bootstrapCoordinator.bootstrap(
+        snapshot: snapshot,
+        businessId: businessId,
+      );
       await _onCompleted(boundary);
     } catch (error) {
       await _onFailed(error);
