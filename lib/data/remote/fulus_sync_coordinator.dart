@@ -2,14 +2,19 @@ import '../../core/errors/failure.dart';
 import '../local/sync_cursor_store.dart';
 import 'fulus_sync_api.dart';
 
-class SyncCanonicalChangeBlocked implements Exception {
+class SyncCanonicalChangeBlocked extends BusinessRuleFailure {
   const SyncCanonicalChangeBlocked({
     required this.change,
     required this.attemptCount,
     required this.retryAt,
     required this.exhausted,
     this.cause,
-  });
+  }) : super(
+          exhausted
+              ? 'Cloud backup is blocked on one server change and needs recovery.'
+              : 'Cloud backup is retrying one server change safely.',
+          code: 'SYNC_CANONICAL_BLOCKED',
+        );
 
   final FulusSyncChange change;
   final int attemptCount;
