@@ -73,6 +73,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add income',
+      subtitle: 'Record money received outside a sale',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -86,38 +87,41 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.selectedTintOf(context),
+                      FulusCard(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.selectedTintOf(context),
+                              ),
+                              child: Icon(Icons.south_west_rounded, color: AppColors.primaryOf(context)),
                             ),
-                            child: Icon(Icons.south_west_rounded, color: AppColors.primaryOf(context)),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Other income',
-                                  style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  'Add a clear source so the entry is easy to audit later.',
-                                  style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                                ),
-                              ],
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Other income',
+                                    style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    'Add a clear source so the entry is easy to audit later.',
+                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      Column(
+                      FulusCard(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             FulusTextField(
