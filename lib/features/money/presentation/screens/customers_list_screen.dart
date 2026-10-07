@@ -31,9 +31,6 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 
     return FulusScreen(
       title: 'Customers',
-      subtitle: 'Your credit book and customer relationships',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
       actions: [
         FulusIconButton(
           icon: FulusIcons.personAdd,
