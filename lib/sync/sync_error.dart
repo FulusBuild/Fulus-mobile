@@ -1,3 +1,5 @@
+import '../core/errors/failure.dart';
+
 /// Stable classification for sync failures. The queue engine uses this
 /// classification to decide whether an item should retry automatically or be
 /// surfaced for attention; UI never has to infer transport semantics from a
