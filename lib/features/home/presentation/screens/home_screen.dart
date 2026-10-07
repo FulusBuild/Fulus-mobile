@@ -44,7 +44,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<HomeHeroState> _heroFuture;
-  late Future<SecondaryNoticeSelection> _noticesFuture;
 
   @override
   void initState() {
@@ -61,22 +60,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           isOwner: showBusinessWide,
           locationId: locationId,
         ));
-    _noticesFuture = showBusinessWide
-        ? locationFuture.then((locationId) => repo.getSecondaryNotices(
-              locationId: locationId,
-              max: 3,
-            ))
-        : Future.value(
-            const SecondaryNoticeSelection(
-              shown: <SecondaryNotice>[],
-              overflowCount: 0,
-            ),
-          );
   }
 
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_heroFuture, _noticesFuture]);
+    await _heroFuture;
   }
 
   @override
@@ -126,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               _HomeHeader(
                                 businessName: ref.watch(_businessProfileProvider).value?.businessName.trim() ?? '',
                                 locationName: _activeLocationName(ref),
+                                greeting: 'Good ${_greeting()}, ${_displayName(ref)}',
                                 onSwitchLocation: widget.isOwner ? () => _showLocationSwitcher(context) : null,
                                 onSwitchAccount: () => Navigator.of(context).push<void>(
                                   MaterialPageRoute(
@@ -133,17 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.lg),
-                              Text(
-                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.heading.copyWith(
-                                  color: AppColors.textPrimaryOf(context),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-
+                              const SizedBox(height: AppSpacing.sm),
                             ],
                           ),
                         ),
@@ -153,7 +132,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         sliver: SliverToBoxAdapter(
                           child: _HomeDashboardHydration(
                             heroFuture: _heroFuture,
-                            noticesFuture: _noticesFuture,
                             currencySymbol: currencySymbol,
                             canViewDashboardStats: widget.isOwner || widget.canViewDashboardStats,
                             canViewMoney: widget.isOwner || widget.canViewMoney,
@@ -258,6 +236,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+  }
+
   String _displayName(WidgetRef ref) {
     final user = ref.watch(sessionProvider);
     final isOwner = user == null || user.role == AuthRole.owner;
@@ -270,76 +255,100 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.businessName,
     required this.locationName,
+    required this.greeting,
     required this.onSwitchLocation,
     required this.onSwitchAccount,
   });
 
   final String businessName;
   final String? locationName;
+  final String greeting;
   final VoidCallback? onSwitchLocation;
   final VoidCallback onSwitchAccount;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const FulusBrandLogo(
-          size: 56,
-          padding: 2,
-          showBackground: false,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                businessName.isEmpty ? 'Fulus' : businessName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.subheading.copyWith(
-                  color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (locationName != null && locationName!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
-                    const SizedBox(width: 4),
+        Row(
+          children: [
+            const FulusBrandLogo(
+              size: 40,
+              padding: 0,
+              showBackground: false,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      businessName.isEmpty ? 'Fulus' : businessName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.subheading.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (locationName != null && locationName!.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    Text('·', style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context))),
+                    const SizedBox(width: AppSpacing.xs),
                     Flexible(
-                      child: Text(
-                        locationName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textSecondaryOf(context),
-                          fontWeight: FontWeight.w600,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        onTap: onSwitchLocation,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(FulusIcons.locations, size: 16, color: AppColors.textSecondaryOf(context)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  locationName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.textSecondaryOf(context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (onSwitchLocation != null) ...[
+                                const SizedBox(width: 2),
+                                Icon(FulusIcons.swap, size: 16, color: AppColors.textSecondaryOf(context)),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 2),
-                    if (onSwitchLocation != null)
-                      IconButton(
-                        tooltip: 'Switch location',
-                        onPressed: onSwitchLocation,
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.all(AppSpacing.xs),
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        icon: Icon(FulusIcons.swap, size: 20, color: AppColors.textSecondaryOf(context)),
-                      ),
                   ],
-                ),
-              ],
-            ],
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            FulusIconButton(
+              icon: FulusIcons.switchAccount,
+              tooltip: 'Switch employee',
+              onPressed: onSwitchAccount,
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        FulusIconButton(
-          icon: FulusIcons.switchAccount,
-          tooltip: 'Switch employee',
-          onPressed: onSwitchAccount,
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          greeting,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.title.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -349,7 +358,6 @@ class _HomeHeader extends StatelessWidget {
 class _HomeDashboardHydration extends StatefulWidget {
   const _HomeDashboardHydration({
     required this.heroFuture,
-    required this.noticesFuture,
     required this.currencySymbol,
     required this.canViewDashboardStats,
     required this.canViewMoney,
@@ -358,7 +366,6 @@ class _HomeDashboardHydration extends StatefulWidget {
   });
 
   final Future<HomeHeroState> heroFuture;
-  final Future<SecondaryNoticeSelection> noticesFuture;
   final String currencySymbol;
   final bool canViewDashboardStats;
   final bool canViewMoney;
@@ -371,30 +378,22 @@ class _HomeDashboardHydration extends StatefulWidget {
 
 class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
   HomeHeroState? _hero;
-  SecondaryNoticeSelection? _noticeSelection;
   bool _heroError = false;
-  bool _noticesError = false;
 
   @override
   void initState() {
     super.initState();
-    // Start all independent local reads together. None waits for another
-    // FutureBuilder to build before its own future is observed.
-    widget.heroFuture.then(_setHero, onError: _setHeroError);
-    widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
-  }
+    // Start the local hero read immediately; the dashboard renders its
+    // skeleton until the repository result is ready.
+    widget.heroFuture.then(_setHero, onError: _setHeroError);  }
 
   @override
   void didUpdateWidget(covariant _HomeDashboardHydration oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.heroFuture != widget.heroFuture ||
-        oldWidget.noticesFuture != widget.noticesFuture) {
+    if (oldWidget.heroFuture != widget.heroFuture) {
       _hero = null;
-      _noticeSelection = null;
       _heroError = false;
-      _noticesError = false;
       widget.heroFuture.then(_setHero, onError: _setHeroError);
-      widget.noticesFuture.then(_setNotices, onError: _setNoticesError);
     }
   }
 
@@ -402,24 +401,14 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
     if (mounted) setState(() { _hero = value; _heroError = false; });
   }
 
-  void _setNotices(SecondaryNoticeSelection value) {
-    if (mounted) setState(() { _noticeSelection = value; _noticesError = false; });
-  }
-
   void _setHeroError(Object _, StackTrace __) {
     if (mounted) setState(() => _heroError = true);
-  }
-
-  void _setNoticesError(Object _, StackTrace __) {
-    if (mounted) setState(() => _noticesError = true);
   }
 
   @override
   Widget build(BuildContext context) {
     return _HomeMockupDashboard(
       hero: _hero,
-      notices: _noticeSelection?.shown ?? const <SecondaryNotice>[],
-      noticesError: _noticesError,
       heroError: _heroError,
       currencySymbol: widget.currencySymbol,
       canViewDashboardStats: widget.canViewDashboardStats,
@@ -432,8 +421,6 @@ class _HomeDashboardHydrationState extends State<_HomeDashboardHydration> {
 class _HomeMockupDashboard extends StatelessWidget {
   const _HomeMockupDashboard({
     required this.hero,
-    required this.notices,
-    required this.noticesError,
     required this.heroError,
     required this.currencySymbol,
     required this.canViewDashboardStats,
@@ -442,8 +429,6 @@ class _HomeMockupDashboard extends StatelessWidget {
   });
 
   final HomeHeroState? hero;
-  final List<SecondaryNotice> notices;
-  final bool noticesError;
   final bool heroError;
   final String currencySymbol;
   final bool canViewDashboardStats;
@@ -469,16 +454,37 @@ class _HomeMockupDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <Widget>[
-      const _HomeActionCell(color: AppColors.primary, icon: FulusIcons.sell, label: 'Sell', route: 'sell'),
+      const _HomeActionCell(
+        color: AppColors.primary,
+        icon: FulusIcons.sell,
+        label: 'Sell',
+        route: 'sell',
+      ),
       if (canViewDashboardStats)
-        const _HomeActionCell(color: AppColors.sales, icon: FulusIcons.receipt, label: 'Receipts', route: 'receiptHistory'),
+        const _HomeActionCell(
+          color: AppColors.sales,
+          icon: FulusIcons.receipt,
+          label: 'Receipts',
+          route: 'receiptHistory',
+        ),
       if (canViewMoney)
-        const _HomeActionCell(color: AppColors.customers, icon: FulusIcons.customers, label: 'Customers', route: 'moneyCustomers'),
+        const _HomeActionCell(
+          color: AppColors.customers,
+          icon: FulusIcons.customers,
+          label: 'Customers',
+          route: 'moneyCustomers',
+        ),
       if (canViewReports)
-        const _HomeActionCell(color: AppColors.reports, icon: FulusIcons.reports, label: 'Reports', route: 'moreReports'),
+        const _HomeActionCell(
+          color: AppColors.reports,
+          icon: FulusIcons.reports,
+          label: 'Reports',
+          route: 'moreReports',
+        ),
     ];
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _HomeSalesHeroCard(
           salesTotal: _salesTotal,
@@ -486,20 +492,20 @@ class _HomeMockupDashboard extends StatelessWidget {
           error: heroError,
           currencySymbol: currencySymbol,
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xl),
         LayoutBuilder(
           builder: (context, constraints) {
             final gap = AppSpacing.sm;
             final width = (constraints.maxWidth - gap) / 2;
             final textScale = MediaQuery.textScalerOf(context).scale(1);
-            // Give action tiles more vertical room as accessibility text grows.
-            // This keeps the 2x text setting usable without clipping while
-            // preserving the compact 112dp design at normal scale.
+            // Keep the action cells compact like the Moniepoint POS grid.
+            // Increase only when accessibility text scaling requires it.
             final tileHeight = textScale > 1.6
-                ? 144.0
+                ? 120.0
                 : textScale > 1.15
-                    ? 128.0
-                    : 112.0;
+                    ? 104.0
+                    : 92.0;
+
             return Wrap(
               spacing: gap,
               runSpacing: gap,
@@ -530,29 +536,30 @@ class _HomeActionCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.xl);
+    final radius = BorderRadius.circular(AppRadius.sm);
 
     return FulusPressable(
       semanticsLabel: label,
       onPressed: () => context.goNamed(route),
       child: Material(
-        color: color.withValues(alpha: 0.10),
+        color: AppColors.surfaceOf(context),
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Center(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 32, color: color),
-              const Spacer(),
+              Icon(icon, size: 36, color: color),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textPrimaryOf(context),
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -585,13 +592,15 @@ class _HomeSalesHeroCard extends StatelessWidget {
 
     return Semantics(
       label: 'Today’s sales, $value, $count',
-      child: Material(
-        color: AppColors.sales,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: AppColors.sales,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -628,6 +637,7 @@ class _HomeSalesHeroCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
