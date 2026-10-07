@@ -177,8 +177,6 @@ class SyncExecutionLease {
         );
         return true;
       }
-      if (lock != null) await _releaseProcessLock(lock);
-
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
