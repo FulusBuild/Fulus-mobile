@@ -42,7 +42,8 @@ class SyncTriggers with WidgetsBindingObserver implements SyncRuntime {
     SyncExecutionLease? executionLease,
 })  : _isEnabled = isEnabled,
         _syncStatusNotifier = syncStatusNotifier,
-        _ensureReadyCallback = ensureReady,
+        _ensureReadyCallback = ensureReady ??
+            () async => SyncReadinessEnsureResult.alreadyReady,
         _onSyncSuccess = onSyncSuccess,
         _onSyncFailure = onSyncFailure,
         _onContextChangeReconciled = onContextChangeReconciled,
