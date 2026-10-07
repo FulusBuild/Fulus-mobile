@@ -23,6 +23,25 @@ class SyncExecutionLease {
         _acquisitionTimeout = acquisitionTimeout,
         _ownerId = Ulid().toString();
 
+  static Future<bool> hasMaintenanceFence(AppDatabase db) async {
+    final rows = await db.customSelect('PRAGMA database_list').get();
+    if (rows.isEmpty) return false;
+    final dbPath = rows.first.data['file'];
+    if (dbPath is! String || dbPath.isEmpty) return false;
+    final marker = File('$dbPath.sync-runtime.maintenance');
+    try {
+      if (!await marker.exists()) return false;
+      final age = DateTime.now().difference(await marker.lastModified());
+      if (age > const Duration(minutes: 5)) {
+        await marker.delete();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   static const String leaseName = 'cloud_sync';
   static const String maintenanceLeaseName = 'cloud_sync_maintenance';
 
