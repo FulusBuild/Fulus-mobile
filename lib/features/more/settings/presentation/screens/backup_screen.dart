@@ -70,7 +70,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     return FulusScreen(
       title: 'Backup & Restore',
-      subtitle: 'Keep a local copy of your business data',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -149,7 +148,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       const FulusSectionHeader(
                         title: 'Backup',
-                        subtitle: 'Create a snapshot or restore an existing one',
                       ),
                       FulusCard(
                         padding: EdgeInsets.zero,
@@ -180,10 +178,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      FulusActionTile(
-                        icon: FulusIcons.sync,
-                        label: 'Sync status',
-                        subtitle: 'See pending, completed and attention-needed sync work.',
+                      FulusListRow(
+                        leading: const Icon(FulusIcons.sync),
+                        title: const Text('Sync status'),
                         onTap: canManageSettings ? () => context.pushNamed('moreSyncDetail') : null,
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -216,7 +213,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       const FulusSectionHeader(
                         title: 'Saved backups',
-                        subtitle: 'Snapshots available to restore or export',
                       ),
                       FutureBuilder<List<BackupMetadata>>(
                         future: _future,
@@ -357,7 +353,6 @@ class _ActionRow extends StatelessWidget {
       leading: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }

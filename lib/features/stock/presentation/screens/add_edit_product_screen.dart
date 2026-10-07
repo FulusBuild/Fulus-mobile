@@ -446,7 +446,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
               ],
             ],
           ],
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           FulusButton(
             label: widget.isEditing ? 'Save changes' : 'Add product',
             loading: _submitting,

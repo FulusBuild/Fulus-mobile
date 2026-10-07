@@ -7,7 +7,6 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/category.dart';
 import '../../../../domain/entities/permission.dart';
-import '../../../../domain/entities/stock_movement.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../application/stock_providers.dart';
 import '../widgets/product_list_tile.dart';
@@ -38,9 +37,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
 
     return FulusScreen(
       title: 'Stock',
-      subtitle: 'See what you have and record stock changes',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
       applyPadding: false,
       actions: [
         if (canManageStock)
@@ -79,7 +75,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           FulusListRow(
             leading: const Icon(FulusIcons.category),
             title: const Text('Categories'),
-            subtitle: const Text('Organize and manage product categories'),
             onTap: () {
               Navigator.of(sheetContext).pop();
               context.pushNamed('stockCategories');
@@ -88,7 +83,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           FulusListRow(
             leading: const Icon(FulusIcons.upload),
             title: const Text('Import products'),
-            subtitle: const Text('Add many products from a file'),
             onTap: () {
               Navigator.of(sheetContext).pop();
               context.pushNamed('stockBulkImport');
@@ -109,7 +103,6 @@ class _StockBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsWithStockProvider(locationId));
     final categoriesAsync = ref.watch(categoriesProvider);
-    final movementsAsync = ref.watch(stockMovementsProvider(locationId));
     final filter = ref.watch(stockFilterProvider);
 
     return LayoutBuilder(
@@ -145,7 +138,8 @@ class _StockBody extends ConsumerWidget {
             }
 
             return CustomScrollView(
-              slivers: [                SliverToBoxAdapter(
+              slivers: [
+                SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
                     child: FulusSearchField(
@@ -158,95 +152,74 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.lg, inset, AppSpacing.sm),
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: AppSpacing.sm,
-                      mainAxisSpacing: AppSpacing.sm,
-                      childAspectRatio: 1.15,
+                    child: Row(
                       children: [
-                        _StockSummaryTile(
-                          color: const Color(0xFF1473E6),
-                          icon: FulusIcons.stock,
-                          label: 'Products',
-                          value: '${products.length}',
-                          subtitle: 'Total items',
-                        ),
-                        _StockSummaryTile(
-                          color: const Color(0xFF0BBE6E),
-                          icon: FulusIcons.category,
-                          label: 'Categories',
-                          value: '${categories.length}',
-                          subtitle: 'Categories',
-                          onTap: () => context.pushNamed('stockCategories'),
-                        ),
-                        _StockSummaryTile(
-                          color: const Color(0xFFFF8C00),
+                        Expanded(child: FulusActionTile(
                           icon: FulusIcons.stockIn,
                           label: 'Stock In',
-                          value: movementsAsync.asData?.value.where((m) => m.movementType == StockMovementType.stockIn).length.toString() ?? '—',
-                          subtitle: 'Recent',
                           onTap: () => context.pushNamed('stockRecordMovement'),
-                        ),
-                        _StockSummaryTile(
-                          color: const Color(0xFF7B3FF2),
+                        )),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: FulusActionTile(
                           icon: FulusIcons.stockMovement,
-                          label: 'Stock Movement',
-                          value: movementsAsync.asData?.value.length.toString() ?? '—',
-                          subtitle: 'Recent activity',
+                          label: 'Movement',
                           onTap: () => context.pushNamed('stockHistory'),
-                        ),
+                        )),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: FulusActionTile(
+                          icon: FulusIcons.category,
+                          label: 'Categories',
+                          onTap: () => context.pushNamed('stockCategories'),
+                        )),
                       ],
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
+                if (lowStockCount > 0)
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.sm),
-                      child: Material(
-                        color: const Color(0xFFFF3B30),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: Builder(builder: (context) {
-                              const alertColor = Color(0xFFFF3B30);
-                              final foreground = AppColors.onColor(alertColor);
-                              final muted = foreground.withValues(alpha: 0.9);
-                              return Row(children: [
-                          Icon(FulusIcons.warning, color: foreground, size: 28),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(
-  lowStockCount == 1 ? '1 item low in stock' : '$lowStockCount items low in stock',
-  style: TextStyle(color: foreground, fontSize: 14, fontWeight: FontWeight.w800),
-),
-                            Text('View details →', style: TextStyle(color: muted, fontSize: 14)),
-                          ])),
-                              Icon(FulusIcons.chevronRight, color: foreground),
-                            ]);
-                            }),
-                          ),
+                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FulusChip(
+                          compact: true,
+                          label: '$lowStockCount low',
+                          selected: filter.lowStockOnly,
+                          onTap: () => ref.read(stockFilterProvider.notifier).state =
+                              filter.copyWith(
+                                lowStockOnly: !filter.lowStockOnly,
+                                outOfStockOnly: false,
+                              ),
                         ),
                       ),
                     ),
                   ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.md, inset, AppSpacing.sm),
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: FulusChipRow(children: [
-                            FulusChip(compact: true, label: 'All', selected: !filter.lowStockOnly && !filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: false, outOfStockOnly: false)),
-                            FulusChip(compact: true, label: 'Low stock · $lowStockCount', selected: filter.lowStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(lowStockOnly: !filter.lowStockOnly, outOfStockOnly: false)),
-                            FulusChip(compact: true, label: 'Out of stock · $outOfStock', selected: filter.outOfStockOnly, onTap: () => ref.read(stockFilterProvider.notifier).state = filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false)),
-                          ]),
+                        Expanded(child: FulusChipRow(children: [
+                          FulusChip(
+                            compact: true,
+                            label: 'All',
+                            selected: !filter.lowStockOnly && !filter.outOfStockOnly,
+                            onTap: () => ref.read(stockFilterProvider.notifier).state =
+                                filter.copyWith(lowStockOnly: false, outOfStockOnly: false),
+                          ),
+                          FulusChip(
+                            compact: true,
+                            label: 'Out of stock · $outOfStock',
+                            selected: filter.outOfStockOnly,
+                            onTap: () => ref.read(stockFilterProvider.notifier).state =
+                                filter.copyWith(outOfStockOnly: !filter.outOfStockOnly, lowStockOnly: false),
+                          ),
+                        ])),
+                        FulusIconButton(
+                          icon: FulusIcons.sort,
+                          tooltip: 'Sort products',
+                          onPressed: () => _showSortSheet(context, ref, filter),
                         ),
-                        FulusIconButton(icon: FulusIcons.sort, tooltip: 'Sort products', onPressed: () => _showSortSheet(context, ref, filter)),
                       ],
                     ),
                   ),
@@ -254,7 +227,7 @@ class _StockBody extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: inset, vertical: AppSpacing.xs),
-                    child: Text('${filtered.length} products', style: AppTypography.caption.copyWith(color: Colors.white70)),
+                    child: Text('${filtered.length} products', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                   ),
                 ),
                 if (filtered.isEmpty)
@@ -317,75 +290,6 @@ class _StockBody extends ConsumerWidget {
     );
   }
 }
-
-class _StockSummaryTile extends StatelessWidget {
-  const _StockSummaryTile({
-    required this.color,
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.subtitle,
-    this.onTap,
-  });
-
-  final Color color;
-  final IconData icon;
-  final String label;
-  final String value;
-  final String subtitle;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = AppColors.onColor(color);
-    final muted = foreground.withValues(alpha: 0.9);
-    final child = SizedBox(
-      height: 146,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: FulusMetricCardColumn(
-          icon: icon,
-          iconColor: foreground,
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: muted, fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                maxLines: 1,
-                style: TextStyle(color: foreground, fontSize: 30, fontWeight: FontWeight.w900),
-              ),
-            ),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: muted, fontSize: 15, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-    return Semantics(
-      button: onTap != null,
-      label: '$label, $value',
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: onTap == null
-            ? child
-            : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppRadius.md), child: child),
-      ),
-    );
-  }
-}
-
 
 class _StockLocationSkeleton extends StatelessWidget {
   const _StockLocationSkeleton();

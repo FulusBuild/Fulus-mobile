@@ -119,14 +119,12 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
           FulusActionTile(
             icon: FulusIcons.tableChart,
             label: 'CSV',
-            subtitle: 'Open in a spreadsheet',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusActionTile(
             icon: FulusIcons.pictureAsPdf,
             label: 'PDF',
-            subtitle: 'Share a printable summary',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
         ],
@@ -138,7 +136,6 @@ class _MoneyHistoryScreenState extends ConsumerState<MoneyHistoryScreen> {
             format: format,
             fileName: 'money-history-${DateTime.now().millisecondsSinceEpoch}',
             title: 'Money history',
-            subtitle: '${formatRelativeDay(period.start)} – ${formatRelativeDay(period.end)}',
             headers: const ['Date', 'Time', 'Type', 'Description', 'Payment method', 'Amount'],
             rows: [
               for (final t in items)

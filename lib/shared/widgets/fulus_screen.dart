@@ -126,15 +126,7 @@ class _HeaderText extends StatelessWidget {
             letterSpacing: -0.35,
           ),
         ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subtitle!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.caption.copyWith(color: muted),
-          ),
-        ],
+        
       ],
     );
   }

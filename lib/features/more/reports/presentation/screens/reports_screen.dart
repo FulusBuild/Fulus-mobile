@@ -166,14 +166,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           FulusActionTile(
             icon: FulusIcons.tableChart,
             label: 'CSV',
-            subtitle: 'Open in a spreadsheet',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusActionTile(
             icon: FulusIcons.pictureAsPdf,
             label: 'PDF',
-            subtitle: 'Share a printable summary',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
         ],
@@ -298,8 +296,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
     return FulusScreen(
       title: 'Reports',
       backgroundColor: AppColors.backgroundOf(context),
-      headerBackgroundColor: const Color(0xFF061B3A),
-      subtitle: 'Understand sales, stock, customers, money and team activity',
       actions: [
         FulusIconButton(icon: Icons.ios_share, tooltip: 'Export report', onPressed: _export),
       ],
@@ -316,41 +312,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: AppSpacing.sm,
                   mainAxisSpacing: AppSpacing.sm,
-                  childAspectRatio: 1.35,
+                  childAspectRatio: 1.2,
                   children: [
-                    _ReportCompactCard(
-                      icon: FulusIcons.salesReport,
-                      label: 'Sales Report',
-                      color: const Color(0xFF0BBE6E),
-                      onTap: () => setState(() => _tabs.animateTo(0)),
-                    ),
-                    _ReportCompactCard(
-                      icon: FulusIcons.stockReport,
-                      label: 'Stock Report',
-                      color: const Color(0xFF1473E6),
-                      onTap: () => setState(() => _tabs.animateTo(1)),
-                    ),
-                    _ReportCompactCard(
-                      icon: FulusIcons.expenseReport,
-                      label: 'Expense Report',
-                      color: const Color(0xFFFF8C00),
-                      onTap: () => setState(() => _tabs.animateTo(3)),
-                    ),
-                    _ReportCompactCard(
-                      icon: FulusIcons.customerReport,
-                      label: 'Customer Report',
-                      color: const Color(0xFF7B3FF2),
-                      onTap: () => setState(() => _tabs.animateTo(2)),
-                    ),
+                    FulusFlatGridCell(icon: FulusIcons.salesReport, label: 'Sales', iconColor: AppColors.sales, onTap: () => setState(() => _tabs.animateTo(0))),
+                    FulusFlatGridCell(icon: FulusIcons.stockReport, label: 'Stock', iconColor: AppColors.stock, onTap: () => setState(() => _tabs.animateTo(1))),
+                    FulusFlatGridCell(icon: FulusIcons.expenseReport, label: 'Expense', iconColor: AppColors.warning, onTap: () => setState(() => _tabs.animateTo(3))),
+                    FulusFlatGridCell(icon: FulusIcons.customerReport, label: 'Customer', iconColor: AppColors.customers, onTap: () => setState(() => _tabs.animateTo(2))),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                FulusActionTile(
-                  icon: FulusIcons.staff,
-                  label: 'Team Report',
-                  subtitle: 'Attendance and employee performance',
-                  onTap: () => setState(() => _tabs.animateTo(4)),
-                ),
+                FulusFlatGridCell(icon: FulusIcons.staff, label: 'Team', iconColor: AppColors.reports, onTap: () => setState(() => _tabs.animateTo(4))),
               ],
             ),
           ),
@@ -364,8 +335,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             child: FulusChipRow(
               children: [
                 FulusChip(label: 'Today', selected: _periodKind == ReportPeriodKind.today, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.today})),
-                FulusChip(label: 'This week', selected: _periodKind == ReportPeriodKind.thisWeek, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisWeek})),
-                FulusChip(label: 'This month', selected: _periodKind == ReportPeriodKind.thisMonth, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisMonth})),
+                FulusChip(label: 'Week', selected: _periodKind == ReportPeriodKind.thisWeek, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisWeek})),
+                FulusChip(label: 'Month', selected: _periodKind == ReportPeriodKind.thisMonth, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisMonth})),
                 FulusChip(label: _customRange == null ? 'Custom' : formatRelativeDay(_customRange!.start) + ' – ' + formatRelativeDay(_customRange!.end), selected: _periodKind == ReportPeriodKind.custom, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.custom})),
               ],
             ),
@@ -419,52 +390,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
   }
 }
 
-class _ReportCompactCard extends StatelessWidget {
-  const _ReportCompactCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = AppColors.onColor(color);
-    return Semantics(
-      button: true,
-      label: label,
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: SizedBox(
-            height: 100,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: FulusReportCardColumn(
-                icon: icon,
-                iconColor: foreground,
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ExportPayload {
   const _ExportPayload({required this.name, required this.title, required this.headers, required this.rows});
@@ -510,13 +435,7 @@ class _StatCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return FulusStatCard(
-      label: label,
-      value: value,
-      onTap: onTap,
-    );
-  }
+  Widget build(BuildContext context) => FulusStatCard(label: label, value: value, onTap: onTap);
 }
 
 class _ReportTabBuilder<T> extends StatefulWidget {
@@ -528,7 +447,6 @@ class _ReportTabBuilder<T> extends StatefulWidget {
     required this.emptyBody,
     required this.builder,
   });
-
   final Future<T> future;
   final VoidCallback onRetry;
   final bool Function(T data) isEmpty;

@@ -201,7 +201,7 @@ class _EmployeeDetailBody extends ConsumerWidget {
             ],
           ),
         ),
-        if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), FulusCard(child: _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy))],
+        if (employee.authUserId != null) ...[const SizedBox(height: AppSpacing.lg), FulusSectionHeader(title: 'Access & permissions'), _AccessPermissionsSection(authUserId: employee.authUserId!, grantableBy: grantableBy)],
         const SizedBox(height: AppSpacing.lg),
         FulusSectionHeader(title: 'Attendance this month'),
         if (relatedError)
@@ -426,7 +426,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = AppColors.primaryOf(context);
-    return FulusCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         CircleAvatar(radius: 30, backgroundColor: primary.withValues(alpha: 0.1), child: Text(employee.fullName.isNotEmpty ? employee.fullName[0].toUpperCase() : '?', style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 22))),
         const SizedBox(width: AppSpacing.md),
@@ -438,7 +438,7 @@ class _ProfileHeader extends StatelessWidget {
         if (employee.email != null) _InfoPill(icon: Icons.email_outlined, text: employee.email!),
         _InfoPill(icon: employee.isActive ? Icons.verified_outlined : Icons.person_off_outlined, text: employee.isActive ? 'Active' : 'Deactivated'),
       ]),
-    ]));
+    ]);
   }
 }
 
@@ -665,7 +665,7 @@ class _LeaveRequestTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final (label, color) = switch (leave.status) { LeaveStatus.pending => ('Pending', AppColors.warningOf(context)), LeaveStatus.approved => ('Approved', AppColors.primaryOf(context)), LeaveStatus.denied => ('Denied', AppColors.errorOf(context)) };
-    return Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: FulusCard(child: LayoutBuilder(builder: (context, constraints) {
+    return Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: LayoutBuilder(builder: (context, constraints) {
       final compact = constraints.maxWidth < 440;
       final status = Container(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2), decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.md)), child: Text(label, style: AppTypography.caption.copyWith(color: color, fontWeight: FontWeight.w600)));
       final dates = Text('${_fmt(leave.startDate)} – ${_fmt(leave.endDate)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600));
@@ -689,7 +689,7 @@ class _LeaveRequestTile extends ConsumerWidget {
           ],
         ],
       );
-    })));
+    }));
   }
   Future<void> _decide(BuildContext context, WidgetRef ref, LeaveStatus status) async {
     final decidedBy = ref.read(authRepositoryProvider).currentUser?.id; if (decidedBy == null) return;

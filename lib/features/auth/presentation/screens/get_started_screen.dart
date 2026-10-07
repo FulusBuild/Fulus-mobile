@@ -77,25 +77,10 @@ class GetStartedScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusActionTile(
-                    label: 'Employee sign in',
-                    subtitle: 'Use your Fulus email and password on a new phone.',
+                    label: 'Staff',
+                    subtitle: 'Sign in or join a business as an employee.',
                     icon: Icons.badge_outlined,
-                    onTap: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const EmployeeLoginScreen()),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusActionTile(
-                    label: 'Join as an employee',
-                    subtitle: 'Use an invitation from your business owner on this phone.',
-                    icon: Icons.badge_rounded,
-                    onTap: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute(builder: (_) => const EmployeeJoinBusinessScreen()),
-                      );
-                    },
+                    onTap: () => _showStaffChoices(context),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   FulusActionTile(
@@ -116,4 +101,37 @@ class GetStartedScreen extends ConsumerWidget {
       ),
     );
   }
+  static Future<void> _showStaffChoices(BuildContext context) async {
+    await showFulusBottomSheet<void>(
+      context: context,
+      title: 'Staff',
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FulusActionTile(
+            icon: Icons.login_rounded,
+            label: 'Sign in',
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const EmployeeLoginScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FulusActionTile(
+            icon: Icons.badge_rounded,
+            label: 'Join a business',
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const EmployeeJoinBusinessScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
 }

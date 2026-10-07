@@ -39,22 +39,16 @@ class ProductListTile extends StatelessWidget {
         onTap: null,
         leading: _Thumbnail(name: product.name, photoPath: product.photoPath),
         title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        titleColor: Colors.white,
-        subtitleColor: Colors.white70,
+        titleColor: AppColors.textPrimaryOf(context),
+        subtitleColor: AppColors.textSecondaryOf(context),
         subtitle: Text(
           [category?.name ?? 'Uncategorized', formatMoney(product.sellingPrice)].join(' · '),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: product.tracksStock
-            ? Container(
-                constraints: const BoxConstraints(minWidth: 64),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.14)),
-                ),
+            ? SizedBox(
+                width: 64,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
@@ -71,11 +65,11 @@ class ProductListTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(product.unit, style: AppTypography.caption.copyWith(color: Colors.white70)),
+                    Text(product.unit, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
                   ],
                 ),
               )
-            : Text('—', style: AppTypography.caption.copyWith(color: Colors.white70)),
+            : Text('—', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context))),
         ),
       ),
     );

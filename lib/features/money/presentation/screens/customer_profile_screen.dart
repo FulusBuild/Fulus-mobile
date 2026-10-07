@@ -55,7 +55,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 
     return FulusScreen(
       title: 'Customer',
-      subtitle: 'Customer details, purchases and credit history',
       body: FutureBuilder<Customer?>(
         future: _future,
         builder: (context, snapshot) {

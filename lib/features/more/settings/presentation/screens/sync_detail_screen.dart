@@ -28,7 +28,6 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
         : ref.read(syncStatusNotifierProvider).healthFor(selectedBusinessId);
     return FulusScreen(
       title: 'Sync & backup',
-      subtitle: 'See what is backed up and what Fulus is still working on',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -44,7 +43,6 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                     children: [
                       const FulusSectionHeader(
                         title: 'Your data',
-                        subtitle: 'Fulus saves locally first, then backs it up automatically',
                       ),
                       statusAsync.when(
                         data: (status) => _StatusCard(
@@ -66,7 +64,6 @@ class _SyncDetailScreenState extends ConsumerState<SyncDetailScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       const FulusSectionHeader(
                         title: 'How Fulus protects your work',
-                        subtitle: 'Automatic backup never replaces your local-first workflow',
                       ),
                       FulusCard(
                         child: Column(

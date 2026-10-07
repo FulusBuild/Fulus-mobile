@@ -104,7 +104,7 @@ class _AddFirstProductScreenState extends ConsumerState<AddFirstProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 3, total: 7, title: 'Add your first product', subtitle: 'Build a useful starting inventory before your first sale.'),
+              const OnboardingStepHeader(step: 3, total: 7, title: 'Add your first product'),
                 Text(
                   'Add your first product',
                   style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context)),

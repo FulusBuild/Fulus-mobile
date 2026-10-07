@@ -25,7 +25,7 @@ class FirstSaleIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 5, total: 7, title: 'Make your first sale', subtitle: 'Use the real Sell, cart and payment flow — not a demo.'),
+              const OnboardingStepHeader(step: 5, total: 7, title: 'Make your first sale'),
                 Center(
                   child: Container(
                     width: 64,

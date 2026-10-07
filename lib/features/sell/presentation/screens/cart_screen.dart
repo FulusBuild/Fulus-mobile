@@ -507,7 +507,6 @@ class _CustomerRow extends StatelessWidget {
               ],
             ),
           ),
-          Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
         ],
       ),
       ),

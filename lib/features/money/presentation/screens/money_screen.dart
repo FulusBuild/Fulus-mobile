@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fulus_mobile/core/money/money.dart';
 
@@ -12,7 +11,6 @@ import '../../../../domain/entities/auth_user.dart';
 import '../../../../domain/entities/permission.dart';
 import '../../../../domain/entities/report.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/mock_money_repository.dart';
 import '../../domain/money_summary.dart';
 import '../../domain/money_transaction.dart';
 import '../providers/money_providers.dart';
@@ -67,14 +65,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     await Future.wait([_balanceFuture, _summaryFuture, _transactionsFuture]);
   }
 
-  void _toggleSimulatedError() {
-    final repo = ref.read(moneyRepositoryProvider);
-    if (repo is MockMoneyRepository) {
-      repo.debugSimulateFailure = !repo.debugSimulateFailure;
-    }
-    _refresh();
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(dataRefreshSignalProvider, (previous, next) {
@@ -89,10 +79,14 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     final currencySymbol =
         ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF061B3A),
+    return FulusScreen(
+      title: 'Money',
+      actions: [
+        FulusIconButton(icon: FulusIcons.history, tooltip: 'Money history', onPressed: () => context.pushNamed('moneyHistory')),
+      ],
+      applyPadding: false,
       body: DefaultTextStyle.merge(
-        style: AppTypography.body.copyWith(color: Colors.white),
+        style: AppTypography.body.copyWith(color: AppColors.textPrimaryOf(context)),
         child: SafeArea(
           child: RefreshIndicator(
           onRefresh: _refresh,
@@ -115,19 +109,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       AppSpacing.xxxl,
                     ),
                     children: [
-                      _MoneyHeader(
-                        onHistory: () => context.pushNamed('moneyHistory'),
-                        onReceipts: () => context.pushNamed('receiptHistory'),
-                        onDebug: kDebugMode ? _toggleSimulatedError : null,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        'Here’s what is happening with your money today.',
-                        style: AppTypography.body.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
                       FutureBuilder<Money>(
                         future: _balanceFuture,
                         builder: (context, snapshot) {
@@ -174,8 +155,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       FulusSectionHeader(
                         title: 'Recent activity',
-                        titleColor: Colors.white,
-                        subtitleColor: Colors.white70,
+                        titleColor: AppColors.textPrimaryOf(context),
+                        subtitleColor: AppColors.textSecondaryOf(context),
                         action: 'See all',
                         onActionTap: () =>
                             context.pushNamed('moneyHistory'),
@@ -210,29 +191,26 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                             );
                           }
 
-                          return FulusCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (var i = 0;
-                                    i < transactions.length;
-                                    i++) ...[
-                                  if (i > 0) const FulusListDivider(),
-                                  MoneyTransactionTile(
-                                    transaction: transactions[i],
-                                    currencySymbol: currencySymbol,
-                                    showDate: false,
-                                    onTap: () => context.pushNamed(
-                                      'moneyTransactionDetail',
-                                      pathParameters: {
-                                        'id': transactions[i].id,
-                                      },
-                                      extra: transactions[i],
-                                    ),
+                          return Column(
+                            children: [
+                              for (var i = 0;
+                                  i < transactions.length;
+                                  i++) ...[
+                                if (i > 0) const FulusListDivider(),
+                                MoneyTransactionTile(
+                                  transaction: transactions[i],
+                                  currencySymbol: currencySymbol,
+                                  showDate: false,
+                                  onTap: () => context.pushNamed(
+                                    'moneyTransactionDetail',
+                                    pathParameters: {
+                                      'id': transactions[i].id,
+                                    },
+                                    extra: transactions[i],
                                   ),
-                                ],
+                                ),
                               ],
-                            ),
+                            ],
                           );
                         },
                       ),
@@ -249,80 +227,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   }
 }
 
-class _MoneyHeader extends StatelessWidget {
-  const _MoneyHeader({
-    required this.onHistory,
-    required this.onReceipts,
-    required this.onDebug,
-  });
-
-  final VoidCallback onHistory;
-  final VoidCallback onReceipts;
-  final VoidCallback? onDebug;
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = <Widget>[
-      if (onDebug != null)
-        FulusIconButton(
-          icon: FulusIcons.bugReport,
-          tooltip: 'Simulate error (debug)',
-          onPressed: onDebug,
-        ),
-      FulusIconButton(
-        icon: FulusIcons.history,
-        tooltip: 'Money history',
-        onPressed: onHistory,
-      ),
-      FulusIconButton(
-        icon: FulusIcons.receipt,
-        tooltip: 'Receipts',
-        onPressed: onReceipts,
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360 ||
-            MediaQuery.textScalerOf(context).scale(1) > 1.15;
-        return compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Money',
-                    style: AppTypography.subheading.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      alignment: WrapAlignment.end,
-                      children: actions,
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Text(
-                    'Money',
-                    style: AppTypography.subheading.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  ...actions,
-                ],
-              );
-      },
-    );
-  }
-}
 
 class _BalanceHero extends StatelessWidget {
   const _BalanceHero({required this.balance, required this.currencySymbol});
@@ -333,16 +237,15 @@ class _BalanceHero extends StatelessWidget {
     height: 142,
     child: Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: const Color(0xFF12B866), borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(AppRadius.xl)),
       child: Builder(builder: (context) {
-        final foreground = AppColors.onColor(const Color(0xFF12B866));
-        final muted = foreground.withValues(alpha: 0.9);
+        final foreground = AppColors.onColor(AppColors.success);
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Icon(FulusIcons.wallet, color: foreground, size: 40), const SizedBox(width: AppSpacing.sm), Text('Available Balance', style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w700))]),
         const SizedBox(height: AppSpacing.sm),
-        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 36, fontWeight: FontWeight.w900))),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(formatMoney(balance, symbol: currencySymbol), style: TextStyle(color: foreground, fontSize: 28, fontWeight: FontWeight.w800))),
         const SizedBox(height: AppSpacing.xs),
-        Text('Updated from your business records', style: TextStyle(color: muted, fontSize: 15)),
+  
       ]);
       }),
     ),
@@ -366,7 +269,7 @@ class _BalanceHeroSkeleton extends StatelessWidget {
   }
 }
 
-class _MoneyQuickActions extends ConsumerWidget {
+class _MoneyQuickActions extends StatelessWidget {
   const _MoneyQuickActions({
     required this.summary,
     required this.currencySymbol,
@@ -376,115 +279,73 @@ class _MoneyQuickActions extends ConsumerWidget {
   final String currencySymbol;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final customers = ref.watch(moneyCustomersProvider).asData?.value ?? const [];
-    final customerCredit = customers.fold<Money>(zeroMoney, (sum, customer) => sum + customer.outstandingBalance);
-    final supplierPayments = summary.expenseBreakdown
-        .where((row) => row.type == MoneyTransactionType.supplierPayment)
-        .fold<Money>(zeroMoney, (sum, row) => sum + row.amount);
-
+  Widget build(BuildContext context) {
     final actions = <_MoneyAction>[
       _MoneyAction(
-        color: const Color(0xFF1473E6),
+        color: AppColors.primary,
         icon: FulusIcons.moneyIn,
         label: 'Money In',
         value: formatMoney(summary.moneyIn, symbol: currencySymbol),
-        subtitle: 'Today',
         onTap: () => context.pushNamed('moneyAddIncome'),
       ),
       _MoneyAction(
-        color: const Color(0xFFFF8C00),
+        color: AppColors.warning,
         icon: FulusIcons.moneyOut,
         label: 'Money Out',
         value: formatMoney(summary.moneyOut, symbol: currencySymbol),
-        subtitle: 'Today',
         onTap: () => context.pushNamed('moneyAddExpense'),
-      ),
-      _MoneyAction(
-        color: const Color(0xFF7B3FF2),
-        icon: FulusIcons.customers,
-        label: 'Customer Credit',
-        value: formatMoney(customerCredit, symbol: currencySymbol),
-        subtitle: 'Owed',
-        onTap: () => context.pushNamed('moneyCustomers'),
-      ),
-      _MoneyAction(
-        color: const Color(0xFF0DA8C4),
-        icon: FulusIcons.localShipping,
-        label: 'Supplier Payments',
-        value: formatMoney(supplierPayments, symbol: currencySymbol),
-        subtitle: 'Today',
-        onTap: () => context.pushNamed('moneySuppliers'),
       ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: actions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.sm,
-        mainAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 1.45,
-      ),
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        final foreground = AppColors.onColor(action.color);
-        final muted = foreground.withValues(alpha: 0.9);
-        return Semantics(
-          button: true,
-          label: '${action.label}, ${action.value}',
-          child: Material(
-            color: action.color,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: InkWell(
-              onTap: action.onTap,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: FulusMetricCardColumn(
-                  icon: action.icon,
-                  iconColor: foreground,
-                  children: [
-                    Text(
-                      action.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        action.value,
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: foreground,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      action.subtitle,
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return Row(
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _MoneyActionCell(action: actions[i])),
+        ],
+      ],
+    );
+  }
+}
+
+class _MoneyActionCell extends StatelessWidget {
+  const _MoneyActionCell({required this.action});
+  final _MoneyAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: action.color.withValues(alpha: 0.10),
+      child: InkWell(
+        onTap: action.onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 112),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            border: Border.all(color: action.color.withValues(alpha: 0.20), width: 0.8),
           ),
-        );
-      },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(action.icon, size: AppIconSize.emphasis, color: action.color),
+              const Spacer(),
+              Text(action.label, style: AppTypography.body.copyWith(
+                color: AppColors.textPrimaryOf(context),
+                fontWeight: FontWeight.w600,
+              )),
+              const SizedBox(height: AppSpacing.xs),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(action.value, style: AppTypography.heading.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  fontWeight: FontWeight.w700,
+                )),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -495,7 +356,6 @@ class _MoneyAction {
     required this.icon,
     required this.label,
     required this.value,
-    required this.subtitle,
     required this.onTap,
   });
 
@@ -503,7 +363,6 @@ class _MoneyAction {
   final IconData icon;
   final String label;
   final String value;
-  final String subtitle;
   final VoidCallback onTap;
 }
 

@@ -414,9 +414,6 @@ class _FulusCloudConnectionScreenState
 
     return FulusScreen(
       title: 'Business backup & sync',
-      subtitle: connected
-          ? 'Fulus keeps your business backed up and up to date automatically'
-          : 'Keep this business protected without changing your local data',
       body: ListView(
         padding: EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [

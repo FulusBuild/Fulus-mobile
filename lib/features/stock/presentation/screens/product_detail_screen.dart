@@ -104,7 +104,6 @@ class _ProductDetailBody extends ConsumerWidget {
 
         return FulusScreen(
           title: product.name,
-          subtitle: 'Product details and stock activity',
           actions: [
             if (canManageStock)
               FulusIconButton(
@@ -162,10 +161,7 @@ class _ProductDetailBody extends ConsumerWidget {
                               onTap: () => context.pushNamed('stockRecordMovement', extra: product),
                             ),
                           const SizedBox(height: AppSpacing.xl),
-                          const FulusSectionHeader(
-                            title: 'History',
-                            subtitle: 'Recent stock activity for this product',
-                          ),
+                          const FulusSectionHeader(title: 'History'),
                           if (movements.isEmpty)
                             FulusCard(
                               child: FulusEmptyState(

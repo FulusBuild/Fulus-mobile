@@ -89,7 +89,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add expense',
-      subtitle: 'Record a business expense and keep the cash trail clear',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -111,9 +110,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               height: 48,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.errorOf(context).withValues(alpha: 0.10),
+                                color: AppColors.warningOf(context).withValues(alpha: 0.10),
                               ),
-                              child: Icon(Icons.south_east_rounded, color: AppColors.errorOf(context)),
+                              child: Icon(Icons.south_east_rounded, color: AppColors.warningOf(context)),
                             ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(

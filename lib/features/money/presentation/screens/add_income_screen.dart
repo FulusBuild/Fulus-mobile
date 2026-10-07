@@ -73,7 +73,6 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     final currencySymbol = ref.watch(moneyCurrencySymbolProvider).value ?? '₦';
     return FulusScreen(
       title: 'Add income',
-      subtitle: 'Record money received outside a sale',
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;

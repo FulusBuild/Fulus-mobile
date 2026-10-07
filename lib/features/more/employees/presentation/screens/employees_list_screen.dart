@@ -26,9 +26,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Employees',
-      subtitle: 'People, access and attendance',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
+
       actions: [
         FulusIconButton(
           icon: FulusIcons.add,
@@ -59,8 +57,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               icon: FulusIcons.staff,
               headline: 'No team members yet',
               body: 'Add your first team member to manage attendance and access.',
-              headlineColor: Colors.white,
-              bodyColor: Colors.white70,
               actionLabel: 'Add team member',
               onAction: () => _openEmployeeSheet(context),
             );
@@ -71,29 +67,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               final wide = constraints.maxWidth >= 760;
               final inset = wide ? AppSpacing.lg : AppSpacing.sm;
               return ListView(
-                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
+                padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
                 children: [
-                  _TeamOverview(employees: employees),
-                  const SizedBox(height: AppSpacing.lg),
-                  FulusSectionHeader(
-                    title: 'Active team',
-                    subtitle: '${employees.length} ${employees.length == 1 ? 'member' : 'members'}',
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < employees.length; i++) ...[
-                          _EmployeeTile(
-                            employee: employees[i],
-                            onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
-                          ),
-                          if (i < employees.length - 1) const FulusListDivider(),
-                        ],
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (var i = 0; i < employees.length; i++) ...[
+                    _EmployeeTile(employee: employees[i]),
+                    if (i < employees.length - 1) const FulusListDivider(),
+                  ],
                 ],
               );
             },
@@ -116,41 +96,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         text: invitation,
         title: 'Invite to Fulus',
         subject: 'Fulus team invitation',
-      ),
-    );
-  }
-}
-
-class _TeamOverview extends StatelessWidget {
-  const _TeamOverview({required this.employees});
-  final List<Employee> employees;
-
-  @override
-  Widget build(BuildContext context) {
-    const color = Color(0xFF1473E6);
-    final foreground = AppColors.onColor(color);
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: 132,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: FulusMetricCardColumn(
-            icon: FulusIcons.staff,
-            iconColor: foreground,
-            children: [
-              Text(
-                'Employees  ${employees.length}',
-                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const Text(
-                'People, access and attendance',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -410,105 +355,21 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
   }
 }
 
-class _EmployeeTile extends ConsumerWidget {
-  const _EmployeeTile({required this.employee, required this.onEdit});
+class _EmployeeTile extends StatelessWidget {
+  const _EmployeeTile({required this.employee});
   final Employee employee;
-  final VoidCallback onEdit;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 520;
-        return FulusListRow(
-          onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-          leading: FulusAvatar(name: employee.fullName),
-          title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: compact
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (employee.authUserId == null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.xs),
-                        child: Icon(
-                          FulusIcons.person,
-                          color: AppColors.warningOf(context),
-                          size: AppIconSize.compact,
-                        ),
-                      ),
-                    Text(
-                      employee.phone ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    FulusIconButton(
-                      icon: FulusIcons.calendar,
-                      tooltip: 'Mark attendance',
-                      onPressed: () => _markToday(context, ref),
-                    ),
-                    FulusIconButton(
-                      icon: FulusIcons.edit,
-                      tooltip: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                    Icon(FulusIcons.chevronRight, color: AppColors.textSecondaryOf(context)),
-                  ],
-                ),
-        );
-      },
-    );
-  }
-
-  Future<void> _markToday(BuildContext context, WidgetRef ref) async {
-    final status = await showFulusBottomSheet<AttendanceStatus>(
-      context: context,
-      title: 'Mark attendance',
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final status in AttendanceStatus.values)
-            FulusListRow(
-              onTap: () => Navigator.of(context).pop(status),
-              leading: Icon(FulusIcons.check, color: AppColors.primaryOf(context)),
-              title: Text(status.name),
-            ),
-        ],
+  Widget build(BuildContext context) {
+    return FulusListRow(
+      onTap: () => context.pushNamed(
+        'moreEmployeeDetail',
+        pathParameters: {'employeeId': employee.id},
       ),
+      leading: FulusAvatar(name: employee.fullName),
+      title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(employee.role ?? 'Team member', maxLines: 1, overflow: TextOverflow.ellipsis),
     );
-    if (status == null) return;
-    try {
-      await ref.read(employeeRepositoryProvider).markAttendance(
-            employeeId: employee.id,
-            date: DateTime.now(),
-            status: status,
-          );
-      if (context.mounted) {
-        showFulusSnackbar(context, message: 'Attendance marked as ${status.name}.');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        showFulusSnackbar(context, message: "Couldn't mark attendance. Try again.");
-      }
-    }
   }
 }
 class _EmployeesLoadingSkeleton extends StatelessWidget {

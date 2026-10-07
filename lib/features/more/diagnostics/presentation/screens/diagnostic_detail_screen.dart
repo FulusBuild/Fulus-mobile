@@ -76,7 +76,6 @@ class _DiagnosticDetailScreenState extends ConsumerState<DiagnosticDetailScreen>
         children: [
           FulusListRow(
             title: const Text('This error'),
-            subtitle: const Text('Just this event'),
             onTap: () => Navigator.of(sheetContext).pop(_ShareChoice.thisError),
           ),
           FulusListRow(

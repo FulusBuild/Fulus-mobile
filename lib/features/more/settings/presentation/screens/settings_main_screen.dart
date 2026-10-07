@@ -55,10 +55,7 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
 
     return FulusScreen(
       title: 'Settings',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
-      subtitle: 'Keep your business safe and up to date',
-      body: LayoutBuilder(
+            body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
           final inset = wide ? AppSpacing.lg : AppSpacing.xs;
@@ -66,11 +63,10 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
             padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.xxl),
             children: [
               if (canManageSettings) ...[
-                const FulusSectionHeader(
+                FulusSectionHeader(
                   title: 'Business',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
-                  subtitle: 'Business details and workspace configuration',
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                 ),
                 FutureBuilder<BusinessProfile?>(
                   future: _future,
@@ -93,88 +89,77 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (canManageSettings || canManageBackup) ...[
-                const FulusSectionHeader(
+                FulusSectionHeader(
                   title: 'Data & Backup',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
-                  subtitle: 'Devices, data, and automatic protection',
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                 ),
                 _tileGrid([
                   if (canManageBackup)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.backup,
-                      label: 'Backup & restore',
-                      subtitle: 'Protect and restore your business data',
+                      label: 'Backup',
                       onTap: () => context.pushNamed('moreSettingsBackup'),
                     ),
                   if (canManageSettings)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.print,
                       label: 'Printers',
-                      subtitle: 'Receipt and printing settings',
                       onTap: () => context.pushNamed('moreSettingsPrinters'),
                     ),
                   if (canManageSettings)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.sync,
-                      label: 'Backup status',
-                      subtitle: 'See backup status and recovery',
+                      label: 'Sync',
                       onTap: () => context.pushNamed('moreSyncDetail'),
                     ),
                   if (canManageSettings)
-                    FulusActionTile(
+                    FulusFlatGridCell(
                       icon: FulusIcons.locations,
                       label: 'Locations',
-                      subtitle: 'Manage the places where this business operates',
                       onTap: () => context.pushNamed('moreSettingsLocations'),
                     ),
                 ]),
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (isOwner) ...[
-                const FulusSectionHeader(
+                FulusSectionHeader(
                   title: 'Automatic backup & sync',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
-                  subtitle: 'Keep this business backed up and available across devices',
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                 ),
                 _tileGrid([
-                  FulusActionTile(
+                  FulusFlatGridCell(
                     icon: FulusIcons.cloud,
-                    label: 'Automatic backup & sync',
-                    subtitle: 'Fulus keeps your business backed up and up to date automatically',
+                    label: 'Cloud',
                     onTap: () => context.pushNamed('moreSettingsCloud'),
                   ),
                 ]),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              const FulusSectionHeader(
+              FulusSectionHeader(
                 title: 'Security',
-                titleColor: Colors.white,
-                subtitleColor: Colors.white70,
-                subtitle: 'Protect approvals and access to Fulus',
+                titleColor: AppColors.textPrimaryOf(context),
+                subtitleColor: AppColors.textSecondaryOf(context),
               ),
               _tileGrid([
-                FulusActionTile(
+                FulusFlatGridCell(
                   icon: FulusIcons.lock,
-                  label: 'Change approval PIN',
-                  subtitle: 'Needed to approve discounts, refunds, and stock adjustments',
+                  label: 'PIN',
                   onTap: () => _openChangePinSheet(context),
                 ),
                 const _AppLockStatusTile(),
               ]),
               const SizedBox(height: AppSpacing.lg),
-              const FulusSectionHeader(
+              FulusSectionHeader(
                 title: 'Account',
-                titleColor: Colors.white,
-                subtitleColor: Colors.white70,
-                subtitle: 'Your local business account',
+                titleColor: AppColors.textPrimaryOf(context),
+                subtitleColor: AppColors.textSecondaryOf(context),
               ),
               _tileGrid([
-                FulusActionTile(
+                FulusFlatGridCell(
                   icon: FulusIcons.logout,
-                  label: 'Log out',
-                  subtitle: 'Your data on this device stays put — sign back in any time.',
+                  label: 'Logout',
                   onTap: () => _logout(context, ref),
                 ),
               ]),
@@ -241,11 +226,9 @@ class _AppLockStatusTileState extends ConsumerState<_AppLockStatusTile> {
     return FutureBuilder<bool>(
       future: _future,
       builder: (context, snap) {
-        final active = snap.data ?? false;
-        return FulusActionTile(
+        return FulusFlatGridCell(
           icon: FulusIcons.lock,
-          label: 'App Lock',
-          subtitle: active ? 'On — a PIN is required to open Fulus' : 'Off',
+          label: 'Lock',
           onTap: () async {
             await showModalBottomSheet<void>(
               context: context,

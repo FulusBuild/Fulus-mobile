@@ -195,7 +195,14 @@ class _SummaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FulusCard(
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Theme.of(context).dividerColor),
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
       child: Row(
         children: [
           _StatColumn(label: 'Errors', value: '$errorCount', color: AppColors.errorOf(context)),
@@ -253,7 +260,6 @@ class _EventRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
       ),
-      trailing: const Icon(Icons.chevron_right),
       onTap: () => context.goNamed('moreDiagnosticDetail', pathParameters: {'eventId': event.id}),
     );
   }

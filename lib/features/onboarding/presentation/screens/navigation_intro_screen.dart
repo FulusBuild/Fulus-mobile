@@ -56,7 +56,7 @@ class NavigationIntroScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-              const OnboardingStepHeader(step: 4, total: 7, title: 'Getting around Fulus', subtitle: 'Your main business tools stay one tap away.'),
+              const OnboardingStepHeader(step: 4, total: 7, title: 'Getting around Fulus'),
                 const SizedBox(height: AppSpacing.md),
                 for (final destination in _destinations) ...[
                   _DestinationRow(destination: destination),

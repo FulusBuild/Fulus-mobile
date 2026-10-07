@@ -69,7 +69,6 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
 
     return FulusScreen(
       title: 'Locations',
-      subtitle: 'Choose where you are working',
 
       body: locationsAsync.when(
         data: (locations) {
@@ -92,7 +91,6 @@ class _ManageLocationsScreenState extends ConsumerState<ManageLocationsScreen> {
                 child: FulusActionTile(
                   icon: FulusIcons.add,
                   label: 'Add location',
-                  subtitle: 'Create another place for this business',
                   onTap: _switchingLocationId == null ? () => _addLocation(context, ref) : null,
                 ),
               );
@@ -147,6 +145,7 @@ class _LocationCard extends StatelessWidget {
     required this.isSwitching,
     required this.onTap,
   });
+
   final Location location;
   final bool isActive;
   final bool isSwitching;
@@ -155,43 +154,17 @@ class _LocationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = AppColors.primaryOf(context);
-    return FulusCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      outlined: isActive,
-      elevated: isActive,
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isActive ? AppColors.selectedTintOf(context) : AppColors.surfaceAltOf(context),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(FulusIcons.locations, size: AppIconSize.base, color: isActive ? primary : AppColors.textSecondaryOf(context)),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(location.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context))),
-                const SizedBox(height: AppSpacing.xs),
-                if (isSwitching)
-                  const FulusStatusPill(label: 'Switching…', icon: FulusIcons.sync)
-                else if (isActive)
-                  const FulusStatusPill(label: 'Active', icon: FulusIcons.check)
-                else
-                  Text('Tap to switch here', style: AppTypography.caption.copyWith(color: AppColors.mutedOf(context))),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          if (isSwitching)
-            SizedBox(
+    return FulusListRow(
+      leading: Icon(
+        FulusIcons.locations,
+        color: isActive ? primary : AppColors.textSecondaryOf(context),
+      ),
+      title: Text(location.name),
+      subtitle: Text(
+        isSwitching ? 'Switching…' : isActive ? 'Active' : 'Tap to switch here',
+      ),
+      trailing: isSwitching
+          ? SizedBox(
               width: AppTouchTarget.minimum,
               height: AppTouchTarget.minimum,
               child: Center(
@@ -202,13 +175,11 @@ class _LocationCard extends StatelessWidget {
                 ),
               ),
             )
-          else
-            Icon(
-              isActive ? FulusIcons.check : FulusIcons.chevronRight,
+          : Icon(
+              isActive ? FulusIcons.check : null,
               color: isActive ? primary : AppColors.mutedOf(context),
             ),
-        ],
-      ),
+      onTap: onTap,
     );
   }
 }

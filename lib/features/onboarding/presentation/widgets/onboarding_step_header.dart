@@ -3,11 +3,10 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 class OnboardingStepHeader extends StatelessWidget {
-  const OnboardingStepHeader({super.key, required this.step, required this.total, required this.title, this.subtitle});
+  const OnboardingStepHeader({super.key, required this.step, required this.total, required this.title});
   final int step;
   final int total;
   final String title;
-  final String? subtitle;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
@@ -21,7 +20,7 @@ class OnboardingStepHeader extends StatelessWidget {
       ClipRRect(borderRadius: BorderRadius.circular(AppRadius.pill), child: LinearProgressIndicator(value: (step / total).clamp(0.0, 1.0), minHeight: 5, backgroundColor: AppColors.borderOf(context))),
       const SizedBox(height: AppSpacing.md),
       Text(title, style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w800)),
-      if (subtitle != null) ...[const SizedBox(height: AppSpacing.xs), Text(subtitle!, style: AppTypography.body.copyWith(color: AppColors.textSecondaryOf(context)))],
+      
     ]),
   );
 }

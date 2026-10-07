@@ -153,7 +153,7 @@ class _EssentialSettingsFormState extends State<_EssentialSettingsForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const OnboardingStepHeader(step: 2, total: 7, title: 'Essential business settings', subtitle: 'Set the one option that changes how your first sale is recorded.'),
+              const OnboardingStepHeader(step: 2, total: 7, title: 'Essential business settings'),
               Text('One more thing', style: AppTypography.title.copyWith(color: AppColors.textPrimaryOf(context))),
               const SizedBox(height: AppSpacing.sm),
               Text(

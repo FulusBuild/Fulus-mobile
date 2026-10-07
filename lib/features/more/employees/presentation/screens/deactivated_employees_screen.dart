@@ -26,7 +26,6 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
   @override
   Widget build(BuildContext context) => FulusScreen(
         title: 'Deactivated team members',
-        subtitle: 'People no longer active in your workspace',
         body: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 760;
@@ -64,41 +63,11 @@ class _DeactivatedEmployeesScreenState extends ConsumerState<DeactivatedEmployee
                       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, i) {
                         final employee = employees[i];
-                        return FulusCard(
+                        return FulusListRow(
+                          leading: FulusAvatar(name: employee.fullName),
+                          title: Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: employee.role == null ? null : Text(employee.role!),
                           onTap: () => context.pushNamed('moreEmployeeDetail', pathParameters: {'employeeId': employee.id}),
-                          child: Row(
-                            children: [
-                              FulusAvatar(name: employee.fullName),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      employee.fullName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.body.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimaryOf(context),
-                                      ),
-                                    ),
-                                    if (employee.role != null)
-                                      Text(
-                                        employee.role!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTypography.caption.copyWith(
-                                          color: AppColors.textSecondaryOf(context),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Icon(Icons.chevron_right, color: AppColors.textSecondaryOf(context)),
-                            ],
-                          ),
                         );
                       },
                     );
