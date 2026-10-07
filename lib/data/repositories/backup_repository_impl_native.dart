@@ -9,6 +9,7 @@ import '../../core/errors/module_failures.dart';
 import '../../domain/entities/backup_record.dart';
 import '../../domain/repositories/backup_repository.dart';
 import '../../domain/repositories/database_lifecycle.dart';
+import '../../data/local/database/database.dart';
 import '../../domain/usecases/backup_engine.dart';
 
 /// Backend's own backup_service.py uses Python's `sqlite3.backup()` (the
@@ -28,11 +29,17 @@ import '../../domain/usecases/backup_engine.dart';
 class BackupRepositoryImpl implements BackupRepository {
   BackupRepositoryImpl({
     required DatabaseLifecycle lifecycle,
+    required AppDatabase database,
+    Future<String?> Function()? boundBusinessIdProvider,
     BackupEngine engine = const BackupEngine(),
   })  : _lifecycle = lifecycle,
+        _database = database,
+        _boundBusinessIdProvider = boundBusinessIdProvider,
         _engine = engine;
 
   final DatabaseLifecycle _lifecycle;
+  final AppDatabase _database;
+  final Future<String?> Function()? _boundBusinessIdProvider;
   final BackupEngine _engine;
 
   /// Backup & Restore discoverability fix: this used to resolve under
@@ -150,7 +157,15 @@ class BackupRepositoryImpl implements BackupRepository {
       throw BackupException('Backup "$fileName" not found.');
     }
 
+    final pending = await _database.select(_database.syncQueueItems).get();
+    if (pending.isNotEmpty) {
+      throw BackupException(
+        'Restore is blocked while ${pending.length} unsynced operation(s) are pending. Sync them first.',
+      );
+    }
+
     final dbPath = await _lifecycle.currentDatabasePath();
+    final currentBoundBusinessId = await _boundBusinessIdProvider?.call();
 
     String? safetyFileName;
     if (await File(dbPath).exists()) {
@@ -179,6 +194,40 @@ class BackupRepositoryImpl implements BackupRepository {
       if (result.isEmpty || result.first.values.first.toString().toLowerCase() != 'ok') {
         throw const BackupException('Backup failed SQLite integrity validation.');
       }
+
+      final versionRows = stagedDb.select('PRAGMA user_version');
+      final userVersion = versionRows.isEmpty
+          ? -1
+          : int.tryParse(versionRows.first.values.first.toString()) ?? -1;
+      if (userVersion < 0 || userVersion > AppDatabase.schemaVersionForRestoreValidation) {
+        throw BackupException(
+          'Backup schema version $userVersion is not supported by this app.',
+        );
+      }
+
+      final required = stagedDb.select(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name IN ('locations','sync_queue_items','local_cloud_bindings')",
+      );
+      final names = required.map((row) => row.values.first.toString()).toSet();
+      if (names.length != 3) {
+        throw const BackupException('That database is not a complete Fulus backup.');
+      }
+
+      final bindingRows = stagedDb.select(
+        "SELECT business_id FROM local_cloud_bindings WHERE id = 'singleton' LIMIT 1",
+      );
+      final stagedBusinessId =
+          bindingRows.isEmpty ? null : bindingRows.first.values.first?.toString();
+      if (currentBoundBusinessId != null &&
+          currentBoundBusinessId.isNotEmpty &&
+          stagedBusinessId != currentBoundBusinessId) {
+        throw BackupException(
+          'That backup belongs to a different Fulus business and cannot replace this device data.',
+        );
+      }
+
+      stagedDb.select('SELECT 1 FROM locations LIMIT 1');
     } finally {
       stagedDb.close();
     }
