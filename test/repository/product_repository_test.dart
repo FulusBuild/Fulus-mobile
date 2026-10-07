@@ -28,6 +28,16 @@ void main() {
       syncStatus: syncStatus,
     ));
   }
+  Future<void> seedLocation() {
+    return db.into(db.locations).insert(LocationsCompanion.insert(
+      localId: locationId,
+      name: 'Main Store',
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      syncStatus: SyncStatus.settled,
+    ));
+  }
+
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
