@@ -323,7 +323,7 @@ class _MoneyActionCell extends StatelessWidget {
         borderRadius: radius,
         onTap: action.onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 112),
+          constraints: const BoxConstraints.tightFor(height: 112),
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.xl),
