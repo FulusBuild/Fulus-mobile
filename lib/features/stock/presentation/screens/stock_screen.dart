@@ -141,8 +141,18 @@ class _StockBody extends ConsumerWidget {
             }
 
             return CustomScrollView(
-              slivers: [                if (lowStockCount > 0)
-                  SliverToBoxAdapter(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, AppSpacing.sm),
+                    child: FulusSearchField(
+                      controller: searchController,
+                      hintText: 'Search products, SKU, barcode…',
+                      onChanged: (value) => ref.read(stockFilterProvider.notifier).state = filter.copyWith(query: value),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
                       child: Align(
@@ -180,22 +190,19 @@ class _StockBody extends ConsumerWidget {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FulusChip(
-                        compact: true,
-                        label: 'Low stock · $lowStockCount',
-                        selected: false,
-                        onTap: lowStockCount == 0 ? null : () =>
-                            ref.read(stockFilterProvider.notifier).state =
-                                filter.copyWith(lowStockOnly: true, outOfStockOnly: false),
+                if (lowStockCount > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FulusStatusPill(
+                          label: '$lowStockCount low',
+                          tone: FulusStatusTone.warning,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, AppSpacing.xs, inset, AppSpacing.sm),
