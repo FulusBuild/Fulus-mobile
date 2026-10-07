@@ -321,6 +321,14 @@ class DiagnosticLogger {
     }
   }
 
+  Future<void> markSynced(String id) async {
+    try {
+      await _primaryStore?.markSynced(id);
+    } catch (_) {
+      // Upload bookkeeping is diagnostic-only.
+    }
+  }
+
   Future<List<DiagnosticEvent>> getForExport({
     DiagnosticFilter filter = const DiagnosticFilter(),
   }) async {
