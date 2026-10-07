@@ -155,19 +155,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           ),
                         if (!canComplete) ...[
                           const SizedBox(height: AppSpacing.lg),
-                          Container(
+                          FulusCard(
                             padding: const EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0B294F),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(color: AppColors.borderOf(context).withValues(alpha: 0.35)),
-                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
                                   'Amount received',
-                                  style: AppTypography.label.copyWith(color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w700),
+                                  style: AppTypography.label.copyWith(
+                                    color: AppColors.textPrimaryOf(context),
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
                                 Container(
@@ -187,7 +185,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       Text(
                                         'Amount',
                                         style: AppTypography.caption.copyWith(
-                                          color: AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondaryOf(context),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -196,7 +194,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                         controller: _amountController,
                                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                         style: AppTypography.subheading.copyWith(
-                                          color: AppColors.textPrimaryLight,
+                                          color: AppColors.textPrimaryOf(context),
                                           fontWeight: FontWeight.w700,
                                         ),
                                         decoration: const InputDecoration(
