@@ -27,67 +27,46 @@ class FulusChip extends StatelessWidget {
         ? primary
         : AppColors.textPrimaryOf(context);
 
-    return Semantics(
-      button: true,
-      enabled: true,
-      label: '$label${selected ? ', selected' : ''}',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: AnimatedContainer(
-          duration: fulusMotionDuration(context, AppMotion.fast),
-          curve: AppMotion.curveStandard,
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? AppSpacing.md : AppSpacing.lg,
-            vertical: compact ? AppSpacing.xs : AppSpacing.sm,
+    return FulusPressable(
+      onPressed: onTap,
+      semanticsLabel: label + (selected ? ', selected' : ''),
+      child: AnimatedContainer(
+        duration: fulusMotionDuration(context, AppMotion.fast),
+        curve: AppMotion.curveStandard,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? AppSpacing.md : AppSpacing.lg,
+          vertical: compact ? AppSpacing.xs : AppSpacing.sm,
+        ),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.selectedTintOf(context) : AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: selected ? primary : border.withValues(alpha: 0.75),
+            width: selected ? 1.2 : 1,
           ),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.selectedTintOf(context)
-                : AppColors.surfaceOf(context),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: selected ? primary : border.withValues(alpha: 0.75),
-              width: selected ? 1.2 : 1,
-            ),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: compact ? 36 : AppTouchTarget.minimum),
-            child: Row(
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: compact ? 36 : AppTouchTarget.minimum),
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                Icon(
-                  Icons.check_rounded,
-                  size: AppIconSize.dense,
-                  color: primary,
-                ),
+                Icon(Icons.check_rounded, size: AppIconSize.dense, color: primary),
                 const SizedBox(width: AppSpacing.xs),
               ],
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    style: AppTypography.label.copyWith(
-                      color: foreground,
-                      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
-                    ),
-                  ),
+                  child: Text(label, maxLines: 1, style: AppTypography.label.copyWith(color: foreground, fontWeight: selected ? FontWeight.w500 : FontWeight.w400)),
                 ),
               ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 
