@@ -69,26 +69,15 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
                 children: [
-                  _TeamOverview(employees: employees),
-                  const SizedBox(height: AppSpacing.lg),
-                  FulusSectionHeader(
-                    title: 'Active team',
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FulusCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < employees.length; i++) ...[
-                          _EmployeeTile(
-                            employee: employees[i],
-                            onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
-                          ),
-                          if (i < employees.length - 1) const FulusListDivider(),
-                        ],
-                      ],
+                  FulusSectionHeader(title: employees.length.toString() + ' active ' + (employees.length == 1 ? 'employee' : 'employees')),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (var i = 0; i < employees.length; i++) ...[
+                    _EmployeeTile(
+                      employee: employees[i],
+                      onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
                     ),
-                  ),
+                    if (i < employees.length - 1) const FulusListDivider(),
+                  ],
                 ],
               );
             },
