@@ -15,7 +15,6 @@ class NotificationsScreen extends ConsumerWidget {
     final repo = ref.watch(notificationRepositoryProvider);
     return FulusScreen(
       title: 'Notifications',
-      subtitle: 'Important updates about your business',
       applyPadding: false,
       actions: [
         FulusIconButton(icon: FulusIcons.check, tooltip: 'Mark all read', onPressed: () => repo.markAllRead()),
@@ -83,42 +82,22 @@ class _NotificationSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unread = notifications.where((notification) => !notification.isRead).length;
-    final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final summaryText = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          unread == 0 ? 'All caught up' : '$unread unread ${unread == 1 ? 'notification' : 'notifications'}',
-          style: AppTypography.subheading.copyWith(
-            color: AppColors.textPrimaryOf(context),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '${notifications.length} ${notifications.length == 1 ? 'update' : 'updates'} in your inbox',
-          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
-        ),
-      ],
-    );
-
-    return FulusCard(
-      child: textScale > 1.15
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _NotificationSummaryIcon(),
-                const SizedBox(height: AppSpacing.md),
-                summaryText,
-              ],
-            )
-          : Row(
-              children: [
-                _NotificationSummaryIcon(),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(child: summaryText),
-              ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              unread == 0 ? 'All caught up' : '${unread} unread',
+              style: AppTypography.subheading.copyWith(color: AppColors.textPrimaryOf(context)),
             ),
+          ),
+          Text(
+            '${notifications.length} updates',
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -150,10 +129,11 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSync = notification.type == AppNotificationType.stuckSync;
-    return FulusActionTile(
-      icon: isSync ? FulusIcons.sync : FulusIcons.check,
-      label: notification.title,
-      subtitle: notification.body,
+    return FulusListRow(
+      leading: Icon(isSync ? FulusIcons.sync : FulusIcons.check),
+      title: Text(notification.title),
+      subtitle: Text(notification.body),
+      trailing: notification.isRead ? null : const Icon(Icons.circle, size: 8),
       onTap: notification.isRead ? null : onRead,
     );
   }
