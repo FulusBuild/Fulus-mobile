@@ -166,14 +166,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
           FulusActionTile(
             icon: FulusIcons.tableChart,
             label: 'CSV',
-            subtitle: 'Open in a spreadsheet',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.csv),
           ),
           const SizedBox(height: AppSpacing.sm),
           FulusActionTile(
             icon: FulusIcons.pictureAsPdf,
             label: 'PDF',
-            subtitle: 'Share a printable summary',
             onTap: () => Navigator.of(sheetContext).pop(ExportFormat.pdf),
           ),
         ],
@@ -337,8 +335,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             child: FulusChipRow(
               children: [
                 FulusChip(label: 'Today', selected: _periodKind == ReportPeriodKind.today, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.today})),
-                FulusChip(label: 'This week', selected: _periodKind == ReportPeriodKind.thisWeek, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisWeek})),
-                FulusChip(label: 'This month', selected: _periodKind == ReportPeriodKind.thisMonth, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisMonth})),
+                FulusChip(label: 'Week', selected: _periodKind == ReportPeriodKind.thisWeek, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisWeek})),
+                FulusChip(label: 'Month', selected: _periodKind == ReportPeriodKind.thisMonth, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.thisMonth})),
                 FulusChip(label: _customRange == null ? 'Custom' : formatRelativeDay(_customRange!.start) + ' – ' + formatRelativeDay(_customRange!.end), selected: _periodKind == ReportPeriodKind.custom, onTap: () => _onPeriodSelectionChanged({ReportPeriodKind.custom})),
               ],
             ),
