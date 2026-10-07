@@ -187,6 +187,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
   final expenseCategoriesApi = ExpenseCategoriesApi(apiClient);
   final incomeApi = IncomeApi(apiClient);
   final stockMovementsApi = StockMovementsApi(apiClient);
+  final productsApi = ProductsApi(apiClient);
   final productImageApi = ProductImageApi(apiClient);
   final categoriesApi = CategoriesApi(apiClient);
   final suppliersApi = SuppliersApi(apiClient);
