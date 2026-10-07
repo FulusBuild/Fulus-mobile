@@ -287,6 +287,9 @@ class ApiClient {
       if (code == 'DEVICE_NOT_REGISTERED') {
         return const AuthFailure.deviceNotRegistered();
       }
+      if (code == 'NOT_ACTIVE_MEMBER') {
+        return const AuthFailure.accessRevoked();
+      }
       return const AuthFailure.forbidden();
     }
 
