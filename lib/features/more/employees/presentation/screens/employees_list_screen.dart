@@ -26,8 +26,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
   Widget build(BuildContext context) {
     return FulusScreen(
       title: 'Employees',
-      subtitle: 'People, access and attendance',
-      
       actions: [
         FulusIconButton(
           icon: FulusIcons.add,
@@ -72,13 +70,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(inset, AppSpacing.sm, inset, 120),
                 children: [
-                  _TeamOverview(employees: employees),
-                  const SizedBox(height: AppSpacing.lg),
-                  FulusSectionHeader(
-                    title: 'Active team',
-                    subtitle: '${employees.length} ${employees.length == 1 ? 'member' : 'members'}',
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
+                  Text('${employees.length} ${employees.length == 1 ? 'employee' : 'employees'}', style: AppTypography.title),
+                  const SizedBox(height: AppSpacing.md),
                   FulusCard(
                     padding: EdgeInsets.zero,
                     child: Column(
@@ -86,7 +79,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
                         for (var i = 0; i < employees.length; i++) ...[
                           _EmployeeTile(
                             employee: employees[i],
-                            onEdit: () => _openEmployeeSheet(context, existing: employees[i]),
+
                           ),
                           if (i < employees.length - 1) const FulusListDivider(),
                         ],
@@ -115,41 +108,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> {
         text: invitation,
         title: 'Invite to Fulus',
         subject: 'Fulus team invitation',
-      ),
-    );
-  }
-}
-
-class _TeamOverview extends StatelessWidget {
-  const _TeamOverview({required this.employees});
-  final List<Employee> employees;
-
-  @override
-  Widget build(BuildContext context) {
-    const color = Color(0xFF1473E6);
-    final foreground = AppColors.onColor(color);
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: 132,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: FulusMetricCardColumn(
-            icon: FulusIcons.staff,
-            iconColor: foreground,
-            children: [
-              Text(
-                'Employees  ${employees.length}',
-                style: TextStyle(color: foreground, fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const Text(
-                'People, access and attendance',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -412,7 +370,6 @@ class _EmployeeFormSheetState extends ConsumerState<_EmployeeFormSheet> {
 class _EmployeeTile extends ConsumerWidget {
   const _EmployeeTile({required this.employee, required this.onEdit});
   final Employee employee;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
