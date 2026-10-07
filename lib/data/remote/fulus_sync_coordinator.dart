@@ -1,3 +1,4 @@
+import '../../core/errors/failure.dart';
 import '../local/sync_cursor_store.dart';
 import 'fulus_sync_api.dart';
 
@@ -84,7 +85,11 @@ class FulusSyncCoordinator {
   }) async {
     var cursor = cursorFor(businessId);
     final blocked = _cursorStore.blockedChangeFor(businessId);
-    if (blocked != null) {
+    if (blocked != null && blocked.sequence <= cursor) {
+      // A process may have died after cursor acknowledgement but before the
+      // cleanup write. The durable cursor is authoritative in this case.
+      await _cursorStore.clearBlockedChange(businessId);
+    } else if (blocked != null) {
       final retryAt = blocked.lastAttemptedAt.add(
         _blockedBackoff(blocked.attemptCount),
       );
@@ -258,6 +263,7 @@ class FulusSyncCoordinator {
           cursor = _maxCursor(cursor, change.sequence);
           await _persistCursor(businessId, cursor);
         }
+        await _cursorStore.clearBlockedChange(businessId);
         cursor = _maxCursor(cursor, cursorFor(businessId));
       }
 
