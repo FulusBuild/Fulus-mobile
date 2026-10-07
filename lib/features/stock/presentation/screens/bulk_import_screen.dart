@@ -130,10 +130,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
             onTap: _picking ? null : _pickFile,
           ),
           const SizedBox(height: AppSpacing.lg),
-          const FulusSectionHeader(
-            title: 'Or paste manually',
-            subtitle: 'Paste the exported CSV text if you already have it copied',
-          ),
+          const FulusSectionHeader(title: 'Or paste manually'),
           FulusTextField(
             label: 'CSV content',
             controller: _contentController,
@@ -143,7 +140,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           FulusActionTile(
-            icon: FulusIcons.chevronRight,
+            icon: FulusIcons.check,
             label: 'Continue to review',
             subtitle: _contentController.text.trim().isEmpty
                 ? 'Paste or choose a CSV file first.'
