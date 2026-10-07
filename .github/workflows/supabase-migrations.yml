@@ -83,5 +83,13 @@ jobs:
           set -euo pipefail
           bash supabase/tests/cloud_api_authorization_contracts.sh
 
+      - name: Run final database security invariant tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_url="$(supabase status -o env | sed -n 's/^DB_URL=//p' | tr -d '"')"
+          test -n "$db_url"
+          psql "$db_url" -v ON_ERROR_STOP=1 -f supabase/tests/security_invariants.sql
+
       - name: Show migration status
         run: supabase migration list --local
