@@ -481,7 +481,7 @@ Future<ProviderContainer> bootstrap({required DiagnosticLogger diagnosticLogger}
     syncEngine: syncEngine,
     isEnabled: () => syncConfig.isEnabled,
     syncStatusNotifier: syncStatusNotifier,
-    ensureReady: syncService.ensureReady,
+    ensureReady: () => syncService.ensureReady(),
     onSyncSuccess: () {
       fulusConnectionState.clearSyncError();
       // Access is cloud-authoritative. Refresh it opportunistically after
