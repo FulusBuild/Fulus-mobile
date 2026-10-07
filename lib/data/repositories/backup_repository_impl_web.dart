@@ -8,6 +8,9 @@ import '../../domain/usecases/backup_engine.dart';
 class BackupRepositoryImpl implements BackupRepository {
   BackupRepositoryImpl({
     required DatabaseLifecycle lifecycle,
+    Object? database,
+    Future<String?> Function()? boundBusinessIdProvider,
+    Future<void> Function()? probeReopenedDatabase,
     BackupEngine engine = const BackupEngine(),
   });
 
