@@ -45,7 +45,6 @@ class ArchivedCustomersScreen extends ConsumerWidget {
           onRetry: () => ref.invalidate(_archivedCustomersProvider),
         ),
         data: (customers) {
-          final outstanding = customers.fold<Money>(zeroMoney, (sum, customer) => sum + customer.outstandingBalance);
           return LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 760;
