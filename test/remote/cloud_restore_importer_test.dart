@@ -474,6 +474,77 @@ void main() {
     expect(returnItem.productLocalId, 'product-1');
   });
 
+  test('clears draft cart children before restore parents', () async {
+    await db.into(db.locations).insert(
+      LocationsCompanion.insert(
+        localId: 'location-draft',
+        name: 'Draft location',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        syncStatus: SyncStatus.settled,
+      ),
+    );
+    await db.into(db.draftCarts).insert(
+      DraftCartsCompanion.insert(
+        localId: 'draft-1',
+        locationId: 'location-draft',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+    await db.into(db.draftCartItems).insert(
+      DraftCartItemsCompanion.insert(
+        localId: 'draft-item-1',
+        draftCartLocalId: 'draft-1',
+        quantity: 1,
+        unitPrice: 1000,
+      ),
+    );
+    await db.into(db.draftCartPayments).insert(
+      DraftCartPaymentsCompanion.insert(
+        localId: 'draft-payment-1',
+        draftCartLocalId: 'draft-1',
+        method: 'cash',
+        amount: 1000,
+        recordedAt: DateTime(2026, 1, 1),
+      ),
+    );
+
+    await CloudRestoreImporter(db).importSnapshot({
+      'version': 3,
+      'locations': [],
+      'categories': [],
+      'suppliers': [],
+      'customers': [],
+      'products': [],
+      'sales': [],
+      'sale_items': [],
+      'sale_payments': [],
+      'product_stock_levels': [],
+      'customer_ledger_entries': [],
+      'inventory_movements': [],
+      'expense_categories': [],
+      'expenses': [],
+      'income_records': [],
+      'returns': [],
+      'return_items': [],
+      'tax_remittances': [],
+      'cash_drawer_shifts': [],
+      'audit_events': [],
+      'business_memberships': [],
+      'profiles': [],
+      'roles': [],
+      'permissions': [],
+      'role_permissions': [],
+      'business_member_permissions': [],
+      'location_memberships': [],
+    });
+
+    expect(await db.select(db.draftCartPayments).get(), isEmpty);
+    expect(await db.select(db.draftCartItems).get(), isEmpty);
+    expect(await db.select(db.draftCarts).get(), isEmpty);
+  });
+
   test('rejects unsupported snapshot versions', () async {
     expect(
       () => CloudRestoreImporter(db).importSnapshot({'version': 2}),
