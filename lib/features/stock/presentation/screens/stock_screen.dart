@@ -39,8 +39,8 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     return FulusScreen(
       title: 'Stock',
       subtitle: 'See what you have and record stock changes',
-      backgroundColor: const Color(0xFF061B3A),
-      headerBackgroundColor: const Color(0xFF061B3A),
+      backgroundColor: AppColors.backgroundOf(context),
+      
       applyPadding: false,
       actions: [
         if (canManageStock)
