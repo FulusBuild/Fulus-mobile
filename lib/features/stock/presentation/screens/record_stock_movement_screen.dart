@@ -458,7 +458,7 @@ class _RecordStockMovementScreenState extends ConsumerState<RecordStockMovementS
             error: (e, _) => const SizedBox.shrink(),
           ),
         ],
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         FulusButton(label: 'Save', loading: _submitting, onPressed: _submitting ? null : _submit),
       ],
     );
