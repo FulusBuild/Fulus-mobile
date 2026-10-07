@@ -132,8 +132,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               if (isOwner) ...[
                 const FulusSectionHeader(
                   title: 'Automatic backup & sync',
-                  titleColor: Colors.white,
-                  subtitleColor: Colors.white70,
+                  titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                   subtitle: 'Keep this business backed up and available across devices',
                 ),
                 _tileGrid([
@@ -148,8 +148,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               ],
               const FulusSectionHeader(
                 title: 'Security',
-                titleColor: Colors.white,
-                subtitleColor: Colors.white70,
+                titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                 subtitle: 'Protect approvals and access to Fulus',
               ),
               _tileGrid([
@@ -164,8 +164,8 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
               const SizedBox(height: AppSpacing.lg),
               const FulusSectionHeader(
                 title: 'Account',
-                titleColor: Colors.white,
-                subtitleColor: Colors.white70,
+                titleColor: AppColors.textPrimaryOf(context),
+                  subtitleColor: AppColors.textSecondaryOf(context),
                 subtitle: 'Your local business account',
               ),
               _tileGrid([
