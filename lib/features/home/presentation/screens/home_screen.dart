@@ -104,7 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final showBusinessWide = widget.isOwner || widget.canViewDashboardStats;
 
     return Scaffold(
-      backgroundColor: _HomeColors.navy,
+      backgroundColor: AppColors.backgroundOf(context),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -135,22 +135,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.lg),
+                              const SizedBox(height: AppSpacing.md),
                               Text(
-                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)} 👋',
+                                '${greetingForHour(DateTime.now().hour)}, ${_displayName(ref)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppTypography.heading.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
+                                style: AppTypography.title.copyWith(
+                                  color: AppColors.textPrimaryOf(context),
                                 ),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                showBusinessWide
-                                    ? 'Here’s what’s happening with your business today.'
-                                    : 'Here’s what’s happening on your shift today.',
-                                style: AppTypography.caption.copyWith(color: _HomeColors.muted),
                               ),
                             ],
                           ),
@@ -475,73 +467,61 @@ class _HomeMockupDashboard extends StatelessWidget {
   };
   @override
   Widget build(BuildContext context) {
-    final rows = <Widget>[];
-
-    rows.add(
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            flex: 1,
-            child: _HomeSalesHeroCard(
-              salesTotal: _salesTotal,
-              salesCount: _salesCount,
-              error: heroError,
-              currencySymbol: currencySymbol,
-            ),
-          ),
-        ],
+    final actions = <Widget>[
+      FulusActionTile(
+        icon: FulusIcons.sell,
+        label: 'Sell',
+        accent: AppColors.success,
+        onTap: () => context.goNamed('sell'),
       ),
-    );
-
-    if (canViewDashboardStats) {
-      rows.add(const SizedBox(height: AppSpacing.sm));
-      rows.add(
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _HomeCompactCard(
-                color: _HomeColors.orange,
-                icon: FulusIcons.receipt,
-                label: 'Receipts',
-                value: 'History',
-                secondary: 'view receipts',
-                onTap: () => context.goNamed('receiptHistory'),
-              ),
-            ),
-            if (canViewMoney) ...[
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _HomeCompactCard(
-                  color: _HomeColors.purple,
-                  icon: FulusIcons.customers,
-                  label: 'Customer',
-                  value: 'View customers',
-                  secondary: 'view customers',
-                  onTap: () => context.pushNamed('moneyCustomers'),
-                ),
-              ),
-            ],
-          ],
+      if (canViewDashboardStats)
+        FulusActionTile(
+          icon: FulusIcons.receipt,
+          label: 'Receipts',
+          accent: AppColors.primary,
+          onTap: () => context.goNamed('receiptHistory'),
         ),
-      );
-    }
+      if (canViewMoney)
+        FulusActionTile(
+          icon: FulusIcons.customers,
+          label: 'Customers',
+          accent: const Color(0xFF7C3AED),
+          onTap: () => context.pushNamed('moneyCustomers'),
+        ),
+      if (canViewReports)
+        FulusActionTile(
+          icon: FulusIcons.reports,
+          label: 'Reports',
+          accent: const Color(0xFF0891B2),
+          onTap: () => context.goNamed('moreReports'),
+        ),
+    ];
 
-    rows.add(const SizedBox(height: AppSpacing.sm));
-    rows.add(
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (canViewReports)
-            Expanded(child: _HomeReportCard(canViewReports: canViewReports)),
-          if (canViewReports) const SizedBox(width: AppSpacing.sm),
-          const Expanded(child: _HomeSellCard()),
-        ],
-      ),
+    return Column(
+      children: [
+        _HomeSalesHeroCard(
+          salesTotal: _salesTotal,
+          salesCount: _salesCount,
+          error: heroError,
+          currencySymbol: currencySymbol,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisExtent: 112,
+            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.md,
+          ),
+          itemBuilder: (context, index) => actions[index],
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+      ],
     );
-
-    return LayoutBuilder(
+  }
       builder: (context, constraints) {
         // The dashboard lives inside a scrollable sliver, so its vertical
         // constraint is not a reliable viewport measurement. The Home card
@@ -598,8 +578,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
     return Semantics(
       label: 'Today’s sales, $value, $count',
       child: Material(
-        color: _HomeColors.green,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
@@ -611,8 +591,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -624,8 +604,8 @@ class _HomeSalesHeroCard extends StatelessWidget {
                     maxLines: 1,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 42,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
