@@ -31,6 +31,19 @@ void main() {
     expect(rows.single.cursor, 7);
   });
 
+  test('durable cursor refresh sees another runtime advancing SQLite', () async {
+    await store.initialize();
+    await store.persistMonotonic('business-1', 5);
+
+    await db.customStatement(
+      "UPDATE sync_cursors SET cursor = 12 WHERE business_id = 'business-1'",
+    );
+
+    expect(store.cursorFor('business-1'), 5);
+    expect(await store.durableCursorFor('business-1'), 12);
+    expect(store.cursorFor('business-1'), 12);
+  });
+
   test('monotonic persistence never moves a cursor backwards', () async {
     await store.initialize();
 
